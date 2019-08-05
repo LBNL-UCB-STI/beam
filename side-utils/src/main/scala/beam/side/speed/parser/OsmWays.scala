@@ -8,6 +8,8 @@ import com.conveyal.r5.kryo.KryoNetworkSerializer
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
+case class OsmCursor(id: Long, index: Int, lenght: Double)
+
 class OsmWays(osmPath: Path, r5Path: Path) {
   private val highways = Map(
     "motorway"       -> 75 * 1.60934 / 3.6,
@@ -33,17 +35,17 @@ class OsmWays(osmPath: Path, r5Path: Path) {
     var idx = -1l
     Iterator
       .continually(edgeCursor.advance())
-      .map(_ => Try(edgeCursor.getOSMID -> edgeCursor.getEdgeIndex))
+      .map(_ => Try(OsmCursor(edgeCursor.getOSMID, edgeCursor.getEdgeIndex, edgeCursor.getLengthM)))
       .takeWhile(_.isSuccess)
       .collect {
-        case Success((o, e)) if idx < e =>
+        case Success(OsmCursor(o, e, l)) if idx < e =>
           idx = e
-          osm.get(o).map(w => (e, o, w))
+          osm.get(o).map(w => (e, o, w, l))
       }
       .collect {
-        case Some((eId, id, w)) =>
+        case Some((eId, id, w, l)) =>
           val (s, t) = waySpeed(w)
-          OsmNodeSpeed(eId, id, w.nodes(0), w.nodes(1), s, t)
+          OsmNodeSpeed(eId, id, w.nodes(0), w.nodes(1), s, t, l)
       }
   }
 

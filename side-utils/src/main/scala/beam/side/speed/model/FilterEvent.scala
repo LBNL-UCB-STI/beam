@@ -3,9 +3,7 @@ import java.time.DayOfWeek
 
 import org.matsim.core.utils.collections.Tuple
 
-sealed trait FilterDTO {
-  def filterType: String
-}
+sealed trait FilterDTO
 
 sealed abstract class FilterEventAction {
   type FilterEvent <: FilterDTO
@@ -62,13 +60,13 @@ object FilterEvent {
   }
 }
 
-case class AllHoursDaysDTO(filterType: String) extends FilterDTO
-case class AllHoursWeightedDTO(filterType: String) extends FilterDTO
-case class WeekDayDTO(filterType: String) extends FilterDTO
-case class HourDTO(filterType: String) extends FilterDTO
-case class HourRangeDTO(filterType: String) extends FilterDTO
-case class WeekDayHourDTO(filterType: String) extends FilterDTO
-case class MaxHourPointsDTO(filterType: String) extends FilterDTO
-case class BeamLengthDTO(filterType: String) extends FilterDTO
+case class AllHoursDaysDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class AllHoursWeightedDTO(speedMedian: Option[Float], speedAvg: Option[Float]) extends FilterDTO
+case class WeekDayDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class HourDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class HourRangeDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class WeekDayHourDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class MaxHourPointsDTO(speedMax: Float, points: Int) extends FilterDTO
+case class BeamLengthDTO(speedAvg: Option[Float]) extends FilterDTO
 
 case class MaxHourPointFiltered(from: Int, to: Int, threshold: Int)

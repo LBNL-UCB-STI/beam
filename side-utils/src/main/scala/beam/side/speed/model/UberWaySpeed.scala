@@ -12,7 +12,7 @@ class UberWaySpeed(week: Seq[UberDaySpeed]) {
 
   def waySpeed[T <: FilterEventAction](filterOption: T#Filtered)(
     implicit filter: WayFilter[T#FilterEvent, T#Filtered]
-  ): WaySpeed = {
+  ): T#FilterEvent = {
     filter.filter(filterOption, dictionary)
   }
 

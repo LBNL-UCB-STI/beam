@@ -1,18 +1,24 @@
 package beam.side.speed.parser
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.model.{BeamSpeed, BeamUberSpeed, LinkSpeed, WaySpeed}
+import beam.side.speed.model._
 import beam.side.speed.parser.data.Dictionary
+import beam.side.speed.parser.graph.UberSpeed
+import beam.side.speed.parser.operation.{ObservationComposer, ObservationFilter, Program}
 
-class SpeedComparator(
-  ways: OsmWays,
-  uber: UberSpeed[_],
-  beamDict: Dictionary[BeamSpeed, Long, BeamSpeed],
-  fileName: String
+class SpeedComparator[T <: FilterEventAction, F[_]: Program](ways: OsmWays, uber: UberSpeed[F], fileName: String)(
+  implicit composerMetric: ObservationComposer[F, Seq[WayMetric], UberWaySpeed],
+  composerMetrics: ObservationComposer[F, Seq[WayMetrics], UberWaySpeed],
+  filter: ObservationFilter[F, T]
 ) {
   import LinkSpeed._
 
-  private def nodeCompare: Iterator[LinkSpeed] =
+  /*private def node[R <: Product](osmNodeSpeed: OsmNodeSpeed): Iterator[R] =
+    for {
+
+    }
+
+  private def nodeCompare: Iterator[BeamSpeed] =
     ways.nodes
       .map(
         n =>
@@ -22,10 +28,12 @@ class SpeedComparator(
             .filter(_.speedMedian.exists(_ > 11))
             .collect {
               case WaySpeed(Some(speedMedian), _, Some(_)) if speedMedian >= n.speed =>
-                LinkSpeed(n.eId, None, Some(speedMedian), None)
+                //LinkSpeed(n.eId, None, Some(speedMedian), None)
+                BeamSpeed(n.id, speedMedian, n.lenght)
               case WaySpeed(Some(speedMedian), _, Some(points))
                   if points >= 10 && ((n.speed - speedMedian) / n.speed) > 0.3 =>
-                LinkSpeed(n.eId, None, Some(speedMedian), None)
+                //LinkSpeed(n.eId, None, Some(speedMedian), None)
+                BeamSpeed(n.id, speedMedian, n.lenght)
           }
       )
       .collect {
@@ -45,7 +53,9 @@ class SpeedComparator(
       )
       .collect {
         case Some(b) => b
-      }
+      }*/
+
+  private def nodeCompareSimplified: Iterator[LinkSpeed] = ???
 
   private val csv: Iterator[LinkSpeed] => Unit = { s =>
     val file = new File(fileName)
@@ -59,16 +69,14 @@ class SpeedComparator(
     bw.close()
   }
 
-  def csvNode(): Unit = csv(nodeCompare)
+  def csvNode(): Unit = csv(nodeCompareSimplified)
 }
 
 object SpeedComparator {
 
-  def apply(
-    ways: OsmWays,
-    uber: UberSpeed[_],
-    beamDict: Dictionary[BeamSpeed, Long, BeamSpeed],
-    fileName: String
-  ): SpeedComparator =
-    new SpeedComparator(ways, uber, beamDict, fileName)
+  def apply[T <: FilterEventAction, F[_]: Program](ways: OsmWays, uber: UberSpeed[F], fileName: String)(
+    implicit composerMetric: ObservationComposer[F, Seq[WayMetric], UberWaySpeed],
+    composerMetrics: ObservationComposer[F, Seq[WayMetrics], UberWaySpeed],
+    filter: ObservationFilter[F, T]
+  ): SpeedComparator[T, F] = new SpeedComparator(ways, uber, fileName)
 }

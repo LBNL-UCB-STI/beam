@@ -63,14 +63,24 @@ object UberOsmNode {
   }
 }
 
-case class BeamSpeed(osmId: Long, speed: Float, length: Int)
+case class BeamSpeed(osmId: Long, speed: Float, length: Double)
 
 object BeamSpeed {
   implicit val beamSpeedDecoder: Decoder[BeamSpeed] = new Decoder[BeamSpeed] {
     override def apply(row: String): BeamSpeed = {
       val Seq(id, s, l) = row.split(',').toSeq
-      BeamSpeed(id.toLong, s.toFloat, l.toInt)
+      BeamSpeed(id.toLong, s.toFloat, l.toDouble)
     }
+  }
+  implicit val beamSpeedEncoder: Encoder[BeamSpeed] = new Encoder[BeamSpeed] {
+    override def apply(row: BeamSpeed): String =
+      row.productIterator
+        .map {
+          case None    => ""
+          case Some(s) => s.toString
+          case x       => x.toString
+        }
+        .mkString(",")
   }
 }
 
@@ -141,4 +151,4 @@ case class UberWay(segmentId: String, startJunctionId: String, endJunctionId: St
 
 case class UberDirectedWay(orig: Long, dest: Long, wayId: String, metrics: Seq[WayMetric])
 
-case class OsmNodeSpeed(eId: Int, id: Long, orig: Long, dest: Long, speed: Float, cat: String)
+case class OsmNodeSpeed(eId: Int, id: Long, orig: Long, dest: Long, speed: Float, cat: String, lenght: Double)

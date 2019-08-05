@@ -2,7 +2,8 @@ package beam.side.speed.compare
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.parser.{OsmWays, UberSpeed}
+import beam.side.speed.parser.OsmWays
+import beam.side.speed.parser.graph.UberSpeed
 
 class SpeedAnalyser(ways: OsmWays, uber: UberSpeed[_], filePrefix: String) {
 

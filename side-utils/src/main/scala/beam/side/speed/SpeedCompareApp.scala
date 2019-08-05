@@ -2,10 +2,11 @@ package beam.side.speed
 
 import java.nio.file.Paths
 
-import beam.side.speed.compare.SpeedAnalyser
 import beam.side.speed.model.{BeamSpeed, UberOsmNode, UberOsmWays}
 import beam.side.speed.parser._
-import beam.side.speed.parser.data.{Dictionary, JunctionDictionary, UberOsmDictionary}
+import beam.side.speed.parser.data.Dictionary
+import beam.side.speed.parser.graph.{UberSpeed, UberSpeedGraph}
+import beam.side.speed.parser.operation.SpeedDataExtractor
 
 import scala.util.{Failure, Success, Try}
 
@@ -90,7 +91,7 @@ trait AppSetup {
       .action((m, c) => c.copy(mode = m))
       .validate(
         s =>
-          Seq("all", "wd", "hours", "wh", "hours_range", "we", "mp")
+          Seq("all", "wd", "hours", "wh", "hours_range", "we", "mp", "sl")
             .find(_ == s)
             .map(_ => success)
             .getOrElse(failure("Invalid"))
@@ -128,12 +129,15 @@ trait AppSetup {
       .action((x, c) => c.copy(fArgs = x))
       .text("Filtering argument")
   }
+
 }
 
 object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
+      import interpreter._
+
       val nodes =
         new Dictionary[UberOsmNode, String, Long](Paths.get(conf.junctionMapPath), u => u.segmentId    -> u.osmNodeId)
       val ways = new Dictionary[UberOsmWays, Long, String](Paths.get(conf.uberOsmMap), u => u.osmWayId -> u.segmentId)
@@ -141,9 +145,11 @@ object SpeedCompareApp extends App with AppSetup {
         new Dictionary[UberOsmWays, String, Long](Paths.get(conf.uberOsmMap), u => u.segmentId -> u.osmWayId)
       val beamSpeed =
         new Dictionary[BeamSpeed, Long, BeamSpeed](Paths.get(conf.beamSpeedPath), u => u.osmId -> u)
-      val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, waysBeam, nodes)
 
-      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, beamSpeed, conf.output).csvNode()
+      implicit val graph: SpeedDataExtractor[Option] = UberSpeedGraph(conf.uberSpeedPath, ways, waysBeam, nodes)
+      implicit val uber: UberSpeed[Option] = new UberSpeed[Option]
+
+      //SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, beamSpeed, conf.output).csvNode()
       //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
       System.exit(0)
     case None => System.exit(-1)

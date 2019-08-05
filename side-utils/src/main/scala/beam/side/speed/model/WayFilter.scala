@@ -28,7 +28,7 @@ object Rule {
 }
 
 sealed trait WayFilter[T <: FilterDTO, E] {
-  def filter(filterOption: E, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed
+  def filter(filterOption: E, waySpeed: Map[DayOfWeek, UberDaySpeed]): T
 
   protected def parseHours(hours: Seq[UberHourSpeed]): WaySpeed = {
     val speedAvg = Try(hours.map(_.speedAvg).sum / hours.size).toOption.filter(_ => hours.nonEmpty)
@@ -40,36 +40,43 @@ sealed trait WayFilter[T <: FilterDTO, E] {
 
 object WayFilter {
   implicit val allHoursDaysEventAction: WayFilter[AllHoursDaysDTO, Unit] = new WayFilter[AllHoursDaysDTO, Unit] {
-    override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
-      parseHours(waySpeed.values.flatMap(_.hours).toSeq)
+    override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): AllHoursDaysDTO = {
+      val WaySpeed(speedMedian, speedAvg, devMax) = parseHours(waySpeed.values.flatMap(_.hours).toSeq)
+      AllHoursDaysDTO(speedMedian, speedAvg, devMax)
+    }
   }
 
   implicit val allHoursWeightedEventAction: WayFilter[AllHoursWeightedDTO, Unit] =
     new WayFilter[AllHoursWeightedDTO, Unit] {
 
-      override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
+      override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): AllHoursWeightedDTO = {
         val hours = waySpeed.values.flatMap(_.hours).map(s => Rule(s)).map(_.apply)
-        val s = waySpeed.values.headOption.flatMap(_.hours.headOption.map(_.maxDev))
         val speedAvg = Try(hours.map(_._2).sum / hours.map(_._1).sum).toOption.filter(_ => hours.nonEmpty)
         val speedMedian =
           Option(hours.flatMap(w => Seq.fill(w._1)(w._2 / w._1)).toArray).filter(_.nonEmpty).map(Median.findMedian)
-        WaySpeed(speedMedian, speedAvg, s)
+        AllHoursWeightedDTO(speedMedian, speedAvg)
       }
     }
 
   implicit val weekDayEventAction: WayFilter[WeekDayDTO, DayOfWeek] = new WayFilter[WeekDayDTO, DayOfWeek] {
-    override def filter(filterOption: DayOfWeek, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
-      parseHours(waySpeed.get(filterOption).map(_.hours).getOrElse(Seq()))
+    override def filter(filterOption: DayOfWeek, waySpeed: Map[DayOfWeek, UberDaySpeed]): WeekDayDTO = {
+      val WaySpeed(speedMedian, speedAvg, devMax) = parseHours(waySpeed.get(filterOption).map(_.hours).getOrElse(Seq()))
+      WeekDayDTO(speedMedian, speedAvg, devMax)
+    }
   }
 
   implicit val hourEventAction: WayFilter[HourDTO, Int] = new WayFilter[HourDTO, Int] {
-    override def filter(filterOption: Int, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
-      parseHours(waySpeed.values.flatMap(_.hours).filter(_.hour == filterOption).toSeq)
+    override def filter(filterOption: Int, waySpeed: Map[DayOfWeek, UberDaySpeed]): HourDTO = {
+      val WaySpeed(speedMedian, speedAvg, devMax) = parseHours(
+        waySpeed.values.flatMap(_.hours).filter(_.hour == filterOption).toSeq
+      )
+      HourDTO(speedMedian, speedAvg, devMax)
+    }
   }
 
   implicit val hourRangeEventAction: WayFilter[HourRangeDTO, (Int, Int)] = new WayFilter[HourRangeDTO, (Int, Int)] {
-    override def filter(filterOption: (Int, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
-      parseHours(
+    override def filter(filterOption: (Int, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): HourRangeDTO = {
+      val WaySpeed(speedMedian, speedAvg, devMax) = parseHours(
         waySpeed.values
           .flatMap(_.hours)
           .filter(
@@ -78,31 +85,40 @@ object WayFilter {
           )
           .toSeq
       )
+      HourRangeDTO(speedMedian, speedAvg, devMax)
+    }
   }
 
   implicit val weekDayHourEventAction: WayFilter[WeekDayHourDTO, (DayOfWeek, Int)] =
     new WayFilter[WeekDayHourDTO, (DayOfWeek, Int)] {
-      override def filter(filterOption: (DayOfWeek, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
-        parseHours(waySpeed.get(filterOption._1).map(_.hours).getOrElse(Seq()).filter(_.hour == filterOption._2))
+      override def filter(filterOption: (DayOfWeek, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): WeekDayHourDTO = {
+        val WaySpeed(speedMedian, speedAvg, devMax) = parseHours(
+          waySpeed.get(filterOption._1).map(_.hours).getOrElse(Seq()).filter(_.hour == filterOption._2)
+        )
+        WeekDayHourDTO(speedMedian, speedAvg, devMax)
+      }
     }
 
   implicit val maxHoursPointsEventAction: WayFilter[MaxHourPointsDTO, MaxHourPointFiltered] =
     new WayFilter[MaxHourPointsDTO, MaxHourPointFiltered] {
-      override def filter(filterOption: MaxHourPointFiltered, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
+      override def filter(
+        filterOption: MaxHourPointFiltered,
+        waySpeed: Map[DayOfWeek, UberDaySpeed]
+      ): MaxHourPointsDTO = {
         val hoursRange = (0 to 23).toList.diff((filterOption.to to filterOption.from).toList)
         val points = waySpeed.values
           .flatMap(_.hours)
           .foldLeft(0)((acc, h) => Option(hoursRange.contains(h.hour)).filter(identity).fold(acc)(_ => acc + 1))
         val speedMax = waySpeed.values.flatMap(_.hours).map(_.speedMax).max
-        WaySpeed(Some(speedMax), None, Some(points))
+        MaxHourPointsDTO(speedMax, points)
       }
     }
 
   implicit val beamLengthWeightedEventAction: WayFilter[BeamLengthDTO, Unit] = new WayFilter[BeamLengthDTO, Unit] {
-    override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
-      def lenghts = waySpeed.values.flatMap(_.hours).map(s => (s.speedMax * (s.maxDev / 100)) -> (s.maxDev / 100))
-      val speedAvg = Try(lenghts.map(_._2).sum / lenghts.map(_._1).sum).toOption.filter(_ => lenghts.nonEmpty)
-      WaySpeed(None, speedAvg, None)
+    override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): BeamLengthDTO = {
+      val lenghts = waySpeed.values.flatMap(_.hours).map(s => (s.speedMax * s.maxDev) -> s.maxDev)
+      val speedAvg = Try(lenghts.map(_._1).sum / lenghts.map(_._2).sum).toOption.filter(_ => lenghts.nonEmpty)
+      BeamLengthDTO(speedAvg)
     }
   }
 }
