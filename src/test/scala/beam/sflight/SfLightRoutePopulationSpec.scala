@@ -1,12 +1,13 @@
 package beam.sflight
 
-import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
+import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
+import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.tags.{ExcludeRegular, Periodic}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -21,6 +22,7 @@ class SfLightRoutePopulationSpec
   "A router" must {
 
     "respond with a car route for most trips in sflight" taggedAs (Periodic, ExcludeRegular) in {
+      val router = new R5Wrapper(WorkerParameters(beamConfig, beamScenario.transportNetwork, beamScenario.vehicleTypes, beamScenario.fuelTypePrices, beamScenario.ptFares, services.geo, beamScenario.dates, services.networkHelper, services.fareCalculator, services.tollCalculator), new FreeFlowTravelTime)
       var numFailedCarRoutes = 0
       scenario.getPopulation.getPersons
         .values()
@@ -32,7 +34,7 @@ class SfLightRoutePopulationSpec
               val origin = pair(0).getCoord
               val destination = pair(1).getCoord
               val time = pair(0).getEndTime.toInt
-              router ! RoutingRequest(
+              val response = router.calcRoute(RoutingRequest(
                 origin,
                 destination,
                 time,
@@ -53,8 +55,7 @@ class SfLightRoutePopulationSpec
                     asDriver = true
                   )
                 )
-              )
-              val response = expectMsgType[RoutingResponse]
+              ))
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
 
               assert(response.itineraries.exists(_.tripClassifier == WALK))

@@ -111,19 +111,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     })
   }
 
-  private val WorkerParameters(
-    beamConfig,
-    transportNetwork,
-    vehicleTypes,
-    fuelTypePrices,
-    ptFares,
-    geo,
-    dates,
-    networkHelper,
-    fareCalculator,
-    tollCalculator
-  ) = workerParams
-
   private val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
@@ -148,17 +135,16 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var workAssigner: ActorRef = context.parent
 
-  private var travelTime: TravelTime = new FreeFlowTravelTime
+  private var r5: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime)
 
   private val linksBelowMinCarSpeed =
-    networkHelper.allLinks.count(l => l.getFreespeed < beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+    workerParams.networkHelper.allLinks.count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
     log.warning(
       "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
       linksBelowMinCarSpeed
     )
   }
-  private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
   override def preStart(): Unit = {
     askForMoreWork()
@@ -184,7 +170,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               firstMsgTime = None
               msgs = 0
             }
-            if (beamConfig.beam.outputs.displayPerformanceTimings) {
+            if (workerParams.beamConfig.beam.outputs.displayPerformanceTimings) {
               log.info(
                 "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
                 rate,
@@ -209,7 +195,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          calcRoute(request)
+          r5.calcRoute(request)
             .copy(requestId = request.requestId)
         }
       }
@@ -221,12 +207,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      travelTime = newTravelTime
+      r5 = new R5Wrapper(workerParams, newTravelTime)
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      travelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam.agentsim.timeBinSize, map)
+      r5 = new R5Wrapper(workerParams, TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map))
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
@@ -235,56 +221,80 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
-        leg: BeamLeg,
-        vehicleId: Id[Vehicle],
-        vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int
-        ) =>
-      val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-        leg.travelPath.linkIds,
-        leg.startTime,
-        travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId)),
-        toR5StreetMode(leg.mode),
-        transportNetwork.streetLayer
-      )
-      val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
-      val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
-      val duration = linksTimesAndDistances.travelTimes.tail.sum
-      val updatedTravelPath = BeamPath(
-        linksTimesAndDistances.linkIds,
-        linksTimesAndDistances.travelTimes,
-        None,
-        SpaceTime(startLoc.getX, startLoc.getY, leg.startTime),
-        SpaceTime(
-          endLoc.getX,
-          endLoc.getY,
-          leg.startTime + duration
-        ),
-        duration
-      )
-      val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-      sender ! RoutingResponse(
-        Vector(
-          EmbodiedBeamTrip(
-            Vector(
-              EmbodiedBeamLeg(
-                updatedLeg,
-                vehicleId,
-                vehicleTypeId,
-                asDriver = true,
-                0,
-                unbecomeDriverOnCompletion = true
-              )
-            )
-          )
-        ),
-        embodyRequestId
-      )
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
+    embodyRequestId: Int
+    ) =>
+      val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
+      sender ! response
       askForMoreWork()
   }
 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
+}
+
+class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends MetricsSupport {
+
+  private val WorkerParameters(
+  beamConfig,
+  transportNetwork,
+  vehicleTypes,
+  fuelTypePrices,
+  ptFares,
+  geo,
+  dates,
+  networkHelper,
+  fareCalculator,
+  tollCalculator
+  ) = workerParams
+
+  private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
+
+  def embodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], vehicleTypeId: Id[BeamVehicleType], embodyRequestId: Int) = {
+    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
+      leg.travelPath.linkIds,
+      leg.startTime,
+      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId)),
+      toR5StreetMode(leg.mode),
+      transportNetwork.streetLayer
+    )
+    val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
+    val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
+    val duration = linksTimesAndDistances.travelTimes.tail.sum
+    val updatedTravelPath = BeamPath(
+      linksTimesAndDistances.linkIds,
+      linksTimesAndDistances.travelTimes,
+      None,
+      SpaceTime(startLoc.getX, startLoc.getY, leg.startTime),
+      SpaceTime(
+        endLoc.getX,
+        endLoc.getY,
+        leg.startTime + duration
+      ),
+      duration
+    )
+    val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    val response = RoutingResponse(
+      Vector(
+        EmbodiedBeamTrip(
+          Vector(
+            EmbodiedBeamLeg(
+              updatedLeg,
+              vehicleId,
+              vehicleTypeId,
+              asDriver = true,
+              0,
+              unbecomeDriverOnCompletion = true
+            )
+          )
+        )
+      ),
+      embodyRequestId
+    )
+    response
+  }
 
   private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
     countOccurrence("r5-plans-count")
@@ -369,7 +379,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest
   }
 
-  private def calcRoute(request: RoutingRequest): RoutingResponse = {
+  def calcRoute(request: RoutingRequest): RoutingResponse = {
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -1202,7 +1212,7 @@ object R5RoutingWorker {
     )
   }
 
-  private class StopVisitor(
+  class StopVisitor(
     val streetLayer: StreetLayer,
     val dominanceVariable: StreetRouter.State.RoutingVariable,
     val maxStops: Int,
