@@ -41,8 +41,12 @@ class RouteHistory @Inject()(
   }
 
   private def routeHistoryFilePath: Option[String] = {
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(RouteHistory.outputFileName)
+    val filePath = beamConfig.beam.warmStart.routeHistoryFilePath
+    if (new File(filePath).isFile) {
+      Some(filePath)
+    } else {
+      None
+    }
   }
 
   private def timeToBin(departTime: Int): Int = {
@@ -107,19 +111,26 @@ class RouteHistory @Inject()(
     }
   }
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
-      event.getServices.getIterationNumber,
-      RouteHistory.outputFileBaseName + ".csv.gz"
-    )
 
-    FileUtils.writeToFile(
-      filePath,
-      toCsv(routeHistory),
-    )
+    if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
+      val filePath = event.getServices.getControlerIO.getIterationFilename(
+        event.getServices.getIterationNumber,
+        beamConfig.beam.warmStart.routeHistoryFileName
+      )
+
+      FileUtils.writeToFile(
+        filePath,
+        toCsv(routeHistory),
+      )
+    }
+
     previousRouteHistory = routeHistory
     routeHistory = new TrieMap()
   }
 
+  private def shouldWriteInIteration(iterationNumber: Int, interval: Int): Boolean = {
+    interval == 1 || (interval > 0 && iterationNumber % interval == 0)
+  }
 }
 
 object RouteHistory {
@@ -132,9 +143,6 @@ object RouteHistory {
 
   private val CsvHeader: String = "timeBin,originLinkId,destLinkId,route"
   private val Eol: String = "\n"
-
-  private val outputFileBaseName = "routeHistory"
-  private val outputFileName = outputFileBaseName + ".csv.gz"
 
   private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
     val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {

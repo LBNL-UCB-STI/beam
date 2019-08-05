@@ -88,7 +88,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, beamScenario))
+          install(module(config, beamConfig, scenario, beamScenario))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
@@ -204,7 +204,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, beamScenario))
+          install(module(config, beamConfig, scenario, beamScenario))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {

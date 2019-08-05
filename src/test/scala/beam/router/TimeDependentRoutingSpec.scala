@@ -241,7 +241,7 @@ class TimeDependentRoutingSpec
           Vector(1, 1, 1, 1),
           None,
           SpaceTime(0.0, 0.0, 28800),
-          SpaceTime(1.0, 1.0, 28900),
+          SpaceTime(1.0, 1.0, 28803),
           1000.0
         )
       )

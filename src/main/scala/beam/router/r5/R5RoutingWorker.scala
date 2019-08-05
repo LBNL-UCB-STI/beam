@@ -271,7 +271,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        leg.startTime + duration
+        leg.startTime + Math.round(duration.toFloat)
       ),
       duration
     )
@@ -967,7 +967,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       SpaceTime(
         segment.geometry.getEndPoint.getX,
         segment.geometry.getEndPoint.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
+        tripStartTime + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)
       ),
       distance
     )
@@ -1092,13 +1092,13 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val ttc = travelTimeByLinkCalculator(vehicleType)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
       {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode)
+        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
       }
   }
 
-  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Int, Int, StreetMode) => Int = {
+  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
-    (time: Int, linkId: Int, streetMode: StreetMode) =>
+    (time: Double, linkId: Int, streetMode: StreetMode) =>
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
