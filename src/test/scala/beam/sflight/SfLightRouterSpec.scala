@@ -294,7 +294,9 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       }
 
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
+      assert(carOption.costEstimate > 1.0)
+      val carTrip = carOption.toBeamTrip
+      val actualModesOfCarOption = carTrip.legs.map(_.mode)
       actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 

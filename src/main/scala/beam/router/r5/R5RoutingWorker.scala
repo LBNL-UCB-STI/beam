@@ -8,7 +8,7 @@ import java.util.{Collections, Optional}
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.{DrivingCost, PtFares}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
@@ -23,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -963,6 +963,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       ),
       distance
     )
+    val beamLeg = BeamLeg(
+      tripStartTime,
+      mapLegMode(segment.mode),
+      theTravelPath.duration,
+      travelPath = theTravelPath
+    )
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
         .map(
@@ -974,17 +980,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         .toVector
       tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath)
     } else 0.0
+    val drivingCost = if (segment.mode == LegMode.CAR) {
+      DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
+    } else 0.0
     EmbodiedBeamLeg(
-      BeamLeg(
-        tripStartTime,
-        mapLegMode(segment.mode),
-        theTravelPath.duration,
-        travelPath = theTravelPath
-      ),
+      beamLeg,
       vehicle.id,
       vehicle.vehicleTypeId,
       vehicle.asDriver,
-      toll,
+      drivingCost + toll,
       false
     )
   }
