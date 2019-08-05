@@ -532,6 +532,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
     val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson
 
+    val vehiclesByR5Mode = request.streetVehicles.groupBy(_.mode.r5Mode.get.left.get)
+    vehiclesByR5Mode.foreach(e => if (e._2.size > 1) throw new RuntimeException("Only one vehicle with mode "+e._1+" allowed."))
+
     val profileRequest = createProfileRequest
     val accessVehicles = if (mainRouteToVehicle) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
