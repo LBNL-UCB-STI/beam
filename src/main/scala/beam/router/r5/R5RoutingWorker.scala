@@ -197,7 +197,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           r5.calcRoute(request)
-            .copy(requestId = request.requestId)
         }
       }
       eventualResponse.recover {
@@ -789,7 +788,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
             access,
             tripStartTime,
             vehicle,
-            unbecomeDriverOnCompletion = access.mode != LegMode.WALK
+            unbecomeDriverOnCompletion = access.mode != LegMode.WALK || option.transit == null
           )
 
           arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
@@ -1227,7 +1226,7 @@ object R5RoutingWorker {
           body.vehicleTypeId,
           asDriver = true,
           0,
-          unbecomeDriverOnCompletion = false
+          unbecomeDriverOnCompletion = true
         )
       )
     )
