@@ -2,12 +2,28 @@ package beam.side.speed.model
 
 import java.time.LocalDateTime
 
-sealed trait Decoder[T <: Product] {
+import scala.reflect.runtime.universe._
+
+sealed trait Decoder[T] {
   def apply(row: String): T
 }
 
 sealed trait Encoder[T <: Product] {
+  def header(implicit tg: TypeTag[T]): List[String] =
+    typeOf[T].members.collect {
+      case m: MethodSymbol if m.isCaseAccessor => m.name.toString
+    }.toList.reverse
+
   def apply(row: T): String
+}
+
+object Encoder {
+  implicit class EncoderSyntax[T<: Product](data: T) {
+    def header(implicit tg: TypeTag[T], enc: Encoder[T]): String = enc.header.mkString(",")
+    def row(implicit enc: Encoder[T]): String = enc.apply(data)
+  }
+
+  def apply[T <: Product](implicit Enc: Encoder[T]): Encoder[T] = Enc
 }
 
 object SpeedEvents {

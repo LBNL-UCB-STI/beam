@@ -105,7 +105,11 @@ object WayFilter {
         filterOption: MaxHourPointFiltered,
         waySpeed: Map[DayOfWeek, UberDaySpeed]
       ): MaxHourPointsDTO = {
-        val hoursRange = (0 to 23).toList.diff((filterOption.to to filterOption.from).toList)
+        val hoursRange = if (filterOption.from > filterOption.to) {
+          (0 to 23).toList.diff((filterOption.to to filterOption.from).toList)
+        } else {
+          (0 to 23).toList.intersect((filterOption.from to filterOption.to).toList)
+        }
         val points = waySpeed.values
           .flatMap(_.hours)
           .foldLeft(0)((acc, h) => Option(hoursRange.contains(h.hour)).filter(identity).fold(acc)(_ => acc + 1))

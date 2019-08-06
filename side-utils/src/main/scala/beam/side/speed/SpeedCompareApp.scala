@@ -2,11 +2,17 @@ package beam.side.speed
 
 import java.nio.file.Paths
 
-import beam.side.speed.model.{BeamSpeed, UberOsmNode, UberOsmWays}
+import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
+import beam.side.speed.model.FilterEvent.AllHoursWeightedEventAction.AllHoursWeightedEventAction
+import beam.side.speed.model.FilterEvent.BeamLengthWeightedEventAction.BeamLengthWeightedEventAction
+import beam.side.speed.model.FilterEvent.MaxHourPointsEventAction.MaxHourPointsEventAction
+import beam.side.speed.model._
 import beam.side.speed.parser._
+import beam.side.speed.parser.composer.OptionalObservationFilter
 import beam.side.speed.parser.data.Dictionary
 import beam.side.speed.parser.graph.{UberSpeed, UberSpeedGraph}
-import beam.side.speed.parser.operation.SpeedDataExtractor
+import beam.side.speed.parser.operation.{ObservationFilter, SpeedDataExtractor, SpeedWriter}
+import beam.side.speed.parser.writer.CsvOptionalWriter
 
 import scala.util.{Failure, Success, Try}
 
@@ -112,7 +118,7 @@ trait AppSetup {
       .text("Junction dictionary path")
 
     opt[String]('s', "beam_speed")
-      .required()
+      //.required()
       .valueName("<beam_speed_path>")
       .action((s, c) => c.copy(beamSpeedPath = s))
       .validate(
@@ -148,9 +154,41 @@ object SpeedCompareApp extends App with AppSetup {
 
       implicit val graph: SpeedDataExtractor[Option] = UberSpeedGraph(conf.uberSpeedPath, ways, waysBeam, nodes)
       implicit val uber: UberSpeed[Option] = new UberSpeed[Option]
+      implicit val writer: SpeedWriter[BeamSpeed, Option] = new CsvOptionalWriter[BeamSpeed](conf.output)
+      implicit val comparator: SpeedComparator[BeamSpeed, _ <: FilterEventAction, Option] = conf.mode match {
+        case "all" =>
+          implicit val filter: ObservationFilter[Option, AllHoursDaysEventAction] =
+            new OptionalObservationFilter[AllHoursDaysEventAction](Unit)
+          new SpeedComparator[BeamSpeed, AllHoursDaysEventAction, Option](
+            OsmWays(conf.osmMapPath, conf.r5MapPath),
+            uber
+          )
+        case "we" =>
+          implicit val filter: ObservationFilter[Option, AllHoursWeightedEventAction] =
+            new OptionalObservationFilter[AllHoursWeightedEventAction](Unit)
+          new SpeedComparator[BeamSpeed, AllHoursWeightedEventAction, Option](
+            OsmWays(conf.osmMapPath, conf.r5MapPath),
+            uber
+          )
+        case "sl" =>
+          implicit val filter: ObservationFilter[Option, BeamLengthWeightedEventAction] =
+            new OptionalObservationFilter[BeamLengthWeightedEventAction](Unit)
+          new SpeedComparator[BeamSpeed, BeamLengthWeightedEventAction, Option](
+            OsmWays(conf.osmMapPath, conf.r5MapPath),
+            uber
+          )
+        case "mp" =>
+          implicit val filter: ObservationFilter[Option, MaxHourPointsEventAction] =
+            new OptionalObservationFilter[MaxHourPointsEventAction](
+              MaxHourPointFiltered(conf.fArgs("from").toInt, conf.fArgs("to").toInt, conf.fArgs("p").toInt)
+            )
+          new SpeedComparator[BeamSpeed, MaxHourPointsEventAction, Option](
+            OsmWays(conf.osmMapPath, conf.r5MapPath),
+            uber
+          )
+      }
 
-      //SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, beamSpeed, conf.output).csvNode()
-      //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
+      comparator.compare()
       System.exit(0)
     case None => System.exit(-1)
   }

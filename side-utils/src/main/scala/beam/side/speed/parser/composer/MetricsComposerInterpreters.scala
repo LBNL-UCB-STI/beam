@@ -5,7 +5,7 @@ import beam.side.speed.model._
 import beam.side.speed.parser.Median
 import beam.side.speed.parser.operation.ObservationComposer
 
-trait MetricsComposerInterprets {
+trait MetricsComposerInterpreters {
 
   implicit object WayMetricsSpeedComposer extends ObservationComposer[Option, Seq[WayMetrics], UberWaySpeed] {
     override def compose(input: Seq[WayMetrics]): Option[UberWaySpeed] =

@@ -1,10 +1,10 @@
 package beam.side.speed.parser.graph
 
 import beam.side.speed.model._
-import beam.side.speed.parser.operation.Program._
-import beam.side.speed.parser.operation.{ObservationComposer, ObservationFilter, Program, SpeedDataExtractor}
+import beam.side.speed.parser.operation.Wrapper._
+import beam.side.speed.parser.operation.{ObservationComposer, ObservationFilter, Wrapper, SpeedDataExtractor}
 
-class UberSpeed[F[_]: SpeedDataExtractor: Program] {
+class UberSpeed[F[_]: SpeedDataExtractor: Wrapper] {
 
   def speed[T <: FilterEventAction](osmId: Long)(
     implicit composer: ObservationComposer[F, Seq[WayMetric], UberWaySpeed],
@@ -36,50 +36,5 @@ class UberSpeed[F[_]: SpeedDataExtractor: Program] {
 
 object UberSpeed {
 
-  def apply[F[_]: SpeedDataExtractor: Program](implicit Speed: UberSpeed[F]): UberSpeed[F] = Speed
-
-  /*def apply[T <: FilterEventAction](
-    path: Seq[String],
-    dictW: Dictionary[UberOsmWays, Long, String],
-    dictS: Dictionary[UberOsmWays, String, Long],
-    dictJ: Dictionary[UberOsmNode, String, Long],
-    fOpt: T#Filtered
-  )(
-    implicit t: ClassTag[T],
-    wf: WayFilter[T#FilterEvent, T#Filtered]
-  ): UberSpeed[T] =
-    new UberSpeed(path, dictW, dictS, dictJ, fOpt)*/
-
-  /*def apply(
-    mode: String,
-    fOpt: Map[String, String],
-    path: Seq[String],
-    dictW: Dictionary[UberOsmWays, Long, String],
-    dictS: Dictionary[UberOsmWays, String, Long],
-    dictJ: Dictionary[UberOsmNode, String, Long]
-  ): UberSpeed[_] = mode match {
-    case "all"   => UberSpeed[AllHoursDaysEventAction](path, dictW, dictS, dictJ, Unit)
-    case "wd"    => UberSpeed[WeekDayEventAction](path, dictW, dictS, dictJ, DayOfWeek.of(fOpt.head._2.toInt))
-    case "hours" => UberSpeed[HourEventAction](path, dictW, dictS, dictJ, fOpt.head._2.toInt)
-    case "wh" =>
-      UberSpeed[WeekDayHourEventAction](
-        path,
-        dictW,
-        dictS,
-        dictJ,
-        (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt)
-      )
-    case "hours_range" =>
-      UberSpeed[HourRangeEventAction](path, dictW, dictS, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
-    case "we" => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictS, dictJ, Unit)
-    case "sl" => UberSpeed[BeamLengthWeightedEventAction](path, dictW, dictS, dictJ, Unit)
-    case "mp" =>
-      UberSpeed[MaxHourPointsEventAction](
-        path,
-        dictW,
-        dictS,
-        dictJ,
-        MaxHourPointFiltered(fOpt("from").toInt, fOpt("to").toInt, fOpt("p").toInt)
-      )
-  }*/
+  def apply[F[_]: SpeedDataExtractor: Wrapper](implicit Speed: UberSpeed[F]): UberSpeed[F] = Speed
 }
