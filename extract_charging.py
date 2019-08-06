@@ -42,7 +42,7 @@ scenario_path = scenario_name + "output_/ITERS/it.0/0.events.csv.gz"
 #read event file
 with gzip.open(folder_path+scenario_path) as f:
 
-    all_events = pd.read_csv(f)
+    all_events = pd.read_csv(f, low_memory=False)
 
 # all_events = pd.read_csv(folder_path+scenario_path)
 run = "chargerLevel_"+str(p)+"kW__vehicleRange_"+str(r)+"mi__ridehailNumber_"+str(fle)+"k"
