@@ -1243,6 +1243,8 @@ object R5RoutingWorker {
     private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
     val stops: TIntIntMap = new TIntIntHashMap
     private var s0: StreetRouter.State = _
+    private val destinationSplitVertex0 = if (destinationSplit != null) destinationSplit.vertex0 else -1
+    private val destinationSplitVertex1 = if (destinationSplit != null) destinationSplit.vertex1 else -1
 
     override def visitVertex(state: StreetRouter.State): Unit = {
       s0 = state
@@ -1255,7 +1257,7 @@ object R5RoutingWorker {
     }
 
     override def shouldBreakSearch: Boolean =
-      stops.size >= this.maxStops || s0.vertex == destinationSplit.vertex0 || s0.vertex == destinationSplit.vertex1
+      stops.size >= this.maxStops || s0.vertex == destinationSplitVertex0 || s0.vertex == destinationSplitVertex1
   }
 
 }
