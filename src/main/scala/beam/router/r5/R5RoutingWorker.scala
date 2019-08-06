@@ -532,9 +532,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
     val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson
 
-    val vehiclesByR5Mode = request.streetVehicles.groupBy(_.mode.r5Mode.get.left.get)
-    vehiclesByR5Mode.foreach(e => if (e._2.size > 1) throw new RuntimeException("Only one vehicle with mode "+e._1+" allowed."))
-
     val profileRequest = createProfileRequest
     val accessVehicles = if (mainRouteToVehicle) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
@@ -546,6 +543,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
 
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
+
+    val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles.groupBy(_.mode.r5Mode.get.left.get).mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
@@ -571,7 +570,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
-    for (vehicle <- accessVehicles) {
+    for (vehicle <- bestAccessVehiclesByR5Mode.values) {
       val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         request.originUTM
       } else {
@@ -775,7 +774,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           var arrivalTime: Int = Int.MinValue
           val embodiedBeamLegs = mutable.ArrayBuffer.empty[EmbodiedBeamLeg]
           val access = option.access.get(itinerary.connection.access)
-          val vehicle = accessVehicles.find(v => v.mode.r5Mode.get.left.get == access.mode).get
+          val vehicle = bestAccessVehiclesByR5Mode(access.mode)
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // Glue the walk to vehicle in front of the trip without a gap
             embodiedBeamLegs += walkLeg
