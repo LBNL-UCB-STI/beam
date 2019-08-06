@@ -298,6 +298,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val carTrip = carOption.toBeamTrip
       val actualModesOfCarOption = carTrip.legs.map(_.mode)
       actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
+      assert(carOption.legs(1).unbecomeDriverOnCompletion)
     }
 
     "respond with a unlimited transfer route having cost 2.75 USD." in {

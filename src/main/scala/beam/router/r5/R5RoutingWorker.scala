@@ -441,7 +441,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
             )
           } else {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            Some(buildStreetBasedLegs(streetSegment, request.departureTime, body))
+            Some(buildStreetBasedLegs(streetSegment, request.departureTime, body, unbecomeDriverOnCompletion = false))
           }
         } else {
           Some(
@@ -451,7 +451,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               body.vehicleTypeId,
               body.asDriver,
               0.0,
-              false
+              unbecomeDriverOnCompletion = false
             )
           )
         }
@@ -497,7 +497,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         }
       if (!profileResponse.options.isEmpty) {
         val streetSegment = profileResponse.options.get(0).access.get(0)
-        buildStreetBasedLegs(streetSegment, time, vehicle)
+        buildStreetBasedLegs(streetSegment, time, vehicle, unbecomeDriverOnCompletion = true)
       } else {
         EmbodiedBeamLeg(
           createBushwackingBeamLeg(request.departureTime, from, to, geo),
@@ -544,7 +544,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
-    val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles.groupBy(_.mode.r5Mode.get.left.get).mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
+    val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
+      .groupBy(_.mode.r5Mode.get.left.get)
+      .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
@@ -570,6 +572,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
+//    println(accessVehicles)
+//    println(bestAccessVehiclesByR5Mode.values)
     for (vehicle <- bestAccessVehiclesByR5Mode.values) {
       val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         request.originUTM
@@ -781,7 +785,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               .copy(beamLeg = walkLeg.beamLeg.updateStartTime(tripStartTime - walkLeg.beamLeg.duration))
           })
 
-          embodiedBeamLegs += buildStreetBasedLegs(access, tripStartTime, vehicle)
+          embodiedBeamLegs += buildStreetBasedLegs(
+            access,
+            tripStartTime,
+            vehicle,
+            unbecomeDriverOnCompletion = access.mode != LegMode.WALK
+          )
 
           arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
 
@@ -877,7 +886,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                 .toInt
               if (transitSegment.middle != null) {
                 val body = request.streetVehicles.find(_.mode == WALK).get
-                embodiedBeamLegs += buildStreetBasedLegs(transitSegment.middle, arrivalTime, body)
+                embodiedBeamLegs += buildStreetBasedLegs(transitSegment.middle, arrivalTime, body, false)
                 arrivalTime = arrivalTime + transitSegment.middle.duration
               }
           }
@@ -885,7 +894,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
-            embodiedBeamLegs += buildStreetBasedLegs(egress, arrivalTime, vehicle)
+            embodiedBeamLegs += buildStreetBasedLegs(egress, arrivalTime, vehicle, true)
             val body = request.streetVehicles.find(_.mode == WALK).get
             if (isRouteForPerson && egress.mode != LegMode.WALK) {
               embodiedBeamLegs += EmbodiedBeamLeg(
@@ -894,7 +903,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                 body.vehicleTypeId,
                 body.asDriver,
                 0.0,
-                false
+                true
               )
             }
           }
@@ -913,7 +922,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               body.vehicleTypeId,
               body.asDriver,
               0.0,
-              false
+              true
             )
           }
           EmbodiedBeamTrip(embodiedBeamLegs)
@@ -952,7 +961,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
   private def buildStreetBasedLegs(
     segment: StreetSegment,
     tripStartTime: Int,
-    vehicle: StreetVehicle
+    vehicle: StreetVehicle,
+    unbecomeDriverOnCompletion: Boolean
   ): EmbodiedBeamLeg = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
@@ -1008,7 +1018,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       vehicle.vehicleTypeId,
       vehicle.asDriver,
       drivingCost + toll,
-      false
+      unbecomeDriverOnCompletion
     )
   }
 
