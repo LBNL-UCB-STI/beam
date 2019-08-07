@@ -274,17 +274,23 @@ class BeamSkimmer @Inject()(
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
-//      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
-//        writeObservedSkims(event)
-//      }
-//      ProfilingUtils.timed(
-//        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
-//        x => logger.info(x)
-//      ) {
-//        writeAllModeSkimsForPeakNonPeakPeriods(event)
-//      }
-      ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
-        writeObservedSkimsPlus(event)
+      if (beamConfig.beam.beamskimmer.writeObservedSkims) {
+        ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+          writeObservedSkims(event)
+        }
+      }
+      if (beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriods) {
+        ProfilingUtils.timed(
+          s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+          x => logger.info(x)
+        ) {
+          writeAllModeSkimsForPeakNonPeakPeriods(event)
+        }
+      }
+      if (beamConfig.beam.beamskimmer.writeObservedSkimsPlus) {
+        ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
+          writeObservedSkimsPlus(event)
+        }
       }
     }
 
