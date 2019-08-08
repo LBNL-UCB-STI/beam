@@ -2,6 +2,7 @@ package beam.analysis;
 
 import beam.analysis.plots.*;
 import beam.analysis.summary.*;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
@@ -38,10 +39,12 @@ public class StatsFactory {
 
     private final BeamConfig beamConfig;
     private final BeamServices beamServices;
+    private final BeamConfigChangesObservable configChangesObservable;
     private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
 
-    public StatsFactory(BeamServices services) {
+    public StatsFactory(BeamServices services, BeamConfigChangesObservable configChangesObservable) {
         this.beamServices = services;
+        this.configChangesObservable = configChangesObservable;
         this.beamConfig = services.beamConfig();
     }
 
@@ -75,19 +78,19 @@ public class StatsFactory {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
         switch (statsType) {
             case RideHailWaiting:
-                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
+                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(),configChangesObservable, beamConfig);
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
-                return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
+                return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(),configChangesObservable, beamConfig);
             case PersonVehicleTransition:
-                return new PersonVehicleTransitionAnalysis(beamConfig);
+                return new PersonVehicleTransitionAnalysis(beamConfig, configChangesObservable);
             case FuelUsage:
                 return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),writeGraphs);
             case PersonTravelTime:
                 return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
+                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, configChangesObservable, beamConfig);
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:

@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.analysis.plot.PlotGraph;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import org.matsim.api.core.v01.events.Event;
@@ -8,11 +9,12 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.misc.Time;
+import scala.Tuple2;
 
 import java.util.*;
 import java.util.List;
 
-public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSupport {
+public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSupport, Observer {
 
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail", "others"));
 
@@ -25,16 +27,14 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     private PlotGraph plotGraph = new PlotGraph();
     private int binSize;
     private int numOfBins;
-    private final boolean writeGraph;
+    private boolean writeGraph;
 
-    public PersonVehicleTransitionAnalysis(BeamConfig beamConfig){
+    public PersonVehicleTransitionAnalysis(BeamConfig beamConfig, BeamConfigChangesObservable beamConfigChangesObservable){
+        this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         binSize = beamConfig.beam().outputs().stats().binSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
-        Double _endTime = Time.parseTime(endTime);
-        Double _numOfTimeBins = _endTime / binSize;
-        _numOfTimeBins = Math.floor(_numOfTimeBins);
-        numOfBins = _numOfTimeBins.intValue() + 1;
-        this.writeGraph = beamConfig.beam().outputs().writeGraphs();
+        setBinSize(endTime);
+        beamConfigChangesObservable.addObserver(this);
     }
 
 
@@ -169,6 +169,23 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
             personExitCount.put(unitVehicle, personExit);
 
         }
+
+    }
+
+    private void setBinSize(String endTime){
+        Double _endTime = Time.parseTime(endTime);
+        Double _numOfTimeBins = _endTime / binSize;
+        _numOfTimeBins = Math.floor(_numOfTimeBins);
+        numOfBins = _numOfTimeBins.intValue() + 1;
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        BeamConfig beamConfig = (BeamConfig) t._2;
+        binSize = beamConfig.beam().outputs().stats().binSize();
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        setBinSize(endTime);
 
     }
 }

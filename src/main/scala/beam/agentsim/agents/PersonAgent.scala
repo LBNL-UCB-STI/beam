@@ -253,7 +253,7 @@ class PersonAgent(
   val geo = beamServices.geo
 
   val bodyType = beamScenario.vehicleTypes(
-    Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+    Id.create(beamServices.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
 
   val body = new BeamVehicle(
@@ -347,7 +347,7 @@ class PersonAgent(
               .get(idVehicleOrTokenTuple._1)
               .foreach(beamvehicle => {
                 if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
+                  handleEndCharging(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
                 }
               })
           })

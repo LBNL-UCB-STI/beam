@@ -1,6 +1,8 @@
 package beam.analysis
 import java.awt.Color
+import java.util.{Observable, Observer}
 
+import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
 import beam.utils.{PointToPlot, SpatialPlot}
 import javax.inject.Inject
@@ -11,10 +13,15 @@ import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
 
 class ActivityLocationPlotter @Inject()(
-  beamConfig: BeamConfig,
+  config: BeamConfig,
   scenario: Scenario,
-  controlerIO: OutputDirectoryHierarchy
-) extends IterationStartsListener {
+  controlerIO: OutputDirectoryHierarchy,
+  beamConfigChangesObservable: BeamConfigChangesObservable
+) extends IterationStartsListener
+    with Observer {
+  beamConfigChangesObservable.addObserver(this)
+  private var beamConfig = config
+
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (beamConfig.beam.outputs.writeGraphs) {
       val activityLocationsSpatialPlot = new SpatialPlot(1100, 1100, 50)
@@ -46,5 +53,10 @@ class ActivityLocationPlotter @Inject()(
         controlerIO.getIterationFilename(event.getIteration, "activityLocations.png")
       )
     }
+  }
+
+  override def update(observable: Observable, o: Any): Unit = {
+    val (_, updatedBeamConfig) = o.asInstanceOf[(_, BeamConfig)]
+    beamConfig = updatedBeamConfig
   }
 }

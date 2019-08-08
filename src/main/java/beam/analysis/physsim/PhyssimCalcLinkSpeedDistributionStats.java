@@ -1,6 +1,7 @@
 package beam.analysis.physsim;
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.utils.OutputDataDescriptor;
@@ -17,6 +18,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
+import scala.Tuple2;
 
 import java.awt.*;
 import java.io.BufferedWriter;
@@ -32,7 +34,7 @@ import java.util.stream.Stream;
  * @author Bhavya Latha Bandaru.
  * This class computes the distribution of free flow speed (in both m/s and %) over the network.
  */
-public class PhyssimCalcLinkSpeedDistributionStats {
+public class PhyssimCalcLinkSpeedDistributionStats implements Observer{
 
     private static int noOfBins = 24;
     private BeamConfig beamConfig;
@@ -41,17 +43,16 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     static String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
     private static String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
 
-    public PhyssimCalcLinkSpeedDistributionStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
+    public PhyssimCalcLinkSpeedDistributionStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig, BeamConfigChangesObservable beamConfigChangesObservable) {
         this.network = network;
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
-
+        beamConfigChangesObservable.addObserver(this);
         // If not test mode pick up bin count from the beam configuration.
         if (isNotTestMode()) {
-            Double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-            Double noOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
-            noOfTimeBins = Math.floor(noOfTimeBins);
-            noOfBins = noOfTimeBins.intValue() + 1;
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            int linkStatsBinSize = beamConfig.beam().physsim().linkStatsBinSize();
+            setNumberOfBins(endTime, linkStatsBinSize);
         }
     }
 
@@ -278,5 +279,21 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
+    private void setNumberOfBins(String endTime, int linkStatsBinSize){
+        Double noOfTimeBins = Time.parseTime(endTime) / this.beamConfig.beam().physsim().linkStatsBinSize();
+        noOfTimeBins = Math.floor(noOfTimeBins);
+        noOfBins = noOfTimeBins.intValue() + 1;
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
+        if (isNotTestMode()) {
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            int linkStatsBinSize = beamConfig.beam().physsim().linkStatsBinSize();
+            setNumberOfBins(endTime, linkStatsBinSize);
+        }
+    }
 
 }

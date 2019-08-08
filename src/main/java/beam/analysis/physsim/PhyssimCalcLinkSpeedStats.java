@@ -1,5 +1,7 @@
 package beam.analysis.physsim;
 
+import beam.physsim.jdeqsim.AgentSimPhysSimInterfaceDebugger;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
@@ -12,16 +14,15 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
+import scala.Tuple2;
 
 import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -30,7 +31,7 @@ import java.util.stream.IntStream;
  * @author Bhavya Latha Bandaru.
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
-public class PhyssimCalcLinkSpeedStats {
+public class PhyssimCalcLinkSpeedStats implements Observer {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -48,17 +49,16 @@ public class PhyssimCalcLinkSpeedStats {
     static String outputFileName = "physsimLinkAverageSpeedPercentage";
 
     //Public constructor for the PhyssimCalcLinkSpeedStats class
-    public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
+    public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig, BeamConfigChangesObservable beamConfigChangesObservable) {
         this.network = network;
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
-
+        beamConfigChangesObservable.addObserver(this);
         // If not test mode pick up bin count from the beam configuration.
         if (isNotTestMode()) {
-            Double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-            Double noOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
-            noOfTimeBins = Math.floor(noOfTimeBins);
-            noOfBins = noOfTimeBins.intValue() + 1;
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            int linkStatsBinSize = beamConfig.beam().physsim().linkStatsBinSize();
+            setNumberOfBins(endTime, linkStatsBinSize);
         }
     }
 
@@ -211,6 +211,23 @@ public class PhyssimCalcLinkSpeedStats {
         Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
         double[][] dataSet = buildDataSetFromProcessedData(processedData);
         return dataSet[0];
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
+        if (isNotTestMode()) {
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            int linkStatsBinSize = beamConfig.beam().physsim().linkStatsBinSize();
+            setNumberOfBins(endTime, linkStatsBinSize);
+        }
+    }
+
+    private void setNumberOfBins(String endTime, int linkStatsBinSize){
+        Double noOfTimeBins = Time.parseTime(endTime) / this.beamConfig.beam().physsim().linkStatsBinSize();
+        noOfTimeBins = Math.floor(noOfTimeBins);
+        noOfBins = noOfTimeBins.intValue() + 1;
     }
 
     public int getNumberOfBins() {

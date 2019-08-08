@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import com.google.common.collect.Lists;
 import org.apache.commons.collections4.ListUtils;
@@ -15,6 +16,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 import java.io.*;
 import java.util.*;
@@ -23,7 +25,7 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 
 
-public class RealizedModeAnalysis extends BaseModeAnalysis {
+public class RealizedModeAnalysis extends BaseModeAnalysis implements Observer{
 
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String referenceGraphTitle = "Reference Realized Mode Histogram";
@@ -53,11 +55,12 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfig beamConfig) {
+    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfigChangesObservable beamConfigChangesObservable, BeamConfig beamConfig) {
         String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);
+        beamConfigChangesObservable.addObserver(this);
     }
 
     public static class RealizedModesStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
@@ -659,6 +662,14 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             log.warn("Unable to load benchmark CSV via path '{}'", path);
         }
         return benchMarkData;
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        BeamConfig beamConfig = (BeamConfig) t._2;
+        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
+        benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);
     }
 
     public class ModeHour {

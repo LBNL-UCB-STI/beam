@@ -1,5 +1,7 @@
 package beam.sim
 
+import java.util.{Observable, Observer}
+
 import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.router.gtfs.FareCalculator
@@ -56,7 +58,7 @@ import org.matsim.core.controler._
 trait BeamServices {
   val injector: Injector
   val controler: ControlerI
-  val beamConfig: BeamConfig
+  var beamConfig: BeamConfig
   def beamScenario: BeamScenario
 
   val geo: GeoUtils
@@ -70,10 +72,10 @@ trait BeamServices {
   def tollCalculator: TollCalculator
 }
 
-class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+class BeamServicesImpl @Inject()(val injector: Injector) extends Observer with BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+  var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -85,4 +87,14 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
   override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
+
+  private val beamConfigChangesObservable = injector.getInstance(classOf[BeamConfigChangesObservable])
+
+  beamConfigChangesObservable.addObserver(this)
+
+  override def update(observable: Observable, o: Any): Unit = {
+    val (_, updatedBeamConfig) = o.asInstanceOf[(_, BeamConfig)]
+    beamConfig = updatedBeamConfig
+  }
+
 }

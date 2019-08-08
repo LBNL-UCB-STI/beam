@@ -1,12 +1,13 @@
 package beam.utils.scenario
 
-import java.util.Random
+import java.util.{Observable, Observer, Random}
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
-import beam.sim.BeamScenario
+import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -26,12 +27,16 @@ class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   val beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
+  val beamConfigChangesObservable: BeamConfigChangesObservable,
   val geo: GeoUtils
-) extends LazyLogging {
+) extends LazyLogging
+    with Observer {
 
+  private var beamConfig: BeamConfig = beamScenario.beamConfig
   val population: Population = scenario.getPopulation
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
+  beamConfigChangesObservable.addObserver(this)
 
   def loadScenario(): Scenario = {
     clear()
@@ -102,17 +107,17 @@ class UrbanSimScenarioLoader(
     var initialVehicleCounter: Int = 0
     var totalCarCount: Int = 0
 
-    val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+    val scaleFactor = beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamConfigChangesObservable, beamScenario)
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
-    realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+    realDistribution.reseedRandomGenerator(beamConfig.matsim.modules.global.randomSeed)
 
     assignVehicles(households).foreach {
       case (householdInfo, nVehicles) =>
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
-        val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+        val coord = if (beamConfig.beam.exchange.scenario.convertWgs2Utm) {
           geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
         } else {
           new Coord(householdInfo.locationX, householdInfo.locationY)
@@ -175,13 +180,13 @@ class UrbanSimScenarioLoader(
   // Iterable[(HouseholdInfo, List[BeamVehicleType])]
 
   private def assignVehicles(households: Iterable[HouseholdInfo]): Iterable[(HouseholdInfo, Int)] = {
-    beamScenario.beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
+    beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
       case "SECONDARY_VEHICLES_FIRST" =>
-        val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+        val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
         val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
         val totalCars = households.foldLeft(0)(_ + _.cars)
         val goalCarTotal = math
-          .round(beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
+          .round(beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
         var currentTotalCars = totalCars
         hh_car_count.keys.toSeq.sorted.reverse.foreach { key =>
@@ -208,13 +213,13 @@ class UrbanSimScenarioLoader(
         }
         householdsOut.zip(nVehiclesOut)
       case "RANDOM" =>
-        val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+        val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
         val nVehiclesOut = ArrayBuffer[Int]()
         households.foreach { household =>
           nVehiclesOut += drawFromBinomial(
             rand,
             household.cars,
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+            beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
           )
         }
         households.zip(nVehiclesOut)
@@ -280,7 +285,7 @@ class UrbanSimScenarioLoader(
             planInfo.activityLocationY.isDefined,
             s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
           )
-          val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+          val coord = if (beamConfig.beam.exchange.scenario.convertWgs2Utm) {
             geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
           } else {
             new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
@@ -297,5 +302,10 @@ class UrbanSimScenarioLoader(
         }
       }
     }
+  }
+
+  override def update(observable: Observable, o: Any): Unit = {
+    val (_, updatedBeamConfig) = o.asInstanceOf[(_, BeamConfig)]
+    beamConfig = updatedBeamConfig
   }
 }

@@ -1,13 +1,23 @@
 package beam.sim.vehicles
 
+import java.util.{Observable, Observer}
+
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.config.BeamConfig
+import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
-case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
+case class UniformVehiclesAdjustment(
+  beamConfigChangesObservable: BeamConfigChangesObservable,
+  beamScenario: BeamScenario
+) extends VehiclesAdjustment
+    with Observer {
+
+  private var beamConfig: BeamConfig = beamScenario.beamConfig
+  beamConfigChangesObservable.addObserver(this)
 
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
     beamScenario.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
@@ -62,5 +72,10 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
         "Ride Hail Vehicle"
       case _ => "Usage Not Set"
     }
+  }
+
+  override def update(observable: Observable, o: Any): Unit = {
+    val (_, updatedBeamConfig) = o.asInstanceOf[(_, BeamConfig)]
+    beamConfig = updatedBeamConfig
   }
 }

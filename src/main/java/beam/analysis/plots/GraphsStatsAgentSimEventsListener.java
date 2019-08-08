@@ -4,6 +4,7 @@ import beam.analysis.*;
 import beam.analysis.StatsFactory.StatsType;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.events.Event;
@@ -38,21 +39,22 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     public static OutputDirectoryHierarchy CONTROLLER_IO;
     // Static Initializer
     private final StatsFactory statsFactory;
-    private final BeamConfig beamConfig;
+    private final BeamServices beamServices;
 
     private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamServices services) {
-        this.beamConfig = services.beamConfig();
-        statsFactory = new StatsFactory(services);
+    public GraphsStatsAgentSimEventsListener(BeamServices services,BeamConfigChangesObservable beamConfigChangesObservable) {
+        this.beamServices = services;
+        statsFactory = new StatsFactory(services,beamConfigChangesObservable);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             BeamServices services, BeamConfig beamConfig) {
-        this(services);
+                                             BeamConfigChangesObservable beamConfigChangesObservable,
+                                             BeamServices services) {
+        this(services, beamConfigChangesObservable);
         try{
             statsFactory.createStats();
         }catch (Exception e){
@@ -105,10 +107,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                     ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
                     String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
                     modeChoseStats.writeToRootCSV(outPath);
-                    if (beamConfig.beam().calibration().mode().benchmarkFilePath().trim().length() > 0) {
-                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
+                    if (beamServices.beamConfig().beam().calibration().mode().benchmarkFilePath().trim().length() > 0) {
+                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamServices.beamConfig().beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
                         log.info("modesAbsoluteError: " + modesAbsoluteError);
-                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
+                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamServices.beamConfig().beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
                         log.info("modesRMSPError: " + modesRMSPError);
                     }
                 }

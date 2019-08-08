@@ -1,13 +1,14 @@
 package beam.router
 
 import java.util
-import java.util.Collections
+import java.util.{Collections, Observable, Observer}
 
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
+import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.{DateUtils, TravelTimeUtils}
@@ -27,9 +28,12 @@ class TransitInitializer(
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
+  beamConfigChangesObservable: BeamConfigChangesObservable,
   travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
-) extends ExponentialLazyLogging {
+) extends ExponentialLazyLogging
+    with Observer {
   private var numStopsNotFound = 0
+  private var config = beamConfig
 
   /*
    * Plan of action:
@@ -138,7 +142,7 @@ class TransitInitializer(
           case IndexedSeq(fromStopIdx, toStopIdx) =>
             val fromStop = tripPattern.stops(fromStopIdx)
             val toStop = tripPattern.stops(toStopIdx)
-            if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+            if (config.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
               stopToStopStreetSegmentCache.getOrElseUpdate(
                 (fromStop, toStop),
                 routeTransitPathThroughStreets(fromStop, toStop)
@@ -199,7 +203,7 @@ class TransitInitializer(
     profileRequest.toLon = toVertex.getLon
     profileRequest.toLat = toVertex.getLat
     profileRequest.fromTime = 0
-    profileRequest.toTime = beamConfig.beam.routing.r5.departureWindow.toInt
+    profileRequest.toTime = config.beam.routing.r5.departureWindow.toInt
     profileRequest.date = dates.localBaseDate
     profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
     profileRequest.transitModes = null
@@ -224,5 +228,10 @@ class TransitInitializer(
     } else {
       None
     }
+  }
+
+  override def update(observable: Observable, o: Any): Unit = {
+    val (_, beamConfig) = o.asInstanceOf[(_, BeamConfig)]
+    config = beamConfig
   }
 }

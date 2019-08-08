@@ -2,7 +2,7 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.{BeamConfigChangesObservable, BeamScenario, BeamServices}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
@@ -31,11 +31,14 @@ object VehiclesAdjustment {
   val UNIFORM_ADJUSTMENT = "UNIFORM"
   val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
 
-  def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
+  def getVehicleAdjustment(
+    beamConfigChangesObservable: BeamConfigChangesObservable,
+    beamScenario: BeamScenario
+  ): VehiclesAdjustment = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod match {
-      case UNIFORM_ADJUSTMENT      => new UniformVehiclesAdjustment(beamScenario)
+      case UNIFORM_ADJUSTMENT      => new UniformVehiclesAdjustment(beamConfigChangesObservable, beamScenario)
       case INCOME_BASED_ADJUSTMENT => new IncomeBasedVehiclesAdjustment(beamScenario)
-      case _                       => new UniformVehiclesAdjustment(beamScenario)
+      case _                       => new UniformVehiclesAdjustment(beamConfigChangesObservable, beamScenario)
     }
 
   }

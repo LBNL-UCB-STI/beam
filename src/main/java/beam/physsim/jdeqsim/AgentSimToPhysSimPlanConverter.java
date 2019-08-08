@@ -81,9 +81,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private BeamConfig beamConfig;
     private final Random rand = MatsimRandom.getRandom();
 
-    private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
+    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
+
+    private TransportNetwork transportNetwork;
 
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
 
@@ -100,6 +102,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         this.beamConfig = beamServices.beamConfig();
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         this.beamConfigChangesObservable = beamConfigChangesObservable;
+        this.transportNetwork = transportNetwork;
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
@@ -112,10 +115,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
                 scenario.getConfig().travelTimeCalculator(),beamConfigChangesObservable);
-        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
-        physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig,beamConfigChangesObservable);
+        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig,beamConfigChangesObservable);
+        physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig,beamConfigChangesObservable);
+        physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig,beamConfigChangesObservable);
         beamConfigChangesObservable.addObserver(this);
     }
 
@@ -482,5 +485,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public void update(Observable observable, Object o) {
         Tuple2 t = (Tuple2) o;
         this.beamConfig = (BeamConfig) t._2;
+        this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
+        agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
+
+        if (agentSimPhysSimInterfaceDebuggerEnabled) {
+            log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
+            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(beamServices.geo(), transportNetwork);
+        }
     }
 }

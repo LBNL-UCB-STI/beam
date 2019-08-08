@@ -149,8 +149,9 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
-          bind(classOf[BeamConfig]).toInstance(beamConfig)
+          //bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
+          bind(classOf[BeamConfigChangesPublisher]).asEagerSingleton()
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
@@ -442,9 +443,11 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
+    val beamConfigChangesObservable = BeamConfigChangesObservable(beamExecutionConfig.beamConfig)
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
+      beamConfigChangesObservable
     )
 
     val logStart = {
@@ -557,7 +560,8 @@ trait BeamHelper extends LazyLogging {
 
   protected def buildBeamServicesAndScenario(
     beamConfig: BeamConfig,
-    matsimConfig: MatsimConfig
+    matsimConfig: MatsimConfig,
+    beamConfigChangeObserver: BeamConfigChangesObservable
   ): (MutableScenario, BeamScenario) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
 
@@ -573,7 +577,13 @@ trait BeamHelper extends LazyLogging {
           val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
           val scenario = {
             val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+            new UrbanSimScenarioLoader(
+              emptyScenario,
+              beamScenario,
+              source,
+              beamConfigChangeObserver,
+              new GeoUtilsImpl(beamConfig)
+            ).loadScenario()
           }.asInstanceOf[MutableScenario]
           (scenario, beamScenario)
         } else {

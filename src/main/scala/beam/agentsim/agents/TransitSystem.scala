@@ -11,7 +11,7 @@ import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.BeamScenario
+import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
@@ -33,7 +33,8 @@ class TransitSystem(
   val tollCalculator: TollCalculator,
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
-  val eventsManager: EventsManager
+  val eventsManager: EventsManager,
+  val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends Actor
     with ActorLogging {
 
@@ -75,6 +76,7 @@ class TransitSystem(
       beamScenario.dates,
       beamScenario.vehicleTypes,
       beamScenario.transportNetwork,
+      beamConfigChangesObservable,
       BeamRouter.oneSecondTravelTime
     ).initMap
     transitSchedule.foreach {

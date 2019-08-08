@@ -1,6 +1,7 @@
 package beam.analysis.physsim;
 
 import beam.analysis.plots.GraphUtils;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -14,20 +15,24 @@ import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.io.IOUtils;
+import scala.Tuple2;
 
 import java.awt.geom.Ellipse2D;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.util.Observable;
+import java.util.Observer;
 
-public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
+public class PhyssimNetworkComparisonEuclideanVsLengthAttribute implements Observer {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
 
-    public PhyssimNetworkComparisonEuclideanVsLengthAttribute(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
+    public PhyssimNetworkComparisonEuclideanVsLengthAttribute(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig, BeamConfigChangesObservable beamConfigChangesObservable) {
         this.network = network;
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
+        beamConfigChangesObservable.addObserver(this);
     }
 
     /**
@@ -124,5 +129,11 @@ public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
                 1000,
                 1000
         );
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
     }
 }

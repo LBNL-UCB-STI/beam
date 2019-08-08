@@ -1,5 +1,6 @@
 package beam.analysis.physsim;
 
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import org.apache.commons.lang.ArrayUtils;
 import org.jfree.chart.ChartFactory;
@@ -11,26 +12,30 @@ import org.jfree.data.statistics.HistogramType;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import scala.Tuple2;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.stream.Stream;
 
 /**
  * An analysis class that shows how the link lengths are distributed over the network.
  */
-public class PhyssimNetworkLinkLengthDistribution {
+public class PhyssimNetworkLinkLengthDistribution implements Observer {
 
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
     static String outputFileBaseName = "physsimNetworkLinkLengthHistogram";
 
-    public PhyssimNetworkLinkLengthDistribution(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
+    public PhyssimNetworkLinkLengthDistribution(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig, BeamConfigChangesObservable beamConfigChangesObservable) {
         this.network = network;
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
+        beamConfigChangesObservable.addObserver(this);
     }
 
     /**
@@ -75,5 +80,10 @@ public class PhyssimNetworkLinkLengthDistribution {
         }
     }
 
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
+    }
 
 }

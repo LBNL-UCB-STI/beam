@@ -139,8 +139,8 @@ class BeamSim @Inject()(
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
       eventsManager,
       event.getServices.getControlerIO,
-      beamServices,
-      beamServices.beamConfig
+      beamConfigChangesObservable,
+      beamServices
     )
     iterationStatsProviders += createGraphsFromEvents
     modalityStyleStats = new ModalityStyleStats()

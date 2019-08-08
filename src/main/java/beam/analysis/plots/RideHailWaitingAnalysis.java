@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;
@@ -16,6 +17,7 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.misc.Time;
+import scala.Tuple2;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -28,7 +30,7 @@ import static java.lang.Integer.max;
 /**
  * @author abid
  */
-public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis , Observer {
 
     public static final String RIDE_HAIL = "ride_hail";
     public static final String WALK_TRANSIT = "walk_transit";
@@ -139,20 +141,17 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
-
     private static int numberOfTimeBins;
 
-    public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+    public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation, BeamConfigChangesObservable beamConfigChangesObservable,
                                    BeamConfig beamConfig) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
 
-        String endTime = beamConfig.matsim().modules().qsim().endTime();
-        Double _endTime = Time.parseTime(endTime);
-        Double _noOfTimeBins = _endTime / timeBinSize;
-        _noOfTimeBins = Math.floor(_noOfTimeBins);
-        numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+        final String endTime = beamConfig.matsim().modules().qsim().endTime();
+        setNumberOfTimeBins(timeBinSize, endTime);
+        beamConfigChangesObservable.addObserver(this);
     }
 
     @Override
@@ -443,4 +442,23 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         String vehicleId;
         double waitingTime;
     }
+
+    private void setNumberOfTimeBins(int timeBinSize, String endTime){
+        Double _endTime = Time.parseTime(endTime);
+        Double _noOfTimeBins = _endTime / timeBinSize;
+        _noOfTimeBins = Math.floor(_noOfTimeBins);
+        numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        BeamConfig beamConfig = (BeamConfig) t._2;
+        this.writeGraph = beamConfig.beam().outputs().writeGraphs();
+        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
+
+        final String endTime = beamConfig.matsim().modules().qsim().endTime();
+        setNumberOfTimeBins(timeBinSize, endTime);
+    }
+
 }

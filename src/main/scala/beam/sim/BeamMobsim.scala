@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.util.{Observable, Observer}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
@@ -17,6 +18,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.monitoring.ErrorListener
@@ -50,7 +52,8 @@ class BeamMobsim @Inject()(
   val beamSkimmer: BeamSkimmer,
   val travelTimeObserved: TravelTimeObserved,
   val geo: GeoUtils,
-  val networkHelper: NetworkHelper
+  val networkHelper: NetworkHelper,
+  val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -77,7 +80,8 @@ class BeamMobsim @Inject()(
           rideHailIterationHistory,
           routeHistory,
           beamSkimmer,
-          travelTimeObserved
+          travelTimeObserved,
+          beamConfigChangesObservable
         )
       ),
       "BeamMobsim.iteration"
@@ -94,20 +98,20 @@ class BeamMobsim @Inject()(
 
   def validateVehicleTypes(): Unit = {
     if (!beamScenario.vehicleTypes.contains(
-          Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+          Id.create(beamServices.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
         )) {
       throw new RuntimeException(
-        "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
+        "Vehicle type for human body: " + beamServices.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
       )
     }
     if (!beamScenario.vehicleTypes.contains(
           Id.create(
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
             classOf[BeamVehicleType]
           )
         )) {
       throw new RuntimeException(
-        "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
+        "Vehicle type for ride-hail: " + beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
       )
     }
   }
@@ -120,12 +124,12 @@ class BeamMobsimIteration(
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
   import beamServices._
-  private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
   var runSender: ActorRef = _
   private val errorListener = context.actorOf(ErrorListener.props())
@@ -136,7 +140,7 @@ class BeamMobsimIteration(
       classOf[BeamAgentScheduler],
       beamConfig,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
-      config.schedulerParallelismWindow,
+      beamConfig.beam.agentsim.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
     ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
     "scheduler"
@@ -180,7 +184,8 @@ class BeamMobsimIteration(
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         beamSkimmer,
-        routeHistory
+        routeHistory,
+        beamConfigChangesObservable
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -203,7 +208,7 @@ class BeamMobsimIteration(
     )
   }
 
-  private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
+  private val sharedVehicleFleets = beamConfig.beam.agentsim.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
       Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
       fleetConfig.name
@@ -223,7 +228,8 @@ class BeamMobsimIteration(
         tollCalculator,
         geo,
         networkHelper,
-        matsimServices.getEvents
+        matsimServices.getEvents,
+        beamConfigChangesObservable
       )
     ),
     "transit-system"
@@ -314,9 +320,9 @@ class BeamMobsimIteration(
   }
 
   private def scheduleRideHailManagerTimerMessages(): Unit = {
-    if (config.agents.rideHail.repositioningManager.timeout > 0)
+    if (beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout > 0)
       scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
-    if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
+    if (beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
       scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
   }
 
@@ -344,5 +350,4 @@ class BeamMobsimIteration(
       yMax + beamConfig.beam.spatial.boundingBoxBuffer
     )
   }
-
 }

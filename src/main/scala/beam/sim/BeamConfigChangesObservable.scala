@@ -29,6 +29,8 @@ object BeamConfigChangesObservable {
 
   val configFileLocationString = "configFileLocation"
 
+  def apply(beamConfig: BeamConfig): BeamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
   def clear(): Unit = {
     System.clearProperty(configFileLocationString)
   }

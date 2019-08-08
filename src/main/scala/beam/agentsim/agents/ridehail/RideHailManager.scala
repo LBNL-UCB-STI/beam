@@ -214,7 +214,8 @@ class RideHailManager(
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats],
   val beamSkimmer: BeamSkimmer,
-  val routeHistory: RouteHistory
+  val routeHistory: RouteHistory,
+  val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends Actor
     with ActorLogging
     with Stash {
@@ -335,7 +336,7 @@ class RideHailManager(
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
         .toArray
       val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
-      val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+      val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamConfigChangesObservable, beamScenario)
       scenario.getPopulation.getPersons.asScala.foreach(
         _._2.getSelectedPlan.getPlanElements.asScala
           .collect {

@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
@@ -15,6 +16,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -22,20 +24,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenAnalysis extends BaseModeAnalysis {
+public class ModeChosenAnalysis extends BaseModeAnalysis implements Observer {
 
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
@@ -51,8 +46,8 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private final Set<String> cumulativeModeChosenForModeChoice = new TreeSet<>();
     private final Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private final Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private final Map<String, Double> benchMarkData;
-    private final boolean writeGraph;
+    private Map<String, Double> benchMarkData;
+    private boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
@@ -86,11 +81,12 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
-    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfigChangesObservable beamConfigChangesObservable, BeamConfig beamConfig) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
+        beamConfigChangesObservable.addObserver(this);
     }
 
     public static String getModeChoiceFileBaseName() {
@@ -347,4 +343,12 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         return benchmarkData;
     }
 
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        BeamConfig beamConfig = (BeamConfig) t._2;
+        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
+        benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
+        writeGraph = beamConfig.beam().outputs().writeGraphs();
+    }
 }
