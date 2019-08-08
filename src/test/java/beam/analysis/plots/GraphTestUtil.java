@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.EventReader;
@@ -38,7 +39,7 @@ class GraphTestUtil {
     }
 
     synchronized static void createDummySimWithXML() {
-        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services);
+        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services, new BeamConfigChangesObservable(beamconfig));
         createDummySimWithXML(graphsFromAgentSimEvents);
     }
 

@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.junit.Before;
@@ -37,13 +38,14 @@ public class ModeChosenGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
+    private BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
     private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()) );
+    }, new BeamConfigChangesObservable(beamConfig), beamConfig);
 
     @Before
     public void setUpClass() {

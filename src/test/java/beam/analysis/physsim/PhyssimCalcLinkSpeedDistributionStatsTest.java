@@ -45,7 +45,7 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        physsimCalcLinkSpeedDistributionStats = new PhyssimCalcLinkSpeedDistributionStats(network, null, null);
+        physsimCalcLinkSpeedDistributionStats = new PhyssimCalcLinkSpeedDistributionStats(network, null, null, null);
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);

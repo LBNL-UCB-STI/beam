@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.junit.Before;
@@ -41,6 +42,7 @@ public class RealizedModeGraphTest {
     private Map<Integer, Map<String, Double>> stats;
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
     private static final String EVENT_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/replanning.event.xml";
+    private BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
     private RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
@@ -48,7 +50,7 @@ public class RealizedModeGraphTest {
             return super.compute(stat);
         }
 
-    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()));
+    },true, new BeamConfigChangesObservable(beamConfig), beamConfig);
 
     @Before
     public void setUpCRC() {
