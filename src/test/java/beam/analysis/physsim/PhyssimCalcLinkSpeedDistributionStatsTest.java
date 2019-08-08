@@ -1,5 +1,9 @@
 package beam.analysis.physsim;
 
+import beam.sim.BeamConfigChangesObservable;
+import beam.sim.config.BeamConfig;
+import beam.utils.BeamConfigUtils;
+import beam.utils.TestConfigUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
@@ -45,7 +49,9 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        physsimCalcLinkSpeedDistributionStats = new PhyssimCalcLinkSpeedDistributionStats(network, null, null, null);
+        BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
+
+        physsimCalcLinkSpeedDistributionStats = new PhyssimCalcLinkSpeedDistributionStats(network, null, null, new BeamConfigChangesObservable(beamConfig));
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);
