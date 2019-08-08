@@ -4,12 +4,11 @@ import java.nio.file.Paths
 
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamConfigChangesObservable, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
 
 /**
@@ -52,6 +51,7 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
       val (scenario, beamScenario) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig,
+        BeamConfigChangesObservable(beamConfig)
       )
 
       val listOfVehicleTypes = beamScenario.vehicleTypes.values.filter(_.vehicleCategory == Car).map(_.id.toString)

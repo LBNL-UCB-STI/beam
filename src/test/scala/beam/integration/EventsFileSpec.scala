@@ -6,7 +6,7 @@ import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.router.Modes.BeamMode.{BIKE, CAR}
-import beam.sim.BeamHelper
+import beam.sim.{BeamConfigChangesObservable, BeamHelper}
 import beam.sim.config.BeamExecutionConfig
 import beam.utils.EventReader._
 import com.typesafe.config.{Config, ConfigValueFactory}
@@ -37,7 +37,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
     val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
-      beamExecutionConfig.matsimConfig
+      beamExecutionConfig.matsimConfig,
+      new BeamConfigChangesObservable(beamExecutionConfig.beamConfig)
     )
     scenario = scenarioBuilt
     val injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)

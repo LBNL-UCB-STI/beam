@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
+import java.util.{Observable, Observer}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem, Identify}
@@ -48,7 +49,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -69,6 +69,7 @@ class BeamSim @Inject()(
     with IterationEndsListener
     with ShutdownListener
     with LazyLogging
+    with Observer
     with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
@@ -87,6 +88,7 @@ class BeamSim @Inject()(
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
+  beamConfigChangesObservable.addObserver(this)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -506,6 +508,12 @@ class BeamSim @Inject()(
             file
         }
       }
+  }
+  override def update(observable: Observable, o: Any): Unit = {
+    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+      beamServices
+    )
   }
 
 }

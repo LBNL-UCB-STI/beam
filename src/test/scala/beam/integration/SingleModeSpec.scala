@@ -9,7 +9,7 @@ import beam.router.Modes.BeamMode
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamMobsim}
+import beam.sim.{BeamConfigChangesObservable, BeamHelper, BeamMobsim}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -79,7 +79,8 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        services.networkHelper
+        services.networkHelper,
+        new BeamConfigChangesObservable(services.beamConfig)
       )
       mobsim.run()
 
@@ -132,7 +133,8 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        services.networkHelper
+        services.networkHelper,
+        new BeamConfigChangesObservable(services.beamConfig)
       )
       mobsim.run()
 
@@ -204,7 +206,8 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        services.networkHelper
+        services.networkHelper,
+        new BeamConfigChangesObservable(services.beamConfig)
       )
       mobsim.run()
 
@@ -282,7 +285,8 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        services.networkHelper
+        services.networkHelper,
+        new BeamConfigChangesObservable(services.beamConfig)
       )
       mobsim.run()
 
