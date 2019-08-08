@@ -57,7 +57,7 @@ class AgentsimWithMaximallyBadRouterSpec
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper,
         new BeamConfigChangesObservable(services.beamConfig)
-        )
+      )
       mobsim.run()
     }
   }
