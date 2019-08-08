@@ -14,11 +14,11 @@ import beam.utils.beamToVia.viaEvent.ViaEvent
 object visualization_33_34 extends App {
   val dirPath = "D:/Work/BEAM/visualizations/"
 
-  //val beamEventsFilePath = dirPath + "v33.it30.events.third.csv"
-  //val vehiclesInCircleFilePath = dirPath + "v33.it30.events.third.csv.in_SF.vehicles.txt"
+  val beamEventsFilePath = dirPath + "v33.0.events.third.csv"
+  val vehiclesInCircleFilePath = dirPath + "v33.0.events.third.csv.in_SF.vehicles.txt"
 
-  val beamEventsFilePath = dirPath + "v34.it0.events.third.csv"
-  val vehiclesInCircleFilePath = dirPath + "v34.it0.events.third.csv.in_SF.vehicles.txt"
+//  val beamEventsFilePath = dirPath + "v34.it0.events.third.csv"
+//  val vehiclesInCircleFilePath = dirPath + "v34.it0.events.third.csv.in_SF.vehicles.txt"
 
   val sampleSize = 0.3
 

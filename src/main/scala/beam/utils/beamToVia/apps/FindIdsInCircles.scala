@@ -6,13 +6,13 @@ import beam.utils.beamToVia.{BeamEventsReader, LinkCoordinate, Point, Writer}
 import scala.collection.mutable
 
 object FindIdsInCircles extends App {
-  val sourceFileName = "v34.it0.events.third.csv"
+  val sourceFileName = "v33.0.events.third.csv"
 
   val dirPath = "D:/Work/BEAM/visualizations/"
   val sourcePath = dirPath + sourceFileName
   val baseOutputPath = dirPath + sourceFileName + ".in_SF"
 
-  val networkPath = dirPath + "v34.physSimNetwork.HQ.xml"
+  val networkPath = dirPath + "v33.physSimNetwork.HQ.xml"
   //val networkPath = dirPath + "physSimNetwork.xml"
   //val networkPath = dirPath + "physSimNetwork.HQ.xml"
 
