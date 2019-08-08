@@ -7,12 +7,14 @@ import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
 import scala.collection.mutable
 
 object CollectIds extends App {
+
+  val sourceFileName = "v34.it30.events.third.csv"
+
   val dirPath = "D:/Work/BEAM/visualizations/"
+  val sourcePath = dirPath + sourceFileName
+  val outputPath =  dirPath + "collectedIds/" + sourceFileName
 
-  val sourcePath = dirPath + "v33.it20.events.csv"
-  val outputPath = dirPath + "collectedIds/v33.it20.events.csv"
-
-  val vehiclesInCircle = HashSetReader.fromFile(dirPath + "v33.it20.events.in_SF.vehicles.txt")
+  val vehiclesInCircle = HashSetReader.fromFile(dirPath + "v34.it30.events.third.csv.in_SF.vehicles.txt")
 
   case class PersonIdInfo(
     id: String,

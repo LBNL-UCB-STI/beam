@@ -8,6 +8,9 @@ object VehicleTrip {
 
   def apply(pte: BeamPathTraversal): VehicleTrip =
     new VehicleTrip(pte.vehicleId, mutable.MutableList(pte))
+
+  def apply(vehicleId: String, pte: BeamPathTraversal): VehicleTrip =
+    new VehicleTrip(vehicleId, mutable.MutableList(pte))
 }
 
 case class VehicleTrip(vehicleId: String, trip: mutable.MutableList[BeamPathTraversal]) {}

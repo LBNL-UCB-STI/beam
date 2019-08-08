@@ -53,6 +53,23 @@ object Writer {
     Console.println("via IDs written into " + outputPath)
   }
 
+  def writeViaIdsAll(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputBasePath: String): Unit = {
+    val pw2 = new PrintWriter(new File(outputBasePath + ".all.txt"))
+    typeToIdSeq.map { case (k, v) => k + "     " + v.size }.toSeq.sorted.foreach(pw2.println)
+    pw2.close()
+
+    new File(outputBasePath).mkdir()
+
+    typeToIdSeq.foreach {
+      case (group, ids) =>
+        val pw = new PrintWriter(new File(outputBasePath + "/" + group + ".txt"))
+        ids.toSeq.sorted.foreach(pw.println)
+        pw.close()
+    }
+
+    Console.println("all via IDs written into " + outputBasePath)
+  }
+
   def writeViaModes(modeToCount: mutable.Map[String, Int], outputPath: String): Unit = {
     val pw2 = new PrintWriter(new File(outputPath))
     modeToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw2.println)

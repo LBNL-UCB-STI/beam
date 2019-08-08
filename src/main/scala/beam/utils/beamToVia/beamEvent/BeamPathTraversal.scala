@@ -20,6 +20,28 @@ object BeamPathTraversal {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
 
+  def apply(
+    time: Double,
+    vehicleId: String,
+    driverId: String,
+    vehicleType: String,
+    mode: String,
+    numberOfPassengers: Int,
+    linkIds: Seq[Int],
+    linkTravelTime: Seq[Double]
+  ): BeamPathTraversal =
+    new BeamPathTraversal(
+      time,
+      vehicleId,
+      driverId,
+      vehicleType,
+      mode,
+      numberOfPassengers,
+      linkTravelTime.sum.toInt,
+      linkIds,
+      linkTravelTime
+    )
+
   def apply(genericEvent: Event): BeamPathTraversal = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr: mutable.Map[String, String] = genericEvent.getAttributes.asScala
