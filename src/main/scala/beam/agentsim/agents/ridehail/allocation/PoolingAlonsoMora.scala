@@ -87,8 +87,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       } else {
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
-        if (rideHailManager.vehicleManager.getIdleAndInServiceVehicles.contains(vehicleId) && !alreadyAllocated
-              .contains(vehicleId)) {
+        val rideHailAgentLocation =
+          rideHailManager.vehicleManager.getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId)
+        if (rideHailAgentLocation.nonEmpty && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           val requestsWithLegs = if (tempScheduleStore.contains(request.requestId)) {
             // Pooled response
@@ -115,7 +116,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
-            rideHailManager.vehicleManager.getIdleAndInServiceVehicles(vehicleId),
+            rideHailAgentLocation.get,
             requestsWithLegs
           )
         } else {
