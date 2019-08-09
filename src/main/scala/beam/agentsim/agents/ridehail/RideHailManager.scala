@@ -866,11 +866,14 @@ class RideHailManager(
   }
 
   def continueProcessingTimeoutIfReady: Unit = {
-    if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
-      if (processBufferedRequestsOnTimeout) {
-        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
-      } else {
-        continueRepositioning(modifyPassengerScheduleManager.getCurrentTick.get)
+    if (modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
+      currentlyProcessingTimeoutTrigger.map(_.trigger) match {
+        case Some(BufferedRideHailRequestsTrigger(_)) =>
+          findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+        case Some(RideHailRepositioningTrigger(_)) =>
+          continueRepositioning(modifyPassengerScheduleManager.getCurrentTick.get)
+        case x =>
+          log.warning(s"Have not expected to see '$x'")
       }
     }
   }
