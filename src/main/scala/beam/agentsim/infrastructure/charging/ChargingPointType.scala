@@ -46,7 +46,7 @@ object ChargingPointType {
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
       extends ChargingPointType {
-    override def toString: String = s"$id($installedCapacity,$electricCurrentType)"
+    override def toString: String = s"$id($installedCapacity|$electricCurrentType)"
   }
 
   case object CustomChargingPoint {
