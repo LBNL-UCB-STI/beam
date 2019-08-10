@@ -17,14 +17,14 @@ object visualization_35 extends App {
 
   object Selector extends MutableVehiclesFilter.SelectNewVehicle {
     override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean = {
-//      if (person1.vehicleIds.contains(vehicleId)) {
-//        false
-//      } else {
-      vehicleMode match {
-        case "CAR" | "BUS" => true
-        case _             => false
+      if (person1.vehicleIds.contains(vehicleId)) {
+        false
+      } else {
+        vehicleMode match {
+          case "CAR" | "BUS" => true
+          case _             => false
+        }
       }
-//      }
     }
   }
 
@@ -38,12 +38,14 @@ object visualization_35 extends App {
 
   val eventsWithAlternatives = {
     val (vehiclesEvents, _) = EventsProcessor.readWithFilter(beamEventsFilePath, MutableVehiclesFilter(Selector))
-//    val alt0 = alternativePathToVehiclesTrips(person1.alternative0, "_alt0_")
-//    val alt1 = alternativePathToVehiclesTrips(person1.alternative1, "_alt1_")
-//    val alt2 = alternativePathToVehiclesTrips(person1.alternative2, "_alt2_")
-//    val alt3 = alternativePathToVehiclesTrips(person1.alternative3, "_alt3_")
+    val alt0 = alternativePathToVehiclesTrips(person1.alternative0_RH_pooled, "_alt0_")
+    val alt1 = alternativePathToVehiclesTrips(person1.alternative1_RH, "_alt1_")
+    val alt2 = alternativePathToVehiclesTrips(person1.alternative2_walk, "_alt2_")
+    val alt3 = alternativePathToVehiclesTrips(person1.alternative3_walkTransit, "_alt3_")
+    val alt4 = alternativePathToVehiclesTrips(person1.alternative4_bike, "_alt4_")
+    val alt5 = alternativePathToVehiclesTrips(person1.alternative5_walkTransitWithBike, "_alt5_")
 
-    vehiclesEvents //++ alt0 ++ alt1 ++ alt2 ++ alt3
+    vehiclesEvents ++ alt0 ++ alt1 ++ alt2 ++ alt3 ++ alt4 ++ alt5
   }
 
   val (events, typeToId) = EventsProcessor.transformPathTraversals(eventsWithAlternatives, vehicleId, vehicleType)
@@ -86,10 +88,7 @@ object visualization_35 extends App {
       CAR_RH_*__rideHailVehicle-026200-2016000744660-0-4385427
      */
 
-    val alternative0Cost =
-      "cost: 7.2624803574, time: 2.5660917853, tansfer: 0, utility: -10.8285721427, expUtility: 1.9824893891225256E-5"
-
-    val alternative0: Seq[BeamPathTraversal] = Seq(
+    val alternative0_RH_pooled: Seq[BeamPathTraversal] = Seq(
       BeamPathTraversal(
         29487,
         "rideHailVehicle-026200-2016000744660-0-4385427",
@@ -134,10 +133,7 @@ object visualization_35 extends App {
       )
     )
 
-    val alternative1Cost =
-      "cost: 9.6283657793, time: 1.1867397845, tansfer: 0, utility: -10.8151055637, expUtility: 2.009367309730039E-5"
-
-    val alternative1: Seq[BeamPathTraversal] = Seq(
+    val alternative1_RH: Seq[BeamPathTraversal] = Seq(
       BeamPathTraversal(
         29183,
         "rideHailVehicle-600401-2014001249408-0-5794423",
@@ -158,10 +154,7 @@ object visualization_35 extends App {
       )
     )
 
-    val alternative2Cost =
-      "cost: 0, time: 18.8791038489, tansfer: 0, utility: -18.8791038489, expUtility: 6.322798988706303E-9"
-
-    val alternative2: Seq[BeamPathTraversal] = Seq(
+    val alternative2_walk: Seq[BeamPathTraversal] = Seq(
       BeamPathTraversal(
         29160,
         "body-026303-2015000142533-0-3364370",
@@ -186,10 +179,7 @@ object visualization_35 extends App {
       )
     )
 
-    val alternative3Cost =
-      "cost: 2.75, time: 7.9343806533, tansfer: 1, utility: -12.0843806533, expUtility: 5.647030911698824E-6"
-
-    val alternative3: Seq[BeamPathTraversal] = Seq(
+    val alternative3_walkTransit: Seq[BeamPathTraversal] = Seq(
       BeamPathTraversal(
         29347,
         "body-026303-2015000142533-0-3364370",
@@ -265,13 +255,82 @@ object visualization_35 extends App {
       )
     )
 
+    val alternative4_bike: Seq[BeamPathTraversal] = Seq(
+      BeamPathTraversal(
+        29160,
+        "bike-10001-1",
+        "026303-2015000142533-0-3364370",
+        "BIKE-DEFAULT",
+        "BIKE",
+        0,
+        Seq[Int](55761, 27548, 34050, 50490, 50492, 50494, 50496, 50498, 50500, 50502, 50504, 50506, 50508, 55750,
+          10863, 10861, 10859, 10857, 27578, 43138, 43140, 52074, 88515, 52087, 88495, 88523, 52085, 52083, 88535,
+          52081, 52079, 52077, 88505, 52073, 8909, 8907, 8905, 34160, 34162, 34164, 91368, 34166, 91364, 34168, 34170,
+          34172, 91336, 91340, 34174, 34176, 91408, 34178, 91404, 34180, 34182, 34184, 34186, 91360, 34188, 91356,
+          34190, 34192, 34194, 91328, 34196, 91372, 34198, 91384, 34200, 91380, 34202, 34204, 34206, 34208, 91420,
+          20664, 25238, 20662, 36504, 91332, 36506, 36508, 36510, 36512, 36514, 91324, 36516, 93448, 36518, 91426,
+          36520, 36522, 36524, 91416, 91412, 64350, 64352, 64354, 89736, 36467, 36465, 1119, 1117, 1115, 87617, 87621,
+          87613, 48169, 4921, 4919, 4917, 4915, 4913, 4911, 68882, 6172, 6174, 6176, 23358, 54504, 57066, 85210, 57068,
+          57070, 57074),
+        Seq[Double](19, 18, 25, 40, 15, 3, 12, 8, 11, 9, 10, 10, 10, 4, 7, 10, 10, 21, 6, 13, 5, 3, 6, 23, 5, 16, 2, 41,
+          39, 2, 41, 41, 2, 39, 41, 41, 42, 20, 9, 17, 2, 3, 17, 19, 19, 3, 4, 14, 22, 17, 2, 2, 17, 12, 7, 7, 7, 6, 6,
+          7, 6, 19, 12, 6, 6, 14, 10, 2, 2, 6, 19, 15, 4, 18, 2, 3, 16, 3, 7, 2, 19, 15, 5, 11, 2, 8, 5, 2, 12, 2, 13,
+          3, 29, 4, 3, 2, 17, 19, 4, 9, 9, 17, 30, 39, 3, 3, 33, 3, 18, 17, 18, 18, 18, 17, 3, 2, 1, 2, 34, 25, 10, 6,
+          1, 6, 64)
+      )
+    )
+
+    val alternative5_walkTransitWithBike: Seq[BeamPathTraversal] = Seq(
+      BeamPathTraversal(
+        29682,
+        "bike-10001-1",
+        "026303-2015000142533-0-3364370",
+        "BIKE-DEFAULT",
+        "BIKE",
+        0,
+        Seq[Int](55761, 88929, 55759, 88859, 55757, 88855, 55755, 88833, 55753, 45453, 88809, 45451, 45449, 45447,
+          45445, 45443, 88769, 45441, 88867, 45439, 45437, 45435, 45433, 64869, 45429, 88825, 50857, 55065, 55063,
+          55061, 55059, 88849, 55057, 88845, 55055, 55053, 55051, 55049, 55047, 55045, 88881, 55043, 55041, 88901,
+          50855, 50853, 88885, 49845, 52031, 88875, 88789, 52029, 52037, 52035, 52033, 88813, 88803, 22631, 22629,
+          22627, 22625, 22623, 22621, 34214, 91399),
+        Seq[Double](19, 2, 14, 26, 2, 2, 5, 32, 2, 3, 2, 3, 6, 9, 7, 10, 18, 2, 3, 22, 4, 5, 8, 10, 2, 7, 2, 13, 1, 10,
+          21, 7, 7, 4, 6, 4, 15, 2, 3, 26, 2, 10, 24, 8, 8, 3, 9, 11, 4, 7, 9, 2, 15, 16, 13, 2, 3, 6, 16, 15, 13, 5,
+          15, 2, 2)
+      ),
+      BeamPathTraversal(
+        30240,
+        "SF:7686588",
+        "TransitDriverAgent-SF:7686588",
+        "DEFAULT",
+        "BUS",
+        1,
+        Seq[Int](),
+        Seq[Double]()
+      ),
+      BeamPathTraversal(
+        31616,
+        "body-026303-2015000142533-0-3364370",
+        "026303-2015000142533-0-3364370",
+        "BODY-TYPE-DEFAULT",
+        "WALK",
+        0,
+        Seq[Int](91414, 91412, 64350, 64352, 64354, 89736, 36467, 36465, 1119, 1117, 1115, 87617, 87621, 87613, 48169,
+          4921, 4919, 4917, 4915, 4913, 4911, 15713, 54695, 54693, 54511, 54509, 54507, 54504, 57066, 85210, 57068,
+          57070),
+        Seq[Double](2, 3, 2, 17, 19, 4, 9, 9, 17, 30, 39, 3, 3, 33, 3, 18, 17, 18, 18, 18, 17, 12, 7, 16, 1, 1, 2, 25,
+          10, 6, 1, 6)
+      )
+    )
+
     lazy val vehicleIds: mutable.HashSet[String] = {
       def getVehicleId(pte: BeamPathTraversal) = pte.vehicleId
       val alts = {
-        alternative0.map(getVehicleId) ++
-        alternative1.map(getVehicleId) ++
-        alternative2.map(getVehicleId) ++
-        alternative3.map(getVehicleId)
+        alternative0_RH_pooled.map(getVehicleId) ++
+        alternative1_RH.map(getVehicleId) ++
+        alternative2_walk.map(getVehicleId) ++
+        alternative3_walkTransit.map(getVehicleId) ++
+        alternative4_bike.map(getVehicleId) ++
+        alternative5_walkTransitWithBike.map(getVehicleId)
       }
 
       mutable.HashSet[String](alts: _*)
