@@ -15,26 +15,23 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class AsyncAlonsoMoraAlgForRideHail(
-  spatialDemand: QuadTree[CustomerRequest],
-  supply: List[VehicleAndSchedule],
-  beamServices: BeamServices,
-  skimmer: BeamSkimmer
-) {
+                                     spatialDemand: QuadTree[CustomerRequest],
+                                     supply: List[VehicleAndSchedule],
+                                     beamServices: BeamServices,
+                                     skimmer: BeamSkimmer
+                                   ) {
 
-  val solutionSpaceSizePerVehicle =
+  var solutionSpaceSizePerVehicle =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
 
-  val waitingTimeInSec =
+  var waitingTimeInSec =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
 
-  val travelTimeDelayAsFraction =
+  var travelTimeDelayAsFraction =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction
 
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
-    if (v.getFreeSeats < 4) {
-      val i = 0
-    }
     val vertices = MListBuffer.empty[RTVGraphNode]
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
@@ -49,7 +46,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           .filter(
             r =>
               GeoUtils.distFormula(r.pickup.activity.getCoord, gfCenter) <= gf.geofenceRadius &&
-              GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
+                GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
           )
           .toList
       case _ =>
@@ -68,7 +65,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             edges append ((r, t), (t, v))
           case _ =>
         }
-    )
+      )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 until v.getFreeSeats + 1) {
         val kRequestsList = MListBuffer.empty[RideHailTrip]
