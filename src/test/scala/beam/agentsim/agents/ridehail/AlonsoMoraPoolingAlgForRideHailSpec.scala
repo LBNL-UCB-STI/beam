@@ -69,6 +69,9 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           services,
           skimmer
         )
+      alg.solutionSpaceSizePerVehicle = 1000
+      alg.travelTimeDelayAsFraction = 0.2
+      alg.waitingTimeInSec = 6 * 60
 
       val assignment = alg.matchAndAssign(0)
       for (row <- assignment) {
