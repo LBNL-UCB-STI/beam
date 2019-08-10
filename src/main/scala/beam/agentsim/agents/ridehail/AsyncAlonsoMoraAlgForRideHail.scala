@@ -15,11 +15,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class AsyncAlonsoMoraAlgForRideHail(
-                                     spatialDemand: QuadTree[CustomerRequest],
-                                     supply: List[VehicleAndSchedule],
-                                     beamServices: BeamServices,
-                                     skimmer: BeamSkimmer
-                                   ) {
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices,
+  skimmer: BeamSkimmer
+) {
 
   var solutionSpaceSizePerVehicle =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
@@ -46,7 +46,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           .filter(
             r =>
               GeoUtils.distFormula(r.pickup.activity.getCoord, gfCenter) <= gf.geofenceRadius &&
-                GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
+              GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
           )
           .toList
       case _ =>
@@ -65,7 +65,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             edges append ((r, t), (t, v))
           case _ =>
         }
-      )
+    )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 until v.getFreeSeats + 1) {
         val kRequestsList = MListBuffer.empty[RideHailTrip]

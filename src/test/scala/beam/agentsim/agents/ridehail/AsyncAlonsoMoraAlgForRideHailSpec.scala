@@ -26,18 +26,18 @@ import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext}
 
 class AsyncAlonsoMoraAlgForRideHailSpec
-  extends TestKit(
-    ActorSystem(
-      name = "AlonsoMoraPoolingAlgForRideHailSpec",
-      config = ConfigFactory
-        .parseString("""
+    extends TestKit(
+      ActorSystem(
+        name = "AlonsoMoraPoolingAlgForRideHailSpec",
+        config = ConfigFactory
+          .parseString("""
                akka.log-dead-letters = 10
                akka.actor.debug.fsm = true
                akka.loglevel = debug
             """)
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with Matchers
     with FunSpecLike
     with BeforeAndAfterAll

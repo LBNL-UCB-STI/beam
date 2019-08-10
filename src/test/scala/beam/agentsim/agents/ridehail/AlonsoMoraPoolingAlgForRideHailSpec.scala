@@ -26,18 +26,18 @@ import scala.collection.immutable.List
 import scala.concurrent.ExecutionContext
 
 class AlonsoMoraPoolingAlgForRideHailSpec
-  extends TestKit(
-    ActorSystem(
-      name = "AlonsoMoraPoolingAlgForRideHailSpec",
-      config = ConfigFactory
-        .parseString("""
+    extends TestKit(
+      ActorSystem(
+        name = "AlonsoMoraPoolingAlgForRideHailSpec",
+        config = ConfigFactory
+          .parseString("""
                akka.log-dead-letters = 10
                akka.actor.debug.fsm = true
                akka.loglevel = debug
             """)
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with Matchers
     with FunSpecLike
     with BeforeAndAfterAll
@@ -82,13 +82,13 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           case "p1" =>
             assert(
               rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p4")
+              rvGraph.getEdgeTarget(e).getId.equals("p4")
             )
           case "p2" =>
             assert(
               rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p3") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p4")
+              rvGraph.getEdgeTarget(e).getId.equals("p3") ||
+              rvGraph.getEdgeTarget(e).getId.equals("p4")
             )
           case "p3" =>
             assert(
@@ -97,19 +97,19 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           case "p4" =>
             assert(
               rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p2")
+              rvGraph.getEdgeTarget(e).getId.equals("p2")
             )
           case "v1" =>
             assert(
               rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p3")
+              rvGraph.getEdgeTarget(e).getId.equals("p3")
             )
           case "v2" =>
             assert(
               rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p3") ||
-                rvGraph.getEdgeTarget(e).getId.equals("p4")
+              rvGraph.getEdgeTarget(e).getId.equals("p2") ||
+              rvGraph.getEdgeTarget(e).getId.equals("p3") ||
+              rvGraph.getEdgeTarget(e).getId.equals("p4")
             )
         }
       }
@@ -120,41 +120,41 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           case "trip:[p3] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v1") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
             )
           case "trip:[p1] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
           case "trip:[p2] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
           case "trip:[p4] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
           case "trip:[p1] -> [p4] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
             )
           case "trip:[p2] -> [p3] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
             )
           case "trip:[p2] -> [p4] -> " =>
             assert(
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-                rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
             )
           case _ =>
         }
@@ -166,11 +166,12 @@ class AlonsoMoraPoolingAlgForRideHailSpec
 
 object AlonsoMoraPoolingAlgForRideHailSpec {
 
-  def scenario1()(implicit
-                  skimmer: BeamSkimmer,
-                  services: BeamServices,
-                  beamScenario: BeamScenario,
-                  mockActorRef: ActorRef
+  def scenario1()(
+    implicit
+    skimmer: BeamSkimmer,
+    services: BeamServices,
+    beamScenario: BeamScenario,
+    mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
@@ -213,11 +214,12 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def scenarioGeoFence()(implicit
-                         skimmer: BeamSkimmer,
-                         services: BeamServices,
-                         beamScenario: BeamScenario,
-                         mockActorRef: ActorRef
+  def scenarioGeoFence()(
+    implicit
+    skimmer: BeamSkimmer,
+    services: BeamServices,
+    beamScenario: BeamScenario,
+    mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val gf = Geofence(10000, 10000, 13400)

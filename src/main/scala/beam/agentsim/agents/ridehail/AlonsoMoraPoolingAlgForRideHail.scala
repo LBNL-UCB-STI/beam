@@ -22,11 +22,11 @@ import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 class AlonsoMoraPoolingAlgForRideHail(
-                                       spatialDemand: QuadTree[CustomerRequest],
-                                       supply: List[VehicleAndSchedule],
-                                       beamServices: BeamServices,
-                                       skimmer: BeamSkimmer
-                                     ) {
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices,
+  skimmer: BeamSkimmer
+) {
 
   var solutionSpaceSizePerVehicle =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
@@ -154,10 +154,10 @@ object AlonsoMoraPoolingAlgForRideHail {
 
   // a greedy assignment using a cost function
   def greedyAssignment(
-                        rTvG: RTVGraph,
-                        maximumVehCapacity: Int,
-                        solutionSpaceSizePerVehicle: Int
-                      ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
+    rTvG: RTVGraph,
+    maximumVehCapacity: Int,
+    solutionSpaceSizePerVehicle: Int
+  ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val Rok = MListBuffer.empty[CustomerRequest]
     val Vok = MListBuffer.empty[VehicleAndSchedule]
@@ -209,10 +209,10 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def getRidehailSchedule(
-                           schedule: List[MobilityRequest],
-                           newRequests: List[MobilityRequest],
-                           skimmer: BeamSkimmer
-                         ): Option[List[MobilityRequest]] = {
+    schedule: List[MobilityRequest],
+    newRequests: List[MobilityRequest],
+    skimmer: BeamSkimmer
+  ): Option[List[MobilityRequest]] = {
     val newPoolingList = scala.collection.mutable.ListBuffer.empty[MobilityRequest]
     val reversedSchedule = schedule.reverse
     val sortedRequests = reversedSchedule.lastOption match {
@@ -227,7 +227,7 @@ object AlonsoMoraPoolingAlgForRideHail {
             req.copy(
               baselineNonPooledTime = req.baselineNonPooledTime + shiftRequestsBy,
               serviceTime = req.serviceTime + shiftRequestsBy
-            )
+          )
         )).sortBy(
           mr => (mr.baselineNonPooledTime, mr.person.map(_.personId.toString).getOrElse("ZZZZZZZZZZZZZZZZZZZZZZZ"))
         )
@@ -253,14 +253,14 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def createPersonRequest(
-                           vehiclePersonId: PersonIdWithActorRef,
-                           src: Location,
-                           departureTime: Int,
-                           dst: Location,
-                           beamServices: BeamServices
-                         )(
-                           implicit skimmer: BeamSkimmer
-                         ): CustomerRequest = {
+    vehiclePersonId: PersonIdWithActorRef,
+    src: Location,
+    departureTime: Int,
+    dst: Location,
+    beamServices: BeamServices
+  )(
+    implicit skimmer: BeamSkimmer
+  ): CustomerRequest = {
     val waitingTimeInSec =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
     val travelTimeDelayAsFraction =
@@ -306,10 +306,10 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def createVehicleAndScheduleFromRideHailAgentLocation(
-                                                         veh: RideHailAgentLocation,
-                                                         tick: Int,
-                                                         beamServices: BeamServices
-                                                       ): VehicleAndSchedule = {
+    veh: RideHailAgentLocation,
+    tick: Int,
+    beamServices: BeamServices
+  ): VehicleAndSchedule = {
     val waitingTimeInSec =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
     val travelTimeDelayAsFraction =
@@ -421,13 +421,13 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def createVehicleAndSchedule(
-                                vid: String,
-                                vehicleType: BeamVehicleType,
-                                dst: Location,
-                                dstTime: Int,
-                                geofence: Option[Geofence] = None,
-                                seatsAvailable: Int
-                              ): VehicleAndSchedule = {
+    vid: String,
+    vehicleType: BeamVehicleType,
+    dst: Location,
+    dstTime: Int,
+    geofence: Option[Geofence] = None,
+    seatsAvailable: Int
+  ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
@@ -463,17 +463,17 @@ object AlonsoMoraPoolingAlgForRideHail {
   sealed trait RVGraphNode extends RTVGraphNode
   // customer requests
   case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
-    extends RVGraphNode {
+      extends RVGraphNode {
     override def getId: String = person.personId.toString
     override def toString: String = s"Person:${person.personId}|Pickup:$pickup|Dropoff:$dropoff"
   }
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(
-                                 vehicle: BeamVehicle,
-                                 schedule: List[MobilityRequest],
-                                 geofence: Option[Geofence],
-                                 seatsAvailable: Int
-                               ) extends RVGraphNode {
+    vehicle: BeamVehicle,
+    schedule: List[MobilityRequest],
+    geofence: Option[Geofence],
+    seatsAvailable: Int
+  ) extends RVGraphNode {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
     override def getId: String = vehicle.id.toString
@@ -483,7 +483,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
   // Trip that can be satisfied by one or more ride hail vehicle
   case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityRequest])
-    extends DefaultEdge
+      extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val sumOfDelays: Int = schedule.foldLeft(0) { case (c, r)              => c + (r.serviceTime - r.baselineNonPooledTime) }
@@ -495,9 +495,9 @@ object AlonsoMoraPoolingAlgForRideHail {
       s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
   }
   case class RVGraph(clazz: Class[RideHailTrip])
-    extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
+      extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
   case class RTVGraph(clazz: Class[DefaultEdge])
-    extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
+      extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
   // ***************************
 
 }

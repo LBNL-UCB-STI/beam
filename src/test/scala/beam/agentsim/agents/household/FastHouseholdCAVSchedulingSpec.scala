@@ -28,21 +28,21 @@ import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
-  extends TestKit(
-    ActorSystem(
-      name = "FastHouseholdCAVSchedulingTest",
-      config = ConfigFactory
-        .parseString(
-          """
+    extends TestKit(
+      ActorSystem(
+        name = "FastHouseholdCAVSchedulingTest",
+        config = ConfigFactory
+          .parseString(
+            """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
         """
-        )
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with Matchers
     with FunSpecLike
     with BeforeAndAfterAll
