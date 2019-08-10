@@ -30,7 +30,7 @@ import scala.concurrent.ExecutionContext
 class FastHouseholdCAVSchedulingSpec
     extends TestKit(
       ActorSystem(
-        name = "FastHouseholdCAVSchedulingTest",
+        name = "FastHouseholdCAVSchedulingSpec",
         config = ConfigFactory
           .parseString(
             """
