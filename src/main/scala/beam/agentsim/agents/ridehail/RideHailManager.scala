@@ -4,7 +4,6 @@ import java.awt.Color
 import java.io.File
 import java.lang.reflect.Method
 import java.util
-import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
@@ -22,11 +21,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -60,14 +55,14 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-import scala.util.{Failure, Success, Try}
-
+import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
@@ -239,6 +234,8 @@ class RideHailManager(
     */
   val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, boundingBox)
 
+  val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
   lazy val travelProposalCache: Cache[String, TravelProposal] = {
     CacheBuilder
       .newBuilder()
@@ -324,7 +321,6 @@ class RideHailManager(
   private var cacheAttempts = 0
   private var cacheHits = 0
 
-  private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
@@ -340,7 +336,6 @@ class RideHailManager(
 
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
-  val valueOfTime: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime
 
   // for parking/charging search
   val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
@@ -366,7 +361,7 @@ class RideHailManager(
   val rideHailDepotParkingManager = RideHailDepotParkingManager(
     parkingFilePath,
     beamServices.beamConfig.beam.agentsim.taz.filePath,
-    valueOfTime,
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
     beamServices.beamScenario.tazTreeMap,
     rand,
     boundingBox,
@@ -380,9 +375,7 @@ class RideHailManager(
       val meanLogShiftDurationHours = 1.02
       val stdLogShiftDurationHours = 0.44
       var equivalentNumberOfDrivers = 0.0
-      val persons: Array[Person] = RandomUtils
-        .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-        .toArray
+      val persons: Array[Person] = rand.shuffle(scenario.getPopulation.getPersons.values().asScala).toArray
       val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
       val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
       scenario.getPopulation.getPersons.asScala.foreach(
@@ -1454,7 +1447,8 @@ class RideHailManager(
     val rideHailBeamVehicle = new BeamVehicle(
       rideHailVehicleId,
       powertrain,
-      rideHailBeamVehicleType
+      rideHailBeamVehicleType,
+      rand.nextInt()
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)

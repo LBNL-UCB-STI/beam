@@ -8,12 +8,7 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -32,6 +27,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Random
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
   val id: Id[VehicleManager],
@@ -51,12 +47,15 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
+  private val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+
   private val vehicles = (locations.zipWithIndex map {
     case (location, ix) =>
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
-        vehicleType
+        vehicleType,
+        rand.nextInt()
       )
       vehicle.manager = Some(self)
       vehicle.spaceTime = SpaceTime(location, 0)

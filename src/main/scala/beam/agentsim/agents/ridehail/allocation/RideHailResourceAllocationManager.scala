@@ -192,7 +192,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.findBeamVehicleUsing(vehicleId) match {
           case Some(beamVehicle) => {
             if (cavOnly && !beamVehicle.isCAV) false
-            else beamVehicle.isRefuelNeeded
+            else beamVehicle.isRefuelNeeded()
           }
           case None => false
         }
