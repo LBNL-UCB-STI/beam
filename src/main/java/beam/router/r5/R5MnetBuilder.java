@@ -63,12 +63,6 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
 
-        // TODO DO NOT FORGET TO BRING THIS BACK TO DEVELOP!!!
-        OTM.setBEAMHighwayDefaults(6, "minor", 1, toMetersPerSecond(25), 1.0, 1200);
-        OTM.setBEAMHighwayDefaults(6, "residential", 1, toMetersPerSecond(25), 1.0, 1200);
-        OTM.setBEAMHighwayDefaults(6, "living_street", 1, toMetersPerSecond(25), 1.0, 1200);
-        OTM.setBEAMHighwayDefaults(6, "unclassified", 1, toMetersPerSecond(28), 1.0, 1200);
-
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
@@ -214,7 +208,5 @@ public class R5MnetBuilder {
         }
         return out;
     }
-    public static double toMetersPerSecond(double milesPerHour) {
-        return milesPerHour * 1.60934 * 1000 / 3600;
-    }
+
 }
