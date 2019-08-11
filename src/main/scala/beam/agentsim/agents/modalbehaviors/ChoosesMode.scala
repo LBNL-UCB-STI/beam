@@ -1193,7 +1193,7 @@ object ChoosesMode {
       } else {
         Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.defaultStall(new Coord(0, 0)), 0)),
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox,cost = 0.0), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {
