@@ -235,13 +235,12 @@ trait ChoosesMode {
           Some(attributes),
           streetVehiclesIntermodalUse
         )
-        val nextActivityEndTime: Int = getActivityEndTime(nextAct, beamServices)
         if (withParking) {
           requestParkingCost(
             nextAct.getCoord,
             nextAct.getType,
             departTime,
-            nextActivityEndTime - departTime
+            getActivityEndTime(nextAct, beamServices) - departTime
           )
         } else {
           None
