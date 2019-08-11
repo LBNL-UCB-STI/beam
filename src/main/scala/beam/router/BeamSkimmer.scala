@@ -60,6 +60,8 @@ class BeamSkimmer @Inject()(
   }
 
   private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
+    // DEBUG following code and then enable it again!!!
+    /*
     if (beamConfig.beam.warmStart.enabled) {
       try {
         val previousSkims = skimsFilePath
@@ -75,6 +77,8 @@ class BeamSkimmer @Inject()(
     } else {
       TrieMap.empty
     }
+     */
+    TrieMap.empty
   }
 
   def getSkimDefaultValue(
