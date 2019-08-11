@@ -153,7 +153,7 @@ class AsyncAlonsoMoraAlgForRideHail(
                   .head
               )
               .asInstanceOf[VehicleAndSchedule]
-            val C0 = timeWindow(Pickup) + timeWindow(Dropoff) * 3600
+            val C0 = timeWindow(Pickup) + timeWindow(Dropoff)
             val cost = trip.cost + C0 * (maxRequestsPerVehicle - trip.requests.size)
             (trip, vehicle, cost)
           }
