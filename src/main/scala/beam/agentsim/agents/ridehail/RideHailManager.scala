@@ -1555,7 +1555,12 @@ class RideHailManager(
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
         )
-        self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, vehicleManager.idleRideHailVehicles(vehicleId))
+        self ! RepositionVehicleRequest(
+          passengerSchedule,
+          tick,
+          vehicleId,
+          vehicleManager.idleRideHailVehicles(vehicleId)
+        )
       } else {
         self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleManager.idleRideHailVehicles(vehicleId).vehicleId)
       }
