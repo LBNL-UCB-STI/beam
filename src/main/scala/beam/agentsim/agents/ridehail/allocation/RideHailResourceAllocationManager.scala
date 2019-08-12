@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
+import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.{
@@ -10,9 +10,7 @@ import beam.agentsim.agents.ridehail.repositioningmanager.{
   RepositioningManager
 }
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
-import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -162,11 +160,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
-            val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
+            val schedule = List(
+              MobilityRequest.simpleRequest(
+                Relocation,
+                Some(request.customer),
+                routingResponses.head.itineraries.head.legs.headOption
+              ),
+              MobilityRequest
+                .simpleRequest(Pickup, Some(request.customer), routingResponses.last.itineraries.head.legs.headOption),
+              MobilityRequest.simpleRequest(Dropoff, Some(request.customer), None)
             )
-            VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
+            VehicleMatchedToCustomers(request, agentETA.agentLocation, schedule)
           case None =>
             NoVehicleAllocated(request)
         }
@@ -199,13 +203,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 
-  /*
-   * This is deprecated.
-   */
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
-    logger.trace("default implementation handleRideCancellationReply executed")
-  }
-
   def createRepositioningManager(): RepositioningManager = {
     val name = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name
     try {
@@ -233,7 +230,6 @@ object RideHailResourceAllocationManager {
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val POOLING = "POOLING"
   val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
-  val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
@@ -250,8 +246,6 @@ object RideHailResourceAllocationManager {
         new Pooling(rideHailManager)
       case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
         new PoolingAlonsoMora(rideHailManager)
-      case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-        ???
       case classFullName =>
         try {
           Class
@@ -299,9 +293,8 @@ case class RoutingRequiredToAllocateVehicle(request: RideHailRequest, routesRequ
 case class VehicleMatchedToCustomers(
   request: RideHailRequest,
   rideHailAgentLocation: RideHailAgentLocation,
-  pickDropIdWithRoutes: List[PickDropIdAndLeg]
+  schedule: List[MobilityRequest]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: Option[PersonIdWithActorRef], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

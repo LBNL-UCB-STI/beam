@@ -20,13 +20,14 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
-import beam.sim.Geofence
+import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -55,10 +56,30 @@ trait ChoosesMode {
 
   def boundingBox: Envelope
 
-  def currentTourBeamVehicle: BeamVehicle =
-    beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
-      .asInstanceOf[ActualVehicle]
-      .vehicle
+  def currentTourBeamVehicle: Option[BeamVehicle] =
+    if (stateData.isInstanceOf[ChoosesModeData]) {
+      stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
+        case Some(personalVehicle) =>
+          Option(
+            beamVehicles(personalVehicle)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+          )
+        case _ => None
+      }
+    } else if (stateData.isInstanceOf[BasePersonData]) {
+      stateData.asInstanceOf[BasePersonData].currentTourPersonalVehicle match {
+        case Some(personalVehicle) =>
+          Option(
+            beamVehicles(personalVehicle)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+          )
+        case _ => None
+      }
+    } else {
+      None
+    }
 
   onTransition {
     case _ -> ChoosingMode =>
@@ -219,7 +240,7 @@ trait ChoosesMode {
             nextAct.getCoord,
             nextAct.getType,
             departTime,
-            nextAct.getEndTime.toInt - departTime
+            getActivityEndTime(nextAct, beamServices) - departTime
           )
         } else {
           None
@@ -439,11 +460,12 @@ trait ChoosesMode {
       var newPersonData = if (driveTransitTrip.isDefined) {
         val accessLeg = driveTransitTrip.get.legs.view.takeWhile(!_.beamLeg.mode.isTransit).last.beamLeg
         val dest = accessLeg.travelPath.endPoint.loc
+        val nextActivityEndTime = getActivityEndTime(nextActivity(choosesModeData.personData).get, beamServices)
         val driveTransitRequestId = requestParkingCost(
           beamServices.geo.wgs2Utm(dest),
           "ParkAndRide",
           accessLeg.endTime,
-          nextActivity(choosesModeData.personData).get.getEndTime.toInt - accessLeg.endTime
+          nextActivityEndTime - accessLeg.endTime
         )
         choosesModeData.copy(driveTransitParkingResponse = None, driveTransitParkingRequestId = driveTransitRequestId)
       } else {
@@ -610,7 +632,7 @@ trait ChoosesMode {
     val firstTravelTimes = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
     val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
     val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
-    val secondDuration = Math.min(secondTravelTimes.tail.sum, leg.beamLeg.duration)
+    val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
     val firstPathEndpoint = SpaceTime(
@@ -621,12 +643,15 @@ trait ChoosesMode {
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
       startPoint = firstPathEndpoint,
+      endPoint =
+        leg.beamLeg.travelPath.endPoint.copy(time = (firstPathEndpoint.time + secondTravelTimes.tail.sum).toInt),
       distanceInM = secondDistance
     )
     val firstPath = leg.beamLeg.travelPath.copy(
       linkIds = theLinkIds.take(indexFromBeg),
       linkTravelTime = firstTravelTimes,
-      endPoint = firstPathEndpoint,
+      endPoint =
+        firstPathEndpoint.copy(time = (leg.beamLeg.travelPath.startPoint.time + firstTravelTimes.tail.sum).toInt),
       distanceInM = leg.beamLeg.travelPath.distanceInM - secondPath.distanceInM
     )
     val firstLeg = leg.copy(
@@ -734,8 +759,9 @@ trait ChoosesMode {
       destinationInUTM,
       activityType,
       attributes.valueOfTime,
-      None,
+      ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
       duration,
+      currentTourBeamVehicle,
       reserveStall = false
     )
     parkingManager ! inquiry
@@ -751,19 +777,30 @@ trait ChoosesMode {
       itin.tripClassifier match {
         case CAR =>
           val newLegs = itin.legs.zipWithIndex.map {
-            case (leg, i) => if (i == 2) { leg.copy(cost = leg.cost + parkingResponse.stall.cost) } else { leg }
+            case (leg, i) =>
+              if (i == 2) {
+                leg.copy(cost = leg.cost + parkingResponse.stall.cost)
+              } else {
+                leg
+              }
           }
           itin.copy(legs = newLegs)
         case DRIVE_TRANSIT =>
           val newLegs = if (itin.legs.size > 2 && itin.legs(2).beamLeg.mode == CAR) {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
-                if (i == 2) { leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost) } else { leg }
+                if (i == 2) {
+                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost)
+                } else {
+                  leg
+                }
             }
           } else if (itin.legs.size > 2 && itin.legs.takeRight(2).head.beamLeg.mode == CAR) {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
-                if (i == itin.legs.size - 2) { leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost) } else {
+                if (i == itin.legs.size - 2) {
+                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost)
+                } else {
                   leg
                 }
             }
@@ -1120,6 +1157,9 @@ object ChoosesMode {
     override def hasParkingBehaviors: Boolean = true
 
     override def geofence: Option[Geofence] = None
+
+    override def legStartsAt: Option[Int] = None
+
   }
 
   case class ChoosesModeResponsePlaceholders(
@@ -1152,7 +1192,8 @@ object ChoosesMode {
       } else {
         Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0)),
+      driveTransitParkingResponse =
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox, cost = 0.0), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {
@@ -1184,6 +1225,14 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
   case class CavTripLegsRequest(person: PersonIdWithActorRef, originActivity: Activity)
+
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
+
+  def getActivityEndTime(activity: Activity, beamServices: BeamServices): Int = {
+    (if (activity.getEndTime.equals(Double.NegativeInfinity))
+       Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)
+     else
+       activity.getEndTime).toInt
+  }
 
 }

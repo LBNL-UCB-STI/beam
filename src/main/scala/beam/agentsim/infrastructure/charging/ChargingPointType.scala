@@ -30,16 +30,24 @@ object ChargingPointType {
 
   case object TeslaSuperCharger extends ChargingPointType
 
-  // added back in because of integration tests which work with old files
-  case object Level1 extends ChargingPointType
-  case object Level2 extends ChargingPointType
-  case object DCFast extends ChargingPointType
-  case object UltraFast extends ChargingPointType
-  case object NoCharger extends ChargingPointType
+  val AllFormalChargingPointTypes = List(
+    HouseholdSocket,
+    BlueHouseholdSocket,
+    Cee16ASocket,
+    Cee32ASocket,
+    Cee63ASocket,
+    ChargingStationType1,
+    ChargingStationType2,
+    ChargingStationCcsComboType1,
+    ChargingStationCcsComboType2,
+    TeslaSuperCharger
+  )
 
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
-      extends ChargingPointType
+      extends ChargingPointType {
+    override def toString: String = s"$id($installedCapacity|$electricCurrentType)"
+  }
 
   case object CustomChargingPoint {
 
@@ -50,16 +58,15 @@ object ChargingPointType {
         case Failure(_) =>
           throw new IllegalArgumentException(s"provided 'installed capacity' $installedCapacity is invalid.")
         case Success(installedCapacityDouble) =>
-          CustomChargingPoint(id, installedCapacityDouble, ElectricCurrentType(electricCurrentType))
+          CustomChargingPoint(id, installedCapacityDouble, ElectricCurrentType(electricCurrentType.toUpperCase))
       }
     }
-
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+)\\((\\d+),(\\w+)\\)".r.unanchored
+  private[ChargingPointType] val CustomChargingPointRegex: Regex =
+    """(\w+\d*)\s*\(\s*(\d+\.?\d+)\s*\|\s*(\w{2})\s*\)""".r.unanchored
 
   // matches either the standard ones or a custom one
-  // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
   def apply(s: String): Option[ChargingPointType] = {
     s.trim.toLowerCase match {
       case "householdsocket"              => Some(HouseholdSocket)
@@ -72,16 +79,12 @@ object ChargingPointType {
       case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
       case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
       case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "level1"                       => Some(Level1)
-      case "level2"                       => Some(Level2)
-      case "dcfast"                       => Some(DCFast)
-      case "ultrafast"                    => Some(UltraFast)
-      case "nocharger"                    => Some(NoCharger)
-//      case ""                             => None
+      case "nocharger" | "none" | ""      => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
-      case _ => None
-//        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
+      case _ =>
+        None
+        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
     }
   }
 
@@ -99,13 +102,7 @@ object ChargingPointType {
       case ChargingStationCcsComboType2 => 50
       case TeslaSuperCharger            => 135
       case CustomChargingPoint(_, v, _) => v
-      // legacy charging points (values taken from 2018 BEAM code)
-      case Level1    => 1.5
-      case Level2    => 6.7
-      case DCFast    => 50
-      case UltraFast => 250
-      case NoCharger => 0
-      case _         => throw new IllegalArgumentException("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -122,13 +119,7 @@ object ChargingPointType {
       case ChargingStationCcsComboType2 => DC
       case TeslaSuperCharger            => DC
       case CustomChargingPoint(_, _, c) => c
-      // legacy charging points
-      case Level2    => AC
-      case Level1    => AC
-      case DCFast    => DC
-      case UltraFast => DC
-      case NoCharger => AC
-      case _         => throw new IllegalArgumentException("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -146,12 +137,15 @@ object ChargingPointType {
         (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
     }
     val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
-    val sessionLength = Math.min(
-      sessionLengthLimiter,
-      Math.round(
-        (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
-          .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
-      )
+    val sessionLength = Math.max(
+      Math.min(
+        sessionLengthLimiter,
+        Math.round(
+          (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
+            .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
+        )
+      ),
+      0
     )
     val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
       chargingLimits._1,
