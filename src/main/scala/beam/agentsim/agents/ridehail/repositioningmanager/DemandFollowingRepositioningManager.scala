@@ -75,11 +75,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
-      rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
-        ral.vehicleId
-      )
-    }
+    val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
         nonRepositioningIdleVehicles.filter { rha =>
