@@ -7,7 +7,8 @@ import beam.side.speed.model.Encoder._
 import scala.reflect.runtime.universe._
 import beam.side.speed.parser.operation.SpeedWriter
 
-class CsvOptionalWriter[T <: Product: TypeTag: Encoder](fileName: String) extends SpeedWriter[T, Option] {
+class CsvOptionalWriter[T <: Product: TypeTag: Encoder](fileName: String)
+    extends SpeedWriter[T, Option] {
 
   private val bw = new BufferedWriter(new FileWriter(new File(fileName)))
   bw.write(Encoder[T].header.mkString(","))

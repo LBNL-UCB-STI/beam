@@ -6,13 +6,14 @@ import beam.side.speed.parser.data.Dictionary
 import beam.side.speed.parser.operation.ObservationComposer
 
 class SimplifiedComposer(
-  dictSegments: Dictionary[UberOsmWays, String, Long],
-  beams: Dictionary[BeamSpeed, Long, BeamSpeed]
+    dictSegments: Dictionary[UberOsmWays, String, Long],
+    beams: Dictionary[BeamSpeed, Long, BeamSpeed]
 ) extends ObservationComposer[Option, Seq[WayMetrics], UberWaySpeed] {
 
   override def compose(input: Seq[WayMetrics]): Option[UberWaySpeed] =
     input
-      .map(e => dictSegments(e.sId).flatMap(beams(_)).map(b => b.speed -> b.length))
+      .map(e =>
+        dictSegments(e.sId).flatMap(beams(_)).map(b => b.speed -> b.length))
       .collect {
         case Some(t) => t
       } match {

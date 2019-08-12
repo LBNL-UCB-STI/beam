@@ -7,6 +7,6 @@ trait ObservationComposer[M[_], T, R] {
 object ObservationComposer {
 
   def apply[A, B, F[_]](
-    implicit Composer: ObservationComposer[F, A, B]
+      implicit Composer: ObservationComposer[F, A, B]
   ): ObservationComposer[F, A, B] = Composer
 }

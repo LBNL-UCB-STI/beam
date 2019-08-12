@@ -11,5 +11,7 @@ trait SpeedDataExtractor[M[_]] {
 }
 
 object SpeedDataExtractor {
-  def apply[F[_]](implicit Extractor: SpeedDataExtractor[F]): SpeedDataExtractor[F] = Extractor
+  def apply[F[_]](
+      implicit Extractor: SpeedDataExtractor[F]): SpeedDataExtractor[F] =
+    Extractor
 }

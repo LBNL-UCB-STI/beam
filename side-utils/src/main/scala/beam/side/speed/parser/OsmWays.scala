@@ -12,30 +12,36 @@ case class OsmCursor(id: Long, index: Int, lenght: Double)
 
 class OsmWays(osmPath: Path, r5Path: Path) {
   private val highways = Map(
-    "motorway"       -> 75 * 1.60934 / 3.6,
-    "motorway_link"  -> (2.0 / 3.0) * 75 * 1.60934 / 3.6,
-    "primary"        -> 65 * 1.60934 / 3.6,
-    "primary_link"   -> 0.75 * 65 * 1.60934 / 3.6,
-    "trunk"          -> 60 * 1.60934 / 3.6,
-    "trunk_link"     -> 0.625 * 60 * 1.60934 / 3.6,
-    "secondary"      -> 60 * 1.60934 / 3.6,
+    "motorway" -> 75 * 1.60934 / 3.6,
+    "motorway_link" -> (2.0 / 3.0) * 75 * 1.60934 / 3.6,
+    "primary" -> 65 * 1.60934 / 3.6,
+    "primary_link" -> 0.75 * 65 * 1.60934 / 3.6,
+    "trunk" -> 60 * 1.60934 / 3.6,
+    "trunk_link" -> 0.625 * 60 * 1.60934 / 3.6,
+    "secondary" -> 60 * 1.60934 / 3.6,
     "secondary_link" -> (2.0 / 3.0) * 60 * 1.60934 / 3.6,
-    "tertiary"       -> 55 * 1.60934 / 3.6,
-    "tertiary_link"  -> (2.0 / 3.0) * 55 * 1.60934 / 3.6,
-    "minor"          -> 25 * 1.60934 / 3.6,
-    "residential"    -> 25 * 1.60934 / 3.6,
-    "living_street"  -> 25 * 1.60934 / 3.6,
-    "unclassified"   -> 28 * 1.60934 / 3.6,
+    "tertiary" -> 55 * 1.60934 / 3.6,
+    "tertiary_link" -> (2.0 / 3.0) * 55 * 1.60934 / 3.6,
+    "minor" -> 25 * 1.60934 / 3.6,
+    "residential" -> 25 * 1.60934 / 3.6,
+    "living_street" -> 25 * 1.60934 / 3.6,
+    "unclassified" -> 28 * 1.60934 / 3.6,
   )
 
   private val osm = new OSM(osmPath.toAbsolutePath.toString).ways.asScala
-  private val edgeCursor = KryoNetworkSerializer.read(r5Path.toFile).streetLayer.edgeStore.getCursor
+  private val edgeCursor =
+    KryoNetworkSerializer.read(r5Path.toFile).streetLayer.edgeStore.getCursor
 
   lazy val nodes: Iterator[OsmNodeSpeed] = {
     var idx = -1l
     Iterator
       .continually(edgeCursor.advance())
-      .map(_ => Try(OsmCursor(edgeCursor.getOSMID, edgeCursor.getEdgeIndex, edgeCursor.getLengthM)))
+      .map(
+        _ =>
+          Try(
+            OsmCursor(edgeCursor.getOSMID,
+                      edgeCursor.getEdgeIndex,
+                      edgeCursor.getLengthM)))
       .takeWhile(_.isSuccess)
       .collect {
         case Success(OsmCursor(o, e, l)) if idx < e =>
@@ -67,7 +73,8 @@ class OsmWays(osmPath: Path, r5Path: Path) {
       }
       .getOrElse(
         hTags.foldLeft("unclassified" -> highways("unclassified"))(
-          (z, a) => Seq(z, a -> highways.getOrElse(a, 28 * 1.60934 / 3.6)).maxBy(_._2)
+          (z, a) =>
+            Seq(z, a -> highways.getOrElse(a, 28 * 1.60934 / 3.6)).maxBy(_._2)
         )
       )
     sp.toFloat -> hTag
@@ -75,5 +82,6 @@ class OsmWays(osmPath: Path, r5Path: Path) {
 }
 
 object OsmWays {
-  def apply(osmPath: String, r5Path: String): OsmWays = new OsmWays(Paths.get(osmPath), Paths.get(r5Path))
+  def apply(osmPath: String, r5Path: String): OsmWays =
+    new OsmWays(Paths.get(osmPath), Paths.get(r5Path))
 }

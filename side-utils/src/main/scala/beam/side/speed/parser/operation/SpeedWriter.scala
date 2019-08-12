@@ -6,5 +6,6 @@ trait SpeedWriter[T <: Product, F[_]] {
 }
 
 object SpeedWriter {
-  def apply[T <: Product, F[_]](implicit Writer: SpeedWriter[T, F]): SpeedWriter[T, F] = Writer
+  def apply[T <: Product, F[_]](
+      implicit Writer: SpeedWriter[T, F]): SpeedWriter[T, F] = Writer
 }

@@ -7,9 +7,11 @@ import beam.side.speed.parser.operation.ObservationComposer
 
 trait MetricsComposerInterpreters {
 
-  implicit object WayMetricsSpeedComposer extends ObservationComposer[Option, Seq[WayMetrics], UberWaySpeed] {
+  implicit object WayMetricsSpeedComposer
+      extends ObservationComposer[Option, Seq[WayMetrics], UberWaySpeed] {
     override def compose(input: Seq[WayMetrics]): Option[UberWaySpeed] =
-      Some(maxWeek(input.map(i => (i.metrics.map(_.speedMphMean).max, i.metrics.size.toDouble))))
+      Some(maxWeek(input.map(i =>
+        (i.metrics.map(_.speedMphMean).max, i.metrics.size.toDouble))))
 
     private def maxWeek(metrics: Seq[(Float, Double)]): UberWaySpeed =
       UberWaySpeed(
@@ -25,9 +27,10 @@ trait MetricsComposerInterpreters {
       )
   }
 
-  implicit object WayMetricSpeedComposer extends ObservationComposer[Option, Seq[WayMetric], UberWaySpeed] {
+  implicit object WayMetricSpeedComposer
+      extends ObservationComposer[Option, Seq[WayMetric], UberWaySpeed] {
     override def compose(
-      input: Seq[WayMetric]
+        input: Seq[WayMetric]
     ): Option[UberWaySpeed] = Some(dropToWeek(input))
 
     private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
@@ -40,7 +43,12 @@ trait MetricsComposerInterpreters {
             val speedAvg = g.map(_.speedMphMean).sum * 1.60934 / (3.6 * g.size)
             val speedMedian = Median.findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
             val devMax = g.size
-            (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat, speedMax.toFloat))
+            (dw,
+             UberHourSpeed(h,
+                           speedMedian.toFloat,
+                           speedAvg.toFloat,
+                           devMax.toFloat,
+                           speedMax.toFloat))
         }
         .groupBy(_._1)
         .mapValues(s => s.map(_._2))
@@ -51,13 +59,17 @@ trait MetricsComposerInterpreters {
     }
   }
 
-  implicit object WayMetricsMaxPartsComposer extends ObservationComposer[Option, Seq[WayMetrics], Seq[Float]] {
+  implicit object WayMetricsMaxPartsComposer
+      extends ObservationComposer[Option, Seq[WayMetrics], Seq[Float]] {
     override def compose(
-      input: Seq[WayMetrics]
-    ): Option[Seq[Float]] = Some(input.foldLeft(Seq[Float]())((acc, m) => acc :+ m.metrics.map(_.speedMphMean).max))
+        input: Seq[WayMetrics]
+    ): Option[Seq[Float]] =
+      Some(input.foldLeft(Seq[Float]())((acc, m) =>
+        acc :+ m.metrics.map(_.speedMphMean).max))
   }
 
-  implicit object WayMetricsDaySpeedComposer extends ObservationComposer[Option, Seq[WayMetrics], Seq[UberDaySpeed]] {
+  implicit object WayMetricsDaySpeedComposer
+      extends ObservationComposer[Option, Seq[WayMetrics], Seq[UberDaySpeed]] {
     override def compose(input: Seq[WayMetrics]): Option[Seq[UberDaySpeed]] =
       Some(
         input
@@ -67,10 +79,18 @@ trait MetricsComposerInterpreters {
           .map {
             case ((h, dw), g) =>
               val speedMax = g.map(_.speedMphMean).max * 1.60934 / 3.6
-              val speedAvg = g.map(_.speedMphMean).sum * 1.60934 / (3.6 * g.size)
+              val speedAvg = g
+                .map(_.speedMphMean)
+                .sum * 1.60934 / (3.6 * g.size)
               val devMax = g.map(_.speedMphStddev).max * 1.60934 / 3.6
-              val speedMedian = Median.findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
-              (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat, speedMax.toFloat))
+              val speedMedian = Median
+                .findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
+              (dw,
+               UberHourSpeed(h,
+                             speedMedian.toFloat,
+                             speedAvg.toFloat,
+                             devMax.toFloat,
+                             speedMax.toFloat))
           }
           .groupBy(_._1)
           .mapValues(s => s.map(_._2))

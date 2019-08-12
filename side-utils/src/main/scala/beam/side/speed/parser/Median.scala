@@ -19,5 +19,6 @@ object Median {
   def findMedian(arr: Array[Float]): Float =
     findKMedian(arr, (arr.length - 1) / 2)
 
-  private def chooseRandomPivot(arr: Array[Float]): Float = arr(scala.util.Random.nextInt(arr.length))
+  private def chooseRandomPivot(arr: Array[Float]): Float =
+    arr(scala.util.Random.nextInt(arr.length))
 }

@@ -6,5 +6,7 @@ trait ObservationFilter[M[_], T <: FilterEventAction] {
 }
 
 object ObservationFilter {
-  def apply[M[_], T <: FilterEventAction](implicit Filter: ObservationFilter[M, T]): ObservationFilter[M, T] = Filter
+  def apply[M[_], T <: FilterEventAction](
+      implicit Filter: ObservationFilter[M, T]): ObservationFilter[M, T] =
+    Filter
 }

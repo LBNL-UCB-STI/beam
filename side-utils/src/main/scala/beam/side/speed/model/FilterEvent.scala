@@ -60,12 +60,29 @@ object FilterEvent {
   }
 }
 
-case class AllHoursDaysDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
-case class AllHoursWeightedDTO(speedMedian: Option[Float], speedAvg: Option[Float]) extends FilterDTO
-case class WeekDayDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
-case class HourDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
-case class HourRangeDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
-case class WeekDayHourDTO(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float]) extends FilterDTO
+case class AllHoursDaysDTO(speedMedian: Option[Float],
+                           speedAvg: Option[Float],
+                           maxDev: Option[Float])
+    extends FilterDTO
+case class AllHoursWeightedDTO(speedMedian: Option[Float],
+                               speedAvg: Option[Float])
+    extends FilterDTO
+case class WeekDayDTO(speedMedian: Option[Float],
+                      speedAvg: Option[Float],
+                      maxDev: Option[Float])
+    extends FilterDTO
+case class HourDTO(speedMedian: Option[Float],
+                   speedAvg: Option[Float],
+                   maxDev: Option[Float])
+    extends FilterDTO
+case class HourRangeDTO(speedMedian: Option[Float],
+                        speedAvg: Option[Float],
+                        maxDev: Option[Float])
+    extends FilterDTO
+case class WeekDayHourDTO(speedMedian: Option[Float],
+                          speedAvg: Option[Float],
+                          maxDev: Option[Float])
+    extends FilterDTO
 case class MaxHourPointsDTO(speedMax: Float, points: Int) extends FilterDTO
 case class BeamLengthDTO(speedAvg: Option[Float]) extends FilterDTO
 
