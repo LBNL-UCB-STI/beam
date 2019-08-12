@@ -331,7 +331,11 @@ object BeamScenarioLoader extends LazyLogging {
     }
   }
 
-  def buildBeamVehicle(map: Map[Id[BeamVehicleType], BeamVehicleType], info: VehicleInfo, randomSeed: Int): BeamVehicle = {
+  def buildBeamVehicle(
+    map: Map[Id[BeamVehicleType], BeamVehicleType],
+    info: VehicleInfo,
+    randomSeed: Int
+  ): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
     val matsimVehicle: Vehicle =

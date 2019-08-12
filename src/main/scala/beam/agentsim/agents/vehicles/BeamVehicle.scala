@@ -279,7 +279,10 @@ class BeamVehicle(
     secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
   }
 
-  def isRefuelNeeded(refuelRequiredThresholdInMeters: Double = 32200.0, noRefuelThresholdInMeters: Double = 161000.0): Boolean = {
+  def isRefuelNeeded(
+    refuelRequiredThresholdInMeters: Double = 32200.0,
+    noRefuelThresholdInMeters: Double = 161000.0
+  ): Boolean = {
     /*
       if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
       If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
@@ -290,18 +293,31 @@ class BeamVehicle(
      */
     val remainingRangeInMeters = getState.remainingPrimaryRangeInM + getState.remainingSecondaryRangeInM.getOrElse(0.0)
     if (remainingRangeInMeters < refuelRequiredThresholdInMeters) {
-      logger.debug("Refueling since range of {} m is less than {} for {}", remainingRangeInMeters, refuelRequiredThresholdInMeters, toString)
+      logger.debug(
+        "Refueling since range of {} m is less than {} for {}",
+        remainingRangeInMeters,
+        refuelRequiredThresholdInMeters,
+        toString
+      )
       true
-    } else if( remainingRangeInMeters > noRefuelThresholdInMeters ) {
-      logger.debug("No refueling since range of {} m is greater than {} for {}", remainingRangeInMeters, noRefuelThresholdInMeters, toString)
+    } else if (remainingRangeInMeters > noRefuelThresholdInMeters) {
+      logger.debug(
+        "No refueling since range of {} m is greater than {} for {}",
+        remainingRangeInMeters,
+        noRefuelThresholdInMeters,
+        toString
+      )
       false
     } else {
       val probabilityOfRefuel = 1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
       val refuelNeeded = rand.nextDouble() < probabilityOfRefuel
-      if (refuelNeeded){
+      if (refuelNeeded) {
         logger.debug("Refueling because random draw exceeded probability to refuel of {}", probabilityOfRefuel)
-      } else{
-        logger.debug("Not refueling because random draw did not exceed probability to refuel of {}", probabilityOfRefuel)
+      } else {
+        logger.debug(
+          "Not refueling because random draw did not exceed probability to refuel of {}",
+          probabilityOfRefuel
+        )
       }
       refuelNeeded
     }

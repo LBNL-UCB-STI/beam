@@ -31,7 +31,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager)
     with LazyLogging {
 
-  val rand: Random =  new Random(rideHailManager.beamScenario.beamConfig.matsim.modules.global.randomSeed)
+  val rand: Random = new Random(rideHailManager.beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
   val avgFreeSpeed: Double = {
     val freeSpeeds = rideHailManager.beamServices.networkHelper.allLinks.map(_.getFreespeed).sorted
     val freeSpeedInfo: String =
@@ -213,7 +214,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           )
         }
         if (nonRepositioningIdleVehicles.size >= 2) {
-          val result = rand.shuffle(nonRepositioningIdleVehicles)
+          val result = rand
+            .shuffle(nonRepositioningIdleVehicles)
             .splitAt(numVehiclesToReposition)
             ._1
             .map(x => (x.vehicleId, x.currentLocationUTM.loc))
@@ -294,7 +296,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               (vehicleId, coord)
             }
           }.seq
-          val result = rand.shuffle(vehiclesToReposition)
+          val result = rand
+            .shuffle(vehiclesToReposition)
             .splitAt(numVehiclesToReposition)
             ._1
             .toVector
@@ -352,7 +355,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               (vehicleId, coord)
             }
           }.seq
-          val result = rand.shuffle(vehiclesToReposition)
+          val result = rand
+            .shuffle(vehiclesToReposition)
             .splitAt(numVehiclesToReposition)
             ._1
             .toVector
@@ -394,7 +398,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
           // Getting the furthest vehicle from Activity: vehicle which has nothing to do
           // Find TOP 2 * numVehiclesToReposition furthest vehicle, shuffle them and get only `numVehiclesToReposition` to reposition
-          val vehiclesToReposition = rand.shuffle(
+          val vehiclesToReposition = rand
+            .shuffle(
               nonRepositioningIdleVehicles
                 .flatMap { vehLocation =>
                   val loc = vehLocation.currentLocationUTM.loc
@@ -464,7 +469,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       case 6 =>
         if (tick == 0) {
           val okToReposition = rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
-          val neverMovedVehiclesBatched = rand.shuffle(okToReposition)
+          val neverMovedVehiclesBatched = rand
+            .shuffle(okToReposition)
             .toVector
             .sliding(numberOfRepos, numberOfRepos)
             .toArray
@@ -476,7 +482,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             var idx: Int = 0
             val map = (0 to lastTickWithRepos by step).map {
               case t =>
-                val activities: Vector[Location] = rand.shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+                val activities: Vector[Location] = rand
+                  .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
                   .take(numberOfRepos)
                   .toVector
                 // Use `lift` to be in safe
@@ -508,7 +515,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // Remove from allowed set
         vehicleAllowedToReposition --= toReposition
 
-        val activities: Vector[Location] = rand.shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+        val activities: Vector[Location] = rand
+          .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
           .take(repositionPerTick.toInt)
           .toVector
 

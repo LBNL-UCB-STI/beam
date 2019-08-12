@@ -277,7 +277,13 @@ trait BeamHelper extends LazyLogging {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes, beamConfig.matsim.modules.global.randomSeed).toSeq: _*)
+        TrieMap(
+          readVehiclesFile(
+            beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+            vehicleTypes,
+            beamConfig.matsim.modules.global.randomSeed
+          ).toSeq: _*
+        )
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
