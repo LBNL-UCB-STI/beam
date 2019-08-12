@@ -1505,7 +1505,7 @@ class RideHailManager(
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1486")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      cleanUp()
+      cleanUp
     } else {
       val toReposition = repositionVehicles.map(_._1).map(vehicleManager.idleRideHailVehicles).map(_.vehicleId).toSet
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
@@ -1534,7 +1534,8 @@ class RideHailManager(
         val futureRideHailAgent2CustomerResponse = router ? routingRequest
         futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
       } else {
-        throw new Exception("Trying to reposition a non idle vehicle -> fix the reposition manager!")
+        log.error("Trying to reposition a non idle vehicle -> fix the reposition manager!")
+        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleManager.idleRideHailVehicles(vehicleId).vehicleId)
       }
     }
     for {
@@ -1554,9 +1555,9 @@ class RideHailManager(
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
         )
-        self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, vehicleManager.getIdleVehicles(vehicleId))
+        self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, vehicleManager.idleRideHailVehicles(vehicleId))
       } else {
-        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleManager.getIdleVehicles(vehicleId).vehicleId)
+        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleManager.idleRideHailVehicles(vehicleId).vehicleId)
       }
     }
   }
