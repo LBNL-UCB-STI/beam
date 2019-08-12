@@ -36,7 +36,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @return a row describing infinite free parking at this TAZ
     */
   def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0, 0)},None,${Int.MaxValue},0,unused"
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0, 0)},${ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
 
   /**
     * used to build up parking alternatives from a file
@@ -282,14 +282,18 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
     * @param tazFilePath path to the taz-centers file
+    * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return
     */
-  def generateDefaultParkingFromTazfile(tazFilePath: String): (Array[ParkingZone], ZoneSearch[TAZ]) = {
+  def generateDefaultParkingFromTazfile(
+    tazFilePath: String,
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+  ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
     Try {
       IOUtils.getBufferedReader(tazFilePath)
     } match {
       case Success(reader) =>
-        generateDefaultParking(reader.lines.iterator.asScala, header = true)
+        generateDefaultParking(reader.lines.iterator.asScala, header = true, parkingTypes)
       case Failure(e) =>
         throw new java.io.IOException(s"Unable to load taz file with path $tazFilePath.\n$e")
     }
@@ -304,17 +308,19 @@ object ParkingZoneFileUtils extends LazyLogging {
     * generates ubiquitous parking from the contents of a TAZ centers file
     * @param tazFileContents an iterator of lines from the TAZ centers file
     * @param header if the header row exists
+    * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return parking zones and parking search tree
     */
   def generateDefaultParking(
     tazFileContents: Iterator[String],
-    header: Boolean
+    header: Boolean,
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
   ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
     val tazRows = if (header) tazFileContents.drop(1) else tazFileContents
 
     val rows: Iterator[String] = for {
       TazFileRegex(tazId) <- tazRows
-      parkingType         <- Seq(ParkingType.Public, ParkingType.Residential, ParkingType.Workplace)
+      parkingType         <- parkingTypes
     } yield {
       defaultParkingRow(tazId, parkingType)
     }

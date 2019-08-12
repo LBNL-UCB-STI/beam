@@ -22,6 +22,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.vehicles.Vehicle
 
+import scala.util.Random
+
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
   * implementing [[beam.agentsim.agents.modalbehaviors.DrivesVehicle]]). The passengers in the [[BeamVehicle]]
@@ -39,10 +41,12 @@ import org.matsim.vehicles.Vehicle
 class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val beamVehicleType: BeamVehicleType
+  val beamVehicleType: BeamVehicleType,
+  val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
-
   var manager: Option[ActorRef] = None
+
+  val rand: Random = new Random(randomSeed)
 
   var spaceTime: SpaceTime = _
 
@@ -273,6 +277,50 @@ class BeamVehicle(
   def initializeFuelLevels = {
     primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
     secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
+  }
+
+  def isRefuelNeeded(
+    refuelRequiredThresholdInMeters: Double = 32200.0,
+    noRefuelThresholdInMeters: Double = 161000.0
+  ): Boolean = {
+    /*
+      if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
+      If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
+      So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
+      Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
+      E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
+      where any range that yields a negative probability would just be truncated to 0
+     */
+    val remainingRangeInMeters = getState.remainingPrimaryRangeInM + getState.remainingSecondaryRangeInM.getOrElse(0.0)
+    if (remainingRangeInMeters < refuelRequiredThresholdInMeters) {
+      logger.debug(
+        "Refueling since range of {} m is less than {} for {}",
+        remainingRangeInMeters,
+        refuelRequiredThresholdInMeters,
+        toString
+      )
+      true
+    } else if (remainingRangeInMeters > noRefuelThresholdInMeters) {
+      logger.debug(
+        "No refueling since range of {} m is greater than {} for {}",
+        remainingRangeInMeters,
+        noRefuelThresholdInMeters,
+        toString
+      )
+      false
+    } else {
+      val probabilityOfRefuel = 1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
+      val refuelNeeded = rand.nextDouble() < probabilityOfRefuel
+      if (refuelNeeded) {
+        logger.debug("Refueling because random draw exceeded probability to refuel of {}", probabilityOfRefuel)
+      } else {
+        logger.debug(
+          "Not refueling because random draw did not exceed probability to refuel of {}",
+          probabilityOfRefuel
+        )
+      }
+      refuelNeeded
+    }
   }
 
   override def toString = s"$id ($beamVehicleType.id)"
