@@ -26,9 +26,9 @@ object BeamPathTraversal {
     driverId: String,
     vehicleType: String,
     mode: String,
-    numberOfPassengers: Int,
     linkIds: Seq[Int],
-    linkTravelTime: Seq[Double]
+    linkTravelTime: Seq[Double],
+    numberOfPassengers: Int = 0
   ): BeamPathTraversal =
     new BeamPathTraversal(
       time,
@@ -106,6 +106,8 @@ case class BeamPathTraversal(
   var linkIds: Seq[Int],
   var linkTravelTime: Seq[Double]
 ) extends BeamEvent {
+
+  assert(linkIds.size == linkTravelTime.size, "linkIds size does not equal to linkTravelTime size")
 
   def removeHeadLinkFromTrip(): Unit = {
     linkIds = linkIds.tail
