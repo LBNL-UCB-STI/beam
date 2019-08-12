@@ -314,8 +314,9 @@ class RideHailManager(
   val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
   val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
 
-  // Are we in the middle of processing a batch?
+  // Are we in the middle of processing a batch? or repositioning
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
+  var currentlyRepositioning = false // how we differentiate
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -714,6 +715,7 @@ class RideHailManager(
           stash()
         case None =>
           currentlyProcessingTimeoutTrigger = Some(trigger)
+          currentlyRepositioning = false
           log.debug("Starting wave of buffered at {}", tick)
           modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
           if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) cleanUpBufferedRequestProcessing(tick)
@@ -744,6 +746,7 @@ class RideHailManager(
           stash()
         case None =>
           currentlyProcessingTimeoutTrigger = Some(trigger)
+          currentlyRepositioning = true
           startRepositioning(tick, triggerId)
       }
 
@@ -909,10 +912,10 @@ class RideHailManager(
 
   def continueProcessingTimeoutIfReady: Unit = {
     if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
-      if (processBufferedRequestsOnTimeout) {
-        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
-      } else {
+      if(currentlyRepositioning) {
         continueRepositioning(modifyPassengerScheduleManager.getCurrentTick.get)
+      } else {
+        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
       }
     }
   }

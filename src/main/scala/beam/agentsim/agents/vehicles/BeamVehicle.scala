@@ -281,12 +281,12 @@ class BeamVehicle(
 
   def isRefuelNeeded(refuelRequiredThresholdInMeters: Double = 32200.0, noRefuelThresholdInMeters: Double = 161000.0): Boolean = {
     /*
-if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
-If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
-So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
-Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
-E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
-where any range that yields a negative probability would just be truncated to 0
+      if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
+      If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
+      So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
+      Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
+      E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
+      where any range that yields a negative probability would just be truncated to 0
      */
     val remainingRangeInMeters = getState.remainingPrimaryRangeInM + getState.remainingSecondaryRangeInM.getOrElse(0.0)
     if (remainingRangeInMeters < refuelRequiredThresholdInMeters) {
