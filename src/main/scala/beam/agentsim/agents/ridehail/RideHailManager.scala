@@ -514,7 +514,7 @@ class RideHailManager(
       }
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
       rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
-      log.info("Cleaning up from RecoverFromStuckness")
+      log.debug("Cleaning up from RecoverFromStuckness")
       cleanUp
 
     case Finish =>
@@ -677,7 +677,7 @@ class RideHailManager(
         case None =>
           currentlyProcessingTimeoutTrigger = Some(trigger)
           currentlyProcessingTimeoutWallStartTime = System.nanoTime()
-          log.info("Starting wave of buffered at {}", tick)
+          log.debug("Starting wave of buffered at {}", tick)
           modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
           if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) cleanUpBufferedRequestProcessing(tick)
       }
@@ -686,7 +686,7 @@ class RideHailManager(
       // If modifyPassengerScheduleManager holds a tick, we're in buffered mode
       modifyPassengerScheduleManager.getCurrentTick match {
         case Some(workingTick) =>
-          log.info(
+          log.debug(
             "ContinueBuffer @ {} with buffer size {}",
             workingTick,
             rideHailResourceAllocationManager.getBufferSize
@@ -706,7 +706,7 @@ class RideHailManager(
         case Some(_) =>
           stash()
         case None =>
-          log.info("Starting wave of repositioning at {}", tick)
+          log.debug("Starting wave of repositioning at {}", tick)
           currentlyProcessingTimeoutTrigger = Some(trigger)
           currentlyProcessingTimeoutWallStartTime = System.nanoTime()
           startRepositioning(tick, triggerId)
@@ -1460,7 +1460,7 @@ class RideHailManager(
   def cleanUpBufferedRequestProcessing(tick: Int): Unit = {
     rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
     modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
-    log.info("Cleaning up from cleanUpBufferedRequestProcessing")
+    log.debug("Cleaning up from cleanUpBufferedRequestProcessing")
     cleanUp
   }
 
@@ -1471,7 +1471,7 @@ class RideHailManager(
         handleNotifyVehicleIdle(notifyMessage)
     }
     cachedNotifyVehicleIdle.clear()
-    log.info("Elapsed planning time = {}",(System.nanoTime() - currentlyProcessingTimeoutWallStartTime)/1e6)
+    log.debug("Elapsed planning time = {}", (System.nanoTime() - currentlyProcessingTimeoutWallStartTime) / 1e6)
     currentlyProcessingTimeoutTrigger = None
     doNotUseInAllocation.clear()
     unstashAll()
@@ -1488,13 +1488,13 @@ class RideHailManager(
     if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1470")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      log.info("Cleaning up from startRepositioning")
+      log.debug("Cleaning up from startRepositioning")
       cleanUp
     }
   }
 
   def continueRepositioning(tick: Int): Unit = {
-    log.info("Continuing wave of repositioning at {}", tick)
+    log.debug("Continuing wave of repositioning at {}", tick)
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
       ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.debug) {
         rideHailResourceAllocationManager.repositionVehicles(tick)
@@ -1506,7 +1506,7 @@ class RideHailManager(
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1486")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      log.info("Cleaning up from continueRepositioning")
+      log.debug("Cleaning up from continueRepositioning")
       cleanUp
     } else {
       val toReposition = repositionVehicles.map(_._1).map(vehicleManager.idleRideHailVehicles).map(_.vehicleId).toSet
