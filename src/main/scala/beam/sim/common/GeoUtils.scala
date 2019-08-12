@@ -34,7 +34,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
   def wgs2Utm(coord: Coord): Coord = {
-    if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
+    if (GeoUtils.isInvalidWgsCoordinate(coord)) {
       logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
       coord
     } else {
@@ -192,6 +192,10 @@ x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
 }
 
 object GeoUtils {
+
+  def isInvalidWgsCoordinate(coord: Coord): Boolean = {
+    coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90
+  }
 
   def distFormula(coord1: Coord, coord2: Coord): Double = {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
