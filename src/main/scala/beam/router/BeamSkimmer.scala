@@ -273,31 +273,29 @@ class BeamSkimmer @Inject()(
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if (beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
-      if (beamConfig.beam.beamskimmer.writeObservedSkims > 0) {
-        ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
-          writeObservedSkims(event)
-        }
-      }
-      if (beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriods > 0) {
-        ProfilingUtils.timed(
-          s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
-          x => logger.info(x)
-        ) {
-          writeAllModeSkimsForPeakNonPeakPeriods(event)
-        }
-      }
-      if (beamConfig.beam.beamskimmer.writeObservedSkimsPlus > 0) {
-        ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
-          writeObservedSkimsPlus(event)
-        }
+    if (beamConfig.beam.beamskimmer.writeObservedSkimsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeObservedSkimsInterval == 0) {
+      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeObservedSkims(event)
       }
     }
-
-    // Writing full skims are very large, but code is preserved here in case we want to enable it.
-    // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
-    // if(beamServicesOpt.isDefined) writeFullSkims(event)
-
+    if (beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
+      ProfilingUtils.timed(
+        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+        x => logger.info(x)
+      ) {
+        writeAllModeSkimsForPeakNonPeakPeriods(event)
+      }
+    }
+    if (beamConfig.beam.beamskimmer.writeObservedSkimsPlusInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeObservedSkimsPlusInterval == 0) {
+      ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeObservedSkimsPlus(event)
+      }
+    }
+    if (beamConfig.beam.beamskimmer.writeFullSkimsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeFullSkimsInterval == 0) {
+      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeFullSkims(event)
+      }
+    }
     previousSkims = skims
     skims = new TrieMap()
     previousSkimsPlus = skimsPlus
