@@ -432,7 +432,6 @@ object BeamRouter {
     * @param originUTM                 start/from location of the route
     * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
-    * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
