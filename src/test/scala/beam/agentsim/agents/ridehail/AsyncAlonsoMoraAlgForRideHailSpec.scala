@@ -28,10 +28,10 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val assignment = computeAssignment(config, "scenario1")
-    assignment.foreach{
-      x =>
-        println(x._2.vehicle.id)
-        x._1.requests.foreach(println)}
+    assignment.foreach { x =>
+      println(x._2.vehicle.id)
+      x._1.requests.foreach(println)
+    }
 //    assert(assignment(0)._2.getId == "v2")
 //    assignment(0)._1.requests.foreach(r => List("p1", "p2", "p4").contains(r.getId))
 //    assert(assignment(1)._2.getId == "v1")
@@ -51,10 +51,10 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val assignment = computeAssignment(config, "scenarioGeofence")
-    assignment.foreach{
-      x =>
-        println(x._2.vehicle.id)
-        x._1.requests.foreach(println)}
+    assignment.foreach { x =>
+      println(x._2.vehicle.id)
+      x._1.requests.foreach(println)
+    }
 //    assert(assignment(0)._2.getId == "v2")
 //    assert(assignment(0)._1.requests.head.getId == "p4")
 //    assert(assignment(0)._1.requests.last.getId == "p1" || assignment(0)._1.requests.last.getId == "p2")
@@ -82,7 +82,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
     implicit val actorRef = ActorRef.noSender
     val sc = scenarioName match {
       case "scenarioGeofence" => AlonsoMoraPoolingAlgForRideHailSpec.scenarioGeoFence()
-      case _ => AlonsoMoraPoolingAlgForRideHailSpec.scenario1()
+      case _                  => AlonsoMoraPoolingAlgForRideHailSpec.scenario1()
     }
     val alg: AsyncAlonsoMoraAlgForRideHail =
       new AsyncAlonsoMoraAlgForRideHail(
