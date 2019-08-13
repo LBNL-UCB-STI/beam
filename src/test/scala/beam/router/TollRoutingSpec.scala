@@ -112,8 +112,8 @@ class TollRoutingSpec
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.costEstimate == 2.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 87)
+      assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
+      assert(carOption.totalTravelTimeInSecs == 145)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -143,7 +143,7 @@ class TollRoutingSpec
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
       // the factor in the config only applies to link tolls at the moment, i.e. one of the three paid is 2.0
-      assert(moreExpensiveCarOption.costEstimate == 2.0)
+      assert(moreExpensiveCarOption.costEstimate == 4.0)
 
       val tollSensitiveRequest = RoutingRequest(
         origin,
@@ -177,7 +177,7 @@ class TollRoutingSpec
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 87)
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 289)
     }
 
     "not report a toll when walking" in {

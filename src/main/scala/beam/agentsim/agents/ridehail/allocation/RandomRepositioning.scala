@@ -156,8 +156,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // draw all repositioningVehicles._2 in blue (make arrow from green to blue)
 
+    val vehicleSet = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
     val coord = repositioningVehicles.map { vehicleIdCoord =>
-      val rideHailVehicleLocation = rideHailManager.vehicleManager.getIdleVehicles.get(vehicleIdCoord._1)
+      val rideHailVehicleLocation = vehicleSet.get(vehicleIdCoord._1)
       val (x, y) = rideHailVehicleLocation match {
         case Some(rideHailLocation) =>
           (rideHailLocation.currentLocationUTM.loc.getX, rideHailLocation.currentLocationUTM.loc.getY)
@@ -206,11 +207,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       // This should perform the same as DEFAULT_MANAGER!!!
       case 0 =>
-        val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
-          rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
-            ral.vehicleId
-          )
-        }
+        val nonRepositioningIdleVehicles =
+          rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values.filter { ral =>
+            rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+              ral.vehicleId
+            )
+          }
         if (nonRepositioningIdleVehicles.size >= 2) {
           val result = RandomUtils
             .shuffle(nonRepositioningIdleVehicles, new java.util.Random())
@@ -228,7 +230,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         val numVehiclesToReposition = (repoShare * fleetSize).toInt
 
         // Get idle vehicles
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
         // Shuffle only once and split it by `numVehiclesToReposition`
 
         // max reposition diameter: 5000m
@@ -275,11 +277,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
 
-        val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
-          rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
-            ral.vehicleId
-          )
-        }
+        val nonRepositioningIdleVehicles =
+          rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values.filter { ral =>
+            rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+              ral.vehicleId
+            )
+          }
         if (nonRepositioningIdleVehicles.size >= 2) {
           val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
@@ -327,11 +330,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
 
-        val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
-          rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
-            ral.vehicleId
-          )
-        }
+        val nonRepositioningIdleVehicles =
+          rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values.filter { ral =>
+            rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+              ral.vehicleId
+            )
+          }
         if (nonRepositioningIdleVehicles.size >= 2) {
           val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
@@ -387,8 +391,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // TODO: use skims to derive radius from it or other way around.
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repoShare * fleetSize).toInt
-        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
-          val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
+        val vehicleSet = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
+        if (vehicleSet.size >= 2) {
+          val nonRepositioningIdleVehicles = vehicleSet.values.filter { ral =>
             rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
               ral.vehicleId
             )
@@ -495,19 +500,21 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             logger.warn(s"repositionPerTick: $repositionPerTick. There will be logic to handle it :)")
           }
         }
+        val vehicleSet = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
         tickToLocation.getOrElse(tick, Vector.empty).filter {
           case (vehicleId, _) =>
             rideHailManager.modifyPassengerScheduleManager
               .isVehicleNeitherRepositioningNorProcessingReservation(vehicleId) &&
-            rideHailManager.vehicleManager.getIdleVehicles.contains(vehicleId)
+            vehicleSet.contains(vehicleId)
         }
       // The same as 6 algo, but we will reposition
       case 7 =>
-        val candidateToReposition = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
-          rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
-            ral.vehicleId
-          ) &&
-          vehicleAllowedToReposition.contains(ral.vehicleId)
+        val candidateToReposition = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values.filter {
+          ral =>
+            rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+              ral.vehicleId
+            ) &&
+            vehicleAllowedToReposition.contains(ral.vehicleId)
         }
         val toReposition =
           RandomUtils.shuffle(candidateToReposition, new Random()).take(repositionPerTick.toInt).map(_.vehicleId)

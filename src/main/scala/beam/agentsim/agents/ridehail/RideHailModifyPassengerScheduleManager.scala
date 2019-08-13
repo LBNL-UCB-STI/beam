@@ -114,6 +114,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def checkIfRoundOfRepositioningIsDone(): Unit = {
     if (waitingToReposition.isEmpty) {
+      log.debug("Cleaning up from checkIfRoundOfRepositioningIsDone")
       sendCompletionAndScheduleNewTimeout(Reposition, 0)
       rideHailManager.cleanUp
     }
