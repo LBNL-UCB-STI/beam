@@ -294,7 +294,7 @@ class RideHailAgent(
       log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
       vehicle.useParkingStall(stall)
       val (tick, triggerId) = releaseTickAndTriggerId()
-      eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString))
+      eventsManager.processEvent(ParkEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString))
       log.debug("Refuel started at {}, triggerId: {}", tick, triggerId)
 
       startRefueling(tick, triggerId)

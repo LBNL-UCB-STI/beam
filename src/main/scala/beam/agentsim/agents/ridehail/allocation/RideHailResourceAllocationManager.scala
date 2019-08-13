@@ -185,7 +185,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
     val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
-      rideHailManager.vehicleManager.getIdleVehicles.toVector
+      rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.toVector
 
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
       case ((vehicleId: Id[Vehicle], _)) => {
