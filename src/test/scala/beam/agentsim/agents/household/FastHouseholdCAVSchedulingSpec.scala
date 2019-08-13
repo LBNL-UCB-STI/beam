@@ -68,6 +68,10 @@ class FastHouseholdCAVSchedulingSpec
       )
       val (pop: Population, household) = scenario1(cavs)
       val alg = new FastHouseholdCAVScheduling(household, cavs, skimmer = skimmer)(pop)
+      alg.waitingTimeInSec = 2
+      alg.delayToArrivalInSec = 2
+      alg.stopSearchAfterXSolutions = 5000
+      alg.limitCavToXPersons = 9999
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 1
       schedules foreach (_.schedulesMap(cavs.head).schedule should have length 6)
@@ -93,6 +97,10 @@ class FastHouseholdCAVSchedulingSpec
         cavs,
         skimmer = skimmer
       )(pop)
+      alg.waitingTimeInSec = 60 * 60
+      alg.delayToArrivalInSec = 60 * 60
+      alg.stopSearchAfterXSolutions = 5000
+      alg.limitCavToXPersons = 9999
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 3
       schedules foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
@@ -118,6 +126,10 @@ class FastHouseholdCAVSchedulingSpec
         cavs,
         skimmer = skimmer
       )(pop)
+      alg.waitingTimeInSec = 60 * 60
+      alg.delayToArrivalInSec = 60 * 60
+      alg.stopSearchAfterXSolutions = 5000
+      alg.limitCavToXPersons = 9999
       // first check
       val schedules1 = alg.getAllFeasibleSchedules
       schedules1 should have length 3
@@ -143,6 +155,10 @@ class FastHouseholdCAVSchedulingSpec
             vehicles,
             skimmer = skimmer
           )(pop)
+        alg.waitingTimeInSec = 5 * 60
+        alg.delayToArrivalInSec = 10 * 60
+        alg.stopSearchAfterXSolutions = 1000
+        alg.limitCavToXPersons = 9999
         val schedules = alg.getAllFeasibleSchedules
         sum += schedules.size
         count += 1
