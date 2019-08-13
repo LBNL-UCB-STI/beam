@@ -30,17 +30,23 @@ object ChargingPointType {
 
   case object TeslaSuperCharger extends ChargingPointType
 
-  // added back in because of integration tests which work with old files
-  case object Level1 extends ChargingPointType
-  case object Level2 extends ChargingPointType
-  case object DCFast extends ChargingPointType
-  case object UltraFast extends ChargingPointType
-  case object NoCharger extends ChargingPointType
+  val AllFormalChargingPointTypes = List(
+    HouseholdSocket,
+    BlueHouseholdSocket,
+    Cee16ASocket,
+    Cee32ASocket,
+    Cee63ASocket,
+    ChargingStationType1,
+    ChargingStationType2,
+    ChargingStationCcsComboType1,
+    ChargingStationCcsComboType2,
+    TeslaSuperCharger
+  )
 
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
       extends ChargingPointType {
-    override def toString: String = s"$id($installedCapacity,$electricCurrentType)"
+    override def toString: String = s"$id($installedCapacity|$electricCurrentType)"
   }
 
   case object CustomChargingPoint {
@@ -52,13 +58,13 @@ object ChargingPointType {
         case Failure(_) =>
           throw new IllegalArgumentException(s"provided 'installed capacity' $installedCapacity is invalid.")
         case Success(installedCapacityDouble) =>
-          CustomChargingPoint(id, installedCapacityDouble, ElectricCurrentType(electricCurrentType))
+          CustomChargingPoint(id, installedCapacityDouble, ElectricCurrentType(electricCurrentType.toUpperCase))
       }
     }
   }
 
   private[ChargingPointType] val CustomChargingPointRegex: Regex =
-    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*)\\|(\\s*\\w{2})\\)".r.unanchored
+    """(\w+\d*)\s*\(\s*(\d+\.?\d+)\s*\|\s*(\w{2})\s*\)""".r.unanchored
 
   // matches either the standard ones or a custom one
   def apply(s: String): Option[ChargingPointType] = {

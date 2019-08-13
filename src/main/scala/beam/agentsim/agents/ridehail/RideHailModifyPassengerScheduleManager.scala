@@ -114,6 +114,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def checkIfRoundOfRepositioningIsDone(): Unit = {
     if (waitingToReposition.isEmpty) {
+      log.debug("Cleaning up from checkIfRoundOfRepositioningIsDone")
       sendCompletionAndScheduleNewTimeout(Reposition, 0)
       rideHailManager.cleanUp
     }
@@ -396,7 +397,9 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
+    // FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
+    // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
+    true
   }
 
   def isModifyStatusCacheEmpty: Boolean = interruptIdToModifyPassengerScheduleStatus.isEmpty

@@ -134,7 +134,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val vehiclePoolToUse =
         rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds match {
           case 0 =>
-            rideHailManager.vehicleManager.getIdleVehicles.values
+            rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
           case _ =>
             rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
         }

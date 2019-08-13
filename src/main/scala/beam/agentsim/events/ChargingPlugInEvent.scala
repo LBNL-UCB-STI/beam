@@ -3,7 +3,7 @@ package beam.agentsim.events
 import java.util
 
 import beam.agentsim.infrastructure.ParkingStall
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
@@ -12,6 +12,7 @@ import org.matsim.vehicles.Vehicle
 class ChargingPlugInEvent(
   tick: Double,
   stall: ParkingStall,
+  locationWGS: Coord,
   vehId: Id[Vehicle],
   primaryFuelLevel: Double,
   secondaryFuelLevel: Option[Double],
@@ -33,8 +34,8 @@ class ChargingPlugInEvent(
     attributes.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelLevel.toString)
     attributes.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelLevel.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_PRICE, stall.cost.toString)
-    attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
-    attributes.put(ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
+    attributes.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
+    attributes.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)
     attributes.put(ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
     attributes.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
