@@ -273,7 +273,7 @@ class BeamSkimmer @Inject()(
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if (event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
+    if (beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
       if (beamConfig.beam.beamskimmer.writeObservedSkims > 0) {
         ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
           writeObservedSkims(event)
