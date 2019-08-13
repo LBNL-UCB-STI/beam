@@ -16,7 +16,7 @@ import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtili
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -48,7 +48,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -63,7 +62,8 @@ class BeamSim @Inject()(
   private val travelTimeObserved: TravelTimeObserved,
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val routeHistory: RouteHistory,
-  private val rideHailIterationHistory: RideHailIterationHistory
+  private val rideHailIterationHistory: RideHailIterationHistory,
+  private val configHolder: BeamConfigHolder
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -89,10 +89,6 @@ class BeamSim @Inject()(
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
-      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      beamServices
-    )
 
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
@@ -176,7 +172,15 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+
     beamConfigChangesObservable.notifyChangeToSubscribers()
+
+    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+      beamServices,
+      configHolder
+    )
+
     ExponentialLazyLogging.reset()
     beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
 
