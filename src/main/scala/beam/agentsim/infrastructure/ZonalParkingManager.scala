@@ -222,7 +222,17 @@ object ZonalParkingManager extends LazyLogging {
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    Props(ZonalParkingManager(beamConfig, tazTreeMap, geo, random, boundingBox,parkingStallCountScalingFactor,parkingCostScalingFactor))
+    Props(
+      ZonalParkingManager(
+        beamConfig,
+        tazTreeMap,
+        geo,
+        random,
+        boundingBox,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor
+      )
+    )
   }
 
   /**

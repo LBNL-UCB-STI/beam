@@ -130,14 +130,20 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param header whether or not the file is expected to have a csv header row
     * @return table and tree
     */
-  def fromFile(filePath: String, parkingStallCountScalingFactor: Double = 1.0, parkingCostScalingFactor: Double = 1.0, header: Boolean = true): (Array[ParkingZone], ZoneSearch[TAZ]) =
+  def fromFile(
+    filePath: String,
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0,
+    header: Boolean = true
+  ): (Array[ParkingZone], ZoneSearch[TAZ]) =
     Try {
       val reader = IOUtils.getBufferedReader(filePath)
       if (header) reader.readLine()
       reader
     } match {
       case Success(reader) =>
-        val parkingLoadingAccumulator: ParkingLoadingAccumulator = fromBufferedReader(reader, parkingStallCountScalingFactor, parkingCostScalingFactor)
+        val parkingLoadingAccumulator: ParkingLoadingAccumulator =
+          fromBufferedReader(reader, parkingStallCountScalingFactor, parkingCostScalingFactor)
         logger.info(s"loaded ${parkingLoadingAccumulator.totalRows} zonal parking options from file $filePath")
         if (parkingLoadingAccumulator.someRowsFailed) {
           logger.warn(s"${parkingLoadingAccumulator.failedRows} rows of parking data failed to load.")
@@ -153,7 +159,11 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param reader a java.io.BufferedReader of a csv file
     * @return ParkingZone array and tree lookup
     */
-  def fromBufferedReader(reader: BufferedReader, parkingStallCountScalingFactor: Double = 1.0, parkingCostScalingFactor: Double = 1.0): ParkingLoadingAccumulator = {
+  def fromBufferedReader(
+    reader: BufferedReader,
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0
+  ): ParkingLoadingAccumulator = {
 
     @tailrec
     def _read(
@@ -162,7 +172,12 @@ object ParkingZoneFileUtils extends LazyLogging {
       val csvRow = reader.readLine()
       if (csvRow == null) accumulator
       else {
-        val updatedAccumulator = parseParkingZoneFromRow(csvRow, accumulator.nextParkingZoneId, parkingStallCountScalingFactor, parkingCostScalingFactor) match {
+        val updatedAccumulator = parseParkingZoneFromRow(
+          csvRow,
+          accumulator.nextParkingZoneId,
+          parkingStallCountScalingFactor,
+          parkingCostScalingFactor
+        ) match {
           case None =>
             accumulator.countFailedRow
           case Some(row: ParkingLoadingDataRow) =>
@@ -181,7 +196,12 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param csvFileContents each line from a file to be read
     * @return table and search tree
     */
-  def fromIterator(csvFileContents: Iterator[String], parkingStallCountScalingFactor: Double = 1.0, parkingCostScalingFactor: Double = 1.0, header: Boolean = true): ParkingLoadingAccumulator = {
+  def fromIterator(
+    csvFileContents: Iterator[String],
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0,
+    header: Boolean = true
+  ): ParkingLoadingAccumulator = {
 
     val maybeWithoutHeader = if (header) csvFileContents.drop(1) else csvFileContents
 
@@ -189,7 +209,12 @@ object ParkingZoneFileUtils extends LazyLogging {
       Try {
         if (csvRow.trim == "") accumulator
         else {
-          parseParkingZoneFromRow(csvRow, accumulator.nextParkingZoneId, parkingStallCountScalingFactor, parkingCostScalingFactor) match {
+          parseParkingZoneFromRow(
+            csvRow,
+            accumulator.nextParkingZoneId,
+            parkingStallCountScalingFactor,
+            parkingCostScalingFactor
+          ) match {
             case None =>
               accumulator.countFailedRow
             case Some(row: ParkingLoadingDataRow) =>
