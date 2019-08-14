@@ -146,7 +146,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               veh,
               Math.max(tick, veh.latestTickExperienced),
               rideHailManager.beamServices,
-              vehState.remainingPrimaryRangeInM + vehState.remainingSecondaryRangeInM.getOrElse(0.0)
+              vehState.totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
             )
             rideHailManager.log.debug(
               "%%%%% Vehicle {} is available with this schedule: \n {}",
