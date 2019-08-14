@@ -143,29 +143,6 @@ class TimeDependentRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 147)
 
-      // Set a travel time function that would allow us to travel infinitely fast if there weren't also
-      // a finite vehicle speed
-      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0)
-      router ! RoutingRequest(
-        origin,
-        destination,
-        time,
-        withTransit = false,
-        Vector(
-          StreetVehicle(
-            Id.createVehicleId("car"),
-            Id.create("beamVilleCar", classOf[BeamVehicleType]),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
-            asDriver = true
-          )
-        )
-      )
-      val response2 = expectMsgType[RoutingResponse]
-      assert(response2.itineraries.exists(_.tripClassifier == CAR))
-      val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTimeInSecs == 67)
-
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
         origin,

@@ -72,7 +72,7 @@ class BeamScenarioLoader(
 
     val vehicles = scenarioSource.getVehicles
 
-    val loadedHouseholds = scenarioSource.getHousehold()
+    val loadedHouseholds = scenarioSource.getHousehold
 
     val newHouseholds: Iterable[Household] =
       buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
