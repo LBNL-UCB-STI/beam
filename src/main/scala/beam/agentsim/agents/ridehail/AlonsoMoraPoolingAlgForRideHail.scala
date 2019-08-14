@@ -254,9 +254,9 @@ object AlonsoMoraPoolingAlgForRideHail {
       val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
       val tdc = getTimeDistanceAndCost(prevReq, curReq, skimmer)
       val serviceTime = prevReq.serviceTime + tdc.time
-      val serviceDistance = prevReq.serviceDistance + tdc.distance
+      val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
       if (serviceTime <= curReq.upperBoundTime && serviceDistance <= maxDistanceRangeInMeters) {
-        newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = 0))
+        newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
       } else {
         return None
       }
