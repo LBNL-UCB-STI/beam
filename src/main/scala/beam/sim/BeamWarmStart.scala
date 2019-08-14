@@ -230,7 +230,7 @@ object BeamWarmStart extends LazyLogging {
     if (beamConfig.beam.warmStart.enabled) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
-      if (beamConfig.beam.outputs.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
+      if (beamConfig.beam.beamskimmer.writeObservedSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
         logger.warn(
           "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
         )
