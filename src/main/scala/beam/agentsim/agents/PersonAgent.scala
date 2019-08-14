@@ -38,6 +38,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -110,9 +111,12 @@ object PersonAgent {
     def hasParkingBehaviors: Boolean
 
     def geofence: Option[Geofence]
+
+    def legStartsAt: Option[Int]
   }
 
-  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double, legStartsAt: Option[Int])
+      extends DrivingData { // sorry
     def currentVehicle: VehicleStack = delegate.currentVehicle
 
     def passengerSchedule: PassengerSchedule = delegate.passengerSchedule
@@ -121,12 +125,13 @@ object PersonAgent {
       delegate.currentLegPassengerScheduleIndex
 
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
-      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
+      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
-        legEndsAt
+        legEndsAt,
+        legStartsAt
       )
 
     override def hasParkingBehaviors: Boolean = false
@@ -157,6 +162,7 @@ object PersonAgent {
     override def hasParkingBehaviors: Boolean = true
 
     override def geofence: Option[Geofence] = None
+    override def legStartsAt: Option[Int] = None
   }
 
   case class ActivityStartTrigger(tick: Int) extends Trigger
@@ -333,6 +339,18 @@ class PersonAgent(
       nextActivity(data) match {
         case None =>
           logDebug(s"didn't get nextActivity")
+
+          // if we still have a BEV/PHEV that is connected to a charging point,
+          // we assume that they will charge until the end of the simulation and throwing events accordingly
+          beamVehicles.foreach(idVehicleOrTokenTuple => {
+            beamScenario.privateVehicles
+              .get(idVehicleOrTokenTuple._1)
+              .foreach(beamvehicle => {
+                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
+                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
+                }
+              })
+          })
           stop replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
@@ -483,7 +501,7 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+      logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
@@ -517,7 +535,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
-      logDebug(s"PersonLeavesVehicle: $vehicleToExit")
+      logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
@@ -731,6 +749,26 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
+    // CAV but too late
+    // TODO: Refactor so it uses literally the same code block as transit
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
+        if nextLeg.beamLeg.startTime < _currentTick.get =>
+      // We've missed the CAV. This occurs when something takes longer than planned (based on the
+      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
+      // portion.
+      log.error("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+
+      val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
+      eventsManager.processEvent(
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
+      )
+      goto(ChoosingMode) using ChoosesModeData(
+        personData = data
+          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+        currentLocation =
+          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
+        isWithinTripReplanning = true
+      )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _)) =>
@@ -996,10 +1034,13 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(RideHailResponse(_, _, _, _), _) =>
-      stop(Failure("Unexpected RideHailResponse"))
+    case ev @ Event(RideHailResponse(_, _, _, _), _) =>
+      stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
+    case Event(e, s) =>
+      log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
+      stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

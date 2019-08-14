@@ -92,7 +92,7 @@ class BeamSkimmer @Inject()(
             departureTime,
             mode,
             travelTime,
-            new BeamPath(null, null, None, null, null, travelDistance)
+            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
           ),
           beamScenario.vehicleTypes(vehicleTypeId),
           beamScenario.fuelTypePrices
@@ -273,25 +273,29 @@ class BeamSkimmer @Inject()(
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if (beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
+    if (beamConfig.beam.beamskimmer.writeObservedSkimsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeObservedSkimsInterval == 0) {
       ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
         writeObservedSkims(event)
       }
+    }
+    if (beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
       ProfilingUtils.timed(
         s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
         x => logger.info(x)
       ) {
         writeAllModeSkimsForPeakNonPeakPeriods(event)
       }
+    }
+    if (beamConfig.beam.beamskimmer.writeObservedSkimsPlusInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeObservedSkimsPlusInterval == 0) {
       ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
         writeObservedSkimsPlus(event)
       }
     }
-
-    // Writing full skims are very large, but code is preserved here in case we want to enable it.
-    // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
-    // if(beamServicesOpt.isDefined) writeFullSkims(event)
-
+    if (beamConfig.beam.beamskimmer.writeFullSkimsInterval > 0 && event.getIteration % beamConfig.beam.beamskimmer.writeFullSkimsInterval == 0) {
+      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeFullSkims(event)
+      }
+    }
     previousSkims = skims
     skims = new TrieMap()
     previousSkimsPlus = skimsPlus
@@ -534,6 +538,24 @@ class BeamSkimmer @Inject()(
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val key = (trackSkimsPlusTS, taz.tazId, vehicleManager, label)
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+  }
+
+  def countEvents(
+    curBin: Int,
+    tazId: Id[TAZ],
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    count: Int = 1
+  ): Unit = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+  }
+
+  def addValue(curBin: Int, tazId: Id[TAZ], vehicleManager: Id[VehicleManager], label: Label, value: Double) = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + value)
   }
 
   def observeVehicleAvailabilityByTAZ(

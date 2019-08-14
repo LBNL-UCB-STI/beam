@@ -2,6 +2,7 @@ package beam.sim.monitoring
 
 import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
@@ -37,9 +38,11 @@ class ErrorListener() extends Actor with ActorLogging {
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
         case TriggerWithId(trigger, triggerId) =>
-          log.warning(s"Trigger sent to dead letters $trigger")
+          log.warning("Trigger id {} sent to dead letters: {}", triggerId, trigger)
           d.sender ! CompletionNotice(triggerId)
-        //
+        // Allow RHM to continue
+        case _: Interrupt =>
+          d.sender ! InterruptedWhileOffline
         case m: RoutingRequest =>
           log.debug(
             "Retrying {} via {} tell {} using {}",
