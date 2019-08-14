@@ -160,7 +160,9 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingStallCountScalingFactor: Double,
+    parkingCostScalingFactor: Double
   ): ZonalParkingManager = {
 
     // generate or load parking
@@ -170,7 +172,7 @@ object ZonalParkingManager extends LazyLogging {
       ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
     } else {
       Try {
-        ParkingZoneFileUtils.fromFile(parkingFilePath)
+        ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor, parkingCostScalingFactor)
       } match {
         case Success((s, t)) => (s, t)
         case Failure(e) =>
@@ -199,7 +201,7 @@ object ZonalParkingManager extends LazyLogging {
     boundingBox: Envelope,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
-    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
+    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
     new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, maxSearchRadius, boundingBox)
   }
 
@@ -220,6 +222,18 @@ object ZonalParkingManager extends LazyLogging {
       new Random(seed)
     }
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
-    Props(ZonalParkingManager(beamConfig, tazTreeMap, geo, random, boundingBox))
+    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+    Props(
+      ZonalParkingManager(
+        beamConfig,
+        tazTreeMap,
+        geo,
+        random,
+        boundingBox,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor
+      )
+    )
   }
 }
