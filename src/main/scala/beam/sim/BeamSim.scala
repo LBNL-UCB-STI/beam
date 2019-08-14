@@ -182,7 +182,9 @@ class BeamSim @Inject()(
     )
 
     ExponentialLazyLogging.reset()
-    beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels(Some(beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC)))
+    beamServices.beamScenario.privateVehicles.values.foreach(
+      _.initializeFuelLevels(Some(beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC))
+    )
 
     val iterationNumber = event.getIteration
 
