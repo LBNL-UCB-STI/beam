@@ -387,7 +387,8 @@ trait ChoosesParking extends {
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,
         chargingDuration,
-        vehicle.id
+        vehicle.id,
+        vehicle.beamVehicleType
       )
     )
 

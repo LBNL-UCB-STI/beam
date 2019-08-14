@@ -671,7 +671,8 @@ class RideHailAgent(
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,
         tick - sessionStart,
-        vehicle.id
+        vehicle.id,
+        vehicle.beamVehicleType
       )
     )
     //Question: Are these CAV checks correct - check with Rob
