@@ -123,17 +123,15 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                 }
             }
         }
-        else {
-            Field[] fields = cla.getFields();
-            for (Field field : fields) {
-                if ((field.getName().startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
-                        (field.getName().startsWith("VERBOSE_") && (eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
-                ) {
-                    try {
-                        attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
-                    } catch (IllegalArgumentException | IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
+        Field[] fields = cla.getFields();
+        for (Field field : fields) {
+            if ((field.getName().startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
+                    (field.getName().startsWith("VERBOSE_") && (eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
+            ) {
+                try {
+                    attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
+                } catch (IllegalArgumentException | IllegalAccessException e) {
+                    e.printStackTrace();
                 }
             }
         }

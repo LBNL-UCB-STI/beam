@@ -53,7 +53,6 @@ object FileUtils extends LazyLogging {
     val outputDir = Paths
       .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
       .toFile
-    logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     outputDir.mkdir()
     outputDir.getAbsolutePath
   }
@@ -97,6 +96,7 @@ object FileUtils extends LazyLogging {
   def downloadFile(source: String, target: String): Unit = {
     assert(source != null)
     assert(target != null)
+    logger.info(s"Downloading [$source] to [$target]")
     copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 

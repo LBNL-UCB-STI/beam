@@ -119,7 +119,7 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
     capacitiesDelay.clear
     linkUtilization.clear()
     totalTravelTime = 0
@@ -160,9 +160,9 @@ class DelayMetricAnalysis @Inject()(
   // calculating weighted average
   def averageDelayDataset(event: IterationEndsEvent) {
     val iteration = event.getIteration
-    val nonNull = linkAverageDelay.filter(x => x != null)
-    val sumDelay = nonNull.view.map(delayInLength => delayInLength.delay).sum
-    val sumLength = nonNull.view.map(delayInLength => delayInLength.length).sum
+    val nonNull: IndexedSeq[DelayInLength] = linkAverageDelay.filter(x => x != null)
+    val sumDelay: Double = nonNull.view.map(delayInLength => delayInLength.delay).sum
+    val sumLength: Double = nonNull.view.map(delayInLength => delayInLength.length).sum
     val avg = sumDelay / sumLength
     delayAveragePerKMDataset.addValue(avg, 0, iteration)
   }

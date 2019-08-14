@@ -13,7 +13,7 @@ libs
 !.idea/runConfigurations/Run*
 .cache*
 target/
-beam.iml
+*.iml
 out/
 beam.ipr
 beam.iws
@@ -47,6 +47,10 @@ test/input/siouxfalls/*.csv
 /src/main/python/household_generator/.idea/
 *Rdata
 !/test/input/siouxfalls/r5/siouxareametro-sd-us.zip
+osm.mapdb
+osm.mapdb.p
+network.dat
 physsim-network.xml
 src/main/scala/beam/sandbox
 test/scala/beam/sandbox
+log-path_IS_UNDEFINED/

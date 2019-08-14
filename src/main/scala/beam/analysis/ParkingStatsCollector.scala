@@ -8,8 +8,10 @@ import beam.router.Modes.BeamMode
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -66,16 +68,16 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         modeChoiceEvent.mode match {
           case BeamMode.CAR.value | BeamMode.DRIVE_TRANSIT.value =>
             // start tracking the person for outbound stats
-            if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.getPersonId.toString)) {
+            if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
               personOutboundParkingStatsTracker.put(
-                modeChoiceEvent.getPersonId.toString,
+                modeChoiceEvent.personId.toString,
                 ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
               )
             }
             // start tracking the person for inbound stats
-            if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.getPersonId.toString)) {
+            if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
               personInboundParkingStatsTracker.put(
-                modeChoiceEvent.getPersonId.toString,
+                modeChoiceEvent.personId.toString,
                 ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
               )
             }
@@ -106,17 +108,15 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              stop tracking the person
        */
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
-        if (personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && BeamVehicleType
-              .isTransitVehicle(
-                personEntersVehicleEvent.getVehicleId
-              )) {
+        if (personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+              personEntersVehicleEvent.getVehicleId
+            )) {
           //stop tracking the person
           personOutboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
-        if (personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && BeamVehicleType
-              .isTransitVehicle(
-                personEntersVehicleEvent.getVehicleId
-              )) {
+        if (personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+              personEntersVehicleEvent.getVehicleId
+            )) {
           //stop tracking the person
           personInboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
@@ -126,31 +126,31 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              process the parking stats collected so far for that person
        */
       case leavingParkingEvent: LeavingParkingEvent =>
-        if (personOutboundParkingStatsTracker.contains(leavingParkingEvent.getPersonId.toString)) {
+        if (personOutboundParkingStatsTracker.contains(leavingParkingEvent.driverId)) {
           // Get the parking TAZ from the event
           val parkingTaz = Some(leavingParkingEvent.tazId.toString)
           val personOutboundParkingStats = personOutboundParkingStatsTracker.getOrElse(
-            leavingParkingEvent.getPersonId.toString,
+            leavingParkingEvent.driverId,
             ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
           )
           //save the parking taz to the inbound stats as well
           val personInboundParkingStats = personInboundParkingStatsTracker
             .getOrElse(
-              leavingParkingEvent.getPersonId.toString,
+              leavingParkingEvent.driverId,
               ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
             )
             .copy(parkingTAZ = parkingTaz)
-          personInboundParkingStatsTracker.put(leavingParkingEvent.getPersonId.toString, personInboundParkingStats)
+          personInboundParkingStatsTracker.put(leavingParkingEvent.driverId, personInboundParkingStats)
 
           if (personOutboundParkingStats.departureTime.isDefined) {
             //process the collected inbound stats for the person
             processOutboundParkingStats(
-              leavingParkingEvent.getPersonId.toString,
+              leavingParkingEvent.driverId,
               personOutboundParkingStats
                 .copy(leaveParkingTime = Some(leavingParkingEvent.getTime), parkingTAZ = parkingTaz)
             )
             //stop tracking the person for outbound stats
-            personOutboundParkingStatsTracker.remove(leavingParkingEvent.getPersonId.toString)
+            personOutboundParkingStatsTracker.remove(leavingParkingEvent.driverId)
           }
         }
 
@@ -162,6 +162,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {
           // get the parking cost from the event attributes
           val parkingCost: Option[Double] = Some(parkEvent.cost)
+
           val personInboundParkingStats = personInboundParkingStatsTracker.getOrElse(
             parkEvent.getDriverId,
             ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
@@ -197,6 +198,10 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       case _ =>
     }
   }
+
+  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
+      .exists(beamVehicleId.toString.toLowerCase.startsWith)
 
   /**
     * Processes the collected outbound parking stats of a person

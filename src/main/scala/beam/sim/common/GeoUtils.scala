@@ -7,6 +7,7 @@ import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.map.GpxPoint
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import org.matsim.api.core.v01
@@ -33,7 +34,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
   def wgs2Utm(coord: Coord): Coord = {
-    if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
+    if (GeoUtils.isInvalidWgsCoordinate(coord)) {
       logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
       coord
     } else {
@@ -186,35 +187,24 @@ x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
 
 object GeoUtils {
 
-  @Inject
-  var beamConfig: BeamConfig = _
-
-  implicit class CoordOps(val coord: Coord) extends AnyVal {
-
-    def toWgs: Coord = {
-      lazy val utm2Wgs: GeotoolsTransformation =
-        new GeotoolsTransformation(beamConfig.beam.spatial.localCRS, "epsg:4326")
-      //TODO fix this monstrosity
-      if (coord.getX > 1.0 | coord.getX < -0.0) {
-        utm2Wgs.transform(coord)
-      } else {
-        coord
-      }
-    }
-
-    def toUtm: Coord = {
-      lazy val wgs2Utm: GeotoolsTransformation =
-        new GeotoolsTransformation("epsg:4326", beamConfig.beam.spatial.localCRS)
-      wgs2Utm.transform(coord)
-    }
+  def isInvalidWgsCoordinate(coord: Coord): Boolean = {
+    coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90
   }
 
   def distFormula(coord1: Coord, coord2: Coord): Double = {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
+  /**
+    * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
+    *
+    * Source: Shahid, Rizwan, u. a. „Comparison of Distance Measures in Spatial Analytical Modeling for Health Service Planning“. BMC Health Services Research, Bd. 9, Nr. 1, Dezember 2009. Crossref, doi:10.1186/1472-6963-9-200.
+    *
+    * @param coord1 first coordinate in UTM
+    * @param coord2 second coordinate in UTM
+    * @return distance in meters
+    */
   def minkowskiDistFormula(coord1: Coord, coord2: Coord): Double = {
-    // source: Rizwan Shahid et al, Comparison of distance measures in spatial analytical modeling for health service planning
     val exponent: Double = 3 / 2.toDouble
     val a = Math.pow(Math.abs(coord1.getX - coord2.getX), exponent)
     val b = Math.pow(Math.abs(coord1.getY - coord2.getY), exponent)
@@ -232,6 +222,7 @@ object GeoUtils {
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
@@ -252,6 +243,7 @@ object GeoUtils {
 
   /**
     * Generate the vector coordinates from the link nodes
+    *
     * @param link link in the network
     * @return vector coordinates
     */
@@ -264,6 +256,7 @@ object GeoUtils {
 
   /**
     * Computes the angle between two coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return angle between the coordinates (in radians).
@@ -280,9 +273,16 @@ object GeoUtils {
     }
   }
 
+
   def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
+
+  def getR5EdgeCoord(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
+    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
+    new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
+  }
+
 }
 
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {

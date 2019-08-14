@@ -12,15 +12,17 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIteratio
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.scripts.{FailFast, PopulationWriterCSV}
-import beam.utils.{DebugLib, NetworkHelper}
+import beam.utils.csv.writers._
+import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scripts.FailFast
+import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -29,14 +31,10 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{
-  ControlerEvent,
-  IterationEndsEvent,
-  IterationStartsEvent,
-  ShutdownEvent,
-  StartupEvent
-}
+import org.matsim.core.controler.corelisteners.DumpDataAtEnd
+import org.matsim.core.controler.events._
 import org.matsim.core.controler.listener.{
   IterationEndsListener,
   IterationStartsListener,
@@ -50,8 +48,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.population.{Activity, Plan}
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -63,7 +59,11 @@ class BeamSim @Inject()(
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
-  private val travelTimeObserved: TravelTimeObserved
+  private val travelTimeObserved: TravelTimeObserved,
+  private val beamConfigChangesObservable: BeamConfigChangesObservable,
+  private val routeHistory: RouteHistory,
+  private val rideHailIterationHistory: RideHailIterationHistory,
+  private val configHolder: BeamConfigHolder
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -80,42 +80,45 @@ class BeamSim @Inject()(
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
-  private var routeHistory: RouteHistory = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   val graphFileNameDirectory = mutable.Map[String, Int]()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
+  val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
+
   override def notifyStartup(event: StartupEvent): Unit = {
-    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
-      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      beamServices
-    )
 
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    eventsManager.addHandler(rideHailUtilizationCollector)
+
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
-        beamServices,
+        beamServices.beamScenario,
         transportNetwork,
         scenario.getNetwork,
+        networkHelper,
+        beamServices.geo,
         scenario,
-        eventsManager,
         scenario.getTransitVehicles,
-        fareCalculator,
+        beamServices.fareCalculator,
         tollCalculator
       ),
       "router"
+    )
+    BeamWarmStart.warmStartTravelTime(
+      beamServices.beamConfig,
+      scenario.getConfig.travelTimeCalculator(),
+      beamServices.beamRouter,
+      scenario
     )
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
-
-    beamServices.matsimServices = event.getServices
 
     if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
@@ -123,7 +126,8 @@ class BeamSim @Inject()(
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
-        beamServices
+        beamServices,
+        beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -143,12 +147,10 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )
 
-    routeHistory = beamServices.matsimServices.getInjector.getInstance(classOf[RouteHistory])
-
     tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
       eventsManager,
       beamServices,
-      event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
+      rideHailIterationHistory,
       transportNetwork
     )
 
@@ -158,38 +160,70 @@ class BeamSim @Inject()(
       networkHelper
     )
 
-    // report inconsistencies in output:
-    //new RideHailDebugEventHandler(eventsManager)
+    val controllerIO = event.getServices.getControlerIO
+    PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv.gz"))
+    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv.gz"))
+    HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
+    NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv.gz"))
+
+    dumpMatsimStuffAtTheBeginningOfSimulation()
 
     FailFast.run(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+
+    beamConfigChangesObservable.notifyChangeToSubscribers()
+
+    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+      beamServices,
+      configHolder
+    )
+
     ExponentialLazyLogging.reset()
-    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
+
+    val iterationNumber = event.getIteration
+
+    val controllerIO = event.getServices.getControlerIO
+    if (isFirstIteration(iterationNumber)) {
+      PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
+    }
+    rideHailUtilizationCollector.reset(event.getIteration)
+  }
+
+  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    val interval = beamConfig.beam.outputs.writePlansInterval
+    interval > 0 && iterationNumber % interval == 0
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
+      PlansCsvWriter.toCsv(
+        scenario,
+        beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv.gz")
+      )
+    }
+
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
+    rideHailUtilizationCollector.notifyIterationEnds(event)
+
     val outputGraphsFuture = Future {
-      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
-      val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
-      if (interval > 0 && event.getIteration % interval == 0) {
-        PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
-          event.getServices.getControlerIO
-            .getIterationFilename(event.getIteration, "population.csv.gz")
-        )
-      }
 
       iterationSummaryStats += iterationStatsProviders
         .flatMap(_.getSummaryStats.asScala)
@@ -213,12 +247,12 @@ class BeamSim @Inject()(
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
 
-      if (beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
-        routeHistory.expireRoutes(beamServices.beamConfig.beam.replanning.ModuleProbability_2)
+      if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
+        routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
       }
     }
 
-    if (beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
     } else {
       val physsimFuture = Future {
@@ -229,7 +263,7 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 
@@ -261,8 +295,39 @@ class BeamSim @Inject()(
     )
     //rename output files generated by matsim to follow the standard naming convention of camel case
     renameGeneratedOutputFiles(event)
+
+    if (beamConfig.beam.outputs.writeGraphs) {
+      // generateRepositioningGraphs(event)
+    }
+
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+  }
+
+  private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
+    ProfilingUtils.timed(
+      s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
+      x => logger.info(x)
+    ) {
+      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
+      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
+      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
+      dumper match {
+        case listener: ShutdownListener =>
+          val event = new ShutdownEvent(beamServices.matsimServices, false)
+          // Create files
+          listener.notifyShutdown(event)
+          // Rename files
+          renameGeneratedOutputFiles(event)
+        case x =>
+          logger.warn("dumper is not `ShutdownListener`")
+      }
+    }
+  }
+
+  private def isFirstIteration(currentIteration: Integer): Boolean = {
+    val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
+    currentIteration == firstIteration
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -285,13 +350,19 @@ class BeamSim @Inject()(
     )
 
     //rename output files generated by matsim to follow the standard naming convention of camel case
-    renameGeneratedOutputFiles(event)
+    val outputFiles = renameGeneratedOutputFiles(event)
+
+    val scenario = event.getServices.getScenario
+    val controllerIO = event.getServices.getControlerIO
+
     outputFilesToDelete.foreach(deleteOutputFile)
 
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: $fileName")
-      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
+      Files.deleteIfExists(Paths.get(controllerIO.getOutputFilename(fileName)))
     }
+    BeamConfigChangesObservable.clear()
+
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
@@ -388,9 +459,10 @@ class BeamSim @Inject()(
 
   /**
     * Rename output files generated by libraries to match the standard naming convention of camel case.
+    *
     * @param event Any controller event
     */
-  private def renameGeneratedOutputFiles(event: ControlerEvent): Unit = {
+  private def renameGeneratedOutputFiles(event: ControlerEvent): Seq[File] = {
     val filesToBeRenamed: Array[File] = event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
@@ -417,7 +489,7 @@ class BeamSim @Inject()(
           .filter(f => outputFileNameRegex.exists(f.getName.matches(_)))
     }
     filesToBeRenamed
-      .foreach { file =>
+      .map { file =>
         //rename each file to follow the camel case
         val newFile = FileUtils.getFile(
           file.getAbsolutePath.replace(
@@ -431,9 +503,11 @@ class BeamSim @Inject()(
           if (file != newFile && !newFile.exists()) {
             file.renameTo(newFile)
           }
+          newFile
         } catch {
           case e: Exception =>
             logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}", e)
+            file
         }
       }
   }

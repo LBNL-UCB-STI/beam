@@ -1,17 +1,17 @@
 package beam.sim.population
 
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
-import org.matsim.api.core.v01.Id
-import org.matsim.households.{Household, IncomeImpl}
-import org.matsim.households.Income.IncomePeriod
-import org.matsim.api.core.v01.population._
-import beam.sim.BeamServices
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.RouteHistory.LinkId
+import beam.router.model.EmbodiedBeamLeg
+import beam.sim.BeamServices
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population._
+import org.matsim.households.Income.IncomePeriod
+import org.matsim.households.{Household, IncomeImpl}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,7 +37,7 @@ case class AttributesOfIndividual(
     beamMode: BeamMode,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
-    beamVehicleTypeId: Option[Id[BeamVehicleType]] = None,
+    beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
     isPooledTrip: Boolean = false
@@ -86,14 +86,15 @@ case class AttributesOfIndividual(
     embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
         val idsAndTravelTimes =
-          embodiedBeamLeg.beamLeg.travelPath.linkIds.zip(embodiedBeamLeg.beamLeg.travelPath.linkTravelTime)
+          embodiedBeamLeg.beamLeg.travelPath.linkIds
+            .zip(embodiedBeamLeg.beamLeg.travelPath.linkTravelTime.map(time => math.round(time.toFloat)))
         idsAndTravelTimes.foldLeft(0.0)(
           _ + getGeneralizedTimeOfLinkForMNL(
             _,
             embodiedBeamLeg.beamLeg.mode,
             modeChoiceModel,
             beamServices,
-            Option(embodiedBeamLeg.beamVehicleTypeId),
+            embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
             embodiedBeamLeg.isPooledTrip
@@ -110,21 +111,13 @@ case class AttributesOfIndividual(
   }
 
   private def getAutomationLevel(
-    beamVehicleTypeId: Option[Id[BeamVehicleType]],
-    beamServices: BeamServices
+    beamVehicleTypeId: Id[BeamVehicleType],
+    beamServices: BeamServices,
   ): automationLevel = {
-    val automationInt = beamVehicleTypeId match {
-      case Some(beamVehicleTypeId) =>
-        // Use default if it exists, otherwise look up from vehicle ID
-        beamServices
-          .getDefaultAutomationLevel()
-          .getOrElse(
-            beamServices.vehicleTypes
-              .getOrElse(beamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-              .automationLevel
-          )
-      case None =>
-        1
+    val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
+    } else {
+      beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel
     }
     automationInt match {
       case 1 => levelLE2
@@ -203,6 +196,7 @@ object AttributesOfIndividual {
 }
 
 case class HouseholdAttributes(
+  householdId: String,
   householdIncome: Double,
   householdSize: Int,
   numCars: Int,
@@ -211,18 +205,19 @@ case class HouseholdAttributes(
 
 object HouseholdAttributes {
 
-  val EMPTY = HouseholdAttributes(0.0, 0, 0, 0)
+  val EMPTY = HouseholdAttributes("0", 0.0, 0, 0, 0)
 
   def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(
-      Option(household.getIncome)
+      householdId = household.getId.toString,
+      householdIncome = Option(household.getIncome)
         .getOrElse(new IncomeImpl(0, IncomePeriod.year))
         .getIncome,
-      household.getMemberIds.size(),
-      household.getVehicleIds.asScala
+      householdSize = household.getMemberIds.size(),
+      numCars = household.getVehicleIds.asScala
         .map(id => vehicles(id))
         .count(_.beamVehicleType.id.toString.toLowerCase.contains("car")),
-      household.getVehicleIds.asScala
+      numBikes = household.getVehicleIds.asScala
         .map(id => vehicles(id))
         .count(_.beamVehicleType.id.toString.toLowerCase.contains("bike"))
     )

@@ -1,0 +1,215 @@
+@startuml
+
+scale 2000 width
+scale 2000 height
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+
+
+state ChoosesModes #eb1921{
+
+    'Transition State'
+    state ChoosingMode #eb1921
+
+    state FinishingModeChoice #eb1921
+
+    FinishingModeChoice -[#blue,dotted]-> WaitingForDeparture : IntermediateTransition
+    ChoosingMode --> ChoosingMode : MobilityStatusResponse
+    ChoosingMode --> ChoosingMode : RoutingResponse
+    ChoosingMode --> ChoosingMode : RideHailResponse
+    ChoosingMode --> ChoosingMode : ParkingInquiryResponse
+    ChoosingMode --> ChoosingMode : CavTripLegsResponse
+    ChoosingMode --> FinishingModeChoice
+
+}
+
+state ChoosesParking #eb1921{
+
+   'Transition State'
+    state ReleasingParkingSpot #eb1921
+
+    state ChoosingParkingSpot #eb1921
+
+    'Transition State'
+    ReleasingParkingSpot --> ReleasingParkingSpot: StartLegTrigger
+    ReleasingParkingSpot -[#blue,dotted]-> WaitingToDrive: IntermediateTransition
+    ChoosingParkingSpot --> ChoosingParkingSpot : ParkingInquiryResponse
+    ChoosingParkingSpot --> WaitingToDrive : RoutingResponse
+
+}
+
+state DrivingVehicle #eb1921 {
+    ' BeamAgent: States '
+    state Driving #eb1921
+
+    state DrivingInterrupted #eb1921
+
+    state WaitingToDrive #eb1921
+
+    state WaitingToDriveInterrupted #eb1921
+
+
+    'BeamAgent Transitions'
+    Driving ---> ReadyToChooseParking : (EndLegTrigger,LiterallyDrivingData)
+    Driving ---> WaitingToDrive : (EndLegTrigger,LiterallyDrivingData)
+    Driving ---> PassengerScheduleEmpty :(EndLegTrigger,LiterallyDrivingData)
+    Driving ---> Driving : EndLegTrigger,StopDrivingIfNoPassengerOnBoard
+    Driving ---> DrivingInterrupted : Interrupt,StopDrivingIfNoPassengerOnBoard
+
+    DrivingInterrupted ---> PassengerScheduleEmptyInterrupted : (StopDriving,LiterallyDrivingData)
+    DrivingInterrupted ---> Driving : Resume
+    DrivingInterrupted ---> DrivingInterrupted : EndLegTrigger,Interrupt
+
+    WaitingToDrive ---> Driving : StartLegTrigger
+    WaitingToDrive ---> WaitingToDrive : Interrupt,NotifyVehicleResourceIdleReply,StopDrivingIfNoPassengerOnBoard
+    WaitingToDrive ---> DrivingInterrupted : StopDrivingIfNoPassengerOnBoard
+
+
+    WaitingToDriveInterrupted ---> Driving : Resume
+    WaitingToDriveInterrupted ---> WaitingToDriveInterrupted : TriggerWithId
+
+}
+
+state Household #eb1921 {
+    ' BeamAgent: States '
+    state Uninitialized #gray
+
+    state Idle #eb1921
+
+    state PassengerScheduleEmpty #eb1921
+
+    'Transition State'
+
+    [*] --> Uninitialized
+    Uninitialized --> Idle: InitializeTrigger
+    Idle --> WaitingToDrive: ModifyPassengerSchedule
+    PassengerScheduleEmpty --> PassengerScheduleEmpty: PassengerScheduleEmptyMessage
+    PassengerScheduleEmpty --> Idle: Success
+    PassengerScheduleEmpty --> [*]: KillTrigger
+
+}
+
+state PersonAgent #eb1921 {
+
+    state Uninitialized #grey
+
+    state Initialized #grey
+
+    state PerformingActivity #eb1921
+
+    state WaitingForDeparture #eb1921
+
+    state WaitingForReservationConfirmation #eb1921
+
+    state Waiting #eb1921
+
+    state Moving #eb1921
+
+    state PassengerScheduleEmpty #eb1921
+
+    state ReadyToChooseParking #eb1921
+
+    state TryingToBoardVehicle #eb1921
+
+    state ProcessingNextLegOrStartActivity #eb1921
+
+    'BeamAgent Transitions'
+    [*] --> Uninitialized
+    Uninitialized --> Initialized :InitializeTrigger
+
+    Initialized --> PerformingActivity : ActivityStartTrigger
+
+
+    PerformingActivity --> ChoosingMode : ActivityEndTrigger
+    PerformingActivity --> [*] : ActivityEndTrigger
+
+    WaitingForDeparture --> ProcessingNextLegOrStartActivity : PersonDepartureTrigger
+
+    WaitingForReservationConfirmation --> Waiting : ReservationResponse
+    WaitingForReservationConfirmation --> ChoosingMode : ReservationResponse(error)
+    WaitingForReservationConfirmation --> WaitingForReservationConfirmation : DelayedRideHailResponse
+    WaitingForReservationConfirmation --> ChoosingMode : RideHailResponseTrigger(error)
+    WaitingForReservationConfirmation --> Waiting : RideHailResponse
+    WaitingForReservationConfirmation --> ChoosingMode : RideHailResponse(error)
+
+    Waiting --> Moving : BoardVehicleTrigger
+
+    Moving --> ProcessingNextLegOrStartActivity : AlightVehicleTrigger
+
+    PassengerScheduleEmpty --> ProcessingNextLegOrStartActivity: PassengerScheduleEmptyMessage
+
+    ReadyToChooseParking -[#blue,dotted]-> ChoosingParkingSpot: IntermediateTransition
+
+    TryingToBoardVehicle --> ProcessingNextLegOrStartActivity : Boarded
+    TryingToBoardVehicle --> ChoosingMode : NotAvailable
+
+
+    ProcessingNextLegOrStartActivity --> ReleasingParkingSpot : ProcessingNextLegOrStartActivity
+    ProcessingNextLegOrStartActivity --> WaitingToDrive : ProcessingNextLegOrStartActivity
+    ProcessingNextLegOrStartActivity -[#blue,dotted]-> ChoosingMode : IntermediateTransition
+    ProcessingNextLegOrStartActivity -[#blue,dotted]-> WaitingForReservationConfirmation : IntermediateTransition
+    ProcessingNextLegOrStartActivity -[#blue,dotted]-> Waiting : IntermediateTransition
+    ProcessingNextLegOrStartActivity -[#blue,dotted]-> PerformingActivity : IntermediateTransition
+    '[*] is stop event'
+    ProcessingNextLegOrStartActivity -[#blue,dotted]-> [*] : IntermediateTransition
+
+}
+
+
+state RideHailAgent #eb1921 {
+    ' BeamAgent: States '
+    state Uninitialized #grey
+
+    state Idle #eb1921
+
+    state Offline #eb1921
+
+    state IdleInterrupted #eb1921
+
+    state PassengerScheduleEmpty #eb1921
+
+    state PassengerScheduleEmptyInterrupted  #eb1921
+
+
+    'BeamAgent Transitions'
+    [*] --> Uninitialized
+    Uninitialized --> Idle : InitializeTrigger
+    Uninitialized --> Offline : InitializeTrigger
+
+    Offline --> Idle: StartShiftTrigger
+    Offline --> Offline : Interrupt,NotifyVehicleResourceIdleReply,StartRefuelTrigger,EndRefuelTrigger
+
+    Idle --> Offline: EndShiftTrigger
+    Idle --> Idle: NotifyVehicleResourceIdleReply,EndRefuelTrigger,StartRefuelTrigger
+    Idle --> IdleInterrupted: Interrupt
+
+    IdleInterrupted --> Idle : Resume
+    IdleInterrupted --> IdleInterrupted : Interrupt,NotifyVehicleResourceIdleReply
+    IdleInterrupted --> WaitingToDriveInterrupted : ModifyPassengerSchedule
+
+    PassengerScheduleEmpty --> Idle : PassengerScheduleEmptyMessage
+    PassengerScheduleEmpty --> PassengerScheduleEmpty: Interrupt
+
+    PassengerScheduleEmptyInterrupted --> IdleInterrupted : PassengerScheduleEmptyMessage
+    PassengerScheduleEmptyInterrupted --> PassengerScheduleEmptyInterrupted : ModifyPassengerSchedule,Resume,Interrupt
+
+
+}
+
+state TransistDriver #eb1921{
+    state Uninitialized #gray
+
+    state PassengerScheduleEmpty  #eb1921
+
+
+    [*] --> Uninitialized
+    Uninitialized --> WaitingToDrive : InitializeTrigger
+
+    PassengerScheduleEmpty --> PassengerScheduleEmpty : PassengerScheduleEmptyMessage
+    PassengerScheduleEmpty --> [*] : KillTrigger
+
+}
+
+@enduml

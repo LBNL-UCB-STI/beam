@@ -31,12 +31,14 @@ class UrbanSimScenarioSource(
   val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(personFilePath).map { person =>
+    rdr.readPersonsFile(personFilePath).map { person: DataExchange.PersonInfo =>
       PersonInfo(
         personId = PersonId(person.personId),
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
-        age = person.age
+        age = person.age,
+        isFemale = person.isFemale,
+        valueOfTime = person.valueOfTime
       )
     }
   }
@@ -49,7 +51,7 @@ class UrbanSimScenarioSource(
       )
     }
 
-    planElements.map { plan =>
+    planElements.map { plan: DataExchange.PlanElement =>
       val coord = (plan.x, plan.y) match {
         case (Some(x), Some(y)) =>
           val c =
@@ -69,13 +71,25 @@ class UrbanSimScenarioSource(
       }
       PlanElement(
         personId = PersonId(plan.personId),
-        planElement = plan.planElement,
+        planIndex = 0, // TODO FIXME!
+        planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
+        planScore = 0, // TODO: DataExchange.PlanElement does not have score
+        planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected
         activityType = plan.activityType,
-        x = coord.map(_.getX),
-        y = coord.map(_.getY),
-        endTime = plan.endTime,
-        mode = plan.mode
+        activityLocationX = coord.map(_.getX),
+        activityLocationY = coord.map(_.getY),
+        activityEndTime = plan.endTime,
+        legMode = plan.mode,
+        // TODO: DataExchange.PlanElement does not have the following leg information
+        legDepartureTime = None,
+        legTravelTime = None,
+        legRouteType = None,
+        legRouteStartLink = None,
+        legRouteEndLink = None,
+        legRouteTravelTime = None,
+        legRouteDistance = None,
+        legRouteLinks = Seq.empty
       )
     }
   }
@@ -91,8 +105,8 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(householdInfo.householdId),
         cars = householdInfo.cars,
         income = householdInfo.income,
-        x = coord.getX,
-        y = coord.getY
+        locationX = coord.getX,
+        locationY = coord.getY
       )
     }
   }

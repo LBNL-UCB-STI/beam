@@ -18,6 +18,7 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.r5.R5RoutingWorker
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamWarmStart}
+import beam.utils.{FileUtils, LoggingUtil}
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.syntax._
@@ -58,22 +59,29 @@ object CustomExceptionHandling extends LazyLogging {
 
 object R5RoutingApp extends BeamHelper {
   import beam.utils.json.AllNeededFormats._
-
-  implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val timeout: Timeout = new Timeout(600, TimeUnit.SECONDS)
 
   def main(args: Array[String]): Unit = {
     val (arg, cfg) = prepareConfig(args, isConfigArgRequired = true)
+    val beamCfg = BeamConfig(cfg)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamCfg.beam.outputs.baseOutputDirectory,
+      beamCfg.beam.agentsim.simulationName + "_R5RoutingApp",
+      beamCfg.beam.outputs.addTimestampToOutputDirectory
+    )
+    LoggingUtil.initLogger(outputDirectory, true)
+
+    implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
+
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-    val warmStart = BeamWarmStart(BeamConfig(cfg), maxHour)
+    val warmStart = BeamWarmStart(beamCfg)
     logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
 
-    warmStart.read.foreach { travelTime =>
+    warmStart.readTravelTime.foreach { travelTime =>
       workerRouter ! UpdateTravelTimeLocal(travelTime)
       logger.info("Send `UpdateTravelTimeLocal`")
     }
@@ -95,7 +103,7 @@ object R5RoutingApp extends BeamHelper {
     val departureTime = 20131
     val bodyStreetVehicle = StreetVehicle(
       Id.createVehicleId("1"),
-      BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
       new SpaceTime(startUTM, time = departureTime),
       CAR,
       asDriver = true
@@ -104,7 +112,7 @@ object R5RoutingApp extends BeamHelper {
       originUTM = startUTM,
       destinationUTM = endUTM,
       departureTime = departureTime,
-      transitModes = Vector.empty,
+      withTransit = false,
       streetVehicles = Vector(bodyStreetVehicle)
     )
 
