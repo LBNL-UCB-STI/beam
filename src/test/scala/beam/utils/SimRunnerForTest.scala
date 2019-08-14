@@ -2,7 +2,7 @@ package beam.utils
 import java.io.File
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import com.google.inject.Injector
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
@@ -30,11 +30,12 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     super.beforeAll()
     beamScenario = loadScenario(beamConfig)
     scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
-    injector = buildInjector(config, scenario, beamScenario)
+    injector = buildInjector(config, beamConfig, scenario, beamScenario)
     services = new BeamServicesImpl(injector)
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      services
+      services,
+      injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
     )
   }
 

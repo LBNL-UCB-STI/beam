@@ -1,0 +1,46 @@
+@startuml
+
+scale 1000 width
+scale 700 height
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state Uninitialized #grey
+
+state Idle #eb1921
+
+state Offline #eb1921
+
+state IdleInterrupted #eb1921
+
+state PassengerScheduleEmpty #eb1921
+
+state PassengerScheduleEmptyInterrupted  #eb1921
+
+
+'BeamAgent Transitions'
+[*] --> Uninitialized
+Uninitialized --> Idle : InitializeTrigger
+Uninitialized --> Offline : InitializeTrigger
+
+Offline --> Idle: StartShiftTrigger
+Offline --> Offline : Interrupt,NotifyVehicleResourceIdleReply,StartRefuelTrigger,EndRefuelTrigger
+
+Idle --> Offline: EndShiftTrigger
+Idle --> Idle: NotifyVehicleResourceIdleReply,EndRefuelTrigger,StartRefuelTrigger
+Idle --> IdleInterrupted: Interrupt
+
+IdleInterrupted --> Idle : Resume
+IdleInterrupted --> IdleInterrupted : Interrupt,NotifyVehicleResourceIdleReply
+IdleInterrupted --> WaitingToDriveInterrupted : ModifyPassengerSchedule
+
+PassengerScheduleEmpty --> Idle : PassengerScheduleEmptyMessage
+PassengerScheduleEmpty --> PassengerScheduleEmpty: Interrupt
+
+PassengerScheduleEmptyInterrupted --> IdleInterrupted : PassengerScheduleEmptyMessage
+PassengerScheduleEmptyInterrupted --> PassengerScheduleEmptyInterrupted : ModifyPassengerSchedule,Resume,Interrupt
+
+
+@enduml

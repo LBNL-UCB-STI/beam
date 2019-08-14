@@ -27,7 +27,7 @@ case class PathTraversalEvent(
   mode: BeamMode,
   legLength: Double,
   linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Int],
+  linkTravelTime: IndexedSeq[Double],
   startX: Double,
   startY: Double,
   endX: Double,
@@ -126,8 +126,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_START_COORDINATE_Y: String = "startY"
   val ATTRIBUTE_END_COORDINATE_X: String = "endX"
   val ATTRIBUTE_END_COORDINATE_Y: String = "endY"
-  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "endLegPrimaryFuelLevel"
-  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "endLegSecondaryFuelLevel"
+  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "primaryFuelLevel"
+  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "secondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
   /*
@@ -219,9 +219,11 @@ object PathTraversalEvent {
     val linkIds: IndexedSeq[Int] =
       if (linkIdsAsStr == null || linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
+
     val linkTravelTime: IndexedSeq[Int] =
       if (linkTravelTimeStr == null || linkTravelTimeStr == "") IndexedSeq.empty
-      else linkTravelTimeStr.split(",").map(_.toInt)
+      else linkTravelTimeStr.split(",").map(_.toDouble)
+
     val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
     val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble

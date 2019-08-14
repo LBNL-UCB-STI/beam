@@ -68,16 +68,16 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         modeChoiceEvent.mode match {
           case BeamMode.CAR.value | BeamMode.DRIVE_TRANSIT.value =>
             // start tracking the person for outbound stats
-            if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.getPersonId.toString)) {
+            if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
               personOutboundParkingStatsTracker.put(
-                modeChoiceEvent.getPersonId.toString,
+                modeChoiceEvent.personId.toString,
                 ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
               )
             }
             // start tracking the person for inbound stats
-            if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.getPersonId.toString)) {
+            if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
               personInboundParkingStatsTracker.put(
-                modeChoiceEvent.getPersonId.toString,
+                modeChoiceEvent.personId.toString,
                 ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
               )
             }
@@ -126,31 +126,31 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              process the parking stats collected so far for that person
        */
       case leavingParkingEvent: LeavingParkingEvent =>
-        if (personOutboundParkingStatsTracker.contains(leavingParkingEvent.getPersonId.toString)) {
+        if (personOutboundParkingStatsTracker.contains(leavingParkingEvent.driverId)) {
           // Get the parking TAZ from the event
           val parkingTaz = Some(leavingParkingEvent.tazId.toString)
           val personOutboundParkingStats = personOutboundParkingStatsTracker.getOrElse(
-            leavingParkingEvent.getPersonId.toString,
+            leavingParkingEvent.driverId,
             ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
           )
           //save the parking taz to the inbound stats as well
           val personInboundParkingStats = personInboundParkingStatsTracker
             .getOrElse(
-              leavingParkingEvent.getPersonId.toString,
+              leavingParkingEvent.driverId,
               ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
             )
             .copy(parkingTAZ = parkingTaz)
-          personInboundParkingStatsTracker.put(leavingParkingEvent.getPersonId.toString, personInboundParkingStats)
+          personInboundParkingStatsTracker.put(leavingParkingEvent.driverId, personInboundParkingStats)
 
           if (personOutboundParkingStats.departureTime.isDefined) {
             //process the collected inbound stats for the person
             processOutboundParkingStats(
-              leavingParkingEvent.getPersonId.toString,
+              leavingParkingEvent.driverId,
               personOutboundParkingStats
                 .copy(leaveParkingTime = Some(leavingParkingEvent.getTime), parkingTAZ = parkingTaz)
             )
             //stop tracking the person for outbound stats
-            personOutboundParkingStatsTracker.remove(leavingParkingEvent.getPersonId.toString)
+            personOutboundParkingStatsTracker.remove(leavingParkingEvent.driverId)
           }
         }
 

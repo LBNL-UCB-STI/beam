@@ -219,11 +219,8 @@ object HouseholdActor {
           val cavScheduler = new FastHouseholdCAVScheduling(
             household,
             cavs,
-            Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
             beamServices = Some(beamServices),
-            skimmer = beamSkimmer,
-            stopSearchAfterXSolutions = 1000,
-            limitCavToXPersons = Int.MaxValue
+            skimmer = beamSkimmer
           )(beamServices.matsimServices.getScenario.getPopulation)
 
           //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
@@ -457,7 +454,7 @@ object HouseholdActor {
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "home", 0.0, None, 0)
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init", None)
           } {
             veh.useParkingStall(stall)
           }

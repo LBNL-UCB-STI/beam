@@ -43,15 +43,15 @@ object RoutingModel {
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
-    travelTimeByEnterTimeAndLinkId: (Int, Int, StreetMode) => Int,
+    travelTimeByEnterTimeAndLinkId: (Double, Int, StreetMode) => Double,
     mode: StreetMode,
     streetLayer: StreetLayer
   ): LinksTimesDistances = {
-    def exitTimeByEnterTimeAndLinkId(enterTime: Int, linkId: Int): Int =
+    def exitTimeByEnterTimeAndLinkId(enterTime: Double, linkId: Int): Double =
       enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
 
     val traversalTimes = linkIds.view
-      .scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)
+      .scanLeft(startTime.toDouble)(exitTimeByEnterTimeAndLinkId)
       .sliding(2)
       .map(pair => pair.last - pair.head)
       .toVector
@@ -62,7 +62,7 @@ object RoutingModel {
 
   case class LinksTimesDistances(
     linkIds: IndexedSeq[Int],
-    travelTimes: Vector[Int],
+    travelTimes: Vector[Double],
     distances: IndexedSeq[Double]
   )
 
