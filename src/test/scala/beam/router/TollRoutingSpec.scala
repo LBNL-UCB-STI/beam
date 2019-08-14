@@ -113,7 +113,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 87)
+      assert(carOption.totalTravelTimeInSecs == 145)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
