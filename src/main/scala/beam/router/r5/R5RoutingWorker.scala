@@ -52,6 +52,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.util.Try
 
 case class WorkerParameters(
   beamConfig: BeamConfig,
@@ -571,8 +572,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
-//    println(accessVehicles)
-//    println(bestAccessVehiclesByR5Mode.values)
     for (vehicle <- bestAccessVehiclesByR5Mode.values) {
       val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         request.originUTM
@@ -744,7 +743,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           ),
           null
         )
-        router.getPaths.asScala
+        Try(router.getPaths.asScala).getOrElse(Nil) // Catch IllegalStateException in R5.StatsCalculator
       }
 
       for (transitPath <- transitPaths) {
