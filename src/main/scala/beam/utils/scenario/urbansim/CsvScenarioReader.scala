@@ -4,10 +4,12 @@ import beam.utils.scenario.InputType
 import beam.utils.scenario.urbansim.DataExchange._
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
@@ -72,7 +74,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id")
-    val cars = getIfNotNull(rec, "cars").toDouble
+    val cars = getIfNotNull(rec, "cars").toDouble.toInt
     val unitId = getIfNotNull(rec, "unit_id")
     val buildingId = getIfNotNull(rec, "building_id")
     val income = getIfNotNull(rec, "income").toDouble
@@ -105,8 +107,19 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val personId = getIfNotNull(rec, "person_id")
     val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
+    val isFemaleValue: Boolean = {
+      val value = getIfNotNull(rec, "sex")
+      value == "2" || value == "F"
+    }
     val rank: Int = 0
-    PersonInfo(personId = personId, householdId = householdId, rank = rank, age = age)
+    PersonInfo(
+      personId = personId,
+      householdId = householdId,
+      rank = rank,
+      age = age,
+      isFemale = isFemaleValue,
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)).getOrElse(0D)
+    )
   }
 
   private def toBuildingInfo(rec: java.util.Map[String, String]): BuildingInfo = {

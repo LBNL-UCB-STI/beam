@@ -62,11 +62,24 @@ sourceSets.main.java.srcDirs = []
 sourceSets.test.java.srcDirs = []
 sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
 
+sourceSets {
+    main {
+        resources {
+            srcDir "src/main/resources"
+        }
+    }
+    test {
+        resources {
+            srcDir "src/test/resources"
+        }
+    }
+}
+
 if (project.hasProperty('env')) {
     sourceSets {
         main {
             resources {
-                srcDirs "src/main/resources", "test/input/" + project.getProperty('env')
+                srcDirs "test/input/" + project.getProperty('env')
             }
         }
     }
@@ -98,8 +111,10 @@ allprojects {
 
 dependencies {
 
-    //beam-utilities
-    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.1'
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.3') {
+        exclude group: 'com.github.michaz', module: 'r5'
+    }
+    
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -153,7 +168,7 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -161,7 +176,7 @@ dependencies {
     compile "com.sigopt:sigopt-java:4.9.0"
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
-    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
     /////////////////////////////////
@@ -177,6 +192,7 @@ dependencies {
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
+    testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
 
@@ -232,6 +248,9 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
+    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
+    compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
+
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
@@ -249,6 +268,8 @@ dependencies {
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
     compile (group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
+        exclude group: 'asm', module: 'asm'
     }
 }
 
@@ -279,7 +300,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-oD', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
@@ -292,14 +313,12 @@ build.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
@@ -317,7 +336,6 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
                     '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
-
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
@@ -549,7 +567,8 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
+                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC
 
 println(applicationDefaultJvmArgs)
 
@@ -596,12 +615,15 @@ task execute(type: JavaExec) {
     }
 }
 
+
 task matsimConversion(type: JavaExec) {
     main = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
+        // if this triggers an error, try
+        // args "${confPath}"
     }
 }
 

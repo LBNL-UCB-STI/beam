@@ -61,7 +61,9 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
           "age"          -> 3L.asInstanceOf[AnyRef]
         ).asJava
       )
-      ParquetScenarioReader.toPersonInfo(gr) should be(PersonInfo(personId = "1", householdId = "2", age = 3, rank = 0))
+      ParquetScenarioReader.toPersonInfo(gr) should be(
+        PersonInfo(personId = "1", householdId = "2", age = 3, rank = 0, isFemale = false, valueOfTime = 0)
+      )
     }
 
     "be able to create PlanInfo from GenericRecord" in {
@@ -101,7 +103,7 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
         ).asJava
       )
       ParquetScenarioReader.toHouseholdInfo(gr) should be(
-        HouseholdInfo(householdId = "1", cars = 1.0, income = 4.0, unitId = "2", buildingId = "3")
+        HouseholdInfo(householdId = "1", cars = 1, income = 4.0, unitId = "2", buildingId = "3")
       )
     }
   }

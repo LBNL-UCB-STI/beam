@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
@@ -14,75 +14,57 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.scenario.ScenarioUtils
-import org.mockito.Mockito._
+import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-
-import scala.collection.concurrent.TrieMap
 
 class RideHailAgentSpec
-    extends TestKit(
-      ActorSystem(
-        "RideHailAgentSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      )
-    )
-    with FunSpecLike
-    with BeforeAndAfterAll
+    extends FunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val config = BeamConfig(system.settings.config)
-  lazy val eventsManager = new EventsManagerImpl()
 
-  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        akka.test.timefactor = 2
+        """
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
-  private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private lazy val matsimConfig = configBuilder.buildMatSimConf()
+  lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
 
-  lazy val services: BeamServices = {
-    val matsimServices = mock[MatsimServices]
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.beamConfig).thenReturn(config)
-    val geo = new GeoUtilsImpl(config)
-    when(theServices.geo).thenReturn(geo)
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-    ScenarioUtils.loadScenario(scenario)
-    when(matsimServices.getScenario).thenReturn(scenario)
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-    theServices
-  }
-  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
+
+  lazy val eventMgr = new EventsManagerImpl()
+
+  private lazy val zonalParkingManager = system.actorOf(
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+    "ParkingManager"
+  )
 
   case class TestTrigger(tick: Int) extends Trigger
-
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A RideHailAgent") {
 
@@ -129,7 +111,7 @@ class RideHailAgentSpec
           )
         )
         .addPassenger(
-          VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1), self),
+          PersonIdWithActorRef(Id.createPersonId(1), self),
           Seq(
             BeamLeg(
               38800,
@@ -161,16 +143,19 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(
+          vehicleId,
+          new Powertrain(0.0),
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 64800,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -183,11 +168,12 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork,
-          tollCalculator = new TollCalculator(config)
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator = new TollCalculator(beamConfig)
         )
       )
 
@@ -236,17 +222,16 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          BeamVehicleType.defaultCarBeamVehicleType
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 64800,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -259,11 +244,12 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork,
-          tollCalculator = new TollCalculator(config)
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator = new TollCalculator(beamConfig)
         )
       )
 
@@ -304,17 +290,16 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          BeamVehicleType.defaultCarBeamVehicleType
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 64800,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -327,11 +312,12 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork,
-          tollCalculator = new TollCalculator(config)
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator = new TollCalculator(beamConfig)
         )
       )
 
@@ -344,7 +330,7 @@ class RideHailAgentSpec
       expectMsgType[VehicleEntersTrafficEvent]
 
       trigger = expectMsgPF() {
-        case t @ TriggerWithId(BoardVehicleTrigger(38800, _, _), _) =>
+        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
           t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -367,7 +353,7 @@ class RideHailAgentSpec
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
       trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _, _), _) =>
+        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
           t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -383,18 +369,18 @@ class RideHailAgentSpec
 
   }
 
-  override def beforeAll: Unit = {
-    eventsManager.addHandler(new BasicEventHandler {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    eventMgr.addHandler(new BasicEventHandler {
       override def handleEvent(event: Event): Unit = {
         self ! event
       }
     })
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
+    super.afterAll()
   }
 
 }

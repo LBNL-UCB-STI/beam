@@ -1,15 +1,15 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.{Dropoff, MobilityRequest, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.{Dropoff, MobilityRequest, MobilityRequestTrait, Pickup}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode.{CAR}
+import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -23,10 +23,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
-    rideHailManager.quadTreeBounds.minx,
-    rideHailManager.quadTreeBounds.miny,
-    rideHailManager.quadTreeBounds.maxx,
-    rideHailManager.quadTreeBounds.maxy
+    rideHailManager.activityQuadTreeBounds.minx,
+    rideHailManager.activityQuadTreeBounds.miny,
+    rideHailManager.activityQuadTreeBounds.maxx,
+    rideHailManager.activityQuadTreeBounds.maxy
   )
 
   val defaultBeamVehilceTypeId = Id.create(
@@ -38,10 +38,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
-      )
-      .headOption match {
+      ) match {
       case Some(agentETA) =>
         val timeCostFactors = rideHailManager.beamSkimmer.getRideHailPoolingTimeAndCostRatios(
           inquiry.pickUpLocationUTM,
@@ -78,7 +78,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
 
       // First check for broken route responses (failed routing attempt)
-      if (routeResponses.find(_.itineraries.size == 0).isDefined) {
+      if (routeResponses.find(_.itineraries.isEmpty).isDefined) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
         if (tempScheduleStore.contains(request.requestId)) tempScheduleStore.remove(request.requestId)
       } else {
@@ -128,7 +128,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
     }
-    if (toAllocate.size > 0) {
+    if (toAllocate.nonEmpty) {
       implicit val skimmer: BeamSkimmer = rideHailManager.beamSkimmer
       val pooledAllocationReqs = toAllocate.filter(_.asPooled)
       val poolCustomerReqs = pooledAllocationReqs.map(
@@ -136,7 +136,16 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
-        .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
+        .map(
+          veh =>
+            createVehicleAndSchedule(
+              veh.vehicleId.toString,
+              rideHailManager.beamScenario.vehicleTypes(defaultBeamVehilceTypeId),
+              veh.currentLocationUTM.loc,
+              tick,
+              veh.geofence
+          )
+        )
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
@@ -204,7 +213,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   orig.activity.getCoord,
                   dest.activity.getCoord,
                   origin.time,
-                  IndexedSeq(),
+                  withTransit = false,
                   IndexedSeq(
                     StreetVehicle(
                       Id.create(vehicleAndSchedule.vehicle.id.toString, classOf[Vehicle]),
@@ -225,8 +234,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
       // Anyone unsatisfied must be assigned NoVehicleAllocated
       val wereAllocated = allocResponses
-        .map(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
-        .flatten
+        .flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .toSet
       pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach { unsatisfiedReq =>
         allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)

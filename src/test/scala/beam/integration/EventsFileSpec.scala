@@ -5,10 +5,9 @@ import java.io.File
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
-import beam.integration.EventReader._
 import beam.router.Modes.BeamMode.{BIKE, CAR}
-import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamHelper
+import beam.utils.EventReader._
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -30,14 +29,21 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .resolve()
 
   private var scenario: MutableScenario = _
-  private var networkCoordinator: NetworkCoordinator = _
   private var personHouseholds: Map[Id[Person], Household] = _
 
   override protected def beforeAll(): Unit = {
-    val stuff = setupBeamWithConfig(config)
-    scenario = stuff._1
-    networkCoordinator = stuff._3
-    runBeam(config, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
+    val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
+
+    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+      config,
+      beamExecutionConfig.beamConfig,
+      beamExecutionConfig.matsimConfig
+    )
+    scenario = scenarioBuilt
+    val injector = buildInjector(config, scenario, beamScenario)
+    val services = buildBeamServices(injector, scenario)
+
+    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -58,7 +64,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def tripsFromEvents(vehicleType: String) = {
     val trips = for {
-      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getAttributes.get("vehicleType") == vehicleType
       vehicleTag <- event.getAttributes.asScala.get("vehicle")
     } yield vehicleTag.split(":")(1).split("-").take(3).mkString("-")
@@ -83,7 +89,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
     val pathTraversals = for {
-      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
@@ -105,7 +111,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "contain at least one paid toll" in {
     val tollEvents = for {
-      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
@@ -114,7 +120,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "yield positive toll revenue according to TollRevenueAnalysis" in {
     val analysis = new TollRevenueAnalysis
-    fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+    fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       .foreach(analysis.processStats)
     val tollRevenue = analysis.getSummaryStats.get(TollRevenueAnalysis.ATTRIBUTE_TOLL_REVENUE)
     tollRevenue should not equal 0.0

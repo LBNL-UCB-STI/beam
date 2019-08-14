@@ -4,6 +4,7 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import beam.sim.config.BeamConfig
+import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Network, NetworkWriter}
@@ -11,7 +12,6 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 trait NetworkCoordinator extends LazyLogging {
 
@@ -21,12 +21,9 @@ trait NetworkCoordinator extends LazyLogging {
 
   var network: Network
 
-  val tripFleetSizeMap: mutable.HashMap[String, Integer] = mutable.HashMap.empty[String, Integer]
-
   protected def preprocessing(): Unit
 
   def init(): Unit = {
-    tripFleetSizeMap.clear()
     preprocessing()
     loadNetwork()
     postProcessing()
@@ -40,7 +37,7 @@ trait NetworkCoordinator extends LazyLogging {
       logger.info(
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
-      transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       if (exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))) {
         network = NetworkUtils.createNetwork()
         new MatsimNetworkReader(network)
@@ -48,7 +45,7 @@ trait NetworkCoordinator extends LazyLogging {
       } else {
         createPhyssimNetwork()
       }
-    } else { // Need to create the unpruned and pruned networks from directory
+    } else {
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
       )
@@ -56,16 +53,16 @@ trait NetworkCoordinator extends LazyLogging {
         Paths.get(beamConfig.beam.routing.r5.directory).toFile,
         true,
         false
-      ) // Uses the new signature Andrew created
+      )
 
       // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
       // Please, fix me in the future
       createPhyssimNetwork()
 
-      transportNetwork.write(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      transportNetwork = TransportNetwork.read(
-        Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
-      ) // Needed because R5 closes DB on write
+      KryoNetworkSerializer.write(transportNetwork, Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+
+      // Needed because R5 closes DB on write
+      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
     }
   }
 
@@ -112,39 +109,6 @@ trait NetworkCoordinator extends LazyLogging {
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
-    estimateInUseFleet()
   }
-
-  def estimateInUseFleet(): Unit = {
-    val startStopsByTime: mutable.PriorityQueue[IdAndTime] =
-      mutable.PriorityQueue[IdAndTime]()(Ordering.by(IdAndTimeOrder))
-    val tripVehiclesEnRoute = mutable.HashMap.empty[String, mutable.Set[String]]
-    transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
-      if (tp.hasSchedules) {
-        tp.tripSchedules.asScala.toVector foreach { ts =>
-          val firstArrival: Int = ts.arrivals(0)
-          val lastDeparture: Int = ts.departures(ts.getNStops - 1)
-          startStopsByTime.enqueue(IdAndTime(firstArrival, ts.tripId, tp.routeId))
-          startStopsByTime.enqueue(IdAndTime(lastDeparture, ts.tripId, tp.routeId))
-        }
-      }
-      tripFleetSizeMap.put(tp.routeId, 0)
-    }
-    while (startStopsByTime.iterator.hasNext) {
-      val nextId = startStopsByTime.dequeue()
-      if (!tripVehiclesEnRoute.contains(nextId.route)) {
-        tripVehiclesEnRoute.put(nextId.route, mutable.Set())
-      }
-      val theSet = tripVehiclesEnRoute(nextId.route)
-      if (theSet.contains(nextId.id)) {
-        tripFleetSizeMap.put(nextId.route, Math.max(theSet.size, tripFleetSizeMap(nextId.route)))
-        theSet.remove(nextId.id)
-      } else {
-        theSet.add(nextId.id)
-      }
-    }
-  }
-  case class IdAndTime(time: Int, id: String, route: String)
-  def IdAndTimeOrder(d: IdAndTime) = -d.time
 
 }
