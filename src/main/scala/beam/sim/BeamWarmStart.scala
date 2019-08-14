@@ -8,12 +8,10 @@ import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
-import beam.utils.FileUtils.downloadFile
-import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
+import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.getTempDirectoryPath
-import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
@@ -156,7 +154,8 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
   }
 
-  private lazy val parentRunPath: String = FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
+  private lazy val parentRunPath: String =
+    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize = beamConfig.beam.agentsim.timeBinSize
