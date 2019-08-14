@@ -94,9 +94,22 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
       // Filter out vehicles that don't have enough range
-      newPositions.filter { vehAndNewLoc =>
-        rideHailManager.beamSkimmer.getTimeDistanceAndCost(vehAndNewLoc._1.currentLocationUTM.loc,vehAndNewLoc._2,tick,CAR,vehAndNewLoc._1.vehicleType.id).distance <= rideHailManager.vehicleManager.getVehicleState(vehAndNewLoc._1.vehicleId).totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
-      }.map(tup => (tup._1.vehicleId,tup._2)).toVector
+      newPositions
+        .filter { vehAndNewLoc =>
+          rideHailManager.beamSkimmer
+            .getTimeDistanceAndCost(
+              vehAndNewLoc._1.currentLocationUTM.loc,
+              vehAndNewLoc._2,
+              tick,
+              CAR,
+              vehAndNewLoc._1.vehicleType.id
+            )
+            .distance <= rideHailManager.vehicleManager
+            .getVehicleState(vehAndNewLoc._1.vehicleId)
+            .totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+        }
+        .map(tup => (tup._1.vehicleId, tup._2))
+        .toVector
     } else {
       Vector.empty
     }

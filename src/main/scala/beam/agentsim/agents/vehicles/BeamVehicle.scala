@@ -354,6 +354,7 @@ object BeamVehicle {
     driver: Option[ActorRef],
     stall: Option[ParkingStall]
   ) {
+
     def totalRemainingRange = {
       remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
     }

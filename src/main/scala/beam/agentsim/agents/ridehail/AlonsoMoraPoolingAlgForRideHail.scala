@@ -51,12 +51,16 @@ class AlonsoMoraPoolingAlgForRideHail(
         .asScala
         .withFilter(x => r1 != x && !rvG.containsEdge(r1, x))
     } yield {
-      getRidehailSchedule(List.empty[MobilityRequest], List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff), Integer.MAX_VALUE, skimmer)
-        .map { schedule =>
-          rvG.addVertex(r2)
-          rvG.addVertex(r1)
-          rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
-        }
+      getRidehailSchedule(
+        List.empty[MobilityRequest],
+        List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
+        Integer.MAX_VALUE,
+        skimmer
+      ).map { schedule =>
+        rvG.addVertex(r2)
+        rvG.addVertex(r1)
+        rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
+      }
     }
 
     for {
@@ -70,10 +74,11 @@ class AlonsoMoraPoolingAlgForRideHail(
         .asScala
         .take(solutionSpaceSizePerVehicle)
     } yield {
-      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer).map { schedule =>
-        rvG.addVertex(v)
-        rvG.addVertex(r)
-        rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
+      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer).map {
+        schedule =>
+          rvG.addVertex(v)
+          rvG.addVertex(r)
+          rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
       }
     }
   }
@@ -101,14 +106,18 @@ class AlonsoMoraPoolingAlgForRideHail(
             .drop(individualRequestsList.indexOf(t1))
             .withFilter(x => rvG.containsEdge(t1.requests.head, x.requests.head))
         } yield {
-          getRidehailSchedule(v.schedule, (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)), v.vehicleRemainingRangeInMeters.toInt, skimmer) map {
-            schedule =>
-              val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
-              pairRequestsList append t
-              rTvG.addVertex(t)
-              rTvG.addEdge(t1.requests.head, t)
-              rTvG.addEdge(t2.requests.head, t)
-              rTvG.addEdge(t, v)
+          getRidehailSchedule(
+            v.schedule,
+            (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+            v.vehicleRemainingRangeInMeters.toInt,
+            skimmer
+          ) map { schedule =>
+            val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+            pairRequestsList append t
+            rTvG.addVertex(t)
+            rTvG.addEdge(t1.requests.head, t)
+            rTvG.addEdge(t2.requests.head, t)
+            rTvG.addEdge(t, v)
           }
         }
 
@@ -247,10 +256,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       val serviceTime = prevReq.serviceTime + tdc.time
       val serviceDistance = prevReq.serviceDistance + tdc.distance
       if (serviceTime <= curReq.upperBoundTime && serviceDistance <= maxDistanceRangeInMeters) {
-        newPoolingList.append(
-          curReq.copy(
-            serviceTime = serviceTime,
-            serviceDistance = 0))
+        newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = 0))
       } else {
         return None
       }
