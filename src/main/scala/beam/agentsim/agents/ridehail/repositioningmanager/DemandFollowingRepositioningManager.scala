@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.router.BeamRouter.Location
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -85,14 +86,17 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
           findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
-            rha.vehicleId -> loc
+            rha -> loc
           }
         }
       }
       logger.debug(
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
-      newPositions.toVector
+      // Filter out vehicles that don't have enough range
+      newPositions.filter { vehAndNewLoc =>
+        rideHailManager.beamSkimmer.getTimeDistanceAndCost(vehAndNewLoc._1.currentLocationUTM.loc,vehAndNewLoc._2,tick,CAR,vehAndNewLoc._1.vehicleType.id).distance <= rideHailManager.vehicleManager.getVehicleState(vehAndNewLoc._1.vehicleId).totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+      }.map(tup => (tup._1.vehicleId,tup._2)).toVector
     } else {
       Vector.empty
     }
