@@ -2,8 +2,9 @@ package beam.utils
 
 import java.io.File
 
-import scala.collection.JavaConverters._
+import beam.utils.ConfigConsistencyComparator.buildTopicWithKeysAndValues
 
+import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -76,7 +77,9 @@ object ConfigConsistencyComparator extends LazyLogging {
     logStringBuilder.append(bottom)
 
     if (notFoundFiles.nonEmpty) {
-      throw new IllegalArgumentException("There are not found files.")
+      throw new IllegalArgumentException(
+        s"The following files were not found: ${buildTopicWithKeysAndValues("", notFoundFiles)}"
+      )
     }
     consistencyMessage = Some(logStringBuilder.toString)
   }

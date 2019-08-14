@@ -22,6 +22,7 @@ case class MobilityRequest(
   defaultMode: BeamMode,
   tag: MobilityRequestType,
   serviceTime: Int,
+  upperBoundTime: Int,
   pickupRequest: Option[MobilityRequest] = None,
   routingRequestId: Option[Int] = None,
   vehicleOccupancy: Option[Int] = None,
@@ -40,15 +41,15 @@ case class MobilityRequest(
       case Some(p) => p.personId.toString
       case None    => "None"
     }
-//    s"${formatTime(baselineNonPooledTime)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
     s"${baselineNonPooledTime}|$tag|${personid}|${activity.getCoord}| => ${serviceTime}"
   }
   override def equals(that: Any): Boolean = {
-    if (that.isInstanceOf[MobilityRequest]) {
-      val thatMobReq = that.asInstanceOf[MobilityRequest]
-      this.person == thatMobReq.person && this.baselineNonPooledTime == thatMobReq.baselineNonPooledTime && this.tag == thatMobReq.tag
-    } else {
-      false
+    that match {
+      case _: MobilityRequest =>
+        val thatMobReq = that.asInstanceOf[MobilityRequest]
+        this.person == thatMobReq.person && this.baselineNonPooledTime == thatMobReq.baselineNonPooledTime && this.tag == thatMobReq.tag
+      case _ =>
+        false
     }
   }
 }
@@ -59,7 +60,7 @@ object MobilityRequest {
     requestType: MobilityRequestType,
     person: Option[PersonIdWithActorRef],
     leg: Option[EmbodiedBeamLeg]
-  ) = {
+  ): MobilityRequest = {
     val act = PopulationUtils.createActivityFromCoord("", new Coord(-1, -1))
     MobilityRequest(
       person,
@@ -68,6 +69,7 @@ object MobilityRequest {
       new Trip(act, None, new Tour()),
       BeamMode.CAR,
       requestType,
+      -1,
       -1,
       None,
       None,

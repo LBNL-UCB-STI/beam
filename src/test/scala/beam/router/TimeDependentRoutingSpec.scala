@@ -75,7 +75,7 @@ class TimeDependentRoutingSpec
         Id.create("beamVilleCar", classOf[BeamVehicleType])
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 89)
+      assert(response.itineraries.head.beamLegs.head.duration == 147)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -141,7 +141,7 @@ class TimeDependentRoutingSpec
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 89)
+      assert(carOption.totalTravelTimeInSecs == 147)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(

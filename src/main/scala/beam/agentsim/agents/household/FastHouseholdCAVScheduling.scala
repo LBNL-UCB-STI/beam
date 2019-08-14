@@ -26,12 +26,14 @@ import scala.util.control.Breaks._
 class FastHouseholdCAVScheduling(
   val household: Household,
   val householdVehicles: List[BeamVehicle],
-  val timeWindow: Map[MobilityRequestType, Int],
-  val stopSearchAfterXSolutions: Int = 100,
-  val limitCavToXPersons: Int = 3,
   val skimmer: BeamSkimmer,
   val beamServices: Option[BeamServices] = None
 )(implicit val population: org.matsim.api.core.v01.population.Population) {
+
+  var waitingTimeInSec: Int = 5 * 60
+  var delayToArrivalInSec: Int = waitingTimeInSec + waitingTimeInSec
+  var stopSearchAfterXSolutions: Int = 100
+  var limitCavToXPersons: Int = 3
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}
 
@@ -78,7 +80,15 @@ class FastHouseholdCAVScheduling(
   }
 
   def getAllFeasibleSchedules: List[HouseholdSchedule] = {
-    HouseholdTrips.get(household, householdVehicles, limitCavToXPersons, householdVehicles.size, timeWindow, skimmer) match {
+    HouseholdTrips.get(
+      household,
+      householdVehicles,
+      householdVehicles.size,
+      skimmer,
+      waitingTimeInSec,
+      delayToArrivalInSec,
+      limitCavToXPersons
+    ) match {
       case Some(householdTrips) if householdTrips.cavVehicles.nonEmpty =>
         val householdSchedules = mutable.ListBuffer.empty[HouseholdSchedule]
         val emptySchedule =
@@ -120,7 +130,7 @@ class FastHouseholdCAVScheduling(
       breakable {
         for ((cav, cavSchedule) <- schedulesMap.toArray.sortBy(_._2.schedule.size)(Ordering[Int].reverse)) {
           // prioritizing CAVs with high usage
-          getScheduleOrNone(cav, cavSchedule, requests, timeWindow) match {
+          getScheduleOrNone(cav, cavSchedule, requests) match {
             case Some(s) =>
               outHouseholdSchedule.append(s)
               break
@@ -134,8 +144,7 @@ class FastHouseholdCAVScheduling(
     private def getScheduleOrNone(
       cav: BeamVehicle,
       cavSchedule: CAVSchedule,
-      requests: List[MobilityRequest],
-      timeWindow: Map[MobilityRequestType, Int]
+      requests: List[MobilityRequest]
     ): Option[HouseholdSchedule] = {
       if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
@@ -157,8 +166,8 @@ class FastHouseholdCAVScheduling(
           cav.beamVehicleType.id
         )
         var serviceTime = prevReq.serviceTime + metric.time
-        val ubTime = curReq.baselineNonPooledTime + timeWindow(curReq.tag)
-        val lbTime = curReq.baselineNonPooledTime - timeWindow(curReq.tag)
+        val ubTime = curReq.upperBoundTime
+        val lbTime = curReq.baselineNonPooledTime - (curReq.upperBoundTime - curReq.baselineNonPooledTime)
         if (curReq.isPickup) {
           if (serviceTime > ubTime || (newOccupancy != 0 && serviceTime < lbTime))
             return None
@@ -339,10 +348,11 @@ object HouseholdTrips {
   def get(
     household: Household,
     householdVehicles: List[BeamVehicle],
-    limitCavToXPersons: Int,
     householdNbOfVehicles: Int,
-    timeWindow: Map[MobilityRequestType, Int],
-    skim: BeamSkimmer
+    skim: BeamSkimmer,
+    waitingTimeInSec: Int,
+    delayToArrivalInSec: Int,
+    limitCavToXPersons: Int
   )(implicit population: org.matsim.api.core.v01.population.Population): Option[HouseholdTrips] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     val householdPlans = household.members
@@ -353,7 +363,14 @@ object HouseholdTrips {
     val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
     val vehicleTypeForSkimmer = cavVehicles.head.beamVehicleType // FIXME I need _one_ vehicleType here, but there could be more..
     val (requests, firstPickupOfTheDay, tripTravelTime, totTravelTime) =
-      HouseholdTripsHelper.getListOfPickupsDropoffs(householdPlans, householdNbOfVehicles, skim, vehicleTypeForSkimmer)
+      HouseholdTripsHelper.getListOfPickupsDropoffs(
+        householdPlans,
+        householdNbOfVehicles,
+        skim,
+        vehicleTypeForSkimmer,
+        waitingTimeInSec,
+        delayToArrivalInSec
+      )
     firstPickupOfTheDay map (
       homePickup =>
         HouseholdTrips(
@@ -390,7 +407,9 @@ object HouseholdTripsHelper {
     householdPlans: Seq[BeamPlan],
     householdNbOfVehicles: Int,
     skim: BeamSkimmer,
-    beamVehicleType: BeamVehicleType
+    beamVehicleType: BeamVehicleType,
+    waitingTimeInSec: Int,
+    delayToArrivalInSec: Int
   ): (List[List[MobilityRequest]], Option[MobilityRequest], MMap[Trip, Int], Int) = {
     val requests = MListBuffer.empty[List[MobilityRequest]]
     val tours = MListBuffer.empty[MobilityRequest]
@@ -403,7 +422,16 @@ object HouseholdTripsHelper {
           val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
             case (usedCar, Seq(prevTrip, curTrip)) =>
               val (pickup, dropoff, travelTime) =
-                getPickupAndDropoff(plan, curTrip, prevTrip, counter, skim, beamVehicleType)
+                getPickupAndDropoff(
+                  plan,
+                  curTrip,
+                  prevTrip,
+                  counter,
+                  skim,
+                  beamVehicleType,
+                  waitingTimeInSec,
+                  delayToArrivalInSec
+                )
               if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime)
                 firstPickupOfTheDay = Some(pickup)
               tours.append(pickup)
@@ -430,7 +458,9 @@ object HouseholdTripsHelper {
     prevTrip: Trip,
     counter: Int,
     skim: BeamSkimmer,
-    beamVehicleType: BeamVehicleType
+    beamVehicleType: BeamVehicleType,
+    waitingTimeInSec: Int,
+    delayToArrivalInSec: Int
   ): (MobilityRequest, MobilityRequest, Int) = {
     val legTrip = curTrip.leg
     val defaultMode = getDefaultMode(legTrip, counter)
@@ -470,7 +500,8 @@ object HouseholdTripsHelper {
       curTrip,
       defaultMode,
       Pickup,
-      startTime
+      startTime,
+      startTime + waitingTimeInSec
     )
     val dropoff = MobilityRequest(
       Some(vehiclePersonId),
@@ -480,6 +511,7 @@ object HouseholdTripsHelper {
       defaultMode,
       Dropoff,
       arrivalTime,
+      arrivalTime + delayToArrivalInSec,
       pickupRequest = Some(pickup)
     )
     (pickup, dropoff, travelTime)

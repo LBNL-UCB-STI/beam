@@ -353,9 +353,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         }
       } else {
         if (data.hasParkingBehaviors) {
-          currentBeamVehicle.reservedStall.foreach { stall =>
+          currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
             currentBeamVehicle.useParkingStall(stall)
-            eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
+            val parkEvent = ParkEvent(
+              time = tick,
+              stall = stall,
+              locationWGS = geo.utm2Wgs(stall.locationUTM),
+              vehicleId = currentBeamVehicle.id,
+              driverId = id.toString
+            )
+            eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
 
             // charge vehicle
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
@@ -825,11 +832,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     vehicle.connectToChargingPoint(currentTick)
     eventsManager.processEvent(
       new ChargingPlugInEvent(
-        currentTick,
-        vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id,
-        vehicle.primaryFuelLevelInJoules,
-        Some(vehicle.secondaryFuelLevelInJoules)
+        tick = currentTick,
+        stall = vehicle.stall.get,
+        locationWGS = geo.utm2Wgs(vehicle.stall.get.locationUTM),
+        vehId = vehicle.id,
+        primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
+        secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
       )
     )
     schedulerMessage.foreach(message => {
