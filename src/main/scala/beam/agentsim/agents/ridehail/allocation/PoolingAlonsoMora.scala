@@ -141,10 +141,12 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val (availVehicles, poolCustomerReqs, offset) =
         (
           vehiclePoolToUse.map { veh =>
+            val vehState = rideHailManager.vehicleManager.getVehicleState(veh.vehicleId)
             val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
               veh,
               Math.max(tick, veh.latestTickExperienced),
-              rideHailManager.beamServices
+              rideHailManager.beamServices,
+              vehState.remainingPrimaryRangeInM + vehState.remainingSecondaryRangeInM.getOrElse(0.0)
             )
             rideHailManager.log.debug(
               "%%%%% Vehicle {} is available with this schedule: \n {}",

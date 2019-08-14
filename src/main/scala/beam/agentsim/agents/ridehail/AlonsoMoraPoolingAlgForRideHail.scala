@@ -308,7 +308,8 @@ object AlonsoMoraPoolingAlgForRideHail {
   def createVehicleAndScheduleFromRideHailAgentLocation(
     veh: RideHailAgentLocation,
     tick: Int,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
     val waitingTimeInSec =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
@@ -415,7 +416,8 @@ object AlonsoMoraPoolingAlgForRideHail {
         .reverse
         .toList,
       veh.geofence,
-      veh.vehicleType.seatingCapacity
+      veh.vehicleType.seatingCapacity,
+      remainingRangeInMeters
     )
     res
   }
@@ -472,7 +474,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     vehicle: BeamVehicle,
     schedule: List[MobilityRequest],
     geofence: Option[Geofence],
-    seatsAvailable: Int
+    seatsAvailable: Int,
+    vehicleRemainingRangeInMeters: Double = Double.MaxValue
   ) extends RVGraphNode {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
