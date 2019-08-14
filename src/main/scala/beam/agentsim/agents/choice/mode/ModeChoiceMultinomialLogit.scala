@@ -16,7 +16,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -25,14 +25,17 @@ import scala.util.Random
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit[String, String])
-    extends ModeChoiceCalculator
+class ModeChoiceMultinomialLogit(
+  val beamServices: BeamServices,
+  val model: MultinomialLogit[String, String],
+  beamConfigHolder: BeamConfigHolder
+) extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
-  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+  override lazy val beamConfig: BeamConfig = beamConfigHolder.beamConfig
 
   var expectedMaximumUtility: Double = 0.0
-  val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
+  val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
   private val shouldLogDetails: Boolean = false
 
@@ -63,8 +66,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }.toMap
 
       val chosenModeOpt = {
-        val seed = beamServices.beamConfig.matsim.modules.global.randomSeed
-        model.sampleAlternative(inputData, new Random(seed))
+        model.sampleAlternative(inputData, random)
       }
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
@@ -283,8 +285,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
 object ModeChoiceMultinomialLogit {
 
-  def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit[String, String] = {
+  def buildModelFromConfig(configHolder: BeamConfigHolder): MultinomialLogit[String, String] = {
 
+    val params = configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
     val commonUtility: Map[String, UtilityFunctionOperation] = Map(
       "cost" -> UtilityFunctionOperation("multiplier", -1)
     )
@@ -292,26 +295,26 @@ object ModeChoiceMultinomialLogit {
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
       "car" -> Map(
         "intercept" ->
-        UtilityFunctionOperation("intercept", mnlConfig.params.car_intercept)
+        UtilityFunctionOperation("intercept", params.car_intercept)
       ),
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.cav_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept)),
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_intercept)),
+      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
       "ride_hail_pooled" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_pooled_intercept)
+        "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),
       "ride_hail_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
+        "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
+        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
-      "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.bike_intercept)),
+      "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept)),
       "walk_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
+        "intercept" -> UtilityFunctionOperation("intercept", params.walk_transit_intercept),
+        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "drive_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.drive_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
+        "intercept" -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
+        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       )
     )
 

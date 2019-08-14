@@ -2,9 +2,11 @@ package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Failure, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill}
+import akka.actor.{Actor, ActorRef}
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusInquiry,
@@ -12,19 +14,17 @@ import beam.agentsim.agents.household.HouseholdActor.{
   ReleaseVehicle,
   ReleaseVehicleAndReply
 }
+import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.population.AttributesOfIndividual
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.concurrent.{ExecutionContext, Future}
-import akka.pattern.{ask, pipe}
-import beam.agentsim.agents.BeamAgent.Finish
-import beam.utils.logging.ExponentialLazyLogging
 
 class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
     extends Actor
@@ -34,25 +34,33 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 
   private var availableVehicles: List[BeamVehicle] = Nil
 
-  override def receive: Receive = {
+  var triggerSender: Option[ActorRef] = None
 
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      // Pipe my cars through the parking manager
-      // and complete initialization only when I got them all.
-      Future
-        .sequence(vehicles.values.map { veh =>
+  override def receive: Receive = {
+    case ResolvedParkingResponses(triggerId, xs) =>
+      logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
+      xs.foreach {
+        case (id, resp) =>
+          val veh = vehicles(id)
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           veh.mustBeDrivenHome = true
-          for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "home", 0.0, None, 0)
-          } {
-            veh.useParkingStall(stall)
+          veh.useParkingStall(resp.stall)
+          self ! ReleaseVehicleAndReply(veh)
+      }
+      triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
+
+    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+      triggerSender = Some(sender())
+      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
+        case (id, _) =>
+          (parkingManager ? ParkingInquiry(homeCoord, "init", None)).mapTo[ParkingInquiryResponse].map { r =>
+            (id, r)
           }
-          self ? ReleaseVehicleAndReply(veh)
-        })
-        .map(_ => CompletionNotice(triggerId, Vector()))
-        .pipeTo(sender())
+      }
+      val futureOfList = Future.sequence(listOfFutures)
+      val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
+      response.pipeTo(self)
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
@@ -92,5 +100,12 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 
     case Finish =>
       context.stop(self)
+
+    case x =>
+      logger.warn(s"No handler for ${x}")
   }
+}
+
+object HouseholdFleetManager {
+  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
 }

@@ -266,6 +266,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int
         ) =>
+      // Why don't we respect `leg.duration` ?
       val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
         leg.travelPath.linkIds,
         leg.startTime,
@@ -833,7 +834,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         segment.geometry.getEndPoint.getX,
         segment.geometry.getEndPoint.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
+        tripStartTime + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)
       ),
       distance
     )
@@ -853,7 +854,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
+        tripStartTime + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)
       ),
       linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
@@ -950,13 +951,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val ttc = travelTimeByLinkCalculator(vehicleType)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
       {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode)
+        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
       }
   }
 
-  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Int, Int, StreetMode) => Int = {
+  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
-    (time: Int, linkId: Int, streetMode: StreetMode) =>
+    (time: Double, linkId: Int, streetMode: StreetMode) =>
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))

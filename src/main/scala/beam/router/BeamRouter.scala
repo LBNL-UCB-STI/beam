@@ -546,13 +546,14 @@ object BeamRouter {
     beamServices: BeamServices,
     origin: Coord,
     destination: Coord
-  ) = {
+  ): EmbodyWithCurrentTravelTime = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
     route.getLinkIds.asScala.foreach { id =>
       linkIds += id.toString.toInt
     }
     linkIds += route.getEndLinkId.toString.toInt
+    // TODO Why don't we send `route.getTravelTime.toInt` as a travel time??
     val leg = BeamLeg(
       departTime,
       mode,
@@ -602,5 +603,5 @@ object BeamRouter {
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
 
-  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
+  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 }

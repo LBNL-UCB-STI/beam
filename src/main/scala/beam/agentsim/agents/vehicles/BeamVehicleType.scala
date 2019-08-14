@@ -25,7 +25,8 @@ case class BeamVehicleType(
   vehicleCategory: VehicleCategory,
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
-  sampleProbabilityWithinCategory: Double = 1.0
+  sampleProbabilityWithinCategory: Double = 1.0,
+  sampleProbabilityString: Option[String] = None
 ) {
 
   def isCaccEnabled: Boolean = {

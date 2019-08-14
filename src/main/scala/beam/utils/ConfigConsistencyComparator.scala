@@ -2,8 +2,9 @@ package beam.utils
 
 import java.io.File
 
-import scala.collection.JavaConverters._
+import beam.utils.ConfigConsistencyComparator.buildTopicWithKeysAndValues
 
+import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -24,11 +25,16 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
-  private val logStringBuilder = new StringBuilder(top)
-
   private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
 
+  private var consistencyMessage: Option[String] = None
+
+  def getMessage: Option[String] = {
+    consistencyMessage
+  }
+
   def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
+    val logStringBuilder = new java.lang.StringBuilder(top)
     val configResolver = ConfigResolveOptions
       .defaults()
       .setAllowUnresolved(true)
@@ -71,28 +77,35 @@ object ConfigConsistencyComparator extends LazyLogging {
     logStringBuilder.append(bottom)
 
     if (notFoundFiles.nonEmpty) {
-      throw new IllegalArgumentException("There are not found files.")
+      throw new IllegalArgumentException(
+        s"The following files were not found: ${buildTopicWithKeysAndValues("", notFoundFiles)}"
+      )
     }
+    consistencyMessage = Some(logStringBuilder.toString)
   }
 
   //This method filter duplicate only for non nested keys
   def findDuplicateKeys(userConfFileLocation: String): Seq[String] = {
-
-    val lines = Try(Source.fromFile(userConfFileLocation).getLines().toList).getOrElse(List())
-    val bracketStack = mutable.Stack[String]()
-    val configKey = mutable.Map[String, Int]().withDefaultValue(0)
-    val withoutCommentConfigLines = lines.withFilter(!_.trim.startsWith("#"))
-    for (line <- withoutCommentConfigLines) {
-      if (line.contains("{") && !line.contains("${")) {
-        bracketStack.push("{")
-      } else if (line.contains("}") && !line.contains("${")) {
-        bracketStack.pop()
-      } else if (bracketStack.isEmpty && line.contains("=")) {
-        val keyedValue = line.split("=")
-        configKey.update(keyedValue(0).trim, configKey(keyedValue(0).trim) + 1)
+    val source = Source.fromFile(userConfFileLocation)
+    try {
+      val lines = Try(source.getLines().toList).getOrElse(List())
+      val bracketStack = mutable.Stack[String]()
+      val configKey = mutable.Map[String, Int]().withDefaultValue(0)
+      val withoutCommentConfigLines = lines.withFilter(!_.trim.startsWith("#"))
+      for (line <- withoutCommentConfigLines) {
+        if (line.contains("{") && !line.contains("${")) {
+          bracketStack.push("{")
+        } else if (line.contains("}") && !line.contains("${")) {
+          bracketStack.pop()
+        } else if (bracketStack.isEmpty && line.contains("=")) {
+          val keyedValue = line.split("=")
+          configKey.update(keyedValue(0).trim, configKey(keyedValue(0).trim) + 1)
+        }
       }
+      configKey.retain((_, value) => value > 1).keys.toSeq
+    } finally {
+      source.close()
     }
-    configKey.retain((_, value) => value > 1).keys.toSeq
   }
 
   def findDeprecatedKeys(userConf: TypesafeConfig, templateConf: TypesafeConfig): Seq[String] = {

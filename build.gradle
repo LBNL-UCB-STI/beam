@@ -111,8 +111,8 @@ allprojects {
 
 dependencies {
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.3') {
-        exclude group: 'com.github.michaz', module: 'r5'
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.4') {
+        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
     }
     
     ////////////////////////////
@@ -262,6 +262,8 @@ dependencies {
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
+
+    compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version:'0.7.5'
 
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet

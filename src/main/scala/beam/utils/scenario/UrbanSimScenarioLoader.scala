@@ -1,14 +1,11 @@
 package beam.utils.scenario
 
-import java.util.Random
-
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -21,8 +18,11 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
+
+import scala.util.Random
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -36,6 +36,8 @@ class UrbanSimScenarioLoader(
   val population: Population = scenario.getPopulation
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
+
+  val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   def loadScenario(): Scenario = {
     clear()
@@ -99,7 +101,7 @@ class UrbanSimScenarioLoader(
     persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
-  private def drawFromBinomial(randomSeed: java.util.Random, nTrials: Int, p: Double): Int = {
+  private def drawFromBinomial(randomSeed: Random, nTrials: Int, p: Double): Int = {
     Seq.fill(nTrials)(randomSeed.nextDouble).count(_ < p)
   }
 
@@ -169,7 +171,7 @@ class UrbanSimScenarioLoader(
           vehicleIds.add(vehicle.getId)
           val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
           val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType, rand.nextInt)
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }
@@ -205,7 +207,7 @@ class UrbanSimScenarioLoader(
             } else {
               val householdsInGroup = hh_car_count(key).size
               val numberToRemain = householdsInGroup - (currentTotalCars - goalCarTotal)
-              val shuffled = RandomUtils.shuffle(hh_car_count(key), rand)
+              val shuffled = rand.shuffle(hh_car_count(key))
               hh_car_count(key) = shuffled.take(numberToRemain)
               hh_car_count(key - 1) ++= shuffled.takeRight(householdsInGroup - numberToRemain)
               currentTotalCars -= (currentTotalCars - goalCarTotal)
