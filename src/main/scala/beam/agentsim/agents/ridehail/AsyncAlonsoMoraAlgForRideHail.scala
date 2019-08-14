@@ -56,7 +56,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(solutionSpaceSizePerVehicle) foreach (
       r =>
-        AlonsoMoraPoolingAlgForRideHail.getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), skimmer) match {
+        AlonsoMoraPoolingAlgForRideHail.getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t
@@ -80,6 +80,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHail.getRidehailSchedule(
             v.schedule,
             (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+            v.vehicleRemainingRangeInMeters.toInt,
             skimmer
           ) match {
             case Some(schedule) =>
