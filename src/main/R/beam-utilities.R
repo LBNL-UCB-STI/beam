@@ -2,44 +2,51 @@
 load.libraries(c('GEOquery','XML'))
 
 clean.and.relabel <- function(ev,factor.to.scale.personal.back,factor.to.scale.transit.back,val.of.time=16.9){
-  # Clean and relabel
-  ev[vehicle_type=="bus",vehicle_type:="BUS-DEFAULT"]
-  ev[vehicle_type=="CAR",vehicle_type:="Car"]
-  ev[substr(vehicle,1,5)=="rideH",mode:="ride_hail"]
-  ev[vehicle_type=="subway",vehicle_type:="SUBWAY-DEFAULT"]
-  ev[vehicle_type=="SUV",vehicle_type:="Car"]
-  ev[vehicle_type=="cable_car",vehicle_type:="CABLE_CAR-DEFAULT"]
-  ev[vehicle_type=="tram",vehicle_type:="TRAM-DEFAULT"]
-  ev[vehicle_type=="rail",vehicle_type:="RAIL-DEFAULT"]
-  ev[vehicle_type=="ferry",vehicle_type:="FERRY-DEFAULT"]
-  transit.types <- c('BUS-DEFAULT','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT','CABLE_CAR-DEFAULT','SUBWAY-DEFAULT')
-  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car','ferry'),'transit',as.character(mode))]
-  ev[,hour:=time/3600]
-  ev[,hr:=round(hour)]
-  setkey(ev,vehicle_type)
-  if(is.factor(ev$start.x[1]))ev[,start.x:=as.numeric(as.character(start.x))]
-  if(is.factor(ev$end.x[1]))ev[,end.x:=as.numeric(as.character(end.x))]
-  if(is.factor(ev$start.y[1]))ev[,start.y:=as.numeric(as.character(start.y))]
-  if(is.factor(ev$end.y[1]))ev[,end.y:=as.numeric(as.character(end.y))]
-  if(is.factor(ev$num_passengers[1]))ev[,num_passengers:=as.numeric(as.character(num_passengers))]
-  if(is.factor(ev$capacity[1]))ev[,capacity:=as.numeric(as.character(capacity))]
-  if(is.factor(ev$expectedMaximumUtility[1]))ev[,expectedMaximumUtility:=as.numeric(as.character(expectedMaximumUtility))]
-  if(is.factor(ev$fuel[1]))ev[,fuel:=as.numeric(as.character(fuel))]
-  ev[start.y<=0.003 | end.y <=0.003,':='(start.x=NA,start.y=NA,end.x=NA,end.y=NA)]
-  ev[length==Inf,length:=NA]
-  ev[vehicle_type%in%transit.types & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-  ev[vehicle_type%in%transit.types,num_passengers:=round(num_passengers*factor.to.scale.personal.back)]
-  ev[vehicle_type%in%transit.types,capacity:=round(capacity*factor.to.scale.transit.back)]
-  ev[num_passengers > capacity,num_passengers:=capacity]
-  ev[,pmt:=num_passengers*length/1609]
-  ev[is.na(pmt),pmt:=0]
-  #ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
-  #ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
-  ev[,numAlternatives:=0]
-  ev[expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
-  ev[type=='ModeChoice',numAlternatives:=str_count(availableAlternatives,":")+1]
-  ev[type=='ModeChoice',carSurplus:=log(exp(-length/1609/45*val.of.time))]
-  ev[type=='ModeChoice',access:=expectedMaximumUtility-carSurplus]
+  for(in.use in names(ev)){
+    # Clean and relabel
+    ev[[in.use]][vehicleType=="bus",vehicleType:="BUS-DEFAULT"]
+    ev[[in.use]][vehicleType=="CAR",vehicleType:="Car"]
+    ev[[in.use]][substr(vehicle,1,5)=="rideH",mode:="ride_hail"]
+    ev[[in.use]][vehicleType=="subway",vehicleType:="SUBWAY-DEFAULT"]
+    ev[[in.use]][vehicleType=="SUV",vehicleType:="Car"]
+    ev[[in.use]][vehicleType=="cable_car",vehicleType:="CABLE_CAR-DEFAULT"]
+    ev[[in.use]][vehicleType=="tram",vehicleType:="TRAM-DEFAULT"]
+    ev[[in.use]][vehicleType=="rail",vehicleType:="RAIL-DEFAULT"]
+    ev[[in.use]][vehicleType=="ferry",vehicleType:="FERRY-DEFAULT"]
+    transit.types <- c('BUS-DEFAULT','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT','CABLE_CAR-DEFAULT','SUBWAY-DEFAULT')
+    ev[[in.use]][,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car','ferry'),'transit',as.character(mode))]
+    ev[[in.use]][tripmode=='car' & substr(vehicleType,nchar(as.character(vehicleType))-2,nchar(as.character(vehicleType)))=="_L5",tripmode:='cav']
+    ev[[in.use]][tripmode=='ride_hail' & numPassengers>1,tripmode:='ride_hail_pooled']
+    ev[[in.use]][,hour:=time/3600]
+    ev[[in.use]][,hr:=round(hour)]
+    setkey(ev[[in.use]],vehicleType)
+    if(is.factor(ev[[in.use]]$startX[1]))ev[[in.use]][,startX:=as.numeric(as.character(startX))]
+    if(is.factor(ev[[in.use]]$endX[1]))ev[[in.use]][,endX:=as.numeric(as.character(endX))]
+    if(is.factor(ev[[in.use]]$startY[1]))ev[[in.use]][,startY:=as.numeric(as.character(startY))]
+    if(is.factor(ev[[in.use]]$endY[1]))ev[[in.use]][,endY:=as.numeric(as.character(endY))]
+    if(is.factor(ev[[in.use]]$numPassengers[1]))ev[[in.use]][,numPassengers:=as.numeric(as.character(numPassengers))]
+    if(is.factor(ev[[in.use]]$capacity[1]))ev[[in.use]][,capacity:=as.numeric(as.character(capacity))]
+    if(is.factor(ev[[in.use]]$expectedMaximumUtility[1]))ev[[in.use]][,expectedMaximumUtility:=as.numeric(as.character(expectedMaximumUtility))]
+    if(is.factor(ev[[in.use]]$fuel[1]))ev[[in.use]][,fuel:=as.numeric(as.character(fuel))]
+    ev[[in.use]][startY<=0.003 | endY <=0.003,':='(startX=NA,startY=NA,endX=NA,endY=NA)]
+    ev[[in.use]][length==Inf,length:=NA]
+    ev[[in.use]][vehicleType%in%transit.types & !is.na(startX)  & !is.na(startY)  & !is.na(endY)  & !is.na(endY),length:=dist.from.latlon(startY,startX,endY,endX)]
+    ev[[in.use]][vehicleType%in%transit.types,numPassengers:=round(numPassengers*factor.to.scale.personal.back)]
+    ev[[in.use]][vehicleType%in%transit.types,capacity:=round(capacity*factor.to.scale.transit.back)]
+    ev[[in.use]][numPassengers > capacity,numPassengers:=capacity]
+    ev[[in.use]][,pmt:=numPassengers*length/1609]
+    ev[[in.use]][is.na(pmt),pmt:=0]
+    #ev[[in.use]][,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev[[in.use]]$expectedMaximumUtility,probs=.001,na.rm=T)]
+    #ev[[in.use]][,expectedMaximumUtility:=expectedMaximumUtility-mean(ev[[in.use]]$expectedMaximumUtility,na.rm=T)]
+    ev[[in.use]][,numAlternatives:=0]
+    ev[[in.use]][expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
+    ev[[in.use]][type=='ModeChoice',numAlternatives:=str_count(availableAlternatives,":")+1]
+    ev[[in.use]][type=='ModeChoice',carSurplus:=log(exp(-length/1609/45*val.of.time))]
+    ev[[in.use]][type=='ModeChoice',access:=expectedMaximumUtility-carSurplus]
+    ev[[in.use]][tripmode%in%c('car','bike','walk'),':='(numPassengers=1)]
+    ev[[in.use]][,pmt:=numPassengers*length/1609]
+    ev[[in.use]][is.na(pmt),pmt:=0]
+  }
   ev
 }
 
@@ -60,10 +67,13 @@ to.title <- function(abbrev){
 }
 pretty.modes <- function(ugly){
   pretty.list <- c('Ride Hail'='ride_hail',
+                   'Ride Hail - Pooled'='ride_hail_pooled',
                    'Ride Hail - Transit'='ride_hail_transit',
                    'Cable Car'='cable_car',
                    'Car'='car',
+                   'CAV'='cav',
                    'Walk'='walk',
+                   'Bike'='bike',
                    'Tram'='tram',
                    'Transit'='transit'
                    )
@@ -91,7 +101,7 @@ parse.link.stats <- function(link.stats.file,net.file=NA){
 }
 
 my.colors <- c(blue='#377eb8',green='#227222',orange='#C66200',purple='#470467',red='#B30C0C',yellow='#C6A600',light.green='#C0E0C0',magenta='#D0339D',dark.blue='#23128F',brown='#542D06',grey='#8A8A8A',dark.grey='#2D2D2D',light.yellow='#FFE664',light.purple='#9C50C0',light.orange='#FFB164',black='#000000')
-mode.colors <- c('Ride Hail'='red',Car='grey',Walk='green',Transit='blue','Ride Hail - Transit'='purple')
+mode.colors <- c('Ride Hail'='red',Car='grey',Walk='green',Transit='blue','Ride Hail - Transit'='light.purple','Ride Hail - Pooled'='purple','CAV'='light.yellow','Bike'='light.orange')
 mode.colors <- data.frame(key=names(mode.colors),color=mode.colors,color.hex=my.colors[mode.colors])
 
 download.from.nersc <- function(experiment.dir,include.pattern='*'){
