@@ -709,9 +709,11 @@ object BeamConfig {
 
         case class RideHail(
           allocationManager: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager,
+          cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           defaultBaseCost: scala.Double,
           defaultCostPerMile: scala.Double,
           defaultCostPerMinute: scala.Double,
+          human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
           initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           pooledBaseCost: scala.Double,
@@ -832,13 +834,71 @@ object BeamConfig {
             }
           }
 
+          case class Cav(
+            noRefuelThresholdInMeters: scala.Int,
+            refuelRequiredThresholdInMeters: scala.Int,
+            valueOfTime: scala.Int
+          )
+
+          object Cav {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Cav = {
+              BeamConfig.Beam.Agentsim.Agents.RideHail.Cav(
+                noRefuelThresholdInMeters =
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 96540,
+                refuelRequiredThresholdInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 16090,
+                valueOfTime = if (c.hasPathOrNull("valueOfTime")) c.getInt("valueOfTime") else 1
+              )
+            }
+          }
+
+          case class Human(
+            noRefuelThresholdInMeters: scala.Int,
+            refuelRequiredThresholdInMeters: scala.Int,
+            valueOfTime: scala.Double
+          )
+
+          object Human {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Human = {
+              BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
+                noRefuelThresholdInMeters =
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
+                refuelRequiredThresholdInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 32180,
+                valueOfTime = if (c.hasPathOrNull("valueOfTime")) c.getDouble("valueOfTime") else 22.9
+              )
+            }
+          }
+
           case class Initialization(
             filePath: java.lang.String,
             initType: java.lang.String,
+            parking: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking,
             procedural: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural
           )
 
           object Initialization {
+            case class Parking(
+              filePath: java.lang.String
+            )
+
+            object Parking {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
+                  filePath =
+                    if (c.hasPathOrNull("filePath")) c.getString("filePath")
+                    else "/test/input/beamville/ride-hail-parking.csv"
+                )
+              }
+            }
+
             case class Procedural(
               fractionOfInitialVehicleFleet: scala.Double,
               initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation,
@@ -905,6 +965,10 @@ object BeamConfig {
                   if (c.hasPathOrNull("filePath")) c.getString("filePath")
                   else "/test/input/beamville/ride-hail-fleet.csv",
                 initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
+                parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
+                  if (c.hasPathOrNull("parking")) c.getConfig("parking")
+                  else com.typesafe.config.ConfigFactory.parseString("parking{}")
+                ),
                 procedural = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural(
                   if (c.hasPathOrNull("procedural")) c.getConfig("procedural")
                   else com.typesafe.config.ConfigFactory.parseString("procedural{}")
@@ -1009,11 +1073,19 @@ object BeamConfig {
                 if (c.hasPathOrNull("allocationManager")) c.getConfig("allocationManager")
                 else com.typesafe.config.ConfigFactory.parseString("allocationManager{}")
               ),
+              cav = BeamConfig.Beam.Agentsim.Agents.RideHail.Cav(
+                if (c.hasPathOrNull("cav")) c.getConfig("cav")
+                else com.typesafe.config.ConfigFactory.parseString("cav{}")
+              ),
               defaultBaseCost = if (c.hasPathOrNull("defaultBaseCost")) c.getDouble("defaultBaseCost") else 1.8,
               defaultCostPerMile =
                 if (c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 0.91,
               defaultCostPerMinute =
                 if (c.hasPathOrNull("defaultCostPerMinute")) c.getDouble("defaultCostPerMinute") else 0.28,
+              human = BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
+                if (c.hasPathOrNull("human")) c.getConfig("human")
+                else com.typesafe.config.ConfigFactory.parseString("human{}")
+              ),
               initialization = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
                 if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                 else com.typesafe.config.ConfigFactory.parseString("initialization{}")
@@ -1919,7 +1991,8 @@ object BeamConfig {
             "addTimestampToOutputDirectory"
           ),
           baseOutputDirectory =
-            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
+            else "/Users/critter/Documents/beam/beam-output/",
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean(
             "displayPerformanceTimings"

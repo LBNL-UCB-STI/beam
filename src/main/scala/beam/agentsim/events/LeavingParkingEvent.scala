@@ -16,7 +16,7 @@ import org.matsim.vehicles.Vehicle
 
 case class LeavingParkingEvent(
   time: Double,
-  personId: Id[Person],
+  driverId: String,
   vehicleId: Id[Vehicle],
   tazId: Id[TAZ],
   score: Double,
@@ -24,18 +24,16 @@ case class LeavingParkingEvent(
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
-    with HasPersonId
+//    with HasPersonId (removed to support Id[Person] and Id[RideHailAgent] parking events)
     with ScalaEvent {
   import LeavingParkingEvent._
-
-  override def getPersonId: Id[Person] = personId
 
   override def getEventType: String = EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_SCORE, score.toString)
-    attr.put(ATTRIBUTE_PERSON_ID, personId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
@@ -62,18 +60,18 @@ object LeavingParkingEvent {
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
-  val ATTRIBUTE_PERSON_ID: String = "person"
+  val ATTRIBUTE_DRIVER_ID: String = "driver"
 
   def apply(
     time: Double,
     stall: ParkingStall,
     score: Double,
-    personId: Id[Person],
+    driverId: String,
     vehId: Id[Vehicle]
   ): LeavingParkingEvent =
     new LeavingParkingEvent(
       time,
-      personId,
+      driverId,
       vehId,
       stall.tazId,
       score,
@@ -86,7 +84,7 @@ object LeavingParkingEvent {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
-    val personId: Id[Person] = Id.create(attr(ATTRIBUTE_PERSON_ID), classOf[Person])
+    val personId: String = attr(ATTRIBUTE_DRIVER_ID)
     val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble

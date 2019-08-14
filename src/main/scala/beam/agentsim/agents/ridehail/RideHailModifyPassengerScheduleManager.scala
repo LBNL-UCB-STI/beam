@@ -348,8 +348,12 @@ class RideHailModifyPassengerScheduleManager(
 
   def cleanUpCaches = {
     interruptIdToModifyPassengerScheduleStatus.values.foreach { status =>
-      log.debug("sending Resume from cleanUpCaches to {}", status.vehicleId)
-      status.rideHailAgent.tell(Resume, rideHailManagerRef)
+      status.status match {
+        case ModifyPassengerScheduleSent =>
+        case _ =>
+          log.debug("sending Resume from cleanUpCaches to {}", status.vehicleId)
+          status.rideHailAgent.tell(Resume, rideHailManagerRef)
+      }
     }
     vehicleIdToModifyPassengerScheduleStatus.clear
     interruptIdToModifyPassengerScheduleStatus.clear
