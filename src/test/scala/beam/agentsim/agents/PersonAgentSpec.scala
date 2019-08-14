@@ -540,7 +540,7 @@ class PersonAgentSpec
 
           override def receive: Receive = Actor.emptyBehavior
         }),
-        "BeamMobsim.iteration.2"
+        "BeamMobsim.iteration"
       )
 
       val busPassengerLeg = EmbodiedBeamLeg(
