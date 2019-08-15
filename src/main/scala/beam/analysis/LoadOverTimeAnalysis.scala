@@ -22,6 +22,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
     val hourOfEvent = (event.getTime / 3600).toInt
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
+        //logger.error(s"Refuel event encountered: $refuelSessionEvent - Current load mapping: $vehicleTypeToHourlyLoad")
         val vehicleType = refuelSessionEvent.vehicleType
         val loadVehicleType =
           if (refuelSessionEvent.getAttributes
@@ -32,7 +33,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
           } else "Personal"
         val energyInJoules = refuelSessionEvent.energyInJoules
         val sessionDuration = refuelSessionEvent.sessionDuration
-        val currentEventAverageLoad = energyInJoules / sessionDuration / 1000
+        val currentEventAverageLoad = if(sessionDuration != 0) energyInJoules / sessionDuration / 1000 else 0
         vehicleTypeToHourlyLoad.get(loadVehicleType) match {
           case Some(hourlyLoadMap) =>
             hourlyLoadMap.get(hourOfEvent) match {
