@@ -386,6 +386,7 @@ trait ChoosesParking extends {
         currentTick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,
+        vehicle.primaryFuelLevelInJoules - energyInJoules,
         chargingDuration,
         vehicle.id,
         vehicle.beamVehicleType

@@ -670,6 +670,7 @@ class RideHailAgent(
         tick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,
+        vehicle.primaryFuelLevelInJoules - energyInJoules,
         tick - sessionStart,
         vehicle.id,
         vehicle.beamVehicleType

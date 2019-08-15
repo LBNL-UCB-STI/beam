@@ -14,6 +14,7 @@ class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
   val energyInJoules: Double,
+  val sessionStartingFuelLevelInJoules: Double,
   val sessionDuration: Double,
   vehId: Id[Vehicle],
   val vehicleType: BeamVehicleType
