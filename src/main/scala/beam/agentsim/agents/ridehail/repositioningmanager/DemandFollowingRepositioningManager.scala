@@ -130,11 +130,11 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: Id[Vehicle]): Option[Coord] = {
     val currentHour = tick / 3600
     val nextHour = currentHour + 1
-    val percentageOfClosestClusters =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.PercentageOfClosestClustersToConsider
+    val fractionOfClosestClusters =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
 
     hourToClusters.lift(nextHour).map { clusters =>
-      val N = (clusters.length * percentageOfClosestClusters).toInt
+      val N: Int = Math.round(clusters.length * fractionOfClosestClusters).toInt
 
       // We get top N closest clusters and randomly pick one of them.
       // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
@@ -146,7 +146,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
       val sampled = distr.sample()
       logger.debug(
-        s"tick $tick, currentHour: $currentHour, nextHour: $nextHour, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top 5 closest: ${topNClosest.toVector}, sampled: $sampled"
+        s"tick $tick, currentHour: $currentHour, nextHour: $nextHour, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled"
       )
       sampled.coord
     }
