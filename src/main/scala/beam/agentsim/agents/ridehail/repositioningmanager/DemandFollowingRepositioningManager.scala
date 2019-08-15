@@ -134,7 +134,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
 
     hourToClusters.lift(nextHour).map { clusters =>
-      val N: Int = Math.round(clusters.length * fractionOfClosestClusters).toInt
+      val N: Int = Math.max(1, Math.round(clusters.length * fractionOfClosestClusters).toInt)
 
       // We get top N closest clusters and randomly pick one of them.
       // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
