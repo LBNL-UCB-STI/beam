@@ -51,12 +51,16 @@ class AlonsoMoraPoolingAlgForRideHail(
         .asScala
         .withFilter(x => r1 != x && !rvG.containsEdge(r1, x))
     } yield {
-      getRidehailSchedule(List.empty[MobilityRequest], List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff), skimmer)
-        .map { schedule =>
-          rvG.addVertex(r2)
-          rvG.addVertex(r1)
-          rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
-        }
+      getRidehailSchedule(
+        List.empty[MobilityRequest],
+        List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
+        Integer.MAX_VALUE,
+        skimmer
+      ).map { schedule =>
+        rvG.addVertex(r2)
+        rvG.addVertex(r1)
+        rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
+      }
     }
 
     for {
@@ -70,10 +74,11 @@ class AlonsoMoraPoolingAlgForRideHail(
         .asScala
         .take(solutionSpaceSizePerVehicle)
     } yield {
-      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), skimmer).map { schedule =>
-        rvG.addVertex(v)
-        rvG.addVertex(r)
-        rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
+      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer).map {
+        schedule =>
+          rvG.addVertex(v)
+          rvG.addVertex(r)
+          rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
       }
     }
   }
@@ -101,14 +106,18 @@ class AlonsoMoraPoolingAlgForRideHail(
             .drop(individualRequestsList.indexOf(t1))
             .withFilter(x => rvG.containsEdge(t1.requests.head, x.requests.head))
         } yield {
-          getRidehailSchedule(v.schedule, (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)), skimmer) map {
-            schedule =>
-              val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
-              pairRequestsList append t
-              rTvG.addVertex(t)
-              rTvG.addEdge(t1.requests.head, t)
-              rTvG.addEdge(t2.requests.head, t)
-              rTvG.addEdge(t, v)
+          getRidehailSchedule(
+            v.schedule,
+            (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+            v.vehicleRemainingRangeInMeters.toInt,
+            skimmer
+          ) map { schedule =>
+            val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+            pairRequestsList append t
+            rTvG.addVertex(t)
+            rTvG.addEdge(t1.requests.head, t)
+            rTvG.addEdge(t2.requests.head, t)
+            rTvG.addEdge(t, v)
           }
         }
 
@@ -126,6 +135,7 @@ class AlonsoMoraPoolingAlgForRideHail(
             getRidehailSchedule(
               v.schedule,
               (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+              v.vehicleRemainingRangeInMeters.toInt,
               skimmer
             ).map { schedule =>
               val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
@@ -211,6 +221,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   def getRidehailSchedule(
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
+    maxDistanceRangeInMeters: Int,
     skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
     val newPoolingList = scala.collection.mutable.ListBuffer.empty[MobilityRequest]
@@ -241,10 +252,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     sortedRequests.foreach { curReq =>
       val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
-      val travelTime = getTimeDistanceAndCost(prevReq, curReq, skimmer).time
-      val serviceTime = prevReq.serviceTime + travelTime
-      if (serviceTime <= curReq.upperBoundTime) {
-        newPoolingList.append(curReq.copy(serviceTime = serviceTime))
+      val tdc = getTimeDistanceAndCost(prevReq, curReq, skimmer)
+      val serviceTime = prevReq.serviceTime + tdc.time
+      val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
+      if (serviceTime <= curReq.upperBoundTime && serviceDistance <= maxDistanceRangeInMeters) {
+        newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
       } else {
         return None
       }
@@ -268,7 +280,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
-    val p1_tt: Int = skimmer
+    val skim = skimmer
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
         p1Act2.getCoord,
@@ -279,7 +291,6 @@ object AlonsoMoraPoolingAlgForRideHail {
           classOf[BeamVehicleType]
         )
       )
-      .time
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(
@@ -290,17 +301,19 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamMode.RIDE_HAIL,
         Pickup,
         departureTime,
-        departureTime + waitingTimeInSec
+        departureTime + waitingTimeInSec,
+        0
       ),
       MobilityRequest(
         Some(vehiclePersonId),
         p1Act2,
-        departureTime + p1_tt,
+        departureTime + skim.time,
         Trip(p1Act2, None, null),
         BeamMode.RIDE_HAIL,
         Dropoff,
-        departureTime + p1_tt,
-        Math.round(departureTime + p1_tt + waitingTimeInSec + travelTimeDelayAsFraction * p1_tt).toInt
+        departureTime + skim.time,
+        Math.round(departureTime + skim.time + waitingTimeInSec + travelTimeDelayAsFraction * skim.time).toInt,
+        skim.distance.toInt
       )
     )
   }
@@ -308,7 +321,8 @@ object AlonsoMoraPoolingAlgForRideHail {
   def createVehicleAndScheduleFromRideHailAgentLocation(
     veh: RideHailAgentLocation,
     tick: Int,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
     val waitingTimeInSec =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
@@ -341,7 +355,8 @@ object AlonsoMoraPoolingAlgForRideHail {
                 BeamMode.RIDE_HAIL,
                 Relocation,
                 leg.startTime,
-                leg.startTime + Int.MaxValue - 30000000
+                leg.startTime + Int.MaxValue - 30000000,
+                0
               )
             )
           } else {
@@ -359,7 +374,8 @@ object AlonsoMoraPoolingAlgForRideHail {
                 BeamMode.RIDE_HAIL,
                 Pickup,
                 leg.startTime,
-                leg.startTime + waitingTimeInSec
+                leg.startTime + waitingTimeInSec,
+                0
               )
             }
             val theDropoffs = manifest.alighters.map { alighter =>
@@ -378,7 +394,8 @@ object AlonsoMoraPoolingAlgForRideHail {
                 leg.endTime,
                 Math
                   .round(leg.endTime + waitingTimeInSec + (leg.endTime - leg.startTime) * travelTimeDelayAsFraction)
-                  .toInt
+                  .toInt,
+                leg.travelPath.distanceInM.toInt
               )
             }
             alonsoSchedule ++= thePickups ++ theDropoffs
@@ -394,7 +411,8 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamMode.RIDE_HAIL,
         Dropoff,
         tick,
-        tick
+        tick,
+        0
       )
     } else {
       alonsoSchedule += MobilityRequest(
@@ -405,7 +423,8 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamMode.RIDE_HAIL,
         EnRoute,
         tick,
-        tick + Int.MaxValue - 30000000
+        tick + Int.MaxValue - 30000000,
+        0
       )
     }
     val res = VehicleAndSchedule(
@@ -415,7 +434,8 @@ object AlonsoMoraPoolingAlgForRideHail {
         .reverse
         .toList,
       veh.geofence,
-      veh.vehicleType.seatingCapacity
+      veh.vehicleType.seatingCapacity,
+      remainingRangeInMeters
     )
     res
   }
@@ -446,7 +466,8 @@ object AlonsoMoraPoolingAlgForRideHail {
           BeamMode.RIDE_HAIL,
           Dropoff,
           dstTime,
-          dstTime
+          dstTime,
+          0
         )
       ),
       geofence,
@@ -472,7 +493,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     vehicle: BeamVehicle,
     schedule: List[MobilityRequest],
     geofence: Option[Geofence],
-    seatsAvailable: Int
+    seatsAvailable: Int,
+    vehicleRemainingRangeInMeters: Double = Double.MaxValue
   ) extends RVGraphNode {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
