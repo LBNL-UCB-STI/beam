@@ -14,7 +14,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import scala.collection.mutable
 
 class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
-  private val loadOverTimeFileBaseName = "loadOverTime"
+  private val loadOverTimeFileBaseName = "chargingPower"
 
   val vehicleTypeToHourlyLoad = mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]]
 
@@ -95,7 +95,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
 
     val chart =
-      ChartFactory.createLineChart(title, "Hour", "#Count", dataSet, PlotOrientation.VERTICAL, true, true, false)
+      ChartFactory.createLineChart(title, "Hour", "Avg. Power (kW)", dataSet, PlotOrientation.VERTICAL, true, true, false)
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,
