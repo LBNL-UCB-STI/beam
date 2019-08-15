@@ -3,9 +3,12 @@ package beam.analysis;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.common.GeoUtils$;
+import beam.sim.common.GeoUtilsImpl;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import com.typesafe.config.ConfigFactory;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
@@ -102,6 +105,9 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     private List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
     private Map<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap<>();
+
+
+    private final beam.sim.common.GeoUtils geoUtils = new GeoUtilsImpl(BeamConfig.apply(ConfigFactory.load()));
 
     public PathTraversalSpatialTemporalTableGenerator() {
         for (int i = 0; i < NUMBER_OF_BINS; i++) {
@@ -329,9 +335,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String, String> pathTraversalEventAttributes) {
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
-        double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startAndEndCoordinates.getFirst().getY(),
-                startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(),
-                startAndEndCoordinates.getSecond().getX());
+        double lengthInMeters = geoUtils.distLatLon2Meters(startAndEndCoordinates.getFirst(), startAndEndCoordinates.getSecond());
         return fuelEconomy * lengthInMeters;
     }
 
@@ -346,7 +350,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
                 R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
                 Coord centerCoord = new Coord((startLink.coord.getX() + endLink.coord.getX()) / 2, (startLink.coord.getY() + endLink.coord.getY()) / 2);
-                double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
+                double lengthInMeters = geoUtils.distLatLon2Meters(startLink.coord, endLink.coord);
 // TODO: do county distribution again
 
                 if (linkId.equalsIgnoreCase("849856,1375838")) {
