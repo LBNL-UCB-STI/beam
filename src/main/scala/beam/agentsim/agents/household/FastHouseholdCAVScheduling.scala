@@ -457,14 +457,14 @@ object HouseholdTripsHelper {
     curTrip: Trip,
     prevTrip: Trip,
     counter: Int,
-    skim: BeamSkimmer,
+    skimmer: BeamSkimmer,
     beamVehicleType: BeamVehicleType,
     waitingTimeInSec: Int,
     delayToArrivalInSec: Int
   ): (MobilityRequest, MobilityRequest, Int) = {
     val legTrip = curTrip.leg
     val defaultMode = getDefaultMode(legTrip, counter)
-    val travelTime = skim
+    val skim = skimmer
       .getTimeDistanceAndCost(
         prevTrip.activity.getCoord,
         curTrip.activity.getCoord,
@@ -472,10 +472,9 @@ object HouseholdTripsHelper {
         defaultMode,
         beamVehicleType.id
       )
-      .time
 
     val startTime = prevTrip.activity.getEndTime.toInt
-    val arrivalTime = startTime + travelTime
+    val arrivalTime = startTime + skim.time
 
     val nextTripStartTime = curTrip.activity.getEndTime
     if (nextTripStartTime != Double.NegativeInfinity && startTime >= nextTripStartTime.toInt) {
@@ -501,7 +500,8 @@ object HouseholdTripsHelper {
       defaultMode,
       Pickup,
       startTime,
-      startTime + waitingTimeInSec
+      startTime + waitingTimeInSec,
+      0
     )
     val dropoff = MobilityRequest(
       Some(vehiclePersonId),
@@ -512,8 +512,9 @@ object HouseholdTripsHelper {
       Dropoff,
       arrivalTime,
       arrivalTime + delayToArrivalInSec,
+      skim.distance.toInt,
       pickupRequest = Some(pickup)
     )
-    (pickup, dropoff, travelTime)
+    (pickup, dropoff, skim.time)
   }
 }
