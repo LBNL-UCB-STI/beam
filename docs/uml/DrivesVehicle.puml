@@ -1,0 +1,38 @@
+@startuml
+
+scale 1000 width
+scale 700 height
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state Driving #eb1921
+
+state DrivingInterrupted #eb1921
+
+state WaitingToDrive #eb1921
+
+state WaitingToDriveInterrupted #eb1921
+
+
+'BeamAgent Transitions'
+Driving ---> ReadyToChooseParking : (EndLegTrigger,LiterallyDrivingData)
+Driving ---> WaitingToDrive : (EndLegTrigger,LiterallyDrivingData)
+Driving ---> PassengerScheduleEmpty :(EndLegTrigger,LiterallyDrivingData)
+Driving ---> Driving : EndLegTrigger,StopDrivingIfNoPassengerOnBoard
+Driving ---> DrivingInterrupted : Interrupt,StopDrivingIfNoPassengerOnBoard
+
+DrivingInterrupted ---> PassengerScheduleEmptyInterrupted : (StopDriving,LiterallyDrivingData)
+DrivingInterrupted ---> Driving : Resume
+DrivingInterrupted ---> DrivingInterrupted : EndLegTrigger,Interrupt
+
+WaitingToDrive ---> Driving : StartLegTrigger
+WaitingToDrive ---> WaitingToDrive : Interrupt,NotifyVehicleResourceIdleReply,StopDrivingIfNoPassengerOnBoard
+WaitingToDrive ---> DrivingInterrupted : StopDrivingIfNoPassengerOnBoard
+
+
+WaitingToDriveInterrupted ---> Driving : Resume
+WaitingToDriveInterrupted ---> WaitingToDriveInterrupted : TriggerWithId
+
+@enduml

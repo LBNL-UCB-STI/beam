@@ -274,8 +274,15 @@ class BeamVehicle(
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
 
-  def initializeFuelLevels = {
-    primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+  def initializeFuelLevels(meanSOCoption: Option[Double] = None) = {
+    val startingSOC: Double = beamVehicleType.primaryFuelType match {
+      case Electricity =>
+        val meanSOC = math.max(math.min(meanSOCoption.getOrElse(1.0), 1.0), 0.5)
+        val minimumSOC = 2.0 * meanSOC - 1
+        minimumSOC + (1.0 - minimumSOC) * rand.nextDouble()
+      case _ => 1.0
+    }
+    primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule * startingSOC
     secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
   }
 
@@ -353,7 +360,12 @@ object BeamVehicle {
     remainingSecondaryRangeInM: Option[Double],
     driver: Option[ActorRef],
     stall: Option[ParkingStall]
-  )
+  ) {
+
+    def totalRemainingRange = {
+      remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
+    }
+  }
 
   case class FuelConsumptionData(
     linkId: Int,
