@@ -143,8 +143,6 @@ object RideHailAgent {
   case object Offline extends BeamAgentState
   case object OfflineInterrupted extends BeamAgentState
 
-  case object PendingOfflineForCharging extends BeamAgentState
-
   case object IdleInterrupted extends BeamAgentState
 
   case class StartShiftTrigger(tick: Int) extends Trigger
@@ -284,7 +282,7 @@ class RideHailAgent(
   when(Offline) {
 
     case ev @ Event(ParkingInquiryResponse(stall, _), _) =>
-      log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
+      log.debug("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
       vehicle.useParkingStall(stall)
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(
@@ -320,7 +318,7 @@ class RideHailAgent(
       handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailAgent.OfflineForCharging.StartRefuelSessionTrigger): {}", ev)
+      log.debug("state(RideHailAgent.Offline.StartRefuelSessionTrigger): {}", ev)
       if(vehicle.isCAV){
         handleStartRefuel(tick, triggerId)
       }else{

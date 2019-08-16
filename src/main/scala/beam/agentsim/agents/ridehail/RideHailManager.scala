@@ -961,6 +961,7 @@ class RideHailManager(
     removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(vehicleId, parkingStall, whenWhere.time, triggerId)
+        vehicleManager.putOutOfService(vehicleId)
       //If not arrived for refueling;
       case _ => {
         removeFromCharging(vehicleId) match {
