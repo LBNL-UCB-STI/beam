@@ -675,11 +675,17 @@ docker{
     javaApplication {
         baseImage = 'continuumio/miniconda3'
         maintainer = 'LBNL Beam Team'
-        tag = "beammodel/beam:$version" 
+        tag = "beammodel/beam:$version"
     }
 }
 
 dockerDistTar {
     instruction 'RUN apt-get update && apt-get -y install openjdk-8-jdk && rm -rf /var/lib/apt/lists/*'
+    addFile 'test/', 'test/'
+}
 
+dockerCopyDistResources {
+    from('test/') {
+        into('test/')
+    }
 }
