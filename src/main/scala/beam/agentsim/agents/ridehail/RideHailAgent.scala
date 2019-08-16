@@ -322,6 +322,7 @@ class RideHailAgent(
       if (vehicle.isCAV) {
         handleStartRefuel(tick, triggerId)
       } else {
+        holdTickAndTriggerId(tick, triggerId)
         requestParkingStall()
       }
       stay
