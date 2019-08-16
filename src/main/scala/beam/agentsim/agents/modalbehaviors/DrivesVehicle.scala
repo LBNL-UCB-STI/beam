@@ -825,7 +825,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
-  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle)= {
+  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
     eventsManager.processEvent(
@@ -839,6 +839,5 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       )
     )
   }
-
 
 }
