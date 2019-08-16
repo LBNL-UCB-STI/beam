@@ -13,23 +13,30 @@ class VehicleMilesTraveledAnalysisSpec extends GenericAnalysisSpec with Matchers
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    vehicleTypes = beamServices.vehicleTypes.keySet
+    vehicleTypes = beamServices.beamScenario.vehicleTypes.keySet
     runAnalysis(new VehicleMilesTraveledAnalysis(vehicleTypes))
   }
 
   "Vehicle miles traveled analyser " must {
 
-    "calculate total vehicle traveled by vehicle type " in {
-      vehicleTypes.foreach(t => summaryStats.get(s"motorizedVehicleMilesTraveled_$t") should not be 0)
+    "calculate total vehicle traveled by vehicle type " ignore {
+      vehicleTypes.foreach(
+        t =>
+          withClue(s"vehicle type $t travels zero miles. ") {
+            summaryStats.get(s"motorizedVehicleMilesTraveled_$t") should not be 0
+        }
+      )
     }
 
     "calculate total vehicle traveled " in {
+
+      val defaultHumanBodyBeamVehicleTypeId = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
 
       import scala.collection.JavaConverters._
       summaryStats.asScala
         .filterNot(_._1.equalsIgnoreCase("motorizedVehicleMilesTraveled_total"))
         .filterNot(
-          _._1.equalsIgnoreCase(s"motorizedVehicleMilesTraveled_${BeamVehicleType.defaultHumanBodyBeamVehicleType.id}")
+          _._1.equalsIgnoreCase(s"motorizedVehicleMilesTraveled_$defaultHumanBodyBeamVehicleTypeId")
         )
         .filterNot(_._1.startsWith("vehicleMilesTraveled_"))
         .values

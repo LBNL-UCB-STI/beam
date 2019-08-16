@@ -800,7 +800,7 @@ trait BeamHelper extends LazyLogging {
     }
 
     new UrbanSimScenarioSource(
-      scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+      scenarioSrc = beamConfig.beam.exchange.scenario.folder,
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
