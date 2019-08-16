@@ -355,6 +355,9 @@ class RideHailAgent(
     case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
       stash()
       stay()
+    case ev @ Event(TriggerWithId(ParkingInquiryResponse(_, _), _), _) =>
+      stash()
+      stay()
   }
 
   when(Idle) {
