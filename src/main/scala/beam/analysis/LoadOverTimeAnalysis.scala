@@ -84,7 +84,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
 
   private def createLoadDataset(hourlyLoadData: mutable.Map[String, mutable.Map[Int, (Double, Int)]]): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
-    mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]].foreach {
+    hourlyLoadData.foreach {
       case (loadType, hourlyLoadMap) => {
         hourlyLoadMap.toSeq.sortBy(_._1) foreach {
           case (hour, (average, _)) => dataset.addValue(average, loadType, hour)
