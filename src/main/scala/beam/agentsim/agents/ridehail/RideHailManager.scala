@@ -1605,7 +1605,9 @@ class RideHailManager(
     if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1470")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      log.debug("Cleaning up from startRepositioning")
+      log.debug("Cleaning up from startRepositioning"
+
+      )
       cleanUp
     }
   }
@@ -1618,35 +1620,29 @@ class RideHailManager(
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
     vehiclesHeadedToRefuelingDepot.foreach {
       case (vehicleId, _) =>
-        vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
+        doNotUseInAllocation.add(vehicleId)
     }
 
-    //TODO: Maybe signal to repositionVehicles so it can automatically exclude vehicles already on way to depot
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick) //.filterNot {
-//        case (vehicleId, _) =>
-//          vehiclesHeadedToRefuelingDepot.exists {
-//            case (vehicleHeadedToRefuel, _) => vehicleHeadedToRefuel == vehicleId
-//          }
-//      }
+      rideHailResourceAllocationManager.repositionVehicles(tick)
 
     val repositionVehicles
       : Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map {
       case (vehicleId, parkingStall) => (vehicleId, parkingStall.locationUTM)
     }
 
-    if (nonRefuelingRepositionVehicles.isEmpty) {
+    if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1486")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
     } else {
-      val toReposition = nonRefuelingRepositionVehicles.map(_._1).toSet
+      val toReposition = repositionVehicles.map(_._1).toSet
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
     val futureRepoRoutingMap = mutable.Map[Id[Vehicle], Future[RoutingRequest]]()
 
-    for ((vehicleId, destinationLocation) <- nonRefuelingRepositionVehicles) {
+    for ((vehicleId, destinationLocation) <- repositionVehicles) {
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId)) {
         val rideHailAgentLocation = vehicleManager.idleRideHailVehicles(vehicleId)
 

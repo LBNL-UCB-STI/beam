@@ -367,7 +367,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             // charge vehicle
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
-                case Some(_) => handleStartCharging(tick, currentBeamVehicle)(None)
+                case Some(_) => handleStartCharging(tick, currentBeamVehicle)
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -825,9 +825,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
-  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle)(
-    schedulerMessage: Option[EndRefuelData => SchedulerMessage]
-  ) = {
+  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle)= {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
     eventsManager.processEvent(
@@ -840,18 +838,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
       )
     )
-    schedulerMessage.foreach(message => {
-      val (sessionDuration, energyDelivered): (Long, Double) = vehicle.refuelingSessionDurationAndEnergyInJoules()
-      val chargingEndTick = currentTick + sessionDuration.toInt
-      log.debug(
-        "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
-        chargingEndTick,
-        energyDelivered,
-        vehicle.id
-      )
-      scheduler ! message(EndRefuelData(chargingEndTick, energyDelivered))
-    })
-
   }
+
 
 }

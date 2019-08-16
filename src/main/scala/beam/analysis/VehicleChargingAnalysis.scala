@@ -54,7 +54,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
     val chargingDataset = createChargingDataset()
     val chargingGraphImageFile =
       outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$vehicleChargingFileBaseName.png")
-    createGraph(chargingDataset, chargingGraphImageFile, "Vehicle Charging")
+    createGraph(chargingDataset, chargingGraphImageFile, "Vehicles Charging")
 
   }
 
