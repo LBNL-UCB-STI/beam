@@ -767,6 +767,7 @@ class RideHailManager(
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId) && !doNotUseInAllocation.contains(vehicleId)) {
+        if(isOnWayToRefuelingDepot(rideHailAgent.vehicleId))vehicleManager.putOutOfService(rideHailAgent.vehicleId)
         modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(
           passengerSchedule,
           rideHailAgent.vehicleId,
@@ -961,7 +962,6 @@ class RideHailManager(
     removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(vehicleId, parkingStall, whenWhere.time, triggerId)
-        vehicleManager.putOutOfService(vehicleId)
       //If not arrived for refueling;
       case _ => {
         removeFromCharging(vehicleId) match {
@@ -1104,6 +1104,7 @@ class RideHailManager(
   def addVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
     newVehiclesHeadedToDepot.foreach(keyVal => vehiclesOnWayToRefuelingDepot.put(keyVal._1, keyVal._2))
   }
+  def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean = vehiclesOnWayToRefuelingDepot.contains(vehicleId)
 
   def removeVehicleArrivedAtRefuelingDepot(vehicleId: VehicleId): Option[ParkingStall] = {
     vehiclesOnWayToRefuelingDepot.remove(vehicleId)
