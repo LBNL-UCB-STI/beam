@@ -19,7 +19,7 @@ class VehicleMilesTraveledAnalysisSpec extends GenericAnalysisSpec with Matchers
 
   "Vehicle miles traveled analyser " must {
 
-    "calculate total vehicle traveled by vehicle type " in {
+    "calculate total vehicle traveled by vehicle type " ignore {
       vehicleTypes.foreach(
         t =>
           withClue(s"vehicle type $t travels zero miles. ") {
