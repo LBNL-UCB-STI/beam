@@ -767,7 +767,7 @@ class RideHailManager(
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId) && !doNotUseInAllocation.contains(vehicleId)) {
-        if(isOnWayToRefuelingDepot(rideHailAgent.vehicleId))vehicleManager.putOutOfService(rideHailAgent.vehicleId)
+        if (isOnWayToRefuelingDepot(rideHailAgent.vehicleId)) vehicleManager.putOutOfService(rideHailAgent.vehicleId)
         modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(
           passengerSchedule,
           rideHailAgent.vehicleId,
@@ -1607,9 +1607,7 @@ class RideHailManager(
     if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1470")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      log.debug("Cleaning up from startRepositioning"
-
-      )
+      log.debug("Cleaning up from startRepositioning")
       cleanUp
     }
   }

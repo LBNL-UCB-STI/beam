@@ -319,9 +319,9 @@ class RideHailAgent(
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline.StartRefuelSessionTrigger): {}", ev)
-      if(vehicle.isCAV){
+      if (vehicle.isCAV) {
         handleStartRefuel(tick, triggerId)
-      }else{
+      } else {
         requestParkingStall()
       }
       stay
@@ -596,7 +596,6 @@ class RideHailAgent(
     }
     vehicle.spaceTime = SpaceTime(newLocation, tick)
   }
-
 
   def startRefueling(tick: Int, triggerId: Long) = {
     if (vehicle.isBEV || vehicle.isPHEV) {
