@@ -1084,7 +1084,7 @@ class RideHailManager(
     mutable.Map.empty[VehicleId, ParkingStall]
 
   def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId): Unit = {
-    if (chargingVehicleToParkingStallMap.keys.exists(_ == vehicleId)) {
+    if (chargingVehicleToParkingStallMap.keys.exists(_ == vehicleId)){
       log.warning(
         "{} is already charging in {}, yet it is being added to {}. THIS SHOULD NOT HAPPEN!",
         vehicleId,
