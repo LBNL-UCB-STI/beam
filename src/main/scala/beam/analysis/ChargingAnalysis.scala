@@ -54,17 +54,19 @@ class ChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging {
                 .contains("ridehail")) {
             if (vehicleType.isCaccEnabled) Some(CAV_Ridehail) else Some(Human_Ridehail)
           } else None
-        generalizedVehicleTypeOption.map{
-          case CAV_Ridehail => cavCount
-          case Human_Ridehail => humanCount
-        }.map{
-          countMap => {
-            countMap.get(driverId) match {
-              case Some(count) => countMap.put(driverId, count + 1)
-              case None => countMap.put(driverId, 1)
+        generalizedVehicleTypeOption
+          .map {
+            case CAV_Ridehail   => cavCount
+            case Human_Ridehail => humanCount
+          }
+          .map { countMap =>
+            {
+              countMap.get(driverId) match {
+                case Some(count) => countMap.put(driverId, count + 1)
+                case None        => countMap.put(driverId, 1)
+              }
             }
           }
-        }
       case _ =>
     }
   }
@@ -86,9 +88,8 @@ class ChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging {
 
   private def createPlotFrom(countMap: mutable.Map[DriverId, Int], pathToPlot: String) = {
 
-
     val series = new XYSeries("Charge Events Per Driver", false)
-    countMap.foreach{
+    countMap.foreach {
       case (driver, count) => series.add(driver.toString.chars.sum, count)
     }
 

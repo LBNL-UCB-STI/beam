@@ -487,7 +487,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.WaitingToDriveInterrupted): {}", ev)
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _),_) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       log.debug("state(RideHailingAgent.StartRefuelSessionTrigger): {}", ev)
       stash()
       goto(OfflineInterrupted)
