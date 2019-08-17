@@ -36,6 +36,7 @@ class ZonalParkingManager(
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
   rand: Random,
   maxSearchRadius: Double,
+  probabilityOfResidentialCharging: Double,
   boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
@@ -92,7 +93,12 @@ class ZonalParkingManager(
                 inquiry.vehicleType match {
                   case Some(vehicleType) =>
                     vehicleType.beamVehicleType.primaryFuelType match {
-                      case Electricity => zone.chargingPointType.nonEmpty
+                      case Electricity =>
+                        val sampleResidentialStallProbability = rand.nextDouble() <= probabilityOfResidentialCharging
+                        if (sampleResidentialStallProbability)
+                          zone.chargingPointType.nonEmpty
+                        else
+                          true
                       case _           => false
                     }
                   case _ => false
@@ -239,6 +245,7 @@ object ZonalParkingManager extends LazyLogging {
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope,
+    probabilityOfResidentialCharging: Double,
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double
   ): ZonalParkingManager = {
@@ -260,7 +267,7 @@ object ZonalParkingManager extends LazyLogging {
     }
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
 
-    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, maxSearchRadius, boundingBox)
+    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, maxSearchRadius, probabilityOfResidentialCharging, boundingBox)
   }
 
   /**
@@ -276,12 +283,13 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
+    probabilityOfResidentialCharging: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
-    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, maxSearchRadius, boundingBox)
+    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, maxSearchRadius, probabilityOfResidentialCharging, boundingBox)
   }
 
   /**
@@ -304,6 +312,7 @@ object ZonalParkingManager extends LazyLogging {
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+    val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
     Props(
       ZonalParkingManager(
         beamConfig,
@@ -311,6 +320,7 @@ object ZonalParkingManager extends LazyLogging {
         geo,
         random,
         boundingBox,
+        probabilityOfResidentialParking,
         parkingStallCountScalingFactor,
         parkingCostScalingFactor
       )
