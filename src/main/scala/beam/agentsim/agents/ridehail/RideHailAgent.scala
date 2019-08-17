@@ -195,7 +195,7 @@ class RideHailAgent(
 
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
       log.debug(
-        "myUnhandled state({}): stashing StartLegTrigger probably because interrupt was received while in WaitinToDrive before getting this trigger: {}",
+        "myUnhandled state({}): stashing StartLegTrigger probably because interrupt was received while in WaitingToDrive before getting this trigger: {}",
         stateName,
         ev
       )
@@ -322,6 +322,7 @@ class RideHailAgent(
       if (vehicle.isCAV) {
         handleStartRefuel(tick, triggerId)
       } else {
+        holdTickAndTriggerId(tick, triggerId)
         requestParkingStall()
       }
       stay
@@ -334,6 +335,12 @@ class RideHailAgent(
       holdTickAndTriggerId(tick, triggerId)
       handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       goto(Idle)
+    case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
+      log.warning(
+        "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
+        ev
+      )
+      stay replying CompletionNotice(triggerId)
   }
   when(OfflineInterrupted) {
     case Event(Resume, _) =>
@@ -352,6 +359,9 @@ class RideHailAgent(
       stash()
       stay()
     case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
+      stash()
+      stay()
+    case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
   }
@@ -483,7 +493,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.WaitingToDriveInterrupted): {}", ev)
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(StartRefuelSessionTrigger(_), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       log.debug("state(RideHailingAgent.StartRefuelSessionTrigger): {}", ev)
       stash()
       goto(OfflineInterrupted)

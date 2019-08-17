@@ -61,9 +61,8 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
     cavChargingStatsPerDriver.clear
   }
 
-  import scala.collection.JavaConverters._
-
   def getSummaryStats() = {
+    import scala.collection.JavaConverters._
     (
       cavChargingStatsPerDriver.flatMap {
         case (driverId, chargingStats) =>
