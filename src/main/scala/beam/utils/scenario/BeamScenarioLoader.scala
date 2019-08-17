@@ -1,6 +1,7 @@
 package beam.utils.scenario
 
 import java.util
+import scala.util.Random
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -32,6 +33,8 @@ class BeamScenarioLoader(
   type IdToAttributes = Map[String, Seq[(String, Double)]]
 
   private val availableModes: Seq[String] = BeamMode.allModes.map(_.value)
+
+  private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   private lazy val plans: Iterable[PlanElement] = {
     val r = scenarioSource.getPlans
@@ -69,7 +72,7 @@ class BeamScenarioLoader(
 
     val vehicles = scenarioSource.getVehicles
 
-    val loadedHouseholds = scenarioSource.getHousehold()
+    val loadedHouseholds = scenarioSource.getHousehold
 
     val newHouseholds: Iterable[Household] =
       buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
@@ -78,7 +81,7 @@ class BeamScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
@@ -328,7 +331,11 @@ object BeamScenarioLoader extends LazyLogging {
     }
   }
 
-  def buildBeamVehicle(map: Map[Id[BeamVehicleType], BeamVehicleType], info: VehicleInfo): BeamVehicle = {
+  def buildBeamVehicle(
+    map: Map[Id[BeamVehicleType], BeamVehicleType],
+    info: VehicleInfo,
+    randomSeed: Int
+  ): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
     val matsimVehicle: Vehicle =
@@ -340,7 +347,7 @@ object BeamScenarioLoader extends LazyLogging {
     val beamVehicleType = map(beamVehicleTypeId)
 
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-    new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType)
+    new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType, randomSeed)
   }
 
 }

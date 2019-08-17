@@ -113,13 +113,13 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
             )
         }
       }
-      groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
-        case (groupID, vehicleTypeAndProbability) =>
-          val probSum = vehicleTypeAndProbability.map(_._2._2).sum
-          val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
-          val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
-          groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
-      }
+    }
+    groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
+      case (groupID, vehicleTypeAndProbability) =>
+        val probSum = vehicleTypeAndProbability.map(_._2._2).sum
+        val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
+        val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
+        groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
     }
     groupIDs
   }
