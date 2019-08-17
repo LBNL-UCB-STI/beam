@@ -227,7 +227,7 @@ class RideHailManager(
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
       case e: Exception => {
-        log.error(e, s"Going to stop RHM because of ${e.getMessage}")
+        log.error(e, s"Going to stop child of RHM because of ${e.getMessage}")
         Stop
       }
       case _: AssertionError => Stop
@@ -933,8 +933,8 @@ class RideHailManager(
   }
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {
-    log.debug("RHM.NotifyVehicleIdle: {}", notifyVehicleIdleMessage)
     val vehicleId = notifyVehicleIdleMessage.resourceId.asInstanceOf[Id[Vehicle]]
+    log.info("RHM.NotifyVehicleIdle: {}, service status: {}", notifyVehicleIdleMessage, vehicleManager.getServiceStatusOf(vehicleId))
     val (whenWhere, geofence, beamVehicleState, passengerSchedule, triggerId) = (
       notifyVehicleIdleMessage.whenWhere,
       notifyVehicleIdleMessage.geofence,
@@ -978,6 +978,7 @@ class RideHailManager(
           }
           case None =>
         }
+        log.info("Making vehicle {} available", vehicleId)
         vehicleManager.makeAvailable(rideHailAgentLocation)
         rideHailAgentLocation.rideHailAgent ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
       }
@@ -1061,15 +1062,18 @@ class RideHailManager(
   ): Unit = {
     depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
-        if (depotQueue.contains(vehicleId))
+        if (depotQueue.contains(vehicleId)) {
           log.warning(
             "{} already exists in depot {} queue. Not re-adding as it is a duplicate. Source: {} " +
-            "THIS SHOULD NEVER HAPPEN!",
+              "THIS SHOULD NEVER HAPPEN!",
             vehicleId,
             parkingStall.parkingZoneId,
             source
           )
-        else depotQueue.enqueue((vehicleId, parkingStall))
+        }else{
+          log.info("Add vehicle {} to charging queue of length {} at depot {}", vehicleId, depotQueue.size, parkingStall.parkingZoneId)
+          depotQueue.enqueue((vehicleId, parkingStall))
+        }
       }
       case None =>
         log.info("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
@@ -1100,7 +1104,7 @@ class RideHailManager(
       )
       vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent ! LogActorState
     }
-    log.info("Cache that vehilce {} is now charging in depot {}",vehicleId,stall.parkingZoneId)
+    log.info("Cache that vehicle {} is now charging in depot {}, source {}",vehicleId,stall.parkingZoneId,source)
     chargingVehicleToParkingStallMap += vehicleId -> stall
   }
 
