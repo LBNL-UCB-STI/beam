@@ -336,7 +336,10 @@ class RideHailAgent(
       handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       goto(Idle)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
-      log.warning("state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ", ev)
+      log.warning(
+        "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
+        ev
+      )
       stay replying CompletionNotice(triggerId)
   }
   when(OfflineInterrupted) {
@@ -490,7 +493,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.WaitingToDriveInterrupted): {}", ev)
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _),_) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       log.debug("state(RideHailingAgent.StartRefuelSessionTrigger): {}", ev)
       stash()
       goto(OfflineInterrupted)
