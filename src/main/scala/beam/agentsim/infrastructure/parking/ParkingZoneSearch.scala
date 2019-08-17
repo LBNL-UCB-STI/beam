@@ -32,8 +32,12 @@ object ParkingZoneSearch {
   // fallback value for stall pricing model evaluation
   val DefaultParkingPrice: Double = 0.0
 
+  // chargers with this many kW or greater are considered "fast chargers"
+  val FastChargingMinimumCurrent: Double = 20.0
+
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
+    *
     * @param searchStartRadius small radius describing a ring shape
     * @param searchMaxRadius larger radius describing a ring shape
     * @param destinationUTM coordinates of this request
@@ -61,6 +65,7 @@ object ParkingZoneSearch {
     random: Random,
     returnSpotsWithChargers: Boolean,
     returnSpotsWithoutChargers: Boolean,
+    rideHailFastChargingOnly: Boolean,
     boundingBox: Envelope,
   ): Option[(ParkingZone, ParkingStall)] = {
 
@@ -68,29 +73,27 @@ object ParkingZoneSearch {
     def _search(thisInnerRadius: Double, thisOuterRadius: Double): Option[(ParkingZone, ParkingStall)] = {
       if (thisInnerRadius > searchMaxRadius) None
       else {
-        val tazDistance: Map[TAZ, Double] =
+        //
+        val tazDistance: List[TAZ] =
           tazQuadTree
             .getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
             .asScala
-            .map { taz =>
-              (taz, GeoUtils.distFormula(taz.coord, destinationUTM))
-            }
-            .toMap
-        val tazList: List[TAZ] = tazDistance.keys.toList
+            .toList
 
         ParkingZoneSearch.find(
           destinationUTM,
           valueOfTime,
           parkingDuration,
           utilityFunction,
-          tazList,
+          tazDistance,
           parkingTypes,
           searchTree,
           stalls,
           distanceFunction,
           random,
           returnSpotsWithChargers,
-          returnSpotsWithoutChargers
+          returnSpotsWithoutChargers,
+          rideHailFastChargingOnly
         ) match {
           case Some(
               ParkingSearchResult(
@@ -98,7 +101,7 @@ object ParkingZoneSearch {
                 bestParkingType,
                 bestParkingZone,
                 bestCoord,
-                bestRankingValue
+                _
               )
               ) =>
             val stallPrice: Double =
@@ -177,7 +180,8 @@ object ParkingZoneSearch {
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
     returnSpotsWithChargers: Boolean,
-    returnSpotsWithoutChargers: Boolean
+    returnSpotsWithoutChargers: Boolean,
+    rideHailFastChargingOnly: Boolean
   ): Option[ParkingSearchResult] = {
     val found = findParkingZones(
       destinationUTM,
@@ -187,7 +191,8 @@ object ParkingZoneSearch {
       parkingZones,
       random,
       returnSpotsWithChargers,
-      returnSpotsWithoutChargers
+      returnSpotsWithoutChargers,
+      rideHailFastChargingOnly
     )
     takeBestBySampling(
       found,
@@ -219,7 +224,8 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone],
     random: Random,
     returnSpotsWithChargers: Boolean,
-    returnSpotsWithoutChargers: Boolean
+    returnSpotsWithoutChargers: Boolean,
+    rideHailFastChargingOnly: Boolean
   ): Seq[ParkingAlternative] = {
 
     // conduct search (toList required to combine Option and List monads)
@@ -229,31 +235,66 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(
-        parkingZones(parkingZoneId),
-        parkingType,
-        returnSpotsWithChargers,
-        returnSpotsWithoutChargers
-      )
+
     } yield {
+
       // get the zone
       Try {
         parkingZones(parkingZoneId)
       } match {
         case Success(parkingZone) =>
-          val parkingAvailability: Double = parkingZone.availability
-          val stallLocation: Coord =
-            ParkingStallSampling.availabilityAwareSampling(random, destinationUTM, taz, parkingAvailability)
-          ParkingAlternative(taz, parkingType, parkingZones(parkingZoneId), stallLocation)
+          // evaluate whether alternative meets search requirements
+          val hasAvailability: Boolean = parkingZones(parkingZoneId).stallsAvailable > 0
+          val canParkHere: Boolean = canThisCarParkHere(
+            parkingZones(parkingZoneId),
+            returnSpotsWithChargers,
+            returnSpotsWithoutChargers
+          )
+          val meetsChargingPowerRequirements: Boolean =
+          !rideHailFastChargingOnly || isFastCharging(parkingZone)
+
+          if (hasAvailability && canParkHere && meetsChargingPowerRequirements) {
+            val parkingAvailability: Double = parkingZone.availability
+            val stallLocation: Coord =
+              ParkingStallSampling.availabilityAwareSampling(random, destinationUTM, taz, parkingAvailability)
+            Some {
+              ParkingAlternative(taz, parkingType, parkingZones(parkingZoneId), stallLocation)
+            }
+          } else None
+
         case Failure(e) =>
           throw new IndexOutOfBoundsException(s"Attempting to access ParkingZone with index $parkingZoneId failed.\n$e")
       }
     }
+  }.flatten
+
+  /**
+    * allows strictly ignoring charging options which are not "fast"
+    *
+    * @param parkingZone the parking zone we are evaluating
+    * @return
+    */
+  def isFastCharging(
+    parkingZone: ParkingZone
+  ): Boolean = {
+    parkingZone.chargingPointType match {
+      case None => false
+      case Some(chargingPointType) =>
+        val thisCurrent: Double = ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
+        thisCurrent >= FastChargingMinimumCurrent
+    }
   }
 
+  /**
+    * allows for ignoring parking alternatives based on charging/non-charging needs
+    *
+    * @param parkingZone the parking zone we are evaluating
+    * @param returnSpotsWithChargers if we are interested in spots with chargers
+    * @param returnSpotsWithoutChargers if we are interested in spots without chargers
+    * @return if this spot meets our needs
+    */
   def canThisCarParkHere(
     parkingZone: ParkingZone,
-    parkingType: ParkingType,
     returnSpotsWithChargers: Boolean,
     returnSpotsWithoutChargers: Boolean
   ): Boolean = {
