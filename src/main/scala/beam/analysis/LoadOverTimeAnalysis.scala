@@ -38,10 +38,9 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
         vehicleTypeToHourlyLoad.get(loadVehicleType) match {
           case Some(hourlyLoadMap) =>
             hourlyLoadMap.get(hourOfEvent) match {
-              case Some((currentAverage, currentCount)) =>
-                val currentLoadTotal = currentAverage * currentCount
+              case Some((currentLoadTotal, currentCount)) =>
                 val newCount = currentCount + 1
-                hourlyLoadMap.put(hourOfEvent, ((currentLoadTotal + currentEventAverageLoad) / newCount, newCount))
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
               case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
             }
           case None =>
@@ -51,10 +50,9 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
         chargerTypeToHourlyLoad.get(chargerType) match {
           case Some(hourlyLoadMap) =>
             hourlyLoadMap.get(hourOfEvent) match {
-              case Some((currentAverage, currentCount)) =>
-                val currentLoadTotal = currentAverage * currentCount
+              case Some((currentLoadTotal, currentCount)) =>
                 val newCount = currentCount + 1
-                hourlyLoadMap.put(hourOfEvent, ((currentLoadTotal + currentEventAverageLoad) / newCount, newCount))
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
               case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
             }
           case None =>
