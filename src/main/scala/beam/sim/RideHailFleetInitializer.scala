@@ -70,7 +70,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceY",
       "geofenceRadius"
     )
-    if(Files.exists(Paths.get(filePath).getParent)){
+    if (Files.exists(Paths.get(filePath).getParent)) {
       val csvWriter = new CsvWriter(filePath, fileHeader)
       Try {
         fleetData.foreach { fleetData =>
