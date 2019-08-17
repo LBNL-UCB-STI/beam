@@ -61,12 +61,14 @@ object ChargingPointType {
           CustomChargingPoint(id, installedCapacityDouble, ElectricCurrentType(electricCurrentType.toUpperCase))
       }
     }
+
   }
 
   private[ChargingPointType] val CustomChargingPointRegex: Regex =
     """(\w+\d*)\s*\(\s*(\d+\.?\d+)\s*\|\s*(\w{2})\s*\)""".r.unanchored
 
   // matches either the standard ones or a custom one
+  // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
   def apply(s: String): Option[ChargingPointType] = {
     s.trim.toLowerCase match {
       case "householdsocket"              => Some(HouseholdSocket)

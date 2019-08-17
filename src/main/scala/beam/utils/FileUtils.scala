@@ -7,9 +7,10 @@ import java.text.SimpleDateFormat
 import java.util.stream
 
 import beam.sim.config.BeamConfig
+import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
-import org.apache.commons.io.FilenameUtils.getName
+import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
 
@@ -176,4 +177,36 @@ object FileUtils extends LazyLogging {
     }
   }
 
+  def downloadAndUnpackIfNeeded(srcPath: String, remoteIfStartsWith: String = "http"): String = {
+    val srcName = getName(srcPath)
+    val srcBaseName = getBaseName(srcPath)
+
+    val localPath =
+      if (isRemote(srcPath, remoteIfStartsWith)) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        downloadFile(srcPath, tmpPath)
+        tmpPath
+      } else
+        srcPath
+
+    val unpackedPath =
+      if (isZipArchive(localPath)) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcBaseName).toString
+        unzip(localPath, tmpPath, false)
+        tmpPath
+      } else
+        localPath
+
+    unpackedPath
+  }
+
+  private def isZipArchive(sourceFilePath: String): Boolean = {
+    assert(sourceFilePath != null)
+    "zip".equalsIgnoreCase(getExtension(sourceFilePath))
+  }
+
+  private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
+    assert(sourceFilePath != null)
+    sourceFilePath.startsWith(remoteIfStartsWith)
+  }
 }
