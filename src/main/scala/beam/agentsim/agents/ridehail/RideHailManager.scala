@@ -1311,7 +1311,6 @@ class RideHailManager(
           response.request.customer.personId,
           theVehicle
         )
-
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
           response.request.customer.personRef ! response.copy(triggersToSchedule = Vector())

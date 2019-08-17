@@ -230,7 +230,7 @@ class RideHailAgent(
 
     case Event(LogActorState, _) =>
       ReflectionUtils.logFields(log, this, 0)
-      log.info(getLog.toString())
+      log.info(getLog.map(entry => (entry.stateName,entry.event,entry.stateData)).mkString("\n\t"))
       stay
 
     case event @ Event(_, _) =>
