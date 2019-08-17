@@ -936,7 +936,7 @@ class RideHailManager(
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {
     val vehicleId = notifyVehicleIdleMessage.resourceId.asInstanceOf[Id[Vehicle]]
-    log.info("RHM.NotifyVehicleIdle: {}, service status: {}", notifyVehicleIdleMessage, vehicleManager.getServiceStatusOf(vehicleId))
+    log.debug("RHM.NotifyVehicleIdle: {}, service status: {}", notifyVehicleIdleMessage, vehicleManager.getServiceStatusOf(vehicleId))
     val (whenWhere, geofence, beamVehicleState, passengerSchedule, triggerId) = (
       notifyVehicleIdleMessage.whenWhere,
       notifyVehicleIdleMessage.geofence,
@@ -980,7 +980,7 @@ class RideHailManager(
           }
           case None =>
         }
-        log.info("Making vehicle {} available", vehicleId)
+        log.debug("Making vehicle {} available", vehicleId)
         vehicleManager.makeAvailable(rideHailAgentLocation)
         rideHailAgentLocation.rideHailAgent ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
       }
@@ -1073,12 +1073,12 @@ class RideHailManager(
             source
           )
         }else{
-          log.info("Add vehicle {} to charging queue of length {} at depot {}", vehicleId, depotQueue.size, parkingStall.parkingZoneId)
+          log.debug("Add vehicle {} to charging queue of length {} at depot {}", vehicleId, depotQueue.size, parkingStall.parkingZoneId)
           depotQueue.enqueue((vehicleId, parkingStall))
         }
       }
       case None =>
-        log.info("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
+        log.debug("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
         depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue((vehicleId, parkingStall)))
     }
   }
@@ -1087,7 +1087,7 @@ class RideHailManager(
     depotToRefuelingQueuesMap.get(depotId).collect {
       case refuelingQueue if (!refuelingQueue.isEmpty) =>
         val toReturn = refuelingQueue.dequeue
-        log.info("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
+        log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn
     }
   }
@@ -1106,12 +1106,12 @@ class RideHailManager(
       )
       vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent ! LogActorState
     }
-    log.info("Cache that vehicle {} is now charging in depot {}, source {}",vehicleId,stall.parkingZoneId,source)
+    log.debug("Cache that vehicle {} is now charging in depot {}, source {}",vehicleId,stall.parkingZoneId,source)
     chargingVehicleToParkingStallMap += vehicleId -> stall
   }
 
   def removeFromCharging(vehicle: VehicleId): Option[ParkingStall] = {
-    log.info("Remove from cache that vehicle {} is charging",vehicle)
+    log.debug("Remove from cache that vehicle {} is charging",vehicle)
     chargingVehicleToParkingStallMap.remove(vehicle)
   }
 
