@@ -1713,7 +1713,6 @@ class RideHailManager(
           itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
         val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId)
 
-        // TODO: extract creation of route to separate method?
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
         )
@@ -1721,10 +1720,10 @@ class RideHailManager(
           passengerSchedule,
           tick,
           vehicleId,
-          vehicleManager.idleRideHailVehicles(vehicleId)
+          vehicleManager.getRideHailAgentLocation(vehicleId)
         )
       } else {
-        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleManager.idleRideHailVehicles(vehicleId).vehicleId)
+        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleId)
       }
     }
   }
