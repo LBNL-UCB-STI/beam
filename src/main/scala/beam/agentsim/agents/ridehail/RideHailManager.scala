@@ -961,7 +961,7 @@ class RideHailManager(
 
     removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(vehicleId, parkingStall, whenWhere.time, triggerId)
+        attemptToRefuel(vehicleId, parkingStall, whenWhere.time, triggerId, "JustArrivedAtDepot")
       //If not arrived for refueling;
       case _ => {
         removeFromCharging(vehicleId) match {
@@ -971,7 +971,7 @@ class RideHailManager(
             //QUESTION: Maybe a new trigger should be set to check for queue instead of this inline?
             dequeueNextVehicleForRefuelingFrom(depotId) match {
               case Some((nextVehicleId, nextVehiclesParkingStall)) => {
-                attemptToRefuel(nextVehicleId, nextVehiclesParkingStall, whenWhere.time, triggerId)
+                attemptToRefuel(nextVehicleId, nextVehiclesParkingStall, whenWhere.time, triggerId, "DequeuedToCharge")
               }
               case None =>
             }
@@ -1055,48 +1055,57 @@ class RideHailManager(
     mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall)]]
 
   def addVehicleAndStallToRefuelingQueueFor(
-    depotId: DepotId,
     vehicleId: VehicleId,
-    parkingStall: ParkingStall
+    parkingStall: ParkingStall,
+    source: String
   ): Unit = {
-    depotToRefuelingQueuesMap.get(depotId) match {
+    depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
         if (depotQueue.contains(vehicleId))
           log.warning(
-            "{} already exists in depot {} queue. Not re-adding as it is a duplicate. " +
+            "{} already exists in depot {} queue. Not re-adding as it is a duplicate. Source: {} " +
             "THIS SHOULD NEVER HAPPEN!",
             vehicleId,
-            depotId
+            parkingStall.parkingZoneId,
+            source
           )
         else depotQueue.enqueue((vehicleId, parkingStall))
       }
-      case None => depotToRefuelingQueuesMap += (depotId -> mutable.Queue((vehicleId, parkingStall)))
+      case None =>
+        log.info("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
+        depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue((vehicleId, parkingStall)))
     }
   }
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (!refuelingQueue.isEmpty) => refuelingQueue.dequeue
+      case refuelingQueue if (!refuelingQueue.isEmpty) =>
+        val toReturn = refuelingQueue.dequeue
+        log.info("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
+        toReturn
     }
   }
 
   private val chargingVehicleToParkingStallMap: mutable.Map[VehicleId, ParkingStall] =
     mutable.Map.empty[VehicleId, ParkingStall]
 
-  def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId): Unit = {
+  def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId, source: String): Unit = {
     if (chargingVehicleToParkingStallMap.keys.exists(_ == vehicleId)){
       log.warning(
-        "{} is already charging in {}, yet it is being added to {}. THIS SHOULD NOT HAPPEN!",
+        "{} is already charging in {}, yet it is being added to {}. Source: {} THIS SHOULD NOT HAPPEN!",
         vehicleId,
         chargingVehicleToParkingStallMap(vehicleId),
-        stall
+        stall,
+        source
       )
       vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent ! LogActorState
     }
+    log.info("Cache that vehilce {} is now charging in depot {}",vehicleId,stall.parkingZoneId)
     chargingVehicleToParkingStallMap += vehicleId -> stall
   }
 
   def removeFromCharging(vehicle: VehicleId): Option[ParkingStall] = {
+    log.info("Remove from cache that vehicle {} is charging",vehicle)
     chargingVehicleToParkingStallMap.remove(vehicle)
   }
 
@@ -1112,15 +1121,15 @@ class RideHailManager(
     vehiclesOnWayToRefuelingDepot.remove(vehicleId)
   }
 
-  def attemptToRefuel(vehicleId: VehicleId, parkingStall: ParkingStall, time: Int, triggerId: Option[Long]): Unit = {
+  def attemptToRefuel(vehicleId: VehicleId, originalParkingStallFoundDuringAssignment: ParkingStall, time: Int, triggerId: Option[Long], source: String): Unit = {
     val beamVehicleOption = findBeamVehicleUsing(vehicleId)
-    rideHailDepotParkingManager.findAndClaimStallAtDepot(parkingStall) match {
-      case Some(parkingStall: ParkingStall) => {
+    rideHailDepotParkingManager.findAndClaimStallAtDepot(originalParkingStallFoundDuringAssignment) match {
+      case Some(claimedParkingStall: ParkingStall) => {
         beamVehicleOption match {
           case Some(beamVehicle) =>
-            beamVehicle.useParkingStall(parkingStall)
+            beamVehicle.useParkingStall(claimedParkingStall)
             beamVehicle.driver.foreach(driverAgent => {
-              addVehicleToChargingInDepotUsing(parkingStall, vehicleId)
+              addVehicleToChargingInDepotUsing(claimedParkingStall, vehicleId, source)
               driverAgent ! NotifyVehicleResourceIdleReply(
                 triggerId,
                 Vector(ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent))
@@ -1128,9 +1137,8 @@ class RideHailManager(
             })
           case None => log.warning("Unable to find vehicle {} to start depot refueling")
         }
-
       }
-      case None => addVehicleAndStallToRefuelingQueueFor(parkingStall.parkingZoneId, vehicleId, parkingStall)
+      case None => addVehicleAndStallToRefuelingQueueFor(vehicleId, originalParkingStallFoundDuringAssignment, source)
     }
   }
   /* END: Refueling Logic */
