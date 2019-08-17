@@ -23,6 +23,8 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.Range
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.logging.LogActorState
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -224,6 +226,10 @@ class RideHailAgent(
           scheduler ! CompletionNotice(triggerId, Vector())
         case None =>
       }
+      stay
+
+    case Event(LogActorState,_) =>
+      ReflectionUtils.logFields(log, this, 0)
       stay
 
     case event @ Event(_, _) =>
