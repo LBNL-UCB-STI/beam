@@ -766,8 +766,10 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      if (vehicleManager.idleRideHailVehicles.contains(vehicleId) && !doNotUseInAllocation.contains(vehicleId)) {
-        if (isOnWayToRefuelingDepot(rideHailAgent.vehicleId)) vehicleManager.putOutOfService(rideHailAgent.vehicleId)
+      if (vehicleManager.idleRideHailVehicles.contains(vehicleId) && (!doNotUseInAllocation.contains(vehicleId) || isOnWayToRefuelingDepot(rideHailAgent.vehicleId))) {
+        if(isOnWayToRefuelingDepot(rideHailAgent.vehicleId)) {
+          vehicleManager.putOutOfService(rideHailAgent.vehicleId)
+        }
         modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(
           passengerSchedule,
           rideHailAgent.vehicleId,
