@@ -24,7 +24,8 @@ class RideHailDepotParkingManager(
   random: Random,
   boundingBox: Envelope,
   distFunction: (Location, Location) => Double,
-  utilityFunction: MultinomialLogit[ParkingAlternative, String]
+  utilityFunction: MultinomialLogit[ParkingAlternative, String],
+  parkingStallCountScalingFactor: Double = 1.0
 ) extends LazyLogging {
 
   // load parking from a parking file, or generate it using the TAZ beam input
@@ -42,10 +43,10 @@ class RideHailDepotParkingManager(
     (parkingZones, searchTree)
   } else {
     Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath)
+      ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
-        logger.info(s"generating ubiquitous ride hail parking")
+        logger.info(s"generating ride hail parking from file $parkingFilePath")
         (stalls, tree)
       case Failure(e) =>
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
@@ -222,7 +223,8 @@ object RideHailDepotParkingManager {
     random: Random,
     boundingBox: Envelope,
     distFunction: (Location, Location) => Double,
-    utilityFunction: MultinomialLogit[ParkingAlternative, String]
+    utilityFunction: MultinomialLogit[ParkingAlternative, String],
+    parkingStallCountScalingFactor: Double
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
@@ -232,7 +234,8 @@ object RideHailDepotParkingManager {
       random,
       boundingBox,
       distFunction,
-      utilityFunction
+      utilityFunction,
+      parkingStallCountScalingFactor
     )
   }
 }
