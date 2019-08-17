@@ -243,7 +243,6 @@ object ParkingZoneSearch {
         parkingZones(parkingZoneId)
       } match {
         case Success(parkingZone) =>
-
           // evaluate whether alternative meets search requirements
           val hasAvailability: Boolean = parkingZones(parkingZoneId).stallsAvailable > 0
           val canParkHere: Boolean = canThisCarParkHere(
@@ -252,7 +251,7 @@ object ParkingZoneSearch {
             returnSpotsWithoutChargers
           )
           val meetsChargingPowerRequirements: Boolean =
-            !rideHailFastChargingOnly || isFastCharging(parkingZone)
+          !rideHailFastChargingOnly || isFastCharging(parkingZone)
 
           if (hasAvailability && canParkHere && meetsChargingPowerRequirements) {
             val parkingAvailability: Double = parkingZone.availability
@@ -268,7 +267,6 @@ object ParkingZoneSearch {
       }
     }
   }.flatten
-
 
   /**
     * allows strictly ignoring charging options which are not "fast"
