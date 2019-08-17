@@ -283,7 +283,15 @@ object ZonalParkingManagerSpec {
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     val probabilityOfResidentialParking = 1.0
     val zonalParkingManagerProps = Props(
-      ZonalParkingManager(parkingDescription, tazTreeMap, geo, random, probabilityOfResidentialParking, maxSearchRadius, boundingBox)
+      ZonalParkingManager(
+        parkingDescription,
+        tazTreeMap,
+        geo,
+        random,
+        probabilityOfResidentialParking,
+        maxSearchRadius,
+        boundingBox
+      )
     )
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }

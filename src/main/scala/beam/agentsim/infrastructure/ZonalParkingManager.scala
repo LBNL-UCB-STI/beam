@@ -99,11 +99,11 @@ class ZonalParkingManager(
                           zone.chargingPointType.nonEmpty
                         else
                           true
-                      case _           => false
+                      case _ => false
                     }
                   case _ => false
                 }
-              case _      => true
+              case _ => true
             }
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
           val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
@@ -267,7 +267,16 @@ object ZonalParkingManager extends LazyLogging {
     }
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
 
-    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, maxSearchRadius, probabilityOfResidentialCharging, boundingBox)
+    new ZonalParkingManager(
+      tazTreeMap,
+      geo,
+      stalls,
+      searchTree,
+      random,
+      maxSearchRadius,
+      probabilityOfResidentialCharging,
+      boundingBox
+    )
   }
 
   /**
@@ -289,7 +298,16 @@ object ZonalParkingManager extends LazyLogging {
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
-    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, maxSearchRadius, probabilityOfResidentialCharging, boundingBox)
+    new ZonalParkingManager(
+      tazTreeMap,
+      geo,
+      parking.zones,
+      parking.tree,
+      random,
+      maxSearchRadius,
+      probabilityOfResidentialCharging,
+      boundingBox
+    )
   }
 
   /**
