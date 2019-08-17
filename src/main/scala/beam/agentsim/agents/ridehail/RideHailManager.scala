@@ -1624,7 +1624,7 @@ class RideHailManager(
   def continueRepositioning(tick: Int): Unit = {
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
-      rideHailResourceAllocationManager.findDepotsForVehiclesInNeedOfRefueling()
+      rideHailResourceAllocationManager.findDepotsForVehiclesInNeedOfRefueling().filterNot(veh=>isOnWayToRefuelingDepot(veh._1))
 
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
     vehiclesHeadedToRefuelingDepot.foreach {
