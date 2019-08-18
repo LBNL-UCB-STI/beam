@@ -298,7 +298,6 @@ object ZonalParkingManager extends LazyLogging {
       }
     }
 
-
     new ZonalParkingManager(
       tazTreeMap,
       geo,
