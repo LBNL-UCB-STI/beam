@@ -1070,7 +1070,7 @@ class RideHailManager(
   ): Unit = {
     depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
-        if (depotQueue.map { _._1 }.contains(vehicleId))
+        if (depotQueue.map { _._1 }.contains(vehicleId)) {
           log.warning(
             "{} already exists in depot {} queue. Not re-adding as it is a duplicate. Source: {} " +
             "THIS SHOULD NEVER HAPPEN!",
