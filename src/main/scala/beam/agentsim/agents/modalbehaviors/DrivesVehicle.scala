@@ -238,7 +238,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       if (nbPassengers > 0) {
         if (currentLeg.mode.isTransit) {
           val transitCapacity = beamConfig.beam.agentsim.tuning.transitCapacity
-          // println("@@@@@@@@@@@@@@@@@@@ Capacity: " + transitCapacity)
           nbPassengers = (nbPassengers / transitCapacity.getOrElse(1.0)).toInt
         }
         data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
