@@ -44,11 +44,12 @@ class BeamConfigUtilsTest extends WordSpecLike with Matchers {
     }
 
     "return all path from includes " in {
-      val filesPaths = Array("test/test2/supertest/file0", "test/test2/file2.f", "test/test2/ttt/file3.f")
+      val filesPaths =
+        Array("test/test2/supertest/file0", "test/test2/ttt/file1.fff", "test/test2/file2.f", "test/test2/ttt/file3.f")
+          .map(toPathStr)
       val fileIncludedPaths = Array("../supertest/file0", "../file2.f", "file3.f")
-      val filePath = "test/test2/ttt/file1.fff"
       val fileMap = Map(
-        filePath -> Array.concat(
+        filesPaths(1) -> Array.concat(
           Array(
             " include \"" + fileIncludedPaths(0) + "\"",
             "some random text",
@@ -58,49 +59,49 @@ class BeamConfigUtilsTest extends WordSpecLike with Matchers {
           mockText
         ),
         filesPaths(0) -> mockText,
-        filesPaths(1) -> mockText,
-        filesPaths(2) -> mockText
-      ).map { case (path, content) => toPathStr(path) -> content }
+        filesPaths(2) -> mockText,
+        filesPaths(3) -> mockText
+      )
 
       val collector = getCollector(fileMap)
-      collector.getFileNameToPath(filePath) should equal(
+      collector.getFileNameToPath(filesPaths(1)) should equal(
         Map(
-          "beam.conf" -> filePath,
+          "beam.conf" -> filesPaths(1),
           "file0"     -> filesPaths(0),
-          "file2.f"   -> filesPaths(1),
-          "file3.f"   -> filesPaths(2)
-        ).map { case (name, path) => name -> toPathStr(path) }
+          "file2.f"   -> filesPaths(2),
+          "file3.f"   -> filesPaths(3)
+        )
       )
     }
 
     "correctly name files if they have same names " in {
-      val filesPaths = Array("test/test2/supertest/file0.ff", "test/test2/file0.ff", "test/test2/ttt/file0.ff")
-      val fileIncludedPaths = Array("../supertest/file0.ff", "../file0.ff", "file0.ff")
-      val filePath = "test/test2/ttt/file1.fff"
+      val filesPaths = Array(
+        "test/test2/supertest/file0.ff",
+        "test/test2/ttt/file1.fff",
+        "test/test2/file0.ff",
+        "test/test2/ttt/file0.ff"
+      ).map(toPathStr)
+
       val fileMap = Map(
-        filePath -> Array.concat(
+        filesPaths(1) -> Array.concat(
           Array(
-            " include \"" + fileIncludedPaths(0) + "\"",
+            " include \"../supertest/file0.ff\"",
             "some random text",
-            "include    \"" + fileIncludedPaths(1) + "\" some text",
-            "include\"" + fileIncludedPaths(2) + "\""
+            "include    \"../file0.ff\" some text",
+            "include\"file0.ff\""
           ),
           mockText
         ),
         filesPaths(0) -> mockText,
-        filesPaths(1) -> mockText,
-        filesPaths(2) -> mockText
-      ).map { case (path, content) => toPathStr(path) -> content }
+        filesPaths(2) -> mockText,
+        filesPaths(3) -> mockText
+      )
 
       val collector = getCollector(fileMap)
-      collector.getFileNameToPath(filePath) should equal(
-        Map(
-          "beam.conf"  -> filePath,
-          "file0.ff"   -> filesPaths(0),
-          "file0_1.ff" -> filesPaths(1),
-          "file0_2.ff" -> filesPaths(2)
-        ).map { case (name, path) => name -> toPathStr(path) }
-      )
+      val f2p = collector.getFileNameToPath(filesPaths(1))
+
+      f2p.keys.toSeq should equal(Seq("beam.conf", "file0.ff", "file0_1.ff", "file0_2.ff"))
+      f2p.values.toSeq should equal(Seq(filesPaths(1), filesPaths(0), filesPaths(2), filesPaths(3)))
     }
 
     "collect all includes recursively " in {

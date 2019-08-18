@@ -1,20 +1,12 @@
 package beam.utils
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.FilenameUtils._
 
 import scala.collection.JavaConverters._
-import org.apache.commons.io.FilenameUtils.{
-  getExtension,
-  getFullPath,
-  getName,
-  normalize,
-  removeExtension,
-  EXTENSION_SEPARATOR_STR
-}
-
 import scala.collection.{immutable, mutable}
 
 object BeamConfigUtils {
