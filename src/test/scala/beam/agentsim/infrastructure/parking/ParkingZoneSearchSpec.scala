@@ -2,21 +2,38 @@
 //
 //import scala.util.Random
 //
+//import beam.agentsim.agents.choice.logit.MultinomialLogit
 //import beam.agentsim.infrastructure.ParkingInquiry
 //import beam.agentsim.infrastructure.charging._
+//import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 //import beam.agentsim.infrastructure.taz._
 //import beam.sim.common.GeoUtils
 //import org.matsim.api.core.v01.{Coord, Id}
 //import org.scalatest.{Matchers, WordSpec}
+//import com.vividsolutions.jts.geom.Envelope
+//import org.geotools.data.shapefile.index.quadtree.QuadTree
 //
 //class ParkingZoneSearchSpec extends WordSpec with Matchers {
 //  "A ParkingZoneSearch" when {
 //    "searched for something when there are no alternatives" should {
 //      "result in None" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
+//
 //        val tree: ParkingZoneSearch.ZoneSearchTree[TAZ] = Map()
 //        val zones: Array[ParkingZone] = Array()
 //
-//        val result = ParkingZoneSearch.find(
+//        val params = ParkingZoneSearchParams(
+//          destinationInMiddle,
+//          parkingDuration = 0.0,
+//          MultinomialLogit(Map.empty, Map.empty),
+//          tree,
+//          zones,
+//
+//        )
+//
+//        val result = ParkingZoneSearch.incrementalParkingZoneSearch(
+//          parkingZoneSearchConfig,
+//
+//        )
 //          destinationInMiddle,
 //          valueOfTime = 0.0,
 //          parkingDuration = 0.0, // ignore pricing ranking
@@ -269,6 +286,10 @@
 //  // including ranking by availability and pricing model
 //  trait SimpleParkingAlternatives {
 //
+//    val mockGeoUtils = new GeoUtils {
+//      def localCRS: String = "epsg:32631"
+//    }
+//
 //    // in this scenario, there are two TAZs: one at (0,0) and one at (10,10)
 //    // there are three agent destinations which are being considered
 //    // the TAZs have a slightly different number of stalls but are otherwise the same
@@ -280,6 +301,19 @@
 //        |
 //      """.stripMargin.split("\n").toIterator
 //
+//    val parkingZoneSearchConfig: ParkingZoneSearchConfiguration =
+//      ParkingZoneSearchConfiguration(
+//        searchStartRadius = 1.0,
+//        searchMaxRadius = 20.0,
+//        new Envelope(-1, 11, -1, 11),
+//        mockGeoUtils.distUTMInMeters
+//      )
+//
+//    val parkingZoneFilterFunction: ParkingZone => Boolean =
+//      (parkingZone: ParkingZone) => {
+//        true
+//      }
+//
 //    val ParkingZoneFileUtils.ParkingLoadingAccumulator(parkingZones, parkingSearchTree, _, _) =
 //      ParkingZoneFileUtils.fromIterator(sourceData)
 //    val destinationNearTazA = new Coord(1, 1) // near taz 1
@@ -288,10 +322,13 @@
 //    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0, 0), 0)
 //    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10, 10), 0)
 //    val tazsInProblem: Seq[TAZ] = Seq(tazA, tazB)
-//  }
 //
-//  val mockGeoUtils = new GeoUtils {
-//    def localCRS: String = "epsg:32631"
+//    val mockTazTreeMap: Map[Id[TAZ], TAZ] =
+//      Map(
+//        tazA.tazId -> tazA,
+//        tazB.tazId -> tazB
+//      )
+//    val mockTazQuadTree: QuadTree[TAZ] =
 //  }
 //
 //  // Euclidian distance for tests

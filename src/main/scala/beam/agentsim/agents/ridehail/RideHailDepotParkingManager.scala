@@ -115,7 +115,7 @@ class RideHailDepotParkingManager(
       }
 
     // adds multinomial logit parameters to a ParkingAlternative
-    val parkingZoneMNLParamsFunction: ParkingAlternative => (ParkingAlternative, Map[String, Double]) =
+    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
       (parkingAlternative: ParkingAlternative) => {
         val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
           case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
@@ -130,7 +130,6 @@ class RideHailDepotParkingManager(
         val maxAssumedInstalledChargingCapacity = 350 // in kW
         val dollarsInCents = 100
 
-        parkingAlternative ->
         Map(
           //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
           "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime, // in US$
@@ -140,7 +139,7 @@ class RideHailDepotParkingManager(
       }
 
     for {
-      (_, parkingStall) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -150,6 +149,9 @@ class RideHailDepotParkingManager(
         )
       taz <- tazTreeMap.getTAZ(parkingStall.tazId)
     } yield {
+
+      logger.debug(s"found ${parkingZonesSeen.length} parking zones")
+
       // override the sampled stall coordinate with the TAZ centroid -
       // we want all agents who park in this TAZ to park in the same location.
       parkingStall.copy(

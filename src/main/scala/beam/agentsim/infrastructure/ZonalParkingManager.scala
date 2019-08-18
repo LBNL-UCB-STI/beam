@@ -169,7 +169,7 @@ class ZonalParkingManager(
         }
 
       // adds multinomial logit parameters to a ParkingAlternative
-      val parkingZoneMNLParamsFunction: ParkingAlternative => (ParkingAlternative, Map[String, Double]) =
+      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
         (parkingAlternative: ParkingAlternative) => {
           val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
             case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
@@ -184,7 +184,6 @@ class ZonalParkingManager(
           val maxAssumedInstalledChargingCapacity = 350 // in kW
           val dollarsInCents = 100
 
-          parkingAlternative ->
           Map(
             //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
             "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * inquiry.valueOfTime, // in US$
@@ -196,20 +195,23 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val (parkingZone, parkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
-        parkingZoneSearchConfiguration,
-        parkingZoneSearchParams,
-        parkingZoneFilterFunction,
-        parkingZoneLocSamplingFunction,
-        parkingZoneMNLParamsFunction
-      ) match {
-        case Some(result) =>
-          result
-        case None =>
-          // didn't find any stalls, so, as a last resort, create a very expensive stall
-          val newStall = ParkingStall.lastResortStall(boundingBox, rand)
-          (ParkingZone.DefaultParkingZone, newStall)
-      }
+      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen) =
+        ParkingZoneSearch.incrementalParkingZoneSearch(
+          parkingZoneSearchConfiguration,
+          parkingZoneSearchParams,
+          parkingZoneFilterFunction,
+          parkingZoneLocSamplingFunction,
+          parkingZoneMNLParamsFunction
+        ) match {
+          case Some(result) =>
+            result
+          case None =>
+            // didn't find any stalls, so, as a last resort, create a very expensive stall
+            val newStall = ParkingStall.lastResortStall(boundingBox, rand)
+            ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+        }
+
+      log.debug(s"found ${parkingZonesSeen.length} parking zones")
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
