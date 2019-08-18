@@ -100,6 +100,7 @@ class ZonalParkingManager(
         )
 
       // filters out ParkingZones which do not apply to this agent
+      // TODO: check for conflicts between variables here - is it always false?
       val parkingZoneFilterFunction: ParkingZone => Boolean =
         (zone: ParkingZone) => {
           val chargeWhenHeadedHome: Boolean =
@@ -195,7 +196,7 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen) =
+      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, iterations) =
         ParkingZoneSearch.incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -211,7 +212,7 @@ class ZonalParkingManager(
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
-      log.debug(s"found ${parkingZonesSeen.length} parking zones")
+      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
@@ -263,22 +264,26 @@ object ZonalParkingManager extends LazyLogging {
   /**
     * constructs a ZonalParkingManager from file
     *
-    * @param random random number generator used to sample parking stall locations
     * @return an instance of the ZonalParkingManager class
     */
   def apply(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
-    random: Random,
-    boundingBox: Envelope,
-    probabilityOfResidentialCharging: Double,
-    parkingStallCountScalingFactor: Double,
-    parkingCostScalingFactor: Double
+    boundingBox: Envelope
   ): ZonalParkingManager = {
 
     // generate or load parking
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
+    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+    val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
+    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+
+    val random = {
+      val seed = beamConfig.matsim.modules.global.randomSeed
+      new Random(seed)
+    }
 
     val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
       ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
@@ -292,7 +297,7 @@ object ZonalParkingManager extends LazyLogging {
           ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
       }
     }
-    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+
 
     new ZonalParkingManager(
       tazTreeMap,
@@ -301,7 +306,7 @@ object ZonalParkingManager extends LazyLogging {
       searchTree,
       random,
       maxSearchRadius,
-      probabilityOfResidentialCharging,
+      probabilityOfResidentialParking,
       boundingBox
     )
   }
@@ -350,24 +355,13 @@ object ZonalParkingManager extends LazyLogging {
     beamRouter: ActorRef,
     boundingBox: Envelope
   ): Props = {
-    val random = {
-      val seed = beamConfig.matsim.modules.global.randomSeed
-      new Random(seed)
-    }
-    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
-    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
+
     Props(
       ZonalParkingManager(
         beamConfig,
         tazTreeMap,
         geo,
-        random,
-        boundingBox,
-        probabilityOfResidentialParking,
-        parkingStallCountScalingFactor,
-        parkingCostScalingFactor
+        boundingBox
       )
     )
   }
