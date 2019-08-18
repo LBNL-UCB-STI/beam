@@ -64,12 +64,49 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
   def getSummaryStats() = {
     import scala.collection.JavaConverters._
     (
-      Map(
-        (chargingCountFileBaseName + "_CAV", new java.lang.Double(cavChargingStatsPerDriver.map(_._2.count).sum/cavChargingStatsPerDriver.size.doubleValue())),
-        (averagekWhFileBaseName + "_CAV", new java.lang.Double(cavChargingStatsPerDriver.map(_._2.averageKWh).sum/cavChargingStatsPerDriver.size.doubleValue())),
-        (chargingCountFileBaseName + "_Human", new java.lang.Double(humanChargingStatsPerDriver.map(_._2.count).sum/humanChargingStatsPerDriver.size.doubleValue())),
-        (averagekWhFileBaseName + "_Human", new java.lang.Double(humanChargingStatsPerDriver.map(_._2.averageKWh).sum/humanChargingStatsPerDriver.size.doubleValue()))
-      )
+      (cavChargingStatsPerDriver.size match {
+        case 0 =>
+          Map(
+            (chargingCountFileBaseName + "_CAV", new java.lang.Double(0.0)),
+            (averagekWhFileBaseName + "_CAV", new java.lang.Double(0.0))
+          )
+        case _ =>
+          Map(
+            (
+              chargingCountFileBaseName + "_CAV",
+              new java.lang.Double(
+                cavChargingStatsPerDriver.map(_._2.count).sum / cavChargingStatsPerDriver.size.doubleValue()
+              )
+            ),
+            (
+              averagekWhFileBaseName + "_CAV",
+              new java.lang.Double(
+                cavChargingStatsPerDriver.map(_._2.averageKWh).sum / cavChargingStatsPerDriver.size.doubleValue()
+              )
+            )
+          )
+      }) ++ (humanChargingStatsPerDriver.size match {
+        case 0 =>
+          Map(
+            (chargingCountFileBaseName + "_Human", new java.lang.Double(0.0)),
+            (averagekWhFileBaseName + "_Human", new java.lang.Double(0.0))
+          )
+        case _ =>
+          Map(
+            (
+              chargingCountFileBaseName + "_Human",
+              new java.lang.Double(
+                humanChargingStatsPerDriver.map(_._2.count).sum / humanChargingStatsPerDriver.size.doubleValue()
+              )
+            ),
+            (
+              averagekWhFileBaseName + "_Human",
+              new java.lang.Double(
+                humanChargingStatsPerDriver.map(_._2.averageKWh).sum / humanChargingStatsPerDriver.size.doubleValue()
+              )
+            )
+          )
+      })
     ).asJava
   }
 }
