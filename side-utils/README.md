@@ -31,11 +31,13 @@ To run analysis use:
    - `-s, --beam_speed <beam_speed_path>
                            Beam speed dictionary path`
    - `--fArgs k1=v1,k2=v2...   Filtering argument`
+   - `simple` Command to analyze simplified network
+        - `-s, --beam_speed <beam_speed_path>
+                                   Beam speed dictionary path`
    
 Supported filtering modes:
   - `all` takes all speeds observation for the whole week and computes median, average
   - `we` weighted speed comparision, night observations have twice more weight
-  - `sl` simplified analysis, uses BEAM speed dictionary
   - `mp` takes observation with maximum speed values in provided hours range. Filter arguments `from=21,to=5,p=10`
     - `from` From hour     
     - `to` To hour

@@ -8,10 +8,14 @@ import beam.side.speed.model.FilterEvent.BeamLengthWeightedEventAction.BeamLengt
 import beam.side.speed.model.FilterEvent.MaxHourPointsEventAction.MaxHourPointsEventAction
 import beam.side.speed.model._
 import beam.side.speed.parser._
-import beam.side.speed.parser.composer.OptionalObservationFilter
+import beam.side.speed.parser.composer.{
+  OptionalObservationFilter,
+  SimplifiedComposer
+}
 import beam.side.speed.parser.data.Dictionary
 import beam.side.speed.parser.graph.{UberSpeed, UberSpeedGraph}
 import beam.side.speed.parser.operation.{
+  ObservationComposer,
   ObservationFilter,
   SpeedDataExtractor,
   SpeedWriter
@@ -99,7 +103,8 @@ trait AppSetup {
           Option(r)
             .filter(_.nonEmpty)
             .map(_ => success)
-            .getOrElse(failure("Empty")))
+            .getOrElse(failure("Empty"))
+      )
       .text("Output file")
 
     opt[String]('m', "mode")
@@ -107,7 +112,7 @@ trait AppSetup {
       .action((m, c) => c.copy(mode = m))
       .validate(
         s =>
-          Seq("all", "wd", "hours", "wh", "hours_range", "we", "mp", "sl")
+          Seq("all", "wd", "hours", "wh", "hours_range", "we", "mp")
             .find(_ == s)
             .map(_ => success)
             .getOrElse(failure("Invalid"))
@@ -127,23 +132,28 @@ trait AppSetup {
       )
       .text("Junction dictionary path")
 
-    opt[String]('s', "beam_speed")
-    //.required()
-      .valueName("<beam_speed_path>")
-      .action((s, c) => c.copy(beamSpeedPath = s))
-      .validate(
-        s =>
-          Try(Paths.get(s).toFile).filter(_.exists()) match {
-            case Success(_) => success
-            case Failure(e) => failure(e.getMessage)
-        }
-      )
-      .text("Beam speed dictionary path")
-
     opt[Map[String, String]]("fArgs")
       .valueName("k1=v1,k2=v2...")
       .action((x, c) => c.copy(fArgs = x))
       .text("Filtering argument")
+
+    cmd("simple")
+      .action((_, c) => c.copy(mode = "sl"))
+      .text("Simplified comparison")
+      .children(
+        opt[String]('s', "beam_speed")
+          .required()
+          .valueName("<beam_speed_path>")
+          .action((s, c) => c.copy(beamSpeedPath = s))
+          .validate(
+            s =>
+              Try(Paths.get(s).toFile).filter(_.exists()) match {
+                case Success(_) => success
+                case Failure(e) => failure(e.getMessage)
+            }
+          )
+          .text("Beam speed dictionary path")
+      )
   }
 
 }
@@ -165,61 +175,94 @@ object SpeedCompareApp extends App with AppSetup {
         new Dictionary[UberOsmWays, String, Long](
           Paths.get(conf.uberOsmMap),
           u => u.segmentId -> u.osmWayId)
-      val beamSpeed =
-        new Dictionary[BeamSpeed, Long, BeamSpeed](
-          Paths.get(conf.beamSpeedPath),
-          u => u.osmId -> u)
+      val osm: OsmWays = OsmWays(conf.osmMapPath, conf.r5MapPath)
 
       implicit val graph: SpeedDataExtractor[Option] =
         UberSpeedGraph(conf.uberSpeedPath, ways, waysBeam, nodes)
       implicit val uber: UberSpeed[Option] = new UberSpeed[Option]
-      implicit val writer: SpeedWriter[BeamSpeed, Option] =
-        new CsvOptionalWriter[BeamSpeed](conf.output)
-      implicit val comparator
-        : SpeedComparator[BeamSpeed, _ <: FilterEventAction, Option] =
+      implicit val comparator: SpeedComparator[_, _, Option] =
         conf.mode match {
-          case "all" =>
-            implicit val filter
-              : ObservationFilter[Option, AllHoursDaysEventAction] =
-              new OptionalObservationFilter[AllHoursDaysEventAction](Unit)
-            new SpeedComparator[BeamSpeed, AllHoursDaysEventAction, Option](
-              OsmWays(conf.osmMapPath, conf.r5MapPath),
-              uber
-            )
-          case "we" =>
-            implicit val filter
-              : ObservationFilter[Option, AllHoursWeightedEventAction] =
-              new OptionalObservationFilter[AllHoursWeightedEventAction](Unit)
-            new SpeedComparator[BeamSpeed, AllHoursWeightedEventAction, Option](
-              OsmWays(conf.osmMapPath, conf.r5MapPath),
-              uber
-            )
+          case "all" | "we" | "mp" =>
+            commonCompare(conf, nodes, ways, waysBeam, osm)
           case "sl" =>
-            implicit val filter
-              : ObservationFilter[Option, BeamLengthWeightedEventAction] =
-              new OptionalObservationFilter[BeamLengthWeightedEventAction](Unit)
-            new SpeedComparator[BeamSpeed,
-                                BeamLengthWeightedEventAction,
-                                Option](
-              OsmWays(conf.osmMapPath, conf.r5MapPath),
-              uber
-            )
-          case "mp" =>
-            implicit val filter
-              : ObservationFilter[Option, MaxHourPointsEventAction] =
-              new OptionalObservationFilter[MaxHourPointsEventAction](
-                MaxHourPointFiltered(conf.fArgs("from").toInt,
-                                     conf.fArgs("to").toInt,
-                                     conf.fArgs("p").toInt)
-              )
-            new SpeedComparator[BeamSpeed, MaxHourPointsEventAction, Option](
-              OsmWays(conf.osmMapPath, conf.r5MapPath),
-              uber
-            )
+            simplified(conf, nodes, ways, waysBeam, osm)
         }
 
       comparator.compare()
       System.exit(0)
     case None => System.exit(-1)
+  }
+
+  private def simplified(
+      conf: CompareConfig,
+      nodes: Dictionary[UberOsmNode, String, Long],
+      ways: Dictionary[UberOsmWays, Long, String],
+      waysBeam: Dictionary[UberOsmWays, String, Long],
+      osm: OsmWays
+  )(
+      implicit graph: SpeedDataExtractor[Option],
+      uber: UberSpeed[Option]
+  ): SpeedComparator[LinkSpeed, BeamLengthWeightedEventAction, Option] = {
+    import interpreter._
+
+    val beamSpeed =
+      new Dictionary[BeamSpeed, Long, BeamSpeed](Paths.get(conf.beamSpeedPath),
+                                                 u => u.osmId -> u)
+    implicit val writer: SpeedWriter[LinkSpeed, Option] =
+      new CsvOptionalWriter[LinkSpeed](conf.output)
+    implicit val simplifiedComposer
+      : ObservationComposer[Option, Seq[WayMetrics], UberWaySpeed] =
+      new SimplifiedComposer(waysBeam, beamSpeed)
+    implicit val filter
+      : ObservationFilter[Option, BeamLengthWeightedEventAction] =
+      new OptionalObservationFilter[BeamLengthWeightedEventAction](Unit)
+    implicit val metricComposer
+      : ObservationComposer[Option, Seq[WayMetric], UberWaySpeed] =
+      metrics.WayMetricSpeedComposer
+    new SpeedComparator[LinkSpeed, BeamLengthWeightedEventAction, Option](osm,
+                                                                          uber)
+  }
+
+  private def commonCompare(
+      conf: CompareConfig,
+      nodes: Dictionary[UberOsmNode, String, Long],
+      ways: Dictionary[UberOsmWays, Long, String],
+      waysBeam: Dictionary[UberOsmWays, String, Long],
+      osm: OsmWays
+  )(
+      implicit graph: SpeedDataExtractor[Option],
+      uber: UberSpeed[Option]
+  ): SpeedComparator[BeamSpeed, _ <: FilterEventAction, Option] = {
+    import metrics._
+    import interpreter._
+
+    implicit val writer: SpeedWriter[BeamSpeed, Option] =
+      new CsvOptionalWriter[BeamSpeed](conf.output)
+    //implicit val comparator: SpeedComparator[BeamSpeed, _ <: FilterEventAction, Option] =
+    conf.mode match {
+      case "all" =>
+        implicit val filter
+          : ObservationFilter[Option, AllHoursDaysEventAction] =
+          new OptionalObservationFilter[AllHoursDaysEventAction](Unit)
+        new SpeedComparator[BeamSpeed, AllHoursDaysEventAction, Option](osm,
+                                                                        uber)
+      case "we" =>
+        implicit val filter
+          : ObservationFilter[Option, AllHoursWeightedEventAction] =
+          new OptionalObservationFilter[AllHoursWeightedEventAction](Unit)
+        new SpeedComparator[BeamSpeed, AllHoursWeightedEventAction, Option](
+          osm,
+          uber)
+      case "mp" =>
+        implicit val filter
+          : ObservationFilter[Option, MaxHourPointsEventAction] =
+          new OptionalObservationFilter[MaxHourPointsEventAction](
+            MaxHourPointFiltered(conf.fArgs("from").toInt,
+                                 conf.fArgs("to").toInt,
+                                 conf.fArgs("p").toInt)
+          )
+        new SpeedComparator[BeamSpeed, MaxHourPointsEventAction, Option](osm,
+                                                                         uber)
+    }
   }
 }

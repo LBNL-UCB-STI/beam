@@ -7,7 +7,7 @@ import beam.side.speed.parser.operation.ProgramInterprets
 
 package object parser {
   implicit object interpreter
-      extends MetricsComposerInterpreters
-      with ProgramInterprets
+      extends ProgramInterprets
       with BeamComposerInterpreters
+  implicit object metrics extends MetricsComposerInterpreters
 }
