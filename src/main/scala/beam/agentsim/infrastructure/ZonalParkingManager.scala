@@ -1,27 +1,16 @@
 package beam.agentsim.infrastructure
 
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.collections.QuadTree
-
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Random, Success, Try}
 
 class ZonalParkingManager(
   tazTreeMap: TAZTreeMap,
@@ -76,6 +65,11 @@ class ZonalParkingManager(
         case _        => true
       }
 
+      val rideHailFastChargingOnly: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => true
+        case _        => false
+      }
+
       // performs a concentric ring search from the destination to find a parking stall, and creates it
       val (parkingZone, parkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
         ZonalParkingManager.MinSearchRadius,
@@ -92,6 +86,7 @@ class ZonalParkingManager(
         rand,
         returnSpotsWithChargers,
         returnSpotsWithoutChargers,
+        rideHailFastChargingOnly,
         boundingBox
       ) match {
         case Some(result) =>
