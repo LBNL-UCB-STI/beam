@@ -374,6 +374,7 @@ class RideHailManager(
     boundingBox,
     beamServices.geo.distUTMInMeters,
     utilityFunction,
+    beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
@@ -1069,7 +1070,7 @@ class RideHailManager(
   ): Unit = {
     depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
-        if (depotQueue.contains(vehicleId)) {
+        if (depotQueue.map { _._1 }.contains(vehicleId))
           log.warning(
             "{} already exists in depot {} queue. Not re-adding as it is a duplicate. Source: {} " +
             "THIS SHOULD NEVER HAPPEN!",
