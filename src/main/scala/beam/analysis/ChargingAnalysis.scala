@@ -65,10 +65,10 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
     import scala.collection.JavaConverters._
     (
       Map(
-        (chargingCountFileBaseName + "_CAV", cavChargingStatsPerDriver.map(_._2.count).sum/cavChargingStatsPerDriver.size.toDouble),
-        (averagekWhFileBaseName + "_CAV", cavChargingStatsPerDriver.map(_._2.averageKWh).sum/cavChargingStatsPerDriver.size.toDouble),
-        (chargingCountFileBaseName + "_Human", humanChargingStatsPerDriver.map(_._2.count).sum/humanChargingStatsPerDriver.size.toDouble),
-        (averagekWhFileBaseName + "_Human", humanChargingStatsPerDriver.map(_._2.averageKWh).sum/humanChargingStatsPerDriver.size.toDouble)
+        (chargingCountFileBaseName + "_CAV", new java.lang.Double(cavChargingStatsPerDriver.map(_._2.count).sum/cavChargingStatsPerDriver.size.doubleValue())),
+        (averagekWhFileBaseName + "_CAV", new java.lang.Double(cavChargingStatsPerDriver.map(_._2.averageKWh).sum/cavChargingStatsPerDriver.size.doubleValue())),
+        (chargingCountFileBaseName + "_Human", new java.lang.Double(humanChargingStatsPerDriver.map(_._2.count).sum/humanChargingStatsPerDriver.size.doubleValue())),
+        (averagekWhFileBaseName + "_Human", new java.lang.Double(humanChargingStatsPerDriver.map(_._2.averageKWh).sum/humanChargingStatsPerDriver.size.doubleValue()))
       )
     ).asJava
   }
