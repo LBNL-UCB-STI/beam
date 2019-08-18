@@ -658,11 +658,17 @@ trait BeamHelper extends LazyLogging {
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
     new java.io.File(outputDirectory).mkdirs
-    val outConf = Paths.get(outputDirectory, "beam.conf")
     val location = config.getString("config")
 
-    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
-    logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    val confNameToPath = BeamConfigUtils.getFileNameToPath(location)
+
+    logger.info("Processing configs for [{}] simulation.", beamConfig.beam.agentsim.simulationName)
+    confNameToPath.foreach {
+      case (fileName, filePath) =>
+        val outFile = Paths.get(outputDirectory, fileName)
+        Files.copy(Paths.get(filePath), outFile, StandardCopyOption.REPLACE_EXISTING)
+        logger.info("Config '{}' copied to '{}'.", filePath, outFile)
+    }
   }
 
   private def buildMatsimConfig(
