@@ -33,7 +33,10 @@ public class StatsFactory {
         RideHailUtilization,
         ParkingType,
         ActivityType,
-        VehicleChargingAnalysis
+        VehicleChargingAnalysis,
+        RideHailSummary,
+        LoadOverTimeAnalysis,
+        ChargingAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -115,6 +118,12 @@ public class StatsFactory {
                 return new ActivityTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
             case VehicleChargingAnalysis:
                 return new VehicleChargingAnalysis();
+            case RideHailSummary:
+                return new RideHailSummary();
+            case LoadOverTimeAnalysis:
+                return new LoadOverTimeAnalysis();
+            case ChargingAnalysis:
+                return new ChargingAnalysis();
             default:
                 return null;
         }
