@@ -63,6 +63,31 @@ class ZonalParkingManager(
     case inquiry: ParkingInquiry =>
       log.debug("Received parking inquiry: {}", inquiry)
 
+      // a lookup for valid parking types based on this inquiry
+      val preferredParkingTypes: Set[ParkingType] =
+        inquiry.activityType match {
+          case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
+          case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
+          case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
+          case act if act.equalsIgnoreCase("charge") =>
+            Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+          case _ => Set(ParkingType.Public)
+        }
+
+      // ---------------------------------------------------------------------------------------------
+      // a ParkingZoneSearch takes the following as parameters
+      //
+      //   ParkingZoneSearchConfiguration: static settings for all searches
+      //   ParkingZoneSearchParams: things specific to this inquiry/state of simulation
+      //   parkingZoneFilterFunction: a predicate which is applied as a filter for each search result
+      //     which filters out the search case, typically due to ParkingZone/ParkingInquiry fields
+      //   parkingZoneLocSamplingFunction: this function creates a ParkingStall from a ParkingZone
+      //     by sampling a location for a stall
+      //   parkingZoneMNLParamsFunction: this is used to decorate each ParkingAlternative with
+      //     utility function parameters. all alternatives are sampled in a multinomial logit function
+      //     based on this.
+      // ---------------------------------------------------------------------------------------------
+
       val parkingZoneSearchParams: ParkingZoneSearchParams =
         ParkingZoneSearchParams(
           inquiry.destinationUtm,
@@ -73,16 +98,6 @@ class ZonalParkingManager(
           tazTreeMap.tazQuadTree,
           rand
         )
-
-      // constrains parking options by ParkingType
-      val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
-        case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
-        case act if act.equalsIgnoreCase("charge") =>
-          Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _ => Seq(ParkingType.Public)
-      }
 
       // filters out ParkingZones which do not apply to this agent
       val parkingZoneFilterFunction: ParkingZone => Boolean =
@@ -124,8 +139,12 @@ class ZonalParkingManager(
             case _        => true
           }
           val rideHailFastChargingOnly: Boolean = inquiry.activityType.toLowerCase match {
-            case "charge" => true
-            case _        => false
+            case "charge" =>
+              zone.chargingPointType match {
+                case Some(chargingPointType) => ChargingPointType.isFastCharger(chargingPointType)
+                case None                    => false
+              }
+            case _ => false
           }
           val canThisCarParkHere: Boolean =
             zone.chargingPointType match {
@@ -134,7 +153,7 @@ class ZonalParkingManager(
             }
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-          hasAvailability && canThisCarParkHere && validParkingType && chargeWhenHeadedHome
+          hasAvailability && canThisCarParkHere && validParkingType && chargeWhenHeadedHome && rideHailFastChargingOnly
         }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -174,7 +193,9 @@ class ZonalParkingManager(
           )
         }
 
-      // conduct search for parking stall
+      ///////////////////////////////////////////
+      // run ParkingZoneSearch for a ParkingStall
+      ///////////////////////////////////////////
       val (parkingZone, parkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
         parkingZoneSearchConfiguration,
         parkingZoneSearchParams,
