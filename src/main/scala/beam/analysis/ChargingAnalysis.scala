@@ -64,20 +64,12 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
   def getSummaryStats() = {
     import scala.collection.JavaConverters._
     (
-      cavChargingStatsPerDriver.flatMap {
-        case (driverId, chargingStats) =>
-          Map(
-            (chargingCountFileBaseName + "_CAV" + driverId, chargingStats.count.toDouble: java.lang.Double),
-            (averagekWhFileBaseName + "_CAV" + driverId, chargingStats.averageKWh: java.lang.Double)
-          )
-      } ++
-      humanChargingStatsPerDriver.flatMap {
-        case (driverId, chargingStats) =>
-          Map(
-            (chargingCountFileBaseName + "_Human" + driverId, chargingStats.count.toDouble: java.lang.Double),
-            (averagekWhFileBaseName + "_Human" + driverId, chargingStats.averageKWh: java.lang.Double)
-          )
-      }
+      Map(
+        (chargingCountFileBaseName + "_CAV", cavChargingStatsPerDriver.map(_._2.count).sum/cavChargingStatsPerDriver.size.toDouble),
+        (averagekWhFileBaseName + "_CAV", cavChargingStatsPerDriver.map(_._2.averageKWh).sum/cavChargingStatsPerDriver.size.toDouble),
+        (chargingCountFileBaseName + "_Human", humanChargingStatsPerDriver.map(_._2.count).sum/humanChargingStatsPerDriver.size.toDouble),
+        (averagekWhFileBaseName + "_Human", humanChargingStatsPerDriver.map(_._2.averageKWh).sum/humanChargingStatsPerDriver.size.toDouble)
+      )
     ).asJava
   }
 }
