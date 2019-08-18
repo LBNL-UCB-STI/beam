@@ -2,6 +2,7 @@ package beam.agentsim.events
 
 import java.util
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -12,9 +13,11 @@ import org.matsim.vehicles.Vehicle
 class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
-  energyInJoules: Double,
-  sessionDuration: Double,
-  vehId: Id[Vehicle]
+  val energyInJoules: Double,
+  val sessionStartingFuelLevelInJoules: Double,
+  val sessionDuration: Double,
+  vehId: Id[Vehicle],
+  val vehicleType: BeamVehicleType
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
@@ -39,6 +42,7 @@ class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.toString)
     attributes
   }
 }
@@ -55,4 +59,5 @@ object RefuelSessionEvent {
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
+  val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
 }

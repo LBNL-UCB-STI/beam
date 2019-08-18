@@ -74,7 +74,9 @@ public class RideHailSummary implements IterationSummaryAnalysis {
                 }
                 latestModeChoiceAttempt.remove(personLeavesVehicle.getPersonId());
                 personSharedTrip.remove(personLeavesVehicle.getPersonId());
-                withinPooledTrip.put(idVehL, withinPooledTrip.get(idVehL) - 1);
+                if (idVehL != null && withinPooledTrip.get(idVehL) != null) {
+                    withinPooledTrip.put(idVehL, withinPooledTrip.get(idVehL) - 1);
+                }
                 break;
             case "PathTraversal":
                 PathTraversalEvent pathTraversal = (PathTraversalEvent)event;
