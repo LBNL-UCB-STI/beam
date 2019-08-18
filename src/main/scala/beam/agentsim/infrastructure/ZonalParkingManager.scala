@@ -123,6 +123,10 @@ class ZonalParkingManager(
             case "charge" => false
             case _        => true
           }
+          val rideHailFastChargingOnly: Boolean = inquiry.activityType.toLowerCase match {
+            case "charge" => true
+            case _        => false
+          }
           val canThisCarParkHere: Boolean =
             zone.chargingPointType match {
               case Some(_) => returnSpotsWithChargers

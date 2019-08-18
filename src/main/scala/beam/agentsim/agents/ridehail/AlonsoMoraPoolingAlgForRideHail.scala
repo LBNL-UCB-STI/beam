@@ -221,7 +221,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   def getRidehailSchedule(
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
-    maxDistanceRangeInMeters: Int,
+    remainingVehicleRangeInMeters: Int,
     skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
     val newPoolingList = scala.collection.mutable.ListBuffer.empty[MobilityRequest]
@@ -255,7 +255,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       val tdc = getTimeDistanceAndCost(prevReq, curReq, skimmer)
       val serviceTime = prevReq.serviceTime + tdc.time
       val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
-      if (serviceTime <= curReq.upperBoundTime && serviceDistance <= maxDistanceRangeInMeters) {
+      if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
         newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
       } else {
         return None
