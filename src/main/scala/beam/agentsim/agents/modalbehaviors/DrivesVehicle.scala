@@ -1,35 +1,30 @@
 package beam.agentsim.agents.modalbehaviors
 
-import akka.actor.FSM.Failure
+import scala.collection.mutable
+
 import akka.actor.{ActorRef, Stash}
+import akka.actor.FSM.Failure
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
-import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{
-  ChargingPlugInEvent,
-  ChargingPlugOutEvent,
-  ParkEvent,
-  PathTraversalEvent,
-  RefuelSessionEvent,
-  SpaceTime
-}
+import beam.agentsim.events.{ChargingPlugInEvent, ParkEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerMessage}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{TRANSIT, WALK}
+import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
-import beam.sim.BeamScenario
+import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -42,8 +37,6 @@ import org.matsim.api.core.v01.events.{
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.mutable
 
 /**
   * DrivesVehicle
@@ -204,6 +197,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
 
+  private def beamConfig: BeamConfig = BeamConfigChangesObservable.lastBeamConfig
+
   case class PassengerScheduleEmptyMessage(
     lastVisited: SpaceTime,
     toll: Double,
@@ -242,8 +237,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
       if (nbPassengers > 0) {
         if (currentLeg.mode.isTransit) {
-          nbPassengers =
-            (nbPassengers / beamScenario.beamConfig.beam.agentsim.tuning.transitCapacity.getOrElse(1.0)).toInt
+          val transitCapacity = beamConfig.beam.agentsim.tuning.transitCapacity
+          // println("@@@@@@@@@@@@@@@@@@@ Capacity: " + transitCapacity)
+          nbPassengers = (nbPassengers / transitCapacity.getOrElse(1.0)).toInt
         }
         data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
           updateFuelConsumedByTrip(rider.personId, fuelConsumed, nbPassengers)
@@ -264,12 +260,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           )
         )
       }
-      //      log.debug(
-      //        "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})",
-      //        nextNotifyVehicleResourceIdle,
-      //        currentVehicleUnderControl,
-      //        tick
-      //      )
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
         logDebug(

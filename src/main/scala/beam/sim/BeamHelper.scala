@@ -151,7 +151,9 @@ trait BeamHelper extends LazyLogging {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           bind(classOf[BeamConfigHolder])
-          bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
+          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
