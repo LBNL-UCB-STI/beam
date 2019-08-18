@@ -100,8 +100,8 @@ class BeamConfigUtilsTest extends WordSpecLike with Matchers {
       val collector = getCollector(fileMap)
       val f2p = collector.getFileNameToPath(filesPaths(1))
 
-      f2p.keys.toSeq should equal(Seq("beam.conf", "file0.ff", "file0_1.ff", "file0_2.ff"))
-      f2p.values.toSeq should equal(Seq(filesPaths(1), filesPaths(0), filesPaths(2), filesPaths(3)))
+      f2p.keys.toSet should equal(Set("file0.ff", "file0_1.ff", "beam.conf", "file0_2.ff"))
+      f2p.values.toSet should equal(Set(filesPaths(0), filesPaths(1), filesPaths(2), filesPaths(3)))
     }
 
     "collect all includes recursively " in {
