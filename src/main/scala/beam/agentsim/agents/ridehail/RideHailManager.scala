@@ -374,6 +374,7 @@ class RideHailManager(
     boundingBox,
     beamServices.geo.distUTMInMeters,
     utilityFunction,
+    beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
