@@ -34,6 +34,7 @@ object ParkingZoneSearch {
 
   /**
     * static configuration for all parking zone searches in this simulation
+    *
     * @param searchStartRadius radius of the first concentric ring search
     * @param searchMaxRadius maximum radius for the search
     * @param boundingBox limiting coordinate bounds for simulation area
@@ -50,6 +51,7 @@ object ParkingZoneSearch {
 
   /**
     * dynamic data for a parking zone search, related to parking infrastructure and inquiry
+    *
     * @param destinationUTM destination of inquiry
     * @param parkingDuration duration of the activity agent wants to park for
     * @param multinomialLogit utility function which evaluates [[ParkingAlternative]]s
@@ -72,6 +74,7 @@ object ParkingZoneSearch {
 
   /**
     * result of a [[ParkingZoneSearch]]
+    *
     * @param parkingStall the embodied stall with sampled coordinate
     * @param parkingZone the [[ParkingZone]] associated with this stall
     * @param parkingZoneIdsSeen list of [[ParkingZone]] ids that were seen in this search
@@ -103,6 +106,7 @@ object ParkingZoneSearch {
 
   /**
     * used within a search to track search data
+    *
     * @param isValidAlternative
     * @param parkingAlternative
     * @param utilityParameters
@@ -115,6 +119,7 @@ object ParkingZoneSearch {
 
   /**
     * search for valid parking zones by incremental ring search and sample the highest utility alternative
+    *
     * @param config static search parameters for all searches in a simulation
     * @param params inquiry and infrastructure data used as parameters for this search
     * @param parkingZoneFilterFunction a predicate to filter out types of stalls
@@ -184,9 +189,12 @@ object ParkingZoneSearch {
           _search(thisOuterRadius, thisOuterRadius * config.searchExpansionFactor, parkingZoneIdsSeen, iterations + 1)
         } else {
 
+          // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative, Map[String, Double]] =
-            alternatives.map { a =>
-              a.parkingAlternative -> a.utilityParameters
+            alternatives.flatMap { a =>
+              if (a.isValidAlternative)
+                Some { a.parkingAlternative -> a.utilityParameters } else
+                None
             }.toMap
 
           params.multinomialLogit.sampleAlternative(alternativesToSample, params.random).map { result =>
