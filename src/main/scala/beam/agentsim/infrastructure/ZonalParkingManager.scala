@@ -6,7 +6,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
+  ParkingAlternative,
+  ParkingZoneSearchConfiguration,
+  ParkingZoneSearchParams
+}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -63,8 +67,8 @@ class ZonalParkingManager(
       // if headed home, some agents require home charging at some probability
       val isPEVAndNeedsToChargeAtHome: Option[Boolean] =
         inquiry.activityType.toLowerCase match {
-          case "home" => Some{ rand.nextDouble() <= probabilityOfResidentialCharging }
-          case _ => None
+          case "home" => Some { rand.nextDouble() <= probabilityOfResidentialCharging }
+          case _      => None
         }
 
       // allow charger ParkingZones
@@ -87,7 +91,6 @@ class ZonalParkingManager(
         case "charge" => false
         case _        => true
       }
-
 
       // ---------------------------------------------------------------------------------------------
       // a ParkingZoneSearch takes the following as parameters
@@ -144,10 +147,10 @@ class ZonalParkingManager(
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
           hasAvailability &&
-            chargeWhenHeadedHome &&
-            rideHailFastChargingOnly &&
-            validParkingType &&
-            canThisCarParkHere
+          chargeWhenHeadedHome &&
+          rideHailFastChargingOnly &&
+          validParkingType &&
+          canThisCarParkHere
         }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
