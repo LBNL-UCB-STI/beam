@@ -64,7 +64,7 @@ public class RideHailSummary implements IterationSummaryAnalysis {
                 Id<Person> idPerL = personLeavesVehicle.getPersonId();
                 if(!idVehL.toString().contains("rideHailVehicle") || idPerL.toString().contains("rideHailAgent")) return;
                 String chosenModeL = latestModeChoiceAttempt.get(personLeavesVehicle.getPersonId());
-                if(chosenModeL.equals("ride_hail_pooled")) {
+                if(! (chosenModeL==null ) && chosenModeL.equals("ride_hail_pooled")) {
                     if(withinPooledTrip.get(idVehL) > 1) personSharedTrip.put(idPerL, true);
                     if(personSharedTrip.get(idPerL)) {
                         countOfPoolTrips++;
