@@ -139,7 +139,7 @@ class RideHailDepotParkingManager(
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, _) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
