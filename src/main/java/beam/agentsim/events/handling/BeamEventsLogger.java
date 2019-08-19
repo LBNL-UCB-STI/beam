@@ -46,6 +46,9 @@ class BeamEventsLogger {
         if(writeThisIteration) {
             matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
             String eventsFileBasePath = matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+
+            BeamEventsWriterBase pWriter = new BeamEventsWriterParquet(eventsFileBasePath + ".parquet", this, beamServices, null);
+
             for(BeamEventsFileFormats fmt : eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter;
                 newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, null, fmt);
