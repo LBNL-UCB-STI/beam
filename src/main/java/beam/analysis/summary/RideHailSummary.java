@@ -3,6 +3,8 @@ package beam.analysis.summary;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
@@ -15,71 +17,84 @@ import java.util.Map;
 
 public class RideHailSummary implements IterationSummaryAnalysis {
 
-    private int countOfPoolTrips = 0;
-    private int countOfSoloPoolTrips = 0;
+    private int countOfMultiPassengerPoolTrips = 0;
+    private int countOfOnePassengerPoolTrips = 0;
     private int countOfSoloTrips = 0;
     private int countOfUnmatchedPoolRequests = 0;
     private int countOfUnmatchedSoloRequests = 0;
     private double sumDeadheadingDistanceTraveled = 0.0;
     private double sumRideHailDistanceTraveled = 0.0;
-
-    private Map<Id<Person>, String> latestModeChoiceAttempt = new HashMap<Id<Person>, String>();
-    private Map<Id<Person>, Boolean> personSharedTrip = new HashMap<Id<Person>, Boolean>();
-    private Map<Id<Vehicle>, Integer> withinPooledTrip = new HashMap<Id<Vehicle>, Integer>();
+    private Map<Id<Person>, String> modeChoiceAttempt = new HashMap<Id<Person>, String>();
+    private Map<Id<Person>, Boolean> personHasSharedATrip = new HashMap<Id<Person>, Boolean>();
+    private Map<Id<Vehicle>, Integer> passengersPerVeh = new HashMap<Id<Vehicle>, Integer>();
+    private Map<Id<Person>, Id<Vehicle>> personInVeh = new HashMap<Id<Person>, Id<Vehicle>>();
 
     @Override
     public void processStats(Event event) {
         switch(event.getEventType()) {
             case "ModeChoice":
                 ModeChoiceEvent modeChoice = (ModeChoiceEvent)event;
-                if(modeChoice.mode.contains("ride_hail")) {
-                    latestModeChoiceAttempt.put(modeChoice.personId, modeChoice.mode);
-                } else if(latestModeChoiceAttempt.containsKey(modeChoice.personId) &&
-                        !latestModeChoiceAttempt.get(modeChoice.personId).contains("unmatched")) {
-                    String previousMode = latestModeChoiceAttempt.get(modeChoice.personId);
-                    latestModeChoiceAttempt.put(modeChoice.personId, previousMode + "_unmatched");
+                if(modeChoice.getPersonId().toString().startsWith("rideHailAgent")) {
+                    // do nothing, agent is driving (this test might be unnecessary)
+                } else if(modeChoice.mode.startsWith("ride_hail")) {
+                    modeChoiceAttempt.put(modeChoice.personId, modeChoice.mode);
+                } else if(modeChoiceAttempt.containsKey(modeChoice.personId) &&
+                        !modeChoiceAttempt.get(modeChoice.personId).endsWith("unmatched")) {
+                    String previousMode = modeChoiceAttempt.get(modeChoice.personId);
+                    modeChoiceAttempt.put(modeChoice.personId, previousMode + "_unmatched");
                 }
                 break;
             case "PersonEntersVehicle":
                 PersonEntersVehicleEvent personEntersVehicle = (PersonEntersVehicleEvent)event;
-                Id<Vehicle> idVehE = personEntersVehicle.getVehicleId();
-                Id<Person> idPerE = personEntersVehicle.getPersonId();
-                if(!latestModeChoiceAttempt.containsKey(idPerE)) return;
-                String modeChosenL = latestModeChoiceAttempt.get(idPerE);
-                if(modeChosenL.contains("unmatched")) {
-                    if(modeChosenL.contains("ride_hail_pooled")) countOfUnmatchedPoolRequests++;
-                    else countOfUnmatchedSoloRequests++;
+                if(!modeChoiceAttempt.containsKey(personEntersVehicle.getPersonId())) return;
+                String modeChosenL = modeChoiceAttempt.get(personEntersVehicle.getPersonId());
+                if(modeChosenL.endsWith("unmatched")) {
+                    if(modeChosenL.startsWith("ride_hail_pooled"))
+                        countOfUnmatchedPoolRequests++;
+                    else
+                        countOfUnmatchedSoloRequests++;
+                } else if(!personEntersVehicle.getVehicleId().toString().startsWith("rideHailVehicle")) {
+                    // do nothing, agent is walking
                 } else if(modeChosenL.equals("ride_hail_pooled")){
-                    personSharedTrip.put(idPerE, false);
-                    withinPooledTrip.putIfAbsent(idVehE, 0);
-                    withinPooledTrip.put(idVehE, withinPooledTrip.get(idVehE) + 1);
-                    if(withinPooledTrip.get(idVehE) > 1) personSharedTrip.put(idPerE, true);
+                    personInVeh.put(personEntersVehicle.getPersonId(), personEntersVehicle.getVehicleId());
+                    int prev_pool = passengersPerVeh.getOrDefault(personEntersVehicle.getVehicleId(), 0);
+                    passengersPerVeh.put(personEntersVehicle.getVehicleId(), prev_pool + 1);
+                    for (Map.Entry<Id<Person>, Id<Vehicle>> entry : personInVeh.entrySet()) {
+                        if(entry.getValue() != personEntersVehicle.getVehicleId())
+                            continue;
+                        if(!personHasSharedATrip.getOrDefault(entry.getKey(), false)){
+                            personHasSharedATrip.put(entry.getKey(), passengersPerVeh.get(personEntersVehicle.getVehicleId()) > 1);
+                        }
+                    }
                 } else {
                     countOfSoloTrips++;
                 }
                 break;
             case "PersonLeavesVehicle":
                 PersonLeavesVehicleEvent personLeavesVehicle = (PersonLeavesVehicleEvent)event;
-                Id<Vehicle> idVehL = personLeavesVehicle.getVehicleId();
-                Id<Person> idPerL = personLeavesVehicle.getPersonId();
-                if(!idVehL.toString().contains("rideHailVehicle") || idPerL.toString().contains("rideHailAgent")) return;
-                String chosenModeL = latestModeChoiceAttempt.get(personLeavesVehicle.getPersonId());
-                if(chosenModeL.equals("ride_hail_pooled")) {
-                    if(withinPooledTrip.get(idVehL) > 1) personSharedTrip.put(idPerL, true);
-                    if(personSharedTrip.get(idPerL)) {
-                        countOfPoolTrips++;
+                if(!modeChoiceAttempt.containsKey(personLeavesVehicle.getPersonId())) return;
+                String chosenModeL = modeChoiceAttempt.get(personLeavesVehicle.getPersonId());
+                if(!personLeavesVehicle.getVehicleId().toString().startsWith("rideHailVehicle")) {
+                    // do nothing, agent probably walking, although it shouldn't happen here
+                } else if(chosenModeL.equals("ride_hail_pooled")) {
+                    if(passengersPerVeh.get(personLeavesVehicle.getVehicleId()) > 1)
+                        personHasSharedATrip.put(personLeavesVehicle.getPersonId(), true);
+                    if(personHasSharedATrip.get(personLeavesVehicle.getPersonId())) {
+                        countOfMultiPassengerPoolTrips++;
                     } else {
-                        countOfSoloPoolTrips++;
+                        countOfOnePassengerPoolTrips++;
                     }
+                    personHasSharedATrip.remove(personLeavesVehicle.getPersonId());
+                    personInVeh.remove(personLeavesVehicle.getPersonId());
+                    passengersPerVeh.put(personLeavesVehicle.getVehicleId(), passengersPerVeh.get(personLeavesVehicle.getVehicleId()) - 1);
                 }
-                latestModeChoiceAttempt.remove(personLeavesVehicle.getPersonId());
-                personSharedTrip.remove(personLeavesVehicle.getPersonId());
-                withinPooledTrip.put(idVehL, withinPooledTrip.get(idVehL) - 1);
+                modeChoiceAttempt.remove(personLeavesVehicle.getPersonId());
                 break;
             case "PathTraversal":
                 PathTraversalEvent pathTraversal = (PathTraversalEvent)event;
-                if(!pathTraversal.vehicleId().toString().contains("rideHailVehicle")) return;
-                if(pathTraversal.numberOfPassengers() < 1) sumDeadheadingDistanceTraveled += pathTraversal.legLength();
+                if(!pathTraversal.vehicleId().toString().startsWith("rideHailVehicle")) return;
+                if(pathTraversal.numberOfPassengers() < 1)
+                    sumDeadheadingDistanceTraveled += pathTraversal.legLength();
                 sumRideHailDistanceTraveled += pathTraversal.legLength();
                 break;
             default:
@@ -88,16 +103,16 @@ public class RideHailSummary implements IterationSummaryAnalysis {
 
     @Override
     public void resetStats() {
-        countOfPoolTrips = 0;
-        countOfSoloPoolTrips = 0;
+        countOfMultiPassengerPoolTrips = 0;
+        countOfOnePassengerPoolTrips = 0;
         countOfSoloTrips = 0;
         countOfUnmatchedPoolRequests = 0;
         countOfUnmatchedSoloRequests = 0;
         sumDeadheadingDistanceTraveled = 0.0;
         sumRideHailDistanceTraveled = 0.0;
-        latestModeChoiceAttempt.clear();
-        personSharedTrip.clear();
-        withinPooledTrip.clear();
+        modeChoiceAttempt.clear();
+        personHasSharedATrip.clear();
+        passengersPerVeh.clear();
     }
 
     @Override
@@ -108,12 +123,12 @@ public class RideHailSummary implements IterationSummaryAnalysis {
         double unmatchedPerRideHailRequests = 0.0;
         double deadheadingPerRideHailTrips = 0.0;
 
-        double totPoolTrips = countOfPoolTrips+countOfSoloPoolTrips;
+        double totPoolTrips = countOfMultiPassengerPoolTrips + countOfOnePassengerPoolTrips;
         double totRHTrips = totPoolTrips+countOfSoloTrips;
         double totRHUnmatched = countOfUnmatchedPoolRequests+countOfUnmatchedSoloRequests;
         double totRHRequests = totRHTrips+totRHUnmatched;
-        if(totPoolTrips > 0) multiPassengersTripsPerPoolTrips = countOfPoolTrips/totPoolTrips;
-        if(totRHTrips > 0) multiPassengersTripsPerRideHailTrips = countOfPoolTrips/totRHTrips;
+        if(totPoolTrips > 0) multiPassengersTripsPerPoolTrips = countOfMultiPassengerPoolTrips /totPoolTrips;
+        if(totRHTrips > 0) multiPassengersTripsPerRideHailTrips = countOfMultiPassengerPoolTrips /totRHTrips;
         if(totRHRequests > 0) unmatchedPerRideHailRequests = totRHUnmatched/totRHRequests;
         if(sumRideHailDistanceTraveled > 0) deadheadingPerRideHailTrips = sumDeadheadingDistanceTraveled/sumRideHailDistanceTraveled;
         summaryStats.put("RHSummary_multiPassengerTripsPerPoolTrips", multiPassengersTripsPerPoolTrips);
