@@ -3,8 +3,6 @@ package beam.analysis.summary;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
