@@ -1,33 +1,19 @@
 package beam.agentsim.infrastructure
 
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.infrastructure.charging._
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.collections.QuadTree
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Random, Success, Try}
-
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams
-}
 
 class ZonalParkingManager(
   tazTreeMap: TAZTreeMap,
@@ -74,6 +60,35 @@ class ZonalParkingManager(
           case _ => Set(ParkingType.Public)
         }
 
+      // if headed home, some agents require home charging at some probability
+      val isPEVAndNeedsToChargeAtHome: Option[Boolean] =
+        inquiry.activityType.toLowerCase match {
+          case "home" => Some{ rand.nextDouble() <= probabilityOfResidentialCharging }
+          case _ => None
+        }
+
+      // allow charger ParkingZones
+      val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => true
+        case "init"   => false
+        case _ =>
+          inquiry.vehicleType match {
+            case Some(vehicleType) =>
+              vehicleType.beamVehicleType.primaryFuelType match {
+                case Electricity => true
+                case _           => false
+              }
+            case _ => false
+          }
+      }
+
+      // allow non-charger ParkingZones
+      val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => false
+        case _        => true
+      }
+
+
       // ---------------------------------------------------------------------------------------------
       // a ParkingZoneSearch takes the following as parameters
       //
@@ -103,58 +118,36 @@ class ZonalParkingManager(
       // TODO: check for conflicts between variables here - is it always false?
       val parkingZoneFilterFunction: ParkingZone => Boolean =
         (zone: ParkingZone) => {
-          val chargeWhenHeadedHome: Boolean =
-            inquiry.activityType.toLowerCase match {
-              case "home" =>
-                inquiry.vehicleType match {
-                  case Some(vehicleType) =>
-                    vehicleType.beamVehicleType.primaryFuelType match {
-                      case Electricity =>
-                        val sampleResidentialStallProbability = rand.nextDouble() <= probabilityOfResidentialCharging
-                        if (sampleResidentialStallProbability)
-                          zone.chargingPointType.nonEmpty
-                        else
-                          true
-                      case _ => false
-                    }
-                  case _ => false
-                }
-              case _ => true
-            }
+
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
-          val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
-            case "charge" => true
-            case "init"   => false
-            case _ =>
-              inquiry.vehicleType match {
-                case Some(vehicleType) =>
-                  vehicleType.beamVehicleType.primaryFuelType match {
-                    case Electricity => true
-                    case _           => false
-                  }
-                case _ => false
-              }
-          }
-          val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
-            case "charge" => false
-            case _        => true
-          }
-          val rideHailFastChargingOnly: Boolean = inquiry.activityType.toLowerCase match {
-            case "charge" =>
-              zone.chargingPointType match {
-                case Some(chargingPointType) => ChargingPointType.isFastCharger(chargingPointType)
-                case None                    => false
-              }
-            case _ => false
-          }
+
+          val chargeWhenHeadedHome: Boolean =
+            ParkingSearchFilterPredicates.testPEVChargeWhenHeadedHome(
+              zone,
+              isPEVAndNeedsToChargeAtHome,
+              inquiry.vehicleType
+            )
+
+          val rideHailFastChargingOnly: Boolean =
+            ParkingSearchFilterPredicates.rideHailFastChargingOnly(
+              zone,
+              inquiry.activityType
+            )
+
           val canThisCarParkHere: Boolean =
-            zone.chargingPointType match {
-              case Some(_) => returnSpotsWithChargers
-              case None    => returnSpotsWithoutChargers
-            }
+            ParkingSearchFilterPredicates.canThisCarParkHere(
+              zone,
+              returnSpotsWithChargers,
+              returnSpotsWithoutChargers
+            )
+
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-          hasAvailability && canThisCarParkHere && validParkingType && chargeWhenHeadedHome && rideHailFastChargingOnly
+          hasAvailability &&
+            chargeWhenHeadedHome &&
+            rideHailFastChargingOnly &&
+            validParkingType &&
+            canThisCarParkHere
         }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
