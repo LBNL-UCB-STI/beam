@@ -132,7 +132,12 @@ object ParkingZoneSearch {
 
     // find zones
     @tailrec
-    def _search(thisInnerRadius: Double, thisOuterRadius: Double, parkingZoneIdsSeen: List[Int] = List.empty, iterations: Int = 1): Option[ParkingZoneSearchResult] = {
+    def _search(
+      thisInnerRadius: Double,
+      thisOuterRadius: Double,
+      parkingZoneIdsSeen: List[Int] = List.empty,
+      iterations: Int = 1
+    ): Option[ParkingZoneSearchResult] = {
       if (thisInnerRadius > config.searchMaxRadius) None
       else {
 
@@ -174,13 +179,15 @@ object ParkingZoneSearch {
           }
         }
 
-        val validParkingAlternatives: Int = alternatives.count{_.isValidAlternative}
+        val validParkingAlternatives: Int = alternatives.count { _.isValidAlternative }
         if (validParkingAlternatives == 0) {
           _search(thisOuterRadius, thisOuterRadius * config.searchExpansionFactor, parkingZoneIdsSeen, iterations + 1)
         } else {
 
           val alternativesToSample: Map[ParkingAlternative, Map[String, Double]] =
-            alternatives.map{a => a.parkingAlternative -> a.utilityParameters }.toMap
+            alternatives.map { a =>
+              a.parkingAlternative -> a.utilityParameters
+            }.toMap
 
           params.multinomialLogit.sampleAlternative(alternativesToSample, params.random).map { result =>
             val ParkingAlternative(taz, parkingType, parkingZone, coordinate, cost) = result.alternativeType
@@ -196,8 +203,13 @@ object ParkingZoneSearch {
               parkingType
             )
 
-            val theseParkingZoneIds: List[Int] = alternatives.map{_.parkingAlternative.parkingZone.parkingZoneId}
-            ParkingZoneSearchResult(parkingStall, parkingZone, theseParkingZoneIds ++ parkingZoneIdsSeen, iterations = iterations)
+            val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
+            ParkingZoneSearchResult(
+              parkingStall,
+              parkingZone,
+              theseParkingZoneIds ++ parkingZoneIdsSeen,
+              iterations = iterations
+            )
           }
         }
       }
