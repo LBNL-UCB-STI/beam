@@ -31,22 +31,23 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
 
-  val cfg =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
+  private val activitySegment: ActivitySegment = {
+    val intervalSize: Int =
+      rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
 
-  val intervalSize: Int =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
-
-  val activitySegment: ActivitySegment =
     ProfilingUtils.timed(s"Build ActivitySegment with intervalSize $intervalSize", x => logger.info(x)) {
       ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
     }
+  }
 
   // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
+  private val cfg =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
+
   val sensitivityOfRepositioningToDemand: Double = cfg.sensitivityOfRepositioningToDemand
-  val numberOfClustersForDemand = cfg.numberOfClustersForDemand
+  val numberOfClustersForDemand: Int = cfg.numberOfClustersForDemand
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 
