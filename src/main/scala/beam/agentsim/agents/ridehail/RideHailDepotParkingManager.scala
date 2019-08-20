@@ -5,12 +5,8 @@ import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams
-}
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import com.typesafe.scalalogging.LazyLogging
@@ -24,7 +20,7 @@ class RideHailDepotParkingManager(
   random: Random,
   boundingBox: Envelope,
   distFunction: (Location, Location) => Double,
-  utilityFunction: MultinomialLogit[ParkingAlternative, String],
+  mnlParams: ParkingMNL.Config,
   parkingStallCountScalingFactor: Double = 1.0
 ) extends LazyLogging {
 
@@ -90,7 +86,7 @@ class RideHailDepotParkingManager(
       ParkingZoneSearchParams(
         locationUtm,
         parkingDuration,
-        utilityFunction,
+        mnlParams,
         rideHailParkingSearchTree,
         rideHailParkingStalls,
         tazTreeMap.tazQuadTree,
@@ -115,12 +111,12 @@ class RideHailDepotParkingManager(
       }
 
     // adds multinomial logit parameters to a ParkingAlternative
-    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
+    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative) => {
-        val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
-          case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-          case None                => 0
-        }
+//        val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
+//          case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+//          case None                => 0
+//        }
 
         val distance: Double = distFunction(locationUtm, parkingAlternative.coord)
         //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
@@ -130,11 +126,16 @@ class RideHailDepotParkingManager(
         val maxAssumedInstalledChargingCapacity = 350 // in kW
         val dollarsInCents = 100
 
+        val rangeAnxietyFactor: Double = 0.0 // RHAs are told to charge before this point
+        val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime
+        val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
+
         Map(
           //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-          "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime, // in US$
-          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-          "parkingCostsPriceFactor" -> parkingAlternative.cost / dollarsInCents //in US$, assumptions for now: parking ticket costs include charging
+          ParkingMNL.Parameters.WalkingEgressCost          -> distanceFactor, // in US$
+//          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
+          ParkingMNL.Parameters.StallCost -> parkingCostsPriceFactor, //in US$, assumptions for now: parking ticket costs include charging
+          ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor
         )
       }
 
@@ -219,14 +220,14 @@ object RideHailDepotParkingManager {
   val SearchMaxRadius: Int = 80465 // 50 miles, in meters
 
   def apply(
-    parkingFilePath: String,
-    tazFilePath: String,
-    valueOfTime: Double,
-    tazTreeMap: TAZTreeMap,
-    random: Random,
-    boundingBox: Envelope,
-    distFunction: (Location, Location) => Double,
-    utilityFunction: MultinomialLogit[ParkingAlternative, String],
+    parkingFilePath               : String,
+    tazFilePath                   : String,
+    valueOfTime                   : Double,
+    tazTreeMap                    : TAZTreeMap,
+    random                        : Random,
+    boundingBox                   : Envelope,
+    distFunction                  : (Location, Location) => Double,
+    parkingMNLConfig              : ParkingMNL.Config,
     parkingStallCountScalingFactor: Double
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
@@ -237,7 +238,7 @@ object RideHailDepotParkingManager {
       random,
       boundingBox,
       distFunction,
-      utilityFunction,
+      parkingMNLConfig,
       parkingStallCountScalingFactor
     )
   }

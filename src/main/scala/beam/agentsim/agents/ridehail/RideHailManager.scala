@@ -21,17 +21,13 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManager.logger
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -59,7 +55,6 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -67,7 +62,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
 import scala.util.{Failure, Random, Success, Try}
+
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object RideHailManager {
@@ -344,25 +341,33 @@ class RideHailManager(
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
-  // for parking/charging search
-  val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
-    new MultinomialLogit(
-      Map.empty,
-      Map(
-        "distanceFactor" -> UtilityFunctionOperation(
-          "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier
-        ),
-        "installedCapacity" -> UtilityFunctionOperation(
-          "multiplier",
-          beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier
-        ),
-        "parkingCostsPriceFactor" -> UtilityFunctionOperation(
-          "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier
-        )
-      )
-    )
+//  // for parking/charging search
+//  val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
+//    new MultinomialLogit(
+//      Map.empty,
+//      Map(
+//        "distanceFactor" -> UtilityFunctionOperation(
+//          "multiplier",
+//          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier
+//        ),
+//        "installedCapacity" -> UtilityFunctionOperation(
+//          "multiplier",
+//          beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier
+//        ),
+//        "parkingCostsPriceFactor" -> UtilityFunctionOperation(
+//          "multiplier",
+//          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier
+//        )
+//      )
+//    )
+
+
+  val mnlMultiplierParameters: ParkingMNL.Config = ParkingMNL.Config(
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installedCapacityMultiplier,
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingCostsPriceMultiplier
+  )
 
   // provides tracking of parking/charging alternatives and their availability
   val rideHailDepotParkingManager = RideHailDepotParkingManager(
@@ -373,7 +378,7 @@ class RideHailManager(
     rand,
     boundingBox,
     beamServices.geo.distUTMInMeters,
-    utilityFunction,
+    mnlMultiplierParameters,
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
@@ -1053,8 +1058,8 @@ class RideHailManager(
   }
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
-    val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "charge", Option(beamVehicle))
+    val destinationUtm: Coord = rideHailAgentLocation.currentLocationUTM.loc
+    val inquiry = ParkingInquiry(destinationUtm, "charge", Some(beamVehicle), None)
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }

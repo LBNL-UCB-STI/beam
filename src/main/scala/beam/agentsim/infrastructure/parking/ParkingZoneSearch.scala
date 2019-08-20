@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.choice.logit.MultinomialLogit
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import scala.util.{Failure, Random, Success, Try}
 
 import beam.agentsim.infrastructure.charging._
@@ -54,7 +54,7 @@ object ParkingZoneSearch {
     *
     * @param destinationUTM destination of inquiry
     * @param parkingDuration duration of the activity agent wants to park for
-    * @param multinomialLogit utility function which evaluates [[ParkingAlternative]]s
+    * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
     * @param zoneSearchTree a nested map lookup of [[ParkingZone]]s
     * @param parkingZones the stored state of all [[ParkingZone]]s
     * @param zoneQuadTree [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
@@ -62,14 +62,14 @@ object ParkingZoneSearch {
     * @param parkingTypes the list of acceptable parking types allowed for this search
     */
   case class ParkingZoneSearchParams(
-    destinationUTM: Location,
-    parkingDuration: Double,
-    multinomialLogit: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-    zoneSearchTree: ZoneSearchTree[TAZ],
-    parkingZones: Array[ParkingZone],
-    zoneQuadTree: QuadTree[TAZ],
-    random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    destinationUTM  : Location,
+    parkingDuration : Double,
+    parkingMNLConfig: ParkingMNL.Config,
+    zoneSearchTree  : ZoneSearchTree[TAZ],
+    parkingZones    : Array[ParkingZone],
+    zoneQuadTree    : QuadTree[TAZ],
+    random          : Random,
+    parkingTypes    : Seq[ParkingType] = ParkingType.AllTypes
   )
 
   /**
@@ -114,7 +114,7 @@ object ParkingZoneSearch {
   private[ParkingZoneSearch] case class ParkingSearchAlternative(
     isValidAlternative: Boolean,
     parkingAlternative: ParkingAlternative,
-    utilityParameters: Map[String, Double]
+    utilityParameters: Map[ParkingMNL.Parameters, Double]
   )
 
   /**
@@ -132,7 +132,7 @@ object ParkingZoneSearch {
     params: ParkingZoneSearchParams,
     parkingZoneFilterFunction: ParkingZone => Boolean,
     parkingZoneLocSamplingFunction: ParkingZone => Coord,
-    parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double]
+    parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double]
   ): Option[ParkingZoneSearchResult] = {
 
     // find zones
@@ -174,7 +174,7 @@ object ParkingZoneSearch {
               }
             val parkingAlternative: ParkingAlternative =
               ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPrice)
-            val parkingAlternativeUtility: Map[String, Double] =
+            val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
               isValidParkingZone,
@@ -190,14 +190,24 @@ object ParkingZoneSearch {
         } else {
 
           // remove any invalid parking alternatives
-          val alternativesToSample: Map[ParkingAlternative, Map[String, Double]] =
+          val alternativesToSample: Map[ParkingAlternative, Map[ParkingMNL.Parameters, Double]] =
             alternatives.flatMap { a =>
               if (a.isValidAlternative)
                 Some { a.parkingAlternative -> a.utilityParameters } else
                 None
             }.toMap
 
-          params.multinomialLogit.sampleAlternative(alternativesToSample, params.random).map { result =>
+          val mnl: MultinomialLogit[ParkingAlternative, ParkingMNL.Parameters] =
+            new MultinomialLogit(
+              Map.empty,
+              Map(
+                ParkingMNL.Parameters.WalkingEgressCost           -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.distance),
+                ParkingMNL.Parameters.StallCost                   -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.parkingCosts),
+                ParkingMNL.Parameters.RangeAnxietyCost            -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.rangeAnxiety)
+              )
+            )
+
+          mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
             val ParkingAlternative(taz, parkingType, parkingZone, coordinate, cost) = result.alternativeType
 
             // create a new stall instance. you win!

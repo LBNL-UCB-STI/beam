@@ -27,7 +27,8 @@ class ZonalParkingManager(
   rand: Random,
   maxSearchRadius: Double,
   probabilityOfResidentialCharging: Double,
-  boundingBox: Envelope
+  boundingBox: Envelope,
+  mnlMultiplierParameters: ParkingMNL.Config
 ) extends Actor
     with ActorLogging {
 
@@ -76,7 +77,7 @@ class ZonalParkingManager(
         case "charge" => true
         case "init"   => false
         case _ =>
-          inquiry.vehicleType match {
+          inquiry.beamVehicle match {
             case Some(vehicleType) =>
               vehicleType.beamVehicleType.primaryFuelType match {
                 case Electricity => true
@@ -110,7 +111,7 @@ class ZonalParkingManager(
         ParkingZoneSearchParams(
           inquiry.destinationUtm,
           inquiry.parkingDuration,
-          inquiry.utilityFunction,
+          mnlMultiplierParameters,
           zoneSearchTree,
           parkingZones,
           tazTreeMap.tazQuadTree,
@@ -128,7 +129,7 @@ class ZonalParkingManager(
             ParkingSearchFilterPredicates.testPEVChargeWhenHeadedHome(
               zone,
               isPEVAndNeedsToChargeAtHome,
-              inquiry.vehicleType
+              inquiry.beamVehicle
             )
 
           val rideHailFastChargingOnly: Boolean =
@@ -165,27 +166,63 @@ class ZonalParkingManager(
           }
         }
 
+      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.forall{_.agentCanCompleteTour()}
+
+      if (inquiry.activityType != "home") {
+        println(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking" else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
+        println("parkingZoneId,distance,rangeAnxietyFactor,distanceFactor,parkingCostsPriceFactor")
+      }
+
       // adds multinomial logit parameters to a ParkingAlternative
-      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
+      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
         (parkingAlternative: ParkingAlternative) => {
-          val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
-            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-            case None                => 0
-          }
+
+          val canCompleteTourWithCharge: Boolean =
+            inquiry.remainingTripData match {
+              case Some(remainingTripData) =>
+                inquiry.beamVehicle match {
+                  case Some(beamVehicle) =>
+                    parkingAlternative.parkingZone.chargingPointType match {
+                      case Some(chargingPoint) =>
+                        val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                          chargingPoint,
+                          beamVehicle.primaryFuelLevelInJoules,
+                          beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                          1e6,
+                          1e6,
+                          Some{inquiry.parkingDuration.toLong}
+                        )
+                        remainingTripData.agentCanCompleteTour(withAddedFuelInJoules = addedEnergy)
+                      case None =>
+                        remainingTripData.agentCanCompleteTour()
+                    }
+                  case None => true // no beamVehicle, assume agent has range
+                }
+              case None => true // no remaining trip data provided, assume agent has range
+            }
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
           //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
 
           val averagePersonWalkingSpeed = 1.4 // in m/s
           val hourInSeconds = 3600
-          val maxAssumedInstalledChargingCapacity = 350 // in kW
+//          val maxAssumedInstalledChargingCapacity = 350 // in kW
           val dollarsInCents = 100
 
+          val rangeAnxietyFactor: Double = if (canCompleteTourWithCharge) 0.0 else 1.0
+          val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * inquiry.valueOfTime
+//          val installedCapacityFactor: Double = if (maxAssumedInstalledChargingCapacity > 0.0) (installedCapacity / maxAssumedInstalledChargingCapacity) * (inquiry.parkingDuration / hourInSeconds) * inquiry.valueOfTime else 0
+          val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
+
+          if (!canCompleteTourWithCharge && inquiry.activityType != "home") {
+            println(f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f")
+          }
+
           Map(
-            //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-            "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * inquiry.valueOfTime, // in US$
-            "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (inquiry.parkingDuration / hourInSeconds) * inquiry.valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-            "parkingCostsPriceFactor" -> parkingAlternative.cost / dollarsInCents //in US$, assumptions for now: parking ticket costs include charging
+            ParkingMNL.Parameters.RangeAnxietyCost            -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost          -> distanceFactor, // in US$
+//            "installedCapacity"       -> installedCapacityFactor, // in US$ - assumption/untested parkingDuration in seconds
+            ParkingMNL.Parameters.StallCost -> parkingCostsPriceFactor //in US$, assumptions for now: parking ticket costs include charging
           )
         }
 
@@ -212,6 +249,8 @@ class ZonalParkingManager(
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
+
+        log.debug(s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}")
 
         // update the parking stall data
         val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
@@ -275,6 +314,14 @@ object ZonalParkingManager extends LazyLogging {
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
     val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    // distance to walk to the destination
+
+    val mnlMultiplierParameters = ParkingMNL.Config(
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installedCapacityMultiplier,
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingCostsPriceMultiplier
+    )
 
     val random = {
       val seed = beamConfig.matsim.modules.global.randomSeed
@@ -302,12 +349,13 @@ object ZonalParkingManager extends LazyLogging {
       random,
       maxSearchRadius,
       probabilityOfResidentialParking,
-      boundingBox
+      boundingBox,
+      mnlMultiplierParameters
     )
   }
 
   /**
-    * constructs a ZonalParkingManager from a string iterator
+    * constructs a ZonalParkingManager from a string iterator (testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
     * @param random random generator used for sampling parking locations
@@ -333,7 +381,8 @@ object ZonalParkingManager extends LazyLogging {
       random,
       maxSearchRadius,
       probabilityOfResidentialCharging,
-      boundingBox
+      boundingBox,
+      ParkingMNL.Config()
     )
   }
 

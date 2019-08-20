@@ -75,18 +75,18 @@ class ZonalParkingManagerSpec
           new Random(randomSeed)
         )
       } {
-        val beta1 = 1
-        val beta2 = 1
-        val beta3 = 0.001
-        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-        )
-        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+//        val beta1 = 1
+//        val beta2 = 1
+//        val beta3 = 0.001
+//        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
+//          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+//          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+//          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+//        )
+//        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
+//        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, mnl, 0.0)
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
 
         zonalParkingManager ! inquiry
