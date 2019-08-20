@@ -831,7 +831,7 @@ class PersonAgent(
       // We've missed the CAV. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
-      log.error("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+      log.warning("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       eventsManager.processEvent(
