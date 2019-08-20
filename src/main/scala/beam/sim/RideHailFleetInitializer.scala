@@ -1,5 +1,7 @@
 package beam.sim
 
+import java.nio.file.{Files, Paths}
+
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.common.Range
 import beam.utils.OutputDataDescriptor
@@ -68,24 +70,26 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceY",
       "geofenceRadius"
     )
-    val csvWriter = new CsvWriter(filePath, fileHeader)
-    Try {
-      fleetData.foreach { fleetData =>
-        csvWriter.write(
-          fleetData.id,
-          fleetData.rideHailManagerId,
-          fleetData.vehicleType,
-          fleetData.initialLocationX,
-          fleetData.initialLocationY,
-          fleetData.shifts.getOrElse(""),
-          fleetData.geofenceX.getOrElse(""),
-          fleetData.geofenceY.getOrElse(""),
-          fleetData.geofenceRadius.getOrElse("")
-        )
+    if (Files.exists(Paths.get(filePath).getParent)) {
+      val csvWriter = new CsvWriter(filePath, fileHeader)
+      Try {
+        fleetData.foreach { fleetData =>
+          csvWriter.write(
+            fleetData.id,
+            fleetData.rideHailManagerId,
+            fleetData.vehicleType,
+            fleetData.initialLocationX,
+            fleetData.initialLocationY,
+            fleetData.shifts.getOrElse(""),
+            fleetData.geofenceX.getOrElse(""),
+            fleetData.geofenceY.getOrElse(""),
+            fleetData.geofenceRadius.getOrElse("")
+          )
+        }
       }
+      csvWriter.close()
+      logger.info(s"Fleet data with ${fleetData.size} entries is written to '$filePath'")
     }
-    csvWriter.close()
-    logger.info(s"Fleet data with ${fleetData.size} entries is written to '$filePath'")
   }
 
   /**

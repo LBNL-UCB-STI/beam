@@ -49,7 +49,7 @@ object ChargingPointType {
     override def toString: String = s"$id($installedCapacity|$electricCurrentType)"
   }
 
-  case object CustomChargingPoint {
+  object CustomChargingPoint {
 
     def apply(id: String, installedCapacity: String, electricCurrentType: String): CustomChargingPoint = {
       Try {
@@ -155,5 +155,16 @@ object ChargingPointType {
     ) * 3.6e6
     (sessionLength, sessionEnergyInJoules)
   }
+
+  // used to identify fast chargers
+  val FastChargingThreshold: Double = 20.0
+
+  /**
+    * recognizes fast charger ChargingPointTypes
+    * @param chargingPointType a chargingPointType
+    * @return if it is "fast"
+    */
+  def isFastCharger(chargingPointType: ChargingPointType): Boolean =
+    getChargingPointInstalledPowerInKw(chargingPointType) >= FastChargingThreshold
 
 }
