@@ -1130,11 +1130,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
 
-          val previousHour=(time /3600).floor*3600
-          val nextHour=(time /3600).ceil*3600
-          val previousHourTravelTimeEstimate=travelTime.getLinkTravelTime(link, previousHour, null, null).ceil.toInt
-          val nextHourTravelTimeEstimate=travelTime.getLinkTravelTime(link, nextHour, null, null).ceil.toInt
-          val physSimTravelTimeInterpolated = previousHourTravelTimeEstimate + (nextHourTravelTimeEstimate - previousHourTravelTimeEstimate)/3600.0*(time-previousHour)
+          val previousHour = (time / 3600).floor * 3600
+          val nextHour = (time / 3600).ceil * 3600
+          val previousHourTravelTimeEstimate = travelTime.getLinkTravelTime(link, previousHour, null, null).ceil.toInt
+          val nextHourTravelTimeEstimate = travelTime.getLinkTravelTime(link, nextHour, null, null).ceil.toInt
+          val physSimTravelTimeInterpolated = previousHourTravelTimeEstimate + (nextHourTravelTimeEstimate - previousHourTravelTimeEstimate) / 3600.0 * (time - previousHour)
           val linkTravelTime = Math.max(physSimTravelTimeInterpolated, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         }
