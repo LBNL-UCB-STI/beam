@@ -985,7 +985,14 @@ class RideHailManager(
             //QUESTION: Maybe a new trigger should be set to check for queue instead of this inline?
             dequeueNextVehicleForRefuelingFrom(depotId) match {
               case Some((nextVehicleId, nextVehiclesParkingStall)) => {
-                attemptToRefuel(nextVehicleId, vehicleManager.getRideHailAgentLocation(nextVehicleId).rideHailAgent, nextVehiclesParkingStall, whenWhere.time, triggerId, DequeuedToCharge)
+                attemptToRefuel(
+                  nextVehicleId,
+                  vehicleManager.getRideHailAgentLocation(nextVehicleId).rideHailAgent,
+                  nextVehiclesParkingStall,
+                  whenWhere.time,
+                  triggerId,
+                  DequeuedToCharge
+                )
               }
               case None =>
                 Vector()
