@@ -250,6 +250,8 @@ class RideHailManager(
       .build()
   }
 
+  private val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+
   private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
@@ -262,7 +264,7 @@ class RideHailManager(
       }
     }
     .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+    .size / fleet
   // Undo sampling to estimate initial number
 
   val numRideHailAgents: Long = math.round(
