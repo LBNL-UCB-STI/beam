@@ -47,10 +47,11 @@ public class RideHailSummary implements IterationSummaryAnalysis {
                 if(!modeChoiceAttempt.containsKey(personEntersVehicle.getPersonId())) return;
                 String modeChosenL = modeChoiceAttempt.get(personEntersVehicle.getPersonId());
                 if(modeChosenL.endsWith("unmatched")) {
-                    if(modeChosenL.startsWith("ride_hail_pooled"))
+                    if (modeChosenL.startsWith("ride_hail_pooled"))
                         countOfUnmatchedPoolRequests++;
                     else
                         countOfUnmatchedSoloRequests++;
+                    modeChoiceAttempt.remove(personEntersVehicle.getPersonId());
                 } else if(!personEntersVehicle.getVehicleId().toString().startsWith("rideHailVehicle")) {
                     // do nothing, agent is walking
                 } else if(modeChosenL.equals("ride_hail_pooled")){
