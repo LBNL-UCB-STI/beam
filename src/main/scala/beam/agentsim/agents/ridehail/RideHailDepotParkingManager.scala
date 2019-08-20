@@ -4,7 +4,12 @@ import scala.util.{Failure, Random, Success, Try}
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
+import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
+  ParkingAlternative,
+  ParkingZoneSearchConfiguration,
+  ParkingZoneSearchParams
+}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -19,13 +24,14 @@ class RideHailDepotParkingManager(
   random: Random,
   boundingBox: Envelope,
   distFunction: (Location, Location) => Double,
-  utilityFunction: MultinomialLogit[ParkingAlternative, String]
+  utilityFunction: MultinomialLogit[ParkingAlternative, String],
+  parkingStallCountScalingFactor: Double = 1.0
 ) extends LazyLogging {
 
   // load parking from a parking file, or generate it using the TAZ beam input
   val (
     rideHailParkingStalls: Array[ParkingZone],
-    rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearch[TAZ]
+    rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ]
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     val (parkingZones, searchTree) = ParkingZoneFileUtils
@@ -37,10 +43,10 @@ class RideHailDepotParkingManager(
     (parkingZones, searchTree)
   } else {
     Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath)
+      ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
-        logger.info(s"generating ubiquitous ride hail parking")
+        logger.info(s"generating ride hail parking from file $parkingFilePath")
         (stalls, tree)
       case Failure(e) =>
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
@@ -58,6 +64,14 @@ class RideHailDepotParkingManager(
   var totalStallsInUse: Long = 0
   var totalStallsAvailable: Long = 0
 
+  val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
+    ParkingZoneSearchConfiguration(
+      RideHailDepotParkingManager.SearchStartRadius,
+      RideHailDepotParkingManager.SearchMaxRadius,
+      boundingBox,
+      distFunction
+    )
+
   /**
     * searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns a [[ParkingStall]] in that zone.
     *
@@ -72,27 +86,72 @@ class RideHailDepotParkingManager(
     parkingDuration: Double
   ): Option[ParkingStall] = {
 
+    val parkingZoneSearchParams: ParkingZoneSearchParams =
+      ParkingZoneSearchParams(
+        locationUtm,
+        parkingDuration,
+        utilityFunction,
+        rideHailParkingSearchTree,
+        rideHailParkingStalls,
+        tazTreeMap.tazQuadTree,
+        random
+      )
+
+    // current implementation here expects all RHA depot stalls are charging-capable
+    // and all inquiries are for the purpose of fast charging
+    val parkingZoneFilterFunction: ParkingZone => Boolean = (zone: ParkingZone) => true
+
+    // generates a coordinate for an embodied ParkingStall from a ParkingZone,
+    // treating the TAZ centroid as a "depot" location
+    val parkingZoneLocSamplingFunction: ParkingZone => Location =
+      (zone: ParkingZone) => {
+        tazTreeMap.getTAZ(zone.tazId) match {
+          case None =>
+            logger.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
+            TAZ.DefaultTAZ.coord
+          case Some(taz) =>
+            taz.coord
+        }
+      }
+
+    // adds multinomial logit parameters to a ParkingAlternative
+    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
+      (parkingAlternative: ParkingAlternative) => {
+        val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
+          case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+          case None                => 0
+        }
+
+        val distance: Double = distFunction(locationUtm, parkingAlternative.coord)
+        //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
+
+        val averagePersonWalkingSpeed = 1.4 // in m/s
+        val hourInSeconds = 3600
+        val maxAssumedInstalledChargingCapacity = 350 // in kW
+        val dollarsInCents = 100
+
+        Map(
+          //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
+          "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime, // in US$
+          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
+          "parkingCostsPriceFactor" -> parkingAlternative.cost / dollarsInCents //in US$, assumptions for now: parking ticket costs include charging
+        )
+      }
+
     for {
-      (_, parkingStall) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, iterations) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
-          searchStartRadius = RideHailDepotParkingManager.SearchStartRadius,
-          searchMaxRadius = RideHailDepotParkingManager.SearchMaxRadius,
-          destinationUTM = locationUtm,
-          valueOfTime = valueOfTime,
-          parkingDuration = parkingDuration,
-          parkingTypes = Seq(ParkingType.Workplace),
-          utilityFunction = utilityFunction,
-          rideHailParkingSearchTree,
-          rideHailParkingStalls,
-          tazTreeMap.tazQuadTree,
-          distFunction,
-          random,
-          returnSpotsWithChargers = true,
-          returnSpotsWithoutChargers = false,
-          boundingBox
+          parkingZoneSearchConfiguration,
+          parkingZoneSearchParams,
+          parkingZoneFilterFunction,
+          parkingZoneLocSamplingFunction,
+          parkingZoneMNLParamsFunction
         )
       taz <- tazTreeMap.getTAZ(parkingStall.tazId)
     } yield {
+
+      logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+
       // override the sampled stall coordinate with the TAZ centroid -
       // we want all agents who park in this TAZ to park in the same location.
       parkingStall.copy(
@@ -132,6 +191,7 @@ class RideHailDepotParkingManager(
 
   /**
     * releases a single stall in use at this Depot
+    *
     * @param parkingStall stall we want to release
     * @return None on failure
     */
@@ -166,7 +226,8 @@ object RideHailDepotParkingManager {
     random: Random,
     boundingBox: Envelope,
     distFunction: (Location, Location) => Double,
-    utilityFunction: MultinomialLogit[ParkingAlternative, String]
+    utilityFunction: MultinomialLogit[ParkingAlternative, String],
+    parkingStallCountScalingFactor: Double
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
@@ -176,7 +237,8 @@ object RideHailDepotParkingManager {
       random,
       boundingBox,
       distFunction,
-      utilityFunction
+      utilityFunction,
+      parkingStallCountScalingFactor
     )
   }
 }

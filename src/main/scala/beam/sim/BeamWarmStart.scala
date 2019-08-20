@@ -8,12 +8,10 @@ import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
-import beam.utils.FileUtils.downloadFile
-import beam.utils.TravelTimeCalculatorHelper
 import beam.utils.UnzipUtility._
+import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.getTempDirectoryPath
-import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
@@ -156,38 +154,14 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
   }
 
-  private lazy val parentRunPath: String = {
-    if (isZipArchive(srcPath)) {
-      var archivePath = srcPath
-      if (isOutputBucketUrl(srcPath)) {
-        archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
-        downloadFile(srcPath, archivePath)
-      }
-      val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
-      unzip(archivePath, runPath, false)
-
-      runPath
-    } else {
-      srcPath
-    }
-  }
-
-  private def isOutputBucketUrl(source: String): Boolean = {
-    assert(source != null)
-    source.startsWith("https://s3.us-east-2.amazonaws.com/beam-outputs/")
-  }
-
-  private def isZipArchive(source: String): Boolean = {
-    assert(source != null)
-    "zip".equalsIgnoreCase(getExtension(source))
-  }
+  private lazy val parentRunPath: String =
+    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize = beamConfig.beam.agentsim.timeBinSize
 
     new LinkTravelTimeContainer(statsFile, binSize, maxHour)
   }
-
 }
 
 object BeamWarmStart extends LazyLogging {

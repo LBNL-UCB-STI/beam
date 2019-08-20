@@ -163,6 +163,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          addControlerListenerBinding().to(classOf[NonCarModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])
           bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
@@ -658,11 +659,17 @@ trait BeamHelper extends LazyLogging {
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
     new java.io.File(outputDirectory).mkdirs
-    val outConf = Paths.get(outputDirectory, "beam.conf")
     val location = config.getString("config")
 
-    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
-    logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    val confNameToPath = BeamConfigUtils.getFileNameToPath(location)
+
+    logger.info("Processing configs for [{}] simulation.", beamConfig.beam.agentsim.simulationName)
+    confNameToPath.foreach {
+      case (fileName, filePath) =>
+        val outFile = Paths.get(outputDirectory, fileName)
+        Files.copy(Paths.get(filePath), outFile, StandardCopyOption.REPLACE_EXISTING)
+        logger.info("Config '{}' copied to '{}'.", filePath, outFile)
+    }
   }
 
   private def buildMatsimConfig(
@@ -800,7 +807,7 @@ trait BeamHelper extends LazyLogging {
     }
 
     new UrbanSimScenarioSource(
-      scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+      scenarioSrc = beamConfig.beam.exchange.scenario.folder,
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
