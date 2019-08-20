@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone}
 
 object ParkingSearchFilterPredicates {
 
@@ -34,8 +34,10 @@ object ParkingSearchFilterPredicates {
           beamVehicleOption match {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
-                case Electricity => zone.chargingPointType.nonEmpty
-                case _           => false // not a charging car
+                case Electricity =>
+                  // ah. must be a charging stall in a residential neighborhood
+                  zone.parkingType == ParkingType.Residential && zone.chargingPointType.nonEmpty
+                case _ => true
               }
             case _ => true // not in a vehicle, any stall is ok
           }

@@ -169,8 +169,8 @@ class ZonalParkingManager(
       val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.forall{_.agentCanCompleteTour()}
 
       if (inquiry.activityType != "home") {
-        println(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking" else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
-        println("parkingZoneId,distance,rangeAnxietyFactor,distanceFactor,parkingCostsPriceFactor")
+        log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking" else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
+        log.debug("parkingZoneId,distance,rangeAnxietyFactor,distanceFactor,parkingCostsPriceFactor")
       }
 
       // adds multinomial logit parameters to a ParkingAlternative
@@ -215,7 +215,7 @@ class ZonalParkingManager(
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
 
           if (!canCompleteTourWithCharge && inquiry.activityType != "home") {
-            println(f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f")
+            log.debug(f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f")
           }
 
           Map(
