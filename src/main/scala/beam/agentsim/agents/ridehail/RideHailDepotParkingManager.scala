@@ -40,13 +40,11 @@ class RideHailDepotParkingManager(
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ]
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
-    val (parkingZones, searchTree) = ParkingZoneFileUtils
+    ParkingZoneFileUtils
       .generateDefaultParkingFromTazfile(
         tazFilePath,
         Seq(ParkingType.Workplace)
       )
-    logger.info(s"${parkingZones.length} parking zones generated for ride hail")
-    (parkingZones, searchTree)
   } else {
     Try {
       ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor)
@@ -56,13 +54,12 @@ class RideHailDepotParkingManager(
         (stalls, tree)
       case Failure(e) =>
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-        val (parkingZones, searchTree) = ParkingZoneFileUtils
+        logger.info(s"generating ubiquitous ride hail parking")
+        ParkingZoneFileUtils
           .generateDefaultParkingFromTazfile(
             tazFilePath,
             Seq(ParkingType.Workplace)
           )
-        logger.info(s"${parkingZones.length} parking zones generated for ride hail")
-        (parkingZones, searchTree)
     }
   }
 

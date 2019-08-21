@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone}
+import beam.agentsim.infrastructure.parking.ParkingZone
 
 object ParkingSearchFilterPredicates {
 
@@ -28,16 +28,14 @@ object ParkingSearchFilterPredicates {
   ): Boolean =
     isPEVAndNeedsToChargeAtHome match {
       case None => true // not a PEV, any stall is ok
-      case Some(needToChargeAtHome) =>
-        if (!needToChargeAtHome) true // don't need to charge, any stall is ok
+      case Some(needToCharge) =>
+        if (!needToCharge) true // don't need to charge, any stall is ok
         else
           beamVehicleOption match {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
-                case Electricity =>
-                  // ah. must be a charging stall in a residential neighborhood
-                  zone.parkingType == ParkingType.Residential && zone.chargingPointType.nonEmpty
-                case _ => true
+                case Electricity => zone.chargingPointType.nonEmpty
+                case _           => true // not a charging car, any stall is ok
               }
             case _ => true // not in a vehicle, any stall is ok
           }
