@@ -321,7 +321,7 @@ object ZonalParkingManager extends LazyLogging {
     val mnlMultiplierParameters = ParkingMNL.Config(
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingCostsPriceMultiplier
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier
     )
 
     val random = {

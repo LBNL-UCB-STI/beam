@@ -380,7 +380,7 @@ class RideHailManager(
   val mnlMultiplierParameters: ParkingMNL.Config = ParkingMNL.Config(
     beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
     beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
-    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingCostsPriceMultiplier
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier
   )
 
   // provides tracking of parking/charging alternatives and their availability
