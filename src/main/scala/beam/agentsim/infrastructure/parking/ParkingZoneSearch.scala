@@ -62,14 +62,14 @@ object ParkingZoneSearch {
     * @param parkingTypes the list of acceptable parking types allowed for this search
     */
   case class ParkingZoneSearchParams(
-    destinationUTM  : Location,
-    parkingDuration : Double,
+    destinationUTM: Location,
+    parkingDuration: Double,
     parkingMNLConfig: ParkingMNL.Config,
-    zoneSearchTree  : ZoneSearchTree[TAZ],
-    parkingZones    : Array[ParkingZone],
-    zoneQuadTree    : QuadTree[TAZ],
-    random          : Random,
-    parkingTypes    : Seq[ParkingType] = ParkingType.AllTypes
+    zoneSearchTree: ZoneSearchTree[TAZ],
+    parkingZones: Array[ParkingZone],
+    zoneQuadTree: QuadTree[TAZ],
+    random: Random,
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
   )
 
   /**
@@ -201,9 +201,15 @@ object ParkingZoneSearch {
             new MultinomialLogit(
               Map.empty,
               Map(
-                ParkingMNL.Parameters.WalkingEgressCost           -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.distance),
-                ParkingMNL.Parameters.StallCost                   -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.parkingCosts),
-                ParkingMNL.Parameters.RangeAnxietyCost            -> UtilityFunctionOperation.Multiplier(params.parkingMNLConfig.rangeAnxiety)
+                ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
+                  params.parkingMNLConfig.distance
+                ),
+                ParkingMNL.Parameters.StallCost -> UtilityFunctionOperation.Multiplier(
+                  params.parkingMNLConfig.parkingCosts
+                ),
+                ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
+                  params.parkingMNLConfig.rangeAnxiety
+                )
               )
             )
 

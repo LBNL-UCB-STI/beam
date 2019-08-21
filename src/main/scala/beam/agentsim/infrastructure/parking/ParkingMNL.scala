@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.parking
 
-
 object ParkingMNL {
 
   /**
@@ -8,13 +7,11 @@ object ParkingMNL {
     *
     * @param rangeAnxiety
     * @param distance
-    * @param installedCapacity
     * @param parkingCosts
     */
   case class Config(
     rangeAnxiety: Double = 1.0,
     distance: Double = 1.0,
-    installedCapacity: Double = 1.0,
     parkingCosts: Double = 1.0
   )
 
@@ -32,13 +29,16 @@ object ParkingMNL {
     remainingTourDistance: Double = 0.0,
     distanceSafetyMargin: Double = 0.0
   ) {
+
     def agentCanCompleteTour(withAddedFuelInJoules: Double = 0.0): Boolean = {
-      val newRange: Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
+      val newRange
+        : Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
       newRange > remainingTourDistance
     }
   }
 
   sealed trait Parameters
+
   object Parameters {
     final case object StallCost extends Parameters with Serializable
     final case object WalkingEgressCost extends Parameters with Serializable

@@ -28,8 +28,8 @@ object ParkingSearchFilterPredicates {
   ): Boolean =
     isPEVAndNeedsToChargeAtHome match {
       case None => true // not a PEV, any stall is ok
-      case Some(needToCharge) =>
-        if (!needToCharge) true // don't need to charge, any stall is ok
+      case Some(needToChargeAtHome) =>
+        if (!needToChargeAtHome) true // don't need to charge, any stall is ok
         else
           beamVehicleOption match {
             case Some(beamVehicle) =>

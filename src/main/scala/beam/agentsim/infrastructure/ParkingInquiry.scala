@@ -20,14 +20,14 @@ import beam.utils.ParkingManagerIdGenerator
   * @param requestId       a unique ID generated for this inquiry
   */
 case class ParkingInquiry(
-  destinationUtm   : Location,
-  activityType     : String,
-  beamVehicle      : Option[BeamVehicle] = None,
+  destinationUtm: Location,
+  activityType: String,
+  beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
-  valueOfTime      : Double = 0.0,
-  parkingDuration  : Double = 0,
-  reserveStall     : Boolean = true,
-  requestId        : Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  valueOfTime: Double = 0.0,
+  parkingDuration: Double = 0,
+  reserveStall: Boolean = true,
+  requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
 )
 
 object ParkingInquiry {

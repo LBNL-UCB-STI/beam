@@ -166,10 +166,11 @@ class ZonalParkingManager(
           }
         }
 
-      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.forall{_.agentCanCompleteTour()}
+      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.forall { _.agentCanCompleteTour() }
 
       if (inquiry.activityType != "home") {
-        log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking" else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
+        log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking"
+        else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
         log.debug("parkingZoneId,distance,rangeAnxietyFactor,distanceFactor,parkingCostsPriceFactor")
       }
 
@@ -190,7 +191,7 @@ class ZonalParkingManager(
                           beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
                           1e6,
                           1e6,
-                          Some{inquiry.parkingDuration.toLong}
+                          Some { inquiry.parkingDuration.toLong }
                         )
                         remainingTripData.agentCanCompleteTour(withAddedFuelInJoules = addedEnergy)
                       case None =>
@@ -202,27 +203,22 @@ class ZonalParkingManager(
             }
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
-          //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
-
-          val averagePersonWalkingSpeed = 1.4 // in m/s
-          val hourInSeconds = 3600
-//          val maxAssumedInstalledChargingCapacity = 350 // in kW
-          val dollarsInCents = 100
 
           val rangeAnxietyFactor: Double = if (canCompleteTourWithCharge) 0.0 else 1.0
-          val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * inquiry.valueOfTime
-//          val installedCapacityFactor: Double = if (maxAssumedInstalledChargingCapacity > 0.0) (installedCapacity / maxAssumedInstalledChargingCapacity) * (inquiry.parkingDuration / hourInSeconds) * inquiry.valueOfTime else 0
-          val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
+          val distanceFactor
+            : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+          val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
 
           if (!canCompleteTourWithCharge && inquiry.activityType != "home") {
-            log.debug(f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f")
+            log.debug(
+              f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f"
+            )
           }
 
           Map(
-            ParkingMNL.Parameters.RangeAnxietyCost            -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost          -> distanceFactor, // in US$
-//            "installedCapacity"       -> installedCapacityFactor, // in US$ - assumption/untested parkingDuration in seconds
-            ParkingMNL.Parameters.StallCost -> parkingCostsPriceFactor //in US$, assumptions for now: parking ticket costs include charging
+            ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
+            ParkingMNL.Parameters.StallCost         -> parkingCostsPriceFactor
           )
         }
 
@@ -250,7 +246,9 @@ class ZonalParkingManager(
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
 
-        log.debug(s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}")
+        log.debug(
+          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+        )
 
         // update the parking stall data
         val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
@@ -296,6 +294,10 @@ object ZonalParkingManager extends LazyLogging {
   // slightly less than the average distance between TAZ centroids.
   val MinSearchRadius: Double = 1000.0
 
+  val AveragePersonWalkingSpeed: Double = 1.4 // in m/s
+  val HourInSeconds: Int = 3600
+  val DollarsInCents: Double = 100.0
+
   /**
     * constructs a ZonalParkingManager from file
     *
@@ -319,7 +321,6 @@ object ZonalParkingManager extends LazyLogging {
     val mnlMultiplierParameters = ParkingMNL.Config(
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installedCapacityMultiplier,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingCostsPriceMultiplier
     )
 

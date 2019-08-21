@@ -299,7 +299,7 @@ class PersonAgent(
     * @param personData current state data cast as a [[BasePersonData]]
     * @return true if they have enough fuel, or fuel type is not exhaustible
     */
-  def calculateRemainingTripData(personData : BasePersonData): Option[ParkingMNL.RemainingTripData] = {
+  def calculateRemainingTripData(personData: BasePersonData): Option[ParkingMNL.RemainingTripData] = {
 
     val refuelNeeded: Boolean =
       if (currentBeamVehicle.isCAV) {

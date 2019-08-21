@@ -5,8 +5,18 @@ import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
+  ParkingAlternative,
+  ParkingZoneSearchConfiguration,
+  ParkingZoneSearchParams
+}
+import beam.agentsim.infrastructure.parking.{
+  ParkingMNL,
+  ParkingType,
+  ParkingZone,
+  ParkingZoneFileUtils,
+  ParkingZoneSearch
+}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import com.typesafe.scalalogging.LazyLogging
@@ -132,9 +142,9 @@ class RideHailDepotParkingManager(
 
         Map(
           //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-          ParkingMNL.Parameters.WalkingEgressCost          -> distanceFactor, // in US$
+          ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor, // in US$
 //          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-          ParkingMNL.Parameters.StallCost -> parkingCostsPriceFactor, //in US$, assumptions for now: parking ticket costs include charging
+          ParkingMNL.Parameters.StallCost        -> parkingCostsPriceFactor, //in US$, assumptions for now: parking ticket costs include charging
           ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor
         )
       }
@@ -220,14 +230,14 @@ object RideHailDepotParkingManager {
   val SearchMaxRadius: Int = 80465 // 50 miles, in meters
 
   def apply(
-    parkingFilePath               : String,
-    tazFilePath                   : String,
-    valueOfTime                   : Double,
-    tazTreeMap                    : TAZTreeMap,
-    random                        : Random,
-    boundingBox                   : Envelope,
-    distFunction                  : (Location, Location) => Double,
-    parkingMNLConfig              : ParkingMNL.Config,
+    parkingFilePath: String,
+    tazFilePath: String,
+    valueOfTime: Double,
+    tazTreeMap: TAZTreeMap,
+    random: Random,
+    boundingBox: Envelope,
+    distFunction: (Location, Location) => Double,
+    parkingMNLConfig: ParkingMNL.Config,
     parkingStallCountScalingFactor: Double
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
