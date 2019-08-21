@@ -15,7 +15,7 @@ object PricingModel {
     * A flat parking fee, such as an all-day rate at a parking garage
     * @param cost the all-day rate, in cents
     */
-  case class FlatFee(cost: Double, intervalSeconds: Int = DefaultPricingInterval) extends PricingModel {
+  case class FlatFee(cost: Double) extends PricingModel {
     override def toString: String = "FlatFee"
   }
 
@@ -45,14 +45,14 @@ object PricingModel {
       case "" => None
 
       case "flatfee" =>
-        val costInt = parseFee(cost, s)
-        val intervalInt = parseInterval(intervalSeconds, s)
-        Some(FlatFee(costInt, intervalInt))
+        val costDouble = parseFee(cost, s)
+//        val intervalInt = parseInterval(intervalSeconds, s)
+        Some(FlatFee(costDouble))
 
       case "block" =>
-        val costInt = parseFee(cost, s)
+        val costDouble = parseFee(cost, s)
         val intervalInt = parseInterval(intervalSeconds, s)
-        Some(Block(costInt, intervalInt))
+        Some(Block(costDouble, intervalInt))
 
       case _ =>
         throw new java.io.IOException(s"Pricing Model is invalid: $s")
@@ -66,9 +66,9 @@ object PricingModel {
     */
   def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
     pricingModel match {
-      case FlatFee(cost, _) => cost
+      case FlatFee(cost) => cost
       case Block(cost, intervalSeconds) =>
-        (math.min(0.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * cost
+        (math.max(0.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * cost
     }
   }
 
