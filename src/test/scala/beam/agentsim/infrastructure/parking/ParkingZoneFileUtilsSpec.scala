@@ -35,9 +35,9 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
                     parkingZone.maxStalls should equal(testNumStalls)
                     parkingZone.stallsAvailable should equal(testNumStalls)
                     parkingZone.pricingModel match {
-                      case None                                => fail("should have found a pricing model in the parking zone")
-                      case Some(PricingModel.FlatFee(cost))    => cost should equal(testFeeInCents)
-                      case x                                   => fail(s"found $x but expected $testPricingModel pricing model type in the parking zone")
+                      case None                             => fail("should have found a pricing model in the parking zone")
+                      case Some(PricingModel.FlatFee(cost)) => cost should equal(testFeeInCents)
+                      case x                                => fail(s"found $x but expected $testPricingModel pricing model type in the parking zone")
                     }
                     parkingZone.chargingPointType match {
                       case None => fail("should have found a charging point in the parking zone")
