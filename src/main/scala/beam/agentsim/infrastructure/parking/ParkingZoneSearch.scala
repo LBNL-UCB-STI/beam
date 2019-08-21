@@ -204,7 +204,7 @@ object ParkingZoneSearch {
                 ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
                   params.parkingMNLConfig.distance
                 ),
-                ParkingMNL.Parameters.StallCost -> UtilityFunctionOperation.Multiplier(
+                ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
                   params.parkingMNLConfig.parkingCosts
                 ),
                 ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(

@@ -144,7 +144,7 @@ class RideHailDepotParkingManager(
           //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
           ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor, // in US$
 //          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-          ParkingMNL.Parameters.StallCost        -> parkingCostsPriceFactor, //in US$, assumptions for now: parking ticket costs include charging
+          ParkingMNL.Parameters.ParkingTicketCost        -> parkingCostsPriceFactor, //in US$, assumptions for now: parking ticket costs include charging
           ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor
         )
       }

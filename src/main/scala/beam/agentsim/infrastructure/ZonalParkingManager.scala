@@ -166,7 +166,7 @@ class ZonalParkingManager(
           }
         }
 
-      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.forall { _.agentCanCompleteTour() }
+      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.map { _.agentCanCompleteTour() }.getOrElse(true)
 
       if (inquiry.activityType != "home") {
         log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking"
@@ -178,7 +178,9 @@ class ZonalParkingManager(
       val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
         (parkingAlternative: ParkingAlternative) => {
 
-          val canCompleteTourWithCharge: Boolean =
+          val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
+
+          val rangeAnxietyFactor: Double =
             inquiry.remainingTripData match {
               case Some(remainingTripData) =>
                 inquiry.beamVehicle match {
@@ -193,23 +195,19 @@ class ZonalParkingManager(
                           1e6,
                           Some { inquiry.parkingDuration.toLong }
                         )
-                        remainingTripData.agentCanCompleteTour(withAddedFuelInJoules = addedEnergy)
+                        remainingTripData.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
                       case None =>
-                        remainingTripData.agentCanCompleteTour()
+                        remainingTripData.rangeAnxiety()
                     }
-                  case None => true // no beamVehicle, assume agent has range
+                  case None => 0.0 // no beamVehicle, assume agent has range
                 }
-              case None => true // no remaining trip data provided, assume agent has range
+              case None => 0.0 // no remaining trip data provided, assume agent has range
             }
-
-          val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
-
-          val rangeAnxietyFactor: Double = if (canCompleteTourWithCharge) 0.0 else 1.0
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
 
-          if (!canCompleteTourWithCharge && inquiry.activityType != "home") {
+          if (rangeAnxietyFactor != 0.0 && inquiry.activityType != "home") {
             log.debug(
               f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f"
             )
@@ -218,7 +216,7 @@ class ZonalParkingManager(
           Map(
             ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor,
             ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
-            ParkingMNL.Parameters.StallCost         -> parkingCostsPriceFactor
+            ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor
           )
         }
 

@@ -35,12 +35,26 @@ object ParkingMNL {
         : Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
       newRange > remainingTourDistance
     }
+
+    /**
+      * models range anxiety, from 0 (no anxiety) to 1 (no vehicle range proportional to remaining trip)
+      * @param withAddedFuelInJoules fuel provided by a charging source which we are evaluating
+      * @return range anxiety factor
+      */
+    def rangeAnxiety(withAddedFuelInJoules: Double = 0.0): Double = {
+      if (remainingTourDistance == 0) 0
+      else {
+        val newRange
+          : Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
+        1 - math.max(0, math.min(1, newRange / remainingTourDistance))
+      }
+    }
   }
 
   sealed trait Parameters
 
   object Parameters {
-    final case object StallCost extends Parameters with Serializable
+    final case object ParkingTicketCost extends Parameters with Serializable
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
   }
