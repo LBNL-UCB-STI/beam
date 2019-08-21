@@ -35,7 +35,7 @@ object ParkingSearchFilterPredicates {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
                 case Electricity => zone.chargingPointType.nonEmpty
-                case _           => false // not a charging car
+                case _           => true // not a charging car, any stall is ok
               }
             case _ => true // not in a vehicle, any stall is ok
           }
