@@ -59,9 +59,11 @@ object ParkingZoneFileUtils extends LazyLogging {
       )
     def nextParkingZoneId: Int = zones.length
     def someRowsFailed: Boolean = failedRows > 0
+
     def totalParkingStalls: Long =
       if (zones.length == 0) 0
-      else zones.map{_.maxStalls.toLong}.sum
+      else zones.map { _.maxStalls.toLong }.sum
+
     def parkingStallsPlainEnglish: String = {
       val count: Long = totalParkingStalls
       if (count > 1000000000L) s"${count / 1000000000L} billion"
@@ -155,7 +157,9 @@ object ParkingZoneFileUtils extends LazyLogging {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
           fromBufferedReader(reader, parkingStallCountScalingFactor, parkingCostScalingFactor)
-        logger.info(s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system")
+        logger.info(
+          s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
+        )
         if (parkingLoadingAccumulator.someRowsFailed) {
           logger.warn(s"${parkingLoadingAccumulator.failedRows} rows of parking data failed to load")
         }
@@ -333,7 +337,9 @@ object ParkingZoneFileUtils extends LazyLogging {
     } match {
       case Success(reader) =>
         val result = generateDefaultParking(reader.lines.iterator.asScala, header = true, parkingTypes)
-        logger.info(s"generated ${result.totalRows} parking zones,one for each TAZ in $tazFilePath, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system")
+        logger.info(
+          s"generated ${result.totalRows} parking zones,one for each TAZ in $tazFilePath, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
+        )
         if (result.someRowsFailed) {
           logger.warn(s"${result.failedRows} rows of parking data failed to load")
         }
