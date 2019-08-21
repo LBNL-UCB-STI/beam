@@ -1,18 +1,16 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+
 object ParkingMNL {
 
-  /**
-    * these are the multipliers against the terms which represent these different parking concerns
-    *
-    * @param rangeAnxiety
-    * @param distance
-    * @param parkingCosts
-    */
-  case class Config(
-    rangeAnxiety: Double = 1.0,
-    distance: Double = 1.0,
-    parkingCosts: Double = 1.0
+  type ParkingMNLConfig = Map[ParkingMNL.Parameters, UtilityFunctionOperation]
+
+  val DefaultMNLParameters: ParkingMNLConfig = Map(
+    Parameters.ParkingTicketCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
   /**
@@ -38,6 +36,7 @@ object ParkingMNL {
 
     /**
       * models range anxiety, from 0 (no anxiety) to 1 (no vehicle range proportional to remaining trip)
+      *
       * @param withAddedFuelInJoules fuel provided by a charging source which we are evaluating
       * @return range anxiety factor
       */
@@ -57,5 +56,6 @@ object ParkingMNL {
     final case object ParkingTicketCost extends Parameters with Serializable
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
+    final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
   }
 }

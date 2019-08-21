@@ -357,30 +357,19 @@ class RideHailManager(
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
-//  // for parking/charging search
-//  val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
-//    new MultinomialLogit(
-//      Map.empty,
-//      Map(
-//        "distanceFactor" -> UtilityFunctionOperation(
-//          "multiplier",
-//          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier
-//        ),
-//        "installedCapacity" -> UtilityFunctionOperation(
-//          "multiplier",
-//          beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier
-//        ),
-//        "parkingCostsPriceFactor" -> UtilityFunctionOperation(
-//          "multiplier",
-//          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier
-//        )
-//      )
-//    )
+  // parking choice function parameters
+  val mnlParamsFromConfig = beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
 
-  val mnlMultiplierParameters: ParkingMNL.Config = ParkingMNL.Config(
-    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
-    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
-    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier
+  val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
+    ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.rangeAnxietyMultiplier
+    ),
+    ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.distanceMultiplier
+    ),
+    ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.parkingPriceMultiplier
+    )
   )
 
   // provides tracking of parking/charging alternatives and their availability

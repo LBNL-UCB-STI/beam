@@ -4,6 +4,7 @@ import scala.util.{Failure, Random, Success, Try}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -28,7 +29,7 @@ class ZonalParkingManager(
   maxSearchRadius: Double,
   probabilityOfResidentialCharging: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.Config
+  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
 ) extends Actor
     with ActorLogging {
 
@@ -125,13 +126,6 @@ class ZonalParkingManager(
 
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
-          val chargeWhenHeadedHome: Boolean =
-            ParkingSearchFilterPredicates.testPEVChargeWhenHeadedHome(
-              zone,
-              isPEVAndNeedsToChargeAtHome,
-              inquiry.beamVehicle
-            )
-
           val rideHailFastChargingOnly: Boolean =
             ParkingSearchFilterPredicates.rideHailFastChargingOnly(
               zone,
@@ -148,7 +142,7 @@ class ZonalParkingManager(
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
           hasAvailability &&
-          chargeWhenHeadedHome &&
+//          chargeWhenHeadedHome &&
           rideHailFastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
@@ -166,7 +160,8 @@ class ZonalParkingManager(
           }
         }
 
-      val hasEnoughFuelBeforeParking: Boolean = inquiry.remainingTripData.map { _.agentCanCompleteTour() }.getOrElse(true)
+      val hasEnoughFuelBeforeParking: Boolean =
+        inquiry.remainingTripData.map { _.agentCanCompleteTour() }.getOrElse(true)
 
       if (inquiry.activityType != "home") {
         log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking"
@@ -206,6 +201,9 @@ class ZonalParkingManager(
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
+          val homeActivityPrefersResidentialFactor: Double =
+            if (inquiry.activityType == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
+            else 0.0
 
           if (rangeAnxietyFactor != 0.0 && inquiry.activityType != "home") {
             log.debug(
@@ -214,9 +212,10 @@ class ZonalParkingManager(
           }
 
           Map(
-            ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
-            ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor
+            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
+            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
+            ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
         }
 
@@ -314,12 +313,22 @@ object ZonalParkingManager extends LazyLogging {
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
     val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    val mnlParamsFromConfig = beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
     // distance to walk to the destination
 
-    val mnlMultiplierParameters = ParkingMNL.Config(
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier
+    val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
+      ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.rangeAnxietyMultiplier
+      ),
+      ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.distanceMultiplier
+      ),
+      ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.parkingPriceMultiplier
+      ),
+      ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.homeActivityPrefersResidentialParkingMultiplier
+      )
     )
 
     val random = {
@@ -354,7 +363,7 @@ object ZonalParkingManager extends LazyLogging {
   }
 
   /**
-    * constructs a ZonalParkingManager from a string iterator (testing)
+    * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
     * @param random random generator used for sampling parking locations
@@ -381,7 +390,7 @@ object ZonalParkingManager extends LazyLogging {
       maxSearchRadius,
       probabilityOfResidentialCharging,
       boundingBox,
-      ParkingMNL.Config()
+      ParkingMNL.DefaultMNLParameters
     )
   }
 

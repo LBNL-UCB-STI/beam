@@ -64,7 +64,7 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchParams(
     destinationUTM: Location,
     parkingDuration: Double,
-    parkingMNLConfig: ParkingMNL.Config,
+    parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
     zoneSearchTree: ZoneSearchTree[TAZ],
     parkingZones: Array[ParkingZone],
     zoneQuadTree: QuadTree[TAZ],
@@ -200,17 +200,7 @@ object ParkingZoneSearch {
           val mnl: MultinomialLogit[ParkingAlternative, ParkingMNL.Parameters] =
             new MultinomialLogit(
               Map.empty,
-              Map(
-                ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
-                  params.parkingMNLConfig.distance
-                ),
-                ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
-                  params.parkingMNLConfig.parkingCosts
-                ),
-                ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
-                  params.parkingMNLConfig.rangeAnxiety
-                )
-              )
+              params.parkingMNLConfig
             )
 
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
