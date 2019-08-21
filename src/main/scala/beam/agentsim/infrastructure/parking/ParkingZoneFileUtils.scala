@@ -21,7 +21,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row of the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+).*""".r.unanchored
+  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*).*""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)
@@ -36,7 +36,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @return a row describing infinite free parking at this TAZ
     */
   def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0, 0)},${ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},${ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
 
   /**
     * used to build up parking alternatives from a file

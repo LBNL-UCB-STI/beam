@@ -6,7 +6,7 @@ import scala.util.{Failure, Success, Try}
   * A ParkingZone may have a PricingModel, which is used to calculate the currency cost for parking in that zone
   */
 sealed trait PricingModel {
-  def cost: Int
+  def cost: Double
 }
 
 object PricingModel {
@@ -15,7 +15,7 @@ object PricingModel {
     * A flat parking fee, such as an all-day rate at a parking garage
     * @param cost the all-day rate, in cents
     */
-  case class FlatFee(cost: Int, intervalSeconds: Int = DefaultPricingInterval) extends PricingModel {
+  case class FlatFee(cost: Double) extends PricingModel {
     override def toString: String = "FlatFee"
   }
 
@@ -24,7 +24,7 @@ object PricingModel {
     * @param cost the cost per interval
     * @param intervalSeconds the duration of the charging interval
     */
-  case class Block(cost: Int, intervalSeconds: Int) extends PricingModel {
+  case class Block(cost: Double, intervalSeconds: Int) extends PricingModel {
     override def toString: String = "Block"
   }
 
@@ -45,14 +45,14 @@ object PricingModel {
       case "" => None
 
       case "flatfee" =>
-        val costInt = parseNumeric(cost, s)
-        val intervalInt = parseNumeric(intervalSeconds, s)
-        Some(FlatFee(costInt, intervalInt))
+        val costDouble = parseFee(cost, s)
+//        val intervalInt = parseInterval(intervalSeconds, s)
+        Some(FlatFee(costDouble))
 
       case "block" =>
-        val costInt = parseNumeric(cost, s)
-        val intervalInt = parseNumeric(intervalSeconds, s)
-        Some(Block(costInt, intervalInt))
+        val costDouble = parseFee(cost, s)
+        val intervalInt = parseInterval(intervalSeconds, s)
+        Some(Block(costDouble, intervalInt))
 
       case _ =>
         throw new java.io.IOException(s"Pricing Model is invalid: $s")
@@ -66,9 +66,9 @@ object PricingModel {
     */
   def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
     pricingModel match {
-      case FlatFee(cost, _) => cost.toDouble
+      case FlatFee(cost) => cost
       case Block(cost, intervalSeconds) =>
-        (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * cost.toDouble
+        (math.max(0.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * cost
     }
   }
 
@@ -78,7 +78,7 @@ object PricingModel {
     * @param model the name of the ADT that this value is associated with
     * @return an integer, or throw an IllegalArgumentException
     */
-  def parseNumeric(valueString: String, model: String): Int = {
+  def parseInterval(valueString: String, model: String): Int = {
     Try {
       valueString.toDouble.toInt // catches decimal entries as well
     } match {
@@ -89,9 +89,32 @@ object PricingModel {
       case Success(valueInt) =>
         if (valueInt < 0)
           throw new IllegalArgumentException(
-            s"negative pricing model fee of $valueInt not allowed for PricingModel"
+            s"negative time interval of $valueInt not allowed for PricingModel"
           )
         else valueInt
+    }
+  }
+
+  /**
+    * helper function that converts a value to an integer
+    * @param valueString the text value taken from an input file
+    * @param model the name of the ADT that this value is associated with
+    * @return an integer, or throw an IllegalArgumentException
+    */
+  def parseFee(valueString: String, model: String): Double = {
+    Try {
+      valueString.toDouble // catches decimal entries as well
+    } match {
+      case Failure(_) =>
+        throw new IllegalArgumentException(
+          s"could not parse $model parking attribute $valueString to a Double"
+        )
+      case Success(valueDouble) =>
+        if (valueDouble < 0)
+          throw new IllegalArgumentException(
+            s"negative pricing model feeInCents of $valueDouble not allowed for PricingModel"
+          )
+        else valueDouble
     }
   }
 }
