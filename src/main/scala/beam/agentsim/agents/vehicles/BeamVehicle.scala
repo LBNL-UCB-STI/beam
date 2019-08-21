@@ -65,6 +65,7 @@ class BeamVehicle(
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
+  var lastUsedStall: Option[ParkingStall] = None
 
   private var connectedToCharger: Boolean = false
   private var chargerConnectedTick: Option[Long] = None
@@ -104,6 +105,7 @@ class BeamVehicle(
 
   def useParkingStall(newStall: ParkingStall): Unit = {
     stall = Some(newStall)
+    lastUsedStall = Some(newStall)
   }
 
   def unsetParkingStall(): Unit = {
