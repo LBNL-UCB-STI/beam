@@ -135,7 +135,7 @@ class ZonalParkingManagerSpec
             coordCenterOfUTM,
             1234.0,
             None,
-            Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
+            Some(PricingModel.FlatFee(1234)),
             ParkingType.Workplace
           )
         zonalParkingManager ! firstInquiry
@@ -190,7 +190,7 @@ class ZonalParkingManagerSpec
             coordCenterOfUTM,
             1234.0,
             None,
-            Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
+            Some(PricingModel.FlatFee(1234)),
             ParkingType.Workplace
           )
 
