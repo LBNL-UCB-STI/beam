@@ -1,7 +1,5 @@
 package beam.sim.population
 
-import java.util.Random
-
 import beam.agentsim
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
@@ -150,15 +148,6 @@ trait PopulationAdjustment extends LazyLogging {
       this.removeMode(population, personId.toString, modeToRemove: _*)
     }
   }
-
-  def assignModeUniformDistribution(population: MPopulation, mode: String, pct: Double): Unit = {
-    val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    val numPop = population.getPersons.size()
-    rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
-      val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
-      addMode(population, personId, mode)
-    }
-  }
 }
 
 /**
@@ -168,8 +157,6 @@ object PopulationAdjustment extends LazyLogging {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val PERCENTAGE_ADJUSTMENT = "PERCENTAGE_ADJUSTMENT"
   val DIFFUSION_POTENTIAL_ADJUSTMENT = "DIFFUSION_POTENTIAL_ADJUSTMENT"
-  val EXCLUDE_TRANSIT = "EXCLUDE_TRANSIT"
-  val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
   val BEAM_ATTRIBUTES = "beam-attributes"
 
@@ -185,10 +172,6 @@ object PopulationAdjustment extends LazyLogging {
         DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
         PercentagePopulationAdjustment(beamServices)
-      case EXCLUDE_TRANSIT =>
-        ExcludeAllTransit(beamServices)
-      case HALF_TRANSIT =>
-        ExcludeHalfTransit(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case adjClass =>

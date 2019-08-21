@@ -2,7 +2,6 @@ package beam.sim.monitoring
 
 import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
@@ -38,8 +37,6 @@ class ErrorListener() extends Actor with ActorLogging {
           d.sender ! ReservationResponse(Left(DriverNotFoundError))
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
-        case TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _) =>
-        // Can be safely skipped, happens when a person drives away before the charging session is over
         case TriggerWithId(trigger, triggerId) =>
           log.warning("Trigger id {} sent to dead letters: {}", triggerId, trigger)
           d.sender ! CompletionNotice(triggerId)
