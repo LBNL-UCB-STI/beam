@@ -291,8 +291,6 @@ class PersonAgent(
 
   override def logDepth: Int = 30
 
-  val distanceSafetyMargin: Double = beamScenario.beamConfig.beam.agentsim.agents.parking.bev.distance_safety_margin
-
   /**
     * identifies agents with remaining range which is smaller than their remaining tour
     *
@@ -347,7 +345,7 @@ class PersonAgent(
           primaryFuelLevelInJoules,
           primaryFuelConsumptionInJoulePerMeter,
           remainingTourDist,
-          distanceSafetyMargin
+          beamScenario.beamConfig.beam.agentsim.agents.parking.rangeAnxietyBuffer
         )
       )
 
