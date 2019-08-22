@@ -27,7 +27,6 @@ class ZonalParkingManager(
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
   rand: Random,
   maxSearchRadius: Double,
-  probabilityOfResidentialCharging: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
 ) extends Actor
@@ -291,7 +290,6 @@ object ZonalParkingManager extends LazyLogging {
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
     val mnlParamsFromConfig = beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
     // distance to walk to the destination
@@ -336,7 +334,6 @@ object ZonalParkingManager extends LazyLogging {
       searchTree,
       random,
       maxSearchRadius,
-      probabilityOfResidentialParking,
       boundingBox,
       mnlMultiplierParameters
     )
@@ -355,7 +352,6 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
-    probabilityOfResidentialCharging: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
@@ -368,7 +364,6 @@ object ZonalParkingManager extends LazyLogging {
       parking.tree,
       random,
       maxSearchRadius,
-      probabilityOfResidentialCharging,
       boundingBox,
       ParkingMNL.DefaultMNLParameters
     )
