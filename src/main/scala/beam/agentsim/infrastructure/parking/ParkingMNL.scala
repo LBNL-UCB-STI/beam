@@ -19,33 +19,36 @@ object ParkingMNL {
     * @param primaryFuelLevelInJoules range of vehicle in meters
     * @param primaryFuelConsumptionInJoulePerMeter fuel consumption rate
     * @param remainingTourDistance distance agent expects to travel
-    * @param distanceSafetyMargin a bounds test
+    * @param rangeAnxietyBuffer the number of meters our remaining range needs to exceed our remaining tour in order to feel no anxiety
     */
   case class RemainingTripData(
     primaryFuelLevelInJoules: Double = 0.0,
     primaryFuelConsumptionInJoulePerMeter: Double = 0.0,
     remainingTourDistance: Double = 0.0,
-    distanceSafetyMargin: Double = 0.0
+    rangeAnxietyBuffer: Double = 20.0
   ) {
 
-    def agentCanCompleteTour(withAddedFuelInJoules: Double = 0.0): Boolean = {
-      val newRange
-        : Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
-      newRange > remainingTourDistance
-    }
-
     /**
-      * models range anxiety, from 0 (no anxiety) to 1 (no vehicle range proportional to remaining trip)
+      * models range anxiety with a piecewise function.
+      *
+      * from 0 (no anxiety) to 1 (anxiety) when we still have enough fuel to complete our tour
+      * jumps to 2 when we don't have enough fuel to complete our tour
       *
       * @param withAddedFuelInJoules fuel provided by a charging source which we are evaluating
       * @return range anxiety factor
       */
     def rangeAnxiety(withAddedFuelInJoules: Double = 0.0): Double = {
-      if (remainingTourDistance == 0) 0
+      if (remainingTourDistance == 0) 0.0
       else {
         val newRange
-          : Double = ((primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter) - distanceSafetyMargin
-        1 - math.max(0, math.min(1, newRange / remainingTourDistance))
+          : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
+        if (newRange > remainingTourDistance) {
+          val excessFuelProportion
+            : Double = (newRange - remainingTourDistance) / (remainingTourDistance + rangeAnxietyBuffer)
+          1 - math.max(0.0, excessFuelProportion)
+        } else {
+          2.0 // step up to 2, an urgent need to find other alternatives
+        }
       }
     }
   }

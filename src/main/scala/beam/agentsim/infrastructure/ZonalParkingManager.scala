@@ -151,9 +151,6 @@ class ZonalParkingManager(
           }
         }
 
-      val hasEnoughFuelBeforeParking: Boolean =
-        inquiry.remainingTripData.map { _.agentCanCompleteTour() }.getOrElse(true)
-
       // adds multinomial logit parameters to a ParkingAlternative
       val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
         (parkingAlternative: ParkingAlternative) => {
