@@ -302,19 +302,10 @@ class PersonAgent(
   def calculateRemainingTripData(personData: BasePersonData): Option[ParkingMNL.RemainingTripData] = {
 
     val refuelNeeded: Boolean =
-      if (currentBeamVehicle.isCAV) {
-        // not human, use non-human config values
-        currentBeamVehicle.isRefuelNeeded(
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters,
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
-        )
-      } else {
-
-        currentBeamVehicle.isRefuelNeeded(
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
-        )
-      }
+      currentBeamVehicle.isRefuelNeeded(
+        beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
+        beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
+      )
 
     if (refuelNeeded) {
 
