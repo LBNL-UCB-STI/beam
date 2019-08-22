@@ -625,16 +625,16 @@ class RideHailAgent(
     val rideHailAgentLocation =
       RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-    val beta1 = 1
-    val beta2 = 1
-    val beta3 = 0.001
-    val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-      "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-      "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-    )
-    val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
-    val inquiry = ParkingInquiry(destinationUtm, "charge", 0.0, mnl, 0.0, Option(vehicle))
+//    val beta1 = 1
+//    val beta2 = 1
+//    val beta3 = 0.001
+//    val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
+//      "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+//      "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+//      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+//    )
+//    val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
   }
 
