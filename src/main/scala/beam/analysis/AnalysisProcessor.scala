@@ -8,9 +8,9 @@ import beam.utils.logging.ExponentialLazyLogging
 
 object AnalysisProcessor extends ExponentialLazyLogging {
 
-  def iterationEndBulkAnalysisOutput_Async(currentIterationNumber: Int) = {
-    fireAndForgetPythonScript("src/main/python/events_analysis/drive_to_transit.py")
-    fireAndForgetPythonScript("src/main/python/events_analysis/pool_metrics.py")
+  def iterationEndBulkAnalysisOutput_Async(currentEventsFilePath: String) = {
+    fireAndForgetPythonScript("src/main/python/events_analysis/analyze_events.py", currentEventsFilePath)
+    fireAndForgetPythonScript("src/main/python/events_analysis/pool_metrics.py", currentEventsFilePath)
   }
 
   def fireAndForgetPythonScript(scriptPath: String, args: String*) = {

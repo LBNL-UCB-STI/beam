@@ -304,7 +304,9 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
-    beam.analysis.AnalysisProcessor.iterationEndBulkAnalysisOutput_Async(event.getIteration)
+    beam.analysis.AnalysisProcessor.iterationEndBulkAnalysisOutput_Async(
+      event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
+    )
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
