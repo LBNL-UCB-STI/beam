@@ -66,13 +66,6 @@ class ZonalParkingManager(
           case _ => Set(ParkingType.Public)
         }
 
-      // if headed home, some agents require home charging at some probability
-      val isPEVAndNeedsToChargeAtHome: Option[Boolean] =
-        inquiry.activityType.toLowerCase match {
-          case "home" => Some { rand.nextDouble() <= probabilityOfResidentialCharging }
-          case _      => None
-        }
-
       // allow charger ParkingZones
       val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => true
@@ -142,7 +135,6 @@ class ZonalParkingManager(
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
           hasAvailability &&
-//          chargeWhenHeadedHome &&
           rideHailFastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
@@ -162,12 +154,6 @@ class ZonalParkingManager(
 
       val hasEnoughFuelBeforeParking: Boolean =
         inquiry.remainingTripData.map { _.agentCanCompleteTour() }.getOrElse(true)
-
-      if (inquiry.activityType != "home") {
-        log.debug(s"this agent ${if (hasEnoughFuelBeforeParking) "has enough fuel to complete tour before parking"
-        else "doesn't have enough fuel to complete tour and may feel range anxiety"}")
-        log.debug("parkingZoneId,distance,rangeAnxietyFactor,distanceFactor,parkingCostsPriceFactor")
-      }
 
       // adds multinomial logit parameters to a ParkingAlternative
       val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
@@ -204,12 +190,6 @@ class ZonalParkingManager(
           val homeActivityPrefersResidentialFactor: Double =
             if (inquiry.activityType == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
             else 0.0
-
-          if (rangeAnxietyFactor != 0.0 && inquiry.activityType != "home") {
-            log.debug(
-              f"${parkingAlternative.parkingZone.parkingZoneId},$distance%.3f,$rangeAnxietyFactor%.3f,$distanceFactor%.3f,$parkingCostsPriceFactor%.3f"
-            )
-          }
 
           Map(
             ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
