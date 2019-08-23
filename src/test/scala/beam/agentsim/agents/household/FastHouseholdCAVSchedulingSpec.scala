@@ -7,10 +7,13 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamSkimmer
+import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.utils.{SimRunnerForTest, TestConfigUtils}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
@@ -25,9 +28,9 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
-
+/*
 class FastHouseholdCAVSchedulingSpec
     extends TestKit(
       ActorSystem(
@@ -317,3 +320,4 @@ class FastHouseholdCAVSchedulingSpec
     (sc.getPopulation, household)
   }
 }
+ */
