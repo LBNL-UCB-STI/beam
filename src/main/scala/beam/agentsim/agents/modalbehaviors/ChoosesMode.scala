@@ -99,6 +99,7 @@ trait ChoosesMode {
             _,
             _,
             _,
+        _,
             _,
             _,
             _,
@@ -137,6 +138,7 @@ trait ChoosesMode {
             _,
             _,
             _,
+        _,
             _,
             _,
             _
@@ -177,7 +179,7 @@ trait ChoosesMode {
       val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
-      )
+      ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
         case Some(mode)
@@ -845,7 +847,8 @@ trait ChoosesMode {
           _,
           _,
           _,
-          Some(cavTripLegs)
+          Some(cavTripLegs),
+          _
         ),
         _,
         _,
@@ -906,7 +909,7 @@ trait ChoosesMode {
 
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
-      )
+      ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
@@ -1134,7 +1137,8 @@ object ChoosesMode {
     availablePersonalStreetVehicles: Vector[VehicleOrToken] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false,
-    cavTripLegs: Option[CavTripLegsResponse] = None
+    cavTripLegs: Option[CavTripLegsResponse] = None,
+    excludeModes: Vector[BeamMode] = Vector()
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 
