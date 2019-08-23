@@ -1,3 +1,0 @@
-include 'beam-gui'
-
-rootProject.name = 'beam'

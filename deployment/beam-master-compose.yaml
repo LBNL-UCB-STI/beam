@@ -1,0 +1,17 @@
+version: '3'
+services:
+
+  beam-master:
+    image: beammodel/beam:0.6.2
+    hostname: beam-master
+    ports:
+      - "2552"
+    volumes:
+      - "../test/input/beamville:/opt/config/simulation"
+      - "../test/input/common:/opt/config/common"
+      - "../test/input/dtd:/opt/config/dtd"
+      - "../output/docker:/opt/output:rw"
+    command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "master", "--node-host", "beam-master", "--node-port", "2552", "--seed-address", "beam-master:2552", "--use-local-worker", "true"]
+    environment:
+      BEAM_OUTPUT: /opt/output
+      JAVA_OPTS: '"-Xmx3g" "-Xms2g" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" "-Dlogback.configurationFile=logback.xml"'

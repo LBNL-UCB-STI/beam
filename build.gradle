@@ -17,13 +17,17 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
+
     }
 }
 
 plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "2.5.0"
+    id "org.scoverage" version "3.0.0"
+    id 'org.ajoberstar.grgit' version '1.7.2'
     id 'maven-publish'
 }
 
@@ -39,9 +43,11 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.6.0'
+version = '0.7.1'
 
 description = """"""
 
@@ -88,7 +94,7 @@ if (project.hasProperty('env')) {
 allprojects {
     repositories {
         maven { url 'http://download.osgeo.org/webdav/geotools/' }
-       // maven { url "http://maven.geotoolkit.org/" }
+        // maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
         maven { url "http://repo.maven.apache.org/maven2" }
@@ -365,19 +371,13 @@ lambda {
 }
 
 def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
-        }
-    } catch (e) {
-    }
-    return gitBranch
+    return grgit.branch.current.name
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Task to run tests periodically on continue integration server.
+// ./gradleW deploy -PregionId=us-west-2 -PinstanceType=c5.xlarge -PclusterName=beam-cluster -Pnodes=3
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
         if (!project.hasProperty('runName')) {
@@ -535,6 +535,38 @@ task sourcesJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
+docker {
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = System.getenv("DOCKER_USER")
+        password = System.getenv("DOCKER_PASSWORD")
+    }
+
+    javaApplication {
+        baseImage = 'anapsix/alpine-java:8u181b13_jdk_unlimited'
+        maintainer = 'Kirill Mitin "mitin.kirill.ol@gmail.com"'
+        ports = [2552]
+        tag = 'beammodel/beam:' + version
+    }
+
+    startScripts {
+        def configureExec = { line ->
+            line = line.replaceAll(~/^exec .*$/) { original ->
+                "export HOSTNAME_VALUE=\$(eval \"\$HOSTNAME_COMMAND\")\n" + original
+            }
+        }
+
+        doLast {
+            // Alter the start script for Unix systems.
+            unixScript.text =
+                    unixScript
+                            .readLines()
+                            .collect(configureExec)
+                            .join('\n')
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run Via application plugin
 // Note: colon preceding "run" is necessary to only run the main project and not launch the GUI as well.
@@ -568,8 +600,7 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g", "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
                              "-Dlogback.configurationFile=logback_prod.xml"] + logGC
 
 println(applicationDefaultJvmArgs)
@@ -617,7 +648,6 @@ task execute(type: JavaExec) {
     }
 }
 
-
 task matsimConversion(type: JavaExec) {
     main = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
@@ -642,7 +672,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
 }
 
-task fmt(dependsOn: scalafmtAll) 
+task fmt(dependsOn: scalafmtAll)
 task checkScalaFmt() {
     doLast {
         try {
@@ -659,4 +689,33 @@ And that would only happen if the committed code is not formatted as expected.""
             throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
         }
     }
+}
+
+
+jar {
+    manifest {
+        attributes(
+                'Built-By': System.properties['user.name'],
+                'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
+                'Created-By': "Gradle ${gradle.gradleVersion}",
+                'Build-Jdk': "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+                'Build-OS': "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
+                'Specification-Title': "Java Advanced Imaging Image I/O Tools",
+                'Specification-Version': "1.1",
+                'Specification-Vendor': "Sun Microsystems, Inc.",
+                'Implementation-Title': "com.sun.media.imageio",
+                'Implementation-Version': "1.1",
+                'Implementation-Vendor': "Sun Microsystems, Inc.",
+                'Build-Commit': "${grgit.head().id}",
+                'Build-Branch': "${grgit.branch.current.name}"
+        )
+    }
+}
+
+shadowJar {
+    zip64 true
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
+        resource = 'reference.conf'
+    }
+    mergeServiceFiles()
 }
