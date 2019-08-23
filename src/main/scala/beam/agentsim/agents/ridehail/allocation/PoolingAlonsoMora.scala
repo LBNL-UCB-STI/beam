@@ -264,7 +264,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         .flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .toSet
       pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach { unsatisfiedReq =>
-        allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
+        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager) match {
+          case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
+            allocResponses = allocResponses :+ res
+            alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
+          case res =>
+            allocResponses = allocResponses :+ res
+        }
       }
       // Now satisfy the solo customers
       toAllocate.filterNot(_.asPooled).foreach { req =>
