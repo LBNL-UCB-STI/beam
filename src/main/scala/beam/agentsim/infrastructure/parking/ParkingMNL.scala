@@ -43,8 +43,7 @@ object ParkingMNL {
         val newRange
           : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
-          val excessFuelProportion
-            : Double = (newRange - remainingTourDistance) / (remainingTourDistance + rangeAnxietyBuffer)
+          val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
           1 - math.max(0.0, excessFuelProportion)
         } else {
           2.0 // step up to 2, an urgent need to find other alternatives
