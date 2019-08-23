@@ -8,7 +8,7 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.BeamScenario
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.google.inject.Inject
@@ -31,6 +31,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val geo: GeoUtils
 ) extends LazyLogging {
@@ -38,7 +39,7 @@ class TravelTimeObserved @Inject()(
   import beamScenario._
 
   @volatile
-  private var skimmer: BeamSkimmer = new BeamSkimmer(beamScenario, geo)
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamServices, beamScenario, geo)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -99,7 +100,7 @@ class TravelTimeObserved @Inject()(
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     writeTravelTimeObservedVsSimulated(event)
-    skimmer = new BeamSkimmer(beamScenario, geo)
+    skimmer = new BeamSkimmer(beamServices, beamScenario, geo)
   }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
