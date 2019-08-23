@@ -1,7 +1,6 @@
 package beam.router
 
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -22,13 +21,13 @@ import beam.router.Modes.BeamMode.{
 }
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.VehicleManager
-import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
@@ -40,11 +39,14 @@ import scala.util.control.NonFatal
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val geo: GeoUtils
 ) extends LazyLogging {
   import BeamSkimmer._
   import beamScenario._
+
+  def beamConfig: BeamConfig = beamServices.beamConfig
 
   // The OD/Mode/Time Matrix
   private var previousSkims: BeamSkimmerADT = initialPreviousSkims()
