@@ -6,7 +6,8 @@ import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import org.jgrapht.graph.DefaultEdge
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
@@ -14,6 +15,7 @@ import scala.collection.immutable.List
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.collection.mutable
+import scala.collection.immutable
 
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -21,6 +23,9 @@ class AsyncAlonsoMoraAlgForRideHail(
   beamServices: BeamServices,
   skimmer: BeamSkimmer
 ) {
+
+  //case class AlternativeOptionsScore(personId: Id[Person], score: Double)
+  var alternativeOptionsScore = immutable.HashMap.empty[Id[Person], Double]
 
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     val vertices = mutable.ListBuffer.empty[RTVGraphNode]
@@ -31,7 +36,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       .speedMeterPerSec(BeamMode.CAV)
     val solutionSpaceSizePerVehicle = Math
       .round(
-        v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability
+        v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToAvailability
       )
       .toInt
     val requests = v.geofence match {
@@ -50,6 +55,7 @@ class AsyncAlonsoMoraAlgForRideHail(
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
     requests
+      .filter(x => !alternativeOptionsScore.filter(_._2 > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest).exists(_._1 == x.person.personId))
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(solutionSpaceSizePerVehicle) foreach (
       r =>
@@ -60,7 +66,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           skimmer
         ) match {
           case Some(schedule) =>
-            val t = RideHailTrip(List(r), schedule)
+            val t = RideHailTrip(List(r), schedule, Some(v))
             finalRequestsList append t
             if (!vertices.contains(v)) vertices append v
             vertices append (r, t)
@@ -86,7 +92,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             skimmer
           ) match {
             case Some(schedule) =>
-              val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+              val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
               kRequestsList append t
               vertices append t
               t.requests.foldLeft(()) { case (_, r) => edges append ((r, t)) }
@@ -95,6 +101,18 @@ class AsyncAlonsoMoraAlgForRideHail(
           }
         }
         finalRequestsList.appendAll(kRequestsList)
+      }
+      val personChecked = mutable.IndexedSeq.empty[Id[Person]]
+      finalRequestsList.sortBy(- _.schedule.size).foreach {
+        alternative =>
+          val score = alternative.requests.size/alternative.vehicle.get.getFreeSeats
+          alternative.requests.foreach {
+            request =>
+              if(!personChecked.contains(request.person.personId)) {
+                val prevScore = alternativeOptionsScore.getOrElse(request.person.personId, 0.0)
+                alternativeOptionsScore = alternativeOptionsScore + (request.person.personId -> (prevScore + score))
+              }
+          }
       }
     }
     (vertices.toList, edges.toList)

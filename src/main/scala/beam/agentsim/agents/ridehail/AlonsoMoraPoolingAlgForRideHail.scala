@@ -53,7 +53,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       ).map { schedule =>
         rvG.addVertex(r2)
         rvG.addVertex(r1)
-        rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
+        rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule, None))
       }
     }
     for {
@@ -69,7 +69,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         .take(
           Math
             .round(
-              v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability
+              v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToAvailability
             )
             .toInt
         )
@@ -78,7 +78,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         schedule =>
           rvG.addVertex(v)
           rvG.addVertex(r)
-          rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
+          rvG.addEdge(v, r, RideHailTrip(List(r), schedule, Some(v)))
       }
     }
   }
@@ -111,7 +111,7 @@ class AlonsoMoraPoolingAlgForRideHail(
             v.vehicleRemainingRangeInMeters.toInt,
             skimmer
           ) map { schedule =>
-            val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+            val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
             pairRequestsList append t
             rTvG.addVertex(t)
             rTvG.addEdge(t1.requests.head, t)
@@ -137,7 +137,7 @@ class AlonsoMoraPoolingAlgForRideHail(
               v.vehicleRemainingRangeInMeters.toInt,
               skimmer
             ).map { schedule =>
-              val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+              val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
               kRequestsList.append(t)
               rTvG.addVertex(t)
               t.requests.foldLeft(()) { case (_, r) => rTvG.addEdge(r, t) }
@@ -502,7 +502,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)
   }
   // Trip that can be satisfied by one or more ride hail vehicle
-  case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityRequest])
+  case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityRequest], vehicle: Option[VehicleAndSchedule])
       extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }

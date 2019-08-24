@@ -24,6 +24,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec = 420
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction= 0.2
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability = 100.0
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest = 100.0
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -43,6 +44,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec = 420
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction= 0.2
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability = 100.0
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest = 100.0
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -105,6 +107,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec = 360
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction= 0.5
                      |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability = 100.0
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest = 100.0
         """.stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-25k.conf"))
       .resolve()
