@@ -145,9 +145,8 @@ class BeamSim @Inject()(
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(
       eventsManager,
-      beamServices.networkHelper,
-      event.getServices.getControlerIO,
-      beamServices.beamConfig.beam.outputs.writeEventsInterval
+      beamServices,
+      event.getServices.getControlerIO
     )
 
     tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
