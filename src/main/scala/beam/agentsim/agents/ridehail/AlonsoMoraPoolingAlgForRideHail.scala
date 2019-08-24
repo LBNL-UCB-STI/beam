@@ -502,8 +502,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)
   }
   // Trip that can be satisfied by one or more ride hail vehicle
-  case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityRequest], vehicle: Option[VehicleAndSchedule])
-      extends DefaultEdge
+  case class RideHailTrip(
+    requests: List[CustomerRequest],
+    schedule: List[MobilityRequest],
+    vehicle: Option[VehicleAndSchedule]
+  ) extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val sumOfDelays: Int = schedule.foldLeft(0) { case (c, r)              => c + (r.serviceTime - r.baselineNonPooledTime) }

@@ -24,7 +24,6 @@ class AsyncAlonsoMoraAlgForRideHail(
   skimmer: BeamSkimmer
 ) {
 
-  //case class AlternativeOptionsScore(personId: Id[Person], score: Double)
   var alternativeOptionsScore = immutable.HashMap.empty[Id[Person], Double]
 
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
@@ -55,7 +54,14 @@ class AsyncAlonsoMoraAlgForRideHail(
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
     requests
-      .filter(x => !alternativeOptionsScore.filter(_._2 > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest).exists(_._1 == x.person.personId))
+      .filter(
+        x =>
+          !alternativeOptionsScore
+            .filter(
+              _._2 > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest
+            )
+            .exists(_._1 == x.person.personId)
+      )
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(solutionSpaceSizePerVehicle) foreach (
       r =>
@@ -103,16 +109,14 @@ class AsyncAlonsoMoraAlgForRideHail(
         finalRequestsList.appendAll(kRequestsList)
       }
       val personChecked = mutable.IndexedSeq.empty[Id[Person]]
-      finalRequestsList.sortBy(- _.schedule.size).foreach {
-        alternative =>
-          val score = alternative.requests.size/alternative.vehicle.get.getFreeSeats
-          alternative.requests.foreach {
-            request =>
-              if(!personChecked.contains(request.person.personId)) {
-                val prevScore = alternativeOptionsScore.getOrElse(request.person.personId, 0.0)
-                alternativeOptionsScore = alternativeOptionsScore + (request.person.personId -> (prevScore + score))
-              }
+      finalRequestsList.sortBy(-_.schedule.size).foreach { alternative =>
+        val score = alternative.requests.size / alternative.vehicle.get.getFreeSeats
+        alternative.requests.foreach { request =>
+          if (!personChecked.contains(request.person.personId)) {
+            val prevScore = alternativeOptionsScore.getOrElse(request.person.personId, 0.0)
+            alternativeOptionsScore = alternativeOptionsScore + (request.person.personId -> (prevScore + score))
           }
+        }
       }
     }
     (vertices.toList, edges.toList)
