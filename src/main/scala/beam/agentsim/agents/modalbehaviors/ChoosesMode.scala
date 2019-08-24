@@ -1081,7 +1081,7 @@ trait ChoosesMode {
             .activities(data.personData.currentActivityIndex)
             .getLinkId
             .toString,
-          data.availableAlternatives.mkString(":"),
+          data.availableAlternatives.get,
           data.availablePersonalStreetVehicles.nonEmpty,
           chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
           _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
