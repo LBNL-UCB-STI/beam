@@ -24,7 +24,7 @@ class AsyncAlonsoMoraAlgForRideHail(
   skimmer: BeamSkimmer
 ) {
 
-  var alternativeOptionsScore = immutable.HashMap.empty[Id[Person], Double]
+  //var alternativeOptionsScore = immutable.HashMap.empty[Id[Person], Double]
 
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     val vertices = mutable.ListBuffer.empty[RTVGraphNode]
@@ -53,7 +53,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       case _ =>
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
-    requests
+/*    requests
       .filter(
         x =>
           !alternativeOptionsScore
@@ -61,7 +61,8 @@ class AsyncAlonsoMoraAlgForRideHail(
               _._2 > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioOfSolutionSpaceToRequest
             )
             .exists(_._1 == x.person.personId)
-      )
+      ) */
+    requests
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(solutionSpaceSizePerVehicle) foreach (
       r =>
@@ -108,6 +109,7 @@ class AsyncAlonsoMoraAlgForRideHail(
         }
         finalRequestsList.appendAll(kRequestsList)
       }
+      /*
       var personChecked = mutable.IndexedSeq.empty[Id[Person]]
       finalRequestsList.sortBy(-_.schedule.size).foreach { alternative =>
         val score = alternative.requests.size / alternative.vehicle.get.getFreeSeats
@@ -119,6 +121,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           }
         }
       }
+      */
     }
     (vertices.toList, edges.toList)
   }
