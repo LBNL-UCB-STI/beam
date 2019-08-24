@@ -20,7 +20,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -88,8 +88,7 @@ class AlonsoMoraPoolingAlgForRideHail(
     supply.withFilter(x => rvG.containsVertex(x)).foreach { v =>
       rTvG.addVertex(v)
 
-      import scala.collection.mutable.{ListBuffer => MListBuffer}
-      val individualRequestsList = MListBuffer.empty[RideHailTrip]
+      val individualRequestsList = mutable.ListBuffer.empty[RideHailTrip]
       for (t <- rvG.outgoingEdgesOf(v).asScala) {
         individualRequestsList.append(t)
         rTvG.addVertex(t)
@@ -99,7 +98,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       }
 
       if (v.getFreeSeats > 1) {
-        val pairRequestsList = MListBuffer.empty[RideHailTrip]
+        val pairRequestsList = mutable.ListBuffer.empty[RideHailTrip]
         for {
           t1 <- individualRequestsList
           t2 <- individualRequestsList
@@ -121,9 +120,9 @@ class AlonsoMoraPoolingAlgForRideHail(
           }
         }
 
-        val finalRequestsList: MListBuffer[RideHailTrip] = individualRequestsList ++ pairRequestsList
+        val finalRequestsList: mutable.ListBuffer[RideHailTrip] = individualRequestsList ++ pairRequestsList
         for (k <- 3 until v.getFreeSeats + 1) {
-          val kRequestsList = MListBuffer.empty[RideHailTrip]
+          val kRequestsList = mutable.ListBuffer.empty[RideHailTrip]
           for {
             t1 <- finalRequestsList
             t2 <- finalRequestsList
@@ -168,10 +167,9 @@ object AlonsoMoraPoolingAlgForRideHail {
     maximumVehCapacity: Int,
     config: BeamConfig
   ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
-    import scala.collection.mutable.{ListBuffer => MListBuffer}
-    val Rok = MListBuffer.empty[CustomerRequest]
-    val Vok = MListBuffer.empty[VehicleAndSchedule]
-    val greedyAssignmentList = MListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
+    val Rok = mutable.ListBuffer.empty[CustomerRequest]
+    val Vok = mutable.ListBuffer.empty[VehicleAndSchedule]
+    val greedyAssignmentList = mutable.ListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
     for (k <- maximumVehCapacity to 1 by -1) {
       rTvG
         .vertexSet()
@@ -333,7 +331,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       veh.currentPassengerSchedule.map(_.locationAtTime(tick, beamServices)).getOrElse(veh.currentLocationUTM.loc)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
     v1Act0.setEndTime(tick)
-    var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
+    var alonsoSchedule = mutable.ListBuffer.empty[MobilityRequest]
     val maxWaitTimeInSec =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec
     val maxTravelTimeDelayAsFraction =
@@ -346,7 +344,7 @@ object AlonsoMoraPoolingAlgForRideHail {
               s"${veh.vehicleId}Act0",
               beamServices.geo.wgs2Utm(leg.travelPath.startPoint.loc)
             )
-            alonsoSchedule = ListBuffer(
+            alonsoSchedule = mutable.ListBuffer(
               MobilityRequest(
                 None,
                 theActivity,

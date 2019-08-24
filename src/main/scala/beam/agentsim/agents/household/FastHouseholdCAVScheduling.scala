@@ -35,8 +35,6 @@ class FastHouseholdCAVScheduling(
   var stopSearchAfterXSolutions: Int = 100
   var limitCavToXPersons: Int = 3
 
-  import scala.collection.mutable.{ListBuffer => MListBuffer}
-
   def getKLowestSumOfDelaysSchedules(k: Int): List[List[CAVSchedule]] = {
     getAllFeasibleSchedules
       .sortBy(_.householdScheduleCost.sumOfDelays.foldLeft(0)(_ + _._2))
@@ -126,7 +124,7 @@ class FastHouseholdCAVScheduling(
   ) {
 
     def check(requests: List[MobilityRequest]): List[HouseholdSchedule] = {
-      val outHouseholdSchedule = MListBuffer.empty[HouseholdSchedule]
+      val outHouseholdSchedule = mutable.ListBuffer.empty[HouseholdSchedule]
       breakable {
         for ((cav, cavSchedule) <- schedulesMap.toArray.sortBy(_._2.schedule.size)(Ordering[Int].reverse)) {
           // prioritizing CAVs with high usage
@@ -152,7 +150,7 @@ class FastHouseholdCAVScheduling(
       val sortedRequests =
         (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
       val startRequest = sortedRequests.head
-      val newHouseholdSchedule = MListBuffer(startRequest.copy())
+      val newHouseholdSchedule = mutable.ListBuffer(startRequest.copy())
       var newHouseholdScheduleCost = householdScheduleCost.copy()
       var newOccupancy: Int = cavSchedule.occupancy
 
@@ -221,7 +219,7 @@ class FastHouseholdCAVScheduling(
       )
     }
 
-    private def computeSharedTravelTime(requestsSeq: MListBuffer[MobilityRequest]): Int = {
+    private def computeSharedTravelTime(requestsSeq: mutable.ListBuffer[MobilityRequest]): Int = {
       val waitTime = requestsSeq.head.serviceTime - requestsSeq.head.baselineNonPooledTime
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
         case (acc, Seq(prevReq, nextReq)) =>
@@ -393,7 +391,6 @@ case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperIm
 
 object HouseholdTripsHelper {
 
-  import scala.collection.mutable.{ListBuffer => MListBuffer, Map => MMap}
   import scala.util.control.Breaks._
   val logger = HouseholdTripsLogger(getClass.getName)
 
@@ -410,10 +407,10 @@ object HouseholdTripsHelper {
     beamVehicleType: BeamVehicleType,
     waitingTimeInSec: Int,
     delayToArrivalInSec: Int
-  ): (List[List[MobilityRequest]], Option[MobilityRequest], MMap[Trip, Int], Int) = {
-    val requests = MListBuffer.empty[List[MobilityRequest]]
-    val tours = MListBuffer.empty[MobilityRequest]
-    val tripTravelTime = MMap[Trip, Int]()
+  ): (List[List[MobilityRequest]], Option[MobilityRequest], mutable.Map[Trip, Int], Int) = {
+    val requests = mutable.ListBuffer.empty[List[MobilityRequest]]
+    val tours = mutable.ListBuffer.empty[MobilityRequest]
+    val tripTravelTime = mutable.Map[Trip, Int]()
     var totTravelTime = 0
     var firstPickupOfTheDay: Option[MobilityRequest] = None
     breakable {
