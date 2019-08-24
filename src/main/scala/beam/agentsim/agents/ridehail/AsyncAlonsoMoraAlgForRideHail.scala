@@ -27,8 +27,13 @@ class AsyncAlonsoMoraAlgForRideHail(
     val edges = mutable.ListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = mutable.ListBuffer.empty[RideHailTrip]
     val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
-    val searchRadius = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
-    val solutionSpaceSizePerVehicle = Math.round(v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability).toInt
+    val searchRadius = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec * BeamSkimmer
+      .speedMeterPerSec(BeamMode.CAV)
+    val solutionSpaceSizePerVehicle = Math
+      .round(
+        v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability
+      )
+      .toInt
     val requests = v.geofence match {
       case Some(gf) =>
         val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
