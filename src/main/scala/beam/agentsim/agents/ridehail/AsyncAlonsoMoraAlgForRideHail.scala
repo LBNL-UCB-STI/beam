@@ -108,13 +108,14 @@ class AsyncAlonsoMoraAlgForRideHail(
         }
         finalRequestsList.appendAll(kRequestsList)
       }
-      val personChecked = mutable.IndexedSeq.empty[Id[Person]]
+      var personChecked = mutable.IndexedSeq.empty[Id[Person]]
       finalRequestsList.sortBy(-_.schedule.size).foreach { alternative =>
         val score = alternative.requests.size / alternative.vehicle.get.getFreeSeats
         alternative.requests.foreach { request =>
           if (!personChecked.contains(request.person.personId)) {
             val prevScore = alternativeOptionsScore.getOrElse(request.person.personId, 0.0)
             alternativeOptionsScore = alternativeOptionsScore + (request.person.personId -> (prevScore + score))
+            personChecked = personChecked :+ request.person.personId
           }
         }
       }
