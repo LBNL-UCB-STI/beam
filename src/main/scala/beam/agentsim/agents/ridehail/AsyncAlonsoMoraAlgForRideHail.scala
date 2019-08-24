@@ -53,7 +53,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       case _ =>
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
-/*    requests
+    /*    requests
       .filter(
         x =>
           !alternativeOptionsScore
@@ -121,7 +121,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           }
         }
       }
-      */
+     */
     }
     (vertices.toList, edges.toList)
   }
