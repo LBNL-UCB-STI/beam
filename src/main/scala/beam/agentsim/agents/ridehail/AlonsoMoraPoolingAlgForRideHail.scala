@@ -10,17 +10,17 @@ import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
-
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -28,12 +28,6 @@ class AlonsoMoraPoolingAlgForRideHail(
   beamServices: BeamServices,
   skimmer: BeamSkimmer
 ) {
-
-  // Methods below should be kept as def (instead of val) to allow automatic value updating
-  private def alonsoMora: AllocationManager.AlonsoMora =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-  private def solutionSpaceSizePerVehicle: Int = alonsoMora.solutionSpaceSizePerVehicle
-  private def waitingTimeInSec: Int = alonsoMora.waitingTimeInSec
 
   val rvG = RVGraph(classOf[RideHailTrip])
   val rTvG = RTVGraph(classOf[DefaultEdge])
@@ -45,7 +39,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         .getDisk(
           r1.pickup.activity.getCoord.getX,
           r1.pickup.activity.getCoord.getY,
-          waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
         )
         .asScala
         .withFilter(x => r1 != x && !rvG.containsEdge(r1, x))
@@ -61,17 +55,16 @@ class AlonsoMoraPoolingAlgForRideHail(
         rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
       }
     }
-
     for {
       v: VehicleAndSchedule <- supply.withFilter(_.getFreeSeats >= 1)
       r: CustomerRequest <- spatialDemand
         .getDisk(
           v.getRequestWithCurrentVehiclePosition.activity.getCoord.getX,
           v.getRequestWithCurrentVehiclePosition.activity.getCoord.getY,
-          waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
         )
         .asScala
-        .take(solutionSpaceSizePerVehicle)
+        .take(Math.round(v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability).toInt)
     } yield {
       getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer).map {
         schedule =>
@@ -154,7 +147,7 @@ class AlonsoMoraPoolingAlgForRideHail(
   // a greedy assignment using a cost function
   def matchAndAssign(tick: Int): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     val V: Int = supply.foldLeft(0) { case (maxCapacity, v) => Math max (maxCapacity, v.getFreeSeats) }
-    greedyAssignment(rTvG, V, solutionSpaceSizePerVehicle)
+    greedyAssignment(rTvG, V, beamServices.beamConfig)
   }
 
 }
@@ -165,7 +158,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   def greedyAssignment(
     rTvG: RTVGraph,
     maximumVehCapacity: Int,
-    solutionSpaceSizePerVehicle: Int
+    config: BeamConfig
   ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val Rok = MListBuffer.empty[CustomerRequest]
@@ -187,7 +180,7 @@ object AlonsoMoraPoolingAlgForRideHail {
                 .head
             )
             .asInstanceOf[VehicleAndSchedule]
-          val cost = trip.requests.size * trip.getSumOfDelaysAsFraction + (solutionSpaceSizePerVehicle - trip.requests.size) * 1.0
+          val cost = trip.requests.size * trip.getSumOfDelaysAsFraction + (vehicle.getFreeSeats - trip.requests.size) * 1.0
           (trip, vehicle, cost)
         }
         .toList
@@ -272,11 +265,8 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
-    val alonsoMora: AllocationManager.AlonsoMora =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-    val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
-
+    val maxWaitTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec
+    val maxTravelTimeDelayAsFraction = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
@@ -301,7 +291,7 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamMode.RIDE_HAIL,
         Pickup,
         departureTime,
-        departureTime + waitingTimeInSec,
+        departureTime + maxWaitTimeInSec,
         0
       ),
       MobilityRequest(
@@ -312,7 +302,7 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamMode.RIDE_HAIL,
         Dropoff,
         departureTime + skim.time,
-        Math.round(departureTime + skim.time + waitingTimeInSec + travelTimeDelayAsFraction * skim.time).toInt,
+        Math.round(departureTime + skim.time + maxWaitTimeInSec + maxTravelTimeDelayAsFraction * skim.time).toInt,
         skim.distance.toInt
       )
     )
@@ -334,12 +324,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
-
-    val alonsoMora: AllocationManager.AlonsoMora =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-    val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
-
+    val maxWaitTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec
+    val maxTravelTimeDelayAsFraction = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach {
         case (leg, manifest) =>
@@ -376,7 +362,7 @@ object AlonsoMoraPoolingAlgForRideHail {
                 BeamMode.RIDE_HAIL,
                 Pickup,
                 leg.startTime,
-                leg.startTime + waitingTimeInSec,
+                leg.startTime + maxWaitTimeInSec,
                 0
               )
             }
@@ -395,7 +381,7 @@ object AlonsoMoraPoolingAlgForRideHail {
                 Dropoff,
                 leg.endTime,
                 Math
-                  .round(leg.endTime + waitingTimeInSec + (leg.endTime - leg.startTime) * travelTimeDelayAsFraction)
+                  .round(leg.endTime + maxWaitTimeInSec + (leg.endTime - leg.startTime) * maxTravelTimeDelayAsFraction)
                   .toInt,
                 leg.travelPath.distanceInM.toInt
               )

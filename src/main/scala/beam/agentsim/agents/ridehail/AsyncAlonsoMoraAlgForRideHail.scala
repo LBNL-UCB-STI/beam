@@ -13,6 +13,7 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.collection.mutable
 
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -21,20 +22,13 @@ class AsyncAlonsoMoraAlgForRideHail(
   skimmer: BeamSkimmer
 ) {
 
-  private val solutionSpaceSizePerVehicle =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
-
-  private val waitingTimeInSec =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
-    import scala.collection.mutable.{ListBuffer => MListBuffer}
-    val vertices = MListBuffer.empty[RTVGraphNode]
-    val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
-    val finalRequestsList = MListBuffer.empty[RideHailTrip]
+    val vertices = mutable.ListBuffer.empty[RTVGraphNode]
+    val edges = mutable.ListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
+    val finalRequestsList = mutable.ListBuffer.empty[RideHailTrip]
     val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
-
-    val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+    val searchRadius = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+    val solutionSpaceSizePerVehicle = Math.round(v.getFreeSeats * beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability).toInt
     val requests = v.geofence match {
       case Some(gf) =>
         val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
@@ -71,7 +65,7 @@ class AsyncAlonsoMoraAlgForRideHail(
     )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 until v.getFreeSeats + 1) {
-        val kRequestsList = MListBuffer.empty[RideHailTrip]
+        val kRequestsList = mutable.ListBuffer.empty[RideHailTrip]
         for {
           t1 <- finalRequestsList
           t2 <- finalRequestsList
@@ -124,6 +118,6 @@ class AsyncAlonsoMoraAlgForRideHail(
 
   def matchAndAssign(tick: Int): Future[List[(RideHailTrip, VehicleAndSchedule, Double)]] = {
     val V: Int = supply.foldLeft(0) { case (maxCapacity, v) => Math max (maxCapacity, v.getFreeSeats) }
-    asyncBuildOfRSVGraph().map(AlonsoMoraPoolingAlgForRideHail.greedyAssignment(_, V, solutionSpaceSizePerVehicle))
+    asyncBuildOfRSVGraph().map(AlonsoMoraPoolingAlgForRideHail.greedyAssignment(_, V, beamServices.beamConfig))
   }
 }

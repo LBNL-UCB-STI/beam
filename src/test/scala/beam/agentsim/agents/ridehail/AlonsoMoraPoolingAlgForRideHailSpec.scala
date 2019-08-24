@@ -28,9 +28,9 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec = 360
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction= 0.2
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle = 1000
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxWaitTimeInSec = 360
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxTravelTimeDelayAsFraction= 0.2
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.ratioSolutionSpaceToAvailability = 100.0
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
