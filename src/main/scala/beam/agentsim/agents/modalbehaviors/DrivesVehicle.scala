@@ -893,6 +893,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         Some(vehicle.secondaryFuelLevelInJoules)
       )
     )
+    vehicle.stall match {
+      case Some(stall) =>
+        parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
+        currentBeamVehicle.unsetParkingStall()
+      case None =>
+        log.error("Vehicle has no stall while ending charging event")
+    }
     log.debug(
       "Vehicle {} disconnected from charger @ stall {}",
       vehicle.id,
