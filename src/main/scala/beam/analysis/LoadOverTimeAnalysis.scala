@@ -18,6 +18,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
 
   val vehicleTypeToHourlyLoad = mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]]
   val chargerTypeToHourlyLoad = mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]]
+  val parkingTypeToHourlyLoad = mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]]
 
   override def processStats(event: Event): Unit = {
     val hourOfEvent = (event.getTime / 3600).toInt
@@ -35,6 +36,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
         val energyInJoules = refuelSessionEvent.energyInJoules
         val sessionDuration = refuelSessionEvent.sessionDuration
         val currentEventAverageLoad = if (sessionDuration != 0) energyInJoules / sessionDuration / 1000 else 0
+
         vehicleTypeToHourlyLoad.get(loadVehicleType) match {
           case Some(hourlyLoadMap) =>
             hourlyLoadMap.get(hourOfEvent) match {
@@ -46,6 +48,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
           case None =>
             vehicleTypeToHourlyLoad.put(loadVehicleType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
         }
+
         val chargerType = refuelSessionEvent.chargingPointString
         chargerTypeToHourlyLoad.get(chargerType) match {
           case Some(hourlyLoadMap) =>
@@ -58,6 +61,19 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
           case None =>
             chargerTypeToHourlyLoad.put(chargerType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
         }
+
+        val parkingType: String = refuelSessionEvent.parkingType
+        parkingTypeToHourlyLoad.get(parkingType) match {
+          case Some(hourlyLoadMap) =>
+            hourlyLoadMap.get(hourOfEvent) match {
+              case Some((currentLoadTotal, currentCount)) =>
+                val newCount = currentCount + 1
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
+              case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
+            }
+          case None =>
+            parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
+        }
       case _ =>
     }
   }
@@ -65,6 +81,7 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
   override def resetStats(): Unit = {
     vehicleTypeToHourlyLoad.clear
     chargerTypeToHourlyLoad.clear
+    parkingTypeToHourlyLoad.clear
   }
 
   override def createGraph(event: IterationEndsEvent): Unit = {
@@ -79,6 +96,11 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
     loadImageFile =
       outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"${loadOverTimeFileBaseName}ByChargerType.png")
     createGraph(loadDataset, loadImageFile, "Load By Charger Type")
+
+    loadDataset = createLoadDataset(parkingTypeToHourlyLoad)
+    loadImageFile =
+      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"${loadOverTimeFileBaseName}ByParkingType.png")
+    createGraph(loadDataset, loadImageFile, "Load By Parking Type")
   }
 
   private def createLoadDataset(
