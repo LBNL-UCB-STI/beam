@@ -128,16 +128,10 @@ class BeamSkimmer @Inject()(
       case Some(skimValue) =>
         skimValue.toSkimExternal
       case None =>
-        // Add some space between originUTM and destinationUTM if they are in the same TAZ
-        val internalDist = if (origTaz == destTaz && GeoUtils.minkowskiDistFormula(originUTM, destinationUTM) < 10.0) {
-          Math.sqrt(Math.max(10000.0, tazTreeMap.getTAZ(destTaz).map(_.areaInSquareMeters).getOrElse(0.0)))
-        } else {
-          0.0
-        }
         getSkimDefaultValue(
           mode,
           originUTM,
-          new Coord(destinationUTM.getX, destinationUTM.getY + internalDist),
+          new Coord(destinationUTM.getX, destinationUTM.getY),
           departureTime,
           vehicleTypeId
         )
@@ -246,13 +240,14 @@ class BeamSkimmer @Inject()(
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
     val timeBin = timeToBin(origLeg.startTime)
+    val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val key = (timeBin, mode, origTaz, destTaz)
     val payload =
       SkimInternal(
         correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInHours * 3600,
         generalizedCost,
-        beamLegs.map(_.travelPath.distanceInM).sum,
+        if(dist>0.0){dist}else{1.0},
         correctedTrip.costEstimate,
         1,
         energyConsumption
