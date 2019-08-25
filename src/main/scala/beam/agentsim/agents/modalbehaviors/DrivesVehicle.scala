@@ -883,6 +883,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
 
     vehicle.disconnectFromChargingPoint()
+    log.debug(
+      "Vehicle {} disconnected from charger @ stall {}",
+      vehicle.id,
+      vehicle.stall.get
+    )
     eventsManager.processEvent(
       new ChargingPlugOutEvent(
         currentTick,
@@ -900,11 +905,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       case None =>
         log.error("Vehicle has no stall while ending charging event")
     }
-    log.debug(
-      "Vehicle {} disconnected from charger @ stall {}",
-      vehicle.id,
-      vehicle.stall.get
-    )
 
   }
 
