@@ -25,6 +25,13 @@ public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
         this.eventTypeToLog = eventTypeToLog;
     }
 
+    public BeamEventsWriterBase(BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+        this.beamEventLogger = beamEventLogger;
+        this.beamServices = beamServices;
+        this.eventTypeToLog = eventTypeToLog;
+        this.outWriter = null;
+    }
+
     @Override
     public void handleEvent(final Event event) {
         if ((eventTypeToLog == null && beamEventLogger.shouldLogThisEventType(event.getClass())) || eventTypeToLog == event.getClass()) {
