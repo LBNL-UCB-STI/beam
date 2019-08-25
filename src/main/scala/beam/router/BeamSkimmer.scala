@@ -78,11 +78,11 @@ class BeamSkimmer @Inject()(
   }
 
   def getSkimDefaultValue(
-                           mode: BeamMode,
-                           originUTM: Location,
-                           destinationUTM: Location,
-                           departureTime: Int,
-                           vehicleTypeId: Id[BeamVehicleType]
+    mode: BeamMode,
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    vehicleTypeId: Id[BeamVehicleType]
   ): Skim = {
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val travelCost: Double = mode match {
@@ -116,11 +116,11 @@ class BeamSkimmer @Inject()(
   }
 
   def getTimeDistanceAndCost(
-                              originUTM: Location,
-                              destinationUTM: Location,
-                              departureTime: Int,
-                              mode: BeamMode,
-                              vehicleTypeId: Id[BeamVehicleType]
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType]
   ): Skim = {
     val origTaz = tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
     val destTaz = tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
@@ -129,12 +129,18 @@ class BeamSkimmer @Inject()(
         skimValue.toSkimExternal
       case None =>
         // Add some space between originUTM and destinationUTM if they are in the same TAZ
-        val internalDist = if(origTaz == destTaz && GeoUtils.minkowskiDistFormula(originUTM,destinationUTM)< 10.0) {
+        val internalDist = if (origTaz == destTaz && GeoUtils.minkowskiDistFormula(originUTM, destinationUTM) < 10.0) {
           Math.sqrt(Math.max(10000.0, tazTreeMap.getTAZ(destTaz).map(_.areaInSquareMeters).getOrElse(0.0)))
-        }else{
+        } else {
           0.0
         }
-        getSkimDefaultValue(mode, originUTM, new Coord(destinationUTM.getX,destinationUTM.getY+internalDist), departureTime, vehicleTypeId)
+        getSkimDefaultValue(
+          mode,
+          originUTM,
+          new Coord(destinationUTM.getX, destinationUTM.getY + internalDist),
+          departureTime,
+          vehicleTypeId
+        )
     }
   }
 
