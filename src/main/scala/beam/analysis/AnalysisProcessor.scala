@@ -1,5 +1,7 @@
 package beam.analysis
 
+import java.io.File
+
 import com.zaxxer.nuprocess.{NuAbstractProcessHandler, NuProcess, NuProcessBuilder}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -9,14 +11,15 @@ import beam.utils.logging.ExponentialLazyLogging
 object AnalysisProcessor extends ExponentialLazyLogging {
 
   def iterationEndBulkAnalysisOutput_Async(currentEventsFilePath: String) = {
-    fireAndForgetPythonScript("src/main/python/events_analysis/analyze_events.py", currentEventsFilePath)
-    fireAndForgetPythonScript("src/main/python/events_analysis/pool_metrics.py", currentEventsFilePath)
+    fireAndForgetPythonScript("src/main/python/events_analysis/analyze_events.py",
+      if((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz")
   }
 
   def fireAndForgetPythonScript(scriptPath: String, args: String*) = {
     val processBuilder = new NuProcessBuilder((Array("py", scriptPath) ++ args): _*)
     val processHandler = new ProcessHandler(source = "Python Script: " + scriptPath)
     processBuilder.setProcessListener(processHandler)
+    logger.info(s"Running python script: $scriptPath with args $args")
     processBuilder.start()
   }
 }
