@@ -247,7 +247,7 @@ class BeamSkimmer @Inject()(
         correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInHours * 3600,
         generalizedCost,
-        if(dist>0.0){dist}else{1.0},
+        if (dist > 0.0) { dist } else { 1.0 },
         correctedTrip.costEstimate,
         1,
         energyConsumption
