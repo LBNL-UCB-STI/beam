@@ -26,7 +26,7 @@ object ParkingMNL {
     primaryFuelLevelInJoules: Double = 0.0,
     primaryFuelConsumptionInJoulePerMeter: Double = 0.0,
     remainingTourDistance: Double = 0.0,
-    rangeAnxietyBuffer: Double = 20.0
+    rangeAnxietyBuffer: Double = 20000.0
   ) {
 
     /**
@@ -45,7 +45,7 @@ object ParkingMNL {
           : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
           val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
-          1 - math.max(0.0, excessFuelProportion)
+          1 - math.min(1.0, math.max(0.0, excessFuelProportion))
         } else {
           2.0 // step up to 2, an urgent need to find other alternatives
         }
@@ -53,14 +53,13 @@ object ParkingMNL {
     }
   }
 
-  def prettyPrintAlternatives(alt: ParkingAlternative, params: Map[ParkingMNL.Parameters, Double]): String = {
-    val id: String = s"taz${alt.taz.tazId}-parkingZone${alt.parkingZone.parkingZoneId}".padTo(15, ' ')
+  def prettyPrintAlternatives(params: Map[ParkingMNL.Parameters, Double]): String = {
     params
       .map {
         case (param, value) =>
           f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
-      .mkString(s"$id: ", " ", ": ")
+      .mkString(s"", " ", ": ")
   }
 
   sealed trait Parameters
