@@ -56,7 +56,7 @@ class ZonalParkingManager(
 
       // a lookup for valid parking types based on this inquiry
       val preferredParkingTypes: Set[ParkingType] =
-        inquiry.activityType match {
+        inquiry.activityType.toLowerCase match {
           case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
@@ -157,42 +157,52 @@ class ZonalParkingManager(
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
 
-          val rangeAnxietyFactor: Double =
-            inquiry.remainingTripData match {
-              case Some(remainingTripData) =>
-                inquiry.beamVehicle match {
-                  case Some(beamVehicle) =>
-                    parkingAlternative.parkingZone.chargingPointType match {
-                      case Some(chargingPoint) =>
-                        val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
-                          chargingPoint,
-                          beamVehicle.primaryFuelLevelInJoules,
-                          beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
-                          1e6,
-                          1e6,
-                          Some { inquiry.parkingDuration.toLong }
-                        )
-                        remainingTripData.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
-                      case None =>
-                        remainingTripData.rangeAnxiety()
-                    }
-                  case None => 0.0 // no beamVehicle, assume agent has range
+          val addedEnergy: Double =
+            inquiry.beamVehicle match {
+              case Some(beamVehicle) =>
+                parkingAlternative.parkingZone.chargingPointType match {
+                  case Some(chargingPoint) =>
+                    val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                      chargingPoint,
+                      beamVehicle.primaryFuelLevelInJoules,
+                      beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                      1e6,
+                      1e6,
+                      Some { inquiry.parkingDuration.toLong }
+                    )
+                    addedEnergy
+                  case None => 0.0
                 }
-              case None => 0.0 // no remaining trip data provided, assume agent has range
+              case None => 0.0 // no beamVehicle, assume agent has range
             }
+
+
+          val rangeAnxietyFactor: Double =
+            inquiry.remainingTripData
+              .map{_.rangeAnxiety(withAddedFuelInJoules = addedEnergy)}
+              .getOrElse(0.0)
+
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
           val homeActivityPrefersResidentialFactor: Double =
-            if (inquiry.activityType == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
+            if (inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
             else 0.0
 
-          Map(
+          val params: Map[ParkingMNL.Parameters, Double] = Map(
             ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
             ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
             ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
             ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
+
+          log.debug({
+            val prettyParams = ParkingMNL.prettyPrintAlternatives(parkingAlternative, params)
+            val prettyAux = f"actualDistance=$distance%.2f addedEnergy=$addedEnergy%.2f"
+            s"$prettyParams$prettyAux"
+          })
+
+          params
         }
 
       ///////////////////////////////////////////

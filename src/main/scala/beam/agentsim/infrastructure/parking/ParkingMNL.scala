@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object ParkingMNL {
 
@@ -52,6 +53,15 @@ object ParkingMNL {
     }
   }
 
+  def prettyPrintAlternatives(alt: ParkingAlternative, params: Map[ParkingMNL.Parameters, Double]): String = {
+    val id: String = s"taz${alt.taz.tazId}-parkingZone${alt.parkingZone.parkingZoneId}".padTo(15, ' ')
+    params
+      .map{ case (param, value) =>
+        f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      }
+      .mkString(s"$id: ", " ", ": ")
+  }
+
   sealed trait Parameters
 
   object Parameters {
@@ -59,5 +69,12 @@ object ParkingMNL {
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+
+    def shortName(parameter: Parameters): String = parameter match {
+      case ParkingTicketCost => "park"
+      case WalkingEgressCost => "dist"
+      case RangeAnxietyCost  => "anx"
+      case HomeActivityPrefersResidentialParking => "home"
+    }
   }
 }
