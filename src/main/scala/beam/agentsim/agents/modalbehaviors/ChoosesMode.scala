@@ -29,9 +29,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+
+import beam.agentsim.infrastructure.parking.ParkingMNL
 
 /**
   * BEAM
@@ -760,13 +761,21 @@ trait ChoosesMode {
     arrivalTime: Int,
     duration: Int
   ): Option[Int] = {
+
+    val remainingTripData: Option[ParkingMNL.RemainingTripData] =
+      stateData match {
+        case _: BasePersonData =>
+          calculateRemainingTripData(stateData.asInstanceOf[BasePersonData])
+        case _ => None
+      }
+
     val inquiry = ParkingInquiry(
       destinationInUTM,
       activityType,
-      attributes.valueOfTime,
-      ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
-      duration,
       currentTourBeamVehicle,
+      remainingTripData,
+      attributes.valueOfTime,
+      duration,
       reserveStall = false
     )
     parkingManager ! inquiry
