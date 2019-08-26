@@ -26,7 +26,8 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import com.zaxxer.nuprocess.NuProcess
+//import com.zaxxer.nuprocess.NuProcess
+import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
@@ -86,7 +87,7 @@ class BeamSim @Inject()(
   val graphFileNameDirectory = mutable.Map[String, Int]()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
-  val runningPythonScripts = mutable.ListBuffer.empty[NuProcess]
+  val runningPythonScripts = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
