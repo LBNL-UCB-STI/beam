@@ -4,6 +4,7 @@ import scala.util.{Failure, Random, Success, Try}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -26,8 +27,8 @@ class ZonalParkingManager(
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
   rand: Random,
   maxSearchRadius: Double,
-  probabilityOfResidentialCharging: Double,
-  boundingBox: Envelope
+  boundingBox: Envelope,
+  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
 ) extends Actor
     with ActorLogging {
 
@@ -64,19 +65,12 @@ class ZonalParkingManager(
           case _ => Set(ParkingType.Public)
         }
 
-      // if headed home, some agents require home charging at some probability
-      val isPEVAndNeedsToChargeAtHome: Option[Boolean] =
-        inquiry.activityType.toLowerCase match {
-          case "home" => Some { rand.nextDouble() <= probabilityOfResidentialCharging }
-          case _      => None
-        }
-
       // allow charger ParkingZones
       val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => true
         case "init"   => false
         case _ =>
-          inquiry.vehicleType match {
+          inquiry.beamVehicle match {
             case Some(vehicleType) =>
               vehicleType.beamVehicleType.primaryFuelType match {
                 case Electricity => true
@@ -110,7 +104,7 @@ class ZonalParkingManager(
         ParkingZoneSearchParams(
           inquiry.destinationUtm,
           inquiry.parkingDuration,
-          inquiry.utilityFunction,
+          mnlMultiplierParameters,
           zoneSearchTree,
           parkingZones,
           tazTreeMap.tazQuadTree,
@@ -123,13 +117,6 @@ class ZonalParkingManager(
         (zone: ParkingZone) => {
 
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
-
-          val chargeWhenHeadedHome: Boolean =
-            ParkingSearchFilterPredicates.testPEVChargeWhenHeadedHome(
-              zone,
-              isPEVAndNeedsToChargeAtHome,
-              inquiry.vehicleType
-            )
 
           val rideHailFastChargingOnly: Boolean =
             ParkingSearchFilterPredicates.rideHailFastChargingOnly(
@@ -147,7 +134,6 @@ class ZonalParkingManager(
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
           hasAvailability &&
-          chargeWhenHeadedHome &&
           rideHailFastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
@@ -166,26 +152,46 @@ class ZonalParkingManager(
         }
 
       // adds multinomial logit parameters to a ParkingAlternative
-      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[String, Double] =
+      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
         (parkingAlternative: ParkingAlternative) => {
-          val installedCapacity = parkingAlternative.parkingZone.chargingPointType match {
-            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-            case None                => 0
-          }
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
-          //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
 
-          val averagePersonWalkingSpeed = 1.4 // in m/s
-          val hourInSeconds = 3600
-          val maxAssumedInstalledChargingCapacity = 350 // in kW
-          val dollarsInCents = 100
+          val rangeAnxietyFactor: Double =
+            inquiry.remainingTripData match {
+              case Some(remainingTripData) =>
+                inquiry.beamVehicle match {
+                  case Some(beamVehicle) =>
+                    parkingAlternative.parkingZone.chargingPointType match {
+                      case Some(chargingPoint) =>
+                        val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                          chargingPoint,
+                          beamVehicle.primaryFuelLevelInJoules,
+                          beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                          1e6,
+                          1e6,
+                          Some { inquiry.parkingDuration.toLong }
+                        )
+                        remainingTripData.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+                      case None =>
+                        remainingTripData.rangeAnxiety()
+                    }
+                  case None => 0.0 // no beamVehicle, assume agent has range
+                }
+              case None => 0.0 // no remaining trip data provided, assume agent has range
+            }
+          val distanceFactor
+            : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+          val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
+          val homeActivityPrefersResidentialFactor: Double =
+            if (inquiry.activityType == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
+            else 0.0
 
           Map(
-            //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-            "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * inquiry.valueOfTime, // in US$
-            "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (inquiry.parkingDuration / hourInSeconds) * inquiry.valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-            "parkingCostsPriceFactor" -> parkingAlternative.cost / dollarsInCents //in US$, assumptions for now: parking ticket costs include charging
+            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
+            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
+            ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
         }
 
@@ -212,6 +218,10 @@ class ZonalParkingManager(
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
+
+        log.debug(
+          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+        )
 
         // update the parking stall data
         val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
@@ -257,6 +267,10 @@ object ZonalParkingManager extends LazyLogging {
   // slightly less than the average distance between TAZ centroids.
   val MinSearchRadius: Double = 1000.0
 
+  val AveragePersonWalkingSpeed: Double = 1.4 // in m/s
+  val HourInSeconds: Int = 3600
+  val DollarsInCents: Double = 100.0
+
   /**
     * constructs a ZonalParkingManager from file
     *
@@ -273,8 +287,24 @@ object ZonalParkingManager extends LazyLogging {
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    val probabilityOfResidentialParking = beamConfig.beam.agentsim.taz.probabilityOfResidentialCharging
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    val mnlParamsFromConfig = beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
+    // distance to walk to the destination
+
+    val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
+      ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.rangeAnxietyMultiplier
+      ),
+      ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.distanceMultiplier
+      ),
+      ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.parkingPriceMultiplier
+      ),
+      ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(
+        mnlParamsFromConfig.homeActivityPrefersResidentialParkingMultiplier
+      )
+    )
 
     val random = {
       val seed = beamConfig.matsim.modules.global.randomSeed
@@ -301,13 +331,13 @@ object ZonalParkingManager extends LazyLogging {
       searchTree,
       random,
       maxSearchRadius,
-      probabilityOfResidentialParking,
-      boundingBox
+      boundingBox,
+      mnlMultiplierParameters
     )
   }
 
   /**
-    * constructs a ZonalParkingManager from a string iterator
+    * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
     * @param random random generator used for sampling parking locations
@@ -319,7 +349,6 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
-    probabilityOfResidentialCharging: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
@@ -332,8 +361,8 @@ object ZonalParkingManager extends LazyLogging {
       parking.tree,
       random,
       maxSearchRadius,
-      probabilityOfResidentialCharging,
-      boundingBox
+      boundingBox,
+      ParkingMNL.DefaultMNLParameters
     )
   }
 
