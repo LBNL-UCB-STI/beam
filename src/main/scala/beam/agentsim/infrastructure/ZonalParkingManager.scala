@@ -52,7 +52,7 @@ class ZonalParkingManager(
   override def receive: Receive = {
 
     case inquiry: ParkingInquiry =>
-//      log.debug("Received parking inquiry: {}", inquiry)
+      log.debug("Received parking inquiry: {}", inquiry)
 
       // a lookup for valid parking types based on this inquiry
       val preferredParkingTypes: Set[ParkingType] =
@@ -201,26 +201,6 @@ class ZonalParkingManager(
             ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
 
-          if (rangeAnxietyFactor > 0.0 && addedEnergy > 0.0) {
-            params
-          }
-
-          if (rangeAnxietyFactor > 0.0) {
-            log.debug({
-              // writes each evaluated alternative to the debug logger in high detail
-              val remainingTourDist: Double =
-                inquiry.remainingTripData.map{_.remainingTourDistance}.getOrElse(0.0)
-              val isRHA: Boolean = inquiry.valueOfTime == 0.0
-              val act = if (isRHA) "RHA" else inquiry.activityType
-              val request: String = s"req ${inquiry.requestId}".padTo(7, ' ')
-              val id: String = s"taz${parkingAlternative.taz.tazId}-parkingZone${parkingAlternative.parkingZone.parkingZoneId}".padTo(15, ' ')
-              val prettyParams = ParkingMNL.prettyPrintAlternatives(params)
-              val prettyAux =
-                f"act=$act stallDist=$distance%.2f addedFuel=$addedEnergy%.2f tourDist=$remainingTourDist%.2f parkDur=$parkingDuration"
-              s"$prettyParams$prettyAux"
-            })
-          }
-
           params
         }
 
@@ -243,14 +223,14 @@ class ZonalParkingManager(
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
-//      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
 
-//        log.debug(
-//          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
-//        )
+        log.debug(
+          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+        )
 
         // update the parking stall data
         val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
@@ -259,7 +239,7 @@ class ZonalParkingManager(
           totalStallsAvailable -= 1
         }
 
-//        log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
+        log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
 
         if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
       }
@@ -270,11 +250,11 @@ class ZonalParkingManager(
       if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
         if (log.isDebugEnabled) {
           // this is an infinitely available resource; no update required
-//          log.debug("Releasing a stall in the default/emergency zone")
+          log.debug("Releasing a stall in the default/emergency zone")
         }
       } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || parkingZones.length <= parkingZoneId) {
         if (log.isDebugEnabled) {
-//          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
+          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
         }
       } else {
 
@@ -285,7 +265,7 @@ class ZonalParkingManager(
         }
       }
       if (log.isDebugEnabled) {
-//        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
+        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
       }
   }
 }
