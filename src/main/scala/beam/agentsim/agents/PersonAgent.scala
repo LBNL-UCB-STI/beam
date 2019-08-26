@@ -26,7 +26,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -442,7 +442,11 @@ class PersonAgent(
         beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
         tick
       ),
-      isWithinTripReplanning = true
+      isWithinTripReplanning = true,
+      excludeModes =
+        if (data.numberOfReplanningAttempts > 1) { Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT) } else {
+          Vector()
+        }
     )
   }
 
@@ -985,6 +989,8 @@ class PersonAgent(
           _,
           _,
           _,
+          _,
+          _,
           _
         )
         ) =>
@@ -993,6 +999,8 @@ class PersonAgent(
         TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
           _,
           _,
           _,
