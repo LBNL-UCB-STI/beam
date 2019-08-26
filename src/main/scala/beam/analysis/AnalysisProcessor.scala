@@ -10,12 +10,7 @@ import beam.utils.logging.ExponentialLazyLogging
 
 object AnalysisProcessor extends ExponentialLazyLogging {
 
-  def iterationEndBulkAnalysisOutput_Async(currentEventsFilePath: String) = {
-    fireAndForgetPythonScript("src/main/python/events_analysis/analyze_events.py",
-      if((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz")
-  }
-
-  def fireAndForgetPythonScript(scriptPath: String, args: String*) = {
+  def firePythonScriptAsync(scriptPath: String, args: String*): NuProcess = {
     val processBuilder = new NuProcessBuilder((Array("py", scriptPath) ++ args): _*)
     val processHandler = new ProcessHandler(source = "Python Script: " + scriptPath)
     processBuilder.setProcessListener(processHandler)

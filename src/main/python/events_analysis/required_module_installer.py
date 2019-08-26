@@ -1,6 +1,7 @@
 import subprocess
 import sys
 
+# pip and npm still required
 def install(package, packageIndexOption = ""):
     install_cmd = [sys.executable, "-m", "pip", "install", package]
     if packageIndexOption != "":
