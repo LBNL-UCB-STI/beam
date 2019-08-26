@@ -6,7 +6,7 @@ import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 
-case class PercentagePopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+case class ExcludeAllTransit(beamServices: BeamServices) extends PopulationAdjustment {
 
   override lazy val scenario: Scenario = beamServices.matsimServices.getScenario
   override lazy val beamScenario: BeamScenario = beamServices.beamScenario
@@ -14,9 +14,10 @@ case class PercentagePopulationAdjustment(beamServices: BeamServices) extends Po
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    removeModeAll(population, "car")
-
-    assignModeUniformDistribution(population, "car", 0.5)
+    removeModeAll(population, "walk_transit")
+    removeModeAll(population, "drive_transit")
+    removeModeAll(population, "bike_transit")
+    removeModeAll(population, "ride_hail_transit")
 
     population
   }
