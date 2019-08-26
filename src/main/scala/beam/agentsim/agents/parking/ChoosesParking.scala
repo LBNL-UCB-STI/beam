@@ -279,48 +279,4 @@ trait ChoosesParking extends {
     valueOfTime: Double
   ): Double = -cost - energyCharge
 
-  /**
-    * Calculates the duration of the refuel session, the provided energy and throws corresponding events
-    *
-    * @param currentTick
-    * @param vehicle
-    */
-  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle) = {
-
-    val (chargingDuration, energyInJoules) =
-      vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))
-
-    log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
-    vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        currentTick,
-        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        chargingDuration,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
-    )
-
-    vehicle.disconnectFromChargingPoint()
-    eventsManager.processEvent(
-      new ChargingPlugOutEvent(
-        currentTick,
-        vehicle.stall.get
-          .copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id,
-        vehicle.primaryFuelLevelInJoules,
-        Some(vehicle.secondaryFuelLevelInJoules)
-      )
-    )
-    log.debug(
-      "Vehicle {} disconnected from charger @ stall {}",
-      vehicle.id,
-      vehicle.stall.get
-    )
-
-  }
-
 }
