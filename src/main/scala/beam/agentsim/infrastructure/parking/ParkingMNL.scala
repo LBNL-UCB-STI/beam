@@ -56,8 +56,9 @@ object ParkingMNL {
   def prettyPrintAlternatives(alt: ParkingAlternative, params: Map[ParkingMNL.Parameters, Double]): String = {
     val id: String = s"taz${alt.taz.tazId}-parkingZone${alt.parkingZone.parkingZoneId}".padTo(15, ' ')
     params
-      .map{ case (param, value) =>
-        f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      .map {
+        case (param, value) =>
+          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
       .mkString(s"$id: ", " ", ": ")
   }
@@ -71,9 +72,9 @@ object ParkingMNL {
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
-      case ParkingTicketCost => "park"
-      case WalkingEgressCost => "dist"
-      case RangeAnxietyCost  => "anx"
+      case ParkingTicketCost                     => "park"
+      case WalkingEgressCost                     => "dist"
+      case RangeAnxietyCost                      => "anx"
       case HomeActivityPrefersResidentialParking => "home"
     }
   }

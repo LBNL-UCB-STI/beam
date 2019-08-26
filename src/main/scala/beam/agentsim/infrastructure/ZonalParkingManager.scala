@@ -176,17 +176,17 @@ class ZonalParkingManager(
               case None => 0.0 // no beamVehicle, assume agent has range
             }
 
-
           val rangeAnxietyFactor: Double =
             inquiry.remainingTripData
-              .map{_.rangeAnxiety(withAddedFuelInJoules = addedEnergy)}
+              .map { _.rangeAnxiety(withAddedFuelInJoules = addedEnergy) }
               .getOrElse(0.0)
 
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
           val homeActivityPrefersResidentialFactor: Double =
-            if (inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential) 1.0
+            if (inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential)
+              1.0
             else 0.0
 
           val params: Map[ParkingMNL.Parameters, Double] = Map(
