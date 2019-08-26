@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object ParkingMNL {
 
@@ -25,7 +26,7 @@ object ParkingMNL {
     primaryFuelLevelInJoules: Double = 0.0,
     primaryFuelConsumptionInJoulePerMeter: Double = 0.0,
     remainingTourDistance: Double = 0.0,
-    rangeAnxietyBuffer: Double = 20.0
+    rangeAnxietyBuffer: Double = 20000.0
   ) {
 
     /**
@@ -44,12 +45,21 @@ object ParkingMNL {
           : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
           val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
-          1 - math.max(0.0, excessFuelProportion)
+          1 - math.min(1.0, math.max(0.0, excessFuelProportion))
         } else {
           2.0 // step up to 2, an urgent need to find other alternatives
         }
       }
     }
+  }
+
+  def prettyPrintAlternatives(params: Map[ParkingMNL.Parameters, Double]): String = {
+    params
+      .map {
+        case (param, value) =>
+          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      }
+      .mkString(s"", " ", ": ")
   }
 
   sealed trait Parameters
@@ -59,5 +69,12 @@ object ParkingMNL {
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+
+    def shortName(parameter: Parameters): String = parameter match {
+      case ParkingTicketCost                     => "park"
+      case WalkingEgressCost                     => "dist"
+      case RangeAnxietyCost                      => "anx"
+      case HomeActivityPrefersResidentialParking => "home"
+    }
   }
 }
