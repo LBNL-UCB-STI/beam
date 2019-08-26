@@ -157,6 +157,11 @@ class ZonalParkingManager(
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
 
+          // end-of-day parking durations are set to zero, which will be mis-interpreted here
+          val parkingDuration: Option[Long] =
+            if (inquiry.parkingDuration.toLong == 0L) None
+            else Some(inquiry.parkingDuration.toLong)
+
           val addedEnergy: Double =
             inquiry.beamVehicle match {
               case Some(beamVehicle) =>
@@ -168,10 +173,10 @@ class ZonalParkingManager(
                       beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
                       1e6,
                       1e6,
-                      Some { inquiry.parkingDuration.toLong }
+                      parkingDuration
                     )
                     addedEnergy
-                  case None => 0.0
+                  case None => 0.0 // no charger here
                 }
               case None => 0.0 // no beamVehicle, assume agent has range
             }
@@ -179,7 +184,7 @@ class ZonalParkingManager(
           val rangeAnxietyFactor: Double =
             inquiry.remainingTripData
               .map { _.rangeAnxiety(withAddedFuelInJoules = addedEnergy) }
-              .getOrElse(0.0)
+              .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
@@ -197,9 +202,12 @@ class ZonalParkingManager(
           )
 
           log.debug({
+            // writes each evaluated alternative to the debug logger in high detail
+            val request: String = s"req ${inquiry.requestId}".padTo(7, ' ')
             val prettyParams = ParkingMNL.prettyPrintAlternatives(parkingAlternative, params)
-            val prettyAux = f"actualDistance=$distance%.2f addedEnergy=$addedEnergy%.2f"
-            s"$prettyParams$prettyAux"
+            val prettyAux =
+              f"act=${inquiry.activityType} VoT=${inquiry.valueOfTime} actualDistance=$distance%.2f addedEnergy=$addedEnergy%.2f parkDuration=${inquiry.parkingDuration}"
+            s"$request - $prettyParams$prettyAux"
           })
 
           params
