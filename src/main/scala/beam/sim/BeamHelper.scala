@@ -12,6 +12,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
+import beam.matsim.CustomPlansDumpingImpl
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
@@ -44,7 +45,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -152,6 +153,8 @@ trait BeamHelper extends LazyLogging {
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           bind(classOf[BeamConfigHolder])
           val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
 
           bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
           bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
@@ -688,7 +691,7 @@ trait BeamHelper extends LazyLogging {
     }
     result.planCalcScore().setMemorizingExperiencedPlans(true)
     result.controler.setOutputDirectory(outputDirectory)
-    result.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    result.controler.setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
     result
   }
 
