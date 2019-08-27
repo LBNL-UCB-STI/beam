@@ -280,6 +280,7 @@ object ZonalParkingManagerSpec {
     boundingBox: Envelope,
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
+    val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     val zonalParkingManagerProps = Props(
       ZonalParkingManager(
@@ -287,6 +288,7 @@ object ZonalParkingManagerSpec {
         tazTreeMap,
         geo,
         random,
+        minSearchRadius,
         maxSearchRadius,
         boundingBox
       )

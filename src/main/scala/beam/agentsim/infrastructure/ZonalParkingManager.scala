@@ -26,15 +26,16 @@ class ZonalParkingManager(
   parkingZones: Array[ParkingZone],
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
   rand: Random,
+  minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
 ) extends Actor
     with ActorLogging {
 
-  if (maxSearchRadius < ZonalParkingManager.MinSearchRadius) {
+  if (maxSearchRadius < minSearchRadius) {
     log.warning(
-      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${ZonalParkingManager.MinSearchRadius}; no searches will occur with these settings."
+      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${minSearchRadius}; no searches will occur with these settings."
     )
   }
 
@@ -43,7 +44,7 @@ class ZonalParkingManager(
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
-      ZonalParkingManager.MinSearchRadius,
+      minSearchRadius,
       maxSearchRadius,
       boundingBox,
       geo.distUTMInMeters
@@ -274,7 +275,6 @@ object ZonalParkingManager extends LazyLogging {
 
   // this number should be less than the MaxSearchRadius config value, tuned to being
   // slightly less than the average distance between TAZ centroids.
-  val MinSearchRadius: Double = 1000.0
 
   val AveragePersonWalkingSpeed: Double = 1.4 // in m/s
   val HourInSeconds: Int = 3600
@@ -296,6 +296,7 @@ object ZonalParkingManager extends LazyLogging {
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+    val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
     val mnlParamsFromConfig = beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
     // distance to walk to the destination
@@ -339,6 +340,7 @@ object ZonalParkingManager extends LazyLogging {
       stalls,
       searchTree,
       random,
+      minSearchRadius,
       maxSearchRadius,
       boundingBox,
       mnlMultiplierParameters
@@ -358,6 +360,7 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
+    minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
@@ -369,6 +372,7 @@ object ZonalParkingManager extends LazyLogging {
       parking.zones,
       parking.tree,
       random,
+      minSearchRadius,
       maxSearchRadius,
       boundingBox,
       ParkingMNL.DefaultMNLParameters
