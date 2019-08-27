@@ -119,30 +119,30 @@ class ZonalParkingManager(
       // filters out ParkingZones which do not apply to this agent
       // TODO: check for conflicts between variables here - is it always false?
       val parkingZoneFilterFunction: ParkingZone => Boolean =
-        (zone: ParkingZone) => {
+      (zone: ParkingZone) => {
 
-          val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
+        val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
-          val rideHailFastChargingOnly: Boolean =
-            ParkingSearchFilterPredicates.rideHailFastChargingOnly(
-              zone,
-              inquiry.activityType
-            )
+        val rideHailFastChargingOnly: Boolean =
+          ParkingSearchFilterPredicates.rideHailFastChargingOnly(
+            zone,
+            inquiry.activityType
+          )
 
-          val canThisCarParkHere: Boolean =
-            ParkingSearchFilterPredicates.canThisCarParkHere(
-              zone,
-              returnSpotsWithChargers,
-              returnSpotsWithoutChargers
-            )
+        val canThisCarParkHere: Boolean =
+          ParkingSearchFilterPredicates.canThisCarParkHere(
+            zone,
+            returnSpotsWithChargers,
+            returnSpotsWithoutChargers
+          )
 
-          val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
+        val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-          hasAvailability &&
+        hasAvailability &&
           rideHailFastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
-        }
+      }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
       val parkingZoneLocSamplingFunction: ParkingZone => Coord =
@@ -188,11 +188,13 @@ class ZonalParkingManager(
 
           val rangeAnxietyFactor: Double =
             inquiry.remainingTripData
-              .map { _.rangeAnxiety(withAddedFuelInJoules = addedEnergy) }
+              .map {
+                _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+              }
               .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
           val distanceFactor
-            : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+          : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
           val homeActivityPrefersResidentialFactor: Double =
             if (inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential)
@@ -200,9 +202,9 @@ class ZonalParkingManager(
             else 0.0
 
           val params: Map[ParkingMNL.Parameters, Double] = Map(
-            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
-            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
+            ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
+            ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor,
             ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
 
@@ -229,6 +231,10 @@ class ZonalParkingManager(
       }
 
       log.debug(s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations.")
+      log.debug(s"sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};", chargingTypeToNo(parkingZonesSampled), parkingTypeToNo(parkingZonesSampled), listOfCosts(parkingZonesSampled))
+
+
+
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
@@ -273,6 +279,22 @@ class ZonalParkingManager(
         log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
       }
   }
+
+  def chargingTypeToNo(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled.map(triple => triple._2 match {
+      case Some(x) => x
+      case None => "NoCharger"
+    }
+    ).groupBy(identity).mapValues(_.size).map(x => x._1.toString + ": " + x._2).mkString(", ")
+  }
+
+  def parkingTypeToNo(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled.map(triple => triple._3).groupBy(identity).mapValues(_.size).map(x => x._1.toString + ": " + x._2).mkString(", ")
+  }
+
+  def listOfCosts(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled.map(triple => triple._4).groupBy(identity).mapValues(_.size).map(x => x._1.toString + ": " + x._2).mkString(", ")
+  }
 }
 
 object ZonalParkingManager extends LazyLogging {
@@ -290,11 +312,11 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def apply(
-    beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    boundingBox: Envelope
-  ): ZonalParkingManager = {
+             beamConfig: BeamConfig,
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             boundingBox: Envelope
+           ): ZonalParkingManager = {
 
     // generate or load parking
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
@@ -355,20 +377,20 @@ object ZonalParkingManager extends LazyLogging {
     * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
-    * @param random random generator used for sampling parking locations
-    * @param includesHeader true if the parkingDescription includes a csv-style header
+    * @param random             random generator used for sampling parking locations
+    * @param includesHeader     true if the parkingDescription includes a csv-style header
     * @return
     */
   def apply(
-    parkingDescription: Iterator[String],
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    random: Random,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    boundingBox: Envelope,
-    includesHeader: Boolean = true
-  ): ZonalParkingManager = {
+             parkingDescription: Iterator[String],
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             random: Random,
+             minSearchRadius: Double,
+             maxSearchRadius: Double,
+             boundingBox: Envelope,
+             includesHeader: Boolean = true
+           ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
     new ZonalParkingManager(
       tazTreeMap,
@@ -390,12 +412,12 @@ object ZonalParkingManager extends LazyLogging {
     * @return
     */
   def props(
-    beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    beamRouter: ActorRef,
-    boundingBox: Envelope
-  ): Props = {
+             beamConfig: BeamConfig,
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             beamRouter: ActorRef,
+             boundingBox: Envelope
+           ): Props = {
 
     Props(
       ZonalParkingManager(
