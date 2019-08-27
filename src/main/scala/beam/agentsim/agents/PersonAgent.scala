@@ -508,7 +508,7 @@ class PersonAgent(
       ),
       isWithinTripReplanning = true,
       excludeModes =
-        if (data.numberOfReplanningAttempts > 1) { Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT) } else {
+        if (data.numberOfReplanningAttempts > 0) { Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT) } else {
           Vector()
         }
     )
