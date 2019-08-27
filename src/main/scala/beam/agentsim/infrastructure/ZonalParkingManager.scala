@@ -192,10 +192,25 @@ class ZonalParkingManager(
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
           val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
+
+          val goingHome: Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
+          val chargingVehicle: Boolean = inquiry.beamVehicle match {
+            case Some(beamVehicle) =>
+              beamVehicle.beamVehicleType.primaryFuelType match {
+                case Electricity =>
+                  true
+                case _ => false
+              }
+            case None => false
+          }
+          val chargingStall: Boolean = parkingAlternative.parkingZone.chargingPointType.nonEmpty
+
           val homeActivityPrefersResidentialFactor: Double =
-            if (inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential)
-              1.0
-            else 0.0
+            if (chargingVehicle) {
+              if (goingHome && chargingStall) 1.0 else 0.0
+            } else {
+              if (goingHome) 1.0 else 0.0
+            }
 
           val params: Map[ParkingMNL.Parameters, Double] = Map(
             ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
@@ -203,6 +218,10 @@ class ZonalParkingManager(
             ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
             ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
+
+          if (log.isDebugEnabled && inquiry.activityType.toLowerCase == "home") {
+            log.debug(f"tour=${inquiry.remainingTripData.map{_.remainingTourDistance}.getOrElse(0.0)}%.2f ${ParkingMNL.prettyPrintAlternatives(params)}")
+          }
 
           params
         }
