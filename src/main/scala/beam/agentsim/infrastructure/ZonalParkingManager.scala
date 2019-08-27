@@ -184,7 +184,9 @@ class ZonalParkingManager(
 
           val rangeAnxietyFactor: Double =
             inquiry.remainingTripData
-              .map { _.rangeAnxiety(withAddedFuelInJoules = addedEnergy) }
+              .map {
+                _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+              }
               .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
           val distanceFactor
@@ -208,7 +210,13 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, iterations) =
+      val ParkingZoneSearch.ParkingZoneSearchResult(
+        parkingStall,
+        parkingZone,
+        parkingZonesSeen,
+        parkingZonesSampled,
+        iterations
+      ) =
         ParkingZoneSearch.incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -224,7 +232,15 @@ class ZonalParkingManager(
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
-      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+      log.debug(
+        s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
+      )
+      log.debug(
+        s"sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
+        chargingTypeToNo(parkingZonesSampled),
+        parkingTypeToNo(parkingZonesSampled),
+        listOfCosts(parkingZonesSampled)
+      )
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
@@ -268,6 +284,39 @@ class ZonalParkingManager(
       if (log.isDebugEnabled) {
         log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
       }
+  }
+
+  def chargingTypeToNo(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled
+      .map(
+        triple =>
+          triple._2 match {
+            case Some(x) => x
+            case None    => "NoCharger"
+        }
+      )
+      .groupBy(identity)
+      .mapValues(_.size)
+      .map(x => x._1.toString + ": " + x._2)
+      .mkString(", ")
+  }
+
+  def parkingTypeToNo(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled
+      .map(triple => triple._3)
+      .groupBy(identity)
+      .mapValues(_.size)
+      .map(x => x._1.toString + ": " + x._2)
+      .mkString(", ")
+  }
+
+  def listOfCosts(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
+    parkingZonesSampled
+      .map(triple => triple._4)
+      .groupBy(identity)
+      .mapValues(_.size)
+      .map(x => x._1.toString + ": " + x._2)
+      .mkString(", ")
   }
 }
 
@@ -351,8 +400,8 @@ object ZonalParkingManager extends LazyLogging {
     * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
-    * @param random random generator used for sampling parking locations
-    * @param includesHeader true if the parkingDescription includes a csv-style header
+    * @param random             random generator used for sampling parking locations
+    * @param includesHeader     true if the parkingDescription includes a csv-style header
     * @return
     */
   def apply(
