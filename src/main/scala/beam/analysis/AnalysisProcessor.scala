@@ -51,7 +51,7 @@ object AnalysisProcessor extends ExponentialLazyLogging {
         }
       )
       logger.info(s"Running python script: $scriptPath with args $args")
-      PythonProcess(Some((Seq("py", scriptPath) ++ args).mkString(" ").run(processLogger)))
+      PythonProcess(Some((Seq("python", scriptPath) ++ args).mkString(" ").run(processLogger)))
     } catch {
       case ex: Throwable =>
         logger.error(s"Error running python script $scriptPath $args: $ex")
