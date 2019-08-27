@@ -1,5 +1,7 @@
 package beam.agentsim.agents
 
+import scala.annotation.tailrec
+
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
@@ -316,12 +318,28 @@ class PersonAgent(
 
       val remainingTourDist: Double = nextActivity(personData) match {
         case Some(nextAct) =>
+          // in the case that we are headed "home", we need to motivate charging.
+          // in order to induce range anxiety, we need to have agents consider
+          // their tomorrow activities. the agent's first leg of the day
+          // is used here to add distance to a "ghost activity" tomorrow morning
+          // which is used in place of our real remaining tour distance of 0.0
+          // which should help encourage residential end-of-day charging
+          val tomorrowFirstLegDistance =
+            if (nextAct.getType.toLowerCase == "home") {
+              findFirstCarLegOfTrip(personData) match {
+                case Some(carLeg) =>
+                  carLeg.beamLeg.travelPath.distanceInM
+                case None =>
+                  0.0
+              }
+            } else 0.0
+
           val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct) - 1
           currentTour(personData).trips
             .slice(nextActIdx, currentTour(personData).trips.length)
             .sliding(2, 1)
             .toList
-            .foldLeft(0d) { (sum, pair) =>
+            .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
                   beamSkimmer
@@ -337,26 +355,7 @@ class PersonAgent(
             }
 
         case None =>
-          // no remaining activities means we are at the end-of-day activity
-          // in order to induce range anxiety, we need to have agents consider
-          // their tomorrow activities. the agent's first leg of the day
-          // is used here to add distance to a "ghost activity" tomorrow morning
-          // which is used in place of our real remaining tour distance of 0.0
-          // which should help encourage residential end-of-day charging
-          {
-            for {
-              trip          <- personData.currentTrip
-              firstLegOfDay <- trip.legs.headOption
-              firstLegDistance = firstLegOfDay.beamLeg.travelPath.distanceInM
-              if firstLegOfDay.beamLeg.mode == CAR && firstLegDistance > 0.0
-            } yield {
-              firstLegDistance
-            }
-          } match {
-            case None => 0.0
-            case Some(tomorrowsFirstActivityDrivingDistance) =>
-              tomorrowsFirstActivityDrivingDistance
-          }
+          0.0
       }
 
       Some(
@@ -397,6 +396,21 @@ class PersonAgent(
       None
     } else {
       Some(_experiencedBeamPlan.activities(ind))
+    }
+  }
+
+  def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
+    @tailrec
+    def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
+      if (remaining.isEmpty) None
+      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head }
+      else _find(remaining.tail)
+    }
+    for {
+      trip <- data.currentTrip
+      leg <- _find(trip.legs)
+    } yield {
+      leg
     }
   }
 
