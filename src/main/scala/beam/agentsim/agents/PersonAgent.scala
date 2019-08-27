@@ -338,7 +338,26 @@ class PersonAgent(
             }
 
         case None =>
-          0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
+          // no remaining activities means we are at the end-of-day activity
+          // in order to induce range anxiety, we need to have agents consider
+          // their tomorrow activities. the agent's first leg of the day
+          // is used here to add distance to a "ghost activity" tomorrow morning
+          // which is used in place of our real remaining tour distance of 0.0
+          // which should help encourage residential end-of-day charging
+          {
+            for {
+              trip          <- personData.currentTrip
+              firstLegOfDay <- trip.legs.headOption
+              firstLegDistance = firstLegOfDay.beamLeg.travelPath.distanceInM
+              if firstLegOfDay.beamLeg.mode == CAR && firstLegDistance > 0.0
+            } yield {
+              firstLegDistance
+            }
+          } match {
+            case None => 0.0
+            case Some(tomorrowsFirstActivityDrivingDistance) =>
+              tomorrowsFirstActivityDrivingDistance
+          }
       }
 
       Some(
