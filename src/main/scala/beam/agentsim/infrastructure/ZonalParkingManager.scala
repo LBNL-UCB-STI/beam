@@ -21,17 +21,17 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 
 class ZonalParkingManager(
-  tazTreeMap: TAZTreeMap,
-  geo: GeoUtils,
-  parkingZones: Array[ParkingZone],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
-  rand: Random,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
-) extends Actor
-    with ActorLogging {
+                           tazTreeMap: TAZTreeMap,
+                           geo: GeoUtils,
+                           parkingZones: Array[ParkingZone],
+                           zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
+                           rand: Random,
+                           minSearchRadius: Double,
+                           maxSearchRadius: Double,
+                           boundingBox: Envelope,
+                           mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
+                         ) extends Actor
+  with ActorLogging {
 
   if (maxSearchRadius < minSearchRadius) {
     log.warning(
@@ -40,7 +40,11 @@ class ZonalParkingManager(
   }
 
   var totalStallsInUse: Long = 0L
-  var totalStallsAvailable: Long = parkingZones.map { _.stallsAvailable }.foldLeft(0L) { _ + _ }
+  var totalStallsAvailable: Long = parkingZones.map {
+    _.stallsAvailable
+  }.foldLeft(0L) {
+    _ + _
+  }
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
@@ -69,13 +73,13 @@ class ZonalParkingManager(
       // allow charger ParkingZones
       val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => true
-        case "init"   => false
+        case "init" => false
         case _ =>
           inquiry.beamVehicle match {
             case Some(vehicleType) =>
               vehicleType.beamVehicleType.primaryFuelType match {
                 case Electricity => true
-                case _           => false
+                case _ => false
               }
             case _ => false
           }
@@ -84,7 +88,7 @@ class ZonalParkingManager(
       // allow non-charger ParkingZones
       val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => false
-        case _        => true
+        case _ => true
       }
 
       // ---------------------------------------------------------------------------------------------
@@ -208,23 +212,23 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, iterations) =
-        ParkingZoneSearch.incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
-        ) match {
-          case Some(result) =>
-            result
-          case None =>
-            // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val newStall = ParkingStall.lastResortStall(boundingBox, rand)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
-        }
+      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, parkingZonesSampled, iterations) =
+      ParkingZoneSearch.incrementalParkingZoneSearch(
+        parkingZoneSearchConfiguration,
+        parkingZoneSearchParams,
+        parkingZoneFilterFunction,
+        parkingZoneLocSamplingFunction,
+        parkingZoneMNLParamsFunction
+      ) match {
+        case Some(result) =>
+          result
+        case None =>
+          // didn't find any stalls, so, as a last resort, create a very expensive stall
+          val newStall = ParkingStall.lastResortStall(boundingBox, rand)
+          ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+      }
 
-      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+      log.debug(s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations.")
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
