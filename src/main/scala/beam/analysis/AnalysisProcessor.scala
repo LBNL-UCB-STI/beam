@@ -15,10 +15,12 @@ import beam.utils.logging.ExponentialLazyLogging
 import scala.sys.process._
 
 case class PythonProcess(processOption: Option[Process]) {
+
   def isRunning = processOption match {
     case Some(process) => process.isAlive
-    case None => false
+    case None          => false
   }
+
   def waitFor(timeLength: Int, timeUnit: TimeUnit) = {
     processOption match {
       case Some(process) =>
@@ -38,14 +40,14 @@ case class PythonProcess(processOption: Option[Process]) {
 object AnalysisProcessor extends ExponentialLazyLogging {
 
   def firePythonScriptAsync(scriptPath: String, args: String*): PythonProcess = {
-    try{
+    try {
       val source = "Python Script: " + scriptPath
       val processLogger = ProcessLogger(
         output => {
           logger.info(s"Process Handler Stdout for $source: $output")
           println(s"Process Handler Stdout for $source: $output")
         },
-        output =>     {
+        output => {
           logger.error(s"Process Handler Stderr for $source: $output")
           println(s"Process Handler Stdout for $source: $output")
         }
@@ -86,4 +88,4 @@ class ProcessHandler(var nuProcess: NuProcess = null, source: String)
     println(s"Process Handler Stdout for $source: $output")
   }
 }
-*/
+ */
