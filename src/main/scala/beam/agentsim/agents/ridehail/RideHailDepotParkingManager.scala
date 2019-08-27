@@ -23,22 +23,22 @@ import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 
 class RideHailDepotParkingManager(
-                                   parkingFilePath: String,
-                                   tazFilePath: String,
-                                   valueOfTime: Double,
-                                   tazTreeMap: TAZTreeMap,
-                                   random: Random,
-                                   boundingBox: Envelope,
-                                   distFunction: (Location, Location) => Double,
-                                   mnlParams: ParkingMNL.ParkingMNLConfig,
-                                   parkingStallCountScalingFactor: Double = 1.0
-                                 ) extends LazyLogging {
+  parkingFilePath: String,
+  tazFilePath: String,
+  valueOfTime: Double,
+  tazTreeMap: TAZTreeMap,
+  random: Random,
+  boundingBox: Envelope,
+  distFunction: (Location, Location) => Double,
+  mnlParams: ParkingMNL.ParkingMNLConfig,
+  parkingStallCountScalingFactor: Double = 1.0
+) extends LazyLogging {
 
   // load parking from a parking file, or generate it using the TAZ beam input
   val (
     rideHailParkingStalls: Array[ParkingZone],
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ]
-    ) = if (parkingFilePath.isEmpty) {
+  ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     ParkingZoneFileUtils
       .generateDefaultParkingFromTazfile(
@@ -85,9 +85,9 @@ class RideHailDepotParkingManager(
     * @return the id of a ParkingZone, or, nothing if no parking zones are found with availability
     */
   def findDepot(
-                 locationUtm: Location,
-                 parkingDuration: Double
-               ): Option[ParkingStall] = {
+    locationUtm: Location,
+    parkingDuration: Double
+  ): Option[ParkingStall] = {
 
     val parkingZoneSearchParams: ParkingZoneSearchParams =
       ParkingZoneSearchParams(
@@ -107,15 +107,15 @@ class RideHailDepotParkingManager(
     // generates a coordinate for an embodied ParkingStall from a ParkingZone,
     // treating the TAZ centroid as a "depot" location
     val parkingZoneLocSamplingFunction: ParkingZone => Location =
-    (zone: ParkingZone) => {
-      tazTreeMap.getTAZ(zone.tazId) match {
-        case None =>
-          logger.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
-          TAZ.DefaultTAZ.coord
-        case Some(taz) =>
-          taz.coord
+      (zone: ParkingZone) => {
+        tazTreeMap.getTAZ(zone.tazId) match {
+          case None =>
+            logger.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
+            TAZ.DefaultTAZ.coord
+          case Some(taz) =>
+            taz.coord
+        }
       }
-    }
 
     // adds multinomial logit parameters to a ParkingAlternative
     val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
@@ -134,7 +134,7 @@ class RideHailDepotParkingManager(
         Map(
           ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
           ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor,
-          ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor
+          ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
         )
       }
 
@@ -221,16 +221,16 @@ object RideHailDepotParkingManager {
   val SearchMaxRadius: Int = 80465 // 50 miles, in meters
 
   def apply(
-             parkingFilePath: String,
-             tazFilePath: String,
-             valueOfTime: Double,
-             tazTreeMap: TAZTreeMap,
-             random: Random,
-             boundingBox: Envelope,
-             distFunction: (Location, Location) => Double,
-             parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
-             parkingStallCountScalingFactor: Double
-           ): RideHailDepotParkingManager = {
+    parkingFilePath: String,
+    tazFilePath: String,
+    valueOfTime: Double,
+    tazTreeMap: TAZTreeMap,
+    random: Random,
+    boundingBox: Envelope,
+    distFunction: (Location, Location) => Double,
+    parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
+    parkingStallCountScalingFactor: Double
+  ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
       tazFilePath,
