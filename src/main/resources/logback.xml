@@ -31,7 +31,7 @@
     <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" />
 
 <!--    <Logger name="beam.agentsim.agents.PersonAgent" level="DEBUG" />-->
-<!--    <Logger name="beam.agentsim.infrastructure.ZonalParkingManager" level="DEBUG" />-->
+    <Logger name="beam.agentsim.infrastructure.ZonalParkingManager" level="DEBUG" />
 
     <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" />
     <Logger name="beam.agentsim.agents.ridehail.RideHailModifyPassengerScheduleManager" level="ERROR" />
