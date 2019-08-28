@@ -48,7 +48,7 @@ public class CustomPlansDumpingImpl implements PlansDumping, BeforeMobsimListene
     @Override
     public void notifyBeforeMobsim(final BeforeMobsimEvent event) {
         final boolean writingPlansAtAll = writePlansInterval() > 0;
-        final boolean regularWritePlans = event.getIteration() > 0 && event.getIteration() % writePlansInterval() == 0;
+        final boolean regularWritePlans = writePlansInterval() > 0 && (event.getIteration() > 0 && event.getIteration() % writePlansInterval() == 0);
         final boolean earlyIteration = event.getIteration() <= writeMoreUntilIteration();
         if (writingPlansAtAll && (regularWritePlans || earlyIteration)) {
             stopwatch.beginOperation("dump all plans");
