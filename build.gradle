@@ -269,6 +269,8 @@ dependencies {
 
     compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version:'0.7.5'
 
+    compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
+
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
