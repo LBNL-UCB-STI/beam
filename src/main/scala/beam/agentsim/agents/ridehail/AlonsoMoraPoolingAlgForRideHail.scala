@@ -10,16 +10,17 @@ import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
+import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
-
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 
 class AlonsoMoraPoolingAlgForRideHail(
@@ -160,6 +161,14 @@ class AlonsoMoraPoolingAlgForRideHail(
 }
 
 object AlonsoMoraPoolingAlgForRideHail {
+
+  def checkDistance(r: MobilityRequest, schedule: List[MobilityRequest], searchRadius: Double): Boolean = {
+    schedule.foreach { s =>
+      if (GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
+        return true
+    }
+    false
+  }
 
   // a greedy assignment using a cost function
   def greedyAssignment(
