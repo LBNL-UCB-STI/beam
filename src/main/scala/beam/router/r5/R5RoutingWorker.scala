@@ -282,7 +282,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         endLoc.getY,
         leg.startTime + Math.round(duration.toFloat)
       ),
-      duration
+      linksTimesAndDistances.distances.tail.sum
     )
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
     val response = RoutingResponse(
