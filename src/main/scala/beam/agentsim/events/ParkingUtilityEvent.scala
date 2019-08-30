@@ -15,6 +15,7 @@ class ParkingUtilityEvent(tick: Double,
                           driverId: Id[Person],
                           vehId: Id[Vehicle],
                           vehicleType: BeamVehicleType,
+                          activityType: String,
                           activityDuration: Double,
                           numStallsSeen: Int,
                           numStallsSampled: Int,
@@ -45,7 +46,7 @@ class ParkingUtilityEvent(tick: Double,
     attributes.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
     attributes.put(ATTRIBUTE_VEHICLE_ENGINE_TYPE, vehicleType.toString)
-    //    attributes.put(ATTRIBUTE_ACTIVITY_TYPE) todo
+    attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityType)
     attributes.put(ATTRIBUTE_ACTIVITY_DURATION, activityDuration.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SEEN, numStallsSeen.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SAMPLED, numStallsSampled.toString)
