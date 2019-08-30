@@ -113,7 +113,9 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
   ): Double = {
-    val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs
+      .map(_.beamLeg.duration)
+      .sum + embodiedBeamTrip.totalInitialWaitTimeInSecs
     embodiedBeamTrip.legs
       .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
       .sum + getGeneralizedTime(waitingTime, None, None)

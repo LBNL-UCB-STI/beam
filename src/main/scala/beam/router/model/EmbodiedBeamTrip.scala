@@ -37,6 +37,8 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 
+  val totalInitialWaitTimeInSecs: Int = legs.map(_.beamLeg.initialWaitTime).sum
+
   def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
   def toBeamTrip: BeamTrip = BeamTrip(beamLegs)

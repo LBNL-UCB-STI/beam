@@ -14,7 +14,7 @@ import beam.utils.{NetworkHelper, TravelTimeUtils}
   * @param duration   period in seconds
   * @param travelPath BeamPath
   */
-case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: BeamPath) {
+case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: BeamPath, initialWaitTime: Int = 0) {
   val endTime: Int = startTime + duration
 
   def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
@@ -26,6 +26,16 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
       .copy(
         startTime = newStartTime,
         travelPath = newTravelPath
+      )
+  }
+
+  def updateStartTimeAndInitialWaitTime(newStartTime: Int, newInitialWaitTime: Int): BeamLeg = {
+    val newTravelPath = this.travelPath.updateStartTime(newStartTime)
+    this
+      .copy(
+        startTime = newStartTime,
+        travelPath = newTravelPath,
+        initialWaitTime = newInitialWaitTime
       )
   }
 
@@ -103,9 +113,11 @@ object BeamLeg {
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {
     if (legs.filter(_.isDefined).nonEmpty) {
       var runningStartTime = legs.find(_.isDefined).head.get.startTime
+      var runningInitialWaitTime = 0
       for (legOpt <- legs) yield {
-        val newLeg = legOpt.map(leg => leg.updateStartTime(runningStartTime))
+        val newLeg = legOpt.map(leg => leg.updateStartTimeAndInitialWaitTime(runningStartTime, runningInitialWaitTime))
         runningStartTime = newLeg.map(_.endTime).getOrElse(runningStartTime)
+        runningInitialWaitTime += newLeg.map(_.duration).getOrElse(0)
         newLeg
       }
     } else { legs }
