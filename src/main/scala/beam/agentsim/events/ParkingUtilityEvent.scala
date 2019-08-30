@@ -49,9 +49,9 @@ class ParkingUtilityEvent(tick: Double,
     attributes.put(ATTRIBUTE_ACTIVITY_DURATION, activityDuration.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SEEN, numStallsSeen.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SAMPLED, numStallsSampled.toString)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDistr)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION, sampledStallsParkingTypeDistr)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDistr)
+    attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDist)
+    attributes.put(ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION, sampledStallsParkingTypeDist)
+    attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDist)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PRICE, selectedStallPrice.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PARKING_TYPE, selectedStallParkingType.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_CHARGING_POINT_TYPE, selectedStallChargingPointType.toString)
@@ -63,17 +63,17 @@ class ParkingUtilityEvent(tick: Double,
     attributes
   }
 
-  private val sampledStallsChargingTypeDistr: String = "[" + sampledStallsChargingTypes.map(
+  private val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes.map(
     _ match {
       case Some(point) => point.toString
       case None => "NoCharger"
     }
   ).groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
-  private val sampledStallsParkingTypeDistr: String = "[" +
+  private val sampledStallsParkingTypeDist: String = "[" +
     sampledStallsParkingTypes.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
-  private val sampledStallsCostsDistr: String = "[" +
+  private val sampledStallsCostsDist: String = "[" +
     sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
 }
