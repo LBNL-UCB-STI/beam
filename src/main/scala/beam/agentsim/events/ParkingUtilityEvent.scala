@@ -11,26 +11,26 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class ParkingUtilityEvent(tick: Double,
-                          driverId: Id[Person],
-                          vehId: Id[Vehicle],
-                          vehicleType: BeamVehicleType,
-                          activityType: String,
-                          activityDuration: Double,
-                          numStallsSeen: Int,
-                          numStallsSampled: Int,
-                          sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
-                          sampledStallsParkingTypes: Vector[ParkingType],
-                          sampledStallsCosts: Vector[Double],
-                          selectedStallPrice: Double,
-                          selectedStallParkingType: ParkingType,
-                          selectedStallChargingPointType: ChargingPointType,
-                          selectedStallMnlRangeAnxiety: Double,
-                          selectedStallMnlParkingPrice: Double,
-                          selectedStallMnlDistance: Double,
-                          selectedStallMnlResidential: Double
-                         )
-  extends Event(tick)
+class ParkingUtilityEvent(
+  tick: Double,
+  driverId: Id[Person],
+  vehId: Id[Vehicle],
+  vehicleType: BeamVehicleType,
+  activityType: String,
+  activityDuration: Double,
+  numStallsSeen: Int,
+  numStallsSampled: Int,
+  sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
+  sampledStallsParkingTypes: Vector[ParkingType],
+  sampledStallsCosts: Vector[Double],
+  selectedStallPrice: Double,
+  selectedStallParkingType: ParkingType,
+  selectedStallChargingPointType: ChargingPointType,
+  selectedStallMnlRangeAnxiety: Double,
+  selectedStallMnlParkingPrice: Double,
+  selectedStallMnlDistance: Double,
+  selectedStallMnlResidential: Double
+) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
 
@@ -39,7 +39,6 @@ class ParkingUtilityEvent(tick: Double,
   override def getEventType: String = EVENT_TYPE
 
   override def getPersonId: Id[Person] = driverId
-
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
@@ -64,18 +63,27 @@ class ParkingUtilityEvent(tick: Double,
     attributes
   }
 
-  private val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes.map(
-    _ match {
-      case Some(point) => point.toString
-      case None => "NoCharger"
-    }
-  ).groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+  private val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes
+    .map(
+      _ match {
+        case Some(point) => point.toString
+        case None        => "NoCharger"
+      }
+    )
+    .groupBy(identity)
+    .mapValues(_.size)
+    .map(tuple => tuple._1 + ": " + tuple._2)
+    .mkString(",") + "]"
 
   private val sampledStallsParkingTypeDist: String = "[" +
-    sampledStallsParkingTypes.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+  sampledStallsParkingTypes
+    .groupBy(identity)
+    .mapValues(_.size)
+    .map(tuple => tuple._1 + ": " + tuple._2)
+    .mkString(",") + "]"
 
   private val sampledStallsCostsDist: String = "[" +
-    sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+  sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
 }
 
@@ -100,4 +108,3 @@ object ParkingUtilityEvent {
   val ATTRIBUTE_SELECTED_STALL_MNL_RESIDENTIAL: String = "selectedStallMnlResidential"
 
 }
-
