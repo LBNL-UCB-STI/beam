@@ -11,7 +11,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class ParkingUtilityEvent(
+case class ParkingUtilityEvent(
   tick: Double,
   driverId: Id[Person],
   vehId: Id[Vehicle],
@@ -87,7 +87,7 @@ class ParkingUtilityEvent(
 
 }
 
-object ParkingUtilityEvent {
+case object ParkingUtilityEvent {
   val EVENT_TYPE: String = "ParkingUtilityEvent"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
