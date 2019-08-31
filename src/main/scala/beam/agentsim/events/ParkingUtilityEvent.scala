@@ -9,25 +9,25 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchS
 import org.matsim.api.core.v01.events.Event
 
 case class ParkingUtilityEvent(
-                                driverId: String,
-                                beamVehicle: Option[BeamVehicle],
-                                activityType: String,
-                                parkingDuration: Double,
-                                agentVoT: Double,
-                                parkingZoneSearchStats: ParkingZoneSearchStats,
-                                selectedStallPrice: Double,
-                                selectedStallParkingType: ParkingType,
-                                selectedStallChargingPointType: Option[ChargingPointType],
-                                tick: Double = -1 // todo maybe we need the currentTick? If yes we have to get it into ZonalParkingManager
-                              ) extends Event(tick)
-  with ScalaEvent {
+  driverId: String,
+  beamVehicle: Option[BeamVehicle],
+  activityType: String,
+  parkingDuration: Double,
+  agentVoT: Double,
+  parkingZoneSearchStats: ParkingZoneSearchStats,
+  selectedStallPrice: Double,
+  selectedStallParkingType: ParkingType,
+  selectedStallChargingPointType: Option[ChargingPointType],
+  tick: Double = -1 // todo maybe we need the currentTick? If yes we have to get it into ZonalParkingManager
+) extends Event(tick)
+    with ScalaEvent {
 
   import ParkingUtilityEvent._
 
   private lazy val sampledStallsChargingTypeDist: String = "[" + parkingZoneSearchStats.sampledStallsChargingTypes
     .map {
       case Some(point) => point.toString
-      case None => "NoCharger"
+      case None        => "NoCharger"
     }
     .groupBy(identity)
     .mapValues(_.size)
@@ -35,29 +35,37 @@ case class ParkingUtilityEvent(
     .mkString(",") + "]"
 
   private lazy val sampledStallsParkingTypeDist: String = "[" +
-    parkingZoneSearchStats.sampledStallsParkingTypes
-      .groupBy(identity)
-      .mapValues(_.size)
-      .map(tuple => tuple._1 + ": " + tuple._2)
-      .mkString(",") + "]"
+  parkingZoneSearchStats.sampledStallsParkingTypes
+    .groupBy(identity)
+    .mapValues(_.size)
+    .map(tuple => tuple._1 + ": " + tuple._2)
+    .mkString(",") + "]"
 
   private lazy val sampledStallsCostsDist: String = "[" +
-    parkingZoneSearchStats.sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+  parkingZoneSearchStats.sampledStallsCosts
+    .groupBy(identity)
+    .mapValues(_.size)
+    .map(tuple => tuple._1 + ": " + tuple._2)
+    .mkString(",") + "]"
 
   private lazy val vehIdString: String = beamVehicle match {
     case Some(vehicle) => vehicle.id.toString
-    case None => "no beamVehicle in parking inquiry"
+    case None          => "no beamVehicle in parking inquiry"
   }
 
   private lazy val vehicleTypeString: String = beamVehicle match {
     case Some(vehicle) => vehicle.beamVehicleType.id.toString
-    case None => "no beamVehicle in parking inquiry"
+    case None          => "no beamVehicle in parking inquiry"
   }
 
-  private lazy val selectedStallMnlRangeAnxiety = parkingZoneSearchStats.selectedStallMnlParams.getOrElse(ParkingMNL.Parameters.RangeAnxietyCost, "no range anxiety costs provided")
-  private lazy val selectedStallMnlParkingPrice = parkingZoneSearchStats.selectedStallMnlParams.getOrElse(ParkingMNL.Parameters.ParkingTicketCost, "no parking costs provided")
-  private lazy val selectedStallMnlDistance = parkingZoneSearchStats.selectedStallMnlParams.getOrElse(ParkingMNL.Parameters.WalkingEgressCost, "no walking costs provided")
-  private lazy val selectedStallMnlResidential = parkingZoneSearchStats.selectedStallMnlParams.getOrElse(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking, "no home costs provided")
+  private lazy val selectedStallMnlRangeAnxiety = parkingZoneSearchStats.selectedStallMnlParams
+    .getOrElse(ParkingMNL.Parameters.RangeAnxietyCost, "no range anxiety costs provided")
+  private lazy val selectedStallMnlParkingPrice = parkingZoneSearchStats.selectedStallMnlParams
+    .getOrElse(ParkingMNL.Parameters.ParkingTicketCost, "no parking costs provided")
+  private lazy val selectedStallMnlDistance = parkingZoneSearchStats.selectedStallMnlParams
+    .getOrElse(ParkingMNL.Parameters.WalkingEgressCost, "no walking costs provided")
+  private lazy val selectedStallMnlResidential = parkingZoneSearchStats.selectedStallMnlParams
+    .getOrElse(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking, "no home costs provided")
 
   override def getEventType: String = EVENT_TYPE
 
@@ -77,7 +85,10 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDist)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PRICE, selectedStallPrice.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PARKING_TYPE, selectedStallParkingType.toString)
-    attributes.put(ATTRIBUTE_SELECTED_STALL_CHARGING_POINT_TYPE, selectedStallChargingPointType.getOrElse("NoCharger").toString)
+    attributes.put(
+      ATTRIBUTE_SELECTED_STALL_CHARGING_POINT_TYPE,
+      selectedStallChargingPointType.getOrElse("NoCharger").toString
+    )
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_RANGE_ANXIETY, selectedStallMnlRangeAnxiety.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_PARKING_PRICE, selectedStallMnlParkingPrice.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_DISTANCE, selectedStallMnlDistance.toString)
@@ -109,4 +120,3 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_SELECTED_STALL_MNL_DISTANCE: String = "selectedStallMnlDistance"
   val ATTRIBUTE_SELECTED_STALL_MNL_RESIDENTIAL: String = "selectedStallMnlResidential"
 }
-
