@@ -231,10 +231,7 @@ class ZonalParkingManager(
       log.debug(s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations")
 
       // create a ParkingUtilityEvent
-      val DEBUGTICK = -1
-//      val DEBUGDRIVER: Id[Person] = null
-
-      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(DEBUGTICK, inquiry.currentDriverId,
+      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(inquiry.currentDriverId,
         inquiry.beamVehicle, inquiry.activityType, inquiry.parkingDuration, inquiry.valueOfTime,
         parkingZoneSearchStats, parkingStall.cost, parkingStall.parkingType, parkingStall.chargingPointType)
 

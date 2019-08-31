@@ -6,13 +6,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchStats
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.api.internal.HasPersonId
 
 case class ParkingUtilityEvent(
-                                tick: Double,
                                 driverId: String,
                                 beamVehicle: Option[BeamVehicle],
                                 activityType: String,
@@ -21,7 +17,8 @@ case class ParkingUtilityEvent(
                                 parkingZoneSearchStats: ParkingZoneSearchStats,
                                 selectedStallPrice: Double,
                                 selectedStallParkingType: ParkingType,
-                                selectedStallChargingPointType: Option[ChargingPointType]
+                                selectedStallChargingPointType: Option[ChargingPointType],
+                                tick: Double = -1 // todo maybe we need the currentTick? If yes we have to get it into ZonalParkingManager
                               ) extends Event(tick)
   with ScalaEvent {
 
