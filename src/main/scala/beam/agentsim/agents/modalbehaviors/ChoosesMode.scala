@@ -892,7 +892,7 @@ trait ChoosesMode {
           }).map { partialItin =>
             EmbodiedBeamTrip(
               (EmbodiedBeamLeg.dummyLegAt(
-                partialItin.head.beamLeg.startTime,
+                _currentTick.get,
                 body.id,
                 false,
                 partialItin.head.beamLeg.travelPath.startPoint.loc,
