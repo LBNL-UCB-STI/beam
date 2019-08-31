@@ -15,19 +15,24 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-object VehicleCentricMatchingForRideHail {
+class VehicleCentricMatchingForRideHail(
+  demand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  services: BeamServices,
+  skimmer: BeamSkimmer
+) {
+  private val solutionSpaceSizePerVehicle =
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+  private val waitingTimeInSec =
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
+  private val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
 
   type AssignmentKey = (RideHailTrip, VehicleAndSchedule, Double)
 
-  def matchAndAssign(
-    demand: QuadTree[CustomerRequest],
-    supply: List[VehicleAndSchedule],
-    services: BeamServices,
-    skimmer: BeamSkimmer
-  ): Future[List[AssignmentKey]] = {
+  def matchAndAssign(tick: Int): Future[List[AssignmentKey]] = {
     Future
       .sequence(supply.withFilter(_.getFreeSeats >= 1).map { v =>
-        Future { vehicleCentricMatching(v, demand, supply, services, skimmer) }
+        Future { vehicleCentricMatching(v) }
       })
       .map(result => greedyAssignment(result.flatten))
       .recover {
@@ -38,25 +43,16 @@ object VehicleCentricMatchingForRideHail {
   }
 
   private def vehicleCentricMatching(
-    v: VehicleAndSchedule,
-    spatialDemand: QuadTree[CustomerRequest],
-    supply: List[VehicleAndSchedule],
-    beamServices: BeamServices,
-    skimmer: BeamSkimmer
+    v: VehicleAndSchedule
   ): List[AssignmentKey] = {
-    val solutionSpaceSizePerVehicle =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
-    val waitingTimeInSec =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
     val requestWithCurrentVehiclePosition = v.getRequestWithCurrentVehiclePosition
     val center = requestWithCurrentVehiclePosition.activity.getCoord
-    val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
 
     // get all customer requests located at a proximity to the vehicle
     var customers = v.geofence match {
       case Some(gf) =>
         val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
-        spatialDemand
+        demand
           .getDisk(center.getX, center.getY, searchRadius)
           .asScala
           .filter(
@@ -66,7 +62,7 @@ object VehicleCentricMatchingForRideHail {
           )
           .toList
       case _ =>
-        spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
+        demand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
 
     // if no customer found, returns
@@ -122,28 +118,30 @@ object VehicleCentricMatchingForRideHail {
               case (t2, _, _) =>
                 !(t2.requests exists (s => t1.requests contains s)) && (t1.requests.size + t2.requests.size) == k
             }
-            .flatten {
+            .foreach {
               case (t2, _, _) =>
                 getRidehailSchedule(
                   v.schedule,
                   (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
                   v.vehicleRemainingRangeInMeters.toInt,
                   skimmer
-                ).map(schedule => RideHailTrip(t1.requests ++ t2.requests, schedule))
-            }
-            .foreach { t =>
-              val cost = computeCost(t, v)
-              if (potentialTripsWithKPassengers.size == 2) {
-                // then replace the trip with highest sum of delays
-                val ((_, _, tripWithLargestDelayCost), index) =
-                  potentialTripsWithKPassengers.filter(_._1.requests.size == k).zipWithIndex.maxBy(_._1._3)
-                if (tripWithLargestDelayCost > cost) {
-                  potentialTripsWithKPassengers.patch(index, Seq((t, v, cost)), 1)
+                ) match {
+                  case Some(schedule) =>
+                    val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+                    val cost = computeCost(t, v)
+                    if (potentialTripsWithKPassengers.size == 2) {
+                      // then replace the trip with highest sum of delays
+                      val ((_, _, tripWithLargestDelayCost), index) =
+                        potentialTripsWithKPassengers.filter(_._1.requests.size == k).zipWithIndex.maxBy(_._1._3)
+                      if (tripWithLargestDelayCost > cost) {
+                        potentialTripsWithKPassengers.patch(index, Seq((t, v, cost)), 1)
+                      }
+                    } else {
+                      // then add the new trip
+                      potentialTripsWithKPassengers.append((t, v, cost))
+                    }
+                  case _ =>
                 }
-              } else {
-                // then add the new trip
-                potentialTripsWithKPassengers.append((t, v, cost))
-              }
             }
       }
       potentialTrips.appendAll(potentialTripsWithKPassengers)
