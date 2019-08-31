@@ -18,6 +18,7 @@ case class ParkingUtilityEvent(
   vehicleType: BeamVehicleType,
   activityType: String,
   activityDuration: Double,
+  numSearchIterations: Int,
   numStallsSeen: Int,
   numStallsSampled: Int,
   sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
@@ -69,6 +70,7 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_VEHICLE_ENGINE_TYPE, vehicleType.toString)
     attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityType)
     attributes.put(ATTRIBUTE_ACTIVITY_DURATION, activityDuration.toString)
+    attributes.put(ATTRIBUTE_NUM_SEARCH_ITERATIONS, numSearchIterations.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SEEN, numStallsSeen.toString)
     attributes.put(ATTRIBUTE_NUM_STALLS_SAMPLED, numStallsSampled.toString)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDist)
@@ -94,6 +96,7 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_VEHICLE_ENGINE_TYPE: String = "vehicleType"
   val ATTRIBUTE_ACTIVITY_TYPE: String = "activityType"
   val ATTRIBUTE_ACTIVITY_DURATION: String = "activityDuration"
+  val ATTRIBUTE_NUM_SEARCH_ITERATIONS: String = "numSearchIterations"
   val ATTRIBUTE_NUM_STALLS_SEEN: String = "numStallsSeen"
   val ATTRIBUTE_NUM_STALLS_SAMPLED: String = "numStallsSampled"
   val ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION: String = "sampledStallsChargingTypesDistribution"
