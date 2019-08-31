@@ -50,7 +50,7 @@ case class ParkingUtilityEvent(
   }
 
   private lazy val vehicleTypeString: String = beamVehicle match {
-    case Some(vehicle) => vehicle.beamVehicleType.toString
+    case Some(vehicle) => vehicle.beamVehicleType.id.toString
     case None => "no beamVehicle in parking inquiry"
   }
 

@@ -235,7 +235,7 @@ class ZonalParkingManager(
         inquiry.beamVehicle, inquiry.activityType, inquiry.parkingDuration, inquiry.valueOfTime,
         parkingZoneSearchStats, parkingStall.cost, parkingStall.parkingType, parkingStall.chargingPointType)
 
-      println(parkingUtilityEvent) // todo JH remove
+      // todo do something with the ParkingUtilityEvent
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
