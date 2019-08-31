@@ -13,7 +13,7 @@ import org.matsim.core.api.internal.HasPersonId
 
 case class ParkingUtilityEvent(
                                 tick: Double,
-                                driverId: Id[Person],
+                                driverId: String,
                                 beamVehicle: Option[BeamVehicle],
                                 activityType: String,
                                 parkingDuration: Double,
@@ -23,7 +23,6 @@ case class ParkingUtilityEvent(
                                 selectedStallParkingType: ParkingType,
                                 selectedStallChargingPointType: Option[ChargingPointType]
                               ) extends Event(tick)
-  with HasPersonId
   with ScalaEvent {
 
   import ParkingUtilityEvent._
@@ -65,11 +64,9 @@ case class ParkingUtilityEvent(
 
   override def getEventType: String = EVENT_TYPE
 
-  override def getPersonId: Id[Person] = driverId
-
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
-    attributes.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
+    attributes.put(ATTRIBUTE_DRIVER_ID, driverId)
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehIdString)
     attributes.put(ATTRIBUTE_VEHICLE_ENGINE_TYPE, vehicleTypeString)
     attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityType)

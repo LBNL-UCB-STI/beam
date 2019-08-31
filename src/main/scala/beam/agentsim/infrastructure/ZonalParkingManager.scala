@@ -232,9 +232,9 @@ class ZonalParkingManager(
 
       // create a ParkingUtilityEvent
       val DEBUGTICK = -1
-      val DEBUGDRIVER: Id[Person] = null
+//      val DEBUGDRIVER: Id[Person] = null
 
-      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(DEBUGTICK, DEBUGDRIVER,
+      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(DEBUGTICK, inquiry.currentDriverId,
         inquiry.beamVehicle, inquiry.activityType, inquiry.parkingDuration, inquiry.valueOfTime,
         parkingZoneSearchStats, parkingStall.cost, parkingStall.parkingType, parkingStall.chargingPointType)
 
