@@ -14,7 +14,9 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 class ZonalParkingManager(
                            tazTreeMap: TAZTreeMap,
@@ -228,24 +230,15 @@ class ZonalParkingManager(
 
       log.debug(s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations")
 
-//
-//      tick: Double,
-//    driverId: Id[Person],
-//    vehId: Id[Vehicle],
-//    vehicleType: BeamVehicleType,
-//    activityType: String,
-//    activityDuration: Double,
-//    parkingZoneSearchStats: ParkingZoneSearchStats,
-//    selectedStallPrice: Double,
-//    selectedStallParkingType: ParkingType,
-//    selectedStallChargingPointType: ChargingPointType,
-//    selectedStallMnlRangeAnxiety: Double,
-//    selectedStallMnlParkingPrice: Double,
-//    selectedStallMnlDistance: Double,
-//    selectedStallMnlResidential: Double
-
       // create a ParkingUtilityEvent
-      //val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent()
+      val DEBUGTICK = -1
+      val DEBUGDRIVER: Id[Person] = null
+
+      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(DEBUGTICK, DEBUGDRIVER,
+        inquiry.beamVehicle, inquiry.activityType, inquiry.parkingDuration, inquiry.valueOfTime,
+        parkingZoneSearchStats, parkingStall.cost, parkingStall.parkingType, parkingStall.chargingPointType)
+
+      println(parkingUtilityEvent) // todo JH remove
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {

@@ -112,13 +112,15 @@ object ParkingZoneSearch {
     * @param sampledStallsChargingTypes vector of [[ChargingPointType]] that have been available for sampling
     * @param sampledStallsParkingTypes  vector of [[ParkingType]] that have been available for sampling
     * @param sampledStallsCosts         vector of costs that have been available for sampling
+    * @param selectedStallMnlParams     mnl parameter of the selected stall
     */
   case class ParkingZoneSearchStats(numSearchIterations: Int = 1,
                                     parkingZoneIdsSeen: Vector[Int] = Vector.empty,
                                     parkingZoneIdsSampled: Vector[Int] = Vector.empty,
                                     sampledStallsChargingTypes: Vector[Option[ChargingPointType]] = Vector.empty,
                                     sampledStallsParkingTypes: Vector[ParkingType] = Vector.empty,
-                                    sampledStallsCosts: Vector[Double] = Vector.empty)
+                                    sampledStallsCosts: Vector[Double] = Vector.empty,
+                                    selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = Map.empty)
 
   /**
     * used within a search to track search data
@@ -253,6 +255,8 @@ object ParkingZoneSearch {
             //            selectedStallMnlDistance: Double,
             //            selectedStallMnlResidential: Double
 
+            val selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = alternativesToSample.getOrElse(result.alternativeType,
+              throw new RuntimeException("Provided alternative is not part of the sample set!"))
 
             // collect the stats from this search and add them to the ParkingZoneSearchResult
             val theseParkingZoneIdsSeen: List[Int] = alternatives.map {
@@ -275,7 +279,8 @@ object ParkingZoneSearch {
               parkingZoneIdsSampled = sampledStatsData._1,
               sampledStallsChargingTypes = sampledStatsData._2,
               sampledStallsParkingTypes = sampledStatsData._3,
-              sampledStallsCosts = sampledStatsData._4
+              sampledStallsCosts = sampledStatsData._4,
+              selectedStallMnlParams
             )
 
             ParkingZoneSearchResult(
