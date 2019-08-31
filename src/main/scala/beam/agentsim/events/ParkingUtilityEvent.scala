@@ -5,6 +5,7 @@ import java.util
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchStats
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -18,12 +19,8 @@ case class ParkingUtilityEvent(
                                 vehicleType: BeamVehicleType,
                                 activityType: String,
                                 activityDuration: Double,
-                                numSearchIterations: Int,
-                                numParkingZonesSeen: Int,
-                                numParkingZonesSampled: Int,
-                                sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
-                                sampledStallsParkingTypes: Vector[ParkingType],
-                                sampledStallsCosts: Vector[Double],
+                                agentVoT: Double,
+                                parkingZoneSearchStats: ParkingZoneSearchStats,
                                 selectedStallPrice: Double,
                                 selectedStallParkingType: ParkingType,
                                 selectedStallChargingPointType: ChargingPointType,
@@ -37,7 +34,7 @@ case class ParkingUtilityEvent(
 
   import ParkingUtilityEvent._
 
-  private lazy val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes
+  private lazy val sampledStallsChargingTypeDist: String = "[" + parkingZoneSearchStats.sampledStallsChargingTypes
     .map(
       _ match {
         case Some(point) => point.toString
@@ -50,14 +47,14 @@ case class ParkingUtilityEvent(
     .mkString(",") + "]"
 
   private lazy val sampledStallsParkingTypeDist: String = "[" +
-    sampledStallsParkingTypes
+    parkingZoneSearchStats.sampledStallsParkingTypes
       .groupBy(identity)
       .mapValues(_.size)
       .map(tuple => tuple._1 + ": " + tuple._2)
       .mkString(",") + "]"
 
   private lazy val sampledStallsCostsDist: String = "[" +
-    sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+    parkingZoneSearchStats.sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
   override def getEventType: String = EVENT_TYPE
 
@@ -70,9 +67,10 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_VEHICLE_ENGINE_TYPE, vehicleType.toString)
     attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityType)
     attributes.put(ATTRIBUTE_ACTIVITY_DURATION, activityDuration.toString)
-    attributes.put(ATTRIBUTE_NUM_SEARCH_ITERATIONS, numSearchIterations.toString)
-    attributes.put(ATTRIBUTE_NUM_PARKING_ZONES_SEEN, numParkingZonesSeen.toString)
-    attributes.put(ATTRIBUTE_NUM_PARKING_ZONES_SAMPLED, numParkingZonesSampled.toString)
+    attributes.put(ATTRIBUTE_AGENT_VOT, agentVoT.toString)
+    attributes.put(ATTRIBUTE_NUM_SEARCH_ITERATIONS, parkingZoneSearchStats.numSearchIterations.toString)
+    attributes.put(ATTRIBUTE_NUM_PARKING_ZONE_IDS_SEEN, parkingZoneSearchStats.parkingZoneIdsSeen.length.toString)
+    attributes.put(ATTRIBUTE_NUM_PARKING_ZONE_IDS_SAMPLED, parkingZoneSearchStats.parkingZoneIdsSeen.length.toString)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDist)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION, sampledStallsParkingTypeDist)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDist)
@@ -95,9 +93,10 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_VEHICLE_ENGINE_TYPE: String = "vehicleType"
   val ATTRIBUTE_ACTIVITY_TYPE: String = "activityType"
   val ATTRIBUTE_ACTIVITY_DURATION: String = "activityDuration"
+  val ATTRIBUTE_AGENT_VOT: String = "agentValueOfTime"
   val ATTRIBUTE_NUM_SEARCH_ITERATIONS: String = "numSearchIterations"
-  val ATTRIBUTE_NUM_PARKING_ZONES_SEEN: String = "numParkingZonesSeen"
-  val ATTRIBUTE_NUM_PARKING_ZONES_SAMPLED: String = "numParkingZonesSampled"
+  val ATTRIBUTE_NUM_PARKING_ZONE_IDS_SEEN: String = "numParkingZonesSeen"
+  val ATTRIBUTE_NUM_PARKING_ZONE_IDS_SAMPLED: String = "numParkingZonesSampled"
   val ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION: String = "sampledStallsChargingTypesDistribution"
   val ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION: String = "sampledStallsParkingTypesDistribution"
   val ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION: String = "sampledStallsCostsDistribution"

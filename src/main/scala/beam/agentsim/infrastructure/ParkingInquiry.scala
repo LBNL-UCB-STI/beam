@@ -32,41 +32,4 @@ case class ParkingInquiry(
 
 object ParkingInquiry {
 
-//  val simpleDistanceAndParkingTicketEqualUtilityFunction
-//    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
-//      Map.empty,
-//      Map(
-//        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
-//        "parkingCostsPriceFactor" -> UtilityFunctionOperation.Multiplier(-1)
-//      )
-//    )
-//
-//  val simpleDistanceEqualUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
-//      Map.empty,
-//      Map(
-//        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1)
-//      )
-//    )
-
-//  def apply(locationUtm: Location, activity: String): ParkingInquiry = {
-//    ParkingInquiry(locationUtm, activity, None, None, 0.0, 0)
-//  }
-
-//  def apply(
-//    locationUtm: Location,
-//    activity: String,
-//    beamVehicleOption: Option[BeamVehicle] = None,
-//    remainingTripData: Option[RemainingTripData] = None
-//  ): ParkingInquiry = {
-//    ParkingInquiry(
-//      locationUtm,
-//      activity,
-//      beamVehicleOption,
-//      remainingTripData,
-//      0.0,
-//      0,
-//    )
-//  }
 }

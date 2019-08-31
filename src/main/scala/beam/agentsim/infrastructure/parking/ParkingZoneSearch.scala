@@ -1,13 +1,11 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.events.ParkingUtilityEvent
 
 import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
-import beam.sim.common.GeoUtils
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -76,15 +74,14 @@ object ParkingZoneSearch {
   /**
     * result of a [[ParkingZoneSearch]]
     *
-    * @param parkingStall       the embodied stall with sampled coordinate
-    * @param parkingZone        the [[ParkingZone]] associated with this stall
-    * @param parkingZoneIdsSeen list of [[ParkingZone]] ids that were seen in this search
+    * @param parkingStall           the embodied stall with sampled coordinate
+    * @param parkingZone            the [[ParkingZone]] associated with this stall
+    * @param parkingZoneSearchStats stats from the current search that can be used for analysis
     */
   case class ParkingZoneSearchResult(
                                       parkingStall: ParkingStall,
                                       parkingZone: ParkingZone,
-                                      parkingZoneIdsSeen: List[Int] = List.empty,
-                                      iterations: Int = 1
+                                      parkingZoneSearchStats: ParkingZoneSearchStats = new ParkingZoneSearchStats()
                                     )
 
   /**
@@ -104,6 +101,24 @@ object ParkingZoneSearch {
                                  coord: Coord,
                                  cost: Double
                                )
+
+
+  /**
+    * provides stats data of the current search that can be used for analysis & debugging
+    *
+    * @param numSearchIterations
+    * @param parkingZoneIdsSeen         vector of [[ParkingZone]] ids that were seen in this search
+    * @param parkingZoneIdsSampled      vector of [[ParkingZone]] ids that have been used for sampling
+    * @param sampledStallsChargingTypes vector of [[ChargingPointType]] that have been available for sampling
+    * @param sampledStallsParkingTypes  vector of [[ParkingType]] that have been available for sampling
+    * @param sampledStallsCosts         vector of costs that have been available for sampling
+    */
+  case class ParkingZoneSearchStats(numSearchIterations: Int = 1,
+                                    parkingZoneIdsSeen: Vector[Int] = Vector.empty,
+                                    parkingZoneIdsSampled: Vector[Int] = Vector.empty,
+                                    sampledStallsChargingTypes: Vector[Option[ChargingPointType]] = Vector.empty,
+                                    sampledStallsParkingTypes: Vector[ParkingType] = Vector.empty,
+                                    sampledStallsCosts: Vector[Double] = Vector.empty)
 
   /**
     * used within a search to track search data
@@ -222,19 +237,53 @@ object ParkingZoneSearch {
               parkingType
             )
 
-            // create a ParkingUtilityEvent
-            // todo go on here with the creation of an partly filled event + return it + update it with the later available data afterwards
-            //            val parkingUtilityEvent = new ParkingUtilityEvent
-            //            parkingUtilityEvent.
 
-            val theseParkingZoneIds: List[Int] = alternatives.map {
+            //            numStallsSeen: Int,
+            //            numStallsSampled: Int,
+            //            sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
+            //            sampledStallsParkingTypes: Vector[ParkingType],
+            //            sampledStallsCosts: Vector[Double],
+
+
+            //            selectedStallPrice: Double,
+            //            selectedStallParkingType: ParkingType,
+            //            selectedStallChargingPointType: ChargingPointType,
+            //            selectedStallMnlRangeAnxiety: Double,
+            //            selectedStallMnlParkingPrice: Double,
+            //            selectedStallMnlDistance: Double,
+            //            selectedStallMnlResidential: Double
+
+
+            // collect the stats from this search and add them to the ParkingZoneSearchResult
+            val theseParkingZoneIdsSeen: List[Int] = alternatives.map {
               _.parkingAlternative.parkingZone.parkingZoneId
-            }
+            } ++ parkingZoneIdsSeen
+
+
+            val sampledStatsData: (Vector[Int], Vector[Option[ChargingPointType]], Vector[ParkingType], Vector[Double]) =
+              alternativesToSample.keys.foldLeft((Vector.empty[Int], Vector.empty[Option[ChargingPointType]], Vector.empty[ParkingType], Vector.empty[Double]))((result, parkingAlt) => {
+                val parkingZoneId = parkingAlt.parkingZone.parkingZoneId
+                val chargingPointType = parkingAlt.parkingZone.chargingPointType
+                val parkingType = parkingAlt.parkingType
+                val parkingCosts = parkingAlt.cost
+                (result._1 :+ parkingZoneId, result._2 :+ chargingPointType, result._3 :+ parkingType, result._4 :+ parkingCosts)
+              })
+
+            val parkingZoneSearchStats = new ParkingZoneSearchStats(
+              iterations,
+              theseParkingZoneIdsSeen.toVector,
+              parkingZoneIdsSampled = sampledStatsData._1,
+              sampledStallsChargingTypes = sampledStatsData._2,
+              sampledStallsParkingTypes = sampledStatsData._3,
+              sampledStallsCosts = sampledStatsData._4
+            )
+
             ParkingZoneSearchResult(
               parkingStall,
               parkingZone,
-              theseParkingZoneIds ++ parkingZoneIdsSeen,
-              iterations = iterations
+              parkingZoneSearchStats
+              //              theseParkingZoneIds ++ parkingZoneIdsSeen,
+              //              iterations = iterations
             )
           }
         }
