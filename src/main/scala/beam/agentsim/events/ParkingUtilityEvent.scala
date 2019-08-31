@@ -36,6 +36,28 @@ case class ParkingUtilityEvent(
 
   import ParkingUtilityEvent._
 
+  private lazy val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes
+    .map(
+      _ match {
+        case Some(point) => point.toString
+        case None        => "NoCharger"
+      }
+    )
+    .groupBy(identity)
+    .mapValues(_.size)
+    .map(tuple => tuple._1 + ": " + tuple._2)
+    .mkString(",") + "]"
+
+  private lazy  val sampledStallsParkingTypeDist: String = "[" +
+    sampledStallsParkingTypes
+      .groupBy(identity)
+      .mapValues(_.size)
+      .map(tuple => tuple._1 + ": " + tuple._2)
+      .mkString(",") + "]"
+
+  private lazy val sampledStallsCostsDist: String = "[" +
+    sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
+
   override def getEventType: String = EVENT_TYPE
 
   override def getPersonId: Id[Person] = driverId
@@ -62,28 +84,6 @@ case class ParkingUtilityEvent(
 
     attributes
   }
-
-  private val sampledStallsChargingTypeDist: String = "[" + sampledStallsChargingTypes
-    .map(
-      _ match {
-        case Some(point) => point.toString
-        case None        => "NoCharger"
-      }
-    )
-    .groupBy(identity)
-    .mapValues(_.size)
-    .map(tuple => tuple._1 + ": " + tuple._2)
-    .mkString(",") + "]"
-
-  private val sampledStallsParkingTypeDist: String = "[" +
-  sampledStallsParkingTypes
-    .groupBy(identity)
-    .mapValues(_.size)
-    .map(tuple => tuple._1 + ": " + tuple._2)
-    .mkString(",") + "]"
-
-  private val sampledStallsCostsDist: String = "[" +
-  sampledStallsCosts.groupBy(identity).mapValues(_.size).map(tuple => tuple._1 + ": " + tuple._2).mkString(",") + "]"
 
 }
 
