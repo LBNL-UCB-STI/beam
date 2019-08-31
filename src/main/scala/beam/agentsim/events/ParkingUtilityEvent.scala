@@ -12,28 +12,28 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 case class ParkingUtilityEvent(
-  tick: Double,
-  driverId: Id[Person],
-  vehId: Id[Vehicle],
-  vehicleType: BeamVehicleType,
-  activityType: String,
-  activityDuration: Double,
-  numSearchIterations: Int,
-  numStallsSeen: Int,
-  numStallsSampled: Int,
-  sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
-  sampledStallsParkingTypes: Vector[ParkingType],
-  sampledStallsCosts: Vector[Double],
-  selectedStallPrice: Double,
-  selectedStallParkingType: ParkingType,
-  selectedStallChargingPointType: ChargingPointType,
-  selectedStallMnlRangeAnxiety: Double,
-  selectedStallMnlParkingPrice: Double,
-  selectedStallMnlDistance: Double,
-  selectedStallMnlResidential: Double
-) extends Event(tick)
-    with HasPersonId
-    with ScalaEvent {
+                                tick: Double,
+                                driverId: Id[Person],
+                                vehId: Id[Vehicle],
+                                vehicleType: BeamVehicleType,
+                                activityType: String,
+                                activityDuration: Double,
+                                numSearchIterations: Int,
+                                numParkingZonesSeen: Int,
+                                numParkingZonesSampled: Int,
+                                sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
+                                sampledStallsParkingTypes: Vector[ParkingType],
+                                sampledStallsCosts: Vector[Double],
+                                selectedStallPrice: Double,
+                                selectedStallParkingType: ParkingType,
+                                selectedStallChargingPointType: ChargingPointType,
+                                selectedStallMnlRangeAnxiety: Double,
+                                selectedStallMnlParkingPrice: Double,
+                                selectedStallMnlDistance: Double,
+                                selectedStallMnlResidential: Double
+                              ) extends Event(tick)
+  with HasPersonId
+  with ScalaEvent {
 
   import ParkingUtilityEvent._
 
@@ -41,7 +41,7 @@ case class ParkingUtilityEvent(
     .map(
       _ match {
         case Some(point) => point.toString
-        case None        => "NoCharger"
+        case None => "NoCharger"
       }
     )
     .groupBy(identity)
@@ -49,7 +49,7 @@ case class ParkingUtilityEvent(
     .map(tuple => tuple._1 + ": " + tuple._2)
     .mkString(",") + "]"
 
-  private lazy  val sampledStallsParkingTypeDist: String = "[" +
+  private lazy val sampledStallsParkingTypeDist: String = "[" +
     sampledStallsParkingTypes
       .groupBy(identity)
       .mapValues(_.size)
@@ -71,8 +71,8 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityType)
     attributes.put(ATTRIBUTE_ACTIVITY_DURATION, activityDuration.toString)
     attributes.put(ATTRIBUTE_NUM_SEARCH_ITERATIONS, numSearchIterations.toString)
-    attributes.put(ATTRIBUTE_NUM_STALLS_SEEN, numStallsSeen.toString)
-    attributes.put(ATTRIBUTE_NUM_STALLS_SAMPLED, numStallsSampled.toString)
+    attributes.put(ATTRIBUTE_NUM_PARKING_ZONES_SEEN, numParkingZonesSeen.toString)
+    attributes.put(ATTRIBUTE_NUM_PARKING_ZONES_SAMPLED, numParkingZonesSampled.toString)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDist)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION, sampledStallsParkingTypeDist)
     attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDist)
@@ -83,7 +83,6 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_PARKING_PRICE, selectedStallMnlParkingPrice.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_DISTANCE, selectedStallMnlDistance.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_MNL_RESIDENTIAL, selectedStallMnlResidential.toString)
-
     attributes
   }
 
@@ -97,8 +96,8 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_ACTIVITY_TYPE: String = "activityType"
   val ATTRIBUTE_ACTIVITY_DURATION: String = "activityDuration"
   val ATTRIBUTE_NUM_SEARCH_ITERATIONS: String = "numSearchIterations"
-  val ATTRIBUTE_NUM_STALLS_SEEN: String = "numStallsSeen"
-  val ATTRIBUTE_NUM_STALLS_SAMPLED: String = "numStallsSampled"
+  val ATTRIBUTE_NUM_PARKING_ZONES_SEEN: String = "numParkingZonesSeen"
+  val ATTRIBUTE_NUM_PARKING_ZONES_SAMPLED: String = "numParkingZonesSampled"
   val ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION: String = "sampledStallsChargingTypesDistribution"
   val ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION: String = "sampledStallsParkingTypesDistribution"
   val ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION: String = "sampledStallsCostsDistribution"
@@ -109,5 +108,5 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_SELECTED_STALL_MNL_PARKING_PRICE: String = "selectedStallMnlParkingPrice"
   val ATTRIBUTE_SELECTED_STALL_MNL_DISTANCE: String = "selectedStallMnlDistance"
   val ATTRIBUTE_SELECTED_STALL_MNL_RESIDENTIAL: String = "selectedStallMnlResidential"
-
 }
+
