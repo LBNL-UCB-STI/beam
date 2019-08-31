@@ -196,7 +196,7 @@ object AlonsoMoraPoolingAlgForRideHail {
                 .head
             )
             .asInstanceOf[VehicleAndSchedule]
-          val cost = trip.requests.size * trip.getSumOfDelaysAsFraction + (solutionSpaceSizePerVehicle - trip.requests.size) * 1.0
+          val cost = trip.requests.size * trip.sumOfDelaysAsFraction + (solutionSpaceSizePerVehicle - trip.requests.size) * 1.0
           (trip, vehicle, cost)
         }
         .toList
@@ -521,7 +521,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val sumOfDelays: Int = schedule.foldLeft(0) { case (c, r)              => c + (r.serviceTime - r.baselineNonPooledTime) }
 
-    val getSumOfDelaysAsFraction: Int = sumOfDelays / schedule.foldLeft(0) {
+    val sumOfDelaysAsFraction: Int = sumOfDelays / schedule.foldLeft(0) {
       case (c, r) => c + (r.upperBoundTime - r.baselineNonPooledTime)
     }
     override def toString: String =
