@@ -258,13 +258,13 @@ object PopulationAdjustment extends LazyLogging {
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
-      householdAttributes,
-      modalityStyle,
-      Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
-      availableModes,
-      valueOfTime,
-      Option(PersonUtils.getAge(person)),
-      Some(income)
+      householdAttributes = householdAttributes,
+      modalityStyle = modalityStyle,
+      isMale = Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
+      availableModes = availableModes,
+      valueOfTime = valueOfTime,
+      age = Option(PersonUtils.getAge(person)),
+      income = Some(income)
     )
   }
   private def IncomeToValueOfTime(income: Double): Option[Double] = {
