@@ -893,7 +893,7 @@ trait ChoosesMode {
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
-              (EmbodiedBeamLeg.dummyLegAt(
+              EmbodiedBeamLeg.dummyLegAt(
                 start = _currentTick.get,
                 vehicleId = body.id,
                 isLastLeg = false,
@@ -909,7 +909,7 @@ trait ChoosesMode {
                 location = partialItin.last.beamLeg.travelPath.endPoint.loc,
                 mode = WALK,
                 vehicleTypeId = body.beamVehicleType.id
-              ))
+              )
             )
           }
         case None =>
