@@ -733,21 +733,21 @@ trait ChoosesMode {
         Some(
           EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.head.beamLeg.startTime,
-              body.id,
-              false,
-              fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.head.beamLeg.startTime,
+              vehicleId = body.id,
+              isLastLeg = false,
+              location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.last.beamLeg.endTime,
-              body.id,
-              true,
-              fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.last.beamLeg.endTime,
+              vehicleId = body.id,
+              isLastLeg = true,
+              location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             )
           )
         )
