@@ -894,21 +894,21 @@ trait ChoosesMode {
           }).map { partialItin =>
             EmbodiedBeamTrip(
               (EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get,
-                body.id,
-                false,
-                partialItin.head.beamLeg.travelPath.startPoint.loc,
-                WALK,
-                body.beamVehicleType.id
+                start = _currentTick.get,
+                vehicleId = body.id,
+                isLastLeg = false,
+                location = partialItin.head.beamLeg.travelPath.startPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
-                partialItin.last.beamLeg.endTime,
-                body.id,
-                true,
-                partialItin.last.beamLeg.travelPath.endPoint.loc,
-                WALK,
-                body.beamVehicleType.id
+                start = partialItin.last.beamLeg.endTime,
+                vehicleId = body.id,
+                isLastLeg = true,
+                location = partialItin.last.beamLeg.travelPath.endPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
               ))
             )
           }
