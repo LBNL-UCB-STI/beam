@@ -15,7 +15,8 @@ import org.matsim.api.core.v01.population.Person
   */
 class MultinomialLogit[A, T](
   val utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
-  common: Map[T, UtilityFunctionOperation]
+  common: Map[T, UtilityFunctionOperation],
+  scale_factor: Double = 1.0
 ) extends LazyLogging {
 
   import MultinomialLogit._
@@ -47,9 +48,13 @@ class MultinomialLogit[A, T](
               case Some(thisUtility) =>
                 if (thisUtility == Double.PositiveInfinity) {
                   // place on tail of list, allowing us to short-circuit the sampling in next step
-                  accumulator :+ AlternativeWithUtility(alt, thisUtility, math.exp(thisUtility))
+                  accumulator :+ AlternativeWithUtility(
+                    alt,
+                    thisUtility * scale_factor,
+                    math.exp(thisUtility * scale_factor)
+                  )
                 } else {
-                  AlternativeWithUtility(alt, thisUtility, math.exp(thisUtility)) +: accumulator
+                  AlternativeWithUtility(alt, thisUtility * scale_factor, math.exp(thisUtility * scale_factor)) +: accumulator
                 }
             }
         }
@@ -179,7 +184,14 @@ object MultinomialLogit {
     utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
     commonUtilityFunction: Map[T, UtilityFunctionOperation]
   ): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, commonUtilityFunction)
+    new MultinomialLogit(utilityFunctions, commonUtilityFunction, 1.0)
   }
 
+  def apply[A, T](
+    utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
+    commonUtilityFunction: Map[T, UtilityFunctionOperation],
+    scale_factor: Double
+  ): MultinomialLogit[A, T] = {
+    new MultinomialLogit(utilityFunctions, commonUtilityFunction, scale_factor)
+  }
 }
