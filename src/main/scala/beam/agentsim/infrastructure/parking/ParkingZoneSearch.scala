@@ -240,20 +240,6 @@ object ParkingZoneSearch {
               parkingType
             )
 
-            //            numStallsSeen: Int,
-            //            numStallsSampled: Int,
-            //            sampledStallsChargingTypes: Vector[Option[ChargingPointType]],
-            //            sampledStallsParkingTypes: Vector[ParkingType],
-            //            sampledStallsCosts: Vector[Double],
-
-            //            selectedStallPrice: Double,
-            //            selectedStallParkingType: ParkingType,
-            //            selectedStallChargingPointType: ChargingPointType,
-            //            selectedStallMnlRangeAnxiety: Double,
-            //            selectedStallMnlParkingPrice: Double,
-            //            selectedStallMnlDistance: Double,
-            //            selectedStallMnlResidential: Double
-
             val selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = alternativesToSample.getOrElse(
               result.alternativeType,
               throw new RuntimeException("Provided alternative is not part of the sample set!")
@@ -300,8 +286,6 @@ object ParkingZoneSearch {
               parkingStall,
               parkingZone,
               parkingZoneSearchStats
-              //              theseParkingZoneIds ++ parkingZoneIdsSeen,
-              //              iterations = iterations
             )
           }
         }
