@@ -793,7 +793,7 @@ trait ChoosesMode {
           val newLegs = itin.legs.zipWithIndex.map {
             case (leg, i) =>
               if (i == 2) {
-                leg.copy(cost = leg.cost + parkingResponse.stall.cost)
+                leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
               } else {
                 leg
               }
@@ -804,7 +804,7 @@ trait ChoosesMode {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
                 if (i == 2) {
-                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost)
+                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.costInDollars)
                 } else {
                   leg
                 }
@@ -813,7 +813,7 @@ trait ChoosesMode {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
                 if (i == itin.legs.size - 2) {
-                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost)
+                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.costInDollars)
                 } else {
                   leg
                 }
@@ -1208,7 +1208,7 @@ object ChoosesMode {
         Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0))
       },
       driveTransitParkingResponse =
-        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox, cost = 0.0), 0)),
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox, costInDollars = 0.0), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {

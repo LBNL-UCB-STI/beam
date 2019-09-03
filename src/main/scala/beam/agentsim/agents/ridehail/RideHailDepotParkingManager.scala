@@ -129,7 +129,7 @@ class RideHailDepotParkingManager(
 
         val rangeAnxietyFactor: Double = 0.0 // RHAs are told to charge before this point
         val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime
-        val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
+        val parkingCostsPriceFactor: Double = parkingAlternative.costInCents / dollarsInCents
 
         Map(
           ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,

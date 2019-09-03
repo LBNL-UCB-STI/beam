@@ -30,7 +30,7 @@ object ParkingRanking {
   ): Double = {
     val parkingTicket: Double = parkingZone.pricingModel match {
       case None               => 0.0
-      case Some(pricingModel) => PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
+      case Some(pricingModel) => PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt) / 100.0
     }
 
     // assumes 1.4 m/s walking speed, distance in meters, value of time in seconds

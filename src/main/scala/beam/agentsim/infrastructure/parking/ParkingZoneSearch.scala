@@ -94,14 +94,14 @@ object ParkingZoneSearch {
     * @param parkingType parking type of the alternative
     * @param parkingZone parking zone of the alternative
     * @param coord location sampled for this alternative
-    * @param cost expected cost for using this alternative
+    * @param costInCents expected cost for using this alternative
     */
   case class ParkingAlternative(
     taz: TAZ,
     parkingType: ParkingType,
     parkingZone: ParkingZone,
     coord: Coord,
-    cost: Double
+    costInCents: Double
   )
 
   /**
@@ -166,14 +166,14 @@ object ParkingZoneSearch {
             // wrap ParkingZone in a ParkingAlternative
             val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
-            val stallPrice: Double =
+            val stallPriceInCents: Double =
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPrice)
+              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInCents)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
@@ -204,14 +204,14 @@ object ParkingZoneSearch {
             )
 
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, cost) = result.alternativeType
+            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInCents) = result.alternativeType
 
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
               taz.tazId,
               parkingZone.parkingZoneId,
               coordinate,
-              cost,
+              costInCents.toDouble / 100.0,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType
