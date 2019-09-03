@@ -45,12 +45,12 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   }
 
   override protected def afterAll(): Unit = {
-    scenario = null
-    eventManager = null
-    beamServices = null
     val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
     if (travelDistanceStats != null)
       travelDistanceStats.close()
+    scenario = null
+    eventManager = null
+    beamServices = null
     super.afterAll()
   }
 

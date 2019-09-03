@@ -40,13 +40,13 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   }
 
   override protected def afterAll(): Unit = {
+    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+    if (travelDistanceStats != null)
+      travelDistanceStats.close()
     beamScenario = null
     scenario = null
     injector = null
     services = null
-    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
-    if (travelDistanceStats != null)
-      travelDistanceStats.close()
     super.afterAll()
   }
 }
