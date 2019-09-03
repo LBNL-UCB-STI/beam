@@ -11,9 +11,12 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class RideHailSurgePricingManagerSpec extends WordSpecLike
-  with Matchers with MockitoSugar with BeamHelper
-  with BeforeAndAfterAll{
+class RideHailSurgePricingManagerSpec
+    extends WordSpecLike
+    with Matchers
+    with MockitoSugar
+    with BeamHelper
+    with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
