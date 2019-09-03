@@ -5,7 +5,7 @@ import scala.collection.mutable
 import akka.actor.{ActorRef, Stash}
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
-import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
@@ -13,8 +13,9 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.events.{ChargingPlugInEvent, ParkEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerMessage}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -356,7 +357,29 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             // charge vehicle
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
-                case Some(_) => handleStartCharging(tick, currentBeamVehicle)
+                case Some(_) =>
+                  handleStartCharging(tick, currentBeamVehicle)
+                  if (ChargingPointType.getChargingPointInstalledPowerInKw(
+                    currentBeamVehicle.stall.get.chargingPointType.get
+                  ) > 20.0) {
+                    val (sessionDuration, energyDelivered) =
+                      currentBeamVehicle.refuelingSessionDurationAndEnergyInJoules()
+                    log.debug(
+                      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered, triggerId: {}",
+                      tick + sessionDuration.toInt,
+                      energyDelivered,
+                      triggerId
+                    )
+                    scheduler ! ScheduleTrigger(
+                      EndRefuelSessionTrigger(
+                        tick + sessionDuration.toInt,
+                        tick,
+                        energyDelivered,
+                        Some(currentBeamVehicle)
+                      ),
+                      self
+                    )
+                  }
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -793,6 +816,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
+    case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
+      if (vehicle.get.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle.get)
+        vehicle.get.unsetParkingStall()
+      }
+      stay() replying CompletionNotice(triggerId)
   }
 
   private def hasRoomFor(
