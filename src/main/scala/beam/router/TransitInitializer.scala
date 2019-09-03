@@ -74,7 +74,7 @@ class TransitInitializer(
           None,
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
-          geo.distLatLon2Meters(fromCoord,toCoord)
+          geo.distLatLon2Meters(fromCoord, toCoord)
         )
     }
 
