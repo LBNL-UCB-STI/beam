@@ -26,7 +26,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -40,8 +40,9 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
-
 import scala.concurrent.duration._
+
+import beam.agentsim.infrastructure.parking.ParkingMNL
 
 /**
   */
@@ -290,6 +291,69 @@ class PersonAgent(
 
   override def logDepth: Int = 30
 
+  /**
+    * identifies agents with remaining range which is smaller than their remaining tour
+    *
+    * @param personData current state data cast as a [[BasePersonData]]
+    * @return true if they have enough fuel, or fuel type is not exhaustible
+    */
+  def calculateRemainingTripData(personData: BasePersonData): Option[ParkingMNL.RemainingTripData] = {
+
+    val refuelNeeded: Boolean =
+      currentBeamVehicle.isRefuelNeeded(
+        beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
+        beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
+      )
+
+    if (refuelNeeded) {
+
+      val primaryFuelLevelInJoules: Double = beamScenario
+        .privateVehicles(personData.currentVehicle.head)
+        .primaryFuelLevelInJoules
+
+      val primaryFuelConsumptionInJoulePerMeter: Double =
+        currentBeamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+
+      val remainingTourDist: Double = nextActivity(personData) match {
+        case Some(nextAct) =>
+          val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct) - 1
+          currentTour(personData).trips
+            .slice(nextActIdx, currentTour(personData).trips.length)
+            .sliding(2, 1)
+            .toList
+            .foldLeft(0d) { (sum, pair) =>
+              sum + Math
+                .ceil(
+                  beamSkimmer
+                    .getTimeDistanceAndCost(
+                      pair.head.activity.getCoord,
+                      pair.last.activity.getCoord,
+                      0,
+                      CAR,
+                      currentBeamVehicle.beamVehicleType.id
+                    )
+                    .distance
+                )
+            }
+
+        case None =>
+          0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
+      }
+
+      Some(
+        ParkingMNL.RemainingTripData(
+          primaryFuelLevelInJoules,
+          primaryFuelConsumptionInJoulePerMeter,
+          remainingTourDist,
+          beamScenario.beamConfig.beam.agentsim.agents.parking.rangeAnxietyBuffer
+        )
+      )
+
+    } else {
+      None
+    }
+  }
+
   startWith(Uninitialized, BasePersonData())
 
   def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
@@ -441,7 +505,11 @@ class PersonAgent(
         beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
         tick
       ),
-      isWithinTripReplanning = true
+      isWithinTripReplanning = true,
+      excludeModes =
+        if (data.numberOfReplanningAttempts > 0) { Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT) } else {
+          Vector()
+        }
     )
   }
 
@@ -985,6 +1053,8 @@ class PersonAgent(
           _,
           _,
           _,
+          _,
+          _,
           _
         )
         ) =>
@@ -993,6 +1063,8 @@ class PersonAgent(
         TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
           _,
           _,
           _,
