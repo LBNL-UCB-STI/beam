@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
 import beam.router._
 import beam.router.gtfs.FareCalculator
@@ -284,7 +284,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       ),
       linksTimesAndDistances.distances.tail.sum
     )
+    val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    val drivingCost = DrivingCost.estimateDrivingCost(leg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -294,7 +296,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               vehicleId,
               vehicleTypeId,
               asDriver = true,
-              0,
+              drivingCost + toll,
               unbecomeDriverOnCompletion = true
             )
           )
