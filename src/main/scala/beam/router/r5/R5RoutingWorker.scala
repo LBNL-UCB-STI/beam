@@ -282,7 +282,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         endLoc.getY,
         leg.startTime + Math.round(duration.toFloat)
       ),
-      linksTimesAndDistances.distances.tail.sum
+      distanceInM = linksTimesAndDistances.distances.tail.sum
     )
     val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
