@@ -12,7 +12,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
-import beam.matsim.CustomPlansDumpingImpl
+import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
@@ -153,6 +153,8 @@ trait BeamHelper extends LazyLogging {
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           bind(classOf[BeamConfigHolder])
           val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
 
           bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
 
