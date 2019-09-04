@@ -48,6 +48,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
 
   val sensitivityOfRepositioningToDemand: Double = cfg.sensitivityOfRepositioningToDemand
+  val sensitivityOfRepositioningToDemandForCAVs: Double = cfg.sensitivityOfRepositioningToDemandForCAVs
   val numberOfClustersForDemand: Int = cfg.numberOfClustersForDemand
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
@@ -120,7 +121,11 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val currentHour = tick / 3600
     val weight = activityWeight.lift(currentHour).getOrElse(0.0)
-    val scaled = weight * sensitivityOfRepositioningToDemand * (if(vehicle.vehicleType.automationLevel>=4){ 0.5 }else{ 1.0 }
+    val scaled = weight * (if(vehicle.vehicleType.automationLevel>=4){
+      sensitivityOfRepositioningToDemandForCAVs
+    }else{
+      sensitivityOfRepositioningToDemand
+    })
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
