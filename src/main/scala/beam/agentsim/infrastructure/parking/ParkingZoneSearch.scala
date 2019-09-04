@@ -94,14 +94,14 @@ object ParkingZoneSearch {
     * @param parkingType parking type of the alternative
     * @param parkingZone parking zone of the alternative
     * @param coord location sampled for this alternative
-    * @param costInCents expected cost for using this alternative
+    * @param costInDollars expected cost for using this alternative
     */
   case class ParkingAlternative(
     taz: TAZ,
     parkingType: ParkingType,
     parkingZone: ParkingZone,
     coord: Coord,
-    costInCents: Double
+    costInDollars: Double
   )
 
   /**
@@ -166,14 +166,14 @@ object ParkingZoneSearch {
             // wrap ParkingZone in a ParkingAlternative
             val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
-            val stallPriceInCents: Double =
+            val stallPriceInDollars: Double =
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInCents)
+              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
@@ -204,14 +204,14 @@ object ParkingZoneSearch {
             )
 
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInCents) = result.alternativeType
+            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
 
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
               taz.tazId,
               parkingZone.parkingZoneId,
               coordinate,
-              costInCents.toDouble / 100.0,
+              costInDollars.toDouble,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType

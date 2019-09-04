@@ -107,7 +107,7 @@ object ParkingZoneFileUtils extends LazyLogging {
         val parkingZone = stalls(parkingZoneId)
         val (pricingModel, feeInCents) = parkingZone.pricingModel match {
           case None     => ("", "")
-          case Some(pm) => (s"$pm", s"${pm.costInCents}")
+          case Some(pm) => (s"$pm", s"${pm.costInDollars / 100.0}")
         }
         val chargingPoint = parkingZone.chargingPointType match {
           case None     => ""
@@ -267,12 +267,12 @@ object ParkingZoneFileUtils extends LazyLogging {
           feeInCentsString
           ) =>
         Try {
-          val newCostString = (feeInCentsString.toDouble * parkingCostScalingFactor).toString
+          val newCostInDollarsString = (feeInCentsString.toDouble * parkingCostScalingFactor / 100.0).toString
 
           // parse this row from the source file
           val taz = Id.create(tazString.toUpperCase, classOf[TAZ])
           val parkingType = ParkingType(parkingTypeString)
-          val pricingModel = PricingModel(pricingModelString, newCostString)
+          val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = math.ceil(numStallsString.toDouble * parkingStallCountScalingFactor).toInt
           val parkingZone = ParkingZone(nextParkingZoneId, taz, parkingType, numStalls, chargingPoint, pricingModel)
