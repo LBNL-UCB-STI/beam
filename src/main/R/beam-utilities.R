@@ -232,3 +232,6 @@ read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
   match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
   return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
 }
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
