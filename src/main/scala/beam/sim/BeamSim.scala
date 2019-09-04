@@ -312,7 +312,7 @@ class BeamSim @Inject()(
   }
 
   private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
-    if(beamServices.beamConfig.beam.outputs.writeAnalysis) {
+    if (beamServices.beamConfig.beam.outputs.writeAnalysis) {
       val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
       val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
       if (writeEventAnalysisInThisIteration) {
