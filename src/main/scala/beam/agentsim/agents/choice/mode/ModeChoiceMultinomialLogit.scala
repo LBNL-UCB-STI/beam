@@ -152,7 +152,7 @@ class ModeChoiceMultinomialLogit(
   ): IndexedSeq[ModeCostTimeTransfer] = {
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
-      val totalCost = getNonTimeCost(altAndIdx._1,includeReplanningPenalty = true)
+      val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =

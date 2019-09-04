@@ -20,7 +20,7 @@ case class ParkingStall(
 
 object ParkingStall {
 
-  val CostOfEmergencyStall: Double = 5000.0 // $50.00 stall used as an emergency when no stalls were found
+  val CostOfEmergencyStall: Double = 50.0 // $50.00 stall used as an emergency when no stalls were found
 
   /**
     * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available

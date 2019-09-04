@@ -88,8 +88,9 @@ trait ModeChoiceCalculator {
       case _ =>
         embodiedBeamTrip.costEstimate
     }
-    if(includeReplanningPenalty){
-      totalCost + embodiedBeamTrip.replanningPenalty } else{ totalCost }
+    if (includeReplanningPenalty) {
+      totalCost + embodiedBeamTrip.replanningPenalty
+    } else { totalCost }
   }
 
   def computeAllDayUtility(
