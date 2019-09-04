@@ -26,6 +26,8 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+//import com.zaxxer.nuprocess.NuProcess
+import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
@@ -85,6 +87,7 @@ class BeamSim @Inject()(
   val graphFileNameDirectory = mutable.Map[String, Int]()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
+  val runningPythonScripts = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
@@ -304,6 +307,22 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+
+    writeEventsAnalysisUsing(event)
+  }
+
+  private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
+    val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
+    val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
+    if (writeEventAnalysisInThisIteration) {
+      val currentEventsFilePath =
+        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
+      val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
+        "src/main/python/events_analysis/analyze_events.py",
+        if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+      )
+      runningPythonScripts += pythonProcess
+    }
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
@@ -365,6 +384,13 @@ class BeamSim @Inject()(
     }
     BeamConfigChangesObservable.clear()
 
+    runningPythonScripts
+      .filter(process => process.isRunning)
+      .foreach(process => {
+        logger.info("Waiting for python process to complete running.")
+        process.waitFor(5, TimeUnit.MINUTES)
+        logger.info("Python process completed.")
+      })
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
