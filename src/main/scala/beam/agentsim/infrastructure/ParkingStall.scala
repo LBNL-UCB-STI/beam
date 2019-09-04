@@ -59,7 +59,7 @@ object ParkingStall {
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
-      pricingModel = Some { PricingModel.FlatFee((costInDollars * 100).toInt) },
+      pricingModel = Some { PricingModel.FlatFee((costInDollars).toInt) },
       parkingType = ParkingType.Public
     )
   }

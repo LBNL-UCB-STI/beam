@@ -49,7 +49,7 @@ object PricingModel {
       case "" => None
 
       case "flatfee" =>
-        val costInDollarsDouble = parseFee(costInDollars, s) / 100
+        val costInDollarsDouble = parseFee(costInDollars, s)
 //        val intervalInt = parseInterval(intervalSeconds, s)
         Some(FlatFee(costInDollarsDouble))
 
