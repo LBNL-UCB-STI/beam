@@ -17,6 +17,7 @@ import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.{Vehicle, Vehicles}
+import beam.sim.common.GeoUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -24,6 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class TransitInitializer(
   beamConfig: BeamConfig,
+  geo: GeoUtils,
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
@@ -72,7 +74,7 @@ class TransitInitializer(
           None,
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
-          0
+          geo.distLatLon2Meters(fromCoord, toCoord)
         )
     }
 
