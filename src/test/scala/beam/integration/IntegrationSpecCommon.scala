@@ -13,6 +13,7 @@ trait IntegrationSpecCommon {
   lazy val baseConfig: Config = testConfig(configFileName)
     .resolve()
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .withFallback(configLocation)
     .resolve
