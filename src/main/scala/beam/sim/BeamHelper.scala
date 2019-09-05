@@ -695,7 +695,7 @@ trait BeamHelper extends LazyLogging {
     }
     result.planCalcScore().setMemorizingExperiencedPlans(true)
     result.controler.setOutputDirectory(outputDirectory)
-    result.controler.setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    result.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
     result
   }
 
