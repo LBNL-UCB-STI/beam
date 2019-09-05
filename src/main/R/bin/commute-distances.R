@@ -12,43 +12,13 @@ load.libraries(c('optparse','RCurl','stringr','aws.s3'),quietly=T)
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
-option_list <- list(
-)
+option_list <- list()
 if(interactive()){
   #setwd('~/downs/')
-  args<-c('http://ec2-52-15-99-212.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-base-pilates__2019-08-29_00-11-27/plans.csv.gz',
-  'http://ec2-52-15-124-183.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-a-lt-pilates__2019-08-28_20-58-15/plans.csv.gz',
-  'http://ec2-3-16-24-65.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-a-ht-pilates__2019-08-28_20-49-37/plans.csv.gz',
-  'http://ec2-18-188-152-48.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-b-lt-pilates__2019-08-29_07-32-44/plans.csv.gz',
-  'http://ec2-3-14-87-243.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-b-ht-pilates__2019-08-30_17-49-55/plans.csv.gz',
-  'http://ec2-18-222-190-38.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-c-lt-pilates__2019-08-28_23-28-15/plans.csv.gz',
-  'http://ec2-18-217-26-244.us-east-2.compute.amazonaws.com:8000/output/sfbay/sfbay-smart-c-ht-pilates__2019-08-29_01-05-16/plans.csv.gz'
-  )
+  args<-c('/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans.csv')
   args <- parse_args(OptionParser(option_list = option_list,usage = "commute-distance.R [files-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "commute-distance.R [files-to-convert]"),positional_arguments=T)
-}
-
-######################################################################################################
-file.path <- args$args[1]
-for(file.path in args$args){
-  if(grepl("amazonaws.com:8000",file.path)){
-    df <- data.table(read.csv(file.path))
-  }else{
-    if(substr(file.path,0,4)=='http'){
-      if(substr(file.path,0,5)=='https'){
-        http.str <- 'https'
-      }else{
-        http.str <- 'http'
-      }
-      bucket.name <- str_split(str_split(file.path,pp(http.str,"://"))[[1]][2],".s3.")[[1]][1]
-      object.path <- str_split(str_split(file.path,pp(http.str,"://"))[[1]][2],"amazonaws.com/")[[1]][2]
-      my.cat(str_split(object.path,"/sfbay/")[[1]][2])
-      df <- data.table(s3read_using(read.csv,object=object.path,bucket=bucket.name))
-    }
-  }
-  ds <- df[activityType%in%c('Home','Work'),.(x=c(activityLocationX[activityType=='Home'][1], activityLocationX[activityType=='Work'][1]),y=c(activityLocationY[activityType=='Home'][1], activityLocationY[activityType=='Work'][1])),by='personId'][,.(d=sqrt(diff(x)^2+diff(y)^2)/1609),by='personId']
-  print(summary(ds$d))
 }
 
 local.dir <- '/Users/critter/Documents/beam/beam-output/commutes/'
@@ -127,7 +97,7 @@ ggplot(melt(plans[,.(year,config,frequency,mean.dist)],id.vars=c('year','config'
 ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
 
 # Skims
-ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_grid(frequency~variable,scales='free_y')
+ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_grid(variable~frequency,scales='free_y')
 
 # BAUS using
 # workplace location
