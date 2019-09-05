@@ -31,6 +31,7 @@ import static java.lang.Integer.max;
 public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
 
     public static final String RIDE_HAIL = "ride_hail";
+    public static final String RIDE_HAIL_POOLED = "ride_hail_pooled";
     public static final String WALK_TRANSIT = "walk_transit";
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
@@ -174,7 +175,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         if (event instanceof ModeChoiceEvent) {
             ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
             String mode = modeChoiceEvent.mode;
-            if (mode.equalsIgnoreCase(RIDE_HAIL)) {
+            if (mode.equalsIgnoreCase(RIDE_HAIL) || mode.equalsIgnoreCase(RIDE_HAIL_POOLED)) {
 
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);

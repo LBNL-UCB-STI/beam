@@ -892,7 +892,7 @@ trait ChoosesMode {
           }).map { partialItin =>
             EmbodiedBeamTrip(
               (EmbodiedBeamLeg.dummyLegAt(
-                partialItin.head.beamLeg.startTime,
+                _currentTick.get,
                 body.id,
                 false,
                 partialItin.head.beamLeg.travelPath.startPoint.loc,
@@ -1024,7 +1024,7 @@ trait ChoosesMode {
                       .head
                 }
               val expensiveWalkTrip = EmbodiedBeamTrip(
-                Vector(originalWalkTripLeg.copy(replanningPenalty = 100.0))
+                Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
               )
 
               goto(FinishingModeChoice) using choosesModeData.copy(
