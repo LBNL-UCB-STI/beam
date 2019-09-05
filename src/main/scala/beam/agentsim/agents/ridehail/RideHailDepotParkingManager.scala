@@ -139,7 +139,7 @@ class RideHailDepotParkingManager(
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, iterations) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, parkingZonesSampled, iterations) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -183,7 +183,9 @@ class RideHailDepotParkingManager(
         } else {
           totalStallsInUse += 1
           totalStallsAvailable -= 1
-          Some { parkingStall }
+          Some {
+            parkingStall
+          }
         }
       }
     }
