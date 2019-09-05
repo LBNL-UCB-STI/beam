@@ -404,12 +404,11 @@ class PersonAgent(
     @tailrec
     def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
       if (remaining.isEmpty) None
-      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head }
-      else _find(remaining.tail)
+      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head } else _find(remaining.tail)
     }
     for {
       trip <- data.currentTrip
-      leg <- _find(trip.legs)
+      leg  <- _find(trip.legs)
     } yield {
       leg
     }
