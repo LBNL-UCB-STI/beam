@@ -232,7 +232,7 @@ object ParkingZoneSearch {
                   altWithParams._1.parkingZone.parkingZoneId,
                   altWithParams._1.parkingZone.chargingPointType,
                   altWithParams._1.parkingType,
-                  altWithParams._1.cost
+                  altWithParams._1.costInDollars
                 )
 
               }.toList
