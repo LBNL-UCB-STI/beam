@@ -219,7 +219,11 @@ class BeamSkimmer @Inject()(
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double
-  ): Option[SkimInternal] = {
+  ): Unit = {
+    if (generalizedCost > 10000) {
+      return
+    }
+
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
