@@ -990,7 +990,8 @@ object BeamConfig {
             case class DemandFollowingRepositioningManager(
               fractionOfClosestClustersToConsider: scala.Double,
               numberOfClustersForDemand: scala.Int,
-              sensitivityOfRepositioningToDemand: scala.Double
+              sensitivityOfRepositioningToDemand: scala.Double,
+              sensitivityOfRepositioningToDemandForCAVs: scala.Double
             )
 
             object DemandFollowingRepositioningManager {
@@ -1008,6 +1009,10 @@ object BeamConfig {
                   sensitivityOfRepositioningToDemand =
                     if (c.hasPathOrNull("sensitivityOfRepositioningToDemand"))
                       c.getDouble("sensitivityOfRepositioningToDemand")
+                    else 1,
+                  sensitivityOfRepositioningToDemandForCAVs =
+                    if (c.hasPathOrNull("sensitivityOfRepositioningToDemandForCAVs"))
+                      c.getDouble("sensitivityOfRepositioningToDemandForCAVs")
                     else 1
                 )
               }
@@ -1997,7 +2002,8 @@ object BeamConfig {
             "addTimestampToOutputDirectory"
           ),
           baseOutputDirectory =
-            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
+            else "/Users/critter/Documents/beam/beam-output/",
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean(
             "displayPerformanceTimings"
