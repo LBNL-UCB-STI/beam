@@ -83,6 +83,7 @@ object ParkingZoneSearch {
     parkingStall: ParkingStall,
     parkingZone: ParkingZone,
     parkingZoneIdsSeen: List[Int] = List.empty,
+    parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
     iterations: Int = 1
   )
 
@@ -141,6 +142,7 @@ object ParkingZoneSearch {
       thisInnerRadius: Double,
       thisOuterRadius: Double,
       parkingZoneIdsSeen: List[Int] = List.empty,
+      parkingZoneIdsSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult] = {
       if (thisInnerRadius > config.searchMaxRadius) None
@@ -186,7 +188,13 @@ object ParkingZoneSearch {
 
         val validParkingAlternatives: Int = alternatives.count { _.isValidAlternative }
         if (validParkingAlternatives == 0) {
-          _search(thisOuterRadius, thisOuterRadius * config.searchExpansionFactor, parkingZoneIdsSeen, iterations + 1)
+          _search(
+            thisOuterRadius,
+            thisOuterRadius * config.searchExpansionFactor,
+            parkingZoneIdsSeen,
+            parkingZoneIdsSampled,
+            iterations + 1
+          )
         } else {
 
           // remove any invalid parking alternatives
@@ -218,10 +226,21 @@ object ParkingZoneSearch {
             )
 
             val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
+            val theseSampledParkingZoneIds: List[(Int, Option[ChargingPointType], ParkingType, Double)] =
+              alternativesToSample.map { altWithParams =>
+                (
+                  altWithParams._1.parkingZone.parkingZoneId,
+                  altWithParams._1.parkingZone.chargingPointType,
+                  altWithParams._1.parkingType,
+                  altWithParams._1.cost
+                )
+
+              }.toList
             ParkingZoneSearchResult(
               parkingStall,
               parkingZone,
               theseParkingZoneIds ++ parkingZoneIdsSeen,
+              theseSampledParkingZoneIds ++ parkingZoneIdsSampled,
               iterations = iterations
             )
           }
