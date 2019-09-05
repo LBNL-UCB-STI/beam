@@ -121,11 +121,11 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val currentHour = tick / 3600
     val weight = activityWeight.lift(currentHour).getOrElse(0.0)
-    val scaled = weight * (if(vehicle.vehicleType.automationLevel>=4){
-      sensitivityOfRepositioningToDemandForCAVs
-    }else{
-      sensitivityOfRepositioningToDemand
-    })
+    val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
+                             sensitivityOfRepositioningToDemandForCAVs
+                           } else {
+                             sensitivityOfRepositioningToDemand
+                           })
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
