@@ -63,7 +63,7 @@ trait ModeChoiceCalculator {
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
-  def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+  def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
     val totalCost = embodiedBeamTrip.tripClassifier match {
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
@@ -88,7 +88,9 @@ trait ModeChoiceCalculator {
       case _ =>
         embodiedBeamTrip.costEstimate
     }
-    totalCost + embodiedBeamTrip.replanningPenalty
+    if (includeReplanningPenalty) {
+      totalCost + embodiedBeamTrip.replanningPenalty
+    } else { totalCost }
   }
 
   def computeAllDayUtility(
