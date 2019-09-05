@@ -160,7 +160,7 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
 
-          // bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
+          bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()

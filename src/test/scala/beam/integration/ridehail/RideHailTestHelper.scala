@@ -29,6 +29,7 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef(0)
       )
       .withValue("beam.debug.stuckAgentDetection.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
       .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(0))
       .resolve()
 
