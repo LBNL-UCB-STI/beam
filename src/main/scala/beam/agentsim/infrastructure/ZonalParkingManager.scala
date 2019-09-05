@@ -191,7 +191,7 @@ class ZonalParkingManager(
 
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
-          
+
           val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
           val goingHome
