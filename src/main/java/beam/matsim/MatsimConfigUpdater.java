@@ -26,11 +26,14 @@ public class MatsimConfigUpdater implements Observer {
 
     @Override
     public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        BeamConfig beamConfig = (BeamConfig) t._2;
+        if (o instanceof Tuple2) {
+            Tuple2 t = (Tuple2) o;
+            if (t._2 instanceof BeamConfig) {
+                BeamConfig beamConfig = (BeamConfig) t._2;
 
-        controlerConfigGroup.setWritePlansInterval(beamConfig.beam().physsim().writePlansInterval());
-        linkStatsConfigGroup.setWriteLinkStatsInterval(beamConfig.matsim().modules().linkStats().writeLinkStatsInterval());
-
+                controlerConfigGroup.setWritePlansInterval(beamConfig.beam().physsim().writePlansInterval());
+                linkStatsConfigGroup.setWriteLinkStatsInterval(beamConfig.matsim().modules().linkStats().writeLinkStatsInterval());
+            }
+        }
     }
 }

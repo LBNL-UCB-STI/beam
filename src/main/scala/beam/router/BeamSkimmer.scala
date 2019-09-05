@@ -53,7 +53,7 @@ class BeamSkimmer @Inject()(
   private var skims: BeamSkimmerADT = TrieMap()
 
   private def skimsFilePath: Option[String] = {
-    val filePath = beamScenario.beamConfig.beam.warmStart.skimsFilePath
+    val filePath = beamConfig.beam.warmStart.skimsFilePath
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
@@ -385,7 +385,7 @@ class BeamSkimmer @Inject()(
       BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
     )
     val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
     val writer = IOUtils.getBufferedWriter(filePath)
@@ -444,7 +444,7 @@ class BeamSkimmer @Inject()(
     val uniqueTimeBins = 0 to 23
 
     val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
 
@@ -513,7 +513,7 @@ class BeamSkimmer @Inject()(
     initialPreviousSkimsPlus()
   private var skimsPlus: TrieMap[BeamSkimmerPlusKey, Double] = TrieMap()
   private def skimsPlusFilePath: Option[String] = {
-    val filePath = beamScenario.beamConfig.beam.warmStart.skimsPlusFilePath
+    val filePath = beamConfig.beam.warmStart.skimsPlusFilePath
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
@@ -561,7 +561,13 @@ class BeamSkimmer @Inject()(
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
   }
 
-  def addValue(curBin: Int, tazId: Id[TAZ], vehicleManager: Id[VehicleManager], label: Label, value: Double) = {
+  def addValue(
+    curBin: Int,
+    tazId: Id[TAZ],
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    value: Double
+  ): Option[Double] = {
     if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
     val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + value)
