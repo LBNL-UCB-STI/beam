@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
@@ -47,6 +48,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
 
   val sensitivityOfRepositioningToDemand: Double = cfg.sensitivityOfRepositioningToDemand
+  val sensitivityOfRepositioningToDemandForCAVs: Double = cfg.sensitivityOfRepositioningToDemandForCAVs
   val numberOfClustersForDemand: Int = cfg.numberOfClustersForDemand
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
@@ -81,7 +83,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
         nonRepositioningIdleVehicles.filter { rha =>
-          shouldReposition(tick, rha.vehicleId)
+          shouldReposition(tick, rha)
         }
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
@@ -116,14 +118,18 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     }
   }
 
-  private def shouldReposition(tick: Int, vehicleId: Id[Vehicle]): Boolean = {
+  private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val currentHour = tick / 3600
     val weight = activityWeight.lift(currentHour).getOrElse(0.0)
-    val scaled = weight * sensitivityOfRepositioningToDemand
+    val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
+                             sensitivityOfRepositioningToDemandForCAVs
+                           } else {
+                             sensitivityOfRepositioningToDemand
+                           })
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
-      s"tick: $tick, hour: $currentHour, vehicleId: $vehicleId, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
+      s"tick: $tick, hour: $currentHour, vehicleId: ${vehicle.vehicleId}, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
     )
     shouldRepos
   }
