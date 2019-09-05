@@ -1,11 +1,11 @@
 package beam.agentsim.infrastructure
 
 import scala.util.{Failure, Random, Success, Try}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.events.ParkingUtilityEvent
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
@@ -18,7 +18,9 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 class ZonalParkingManager(
   tazTreeMap: TAZTreeMap,
@@ -40,7 +42,14 @@ class ZonalParkingManager(
   }
 
   var totalStallsInUse: Long = 0L
-  var totalStallsAvailable: Long = parkingZones.map { _.stallsAvailable }.foldLeft(0L) { _ + _ }
+
+  var totalStallsAvailable: Long = parkingZones
+    .map {
+      _.stallsAvailable
+    }
+    .foldLeft(0L) {
+      _ + _
+    }
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
@@ -184,7 +193,9 @@ class ZonalParkingManager(
 
           val rangeAnxietyFactor: Double =
             inquiry.remainingTripData
-              .map { _.rangeAnxiety(withAddedFuelInJoules = addedEnergy) }
+              .map {
+                _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+              }
               .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
           val distanceFactor
@@ -208,7 +219,7 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, iterations) =
+      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZoneSearchStats) =
         ParkingZoneSearch.incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -230,7 +241,24 @@ class ZonalParkingManager(
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
-      log.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+      log.debug(
+        s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations"
+      )
+
+      // create a ParkingUtilityEvent
+      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(
+        inquiry.currentDriverId,
+        inquiry.beamVehicle,
+        inquiry.activityType,
+        inquiry.parkingDuration,
+        inquiry.valueOfTime,
+        parkingZoneSearchStats,
+        parkingStall.cost,
+        parkingStall.parkingType,
+        parkingStall.chargingPointType
+      )
+
+      // todo do something with the ParkingUtilityEvent
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
@@ -357,8 +385,8 @@ object ZonalParkingManager extends LazyLogging {
     * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
-    * @param random random generator used for sampling parking locations
-    * @param includesHeader true if the parkingDescription includes a csv-style header
+    * @param random             random generator used for sampling parking locations
+    * @param includesHeader     true if the parkingDescription includes a csv-style header
     * @return
     */
   def apply(

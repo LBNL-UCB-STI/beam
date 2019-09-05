@@ -24,14 +24,14 @@ import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
 import beam.agentsim.infrastructure.parking.ParkingMNL
 
 /**
@@ -776,7 +776,8 @@ trait ChoosesMode {
       remainingTripData,
       attributes.valueOfTime,
       duration,
-      reserveStall = false
+      reserveStall = false,
+      currentDriverId = id.toString
     )
     parkingManager ! inquiry
     Some(inquiry.requestId)
