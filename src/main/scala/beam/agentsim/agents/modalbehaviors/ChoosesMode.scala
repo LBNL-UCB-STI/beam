@@ -637,7 +637,7 @@ trait ChoosesMode {
     val indexFromBeg = theLinkIds.length - indexFromEnd
     val firstTravelTimes = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
     val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
-    val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1).updated(0, 0.0)
+    val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
     val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
