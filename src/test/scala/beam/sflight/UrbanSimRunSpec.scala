@@ -7,7 +7,6 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.google.inject
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
@@ -65,7 +64,7 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
       listOfPrivateVehicleTypes should not contain ("Car-rh-only")
       listOfPrivateVehicleTypes should have size 4
 
-      val injector: inject.Injector = buildInjector(conf, beamConfig, scenario, beamScenario)
+      val injector = buildInjector(conf, beamConfig, scenario, beamScenario)
       val services = injector.getInstance(classOf[BeamServices])
 
       val output = scenario.getConfig.controler().getOutputDirectory
@@ -92,6 +91,9 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
         .foreach(
           itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
         )
+      val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+      if (travelDistanceStats != null)
+        travelDistanceStats.close()
     }
   }
 }
