@@ -125,11 +125,10 @@ class RideHailDepotParkingManager(
 
         val averagePersonWalkingSpeed = 1.4 // in m/s
         val hourInSeconds = 3600
-        val dollarsInCents = 100
 
         val rangeAnxietyFactor: Double = 0.0 // RHAs are told to charge before this point
         val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime
-        val parkingCostsPriceFactor: Double = parkingAlternative.cost / dollarsInCents
+        val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
         Map(
           ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
@@ -139,7 +138,7 @@ class RideHailDepotParkingManager(
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, iterations) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, parkingZonesSampled, iterations) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -183,7 +182,9 @@ class RideHailDepotParkingManager(
         } else {
           totalStallsInUse += 1
           totalStallsAvailable -= 1
-          Some { parkingStall }
+          Some {
+            parkingStall
+          }
         }
       }
     }

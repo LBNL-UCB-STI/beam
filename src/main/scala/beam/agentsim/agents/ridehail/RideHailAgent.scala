@@ -601,7 +601,7 @@ class RideHailAgent(
         log.warning(s"ended refueling but vehicle ${vehicle.id} has no stall")
         vehicle.spaceTime.loc
       case Some(parkingStall) =>
-        val cost = parkingStall.cost
+        val cost = parkingStall.costInDollars
         eventsManager
           .processEvent(
             LeavingParkingEvent(
