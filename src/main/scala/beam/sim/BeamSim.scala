@@ -312,16 +312,18 @@ class BeamSim @Inject()(
   }
 
   private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
-    val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
-    val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
-    if (writeEventAnalysisInThisIteration) {
-      val currentEventsFilePath =
-        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
-      val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
-        "src/main/python/events_analysis/analyze_events.py",
-        if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
-      )
-      runningPythonScripts += pythonProcess
+    if (beamServices.beamConfig.beam.outputs.writeAnalysis) {
+      val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
+      val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
+      if (writeEventAnalysisInThisIteration) {
+        val currentEventsFilePath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
+        val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
+          "src/main/python/events_analysis/analyze_events.py",
+          if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+        )
+        runningPythonScripts += pythonProcess
+      }
     }
   }
 
