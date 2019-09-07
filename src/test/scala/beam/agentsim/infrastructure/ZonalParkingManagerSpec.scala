@@ -141,9 +141,9 @@ class ZonalParkingManagerSpec
             Id.create(1, classOf[TAZ]),
             0,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
         zonalParkingManager ! firstInquiry
@@ -196,9 +196,9 @@ class ZonalParkingManagerSpec
             expectedTAZId,
             expectedParkingZoneId,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
 
