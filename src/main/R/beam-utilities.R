@@ -104,6 +104,16 @@ list_obj_sizes <- function(list_obj=ls(envir=.GlobalEnv)){
   sizes <- sapply(list_obj, function(n) object.size(get(n)), simplify = FALSE) 
   print(sapply(sizes[order(-as.numeric(sizes))], function(s) format(s, unit = 'auto'))) 
 }
+# coord.names must end in x/y 
+xy.dt.to.latlon <- function(dt,coord.names=c('x','y')){
+  xy <- data.frame(x=streval(pp('dt$',coord.names[1])),y=streval(pp('dt$',coord.names[2])))
+  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
+  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
+  prefix <- substr(coord.names,0,nchar(coord.names)-1)
+  streval(pp('dt[,',prefix[1],'lon:=xy$x]'))
+  streval(pp('dt[,',prefix[2],'lat:=xy$y]'))
+  dt
+}
 xy.to.latlon <- function(str,print=T){
   if(length(grep("\\[",str))>0){
     tmp <- strsplit(strsplit(str,'\\[x=')[[1]][2],'\\]\\[y=')[[1]]

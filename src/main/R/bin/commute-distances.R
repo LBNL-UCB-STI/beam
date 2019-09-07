@@ -8,7 +8,7 @@ source('./src/main/R/beam-utilities.R')
 
 ##############################################################################################################################################
 # LOAD LIBRARIES NEED BY THIS SCRIPT
-load.libraries(c('optparse','RCurl','stringr','aws.s3'),quietly=T)
+load.libraries(c('sp','h3js','optparse','RCurl','stringr','aws.s3'),quietly=T)
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -104,12 +104,12 @@ for(i in 1:nrow(plans)){
 }
 all.plans <- rbindlist(all.plans)
 all.skims <- rbindlist(all.skims)
-write.csv(plans,'/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-out.csv')
-ggplot(melt(plans[,.(year,config,frequency,mean.dist)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Mean Home--Work Distance (mi)',colour='Scenario',shape='Scenario')+facet_wrap(~frequency)
-ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
+#write.csv(plans,'/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-out.csv')
+#ggplot(melt(plans[,.(year,config,frequency,mean.dist)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Mean Home--Work Distance (mi)',colour='Scenario',shape='Scenario')+facet_wrap(~frequency)
+#ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
 
 # Skims
-ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_grid(variable~frequency,scales='free_y')
+#ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_grid(variable~frequency,scales='free_y')
 
 # BAUS using
 # workplace location
@@ -117,5 +117,56 @@ ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCos
 #   general Cost CAR always interacted HH income, coefficient is negative, -0.4, -0.3, -0.15 (most coefficients are -2 to 2) taking log of cost
 # mode choice
 
+all.plans <- all.plans[planElementType=='activity']
+all.plans <- all.plans[planElementIndex<=2]
 all.plans[,scen:=pp(frequency,'year-',config,'-',year)]
 all.skims[,scen:=pp(frequency,'year-',config,'-',year)]
+taz <- csv2rdata('/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/taz-centers.csv')
+taz[,x:=coord.x]
+taz[,y:=coord.y]
+all.skims <- join.on(all.skims,taz,'origTaz','taz',c('x','y'),'o.')
+all.skims <- join.on(all.skims,taz,'destTaz','taz',c('x','y'),'d.')
+all.skims <- xy.dt.to.latlon(all.skims,c('o.x','o.y'))
+all.skims <- xy.dt.to.latlon(all.skims,c('d.x','d.y'))
+all.skims[,o.7:=h3_geo_to_h3(o.lat,o.lon,7)]
+all.skims[,o.8:=h3_geo_to_h3(o.lat,o.lon,8)]
+all.skims[,o.9:=h3_geo_to_h3(o.lat,o.lon,9)]
+all.skims[,d.7:=h3_geo_to_h3(d.lat,d.lon,7)]
+all.skims[,d.8:=h3_geo_to_h3(d.lat,d.lon,8)]
+all.skims[,d.9:=h3_geo_to_h3(d.lat,d.lon,9)]
+save(all.skims,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/skims-plus.Rdata')
+all.plans[,x:=activityLocationX]
+all.plans[,y:=activityLocationY]
+all.plans <- xy.dt.to.latlon(all.plans)
+# h3_geo breaks with large data so need to do it by scen
+all.plans[,row:=1:nrow(all.plans)]
+hs <- all.plans[,.(row=row,h.7=h3_geo_to_h3(lat,lon,7)),by='scen']
+all.plans <- join.on(all.plans,hs,'row','row')
+save(all.plans,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-plus.Rdata')
+
+sk.density <- all.skims[,.(tt=weighted.mean(generalizedTimeInS/60,numObservations)),by=c('o.7','scen','config','year','frequency')]
+toplot <- sk.density[config=='it.2' & frequency==15]
+toplot <- join.on(toplot,toplot[year==2010],c('o.7'),c('o.7'),'tt','base.')
+toplot[,tt.diff:=tt-base.tt]
+hexes <- rbindlist(lapply(toplot$o.7,function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes <- rbindlist(lapply(u(toplot$scen),function(sc){ join.on(hexes,toplot[scen==sc],'id','o.7') }))
+ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=tt.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
+ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=tt,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$tt,na.rm=T))
+
+ds.base <- all.plans[config=='it.2' & frequency==15,.(d=sqrt(diff(x)^2+diff(y)^2)/1609,h.7=h.7[activityType=='Home'],h.7.w=h.7[activityType=='Work']),by=c('scen','config','year','frequency','personId')]
+ds <- ds.base[,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7')]
+ds <- join.on(ds,ds[year==2010],c('h.7'),c('h.7'),c('d'),'base.')
+ds[,d.diff:=d-base.d]
+hexes <- rbindlist(lapply(u(ds$h.7),function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7') }))
+ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
+ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=d,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$d,na.rm=T))
+
+ds <- ds.base[,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7.w')]
+ds <- join.on(ds,ds[year==2010],c('h.7.w'),c('h.7.w'),c('d'),'base.')
+ds[,d.diff:=d-base.d]
+hexes <- rbindlist(lapply(u(ds$h.7.w),function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7.w') }))
+ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
+ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=d,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$d,na.rm=T))
+
