@@ -24,6 +24,8 @@ if(interactive()){
 local.dir <- '/Users/critter/Documents/beam/beam-output/commutes/'
 make.dir(local.dir)
 
+all.plans <- list()
+all.skims <- list()
 plans <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans.csv',stringsAsFactors=F))
 plans[,plan.localfile:=tempfile()]
 plans[,skim.localfile:=tempfile()]
@@ -60,6 +62,10 @@ for(i in 1:nrow(plans)){
     plans[i,max.dist:=max(ds$d)]
     plans[i,mean.dist:=mean(ds$d)]
     plans[i,median.dist:=median(ds$d)]
+    df[,year:=plans$year[i]]
+    df[,config:=plans$config[i]]
+    df[,frequency:=plans$frequency[i]]
+    all.plans[[length(all.plans)+1]] <- df
   }
   it <- as.numeric(substr(plans$config[i],4,4))
   local.path <- pp(local.subdir,"skims.csv.gz")
@@ -89,9 +95,15 @@ for(i in 1:nrow(plans)){
     plans[i,generalizedTimeMinutes:=weighted.mean(df$generalizedTimeInS/60,df$numObservations)]
     plans[i,travelTimeMinutes:=weighted.mean(df$travelTimeInS/60,df$numObservations)]
     plans[i,milesTraveled:=weighted.mean(df$distanceInM/1609,df$numObservations)]
+    df[,year:=plans$year[i]]
+    df[,config:=plans$config[i]]
+    df[,frequency:=plans$frequency[i]]
+    all.skims[[length(all.skims)+1]] <- df
   }
   print(plans[i])
 }
+all.plans <- rbindlist(all.plans)
+all.skims <- rbindlist(all.skims)
 write.csv(plans,'/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-out.csv')
 ggplot(melt(plans[,.(year,config,frequency,mean.dist)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Mean Home--Work Distance (mi)',colour='Scenario',shape='Scenario')+facet_wrap(~frequency)
 ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
@@ -104,3 +116,6 @@ ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCos
 #   general TT CAR, WT, negative roughly same magnitude
 #   general Cost CAR always interacted HH income, coefficient is negative, -0.4, -0.3, -0.15 (most coefficients are -2 to 2) taking log of cost
 # mode choice
+
+all.plans[,scen:=pp(frequency,'year-',config,'-',year)]
+all.skims[,scen:=pp(frequency,'year-',config,'-',year)]

@@ -26,11 +26,20 @@ tar --exclude="git/beam/output-2019-08-27/urbansim-output*" -zcvf smart-base-203
 tar --exclude="git/beam/output-2019-08-27/urbansim-output*" -zcvf smart-base-2045-lt-pilates-2019-09-27.tar.gz git/beam/output-2019-08-27
 tar --exclude="git/beam/output-2019-08-27/urbansim-output*" -zcvf smart-base-2045-ht-pilates-2019-09-27.tar.gz git/beam/output-2019-08-27
 
-sudo docker run --name test-it0-5year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=AKIAIZZTFTVROTUOT3MQ  -e AWS_SECRET_ACCESS_KEY=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 beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
-sudo docker run --name test-it2-5year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=AKIAIZZTFTVROTUOT3MQ  -e AWS_SECRET_ACCESS_KEY=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 beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
-sudo docker run --name test-it0-15year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=AKIAIZZTFTVROTUOT3MQ  -e AWS_SECRET_ACCESS_KEY=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 beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
-sudo docker run --name test-it2-15year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=AKIAIZZTFTVROTUOT3MQ  -e AWS_SECRET_ACCESS_KEY=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 beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
+sudo docker run --name test-it0-5year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
+sudo docker run --name test-it2-5year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
+sudo docker run --name test-it0-15year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
+sudo docker run --name test-it2-15year -v ~/git/beam/:/beam-project -v ~/git/beam/output:/output -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY beammodel/pilates:latest 2010 30 15 5 base /beam-project/production/sfbay/smart/smart-baseline-pilates.conf
 
 history | grep docker | tail
 
 # tmux ctrl-b % to split then ctrl-b right left to move
+
+
+# push results to s3
+
+aws --region "us-east-2" s3 cp --exclude "*" --include "*skims.csv.gz" --recursive /home/ubuntu/git/beam/output/sfbay s3://beam-outputs/sfbay-055413b0d7b1e4412
+aws --region "us-east-2" s3 cp --exclude "*" --include "*plans.csv.gz" --recursive /home/ubuntu/git/beam/output/sfbay s3://beam-outputs/sfbay-055413b0d7b1e4412
+
+
+ansible all -i 18.224.22.74,18.221.97.64 -m shell -a 'export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID; export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY; aws --region "us-east-2" s3 cp --exclude "*" --include "*skims.csv.gz" --recursive /home/ubuntu/git/beam/output/sfbay s3://beam-outputs/sfbay-055413b0d7b1e4412 ;aws --region "us-east-2" s3 cp --exclude "*" --include "*plans.csv.gz" --recursive /home/ubuntu/git/beam/output/sfbay s3://beam-outputs/sfbay-055413b0d7b1e4412' --private-key /Users/critter/Dropbox/ucb/vto/beam-colin/ec2/beam-box01.cer -u ubuntu  --ssh-common-args='-o StrictHostKeyChecking=no'
