@@ -144,6 +144,27 @@ hs <- all.plans[,.(row=row,h.7=h3_geo_to_h3(lat,lon,7)),by='scen']
 all.plans <- join.on(all.plans,hs,'row','row')
 save(all.plans,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-plus.Rdata')
 
+all.skims[,min.per.mile:=generalizedTimeInS/distanceInM*1609/60]
+all.skims[origTaz==destTaz,min.per.mile:=NA]
+sk.density <- all.skims[,.(tt=weighted.mean(min.per.mile,numObservations,na.rm=T)),by=c('o.7','scen','config','year','frequency')]
+toplot <- sk.density[config=='it.2' & frequency==15]
+toplot <- join.on(toplot,toplot[year==2010],c('o.7'),c('o.7'),'tt','base.')
+toplot[,tt.diff:=tt-base.tt]
+hexes <- rbindlist(lapply(toplot$o.7,function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes <- rbindlist(lapply(u(toplot$scen),function(sc){ join.on(hexes,toplot[scen==sc],'id','o.7') }))
+dev.new();ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=tt.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
+dev.new();ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=tt,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$tt,na.rm=T))
+
+# Min per mile Diffs from it.0 to it.2
+for(the.year in u(sk.density[frequency==15]$year)){
+  toplot <- sk.density[frequency==15 & year==the.year & config=='it.2']
+  toplot <- join.on(toplot,sk.density[frequency==15 & year==the.year & config=='it.0'],'o.7','o.7','tt','freeflow.')
+  toplot[,tt.diff:=tt-freeflow.tt]
+  hexes <- rbindlist(lapply(toplot$o.7,function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+  hexes <- rbindlist(lapply(u(toplot$scen),function(sc){ join.on(hexes,toplot[scen==sc],'id','o.7') }))
+  dev.new();print(ggplot(hexes,aes(x=x,y=y,fill=tt.diff,group=id))+geom_polygon()+scale_fill_gradient2(limits=c(-5,5),high='red',low='blue',midpoint=0)+labs(title=pp('Year ',the.year,' Minutes-per-Mile TT Diff Between Congested and Freeflow Scenarios')))
+}
+
 sk.density <- all.skims[,.(tt=weighted.mean(generalizedTimeInS/60,numObservations)),by=c('o.7','scen','config','year','frequency')]
 toplot <- sk.density[config=='it.2' & frequency==15]
 toplot <- join.on(toplot,toplot[year==2010],c('o.7'),c('o.7'),'tt','base.')
@@ -153,6 +174,7 @@ hexes <- rbindlist(lapply(u(toplot$scen),function(sc){ join.on(hexes,toplot[scen
 ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=tt.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
 ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=tt,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$tt,na.rm=T))
 
+# Home-Work Distance attributed to person's home
 ds.base <- all.plans[config=='it.2' & frequency==15,.(d=sqrt(diff(x)^2+diff(y)^2)/1609,h.7=h.7[activityType=='Home'],h.7.w=h.7[activityType=='Work']),by=c('scen','config','year','frequency','personId')]
 ds <- ds.base[,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7')]
 ds <- join.on(ds,ds[year==2010],c('h.7'),c('h.7'),c('d'),'base.')
@@ -161,7 +183,9 @@ hexes <- rbindlist(lapply(u(ds$h.7),function(ll){ x <- data.table(h3_to_geo_boun
 hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7') }))
 ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
 ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=d,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$d,na.rm=T))
+ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=d.diff,group=id))+geom_histogram()+facet_wrap(~scen)
 
+# Home-Work Distance attributed to person's work
 ds <- ds.base[,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7.w')]
 ds <- join.on(ds,ds[year==2010],c('h.7.w'),c('h.7.w'),c('d'),'base.')
 ds[,d.diff:=d-base.d]
@@ -169,4 +193,43 @@ hexes <- rbindlist(lapply(u(ds$h.7.w),function(ll){ x <- data.table(h3_to_geo_bo
 hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7.w') }))
 ggplot(hexes[config=='it.2' & frequency==15 & year > 2010],aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=0)
 ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=d,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(high='red',low='blue',midpoint=median(hexes[config=='it.2' & frequency==15 & year==2010]$d,na.rm=T))
+
+# Home-Work Distance attributed to person's home diff by year
+ds.base <- all.plans[frequency==15,.(d=sqrt(diff(x)^2+diff(y)^2)/1609,h.7=h.7[activityType=='Home'],h.7.w=h.7[activityType=='Work']),by=c('scen','config','year','frequency','personId')]
+for(the.year in u(all.plans[frequency==15]$year)){
+  ds <- ds.base[year==the.year,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7')]
+  ds <- join.on(ds[config=='it.2'],ds[config=='it.0'],'h.7','h.7','d','freeflow.')
+  ds[,d.diff:=d-freeflow.d]
+  hexes <- rbindlist(lapply(u(ds$h.7),function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+  hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7') }))
+  dev.new();print(ggplot(hexes,aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(limits=c(-60,75),high='red',low='blue',midpoint=0)+labs(title=pp('Year ',the.year,' Home-Work Distance Diff Between Congested and Freeflow Scenarios')))
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
