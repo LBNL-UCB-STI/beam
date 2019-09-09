@@ -90,9 +90,10 @@ with MetricsSupport {
 
     case "Finish" =>
       // do nothing
+      log.debug("do nothing")
 
     case msg @ _ =>
-      log.info(s"Unmatched message received: $msg")
+      log.debug(s"Unmatched message received: $msg")
   }
 
 }
