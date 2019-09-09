@@ -69,7 +69,6 @@ with MetricsSupport {
       Future.sequence(
           requests.map{
             req =>
-              log.info(s"The Req ${req}")
               akka.pattern
                 .ask(beamServices.beamRouter, req)
                 .mapTo[RoutingResponse]
@@ -97,7 +96,7 @@ with MetricsSupport {
           )
           val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual.getVOT(generalizedTime)
-          log.info(s"Observing skim from ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc).tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds")
+          log.debug(s"Observing skim from ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc).tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds")
           beamSkimmer.observeTrip(
             theTrip,
             generalizedTime,
