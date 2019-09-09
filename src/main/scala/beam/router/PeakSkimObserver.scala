@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.VehicleCategory.Car
+import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -34,6 +34,7 @@ with MetricsSupport {
       startSegment("peak-skim-observer", "agentsim")
       val requestTime = (3600.0 * 8.5).intValue()
       val dummyCarVehicleType = beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Car && theType.maxVelocity.isEmpty).get
+      val dummyBodyVehicleType = beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Body).get
       val requests = beamServices.beamScenario.tazTreeMap.getTAZs.map{ originTaz =>
         beamServices.beamScenario.tazTreeMap.getTAZs.map{ destinationTaz =>
           val dummyStreetVehicle = StreetVehicle(
@@ -41,6 +42,11 @@ with MetricsSupport {
             dummyCarVehicleType.id,
             new SpaceTime(originTaz.coord, requestTime),
             Modes.BeamMode.CAR,
+            asDriver = true
+          )
+          val dummyBodyVehicle = StreetVehicle(Id.createVehicleId("dummy-body"),dummyBodyVehicleType.id,
+            new SpaceTime(originTaz.coord, requestTime),
+            Modes.BeamMode.WALK,
             asDriver = true
           )
           val originCoord = if(originTaz.tazId.equals(destinationTaz.tazId)){
@@ -58,7 +64,7 @@ with MetricsSupport {
             destinationUTM = destCoord,
             departureTime = requestTime,
             withTransit = false,
-            streetVehicles = Vector(dummyStreetVehicle)
+            streetVehicles = Vector(dummyStreetVehicle,dummyBodyVehicle)
           )
         }
       }.flatten
