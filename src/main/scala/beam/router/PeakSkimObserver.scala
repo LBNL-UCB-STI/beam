@@ -10,6 +10,8 @@ import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.Modes.BeamMode.WALK
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.metrics.MetricsSupport
 import beam.sim.population.AttributesOfIndividual
@@ -45,11 +47,6 @@ with MetricsSupport {
             Modes.BeamMode.CAR,
             asDriver = true
           )
-          val dummyBodyVehicle = StreetVehicle(Id.createVehicleId("dummy-body"),dummyBodyVehicleType.id,
-            new SpaceTime(originTaz.coord, requestTime),
-            Modes.BeamMode.WALK,
-            asDriver = true
-          )
           val originCoord = if(originTaz.tazId.equals(destinationTaz.tazId)){
             new Coord(originTaz.coord.getX + Math.sqrt(originTaz.areaInSquareMeters)/3.0,originTaz.coord.getY)
           }else{
@@ -65,7 +62,7 @@ with MetricsSupport {
             destinationUTM = destCoord,
             departureTime = requestTime,
             withTransit = false,
-            streetVehicles = Vector(dummyStreetVehicle,dummyBodyVehicle)
+            streetVehicles = Vector(dummyStreetVehicle)
           )
         }
       }.flatten
@@ -77,9 +74,34 @@ with MetricsSupport {
                 .mapTo[RoutingResponse]
           )
         ).map(_.foreach{ response =>
-          val theTrip = response.itineraries.head
+          val partialTrip = response.itineraries.head.legs
+          val dummyBodyVehicle = StreetVehicle(Id.createVehicleId("dummy-body"),dummyBodyVehicleType.id,
+            new SpaceTime(partialTrip.head.beamLeg.travelPath.startPoint.loc, requestTime),
+            Modes.BeamMode.WALK,
+            asDriver = true
+          )
+          val theTrip = EmbodiedBeamTrip(
+            EmbodiedBeamLeg.dummyLegAt(
+              partialTrip.head.beamLeg.startTime,
+              dummyBodyVehicle.id,
+              false,
+              partialTrip.head.beamLeg.travelPath.startPoint.loc,
+              WALK,
+              dummyBodyVehicleType.id
+            ) +:
+              partialTrip :+
+              EmbodiedBeamLeg.dummyLegAt(
+                partialTrip.last.beamLeg.endTime,
+                dummyBodyVehicle.id,
+                true,
+                partialTrip.last.beamLeg.travelPath.endPoint.loc,
+                WALK,
+                dummyBodyVehicleType.id
+              )
+          )
           val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual.getVOT(generalizedTime)
+          log.info(s"Observing skim from ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc).tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds")
           beamSkimmer.observeTrip(
             response.itineraries.head,
             generalizedTime,

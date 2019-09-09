@@ -29,6 +29,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
   for (taz: TAZ <- tazQuadTree.values().asScala) {
     stringIdToTAZMapping.put(taz.tazId.toString, taz)
   }
+  def getTAZ(loc: Coord): TAZ = {
+    getTAZ(loc.getX,loc.getY)
+  }
 
   def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
