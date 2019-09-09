@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -88,12 +89,11 @@ with MetricsSupport {
       })
       endSegment("peak-skim-observer", "agentsim")
 
-    case "Finish" =>
-      // do nothing
-      log.debug("do nothing")
+    case Finish =>
+      context.stop(self)
 
     case msg @ _ =>
-      log.debug(s"Unmatched message received: $msg")
+      log.warning(s"Unmatched message received: $msg")
   }
 
 }
