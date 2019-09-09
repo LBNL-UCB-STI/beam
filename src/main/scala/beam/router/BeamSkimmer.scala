@@ -35,6 +35,7 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 
@@ -218,8 +219,9 @@ class BeamSkimmer @Inject()(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
-    energyConsumption: Double
-  ): Option[SkimInternal] = {
+    energyConsumption: Double,
+    symmetricSkimFromDestToOrigin: Boolean = false
+  ): Unit = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -241,7 +243,10 @@ class BeamSkimmer @Inject()(
       .tazId
     val timeBin = timeToBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
-    val key = (timeBin, mode, origTaz, destTaz)
+    var keys = ArrayBuffer((timeBin, mode, origTaz, destTaz))
+    if (symmetricSkimFromDestToOrigin && destTaz != origTaz) {
+      keys += ((timeBin, mode, destTaz, origTaz))
+    }
     val payload =
       SkimInternal(
         correctedTrip.totalTravelTimeInSecs.toDouble,
@@ -252,20 +257,22 @@ class BeamSkimmer @Inject()(
         1,
         energyConsumption
       )
-    skims.get(key) match {
-      case Some(existingSkim) =>
-        val newPayload = SkimInternal(
-          time = mergeAverage(existingSkim.time, existingSkim.count, payload.time),
-          generalizedTime = mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
-          generalizedCost = mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
-          distance = mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
-          cost = mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
-          count = existingSkim.count + 1,
-          energy = mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
-        )
-        skims.put(key, newPayload)
-      case None =>
-        skims.put(key, payload)
+    keys.foreach { key =>
+      skims.get(key) match {
+        case Some(existingSkim) =>
+          val newPayload = SkimInternal(
+            time = mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+            generalizedTime = mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
+            generalizedCost = mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
+            distance = mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
+            cost = mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
+            count = existingSkim.count + 1,
+            energy = mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
+          )
+          skims.put(key, newPayload)
+        case None =>
+          skims.put(key, payload)
+      }
     }
   }
 

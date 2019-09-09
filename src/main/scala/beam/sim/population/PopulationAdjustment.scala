@@ -267,6 +267,7 @@ object PopulationAdjustment extends LazyLogging {
       Some(income)
     )
   }
+
   def IncomeToValueOfTime(income: Double): Option[Double] = {
     val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5
