@@ -197,12 +197,14 @@ ggplot(hexes[config=='it.2' & frequency==15 & year==2010],aes(x=x,y=y,fill=d,gro
 # Home-Work Distance attributed to person's home diff by year
 ds.base <- all.plans[frequency==15,.(d=sqrt(diff(x)^2+diff(y)^2)/1609,h.7=h.7[activityType=='Home'],h.7.w=h.7[activityType=='Work']),by=c('scen','config','year','frequency','personId')]
 for(the.year in u(all.plans[frequency==15]$year)){
-  ds <- ds.base[year==the.year,.(d=mean(d,na.rm=T)),by=c('scen','config','year','frequency','h.7')]
-  ds <- join.on(ds[config=='it.2'],ds[config=='it.0'],'h.7','h.7','d','freeflow.')
+  ds <- ds.base[year==the.year,.(d=mean(d,na.rm=T),n=.N),by=c('scen','config','year','frequency','h.7')]
+  ds <- join.on(ds[config=='it.2'],ds[config=='it.0'],'h.7','h.7',c('d','n'),'freeflow.')
   ds[,d.diff:=d-freeflow.d]
   hexes <- rbindlist(lapply(u(ds$h.7),function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
   hexes <- rbindlist(lapply(u(ds$scen),function(sc){ join.on(hexes,ds[scen==sc],'id','h.7') }))
   dev.new();print(ggplot(hexes,aes(x=x,y=y,fill=d.diff,group=id))+geom_polygon()+facet_wrap(~scen)+scale_fill_gradient2(limits=c(-60,75),high='red',low='blue',midpoint=0)+labs(title=pp('Year ',the.year,' Home-Work Distance Diff Between Congested and Freeflow Scenarios')))
+  dev.new();ggplot(hexes,aes(x=d.diff,group=id))+geom_histogram()+facet_wrap(~scen)
+  dev.new();ggplot(hexes,aes(x=d.diff*n,group=id))+geom_histogram()+facet_wrap(~scen)
 }
 
 
