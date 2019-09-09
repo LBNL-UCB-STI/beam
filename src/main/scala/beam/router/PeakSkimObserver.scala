@@ -75,15 +75,10 @@ with MetricsSupport {
           )
         ).map(_.foreach{ response =>
           val partialTrip = response.itineraries.head.legs
-          val dummyBodyVehicle = StreetVehicle(Id.createVehicleId("dummy-body"),dummyBodyVehicleType.id,
-            new SpaceTime(partialTrip.head.beamLeg.travelPath.startPoint.loc, requestTime),
-            Modes.BeamMode.WALK,
-            asDriver = true
-          )
           val theTrip = EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
               partialTrip.head.beamLeg.startTime,
-              dummyBodyVehicle.id,
+              Id.createVehicleId("dummy-body"),
               false,
               partialTrip.head.beamLeg.travelPath.startPoint.loc,
               WALK,
@@ -92,7 +87,7 @@ with MetricsSupport {
               partialTrip :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialTrip.last.beamLeg.endTime,
-                dummyBodyVehicle.id,
+                Id.createVehicleId("dummy-body"),
                 true,
                 partialTrip.last.beamLeg.travelPath.endPoint.loc,
                 WALK,
