@@ -52,11 +52,32 @@ class Population(
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds.values().asScala.toList.sortBy(_.getIncome.getIncome).drop(scenario.getHouseholds.getHouseholds.size()/2).head
-      val dummyHouseholdAttributes = new HouseholdAttributes(medianHouseholdByIncome.getId.toString,medianHouseholdByIncome.getIncome.getIncome,1,1,1)
-      val personVOTT = PopulationAdjustment.IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
+      val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .toList
+        .sortBy(_.getIncome.getIncome)
+        .drop(scenario.getHouseholds.getHouseholds.size() / 2)
+        .head
+      val dummyHouseholdAttributes = new HouseholdAttributes(
+        medianHouseholdByIncome.getId.toString,
+        medianHouseholdByIncome.getIncome.getIncome,
+        1,
+        1,
+        1
+      )
+      val personVOTT = PopulationAdjustment
+        .IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
         .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
-      val dummyPersonAttributes = AttributesOfIndividual(dummyHouseholdAttributes,None,true,Seq(CAR),personVOTT,None,Some(dummyHouseholdAttributes.householdIncome))
+      val dummyPersonAttributes = AttributesOfIndividual(
+        dummyHouseholdAttributes,
+        None,
+        true,
+        Seq(CAR),
+        personVOTT,
+        None,
+        Some(dummyHouseholdAttributes.householdIncome)
+      )
       context.actorOf(
         PeakSkimObserver.props(
           beamServices,
@@ -109,12 +130,11 @@ class Population(
           .asInstanceOf[Double]
       )
 
-      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = collectionAsScalaIterable(household.getVehicleIds)
-        .map { vid =>
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+        collectionAsScalaIterable(household.getVehicleIds).map { vid =>
           val bvid = BeamVehicle.createId(vid)
           bvid -> beamScenario.privateVehicles(bvid)
-        }
-        .toMap
+        }.toMap
       val householdActor = context.actorOf(
         HouseholdActor.props(
           beamServices,

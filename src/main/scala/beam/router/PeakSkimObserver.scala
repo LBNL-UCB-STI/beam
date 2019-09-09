@@ -25,8 +25,8 @@ class PeakSkimObserver(
   val modeChoiceCalculator: ModeChoiceCalculator,
   val attributesOfIndividual: AttributesOfIndividual
 ) extends Actor
-with ActorLogging
-with MetricsSupport {
+    with ActorLogging
+    with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -36,54 +36,71 @@ with MetricsSupport {
       log.info("PeakSkimObserver Begin")
       startSegment("peak-skim-observer", "agentsim")
       val requestTime = (3600.0 * 8.5).intValue()
-      val dummyCarVehicleType = beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Car && theType.maxVelocity.isEmpty).get
-      val dummyBodyVehicleType = beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Body).get
-      val requests = beamServices.beamScenario.tazTreeMap.getTAZs.map{ originTaz =>
-        beamServices.beamScenario.tazTreeMap.getTAZs.map{ destinationTaz =>
-          val dummyStreetVehicle = StreetVehicle(
-            Id.createVehicleId("dummy-car-for-skim-observations"),
-            dummyCarVehicleType.id,
-            new SpaceTime(originTaz.coord, requestTime),
-            Modes.BeamMode.CAR,
-            asDriver = true
-          )
-          val originCoord = if(originTaz.tazId.equals(destinationTaz.tazId)){
-            new Coord(originTaz.coord.getX + Math.sqrt(originTaz.areaInSquareMeters)/3.0,originTaz.coord.getY)
-          }else{
-            originTaz.coord
+      val dummyCarVehicleType = beamServices.beamScenario.vehicleTypes.values
+        .find(theType => theType.vehicleCategory == Car && theType.maxVelocity.isEmpty)
+        .get
+      val dummyBodyVehicleType =
+        beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Body).get
+      val tazs = beamServices.beamScenario.tazTreeMap.getTAZs.toList.sortBy(_.tazId.toString)
+      val requests = tazs.zipWithIndex.flatten {
+        case (originTaz, index) =>
+          tazs.slice(0, index + 1).zipWithIndex.map {
+            case (destinationTaz, index2) =>
+              val dummyStreetVehicle = StreetVehicle(
+                Id.createVehicleId("dummy-car-for-skim-observations"),
+                dummyCarVehicleType.id,
+                new SpaceTime(originTaz.coord, requestTime),
+                Modes.BeamMode.CAR,
+                asDriver = true
+              )
+              val originCoord = if (originTaz.tazId.equals(destinationTaz.tazId)) {
+                new Coord(originTaz.coord.getX + Math.sqrt(originTaz.areaInSquareMeters) / 4.0, originTaz.coord.getY)
+              } else {
+                originTaz.coord
+              }
+              val destCoord = if (originTaz.tazId.equals(destinationTaz.tazId)) {
+                new Coord(
+                  destinationTaz.coord.getX - Math.sqrt(destinationTaz.areaInSquareMeters) / 4.0,
+                  destinationTaz.coord.getY
+                )
+              } else {
+                destinationTaz.coord
+              }
+              (
+                index,
+                index2,
+                RoutingRequest(
+                  originUTM = originCoord,
+                  destinationUTM = destCoord,
+                  departureTime = requestTime,
+                  withTransit = false,
+                  streetVehicles = Vector(dummyStreetVehicle)
+                )
+              )
           }
-          val destCoord = if(originTaz.tazId.equals(destinationTaz.tazId)){
-            new Coord(destinationTaz.coord.getX - Math.sqrt(destinationTaz.areaInSquareMeters)/3.0,destinationTaz.coord.getY)
-          }else{
-            destinationTaz.coord
-          }
-          RoutingRequest(
-            originUTM = originCoord,
-            destinationUTM = destCoord,
-            departureTime = requestTime,
-            withTransit = false,
-            streetVehicles = Vector(dummyStreetVehicle)
-          )
-        }
-      }.flatten
-      Future.sequence(
-          requests.map{
-            req =>
+      }
+      Future
+        .sequence(
+          requests.map {
+            case (index, index2, req) =>
               akka.pattern
                 .ask(beamServices.beamRouter, req)
                 .mapTo[RoutingResponse]
+                .map(resp => (index, index2, resp))
           }
-        ).foreach(_.foreach{ response =>
-          val partialTrip = response.itineraries.head.legs
-          val theTrip = EmbodiedBeamTrip(
-            EmbodiedBeamLeg.dummyLegAt(
-              partialTrip.head.beamLeg.startTime,
-              Id.createVehicleId("dummy-body"),
-              false,
-              partialTrip.head.beamLeg.travelPath.startPoint.loc,
-              WALK,
-              dummyBodyVehicleType.id
-            ) +:
+        )
+        .foreach(_.foreach {
+          case (index, index2, response) =>
+            val partialTrip = response.itineraries.head.legs
+            val theTrip = EmbodiedBeamTrip(
+              EmbodiedBeamLeg.dummyLegAt(
+                partialTrip.head.beamLeg.startTime,
+                Id.createVehicleId("dummy-body"),
+                false,
+                partialTrip.head.beamLeg.travelPath.startPoint.loc,
+                WALK,
+                dummyBodyVehicleType.id
+              ) +:
               partialTrip :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialTrip.last.beamLeg.endTime,
@@ -93,17 +110,21 @@ with MetricsSupport {
                 WALK,
                 dummyBodyVehicleType.id
               )
-          )
-          val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
-          val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual.getVOT(generalizedTime)
-          log.debug(s"Observing skim from ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc).tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds")
-          beamSkimmer.observeTrip(
-            theTrip,
-            generalizedTime,
-            generalizedCost,
-            dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum
-          )
-      })
+            )
+            val generalizedTime =
+              modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
+            val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual
+              .getVOT(generalizedTime)
+            val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
+              .map(_.beamLeg.travelPath.distanceInM)
+              .sum
+            log.debug(
+              s"Observing skim from ${beamServices.beamScenario.tazTreeMap
+                .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
+                .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
+            )
+            beamSkimmer.observeTrip(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+        })
       endSegment("peak-skim-observer", "agentsim")
 
     case Finish =>
@@ -114,7 +135,8 @@ with MetricsSupport {
   }
 
 }
-object PeakSkimObserver{
+
+object PeakSkimObserver {
 
   def props(
     beamServices: BeamServices,
