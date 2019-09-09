@@ -67,13 +67,14 @@ with MetricsSupport {
         }
       }.flatten
       Future.sequence(
-          requests.map(
+          requests.map{
             req =>
+              log.info(s"The Req ${req}")
               akka.pattern
                 .ask(beamServices.beamRouter, req)
                 .mapTo[RoutingResponse]
-          )
-        ).map(_.foreach{ response =>
+          }
+        ).foreach(_.foreach{ response =>
           val partialTrip = response.itineraries.head.legs
           val theTrip = EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
@@ -98,7 +99,7 @@ with MetricsSupport {
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual.getVOT(generalizedTime)
           log.info(s"Observing skim from ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc).tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds")
           beamSkimmer.observeTrip(
-            response.itineraries.head,
+            theTrip,
             generalizedTime,
             generalizedCost,
             dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum
