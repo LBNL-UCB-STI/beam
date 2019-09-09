@@ -566,6 +566,10 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
+    case ev @ Event(StartRefuelSessionTrigger(_), _) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      stash()
+      stay
   }
 
   override def logPrefix(): String = s"RideHailAgent $id: "
