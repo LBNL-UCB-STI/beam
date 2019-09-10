@@ -437,7 +437,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         data.currentLegPassengerScheduleIndex
       )
 
-    case ev @ Event(StartRefuelSessionTrigger(_), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_),_), _) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       stash()
       stay
@@ -576,7 +576,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(StartRefuelSessionTrigger(_), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_),_), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
