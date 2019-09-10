@@ -212,7 +212,6 @@ object ParkingZoneSearch {
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
             parkingZoneIdsSeen,
-            parkingZoneIdsSampled,
             iterations + 1
           )
         } else {
@@ -270,7 +269,7 @@ object ParkingZoneSearch {
                 val parkingZoneId = parkingAlt.parkingZone.parkingZoneId
                 val chargingPointType = parkingAlt.parkingZone.chargingPointType
                 val parkingType = parkingAlt.parkingType
-                val parkingCosts = parkingAlt.cost
+                val parkingCosts = parkingAlt.costInDollars
                 (
                   result._1 :+ parkingZoneId,
                   result._2 :+ chargingPointType,

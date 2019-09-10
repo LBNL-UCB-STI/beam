@@ -276,7 +276,7 @@ class ZonalParkingManager(
         inquiry.parkingDuration,
         inquiry.valueOfTime,
         parkingZoneSearchStats,
-        parkingStall.cost,
+        parkingStall.costInDollars,
         parkingStall.parkingType,
         parkingStall.chargingPointType
       )
