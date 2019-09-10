@@ -52,40 +52,42 @@ class Population(
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
-        .values()
-        .asScala
-        .toList
-        .sortBy(_.getIncome.getIncome)
-        .drop(scenario.getHouseholds.getHouseholds.size() / 2)
-        .head
-      val dummyHouseholdAttributes = new HouseholdAttributes(
-        medianHouseholdByIncome.getId.toString,
-        medianHouseholdByIncome.getIncome.getIncome,
-        1,
-        1,
-        1
-      )
-      val personVOTT = PopulationAdjustment
-        .IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
-        .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
-      val dummyPersonAttributes = AttributesOfIndividual(
-        dummyHouseholdAttributes,
-        None,
-        true,
-        Seq(CAR),
-        personVOTT,
-        None,
-        Some(dummyHouseholdAttributes.householdIncome)
-      )
-      context.actorOf(
-        PeakSkimObserver.props(
-          beamServices,
-          beamSkimmer,
-          beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes),
-          dummyPersonAttributes
+      if (beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval == 0) {
+        val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
+          .values()
+          .asScala
+          .toList
+          .sortBy(_.getIncome.getIncome)
+          .drop(scenario.getHouseholds.getHouseholds.size() / 2)
+          .head
+        val dummyHouseholdAttributes = new HouseholdAttributes(
+          medianHouseholdByIncome.getId.toString,
+          medianHouseholdByIncome.getIncome.getIncome,
+          1,
+          1,
+          1
         )
-      ) ! "Run!"
+        val personVOTT = PopulationAdjustment
+          .IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
+          .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+        val dummyPersonAttributes = AttributesOfIndividual(
+          dummyHouseholdAttributes,
+          None,
+          true,
+          Seq(CAR),
+          personVOTT,
+          None,
+          Some(dummyHouseholdAttributes.householdIncome)
+        )
+        context.actorOf(
+          PeakSkimObserver.props(
+            beamServices,
+            beamSkimmer,
+            beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes),
+            dummyPersonAttributes
+          )
+        ) ! "Run!"
+      }
       sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
     // Do nothing
