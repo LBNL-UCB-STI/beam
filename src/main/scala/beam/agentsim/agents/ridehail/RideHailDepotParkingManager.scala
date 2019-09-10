@@ -138,7 +138,7 @@ class RideHailDepotParkingManager(
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, parkingZonesSampled, iterations) <- ParkingZoneSearch
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZoneSearchStats) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -149,7 +149,9 @@ class RideHailDepotParkingManager(
       taz <- tazTreeMap.getTAZ(parkingStall.tazId)
     } yield {
 
-      logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
+      logger.debug(
+        s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations"
+      )
 
       // override the sampled stall coordinate with the TAZ centroid -
       // we want all agents who park in this TAZ to park in the same location.

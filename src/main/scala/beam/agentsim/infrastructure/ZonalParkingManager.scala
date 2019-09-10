@@ -1,11 +1,11 @@
 package beam.agentsim.infrastructure
 
 import scala.util.{Failure, Random, Success, Try}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.events.ParkingUtilityEvent
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
@@ -18,7 +18,9 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 class ZonalParkingManager(
   tazTreeMap: TAZTreeMap,
@@ -40,7 +42,14 @@ class ZonalParkingManager(
   }
 
   var totalStallsInUse: Long = 0L
-  var totalStallsAvailable: Long = parkingZones.map { _.stallsAvailable }.foldLeft(0L) { _ + _ }
+
+  var totalStallsAvailable: Long = parkingZones
+    .map {
+      _.stallsAvailable
+    }
+    .foldLeft(0L) {
+      _ + _
+    }
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
@@ -233,13 +242,7 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(
-        parkingStall,
-        parkingZone,
-        parkingZonesSeen,
-        parkingZonesSampled,
-        iterations
-      ) =
+      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZoneSearchStats) =
         ParkingZoneSearch.incrementalParkingZoneSearch(
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
@@ -262,14 +265,23 @@ class ZonalParkingManager(
         }
 
       log.debug(
-        s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
+        s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations"
       )
-      log.debug(
-        s"sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
-        chargingTypeToNo(parkingZonesSampled),
-        parkingTypeToNo(parkingZonesSampled),
-        listOfCosts(parkingZonesSampled)
+
+      // create a ParkingUtilityEvent
+      val parkingUtilityEvent: ParkingUtilityEvent = new ParkingUtilityEvent(
+        inquiry.currentDriverId,
+        inquiry.beamVehicle,
+        inquiry.activityType,
+        inquiry.parkingDuration,
+        inquiry.valueOfTime,
+        parkingZoneSearchStats,
+        parkingStall.cost,
+        parkingStall.parkingType,
+        parkingStall.chargingPointType
       )
+
+      // todo do something with the ParkingUtilityEvent
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {

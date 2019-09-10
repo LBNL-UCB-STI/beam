@@ -1,18 +1,17 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import scala.util.{Failure, Random, Success, Try}
 
+import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
-import beam.sim.common.GeoUtils
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.JavaConverters._
 import scala.annotation.tailrec
-
 import beam.agentsim.infrastructure.ParkingStall
 
 object ParkingZoneSearch {
@@ -35,10 +34,10 @@ object ParkingZoneSearch {
   /**
     * static configuration for all parking zone searches in this simulation
     *
-    * @param searchStartRadius radius of the first concentric ring search
-    * @param searchMaxRadius maximum radius for the search
-    * @param boundingBox limiting coordinate bounds for simulation area
-    * @param distanceFunction function which computes distance (based on underlying coordinate system)
+    * @param searchStartRadius     radius of the first concentric ring search
+    * @param searchMaxRadius       maximum radius for the search
+    * @param boundingBox           limiting coordinate bounds for simulation area
+    * @param distanceFunction      function which computes distance (based on underlying coordinate system)
     * @param searchExpansionFactor factor by which the radius is expanded
     */
   case class ParkingZoneSearchConfiguration(
@@ -52,14 +51,14 @@ object ParkingZoneSearch {
   /**
     * dynamic data for a parking zone search, related to parking infrastructure and inquiry
     *
-    * @param destinationUTM destination of inquiry
-    * @param parkingDuration duration of the activity agent wants to park for
+    * @param destinationUTM   destination of inquiry
+    * @param parkingDuration  duration of the activity agent wants to park for
     * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
-    * @param zoneSearchTree a nested map lookup of [[ParkingZone]]s
-    * @param parkingZones the stored state of all [[ParkingZone]]s
-    * @param zoneQuadTree [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
-    * @param random random number generator
-    * @param parkingTypes the list of acceptable parking types allowed for this search
+    * @param zoneSearchTree   a nested map lookup of [[ParkingZone]]s
+    * @param parkingZones     the stored state of all [[ParkingZone]]s
+    * @param zoneQuadTree     [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
+    * @param random           random number generator
+    * @param parkingTypes     the list of acceptable parking types allowed for this search
     */
   case class ParkingZoneSearchParams(
     destinationUTM: Location,
@@ -75,23 +74,21 @@ object ParkingZoneSearch {
   /**
     * result of a [[ParkingZoneSearch]]
     *
-    * @param parkingStall the embodied stall with sampled coordinate
-    * @param parkingZone the [[ParkingZone]] associated with this stall
-    * @param parkingZoneIdsSeen list of [[ParkingZone]] ids that were seen in this search
+    * @param parkingStall           the embodied stall with sampled coordinate
+    * @param parkingZone            the [[ParkingZone]] associated with this stall
+    * @param parkingZoneSearchStats stats from the current search that can be used for analysis
     */
   case class ParkingZoneSearchResult(
     parkingStall: ParkingStall,
     parkingZone: ParkingZone,
-    parkingZoneIdsSeen: List[Int] = List.empty,
-    parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
-    iterations: Int = 1
+    parkingZoneSearchStats: ParkingZoneSearchStats = new ParkingZoneSearchStats()
   )
 
   /**
     * these are the alternatives that are generated/instantiated by a search
     * and then are selected by a sampling function
     *
-    * @param taz TAZ of the alternative
+    * @param taz         TAZ of the alternative
     * @param parkingType parking type of the alternative
     * @param parkingZone parking zone of the alternative
     * @param coord location sampled for this alternative
@@ -103,6 +100,28 @@ object ParkingZoneSearch {
     parkingZone: ParkingZone,
     coord: Coord,
     costInDollars: Double
+  )
+
+  /**
+    * provides stats data of the current search that can be used for analysis & debugging
+    *
+    * @param numSearchIterations
+    * @param parkingZoneIdsSeen         vector of [[ParkingZone]] ids that were seen in this search
+    * @param parkingZoneIdsSampled      vector of [[ParkingZone]] ids that have been used for sampling
+    * @param sampledStallsChargingTypes vector of [[ChargingPointType]] that have been available for sampling
+    * @param sampledStallsParkingTypes  vector of [[ParkingType]] that have been available for sampling
+    * @param sampledStallsCosts         vector of costs that have been available for sampling
+    * @param selectedStallMnlParams     mnl parameter of the selected stall
+    */
+  case class ParkingZoneSearchStats(
+    numSearchIterations: Int = 1,
+    parkingZoneIdsSeen: Vector[Int] = Vector.empty,
+    parkingZoneIdsSampled: Vector[Int] = Vector.empty,
+    sampledStallsChargingTypes: Vector[Option[ChargingPointType]] = Vector.empty,
+    sampledStallsParkingTypes: Vector[ParkingType] = Vector.empty,
+    sampledStallsCosts: Vector[Double] = Vector.empty,
+    selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = Map.empty,
+    selectedStallMnlUtility: Double = 0.0
   )
 
   /**
@@ -121,11 +140,11 @@ object ParkingZoneSearch {
   /**
     * search for valid parking zones by incremental ring search and sample the highest utility alternative
     *
-    * @param config static search parameters for all searches in a simulation
-    * @param params inquiry and infrastructure data used as parameters for this search
-    * @param parkingZoneFilterFunction a predicate to filter out types of stalls
+    * @param config                         static search parameters for all searches in a simulation
+    * @param params                         inquiry and infrastructure data used as parameters for this search
+    * @param parkingZoneFilterFunction      a predicate to filter out types of stalls
     * @param parkingZoneLocSamplingFunction a function that samples [[Coord]]s for [[ParkingStall]]s
-    * @param parkingZoneMNLParamsFunction a function that generates MNL parameters for a [[ParkingAlternative]]
+    * @param parkingZoneMNLParamsFunction   a function that generates MNL parameters for a [[ParkingAlternative]]
     * @return if found, a suitable [[ParkingAlternative]]
     */
   def incrementalParkingZoneSearch(
@@ -142,7 +161,6 @@ object ParkingZoneSearch {
       thisInnerRadius: Double,
       thisOuterRadius: Double,
       parkingZoneIdsSeen: List[Int] = List.empty,
-      parkingZoneIdsSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult] = {
       if (thisInnerRadius > config.searchMaxRadius) None
@@ -186,7 +204,9 @@ object ParkingZoneSearch {
           }
         }
 
-        val validParkingAlternatives: Int = alternatives.count { _.isValidAlternative }
+        val validParkingAlternatives: Int = alternatives.count {
+          _.isValidAlternative
+        }
         if (validParkingAlternatives == 0) {
           _search(
             thisOuterRadius,
@@ -201,7 +221,9 @@ object ParkingZoneSearch {
           val alternativesToSample: Map[ParkingAlternative, Map[ParkingMNL.Parameters, Double]] =
             alternatives.flatMap { a =>
               if (a.isValidAlternative)
-                Some { a.parkingAlternative -> a.utilityParameters } else
+                Some {
+                  a.parkingAlternative -> a.utilityParameters
+                } else
                 None
             }.toMap
 
@@ -225,28 +247,59 @@ object ParkingZoneSearch {
               parkingType
             )
 
-            val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
-            val theseSampledParkingZoneIds: List[(Int, Option[ChargingPointType], ParkingType, Double)] =
-              alternativesToSample.map { altWithParams =>
-                (
-                  altWithParams._1.parkingZone.parkingZoneId,
-                  altWithParams._1.parkingZone.chargingPointType,
-                  altWithParams._1.parkingType,
-                  altWithParams._1.costInDollars
-                )
+            val selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = alternativesToSample.getOrElse(
+              result.alternativeType,
+              throw new RuntimeException("Provided alternative is not part of the sample set!")
+            )
 
-              }.toList
+            // collect the stats from this search and add them to the ParkingZoneSearchResult
+            val theseParkingZoneIdsSeen: List[Int] = alternatives.map {
+              _.parkingAlternative.parkingZone.parkingZoneId
+            } ++ parkingZoneIdsSeen
+
+            val sampledStatsData
+              : (Vector[Int], Vector[Option[ChargingPointType]], Vector[ParkingType], Vector[Double]) =
+              alternativesToSample.keys.foldLeft(
+                (
+                  Vector.empty[Int],
+                  Vector.empty[Option[ChargingPointType]],
+                  Vector.empty[ParkingType],
+                  Vector.empty[Double]
+                )
+              )((result, parkingAlt) => {
+                val parkingZoneId = parkingAlt.parkingZone.parkingZoneId
+                val chargingPointType = parkingAlt.parkingZone.chargingPointType
+                val parkingType = parkingAlt.parkingType
+                val parkingCosts = parkingAlt.cost
+                (
+                  result._1 :+ parkingZoneId,
+                  result._2 :+ chargingPointType,
+                  result._3 :+ parkingType,
+                  result._4 :+ parkingCosts
+                )
+              })
+
+            val parkingZoneSearchStats = ParkingZoneSearchStats(
+              iterations,
+              theseParkingZoneIdsSeen.toVector,
+              parkingZoneIdsSampled = sampledStatsData._1,
+              sampledStallsChargingTypes = sampledStatsData._2,
+              sampledStallsParkingTypes = sampledStatsData._3,
+              sampledStallsCosts = sampledStatsData._4,
+              selectedStallMnlParams,
+              result.utility
+            )
+
             ParkingZoneSearchResult(
               parkingStall,
               parkingZone,
-              theseParkingZoneIds ++ parkingZoneIdsSeen,
-              theseSampledParkingZoneIds ++ parkingZoneIdsSampled,
-              iterations = iterations
+              parkingZoneSearchStats
             )
           }
         }
       }
     }
+
     _search(0, config.searchStartRadius)
   }
 }

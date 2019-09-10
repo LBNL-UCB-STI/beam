@@ -27,6 +27,7 @@ import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -640,7 +641,7 @@ class RideHailAgent(
 //      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
 //    )
 //    val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
-    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
+    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle), currentDriverId = id.toString)
     parkingManager ! inquiry
   }
 
