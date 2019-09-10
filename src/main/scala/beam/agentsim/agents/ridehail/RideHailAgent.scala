@@ -545,6 +545,10 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
+    case ev @ Event(StartRefuelSessionTrigger(_), _) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+      stash()
+      stay
   }
 
   when(PassengerScheduleEmptyInterrupted) {
