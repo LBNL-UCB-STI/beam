@@ -44,11 +44,10 @@ class PeakSkimObserver(
       val dummyBodyVehicleType =
         beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Body).get
       val tazs = beamServices.beamScenario.tazTreeMap.getTAZs.toList.sortBy(_.tazId.toString)
-      val tazMapByIndex = tazs.zipWithIndex.map(tup => (tup._2 -> tup._1))
       val requests = tazs.zipWithIndex.flatten {
-        case (originTaz, index) =>
-          tazs.slice(0, index + 1).zipWithIndex.map {
-            case (destinationTaz, index2) =>
+        case (originTaz, orgIdx) =>
+          tazs.zipWithIndex.map {
+            case (destinationTaz, dstIdx) =>
               val dummyStreetVehicle = StreetVehicle(
                 Id.createVehicleId("dummy-car-for-skim-observations"),
                 dummyCarVehicleType.id,
@@ -57,21 +56,21 @@ class PeakSkimObserver(
                 asDriver = true
               )
               val originCoord = if (originTaz.tazId.equals(destinationTaz.tazId)) {
-                new Coord(originTaz.coord.getX + Math.sqrt(originTaz.areaInSquareMeters) / 4.0, originTaz.coord.getY)
+                new Coord(originTaz.coord.getX + Math.sqrt(originTaz.areaInSquareMeters) / 3.0, originTaz.coord.getY)
               } else {
                 originTaz.coord
               }
               val destCoord = if (originTaz.tazId.equals(destinationTaz.tazId)) {
                 new Coord(
-                  destinationTaz.coord.getX - Math.sqrt(destinationTaz.areaInSquareMeters) / 4.0,
+                  destinationTaz.coord.getX - Math.sqrt(destinationTaz.areaInSquareMeters) / 3.0,
                   destinationTaz.coord.getY
                 )
               } else {
                 destinationTaz.coord
               }
               (
-                index,
-                index2,
+                orgIdx,
+                dstIdx,
                 RoutingRequest(
                   originUTM = originCoord,
                   destinationUTM = destCoord,
@@ -85,15 +84,15 @@ class PeakSkimObserver(
       Future
         .sequence(
           requests.map {
-            case (index, index2, req) =>
+            case (orgIdx, dstIdx, req) =>
               akka.pattern
                 .ask(beamServices.beamRouter, req)
                 .mapTo[RoutingResponse]
-                .map(resp => (index, index2, resp))
+                .map(resp => (orgIdx, dstIdx, resp))
           }
         )
         .foreach(_.foreach {
-          case (index, index2, response) =>
+          case (orgIdx, dstIdx, response) =>
             response.itineraries.headOption match {
               case Some(tripItin) =>
                 val partialTrip = tripItin.legs
@@ -128,7 +127,14 @@ class PeakSkimObserver(
                     .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
                     .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
                 )
-                beamSkimmer.observeTripForTAZPair(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+                beamSkimmer.observeTripForTAZPair(
+                  tazs(orgIdx).tazId,
+                  tazs(dstIdx).tazId,
+                  theTrip,
+                  generalizedTime,
+                  generalizedCost,
+                  energyConsumption
+                )
                 self ! "success"
               case None =>
                 self ! "failure"

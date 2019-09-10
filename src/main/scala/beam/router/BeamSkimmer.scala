@@ -216,12 +216,11 @@ class BeamSkimmer @Inject()(
   }
 
   def observeTrip(
-                   trip: EmbodiedBeamTrip,
-                   generalizedTimeInHours: Double,
-                   generalizedCost: Double,
-                   energyConsumption: Double,
-                   symmetricSkimFromDestToOrigin: Boolean = false
-                 ): Unit = {
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): Unit = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -241,16 +240,16 @@ class BeamSkimmer @Inject()(
     val destTaz = tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    observeTripForTAZPair(origTaz,destTaz,trip,generalizedTimeInHours,generalizedCost,energyConsumption,symmetricSkimFromDestToOrigin)
+    observeTripForTAZPair(origTaz, destTaz, trip, generalizedTimeInHours, generalizedCost, energyConsumption)
   }
+
   def observeTripForTAZPair(
-    origTaz:  Id[TAZ],
-    destTaz:  Id[TAZ],
+    origTaz: Id[TAZ],
+    destTaz: Id[TAZ],
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
-    energyConsumption: Double,
-    symmetricSkimFromDestToOrigin: Boolean = false
+    energyConsumption: Double
   ): Unit = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
@@ -263,10 +262,7 @@ class BeamSkimmer @Inject()(
     val beamLegs = correctedTrip.beamLegs
     val timeBin = timeToBin(beamLegs.head.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
-    var keys = ArrayBuffer((timeBin, mode, origTaz, destTaz))
-    if (symmetricSkimFromDestToOrigin && destTaz != origTaz) {
-      keys += ((timeBin, mode, destTaz, origTaz))
-    }
+    var key = (timeBin, mode, origTaz, destTaz)
     val payload =
       SkimInternal(
         correctedTrip.totalTravelTimeInSecs.toDouble,
@@ -277,23 +273,23 @@ class BeamSkimmer @Inject()(
         1,
         energyConsumption
       )
-    keys.foreach { key =>
-      skims.get(key) match {
-        case Some(existingSkim) =>
-          val newPayload = SkimInternal(
-            time = mergeAverage(existingSkim.time, existingSkim.count, payload.time),
-            generalizedTime = mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
-            generalizedCost = mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
-            distance = mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
-            cost = mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
-            count = existingSkim.count + 1,
-            energy = mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
-          )
-          skims.put(key, newPayload)
-        case None =>
-          skims.put(key, payload)
-      }
+
+    skims.get(key) match {
+      case Some(existingSkim) =>
+        val newPayload = SkimInternal(
+          time = mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+          generalizedTime = mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
+          generalizedCost = mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
+          distance = mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
+          cost = mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
+          count = existingSkim.count + 1,
+          energy = mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
+        )
+        skims.put(key, newPayload)
+      case None =>
+        skims.put(key, payload)
     }
+
   }
 
   def timeToBin(departTime: Int): Int = {
