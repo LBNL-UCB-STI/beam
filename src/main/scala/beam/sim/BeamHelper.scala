@@ -309,7 +309,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
-    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+    val (parsedArgs, config) = prepareConfig(args,  isConfigArgRequired)
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path

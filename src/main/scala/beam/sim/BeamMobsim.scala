@@ -156,7 +156,7 @@ class BeamMobsimIteration(
 
   private val parkingManager = context.actorOf(
     ZonalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM,  Some(matsimServices.getEvents))
       .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
     "ParkingManager"
   )

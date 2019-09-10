@@ -636,7 +636,7 @@ class PersonAgentSpec
       )
 
       val parkingManager = system.actorOf(
-        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox, Some(eventsManager)),
         "ParkingManager"
       )
 

@@ -7,11 +7,7 @@ import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.events.ParkingUtilityEvent
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams
-}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -20,24 +16,28 @@ import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 class ZonalParkingManager(
-  tazTreeMap: TAZTreeMap,
-  geo: GeoUtils,
-  parkingZones: Array[ParkingZone],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
-  rand: Random,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
-) extends Actor
-    with ActorLogging {
+                           tazTreeMap: TAZTreeMap,
+                           geo: GeoUtils,
+                           parkingZones: Array[ParkingZone],
+                           zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
+                           rand: Random,
+                           minSearchRadius: Double,
+                           maxSearchRadius: Double,
+                           boundingBox: Envelope,
+                           mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+                           eventsManager: Option[EventsManager],
+                         ) extends Actor
+  with ActorLogging {
 
   if (maxSearchRadius < minSearchRadius) {
     log.warning(
-      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${minSearchRadius}; no searches will occur with these settings."
+      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${
+        minSearchRadius
+      }; no searches will occur with these settings."
     )
   }
 
@@ -78,13 +78,13 @@ class ZonalParkingManager(
       // allow charger ParkingZones
       val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => true
-        case "init"   => false
+        case "init" => false
         case _ =>
           inquiry.beamVehicle match {
             case Some(vehicleType) =>
               vehicleType.beamVehicleType.primaryFuelType match {
                 case Electricity => true
-                case _           => false
+                case _ => false
               }
             case _ => false
           }
@@ -93,7 +93,7 @@ class ZonalParkingManager(
       // allow non-charger ParkingZones
       val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => false
-        case _        => true
+        case _ => true
       }
 
       // ---------------------------------------------------------------------------------------------
@@ -124,37 +124,39 @@ class ZonalParkingManager(
       // filters out ParkingZones which do not apply to this agent
       // TODO: check for conflicts between variables here - is it always false?
       val parkingZoneFilterFunction: ParkingZone => Boolean =
-        (zone: ParkingZone) => {
+      (zone: ParkingZone) => {
 
-          val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
+        val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
-          val rideHailFastChargingOnly: Boolean =
-            ParkingSearchFilterPredicates.rideHailFastChargingOnly(
-              zone,
-              inquiry.activityType
-            )
+        val rideHailFastChargingOnly: Boolean =
+          ParkingSearchFilterPredicates.rideHailFastChargingOnly(
+            zone,
+            inquiry.activityType
+          )
 
-          val canThisCarParkHere: Boolean =
-            ParkingSearchFilterPredicates.canThisCarParkHere(
-              zone,
-              returnSpotsWithChargers,
-              returnSpotsWithoutChargers
-            )
+        val canThisCarParkHere: Boolean =
+          ParkingSearchFilterPredicates.canThisCarParkHere(
+            zone,
+            returnSpotsWithChargers,
+            returnSpotsWithoutChargers
+          )
 
-          val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
+        val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-          hasAvailability &&
+        hasAvailability &&
           rideHailFastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
-        }
+      }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
       val parkingZoneLocSamplingFunction: ParkingZone => Coord =
         (zone: ParkingZone) => {
           tazTreeMap.getTAZ(zone.tazId) match {
             case None =>
-              log.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
+              log.error(s"somehow have a ParkingZone with tazId ${
+                zone.tazId
+              } which is not found in the TAZTreeMap")
               TAZ.DefaultTAZ.coord
             case Some(taz) =>
               ParkingStallSampling.availabilityAwareSampling(rand, inquiry.destinationUtm, taz, zone.availability)
@@ -199,12 +201,12 @@ class ZonalParkingManager(
               .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
           val distanceFactor
-            : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+          : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
 
           val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
           val goingHome
-            : Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
+          : Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
           val chargingVehicle: Boolean = inquiry.beamVehicle match {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
@@ -224,15 +226,21 @@ class ZonalParkingManager(
             }
 
           val params: Map[ParkingMNL.Parameters, Double] = Map(
-            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
-            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
+            ParkingMNL.Parameters.RangeAnxietyCost -> rangeAnxietyFactor,
+            ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
+            ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor,
             ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
           )
 
           if (log.isDebugEnabled && inquiry.activityType.toLowerCase == "home") {
             log.debug(
-              f"tour=${inquiry.remainingTripData.map { _.remainingTourDistance }.getOrElse(0.0)}%.2f ${ParkingMNL.prettyPrintAlternatives(params)}"
+              f"tour=${
+                inquiry.remainingTripData.map {
+                  _.remainingTourDistance
+                }.getOrElse(0.0)
+              }%.2f ${
+                ParkingMNL.prettyPrintAlternatives(params)
+              } "
             )
           }
 
@@ -243,29 +251,33 @@ class ZonalParkingManager(
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
       val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZoneSearchStats) =
-        ParkingZoneSearch.incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
-        ) match {
-          case Some(result) =>
-            result
-          case None =>
-            // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.getX + 2000,
-              inquiry.destinationUtm.getX - 2000,
-              inquiry.destinationUtm.getY + 2000,
-              inquiry.destinationUtm.getY - 2000
-            )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
-        }
+      ParkingZoneSearch.incrementalParkingZoneSearch(
+        parkingZoneSearchConfiguration,
+        parkingZoneSearchParams,
+        parkingZoneFilterFunction,
+        parkingZoneLocSamplingFunction,
+        parkingZoneMNLParamsFunction
+      ) match {
+        case Some(result) =>
+          result
+        case None =>
+          // didn't find any stalls, so, as a last resort, create a very expensive stall
+          val boxAroundRequest = new Envelope(
+            inquiry.destinationUtm.getX + 2000,
+            inquiry.destinationUtm.getX - 2000,
+            inquiry.destinationUtm.getY + 2000,
+            inquiry.destinationUtm.getY - 2000
+          )
+          val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand)
+          ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+      }
 
       log.debug(
-        s"found ${parkingZoneSearchStats.parkingZoneIdsSeen.length} parking zones over ${parkingZoneSearchStats.numSearchIterations} iterations"
+        s"found ${
+          parkingZoneSearchStats.parkingZoneIdsSeen.length
+        } parking zones over ${
+          parkingZoneSearchStats.numSearchIterations
+        } iterations"
       )
 
       // create a ParkingUtilityEvent
@@ -281,13 +293,26 @@ class ZonalParkingManager(
         parkingStall.chargingPointType
       )
 
+      //log.debug("{}", parkingUtilityEvent)
+
+      eventsManager match {
+        case Some(manager) => manager.processEvent(parkingUtilityEvent)
+        case None =>
+      }
+
       // todo do something with the ParkingUtilityEvent
 
       // reserveStall is false when agent is only seeking pricing information
       if (inquiry.reserveStall) {
 
         log.debug(
-          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+          s"reserving a ${
+            if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"
+          } stall for agent ${
+            inquiry.requestId
+          } in parkingZone ${
+            parkingZone.parkingZoneId
+          } "
         )
 
         // update the parking stall data
@@ -333,8 +358,8 @@ class ZonalParkingManager(
         triple =>
           triple._2 match {
             case Some(x) => x
-            case None    => "NoCharger"
-        }
+            case None => "NoCharger"
+          }
       )
       .groupBy(identity)
       .mapValues(_.size)
@@ -376,11 +401,12 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def apply(
-    beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    boundingBox: Envelope
-  ): ZonalParkingManager = {
+             beamConfig: BeamConfig,
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             boundingBox: Envelope,
+             eventsManager: Option[EventsManager],
+           ): ZonalParkingManager = {
 
     // generate or load parking
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
@@ -433,7 +459,8 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters
+      mnlMultiplierParameters,
+      eventsManager
     )
   }
 
@@ -446,15 +473,16 @@ object ZonalParkingManager extends LazyLogging {
     * @return
     */
   def apply(
-    parkingDescription: Iterator[String],
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    random: Random,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    boundingBox: Envelope,
-    includesHeader: Boolean = true
-  ): ZonalParkingManager = {
+             parkingDescription: Iterator[String],
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             random: Random,
+             minSearchRadius: Double,
+             maxSearchRadius: Double,
+             boundingBox: Envelope,
+             includesHeader: Boolean = true,
+             eventsManager: Option[EventsManager] = None
+           ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
     new ZonalParkingManager(
       tazTreeMap,
@@ -465,7 +493,8 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      ParkingMNL.DefaultMNLParameters
+      ParkingMNL.DefaultMNLParameters,
+      eventsManager: Option[EventsManager]
     )
   }
 
@@ -476,19 +505,21 @@ object ZonalParkingManager extends LazyLogging {
     * @return
     */
   def props(
-    beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    beamRouter: ActorRef,
-    boundingBox: Envelope
-  ): Props = {
+             beamConfig: BeamConfig,
+             tazTreeMap: TAZTreeMap,
+             geo: GeoUtils,
+             beamRouter: ActorRef,
+             boundingBox: Envelope,
+             eventsManager: Option[EventsManager] = None,
+           ): Props = {
 
     Props(
       ZonalParkingManager(
         beamConfig,
         tazTreeMap,
         geo,
-        boundingBox
+        boundingBox,
+        eventsManager
       )
     )
   }
