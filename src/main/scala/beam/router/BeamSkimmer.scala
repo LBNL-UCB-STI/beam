@@ -216,12 +216,12 @@ class BeamSkimmer @Inject()(
   }
 
   def observeTrip(
-    trip: EmbodiedBeamTrip,
-    generalizedTimeInHours: Double,
-    generalizedCost: Double,
-    energyConsumption: Double,
-    symmetricSkimFromDestToOrigin: Boolean = false
-  ): Unit = {
+                   trip: EmbodiedBeamTrip,
+                   generalizedTimeInHours: Double,
+                   generalizedCost: Double,
+                   energyConsumption: Double,
+                   symmetricSkimFromDestToOrigin: Boolean = false
+                 ): Unit = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -241,7 +241,27 @@ class BeamSkimmer @Inject()(
     val destTaz = tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    val timeBin = timeToBin(origLeg.startTime)
+    observeTripForTAZPair(origTaz,destTaz,trip,generalizedTimeInHours,generalizedCost,energyConsumption,symmetricSkimFromDestToOrigin)
+  }
+  def observeTripForTAZPair(
+    origTaz:  Id[TAZ],
+    destTaz:  Id[TAZ],
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double,
+    symmetricSkimFromDestToOrigin: Boolean = false
+  ): Unit = {
+    val mode = trip.tripClassifier
+    val correctedTrip = mode match {
+      case WALK =>
+        trip
+      case _ =>
+        val legs = trip.legs.drop(1).dropRight(1)
+        EmbodiedBeamTrip(legs)
+    }
+    val beamLegs = correctedTrip.beamLegs
+    val timeBin = timeToBin(beamLegs.head.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
     var keys = ArrayBuffer((timeBin, mode, origTaz, destTaz))
     if (symmetricSkimFromDestToOrigin && destTaz != origTaz) {

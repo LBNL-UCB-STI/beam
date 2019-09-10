@@ -29,6 +29,8 @@ class PeakSkimObserver(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+  var failedRoutes = 0
+  var successfullRoutes = 0
 
   override def receive: PartialFunction[Any, Unit] = {
 
@@ -42,6 +44,7 @@ class PeakSkimObserver(
       val dummyBodyVehicleType =
         beamServices.beamScenario.vehicleTypes.values.find(theType => theType.vehicleCategory == Body).get
       val tazs = beamServices.beamScenario.tazTreeMap.getTAZs.toList.sortBy(_.tazId.toString)
+      val tazMapByIndex = tazs.zipWithIndex.map(tup => (tup._2 -> tup._1))
       val requests = tazs.zipWithIndex.flatten {
         case (originTaz, index) =>
           tazs.slice(0, index + 1).zipWithIndex.map {
@@ -79,7 +82,6 @@ class PeakSkimObserver(
               )
           }
       }
-      var failedRoutes = 0
       Future
         .sequence(
           requests.map {
@@ -126,16 +128,23 @@ class PeakSkimObserver(
                     .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
                     .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
                 )
-                beamSkimmer.observeTrip(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+                beamSkimmer.observeTripForTAZPair(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+                self ! "success"
               case None =>
-                failedRoutes = failedRoutes + 1
+                self ! "failure"
             }
         })
       log.info(s"Total routing requests sent: ${requests.size}")
-      log.info(s"Failed to find routes for $failedRoutes requests")
       endSegment("peak-skim-observer", "agentsim")
 
+    case "success" =>
+      successfullRoutes = successfullRoutes + 1
+
+    case "failure" =>
+      failedRoutes = failedRoutes + 1
+
     case Finish =>
+      log.info(s"$successfullRoutes successful routes and $failedRoutes failures")
       context.stop(self)
 
     case msg @ _ =>
