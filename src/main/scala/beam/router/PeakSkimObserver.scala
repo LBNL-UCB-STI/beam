@@ -79,6 +79,7 @@ class PeakSkimObserver(
               )
           }
       }
+      var failedRoutes = 0
       Future
         .sequence(
           requests.map {
@@ -127,8 +128,11 @@ class PeakSkimObserver(
                 )
                 beamSkimmer.observeTrip(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
               case None =>
+                failedRoutes = failedRoutes + 1
             }
         })
+      log.info(s"Total routing requests sent: ${requests.size}")
+      log.info(s"Failed to find routes for $failedRoutes requests")
       endSegment("peak-skim-observer", "agentsim")
 
     case Finish =>
