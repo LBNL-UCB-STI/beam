@@ -52,7 +52,7 @@ class Population(
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      if (beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval == 0) {
+      if (beamServices.matsimServices.getIterationNumber > 0 && beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval == 0) {
         val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
           .values()
           .asScala
