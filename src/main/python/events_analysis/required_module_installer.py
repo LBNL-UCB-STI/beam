@@ -14,6 +14,9 @@ def npm_install(package, package2):
 def installAll():
     install("pandas")
     install("plotly")
+    install("numpy")
+    install("matplotlib")
+    install("collections")
     npm_install("electron@1.8.4", "orca")
     install("psutil","requests")
 
