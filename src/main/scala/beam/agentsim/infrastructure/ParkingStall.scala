@@ -12,7 +12,7 @@ case class ParkingStall(
   tazId: Id[TAZ],
   parkingZoneId: Int,
   locationUTM: Location,
-  cost: Double,
+  costInDollars: Double,
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType
@@ -20,7 +20,7 @@ case class ParkingStall(
 
 object ParkingStall {
 
-  val CostOfEmergencyStall: Double = 100000.0 // $1000.00 stall used as an emergency when no stalls were found
+  val CostOfEmergencyStallInDollars: Double = 50.0
 
   /**
     * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
@@ -31,7 +31,7 @@ object ParkingStall {
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = coord,
-    cost = 0.0,
+    costInDollars = 0.0,
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public
@@ -41,14 +41,14 @@ object ParkingStall {
     * take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values
     * @param random random number generator
     * @param boundingBox bounding box
-    * @param cost the cost of this stall
+    * @param costInDollars the cost of this stall
     *
     * @return a stall that costs a lot but at least it exists. it's coordinate can be anywhere on the planet. for routing, the nearest link should be found using Beam Geotools.
     */
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    cost: Double = CostOfEmergencyStall
+    costInDollars: Double = CostOfEmergencyStallInDollars
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -57,9 +57,9 @@ object ParkingStall {
       tazId = TAZ.EmergencyTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
-      cost = cost,
+      costInDollars = costInDollars,
       chargingPointType = None,
-      pricingModel = Some { PricingModel.FlatFee(cost.toInt) },
+      pricingModel = Some { PricingModel.FlatFee((costInDollars).toInt) },
       parkingType = ParkingType.Public
     )
   }

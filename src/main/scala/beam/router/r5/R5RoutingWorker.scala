@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
 import beam.router._
 import beam.router.gtfs.FareCalculator
@@ -282,9 +282,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         endLoc.getY,
         leg.startTime + Math.round(duration.toFloat)
       ),
-      duration
+      distanceInM = linksTimesAndDistances.distances.tail.sum
     )
+    val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    val drivingCost = DrivingCost.estimateDrivingCost(leg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -294,7 +296,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               vehicleId,
               vehicleTypeId,
               asDriver = true,
-              0,
+              drivingCost + toll,
               unbecomeDriverOnCompletion = true
             )
           )
@@ -805,7 +807,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
             val fareSegments = getFareSegments(segments.toVector)
             filterFaresOnTransfers(fareSegments)
           }
-
           segments.foreach {
             case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -830,6 +831,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                   hasTransit = true
                 )
                 .toInt
+              val stopSequence =
+                tripPattern.getStops.asScala.toList.slice(segmentPattern.fromIndex, segmentPattern.toIndex + 1)
               val segmentLeg = BeamLeg(
                 startTime,
                 Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type)),
@@ -853,7 +856,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                   ),
                   SpaceTime(fromStop.lon, fromStop.lat, startTime),
                   SpaceTime(toStop.lon, toStop.lat, endTime),
-                  0.0
+                  stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
                 )
               )
               embodiedBeamLegs += EmbodiedBeamLeg(
@@ -954,6 +957,10 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     } else {
       RoutingResponse(embodiedTrips, request.requestId)
     }
+  }
+
+  private def getDistanceBetweenStops(fromStop: Stop, toStop: Stop): Double = {
+    geo.distLatLon2Meters(new Coord(fromStop.lon, fromStop.lat), new Coord(toStop.lon, toStop.lat))
   }
 
   private def buildStreetBasedLegs(

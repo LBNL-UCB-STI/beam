@@ -191,9 +191,11 @@ class ZonalParkingManager(
 
           val distanceFactor
             : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
-          val parkingCostsPriceFactor: Double = parkingAlternative.cost / ZonalParkingManager.DollarsInCents
 
-          val goingHome: Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
+          val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
+
+          val goingHome
+            : Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
           val chargingVehicle: Boolean = inquiry.beamVehicle match {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
@@ -220,7 +222,9 @@ class ZonalParkingManager(
           )
 
           if (log.isDebugEnabled && inquiry.activityType.toLowerCase == "home") {
-            log.debug(f"tour=${inquiry.remainingTripData.map{_.remainingTourDistance}.getOrElse(0.0)}%.2f ${ParkingMNL.prettyPrintAlternatives(params)}")
+            log.debug(
+              f"tour=${inquiry.remainingTripData.map { _.remainingTourDistance }.getOrElse(0.0)}%.2f ${ParkingMNL.prettyPrintAlternatives(params)}"
+            )
           }
 
           params
@@ -247,7 +251,13 @@ class ZonalParkingManager(
             result
           case None =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val newStall = ParkingStall.lastResortStall(boundingBox, rand)
+            val boxAroundRequest = new Envelope(
+              inquiry.destinationUtm.getX + 2000,
+              inquiry.destinationUtm.getX - 2000,
+              inquiry.destinationUtm.getY + 2000,
+              inquiry.destinationUtm.getY - 2000
+            )
+            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
