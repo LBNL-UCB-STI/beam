@@ -90,7 +90,9 @@ runcmd:
   - sudo apt install nodejs-legacy -y
   - sudo apt install python-pip -y
   - pip install --upgrade pip
-  - sudo python ~/git/beam/src/main/python/events_analysis/required_module_installer.py
+  - sudo pip install pandas
+  - sudo pip install plotly
+  - sudo pip install psutil requests
   - sudo npm cache clean -f
   - sudo npm install -g n
   - sudo n stable
