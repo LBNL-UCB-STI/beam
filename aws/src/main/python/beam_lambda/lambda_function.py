@@ -80,6 +80,27 @@ runcmd:
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+  - echo "preparing for python analysis"
+  - sudo dpkg --configure -a
+  - sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
+  - sudo apt-get install unattended-upgrades
+  - sudo dpkg --configure -a
+  - sudo apt update
+  - sudo apt install npm -y
+  - sudo apt install nodejs-legacy -y
+  - sudo apt install python-pip -y
+  - pip install --upgrade pip
+  - sudo python ~/git/beam/src/main/python/events_analysis/required_module_installer.py
+  - sudo npm cache clean -f
+  - sudo npm install -g n
+  - sudo n stable
+  - sudo npm install -g npm
+  - sudo apt-get install curl
+  - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+  - sudo apt-get install nodejs -y
+  - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
+  - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
+  - sudo apt-get install xvfb -y
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
