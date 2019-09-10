@@ -91,39 +91,43 @@ class PeakSkimObserver(
         )
         .foreach(_.foreach {
           case (index, index2, response) =>
-            val partialTrip = response.itineraries.head.legs
-            val theTrip = EmbodiedBeamTrip(
-              EmbodiedBeamLeg.dummyLegAt(
-                partialTrip.head.beamLeg.startTime,
-                Id.createVehicleId("dummy-body"),
-                false,
-                partialTrip.head.beamLeg.travelPath.startPoint.loc,
-                WALK,
-                dummyBodyVehicleType.id
-              ) +:
-              partialTrip :+
-              EmbodiedBeamLeg.dummyLegAt(
-                partialTrip.last.beamLeg.endTime,
-                Id.createVehicleId("dummy-body"),
-                true,
-                partialTrip.last.beamLeg.travelPath.endPoint.loc,
-                WALK,
-                dummyBodyVehicleType.id
-              )
-            )
-            val generalizedTime =
-              modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
-            val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual
-              .getVOT(generalizedTime)
-            val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
-              .map(_.beamLeg.travelPath.distanceInM)
-              .sum
-            log.debug(
-              s"Observing skim from ${beamServices.beamScenario.tazTreeMap
-                .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
-                .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
-            )
-            beamSkimmer.observeTrip(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+            response.itineraries.headOption match {
+              case Some(tripItin) =>
+                val partialTrip = tripItin.legs
+                val theTrip = EmbodiedBeamTrip(
+                  EmbodiedBeamLeg.dummyLegAt(
+                    partialTrip.head.beamLeg.startTime,
+                    Id.createVehicleId("dummy-body"),
+                    false,
+                    partialTrip.head.beamLeg.travelPath.startPoint.loc,
+                    WALK,
+                    dummyBodyVehicleType.id
+                  ) +:
+                  partialTrip :+
+                  EmbodiedBeamLeg.dummyLegAt(
+                    partialTrip.last.beamLeg.endTime,
+                    Id.createVehicleId("dummy-body"),
+                    true,
+                    partialTrip.last.beamLeg.travelPath.endPoint.loc,
+                    WALK,
+                    dummyBodyVehicleType.id
+                  )
+                )
+                val generalizedTime =
+                  modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(attributesOfIndividual), None)
+                val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + attributesOfIndividual
+                  .getVOT(generalizedTime)
+                val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
+                  .map(_.beamLeg.travelPath.distanceInM)
+                  .sum
+                log.debug(
+                  s"Observing skim from ${beamServices.beamScenario.tazTreeMap
+                    .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
+                    .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
+                )
+                beamSkimmer.observeTrip(theTrip, generalizedTime, generalizedCost, energyConsumption, true)
+              case None =>
+            }
         })
       endSegment("peak-skim-observer", "agentsim")
 
