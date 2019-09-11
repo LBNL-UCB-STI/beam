@@ -161,7 +161,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       case parkEvent: ParkEvent =>
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {
           // get the parking cost from the event attributes
-          val parkingCost: Option[Double] = Some(parkEvent.cost)
+          val parkingCost: Option[Double] = Some(parkEvent.costInDollars)
 
           val personInboundParkingStats = personInboundParkingStatsTracker.getOrElse(
             parkEvent.getDriverId,

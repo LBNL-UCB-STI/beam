@@ -10,6 +10,7 @@ import beam.sim.BeamHelper
 import beam.sim.config.BeamExecutionConfig
 import beam.utils.EventReader._
 import com.typesafe.config.{Config, ConfigValueFactory}
+import com.google.inject
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.config.ConfigUtils
@@ -31,6 +32,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private var scenario: MutableScenario = _
   private var personHouseholds: Map[Id[Person], Household] = _
+  private var injector: inject.Injector = _
 
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
@@ -40,7 +42,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       beamExecutionConfig.matsimConfig
     )
     scenario = scenarioBuilt
-    val injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = buildBeamServices(injector, scenario)
 
     runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
@@ -49,6 +51,12 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
       .toMap
+  }
+
+  override def afterAll(): Unit = {
+    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+    if (travelDistanceStats != null)
+      travelDistanceStats.close()
   }
 
   it should "contain the same bus trips entries" in {

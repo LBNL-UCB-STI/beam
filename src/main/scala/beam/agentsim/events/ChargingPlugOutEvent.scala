@@ -40,7 +40,7 @@ class ChargingPlugOutEvent(
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
-    attributes.put(ATTRIBUTE_PRICE, stall.cost.toString)
+    attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelLevel.toString)
     attributes.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelLevel.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
