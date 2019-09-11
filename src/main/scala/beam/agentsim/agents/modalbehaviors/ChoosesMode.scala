@@ -364,7 +364,7 @@ trait ChoosesMode {
                     destination.loc,
                     nextAct.getType,
                     destination.time,
-                    nextAct.getEndTime.intValue() - destination.time
+                    getActivityEndTime(nextAct, beamServices) - destination.time
                   )
                   responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = true)
                 case _ =>
