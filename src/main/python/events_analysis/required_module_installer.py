@@ -13,7 +13,7 @@ def npm_install(package, package2):
 
 def installAll():
     install("pandas")
-    install("plotly")
+#    install("plotly")
     install("numpy")
     install("matplotlib")
     install("collections")
