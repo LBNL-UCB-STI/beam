@@ -1138,6 +1138,11 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
+    case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
+      }
+      stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _), _) =>
