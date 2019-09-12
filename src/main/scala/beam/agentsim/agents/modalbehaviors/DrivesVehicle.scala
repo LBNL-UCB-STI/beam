@@ -155,7 +155,7 @@ object DrivesVehicle {
     tick: Int,
     sessionStart: Double,
     fuelAddedInJoule: Double,
-    vehicle: Option[BeamVehicle] = None
+    vehicle: BeamVehicle
   ) extends Trigger
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
@@ -374,7 +374,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                         tick + sessionDuration.toInt,
                         tick,
                         energyDelivered,
-                        Some(currentBeamVehicle)
+                        currentBeamVehicle
                       ),
                       self
                     )
@@ -823,9 +823,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       )
     case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
-      if (vehicle.get.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle.get)
-        vehicle.get.unsetParkingStall()
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
+        vehicle.unsetParkingStall()
       }
       stay() replying CompletionNotice(triggerId)
   }

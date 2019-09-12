@@ -1139,8 +1139,8 @@ class PersonAgent(
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
-      if (vehicle.get.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle.get)
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>
