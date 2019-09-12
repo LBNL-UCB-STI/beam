@@ -87,7 +87,15 @@ class ZonalParkingManagerSpec
 //        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
+        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
+          new Envelope(
+            inquiry.destinationUtm.getX + 2000,
+            inquiry.destinationUtm.getX - 2000,
+            inquiry.destinationUtm.getY + 2000,
+            inquiry.destinationUtm.getY - 2000
+          ),
+          new Random(randomSeed)
+        )
 
         zonalParkingManager ! inquiry
 
@@ -133,9 +141,9 @@ class ZonalParkingManagerSpec
             Id.create(1, classOf[TAZ]),
             0,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
         zonalParkingManager ! firstInquiry
@@ -188,9 +196,9 @@ class ZonalParkingManagerSpec
             expectedTAZId,
             expectedParkingZoneId,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
 

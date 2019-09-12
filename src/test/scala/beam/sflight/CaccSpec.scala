@@ -8,14 +8,24 @@ import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
+import com.google.inject
 import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.io.Source
 
-class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+
+  private var injector: inject.Injector = _
+
+  override def afterAll(): Unit = {
+    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+    if (travelDistanceStats != null)
+      travelDistanceStats.close()
+    super.afterAll()
+  }
 
   private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
     val config = ConfigFactory
@@ -41,7 +51,8 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(beamScenario.network)
 
-    val services = buildBeamServices(buildInjector(config, beamConfig, scenario, beamScenario), scenario)
+    injector = buildInjector(config, beamConfig, scenario, beamScenario)
+    val services = buildBeamServices(injector, scenario)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
