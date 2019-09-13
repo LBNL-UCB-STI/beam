@@ -50,22 +50,22 @@ case class ParkingUtilityEvent(
 
   private lazy val vehIdString: String = beamVehicle match {
     case Some(vehicle) => vehicle.id.toString
-    case None          => "no beamVehicle in parking inquiry"
+    case None          => ""
   }
 
   private lazy val vehicleTypeString: String = beamVehicle match {
     case Some(vehicle) => vehicle.beamVehicleType.id.toString
-    case None          => "no beamVehicle in parking inquiry"
+    case None          => ""
   }
 
   private lazy val selectedStallMnlRangeAnxiety = parkingZoneSearchStats.selectedStallMnlParams
-    .getOrElse(ParkingMNL.Parameters.RangeAnxietyCost, "no range anxiety costs provided")
+    .getOrElse(ParkingMNL.Parameters.RangeAnxietyCost, "")
   private lazy val selectedStallMnlParkingPrice = parkingZoneSearchStats.selectedStallMnlParams
-    .getOrElse(ParkingMNL.Parameters.ParkingTicketCost, "no parking costs provided")
+    .getOrElse(ParkingMNL.Parameters.ParkingTicketCost, "")
   private lazy val selectedStallMnlDistance = parkingZoneSearchStats.selectedStallMnlParams
-    .getOrElse(ParkingMNL.Parameters.WalkingEgressCost, "no walking costs provided")
+    .getOrElse(ParkingMNL.Parameters.WalkingEgressCost, "")
   private lazy val selectedStallMnlResidential = parkingZoneSearchStats.selectedStallMnlParams
-    .getOrElse(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking, "no home costs provided")
+    .getOrElse(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking, "")
 
   override def getEventType: String = EVENT_TYPE
 
