@@ -55,8 +55,6 @@ trait ChoosesParking extends {
       }.getOrElse(0.0)
       val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
 
-      // in meter (the distance that should be considered as buffer for range estimation
-
       val nextActivityType = nextActivity(personData).get.getType
 
       val remainingTripData = calculateRemainingTripData(personData)
