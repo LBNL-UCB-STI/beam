@@ -249,7 +249,8 @@ class ZonalParkingManager(
         parkingZoneSearchStats,
         parkingStall.cost,
         parkingStall.parkingType,
-        parkingStall.chargingPointType
+        parkingStall.chargingPointType,
+        inquiry.currentTick
       )
 
       // todo do something with the ParkingUtilityEvent

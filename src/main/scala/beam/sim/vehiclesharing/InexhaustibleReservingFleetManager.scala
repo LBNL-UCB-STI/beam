@@ -1,4 +1,5 @@
 package beam.sim.vehiclesharing
+
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
@@ -21,11 +22,11 @@ import org.matsim.api.core.v01.Id
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
-  val parkingManager: ActorRef,
-  vehicleType: BeamVehicleType,
-  randomSeed: Long
-) extends Actor
-    with ActorLogging {
+                                                                  val parkingManager: ActorRef,
+                                                                  vehicleType: BeamVehicleType,
+                                                                  randomSeed: Long
+                                                                ) extends Actor
+  with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private val rand: Random = new Random(randomSeed)
@@ -62,6 +63,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.time, whenWhere.loc, "wherever")
 
 }

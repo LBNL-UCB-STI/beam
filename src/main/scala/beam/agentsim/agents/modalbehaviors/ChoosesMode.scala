@@ -361,7 +361,7 @@ trait ChoosesMode {
                     nextAct.getCoord
                   )
                   parkingRequestId = requestParkingCost(
-                    destination.loc,
+                                       destination.loc,
                     nextAct.getType,
                     destination.time,
                     nextAct.getEndTime.intValue() - destination.time
@@ -770,6 +770,7 @@ trait ChoosesMode {
       }
 
     val inquiry = ParkingInquiry(
+      _currentTick.getOrElse(-1),
       destinationInUTM,
       activityType,
       currentTourBeamVehicle,

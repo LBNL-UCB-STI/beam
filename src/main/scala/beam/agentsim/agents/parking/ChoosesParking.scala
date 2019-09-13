@@ -60,6 +60,7 @@ trait ChoosesParking extends {
       val remainingTripData = calculateRemainingTripData(personData)
 
       parkingManager ! ParkingInquiry(
+        _currentTick.getOrElse(-1),
         destinationUtm,
         nextActivityType,
         this.currentTourBeamVehicle,

@@ -290,7 +290,7 @@ object HouseholdActor {
               person.getId,
               self,
               person.getSelectedPlan,
-              fleetManagers ++: sharedVehicleFleets,
+              fleetManagers +: sharedVehicleFleets,
               beamSkimmer,
               routeHistory,
               travelTimeObserved,
@@ -456,7 +456,7 @@ object HouseholdActor {
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(_currentTick.getOrElse(0), homeCoord, "init")
           } {
             veh.useParkingStall(stall)
           }

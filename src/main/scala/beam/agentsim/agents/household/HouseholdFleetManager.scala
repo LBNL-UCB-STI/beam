@@ -50,12 +50,12 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
 
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       triggerSender = Some(sender())
       val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
-          (parkingManager ? ParkingInquiry(homeCoord, "init")).mapTo[ParkingInquiryResponse].map { r =>
+          (parkingManager ? ParkingInquiry(tick, homeCoord, "init")).mapTo[ParkingInquiryResponse].map { r =>
             (id, r)
           }
       }

@@ -18,7 +18,7 @@ case class ParkingUtilityEvent(
   selectedStallPrice: Double,
   selectedStallParkingType: ParkingType,
   selectedStallChargingPointType: Option[ChargingPointType],
-  tick: Double = -1 // todo maybe we need the currentTick? If yes we have to get it into ZonalParkingManager
+  tick: Long = -1 // todo maybe we need the currentTick? If yes we have to get it into ZonalParkingManager
 ) extends Event(tick)
     with ScalaEvent {
 

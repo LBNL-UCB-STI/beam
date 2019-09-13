@@ -86,7 +86,7 @@ class ZonalParkingManagerSpec
 //        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 //        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry(0,coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
 
         zonalParkingManager ! inquiry
@@ -127,7 +127,7 @@ class ZonalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(0,coordCenterOfUTM, "work")
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -142,7 +142,7 @@ class ZonalParkingManagerSpec
         expectMsg(ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId))
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(0,coordCenterOfUTM, "work")
         zonalParkingManager ! secondInquiry
         expectMsgPF() {
           case res @ ParkingInquiryResponse(stall, responseId)
@@ -179,8 +179,8 @@ class ZonalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(0,coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(0,coordCenterOfUTM, "work")
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -247,7 +247,7 @@ class ZonalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
+          req = ParkingInquiry(0,middleOfWorld, "work")
           _ = zonalParkingManager ! req
           counted = expectMsgPF[Int]() {
             case res @ ParkingInquiryResponse(_, _) =>
