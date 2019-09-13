@@ -106,20 +106,14 @@ object ParkingZoneSearch {
     * provides stats data of the current search that can be used for analysis & debugging
     *
     * @param numSearchIterations
-    * @param parkingZoneIdsSeen         vector of [[ParkingZone]] ids that were seen in this search
-    * @param parkingZoneIdsSampled      vector of [[ParkingZone]] ids that have been used for sampling
-    * @param sampledStallsChargingTypes vector of [[ChargingPointType]] that have been available for sampling
-    * @param sampledStallsParkingTypes  vector of [[ParkingType]] that have been available for sampling
-    * @param sampledStallsCosts         vector of costs that have been available for sampling
-    * @param selectedStallMnlParams     mnl parameter of the selected stall
+    * @param parkingZoneIdsSeen     vector of [[ParkingZone]] ids that were seen in this search
+    * @param parkingZoneIdsSampled  vector of [[ParkingZone]] ids that have been used for sampling
+    * @param selectedStallMnlParams mnl parameter of the selected stall
     */
   case class ParkingZoneSearchStats(
     numSearchIterations: Int = 1,
     parkingZoneIdsSeen: Vector[Int] = Vector.empty,
     parkingZoneIdsSampled: Vector[Int] = Vector.empty,
-    sampledStallsChargingTypes: Vector[Option[ChargingPointType]] = Vector.empty,
-    sampledStallsParkingTypes: Vector[ParkingType] = Vector.empty,
-    sampledStallsCosts: Vector[Double] = Vector.empty,
     selectedStallMnlParams: Map[ParkingMNL.Parameters, Double] = Map.empty,
     selectedStallMnlUtility: Double = 0.0
   )
@@ -251,35 +245,18 @@ object ParkingZoneSearch {
               _.parkingAlternative.parkingZone.parkingZoneId
             } ++ parkingZoneIdsSeen
 
-            val sampledStatsData
-              : (Vector[Int], Vector[Option[ChargingPointType]], Vector[ParkingType], Vector[Double]) =
+            val sampledStatsData: (Vector[Int]) =
               alternativesToSample.keys.foldLeft(
-                (
-                  Vector.empty[Int],
-                  Vector.empty[Option[ChargingPointType]],
-                  Vector.empty[ParkingType],
-                  Vector.empty[Double]
-                )
+                Vector.empty[Int],
               )((result, parkingAlt) => {
                 val parkingZoneId = parkingAlt.parkingZone.parkingZoneId
-                val chargingPointType = parkingAlt.parkingZone.chargingPointType
-                val parkingType = parkingAlt.parkingType
-                val parkingCosts = parkingAlt.cost
-                (
-                  result._1 :+ parkingZoneId,
-                  result._2 :+ chargingPointType,
-                  result._3 :+ parkingType,
-                  result._4 :+ parkingCosts
-                )
+                result :+ parkingZoneId
               })
 
             val parkingZoneSearchStats = ParkingZoneSearchStats(
               iterations,
               theseParkingZoneIdsSeen.toVector,
-              parkingZoneIdsSampled = sampledStatsData._1,
-              sampledStallsChargingTypes = sampledStatsData._2,
-              sampledStallsParkingTypes = sampledStatsData._3,
-              sampledStallsCosts = sampledStatsData._4,
+              parkingZoneIdsSampled = sampledStatsData,
               selectedStallMnlParams,
               result.utility
             )

@@ -24,30 +24,6 @@ case class ParkingUtilityEvent(
 
   import ParkingUtilityEvent._
 
-  private lazy val sampledStallsChargingTypeDist: String = "[" + parkingZoneSearchStats.sampledStallsChargingTypes
-    .map {
-      case Some(point) => point.toString
-      case None        => "NoCharger"
-    }
-    .groupBy(identity)
-    .mapValues(_.size)
-    .map(tuple => tuple._1 + ": " + tuple._2)
-    .mkString(",") + "]"
-
-  private lazy val sampledStallsParkingTypeDist: String = "[" +
-  parkingZoneSearchStats.sampledStallsParkingTypes
-    .groupBy(identity)
-    .mapValues(_.size)
-    .map(tuple => tuple._1 + ": " + tuple._2)
-    .mkString(",") + "]"
-
-  private lazy val sampledStallsCostsDist: String = "[" +
-  parkingZoneSearchStats.sampledStallsCosts
-    .groupBy(identity)
-    .mapValues(_.size)
-    .map(tuple => tuple._1 + ": " + tuple._2)
-    .mkString(",") + "]"
-
   private lazy val vehIdString: String = beamVehicle match {
     case Some(vehicle) => vehicle.id.toString
     case None          => ""
@@ -80,9 +56,6 @@ case class ParkingUtilityEvent(
     attributes.put(ATTRIBUTE_NUM_SEARCH_ITERATIONS, parkingZoneSearchStats.numSearchIterations.toString)
     attributes.put(ATTRIBUTE_NUM_PARKING_ZONE_IDS_SEEN, parkingZoneSearchStats.parkingZoneIdsSeen.length.toString)
     attributes.put(ATTRIBUTE_NUM_PARKING_ZONE_IDS_SAMPLED, parkingZoneSearchStats.parkingZoneIdsSeen.length.toString)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION, sampledStallsChargingTypeDist)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION, sampledStallsParkingTypeDist)
-    attributes.put(ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION, sampledStallsCostsDist)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PRICE, selectedStallPrice.toString)
     attributes.put(ATTRIBUTE_SELECTED_STALL_PARKING_TYPE, selectedStallParkingType.toString)
     attributes.put(
@@ -110,9 +83,6 @@ case object ParkingUtilityEvent {
   val ATTRIBUTE_NUM_SEARCH_ITERATIONS: String = "numSearchIterations"
   val ATTRIBUTE_NUM_PARKING_ZONE_IDS_SEEN: String = "numParkingZonesSeen"
   val ATTRIBUTE_NUM_PARKING_ZONE_IDS_SAMPLED: String = "numParkingZonesSampled"
-  val ATTRIBUTE_SAMPLED_STALLS_CHARGING_TYPES_DISTRIBUTION: String = "sampledStallsChargingTypesDistribution"
-  val ATTRIBUTE_SAMPLED_STALLS_PARKING_TYPES_DISTRIBUTION: String = "sampledStallsParkingTypesDistribution"
-  val ATTRIBUTE_SAMPLED_STALLS_COSTS_DISTRIBUTION: String = "sampledStallsCostsDistribution"
   val ATTRIBUTE_SELECTED_STALL_PRICE: String = "selectedStallPrice"
   val ATTRIBUTE_SELECTED_STALL_PARKING_TYPE: String = "selectedStallParkingType"
   val ATTRIBUTE_SELECTED_STALL_CHARGING_POINT_TYPE: String = "selectedStallChargingPointType"
