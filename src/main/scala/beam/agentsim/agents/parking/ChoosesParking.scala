@@ -68,7 +68,7 @@ trait ChoosesParking extends {
         remainingTripData,
         attributes.valueOfTime,
         parkingDuration,
-        currentDriverId = id.asInstanceOf[Id[Person]].toString
+        currentDriverId = id.toString
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
