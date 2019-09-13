@@ -35,19 +35,19 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
-                                                             val id: Id[VehicleManager],
-                                                             val parkingManager: ActorRef,
-                                                             val locations: Iterable[Coord],
-                                                             val vehicleType: BeamVehicleType,
-                                                             val mainScheduler: ActorRef,
-                                                             val beamServices: BeamServices,
-                                                             val beamSkimmer: BeamSkimmer,
-                                                             val maxWalkingDistance: Int,
-                                                             val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
-                                                           ) extends Actor
-  with ActorLogging
-  with Stash
-  with RepositionManager {
+  val id: Id[VehicleManager],
+  val parkingManager: ActorRef,
+  val locations: Iterable[Coord],
+  val vehicleType: BeamVehicleType,
+  val mainScheduler: ActorRef,
+  val beamServices: BeamServices,
+  val beamSkimmer: BeamSkimmer,
+  val maxWalkingDistance: Int,
+  val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
+) extends Actor
+    with ActorLogging
+    with Stash
+    with RepositionManager {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
@@ -121,7 +121,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.time, whenWhere.loc, "wherever", currentDriverId = id.toString)
+  def parkingInquiry(whenWhere: SpaceTime) =
+    ParkingInquiry(whenWhere.time, whenWhere.loc, "wherever", currentDriverId = id.toString)
 
   override def getId: Id[VehicleManager] = id
 

@@ -23,16 +23,16 @@ import org.matsim.api.core.v01.population.Person
   * @param currentDriverId   the id of the current driver e.g. Id[Person] or Id[RideHailManager]
   */
 case class ParkingInquiry(
-                           currentTick: Int,
-                           destinationUtm: Location,
-                           activityType: String,
-                           beamVehicle: Option[BeamVehicle] = None,
-                           remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
-                           valueOfTime: Double = 0.0,
-                           parkingDuration: Double = 0,
-                           reserveStall: Boolean = true,
-                           requestId: Int = ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-                           currentDriverId: String = "no driver id provided"
-                         )
+  currentTick: Int,
+  destinationUtm: Location,
+  activityType: String,
+  beamVehicle: Option[BeamVehicle] = None,
+  remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
+  valueOfTime: Double = 0.0,
+  parkingDuration: Double = 0,
+  reserveStall: Boolean = true,
+  requestId: Int = ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  currentDriverId: String = "no driver id provided"
+)
 
 object ParkingInquiry {}

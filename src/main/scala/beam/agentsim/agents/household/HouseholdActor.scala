@@ -456,7 +456,11 @@ object HouseholdActor {
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(_currentTick.getOrElse(0), homeCoord, "init")
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(
+              _currentTick.getOrElse(0),
+              homeCoord,
+              "init"
+            )
           } {
             veh.useParkingStall(stall)
           }
