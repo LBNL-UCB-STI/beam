@@ -1069,13 +1069,6 @@ class RideHailManager(
     Map(request.customer.personId -> fare)
   }
 
-  def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
-    val destinationUtm: Coord = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(-1, destinationUtm, "charge", Some(beamVehicle), None, currentDriverId = id.toString)
-    parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
-    parkingManager ! inquiry
-  }
-
   /* BEGIN: Refueling Logic */
   private val depotToRefuelingQueuesMap: mutable.Map[DepotId, mutable.Queue[(VehicleId, ParkingStall)]] =
     mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall)]]
