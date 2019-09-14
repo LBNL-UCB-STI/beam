@@ -271,10 +271,10 @@ plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
 
 ax = plt.gca()
 empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
-plt.legend((plt_Low, plt_High, plt_CAV, empty), ('Low Automation', 'Partial Automation', 'CAV','No Passengers'), labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5),
+plt.legend((plt_Low, plt_High, plt_CAV, empty), ('No Automation', 'Partial Automation', 'CAV', 'No Passengers'), labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5),
            frameon=False)
 plt.grid(b=None)
-# ax.set_ylim((0,10))CAV', 'Partial Automation', 'Low Automation'
+# ax.set_ylim((0,10))CAV', 'Partial Automation', 'No Automation'
 ax.grid(False)
 for ind in _range:
     plt.text(_xpos[ind], height_All[ind] + 2,  _names[ind], ha='center')
@@ -302,7 +302,7 @@ for ind in _range:
     plt.text(_xpos[ind], height_all[ind] + 0.3,  _names[ind], ha='center')
 ax.set_ylim((0, 40))
 plt.ylabel('Light Duty Vehicle Miles per Capita')
-plt.legend((plt_CAV, plt_High, plt_Low), ('CAV', 'Partial Automation', 'Low Automation'), bbox_to_anchor=(1.05, 0.5),
+plt.legend((plt_CAV, plt_High, plt_Low), ('Full Automation', 'Partial Automation', 'No Automation'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
 plt.savefig('{}.vmt_percapita_tech.png'.format(_output_folder), transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
 plt.clf()
@@ -368,7 +368,7 @@ plt.figure(figsize=(6, 3.5))
 
 height_CAV = df['VMT_car_CAV'].values * expansion_factor / 1000000
 height_CAV_Empty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
-height_CAV_Pooled = df['VMT_cav_shared'].values * expansion_factor / 1000000
+height_CAV_Pooled = df['VMT_car_CAV_shared'].values * expansion_factor / 1000000
 height_PV = (df['VMT_car'].values+df['VMT_car_CAV'].values) * expansion_factor / 1000000 - height_CAV
 height_PV_Empty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
 height_all = height_CAV + height_PV
@@ -395,7 +395,7 @@ plt.clf()
 # %%
 plt.figure(figsize=(6, 3.5))
 
-height_wait = df['averageOnDemandRideWaitingTimeInSeconds'].values
+height_wait = df['averageOnDemandRideWaitTimeInMin'].values
 plt_rh = plt.bar(x=_xpos, height=height_wait, color=mode_colors['Ride Hail'])
 
 plt.xticks(_sc_names_xpos, ['base', 'a', 'b', 'c'])
@@ -589,7 +589,6 @@ plt.clf()
 
 # %%
 plt.figure(figsize=(5,6))
-matching_portion = np.array([0.1,0.126,0.122,0.192,0.187,0.069,0.0874])
 
 height_Transit = df['drive_transit_counts'].values * expansion_factor / 1000000 + df['ride_hail_transit_counts'].values * expansion_factor / 1000000 + df[
     'walk_transit_counts'].values * expansion_factor / 1000000
@@ -597,6 +596,7 @@ height_Car = df['car_counts'].values * expansion_factor / 1000000
 height_Cav = df['cav_counts'].values * expansion_factor / 1000000
 height_RideHail = df['ride_hail_counts'].values * expansion_factor / 1000000
 height_RideHailPooled = df['ride_hail_pooled_counts'].values * expansion_factor / 1000000
+height_RideHailPooledMatch = df['multi_passengers_trips_per_pool_trips'].values * expansion_factor / 1000000
 
 height_nonMotorized = df['walk_counts'].values * expansion_factor / 1000000 / 60 + df['bike_counts'].values * expansion_factor / 1000000
 height_all = height_nonMotorized + height_Car + height_Transit + height_RideHail + height_RideHailPooled + height_Cav
@@ -605,7 +605,7 @@ height_Car /= height_all
 height_Cav /= height_all
 height_RideHail /= height_all
 height_RideHailPooled /= height_all
-height_RideHailPooled_match = height_RideHailPooled * matching_portion
+height_RideHailPooled_match = height_RideHailPooled * height_RideHailPooledMatch
 # height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values/50000/60
 height_nonMotorized /= height_all
 
