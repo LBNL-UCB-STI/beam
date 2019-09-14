@@ -35,7 +35,7 @@ scenarios = [baseline_2010, base_2030lt_2010, base_2030ht_2010, base_2045lt_2010
 setup_config_dict = {
     "base_url": "https://beam-outputs.s3.amazonaws.com/pilates4thSep2019",
     "run_name": "pilates4thSep2019",
-    "local_folder": "../data/smart/pilates4thSep2019",
+    "home_dir": "/Users/haitam/workspace/pyscripts/data/smart",
     "iterations": [15],
     "scenarios": scenarios
 }

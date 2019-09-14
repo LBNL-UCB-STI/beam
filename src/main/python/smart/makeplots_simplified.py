@@ -21,17 +21,22 @@ mode_colors = {'Ride Hail': colors['red'], 'Car': colors['grey'], 'Walk': colors
                'Ride Hail - Transit': colors['light.purple'], 'Ride Hail - Pooled': colors['purple'],
                'CAV': colors['light.yellow'], 'Bike': colors['light.orange']}
 
-df = pd.read_csv(sys.argv[1]).fillna(0)
-
 expansion_factor = 8000000/630000
+
+_metrics_file = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/2010.metrics-final.csv"
+_output_folder = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/makeplots/2010"
+
+if len(sys.argv) > 1:
+    _metrics_file = sys.argv[1]
+    _output_folder = "{}/makeplots/{}".format(sys.argv[2].rsplit("/", 1)[0], sys.argv[2].rsplit("/", 1)[1])
+
+df = pd.read_csv(_metrics_file).fillna(0)
 _range = range(11)
 _xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5, 10, 11, 13, 14]
 _names = [tech.rsplit(" ", 1)[0].split(" ")[-1] for tech in list(df['Technology'])]
 _sc_names = ['Base', 'Mid-term', 'Long-term', 'Sharing is Caring', 'Technology Takeover', "All About Me"]
 _sc_names_xpos = [1, 3, 5.5, 8, 10.5, 13.5]
 _population = list(df['population'])
-_output_folder = "{}/makeplots/{}".format(sys.argv[2].rsplit("/", 1)[0], sys.argv[2].rsplit("/", 1)[1])
-
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -82,12 +87,18 @@ height_Transit += df['VMT_subway'].values * expansion_factor / 1000000
 height_Transit += df['VMT_tram'].values * expansion_factor / 1000000
 height_Car = df['VMT_car'].values * expansion_factor / 1000000
 height_Cav = df['VMT_car_CAV'].values * expansion_factor / 1000000
+height_CavEmpty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
 height_RideHail = df['VMT_car_RH'].values * expansion_factor / 1000000
 height_RideHail += df['VMT_car_RH_CAV'].values * expansion_factor / 1000000
+height_RideHailPooled = df['VMT_car_RH_pooled'].values * expansion_factor / 1000000
+height_RideHailPooled += df['VMT_car_RH_CAV_pooled'].values * expansion_factor / 1000000
+height_RideHailEmpty = df['VMT_car_RH_empty'].values * expansion_factor / 1000000
+height_RideHailEmpty += df['VMT_car_RH_CAV_empty'].values * expansion_factor / 1000000
 # height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values/50000
 # height_nonMotorized = df['VMT_walk'].values/50000
 height_nonMotorized = df['VMT_bike'].values * expansion_factor / 1000000
 height_all = height_nonMotorized + height_Car + height_Transit + height_RideHail + height_Cav
+
 
 plt_car = plt.bar(x=_xpos, height=height_Car)
 plt_cav = plt.bar(x=_xpos, height=height_Cav, bottom=height_Car)
@@ -95,11 +106,11 @@ plt_transit = plt.bar(x=_xpos, height=height_Transit, bottom=height_Car + height
 plt_rh = plt.bar(x=_xpos, height=height_RideHail, bottom=height_Transit + height_Car + height_Cav)
 plt_nm = plt.bar(x=_xpos, height=height_nonMotorized, bottom=height_Car + height_Transit + height_RideHail + height_Cav)
 plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
-plt_cav_emprt = plt.bar(x=_xpos, height=df['VMT_cav_empty'].values * expansion_factor / 1000000, bottom=height_Car, hatch='///', fill=False,
+plt_cav_empty = plt.bar(x=_xpos, height=height_CavEmpty, bottom=height_Car, hatch='///', fill=False,
                         linewidth=0)
-plt_rh_empty = plt.bar(x=_xpos, height=df['VMT_car_RH_empty'].values * expansion_factor / 1000000,
+plt_rh_empty = plt.bar(x=_xpos, height=height_RideHailEmpty,
                        bottom=height_Transit + height_Car + height_Cav, hatch='///', fill=False, linewidth=0)
-plt_rh_pooled = plt.bar(x=_xpos, height=-df['VMT_car_RH_pooled'].values * expansion_factor / 1000000,
+plt_rh_pooled = plt.bar(x=_xpos, height=-height_RideHailPooled * expansion_factor / 1000000,
                         bottom=height_Transit + height_Car + height_Cav + height_RideHail, hatch="xx", fill=False,
                         linewidth=0)
 
