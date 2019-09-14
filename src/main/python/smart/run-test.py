@@ -27,17 +27,18 @@ b_lt_2025 = (8, 2025, "b", "Low Tech", "b-lowtech", "sfbay-smart-b-lt-pilates__2
 c_lt_2025 = (10, 2025, "c", "Low Tech", "c-lowtech", "sfbay-smart-c-lt-pilates__2019-09-05_00-10-56")
 c_ht_2025 = (11, 2025, "c", "High Tech", "c-hightech", "sfbay-smart-c-ht-pilates__2019-09-05_01-35-30")
 
-scenarios = [baseline_2010, base_2030lt_2010, base_2030ht_2010, base_2045lt_2010, base_2045ht_2010,
-             a_lt_2010, a_ht_2010, b_lt_2010, b_ht_2010, c_lt_2010, c_ht_2010,
-             baseline_2025, base_2030lt_2025, base_2030ht_2025, base_2045lt_2025, base_2045ht_2025,
-             a_lt_2025, a_ht_2025, b_lt_2025, c_lt_2025, c_ht_2025]
+scenarios_2010 = [baseline_2010, base_2030lt_2010, base_2030ht_2010, base_2045lt_2010, base_2045ht_2010,
+                  a_lt_2010, a_ht_2010, b_lt_2010, b_ht_2010, c_lt_2010, c_ht_2010]
+scenarios_2025 = [baseline_2025, base_2030lt_2025, base_2030ht_2025, base_2045lt_2025, base_2045ht_2025,
+                  a_lt_2025, a_ht_2025, b_lt_2025, c_lt_2025, c_ht_2025]
+# scenarios = scenarios_2010 + scenarios_2025
 
 setup_config_dict = {
     "base_url": "https://beam-outputs.s3.amazonaws.com/pilates4thSep2019",
     "run_name": "pilates4thSep2019",
     "home_dir": "/Users/haitam/workspace/pyscripts/data/smart",
     "iterations": [15],
-    "scenarios": scenarios
+    "scenarios": scenarios_2010
 }
 
 
