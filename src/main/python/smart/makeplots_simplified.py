@@ -41,13 +41,13 @@ _population = list(df['population'])
 # %%
 plt.figure(figsize=(6, 3.5))
 
-height_Transit = df['drive_transit_counts'].values * expansion_factor / 1000000 + df['ride_hail_transit_counts'].values * expansion_factor / 1000000 + df[
-    'walk_transit_counts'].values * expansion_factor / 1000000
+height_Transit = df['drive_transit_counts'].values * expansion_factor / 1000000 + df['ride_hail_transit_counts'].values * expansion_factor / 1000000 \
+                 + df['walk_transit_counts'].values * expansion_factor / 1000000
 height_Car = df['car_counts'].values * expansion_factor / 1000000
 height_Cav = df['cav_counts'].values * expansion_factor / 1000000
 height_RideHail = df['ride_hail_counts'].values * expansion_factor / 1000000 + df['ride_hail_pooled_counts'].values * expansion_factor / 1000000
 height_RideHailPooled = df['ride_hail_pooled_counts'].values * expansion_factor / 1000000
-height_nonMotorized = df['walk_counts'].values * expansion_factor / 1000000 / 60 + df['bike_counts'].values * expansion_factor / 1000000
+height_nonMotorized = df['walk_counts'].values * expansion_factor / 1000000 + df['bike_counts'].values * expansion_factor / 1000000
 height_all = height_nonMotorized + height_Car + height_Transit + height_RideHail + height_Cav
 height_Transit /= height_all
 height_Car /= height_all
@@ -71,7 +71,7 @@ plt.legend((plt_car, plt_cav, plt_transit, plt_rh, plt_nm), ('Car', 'CAV', 'Tran
            labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
 ax = plt.gca()
 ax.grid(False)
-for ind in range(11):
+for ind in _range:
     plt.text(_xpos[ind], 1.02,  _names[ind], ha='center')
 ax.set_ylim((0, 1.0))
 plt.ylabel('Portion of Trips')
@@ -236,8 +236,7 @@ height_Gas = df['totalEnergy_Gasoline'].values/1000000
 height_Diesel = df['totalEnergy_Diesel'].values/1000000
 height_Electricity = df['totalEnergy_Electricity'].values/1000000
 height_all = height_Gas + height_Electricity + height_Diesel
-VMT_all = df['motorizedVehicleMilesTraveled_total']
-energy_intensity = VMT_all/height_all
+energy_intensity = df['motorizedVehicleMilesTraveled_total']/height_all
 
 plt_g = plt.bar(x=_xpos, height=energy_intensity)
 
@@ -342,20 +341,16 @@ plt.figure(figsize=(6, 3.5))
 height_RH = (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values) * expansion_factor / 1000000
 height_RH_Empty = df['VMT_car_RH_empty'].values * expansion_factor / 1000000
 height_RH_Pooled = df['VMT_car_RH_pooled'].values * expansion_factor / 1000000
-height_PV = (df['VMT_car'].values+df['VMT_car_CAV'].values) * expansion_factor / 1000000
-height_PV_Empty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
-height_all = height_RH
 plt_rh = plt.bar(x=_xpos, height=height_RH, color=mode_colors['Ride Hail'])
 rh_empty = plt.bar(x=_xpos, height=height_RH_Empty, hatch='///', fill=False)
 rh_pooled = plt.bar(x=_xpos, height=-height_RH_Pooled, bottom=height_RH, hatch='xxx', fill=False)
-plt.xticks(_sc_names_xpos, ['base', 'a', 'b', 'c'])
 plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
 
 ax = plt.gca()
 empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
 pooled = mpatches.Patch(facecolor='white', label='The white data', hatch='xxx')
 for ind in _range:
-    plt.text(_xpos[ind], height_all[ind] + 2,  _names[ind], ha='center')
+    plt.text(_xpos[ind], height_RH[ind] + 2,  _names[ind], ha='center')
 ax.set_ylim((0, 100))
 plt.ylabel('Light Duty Vehicle Miles Traveled (millions)')
 plt.legend((plt_rh, empty, pooled), ('Total Ridehail VMT', 'Empty VMT', 'Shared VMT'), bbox_to_anchor=(1.05, 0.5),
@@ -368,15 +363,13 @@ plt.figure(figsize=(6, 3.5))
 
 height_CAV = df['VMT_car_CAV'].values * expansion_factor / 1000000
 height_CAV_Empty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
-height_CAV_Pooled = df['VMT_car_CAV_shared'].values * expansion_factor / 1000000
-height_PV = (df['VMT_car'].values+df['VMT_car_CAV'].values) * expansion_factor / 1000000 - height_CAV
-height_PV_Empty = df['VMT_car_CAV_empty'].values * expansion_factor / 1000000
+height_CAV_Shared = df['VMT_car_CAV_shared'].values * expansion_factor / 1000000
+height_PV = df['VMT_car'].values * expansion_factor / 1000000
 height_all = height_CAV + height_PV
-plt_cav = plt.bar(x=_xpos, height=height_CAV, bottom=height_PV, color=mode_colors['Ride Hail'])
 plt_pv = plt.bar(x=_xpos, height=height_PV, color=mode_colors['Car'])
-rh_empty = plt.bar(x=_xpos, height=height_CAV_Empty, bottom=height_PV, hatch='///', fill=False)
-rh_pooled = plt.bar(x=_xpos, height=-height_CAV_Pooled, bottom=height_CAV + height_PV, hatch='xxx', fill=False)
-plt.xticks(_sc_names_xpos, ['base', 'a', 'b', 'c'])
+plt_cav = plt.bar(x=_xpos, height=height_CAV, bottom=height_PV, color=mode_colors['Ride Hail'])
+plt_cav_empty = plt.bar(x=_xpos, height=height_CAV_Empty, bottom=height_PV, hatch='///', fill=False)
+plt_cav_shared = plt.bar(x=_xpos, height=-height_CAV_Shared, bottom=height_PV, hatch='xxx', fill=False)
 plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
 
 ax = plt.gca()
@@ -395,20 +388,15 @@ plt.clf()
 # %%
 plt.figure(figsize=(6, 3.5))
 
-height_wait = df['averageOnDemandRideWaitTimeInMin'].values
+height_wait = df['averageOnDemandRideWaitTimeInMin'].values.copy()
 plt_rh = plt.bar(x=_xpos, height=height_wait, color=mode_colors['Ride Hail'])
-
-plt.xticks(_sc_names_xpos, ['base', 'a', 'b', 'c'])
 plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
-
 ax = plt.gca()
 
 for ind in _range:
     plt.text(_xpos[ind], height_wait[ind] + 0.2,  _names[ind], ha='center')
 ax.set_ylim((0, 4.5))
 plt.ylabel('Average Ride Hail Wait (min)')
-#plt.legend((plt_rh, empty, pooled), ('Total Ridehail VMT', 'Empty VMT', 'Shared VMT'), bbox_to_anchor=(1.05, 0.5),
-#           frameon=False)
 plt.savefig('{}.wait_time.png'.format(_output_folder), transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
 plt.clf()
 
@@ -416,12 +404,10 @@ plt.clf()
 plt.figure(figsize=(6, 3.5))
 
 height_Gas = df['totalEnergy_Gasoline'].values * expansion_factor / 1000000000 / _population
-
 height_Electricity = df['totalEnergy_Electricity'].values * expansion_factor / 1000000000 / _population
 height_all = height_Gas + height_Electricity
 plt_Gas = plt.bar(x=_xpos, height=height_Gas, color=colors['purple'])
 plt_Electricity = plt.bar(x=_xpos, height=height_Electricity, bottom=height_Gas, color=colors['yellow'])
-plt.xticks(_sc_names_xpos, ['base', 'a', 'b', 'c'])
 plt.xticks(_sc_names_xpos, _sc_names, rotation=10)
 
 ax = plt.gca()
@@ -439,14 +425,15 @@ plt.clf()
 
 plt.figure(figsize=(6, 3.5))
 
-height_Transit = df['personTravelTime_drive_transit'].values * expansion_factor / 1000000 / 60 + df[
-    'personTravelTime_onDemandRide_transit'].values * expansion_factor / 1000000 / 60 + df[
-                     'personTravelTime_walk_transit'].values * expansion_factor / 1000000 / 60
+height_Transit = df['personTravelTime_drive_transit'].values * expansion_factor / 1000000 / 60 + \
+                 df['personTravelTime_onDemandRide_transit'].values * expansion_factor / 1000000 / 60 + \
+                 df['personTravelTime_walk_transit'].values * expansion_factor / 1000000 / 60
 height_Car = df['personTravelTime_car'].values * expansion_factor / 1000000 / 60
 height_Cav = df['personTravelTime_cav'].values * expansion_factor / 1000000 / 60
 height_RideHail = df['personTravelTime_onDemandRide'].values * expansion_factor / 1000000 / 60
 height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values * expansion_factor / 1000000 / 60
-height_nonMotorized = df['personTravelTime_walk'].values * expansion_factor / 1000000 / 60 + df['personTravelTime_bike'].values * expansion_factor / 1000000 / 60
+height_nonMotorized = df['personTravelTime_walk'].values * expansion_factor / 1000000 / 60 + \
+                      df['personTravelTime_bike'].values * expansion_factor / 1000000 / 60
 height_all = height_nonMotorized + height_Car + height_Transit + height_RideHail + height_RideHailPooled + height_Cav
 
 plt_car = plt.bar(x=_xpos, height=height_Car, color=mode_colors['Car'])
@@ -478,14 +465,15 @@ plt.clf()
 
 plt.figure(figsize=(6, 3.5))
 
-height_Transit = df['personTravelTime_drive_transit'].values * expansion_factor / 1000000 / 60 + df[
-    'personTravelTime_onDemandRide_transit'].values * expansion_factor / 1000000 / 60 + df[
-                     'personTravelTime_walk_transit'].values * expansion_factor / 1000000 / 60
+height_Transit = df['personTravelTime_drive_transit'].values * expansion_factor / 1000000 / 60 + \
+                 df['personTravelTime_onDemandRide_transit'].values * expansion_factor / 1000000 / 60 + \
+                 df['personTravelTime_walk_transit'].values * expansion_factor / 1000000 / 60
 height_Car = df['personTravelTime_car'].values * expansion_factor / 1000000 / 60
 height_Cav = df['personTravelTime_cav'].values * expansion_factor / 1000000 / 60
 height_RideHail = df['personTravelTime_onDemandRide'].values * expansion_factor / 1000000 / 60
 height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values * expansion_factor / 1000000 / 60
-height_nonMotorized = df['personTravelTime_walk'].values * expansion_factor / 1000000 / 60 + df['personTravelTime_bike'].values * expansion_factor / 1000000 / 60
+height_nonMotorized = df['personTravelTime_walk'].values * expansion_factor / 1000000 / 60 + \
+                      df['personTravelTime_bike'].values * expansion_factor / 1000000 / 60
 height_all = height_Car + height_RideHail + height_RideHailPooled + height_Cav
 
 plt_car = plt.bar(x=_xpos, height=height_Car, color=mode_colors['Car'])
@@ -518,15 +506,15 @@ plt.clf()
 
 plt.figure(figsize=(6, 3.5))
 
-height_Transit = df['personTravelTime_drive_transit'].values / _population / 60 + df[
-    'personTravelTime_onDemandRide_transit'].values / _population / 60 + df[
-                     'personTravelTime_walk_transit'].values / _population / 60
+height_Transit = df['personTravelTime_drive_transit'].values / _population / 60 + \
+                 df['personTravelTime_onDemandRide_transit'].values / _population / 60 + \
+                 df['personTravelTime_walk_transit'].values / _population / 60
 height_Car = df['personTravelTime_car'].values / _population / 60
 height_Cav = df['personTravelTime_cav'].values / _population / 60
 height_RideHail = df['personTravelTime_onDemandRide'].values / _population / 60
 height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values / _population / 60
-height_nonMotorized = df['personTravelTime_walk'].values / _population / 60 + df[
-    'personTravelTime_bike'].values / _population / 60
+height_nonMotorized = df['personTravelTime_walk'].values / _population / 60 + \
+                      df['personTravelTime_bike'].values / _population / 60
 height_all = height_Car + height_RideHail + height_RideHailPooled + height_Cav
 
 plt_car = plt.bar(x=_xpos, height=height_Car, color=mode_colors['Car'])
@@ -551,15 +539,15 @@ plt.clf()
 # %%
 plt.figure(figsize=(6, 3.5))
 
-height_Transit = df['personTravelTime_drive_transit'].values / _population / 60 + df[
-    'personTravelTime_onDemandRide_transit'].values / _population / 60 + df[
-                     'personTravelTime_walk_transit'].values / _population / 60
+height_Transit = df['personTravelTime_drive_transit'].values / _population / 60 + \
+                 df['personTravelTime_onDemandRide_transit'].values / _population / 60 + \
+                 df['personTravelTime_walk_transit'].values / _population / 60
 height_Car = df['personTravelTime_car'].values / _population / 60
 height_Cav = df['personTravelTime_cav'].values / _population / 60
 height_RideHail = df['personTravelTime_onDemandRide'].values / _population / 60
 height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values / _population / 60
-height_nonMotorized = df['personTravelTime_walk'].values / _population / 60 + df[
-    'personTravelTime_bike'].values / _population / 60
+height_nonMotorized = df['personTravelTime_walk'].values / _population / 60 + \
+                      df['personTravelTime_bike'].values / _population / 60
 height_all = height_Car + height_RideHail + height_RideHailPooled + height_Cav
 
 #plt_transit = plt.bar(x=_xpos, height=height_Transit, color=mode_colors['Transit'])
@@ -590,15 +578,16 @@ plt.clf()
 # %%
 plt.figure(figsize=(5,6))
 
-height_Transit = df['drive_transit_counts'].values * expansion_factor / 1000000 + df['ride_hail_transit_counts'].values * expansion_factor / 1000000 + df[
-    'walk_transit_counts'].values * expansion_factor / 1000000
+height_Transit = df['drive_transit_counts'].values * expansion_factor / 1000000 + \
+                 df['ride_hail_transit_counts'].values * expansion_factor / 1000000 + \
+                 df['walk_transit_counts'].values * expansion_factor / 1000000
 height_Car = df['car_counts'].values * expansion_factor / 1000000
 height_Cav = df['cav_counts'].values * expansion_factor / 1000000
 height_RideHail = df['ride_hail_counts'].values * expansion_factor / 1000000
 height_RideHailPooled = df['ride_hail_pooled_counts'].values * expansion_factor / 1000000
 height_RideHailPooledMatch = df['multi_passengers_trips_per_pool_trips'].values * expansion_factor / 1000000
-
-height_nonMotorized = df['walk_counts'].values * expansion_factor / 1000000 / 60 + df['bike_counts'].values * expansion_factor / 1000000
+height_nonMotorized = df['walk_counts'].values * expansion_factor / 1000000 / 60 + \
+                      df['bike_counts'].values * expansion_factor / 1000000
 height_all = height_nonMotorized + height_Car + height_Transit + height_RideHail + height_RideHailPooled + height_Cav
 height_Transit /= height_all
 height_Car /= height_all
@@ -621,7 +610,7 @@ plt_car = plt.bar(x=_xpos, height=height_Car,
 plt_nm = plt.bar(x=_xpos, height=height_nonMotorized,
                  bottom=height_RideHailPooled + height_Car + height_Transit + height_RideHail + height_Cav,
                  color=mode_colors['Bike'])
-plt_rhp_m = plt.bar(x=_xpos,height=-height_RideHailPooled_match,bottom=height_Transit + height_RideHailPooled ,hatch='///',fill=False)
+plt_rhp_m = plt.bar(x=_xpos,height=-height_RideHailPooled_match, bottom=height_Transit + height_RideHailPooled ,hatch='///',fill=False)
 
 matched = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
 
@@ -657,7 +646,7 @@ height_RideHail += df['PMT_car_RH_CAV'].values / _population
 # height_RideHailPooled = df['personTravelTime_onDemandRide_pooled'].values/50000
 height_nonMotorized = df['PMT_walk'].values / _population
 height_nonMotorized += df['PMT_bike'].values / _population
-height_all = height_Car  + height_RideHail + height_Cav
+height_all = height_Car + height_RideHail + height_Cav
 
 plt_car = plt.bar(x=_xpos, height=height_Car, color=mode_colors['Car'])
 plt_cav = plt.bar(x=_xpos, height=height_Cav, bottom=height_Car, color=mode_colors['CAV'])
@@ -681,17 +670,8 @@ plt.figure(figsize=(6, 3.5))
 
 
 totalEnergy = df['totalEnergy_Gasoline'] / 1000000 + df['totalEnergy_Electricity'] / 1000000
-
-totalPMT = df['PMT_car'].values
-totalPMT += df['PMT_car_CAV'].values
-totalPMT += df['PMT_car_RH'].values
-totalPMT += df['PMT_car_RH_CAV'].values
-
-totalVMT = df['VMT_car'].values
-totalVMT += df['VMT_car_CAV'].values
-totalVMT += df['VMT_car_RH'].values
-totalVMT += df['VMT_car_RH_CAV'].values
-
+totalPMT = df['PMT_car'].values + df['PMT_car_CAV'].values + df['PMT_car_RH'].values + df['PMT_car_RH_CAV'].values
+totalVMT = df['VMT_car'].values + df['VMT_car_CAV'].values + df['VMT_car_RH'].values + df['VMT_car_RH_CAV'].values
 height = totalEnergy / totalPMT
 
 plt_e_pmt = plt.bar(x=_xpos, height=height, color=colors['grey'])
@@ -709,17 +689,8 @@ plt.figure(figsize=(6, 3.5))
 
 
 totalEnergy = df['totalEnergy_Gasoline'] / 1000000 + df['totalEnergy_Electricity'] / 1000000
-
-totalPMT = df['PMT_car'].values
-totalPMT += df['PMT_car_CAV'].values
-totalPMT += df['PMT_car_RH'].values
-totalPMT += df['PMT_car_RH_CAV'].values
-
-totalVMT = df['VMT_car'].values
-totalVMT += df['VMT_car_CAV'].values
-totalVMT += df['VMT_car_RH'].values
-totalVMT += df['VMT_car_RH_CAV'].values
-
+totalPMT = df['PMT_car'].values + df['PMT_car_CAV'].values + df['PMT_car_RH'].values + df['PMT_car_RH_CAV'].values
+totalVMT = df['VMT_car'].values + df['VMT_car_CAV'].values + df['VMT_car_RH'].values + df['VMT_car_RH_CAV'].values
 height = totalEnergy / totalVMT
 
 plt_e_pmt = plt.bar(x=_xpos, height=height, color=colors['grey'])
@@ -736,16 +707,8 @@ plt.clf()
 plt.figure(figsize=(6, 3.5))
 
 
-totalPMT = df['PMT_car'].values
-totalPMT += df['PMT_car_CAV'].values
-totalPMT += df['PMT_car_RH'].values
-totalPMT += df['PMT_car_RH_CAV'].values
-
-totalVMT = df['VMT_car'].values
-totalVMT += df['VMT_car_CAV'].values
-totalVMT += df['VMT_car_RH'].values
-totalVMT += df['VMT_car_RH_CAV'].values
-
+totalPMT = df['PMT_car'].values + df['PMT_car_CAV'].values + df['PMT_car_RH'].values + df['PMT_car_RH_CAV'].values
+totalVMT = df['VMT_car'].values + df['VMT_car_CAV'].values + df['VMT_car_RH'].values + df['VMT_car_RH_CAV'].values
 height = totalPMT / totalVMT
 
 plt_e_pmt = plt.bar(x=_xpos, height=height, color=colors['grey'])
