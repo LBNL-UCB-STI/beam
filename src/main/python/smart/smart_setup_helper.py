@@ -125,6 +125,12 @@ def get_metrics(__setup, __output_dir):
 def make_plots(__setup_config_dict):
     output_dir = __setup_config_dict['home_dir'] + "/" + __setup_config_dict['run_name']
     years = list(set(x[1] for x in __setup_config_dict['scenarios']))
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(output_dir + '/makeplots'):
+        os.makedirs(output_dir + '/makeplots')
+    if not os.path.exists(output_dir + '/sankey'):
+        os.makedirs(output_dir + '/sankey')
     if not os.path.exists("{}/{}.metrics-final.csv".format(output_dir, years[0])):
         final_output_df = get_metrics(__setup_config_dict, output_dir)
         for year in years:
