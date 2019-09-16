@@ -38,7 +38,7 @@ case class ParkEvent(
 
   override def getEventType: String = EVENT_TYPE
 
-  def cost: Double = pricingModel.map { _.cost }.getOrElse(0.0)
+  def costInDollars: Double = pricingModel.map { _.costInDollars }.getOrElse(0.0)
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
@@ -48,7 +48,7 @@ case class ParkEvent(
 
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
-    attr.put(ATTRIBUTE_COST, cost.toString)
+    attr.put(ATTRIBUTE_COST, costInDollars.toString)
     attr.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
     attr.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)

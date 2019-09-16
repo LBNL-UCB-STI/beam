@@ -72,6 +72,7 @@ class TransitSystem(
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
     val transitSchedule = new TransitInitializer(
       beamScenario.beamConfig,
+      geo,
       beamScenario.dates,
       beamScenario.vehicleTypes,
       beamScenario.transportNetwork,

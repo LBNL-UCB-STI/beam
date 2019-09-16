@@ -545,6 +545,10 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+      stash()
+      stay
   }
 
   when(PassengerScheduleEmptyInterrupted) {
@@ -566,6 +570,10 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      stash()
+      stay
   }
 
   override def logPrefix(): String = s"RideHailAgent $id: "
@@ -601,7 +609,7 @@ class RideHailAgent(
         log.warning(s"ended refueling but vehicle ${vehicle.id} has no stall")
         vehicle.spaceTime.loc
       case Some(parkingStall) =>
-        val cost = parkingStall.cost
+        val cost = parkingStall.costInDollars
         eventsManager
           .processEvent(
             LeavingParkingEvent(
@@ -657,7 +665,7 @@ class RideHailAgent(
     scheduler ! CompletionNotice(
       triggerId,
       Vector(
-        ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
+        ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered, vehicle), self)
       )
     )
   }
