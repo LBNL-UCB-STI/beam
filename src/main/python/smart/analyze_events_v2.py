@@ -121,6 +121,7 @@ def get_all_metrics(filename, __local_file_path):
     data = pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
     modeChoice = data.loc[data['type'] == 'ModeChoice'].dropna(how='all', axis=1)
     pathTraversal = data.loc[data['type'] == 'PathTraversal'].dropna(how='all', axis=1)
+    print("get_all_metrics ...")
     if len(metrics_json) == 0:
         ride_hail_mc = modeChoice[modeChoice['mode'].str.startswith('ride_hail')]
         ride_hail_mc_users = set(ride_hail_mc['person'])
@@ -131,7 +132,8 @@ def get_all_metrics(filename, __local_file_path):
         metrics_json = get_pooling_metrics(data2)
         with open(pool_metrics_file_path, 'w') as outfile:
             json.dump(metrics_json, outfile)
-        generate_sankey_for_pooling(metrics_json, __local_file_path)
+            pooling_sankey_path = __local_file_path.rsplit("/")[0] + "/sankey/" + __local_file_path.rsplit("/")[1]
+        generate_sankey_for_pooling(metrics_json, pooling_sankey_path)
     else:
         del data
 
@@ -180,6 +182,7 @@ def get_all_metrics(filename, __local_file_path):
         if fuelType != 'None':
             metrics_json['totalEnergy_' + fuelType] += float(secondaryFuelTypes.loc[fueltype, 'secondaryFuel'])
 
+    print("get_all_metrics done")
     return metrics_json
 
 

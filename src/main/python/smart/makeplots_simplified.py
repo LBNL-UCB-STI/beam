@@ -23,8 +23,11 @@ mode_colors = {'Ride Hail': colors['red'], 'Car': colors['grey'], 'Walk': colors
 
 expansion_factor = 8000000/630000
 
-_metrics_file = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/2010.metrics-final.csv"
-_output_folder = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/makeplots/2010"
+#_metrics_file = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/2010.metrics-final.csv"
+#_output_folder = "/Users/haitam/workspace/pyscripts/data/smart/pilates4thSep2019/makeplots/2010"
+_metrics_file = "/Users/haitam/workspace/pyscripts/data/smart/15thSep2019/2010.metrics-final.csv"
+_output_folder = "/Users/haitam/workspace/pyscripts/data/smart/15thSep2019/makeplots/2010"
+
 
 if len(sys.argv) > 1:
     _metrics_file = sys.argv[1]
@@ -319,12 +322,15 @@ plt.clf()
 
 plt.figure(figsize=_standard_figsize)
 
-height_RH = (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values) * expansion_factor / 1000000
-height_RH_Empty = df['VMT_car_RH_empty'].values * expansion_factor / 1000000
-height_RH_Pooled = df['VMT_car_RH_pooled'].values * expansion_factor / 1000000
-plt_rh = plt.bar(x=_xpos, height=height_RH, color=mode_colors['Ride Hail'])
-rh_empty = plt.bar(x=_xpos, height=-height_RH_Empty, bottom=height_RH, hatch='///', fill=False)
-rh_pooled = plt.bar(x=_xpos, height=height_RH_Pooled, hatch='xxx', fill=False)
+height_RideHail = df['VMT_car_RH'].values * expansion_factor / 1000000
+height_RideHail += df['VMT_car_RH_CAV'].values * expansion_factor / 1000000
+height_RideHailEmpty = df['VMT_car_RH_empty'].values * expansion_factor / 1000000
+height_RideHailEmpty += df['VMT_car_RH_CAV_empty'].values * expansion_factor / 1000000
+height_RideHailPooled = df['VMT_car_RH_pooled'].values * expansion_factor / 1000000
+height_RideHailPooled += df['VMT_car_RH_CAV_pooled'].values * expansion_factor / 1000000
+plt_rh = plt.bar(x=_xpos, height=height_RideHail, color=mode_colors['Ride Hail'])
+rh_empty = plt.bar(x=_xpos, height=-height_RideHailEmpty, bottom=height_RH, hatch='///', fill=False)
+rh_pooled = plt.bar(x=_xpos, height=height_RideHailPooled, hatch='xxx', fill=False)
 plt.xticks(_sc_names_xpos, _sc_names, rotation=_rotation)
 
 ax = plt.gca()

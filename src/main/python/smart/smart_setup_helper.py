@@ -18,8 +18,10 @@ def download_events(__url, __output_file_path, __iteration):
                 getattr(ssl, '_create_unverified_context', None)):
             ssl._create_default_https_context = ssl._create_unverified_context
         url = "{0}/ITERS/it.{1}/{1}.events.csv.gz".format(__url, __iteration)
-        print("downloading {} ...".format(url))
+        import datetime
+        print("[{}] downloading {} ...".format(datetime.datetime.now(), url))
         urllib.request.urlretrieve(url, downloaded_file)
+        print("[{}] donwload ok".format(datetime.datetime.now()))
     return downloaded_file
 
 
@@ -76,49 +78,48 @@ def get_metrics_from_beamLog(__url, __output_file_path):
 def get_metrics(__setup, __output_dir):
     __index = ['Rank', 'Year', 'Scenario', 'Technology', 'Iteration']
     final_output_df = pd.DataFrame()
-    for (rank, year, scenario, technology, scenario_tech, remote_folder) in __setup['scenarios']:
-        for iteration in __setup['iterations']:
-            output_file_path = "{}/{}-{}".format(__output_dir, scenario_tech, year)
-            output_file_path_itr = "{}-{}".format(output_file_path, iteration)
-            local_metrics_file = "{}.metrics.csv".format(output_file_path_itr)
-            if not os.path.exists(local_metrics_file):
-                url = "{}/{}/{}".format(__setup['base_url'], scenario_tech, remote_folder)
+    for (rank, year, iteration, scenario, technology, scenario_tech, remote_folder) in __setup['scenarios']:
+        output_file_path = "{}/{}-{}".format(__output_dir, scenario_tech, year)
+        output_file_path_itr = "{}-{}".format(output_file_path, iteration)
+        local_metrics_file = "{}.metrics.csv".format(output_file_path_itr)
+        if not os.path.exists(local_metrics_file):
+            url = "{}/{}/{}".format(__setup['base_url'], scenario_tech, remote_folder)
 
-                summary_stats_df = get_metrics_from_stats(url, output_file_path, iteration)
-                summary_stats_df['Scenario'] = scenario
-                summary_stats_df['Technology'] = technology
-                summary_stats_df['Year'] = year
-                summary_stats_df['Rank'] = rank
-                summary_stats_df.set_index(__index)
+            summary_stats_df = get_metrics_from_stats(url, output_file_path, iteration)
+            summary_stats_df['Scenario'] = scenario
+            summary_stats_df['Technology'] = technology
+            summary_stats_df['Year'] = year
+            summary_stats_df['Rank'] = rank
+            summary_stats_df.set_index(__index)
 
-                pool_metrics_df = get_metrics_from_events(url, output_file_path_itr, iteration)
-                pool_metrics_df['Scenario'] = scenario
-                pool_metrics_df['Technology'] = technology
-                pool_metrics_df['Iteration'] = iteration
-                pool_metrics_df['Year'] = year
-                pool_metrics_df['Rank'] = rank
-                pool_metrics_df.set_index(__index)
+            pool_metrics_df = get_metrics_from_events(url, output_file_path_itr, iteration)
+            pool_metrics_df['Scenario'] = scenario
+            pool_metrics_df['Technology'] = technology
+            pool_metrics_df['Iteration'] = iteration
+            pool_metrics_df['Year'] = year
+            pool_metrics_df['Rank'] = rank
+            pool_metrics_df.set_index(__index)
 
-                beamLog_df = get_metrics_from_beamLog(url, output_file_path)
-                beamLog_df['Scenario'] = scenario
-                beamLog_df['Technology'] = technology
-                beamLog_df['Iteration'] = iteration
-                beamLog_df['Year'] = year
-                beamLog_df['Rank'] = rank
-                beamLog_df.set_index(__index)
+            beamLog_df = get_metrics_from_beamLog(url, output_file_path)
+            beamLog_df['Scenario'] = scenario
+            beamLog_df['Technology'] = technology
+            beamLog_df['Iteration'] = iteration
+            beamLog_df['Year'] = year
+            beamLog_df['Rank'] = rank
+            beamLog_df.set_index(__index)
 
-                merged_metrics_df = pd.merge(pool_metrics_df, summary_stats_df, on=__index, how='inner')
-                merged_metrics_df = pd.merge(merged_metrics_df, beamLog_df, on=__index, how='inner')
+            merged_metrics_df = pd.merge(pool_metrics_df, summary_stats_df, on=__index, how='inner')
+            merged_metrics_df = pd.merge(merged_metrics_df, beamLog_df, on=__index, how='inner')
 
-                # writing
-                merged_metrics_df.set_index(__index).to_csv(local_metrics_file)
+            # writing
+            merged_metrics_df.set_index(__index).to_csv(local_metrics_file)
 
-                # concat
-                final_output_df = pd.concat([final_output_df, merged_metrics_df])
-            else:
-                final_output_df = pd.concat([final_output_df,
-                                             pd.read_csv(local_metrics_file, sep=",", index_col=None, header=0)])
-            print("{} ok!".format(remote_folder))
+            # concat
+            final_output_df = pd.concat([final_output_df, merged_metrics_df])
+        else:
+            final_output_df = pd.concat([final_output_df,
+                                         pd.read_csv(local_metrics_file, sep=",", index_col=None, header=0)])
+        print("{} ok!".format(remote_folder))
     return final_output_df
 
 
@@ -138,4 +139,4 @@ def make_plots(__setup_config_dict):
             final_output_df[final_output_df['Year'] == year].sort_values(by=['Rank']).to_csv(local_metrics_file)
     for year in years:
         local_metrics_file = "{}/{}.metrics-final.csv".format(output_dir, year)
-        #os.system("python3 makeplots.py {} {}/{}".format(final_output, local_metrics_file, year))
+        os.system("python3 makeplots_simplified.py {} {}/makeplots/{}".format(local_metrics_file, output_dir, year))
