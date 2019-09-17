@@ -137,7 +137,7 @@ class UrbanSimScenarioLoader(
           try {
             (pId, geo.distUTMInMeters(personIdToWorkLocation(pId), homeCoord))
           } catch {
-            case _: Throwable => (pId, 1000000000.0)
+            case _: Throwable => (pId, 0.0) // First to be removed if there isn't a valid home-work distance
           }
       }
 
@@ -211,7 +211,6 @@ class UrbanSimScenarioLoader(
     )
   }
 
-  // Iterable[(HouseholdInfo, List[BeamVehicleType])]
 
   private def assignVehicles(
     households: Iterable[HouseholdInfo],
@@ -226,8 +225,6 @@ class UrbanSimScenarioLoader(
         val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
         val totalCars = households.foldLeft(0)(_ + _.cars)
 
-        val personsSortedByWorkDistance = personToHomeWorkDistance.toSeq.sortBy(_._2).map(_._1)
-
         val goalCarTotal = math
           .round(beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
@@ -238,17 +235,17 @@ class UrbanSimScenarioLoader(
               householdIdToPersons(x.householdId)
                 .map(per => (per.personId, personToHomeWorkDistance(per.personId)))
                 .toSeq
-                .sortBy(_._2)
-                .takeRight(x.cars)
+                .sortBy(_._2) // for each household, assign vehicles to the people with the highest commute distances
+                .takeRight(x.cars) // only consider commutes of people who have a household car
           )
           .toSeq
-          .sortBy(_._2)
+          .sortBy(_._2) // sort all people with assigned cars by commmute distance
           .map(_._1)
-          .take(numberOfWorkVehiclesToBeRemoved)
+          .take(numberOfWorkVehiclesToBeRemoved) // Take the people with shortest commutes and remove their cars
           .toSet
-//        var personsToGetCarsRemoved = personsSortedByWorkDistance.take(numberOfWorkVehiclesToBeRemoved).toSet
+
         var currentTotalCars = totalCars
-        hh_car_count.keys.toSeq.sorted.reverse.foreach { key =>
+        hh_car_count.keys.toSeq.sorted.reverse.foreach { key => // start with households with the most vehicles
           if ((currentTotalCars > goalCarTotal) & key > 0) {
             var (householdsWithExcessVehicles, householdsWithoutExcessVehicles) =
               hh_car_count(key).partition(x => key > householdIdToPersons(x.householdId).size)
@@ -279,7 +276,7 @@ class UrbanSimScenarioLoader(
             }
           }
         }
-        println(s"Ended up with $currentTotalCars vehicles, with a goal of $goalCarTotal")
+
         val householdsOut = ArrayBuffer[HouseholdInfo]()
         val nVehiclesOut = ArrayBuffer[Int]()
         hh_car_count.toSeq.foreach {
