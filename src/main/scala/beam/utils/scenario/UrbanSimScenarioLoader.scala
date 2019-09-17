@@ -226,16 +226,26 @@ class UrbanSimScenarioLoader(
         val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
         val totalCars = households.foldLeft(0)(_ + _.cars)
 
-
         val personsSortedByWorkDistance = personToHomeWorkDistance.toSeq.sortBy(_._2).map(_._1)
 
         val goalCarTotal = math
           .round(beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
         val numberOfWorkVehiclesToBeRemoved = math.max(numberOfWorkersWithVehicles - goalCarTotal, 0)
-        var personsToGetCarsRemoved = households.flatMap(
-          x => householdIdToPersons(x.householdId).map( per => (per.personId,personToHomeWorkDistance(per.personId))).toSeq.sortBy(_._2).takeRight(x.cars)
-        ).toSeq.sortBy(_._2).map(_._1).take(numberOfWorkVehiclesToBeRemoved).toSet
+        var personsToGetCarsRemoved = households
+          .flatMap(
+            x =>
+              householdIdToPersons(x.householdId)
+                .map(per => (per.personId, personToHomeWorkDistance(per.personId)))
+                .toSeq
+                .sortBy(_._2)
+                .takeRight(x.cars)
+          )
+          .toSeq
+          .sortBy(_._2)
+          .map(_._1)
+          .take(numberOfWorkVehiclesToBeRemoved)
+          .toSet
 //        var personsToGetCarsRemoved = personsSortedByWorkDistance.take(numberOfWorkVehiclesToBeRemoved).toSet
         var currentTotalCars = totalCars
         hh_car_count.keys.toSeq.sorted.reverse.foreach { key =>
@@ -243,16 +253,16 @@ class UrbanSimScenarioLoader(
             var (householdsWithExcessVehicles, householdsWithoutExcessVehicles) =
               hh_car_count(key).partition(x => key > householdIdToPersons(x.householdId).size)
             var householdsWithCorrectNumberOfVehicles = Iterable[HouseholdInfo]()
-            householdsWithoutExcessVehicles.foreach {
-              hhInfo =>
-                val workersToBeRemoved = householdIdToPersons(hhInfo.householdId).map(_.personId).toSet.intersect(personsToGetCarsRemoved)
-                if (workersToBeRemoved.nonEmpty) {
-                  personsToGetCarsRemoved --= workersToBeRemoved
-                  hh_car_count(key - workersToBeRemoved.size) ++= Iterable(hhInfo)
-                  currentTotalCars -= workersToBeRemoved.size
-                } else {
-                  householdsWithCorrectNumberOfVehicles ++= Iterable(hhInfo)
-                }
+            householdsWithoutExcessVehicles.foreach { hhInfo =>
+              val workersToBeRemoved =
+                householdIdToPersons(hhInfo.householdId).map(_.personId).toSet.intersect(personsToGetCarsRemoved)
+              if (workersToBeRemoved.nonEmpty) {
+                personsToGetCarsRemoved --= workersToBeRemoved
+                hh_car_count(key - workersToBeRemoved.size) ++= Iterable(hhInfo)
+                currentTotalCars -= workersToBeRemoved.size
+              } else {
+                householdsWithCorrectNumberOfVehicles ++= Iterable(hhInfo)
+              }
             }
 
             if (currentTotalCars - householdsWithExcessVehicles.size > goalCarTotal) {
