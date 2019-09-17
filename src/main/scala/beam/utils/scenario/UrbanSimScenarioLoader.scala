@@ -105,6 +105,22 @@ class UrbanSimScenarioLoader(
     Seq.fill(nTrials)(randomSeed.nextDouble).count(_ < p)
   }
 
+  private def getOptionDistUTMInMeters(coord1option: Option[Coord], coord2option: Option[Coord]): Double = {
+    coord1option match {
+      case Some(coord1) =>
+        coord2option match {
+          case Some(coord2) =>
+            geo.distUTMInMeters(coord1, coord2)
+          case None =>
+            logger.warn(s"Bad home coordinate")
+            0.0
+        }
+      case None =>
+        logger.warn(s"Bad work coordinate")
+        0.0
+    }
+  }
+
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
@@ -134,11 +150,7 @@ class UrbanSimScenarioLoader(
     val personToHomeWorkDistance: Map[PersonId, Double] =
       personIdToHomeLocation.map {
         case (pId, homeCoord) =>
-          try {
-            (pId, geo.distUTMInMeters(personIdToWorkLocation(pId), homeCoord))
-          } catch {
-            case _: Throwable => (pId, 0.0) // First to be removed if there isn't a valid home-work distance
-          }
+          (pId, getOptionDistUTMInMeters(personIdToWorkLocation.get(pId), Some(homeCoord)))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -242,7 +254,9 @@ class UrbanSimScenarioLoader(
           .map(_._1)
           .take(numberOfWorkVehiclesToBeRemoved) // Take the people with shortest commutes and remove their cars
           .toSet
-
+        logger.info(
+          s"Identified $numberOfWorkVehiclesToBeRemoved household vehicles with short commutes to be removed"
+        )
         var currentTotalCars = totalCars
         hh_car_count.keys.toSeq.sorted.reverse.foreach { key => // start with households with the most vehicles
           if ((currentTotalCars > goalCarTotal) & key > 0) {
