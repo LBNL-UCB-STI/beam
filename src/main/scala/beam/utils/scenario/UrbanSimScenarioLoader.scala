@@ -233,7 +233,8 @@ class UrbanSimScenarioLoader(
         val numberOfWorkersWithVehicles =
           households.map(x => math.min(x.cars, householdIdToPersons(x.householdId).size)).sum
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-        val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
+        val hh_car_count =
+          collection.mutable.Map(collection.mutable.ArrayBuffer(households.toSeq: _*).groupBy(_.cars).toSeq: _*)
         val totalCars = households.foldLeft(0)(_ + _.cars)
 
         val goalCarTotal = math
@@ -241,7 +242,7 @@ class UrbanSimScenarioLoader(
           .toInt
         val numberOfWorkVehiclesToBeRemoved = math.max(numberOfWorkersWithVehicles - goalCarTotal, 0)
         val numberOfExcessVehiclesToBeRemoved = totalCars - goalCarTotal - numberOfWorkVehiclesToBeRemoved
-        var personsToGetCarsRemoved = households
+        val personsToGetCarsRemoved = households
           .flatMap(
             x =>
               householdIdToPersons(x.householdId)
@@ -301,14 +302,15 @@ class UrbanSimScenarioLoader(
         hh_car_count.keys.toSeq.sorted.foreach { key =>
           if (key > 0) {
             val initialNumberOfHouseholds = hh_car_count(key).size
-            hh_car_count(key) = hh_car_count(key).filter ( hh =>
-              householdIdToPersonToHaveVehicleRemoved.get(hh.householdId) match {
-                case Some(personIdsToRemove) =>
-                  hh_car_count(key - personIdsToRemove.size) ++= Iterable(hh)
-                  currentTotalCars -= personIdsToRemove.size
-                  false
-                case None =>
-                  true
+            hh_car_count(key) = hh_car_count(key).filter(
+              hh =>
+                householdIdToPersonToHaveVehicleRemoved.get(hh.householdId) match {
+                  case Some(personIdsToRemove) =>
+                    hh_car_count(key - personIdsToRemove.size) ++= Iterable(hh)
+                    currentTotalCars -= personIdsToRemove.size
+                    false
+                  case None =>
+                    true
               }
             )
             val nRemoved = initialNumberOfHouseholds - hh_car_count(key).size
