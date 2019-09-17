@@ -240,6 +240,7 @@ class UrbanSimScenarioLoader(
           .round(beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
         val numberOfWorkVehiclesToBeRemoved = math.max(numberOfWorkersWithVehicles - goalCarTotal, 0)
+        val numberOfExcessVehiclesToBeRemoved = totalCars - goalCarTotal - numberOfWorkVehiclesToBeRemoved
         var personsToGetCarsRemoved = households
           .flatMap(
             x =>
@@ -255,11 +256,15 @@ class UrbanSimScenarioLoader(
           .take(numberOfWorkVehiclesToBeRemoved) // Take the people with shortest commutes and remove their cars
           .toSet
         logger.info(
-          s"Identified $numberOfWorkVehiclesToBeRemoved household vehicles with short commutes to be removed"
+          s"Identified $numberOfWorkVehiclesToBeRemoved household vehicles with short commutes and $numberOfExcessVehiclesToBeRemoved excess vehicles to be removed"
         )
         var currentTotalCars = totalCars
         hh_car_count.keys.toSeq.sorted.reverse.foreach { key => // start with households with the most vehicles
           if ((currentTotalCars > goalCarTotal) & key > 0) {
+            val numberOfHouseholdsWithThisManyVehicles = hh_car_count(key).size
+            logger.info(
+              s"Removing vehicles from the $numberOfHouseholdsWithThisManyVehicles households with $key vehicles"
+            )
             var (householdsWithExcessVehicles, householdsWithoutExcessVehicles) =
               hh_car_count(key).partition(x => key > householdIdToPersons(x.householdId).size)
             var householdsWithCorrectNumberOfVehicles = Iterable[HouseholdInfo]()
