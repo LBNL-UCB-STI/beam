@@ -211,7 +211,6 @@ class UrbanSimScenarioLoader(
     )
   }
 
-
   private def assignVehicles(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
