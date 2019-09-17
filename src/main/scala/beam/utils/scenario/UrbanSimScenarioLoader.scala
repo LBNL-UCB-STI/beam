@@ -269,7 +269,7 @@ class UrbanSimScenarioLoader(
           if ((currentTotalCars > (goalCarTotal + numberOfWorkVehiclesToBeRemoved)) & key > 0) {
             val numberOfHouseholdsWithThisManyVehicles = hh_car_count(key).size
 
-            var (householdsWithExcessVehicles, householdsWithCorrectNumberOfVehicles) =
+            val (householdsWithExcessVehicles, householdsWithCorrectNumberOfVehicles) =
               hh_car_count(key).partition(x => key > householdIdToPersons(x.householdId).size)
             val numberOfExcessVehicles = householdsWithExcessVehicles.size
             logger.info(
@@ -300,22 +300,21 @@ class UrbanSimScenarioLoader(
         )
         hh_car_count.keys.toSeq.sorted.foreach { key =>
           if (key > 0) {
-            var finalVehicles = collection.mutable.Iterable[HouseholdInfo]()
             val initialNumberOfHouseholds = hh_car_count(key).size
-            hh_car_count(key).foreach { hh =>
+            hh_car_count(key) = hh_car_count(key).filter ( hh =>
               householdIdToPersonToHaveVehicleRemoved.get(hh.householdId) match {
                 case Some(personIdsToRemove) =>
                   hh_car_count(key - personIdsToRemove.size) ++= Iterable(hh)
                   currentTotalCars -= personIdsToRemove.size
+                  false
                 case None =>
-                  finalVehicles ++= Iterable(hh)
+                  true
               }
-            }
-            val nRemoved = initialNumberOfHouseholds - finalVehicles.size
+            )
+            val nRemoved = initialNumberOfHouseholds - hh_car_count(key).size
             logger.info(
               s"Originally had $initialNumberOfHouseholds work vehicles from households with $key workers, removed vehicles from $nRemoved of them"
             )
-            hh_car_count(key) = finalVehicles
           }
         }
         val householdsOut = ArrayBuffer[HouseholdInfo]()
