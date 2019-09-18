@@ -60,11 +60,44 @@ plt_setup_smart = {
 # Plots
 
 
-def sum(axis):
-    pass
+def tableSummary(_plt_setup, _df, _output_folder, _output_plot_prefix):
+    makeplots_folder = '{}/makeplots'.format(_output_folder)
+    if not os.path.exists(makeplots_folder):
+        os.makedirs(makeplots_folder)
+    output_csv = '{}/{}.summary.csv'.format(makeplots_folder, _output_plot_prefix)
+    df = _df[~_df['Rank'].isin(_plt_setup['rank_to_filterout'])]
+    factor = _plt_setup['expansion_factor']
+
+    tot_vmt = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
+               df['VMT_subway'].values+df['VMT_tram'].values +
+               df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
+               df['VMT_car_RH_CAV'].values +
+               df['VMT_walk'].values+df['VMT_bike'].values) * factor
+
+    tot_pht = (df['personTravelTime_bike'].values+df['personTravelTime_car'].values+df['personTravelTime_cav'].values +
+               df['personTravelTime_drive_transit'].values+df['personTravelTime_mixed_mode'].values +
+               df['personTravelTime_onDemandRide'].values+df['personTravelTime_onDemandRide_pooled'].values +
+               df['personTravelTime_onDemandRide_transit'].values+df['personTravelTime_walk'].values +
+               df['personTravelTime_walk_transit'].values) * factor
+
+    tot_energy = (df['totalEnergy_Biodiesel'].values+df['totalEnergy_Diesel'].values +
+                  df['totalEnergy_Electricity'].values+df['totalEnergy_Gasoline'].values) * factor
+
+    data = pd.DataFrame(
+        {'VMT Total (10^6)': tot_vmt / 1000000,
+         'VMT per Capita': (tot_vmt/df['population']),
+         'Driving Speed': 0,
+         'Person Hours (10^6)': tot_pht / 60 / 1000000,
+         'PEV (%)': 0,
+         'Vehicle Energy (GJ)': tot_energy / 1000000000,
+         'MEP': 0
+         })
+    data['Scenario'] = df['Scenario'].values.copy()
+    data['Technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
 
 
-def pltModeSplitInTrips(_plt_setup, _df, _output_folder, _output_plot_prefix):
+def pltModeSplitByTrips(_plt_setup, _df, _output_folder, _output_plot_prefix):
     makeplots_folder = '{}/makeplots'.format(_output_folder)
     if not os.path.exists(makeplots_folder):
         os.makedirs(makeplots_folder)
@@ -78,23 +111,16 @@ def pltModeSplitInTrips(_plt_setup, _df, _output_folder, _output_plot_prefix):
     angle = _plt_setup['rotation']
     dimension = _plt_setup['dimension']
 
-    factor = _plt_setup['expansion_factor'] / 1000000
-
     data = pd.DataFrame(
-        {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values) * factor,
-         'car': df['car_counts'].values * factor,
-         'cav': df['cav_counts'].values * factor,
-         'rh': (df['ride_hail_counts'].values + df['ride_hail_pooled_counts'].values) * factor,
-         'rhp': df['ride_hail_pooled_counts'].values * factor,
-         'nm': (df['walk_counts'].values + df['bike_counts'].values) * factor
+        {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values),
+         'car': df['car_counts'].values,
+         'cav': df['cav_counts'].values,
+         'rh': df['ride_hail_counts'].values,
+         'rhp': df['ride_hail_pooled_counts'].values,
+         'walk': df['walk_counts'].values,
+         'bike': df['bike_counts'].values
         })
-    height_all = data.sum(axis=1)
-    data['transit'] = data['transit']/height_all
-    data['car'] = data['car']/height_all
-    data['cav'] = data['cav']/height_all
-    data['rh'] = data['rh']/height_all
-    data['rhp'] = data['rhp']/height_all
-    data['nm'] = data['nm']/height_all
+    data = data.div(data.sum(axis=1), axis=0)
     data['scenario'] = df['Scenario'].values.copy()
     data['technology'] = df['Technology'].values.copy()
     data.to_csv(output_csv)
@@ -102,15 +128,15 @@ def pltModeSplitInTrips(_plt_setup, _df, _output_folder, _output_plot_prefix):
     plt.figure(figsize=_plt_setup['fig_size'])
     plt_transit = plt.bar(x=t_xpos, height=data['transit'], color=mode_colors['Transit'])
     plt_car = plt.bar(x=t_xpos, height=data['car'], bottom=data['transit'], color=mode_colors['Car'])
-    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data['transit']+data['car'], color=mode_colors['CAV'])
-    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data['transit']+data['car']+data['cav'], color=mode_colors['RH'])
-    plt.bar(x=t_xpos, height=data['rhp'], bottom=data['transit']+data['car']+data['cav'], hatch='xx', fill=False)
-    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data['transit']+data['car']+data['cav']+data['rh'], color=mode_colors['NM'])
-    pooled = mpatches.Patch(facecolor='white', label='The white data', hatch='xx')
+    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data[['transit', 'car']].sum(axis=1), color=mode_colors['CAV'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), color=mode_colors['RH'])
+    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'])
+    plt_bike = plt.bar(x=t_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp']].sum(axis=1), color=mode_colors['Bike'])
+    plt_walk = plt.bar(x=t_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp', 'bike']].sum(axis=1), color=mode_colors['Walk'])
 
     plt.xticks(s_xpos, s_names, rotation=angle)
-    plt.legend((plt_car, plt_cav, plt_transit, plt_rh, pooled, plt_nm),
-               ('Car', 'CAV', 'Transit', 'Ridehail', 'Ridehail Pool', 'NonMotorized'),
+    plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_rhp, plt_bike, plt_walk),
+               ('Transit', 'Car', 'CAV', 'Ridehail', 'Ridehail Pool', 'Bike', 'Walk'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
@@ -152,7 +178,7 @@ def pltEnergyPerCapita(_plt_setup, _df, output_folder, _output_plot_prefix):
     plt.figure(figsize=_plt_setup['fig_size'])
     plt_Gas = plt.bar(x=t_xpos, height=data['gas'], color=mode_colors['gas'])
     plt_Diesel = plt.bar(x=t_xpos, height=data['diesel'], bottom=data['gas'], color=mode_colors['diesel'])
-    plt_Electricity = plt.bar(x=t_xpos, height=data['electricity'], bottom=data['gas']+data['diesel'], color=mode_colors['electricity'])
+    plt_Electricity = plt.bar(x=t_xpos, height=data['electricity'], bottom=data[['gas', 'diesel']].sum(axis=1), color=mode_colors['electricity'])
     plt.xticks(s_xpos, s_names, rotation=angle)
     ax = plt.gca()
     ax.grid(False)
@@ -243,8 +269,8 @@ def pltLdvPersonHourTraveled(_plt_setup, _df, output_folder, _output_plot_prefix
     plt.figure(figsize=_plt_setup['fig_size'])
     plt_car = plt.bar(x=t_xpos, height=data['car'], color=mode_colors['Car'])
     plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data['car'], color=mode_colors['CAV'])
-    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data['car']+data['cav'], color=mode_colors['RH'])
-    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data['car']+data['cav']+data['rh'], color=mode_colors['RHP'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['car', 'cav']].sum(axis=1), color=mode_colors['RH'])
+    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data[['car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'])
 
     plt.xticks(s_xpos, s_names, rotation=angle)
     plt.legend((plt_car, plt_cav, plt_rh, plt_rhp),
@@ -280,11 +306,13 @@ def pltModeSplitInPMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     factor = _plt_setup['expansion_factor'] / 1000000
 
     data = pd.DataFrame(
-        {'transit': (df['PMT_bus'].values+df['PMT_ferry'].values+df['PMT_rail'].values+df['PMT_subway'].values+df['PMT_tram'].values) * factor,
+        {'transit': (df['PMT_bus'].values+df['PMT_ferry'].values+df['PMT_rail'].values+df['PMT_subway'].values+
+                     df['PMT_tram'].values+df['PMT_cable_car'].values) * factor,
          'car': df['PMT_car'].values * factor,
          'cav': df['PMT_car_CAV'].values * factor,
          'rh': (df['PMT_car_RH'].values+df['PMT_car_RH_CAV'].values) * factor,
-         'nm': (df['PMT_walk'].values+df['PMT_bike'].values) * factor
+         'walk': df['PMT_walk'] * factor,
+         'bike': df['PMT_bike'].values * factor
          })
     height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()
@@ -294,13 +322,14 @@ def pltModeSplitInPMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     plt.figure(figsize=figure_size)
     plt_transit = plt.bar(x=t_xpos, height=data['transit'], color=mode_colors['Transit'])
     plt_car = plt.bar(x=t_xpos, height=data['car'], bottom=data['transit'], color=mode_colors['Car'])
-    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data['transit']+data['car'], color=mode_colors['CAV'])
-    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data['transit']+data['car']+data['cav'], color=mode_colors['RH'])
-    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data['transit']+data['car']+data['cav']+data['rh'], color=mode_colors['NM'])
+    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data[['transit', 'car']].sum(axis=1), color=mode_colors['CAV'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), color=mode_colors['RH'])
+    plt_bike = plt.bar(x=t_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['Bike'])
+    plt_walk = plt.bar(x=t_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'bike']].sum(axis=1), color=mode_colors['Walk'])
 
     plt.xticks(s_xpos, s_names, rotation=angle)
-    plt.legend((plt_car, plt_cav, plt_rh, plt_transit, plt_nm),
-               ('Car', 'CAV', 'Ridehail', 'Transit', 'NonMotorized'),
+    plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_bike, plt_walk),
+               ('Transit', 'Car', 'CAV', 'Ridehail', 'Bike', 'Walk'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
@@ -332,7 +361,8 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     factor = _plt_setup['expansion_factor'] / 1000000
 
     data = pd.DataFrame(
-        {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+df['VMT_tram'].values) * factor,
+        {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+
+                     df['VMT_tram'].values+df['VMT_cable_car'].values) * factor,
          'car': df['VMT_car'].values * factor,
          'cav': df['VMT_car_CAV'].values * factor,
          'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values) * factor,
@@ -350,9 +380,9 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     plt.figure(figsize=figure_size)
     plt_transit = plt.bar(x=t_xpos, height=data['transit'], color=mode_colors['Transit'])
     plt_car = plt.bar(x=t_xpos, height=data['car'], bottom=data['transit'], color=mode_colors['Car'])
-    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data['transit']+data['car'], color=mode_colors['CAV'])
-    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data['transit']+data['car']+data['cav'], color=mode_colors['RH'])
-    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data['transit']+data['car']+data['cav']+data['rh'], color=mode_colors['NM'])
+    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data[['transit', 'car']].sum(axis=1), color=mode_colors['CAV'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), color=mode_colors['RH'])
+    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['NM'])
     empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///', linewidth=0.1)
     shared = mpatches.Patch(facecolor='white', label='The white data', hatch='xx', linewidth=0.1)
 
@@ -363,7 +393,7 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
 
     plt.xticks(s_xpos, s_names, rotation=angle)
     plt.legend((plt_car, plt_cav, plt_rh, plt_transit, plt_nm, empty, shared),
-               ('Car', 'CAV', 'Ridehail', 'Transit', 'NonMotorized'),
+               ('Car', 'CAV', 'Ridehail', 'Transit', 'NonMotorized', 'Deadheading', 'Shared'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
@@ -395,9 +425,9 @@ def pltLdvTechnologySplitInVMT(_plt_setup, _df, output_folder, _output_plot_pref
     factor = _plt_setup['expansion_factor'] / 1000000
 
     data = pd.DataFrame(
-        {'l1': df['VMT_L1'].values * factor,
-         'l3': df['VMT_L3'].values * factor,
-         'l5': df['VMT_L5'].values * factor
+        {'L1': df['VMT_L1'].values * factor,
+         'L3': df['VMT_L3'].values * factor,
+         'L5': df['VMT_L5'].values * factor
          })
     height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()
@@ -405,9 +435,9 @@ def pltLdvTechnologySplitInVMT(_plt_setup, _df, output_folder, _output_plot_pref
     data.to_csv(output_csv)
 
     plt.figure(figsize=figure_size)
-    plt_Low = plt.bar(x=t_xpos, height=data['l1'])
-    plt_High = plt.bar(x=t_xpos, height=data['l3'], bottom=data['l1'])
-    plt_CAV = plt.bar(x=t_xpos, height=data['l5'], bottom=data['l1']+data['l3'])
+    plt_Low = plt.bar(x=t_xpos, height=data['L1'])
+    plt_High = plt.bar(x=t_xpos, height=data['L3'], bottom=data['L1'])
+    plt_CAV = plt.bar(x=t_xpos, height=data['L5'], bottom=data[['L1', 'L3']].sum(axis=1))
     plt.xticks(s_xpos, s_names, rotation=angle)
     plt.legend((plt_Low, plt_High, plt_CAV),
                ('No Automation', 'Partial Automation', 'CAV'),
