@@ -132,7 +132,7 @@ def get_all_metrics(filename, __local_file_path):
         metrics_json = get_pooling_metrics(data2)
         with open(pool_metrics_file_path, 'w') as outfile:
             json.dump(metrics_json, outfile)
-            pooling_sankey_path = __local_file_path.rsplit("/")[0] + "/sankey/" + __local_file_path.rsplit("/")[1]
+            pooling_sankey_path = __local_file_path.rsplit("/", 1)[0] + "/sankey/" + __local_file_path.rsplit("/", 1)[1]
         generate_sankey_for_pooling(metrics_json, pooling_sankey_path)
     else:
         del data

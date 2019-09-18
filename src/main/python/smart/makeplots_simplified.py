@@ -450,7 +450,7 @@ height_all = height_Car + height_RideHail + height_RideHailPooled + height_Cav
 
 plt_car = plt.bar(x=_xpos, height=height_Car, color=mode_colors['Car'])
 plt_cav = plt.bar(x=_xpos, height=height_Cav, bottom=height_Car, color=mode_colors['CAV'])
-plt_rh = plt.bar(x=_xpos, height=height_RideHail, bottom= height_Car + height_Cav, color=mode_colors['Ride Hail'])
+plt_rh = plt.bar(x=_xpos, height=height_RideHail, bottom=height_Car + height_Cav, color=mode_colors['Ride Hail'])
 plt_rhp = plt.bar(x=_xpos, height=height_RideHailPooled, bottom=height_RideHail + height_Car + height_Cav, color=mode_colors['Ride Hail - Transit'])
 
 plt.xticks(_sc_names_xpos, _sc_names, rotation=_rotation)

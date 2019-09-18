@@ -125,18 +125,19 @@ def get_metrics(__setup, __output_dir):
 
 def make_plots(__setup_config_dict):
     output_dir = __setup_config_dict['home_dir'] + "/" + __setup_config_dict['run_name']
-    years = list(set(x[1] for x in __setup_config_dict['scenarios']))
+    # years = list(set(x[1] for x in __setup_config_dict['scenarios']))
+    # iterations = list(set(x[2] for x in __setup_config_dict['scenarios']))
+    years_iterations = list(set((x[1], x[2]) for x in __setup_config_dict['scenarios']))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    if not os.path.exists(output_dir + '/makeplots'):
-        os.makedirs(output_dir + '/makeplots')
     if not os.path.exists(output_dir + '/sankey'):
         os.makedirs(output_dir + '/sankey')
-    if not os.path.exists("{}/{}.metrics-final.csv".format(output_dir, years[0])):
-        final_output_df = get_metrics(__setup_config_dict, output_dir)
-        for year in years:
-            local_metrics_file = "{}/{}.metrics-final.csv".format(output_dir, year)
-            final_output_df[final_output_df['Year'] == year].sort_values(by=['Rank']).to_csv(local_metrics_file)
-    for year in years:
-        local_metrics_file = "{}/{}.metrics-final.csv".format(output_dir, year)
-        os.system("python3 makeplots_simplified.py {} {}/makeplots/{}".format(local_metrics_file, output_dir, year))
+
+    for (year, iteration) in years_iterations:
+        local_metrics_file = "{}/{}.{}.metrics-final.csv".format(output_dir, year, iteration)
+        if not os.path.exists(local_metrics_file):
+            filter_config = __setup_config_dict.copy()
+            filter_config['scenarios'] = list(filter(lambda x: x[1] == year and x[2] == iteration, filter_config['scenarios']))
+            final_output_df = get_metrics(filter_config, output_dir)
+            final_output_df.sort_values(by=['Rank']).to_csv(local_metrics_file)
+        #os.system("python3 makeplots_simplified.py {} {}/makeplots/{}".format(local_metrics_file, output_dir, year))
