@@ -121,6 +121,10 @@ class UrbanSimScenarioLoader(
     }
   }
 
+  private def getPersonScore(personInfo: PersonInfo, personToHomeWorkDistance: Map[PersonId, Double]): Double = {
+    personToHomeWorkDistance(personInfo.personId)
+  }
+
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
@@ -132,7 +136,6 @@ class UrbanSimScenarioLoader(
     var vehicleCounter: Int = 0
     var initialVehicleCounter: Int = 0
     var totalCarCount: Int = 0
-
     val personIdToWorkLocation: Map[PersonId, Coord] =
       plans
         .filter(_.activityType.getOrElse("") == "Work")
@@ -151,6 +154,12 @@ class UrbanSimScenarioLoader(
       personIdToHomeLocation.map {
         case (pId, homeCoord) =>
           (pId, getOptionDistUTMInMeters(personIdToWorkLocation.get(pId), Some(homeCoord)))
+      }
+
+    val householdIdToPersonScore: Map[HouseholdId, Iterable[Double]] =
+      householdIdToPersons.map {
+        case (hhId, persons) =>
+          (hhId, persons.map(x => personToHomeWorkDistance(x.personId)))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
