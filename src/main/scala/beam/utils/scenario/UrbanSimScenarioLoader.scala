@@ -111,9 +111,9 @@ class UrbanSimScenarioLoader(
       .map(
         x =>
           if (x.departureTime < 6.0) {
-            100000.0
+            5000.0
           } else if (x.departureTime > 23.5) {
-            100000.0
+            5000.0
           } else {
             0.0
         }
