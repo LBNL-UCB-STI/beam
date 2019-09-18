@@ -16,12 +16,11 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import scala.collection.Iterable
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-
 import scala.util.Random
 
 class UrbanSimScenarioLoader(
@@ -121,8 +120,54 @@ class UrbanSimScenarioLoader(
     }
   }
 
-  private def getPersonScore(personInfo: PersonInfo, personToHomeWorkDistance: Map[PersonId, Double]): Double = {
-    personToHomeWorkDistance(personInfo.personId)
+  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+    getOptionDistUTMInMeters(personTravelStats.homeLocation, personTravelStats.tripStats.headOption match {
+      case Some(trip) =>
+        Some(trip.destination)
+      case None =>
+        None
+    })
+  }
+
+  case class PlanTripStats(
+    departureTime: Double,
+    origin: Coord,
+    destination: Coord
+  )
+
+  case class PersonTravelStats(
+    homeLocation: Option[Coord],
+    tripStats: Seq[PlanTripStats]
+  )
+
+  private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
+    val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
+      case Some(homeElement) =>
+        Some(geo.wgs2Utm(new Coord(homeElement.activityLocationX.get, homeElement.activityLocationY.get)))
+      case None =>
+        None
+    }
+    val planTripStats = planElements.toSeq
+      .filter(_.planElementType == "activity")
+      .sliding(2)
+      .flatMap {
+        case Seq(firstElement, secondElement, _*) =>
+          Some(
+            PlanTripStats(
+              firstElement.activityEndTime.getOrElse(0.0),
+              geo.wgs2Utm(
+                new Coord(firstElement.activityLocationX.getOrElse(0.0), secondElement.activityLocationY.getOrElse(0.0))
+              ),
+              geo.wgs2Utm(
+                new Coord(firstElement.activityLocationX.getOrElse(0.0), secondElement.activityLocationY.getOrElse(0.0))
+              )
+            )
+          )
+        case _ =>
+          None
+      }
+      .toSeq
+    PersonTravelStats(homeCoord, planTripStats)
   }
 
   private[utils] def applyHousehold(
@@ -136,6 +181,11 @@ class UrbanSimScenarioLoader(
     var vehicleCounter: Int = 0
     var initialVehicleCounter: Int = 0
     var totalCarCount: Int = 0
+    val personIdToTravelStats: Map[PersonId, PersonTravelStats] =
+      plans
+        .groupBy(_.personId)
+        .map(x => (x._1, plansToTravelStats(x._2)))
+
     val personIdToWorkLocation: Map[PersonId, Coord] =
       plans
         .filter(_.activityType.getOrElse("") == "Work")
