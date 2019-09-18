@@ -104,29 +104,22 @@ class UrbanSimScenarioLoader(
     Seq.fill(nTrials)(randomSeed.nextDouble).count(_ < p)
   }
 
-  private def getOptionDistUTMInMeters(coord1option: Option[Coord], coord2option: Option[Coord]): Double = {
-    coord1option match {
-      case Some(coord1) =>
-        coord2option match {
-          case Some(coord2) =>
-            geo.distUTMInMeters(coord1, coord2)
-          case None =>
-            logger.warn(s"Bad home coordinate")
+  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+    val distanceExcludingLastTrip =
+      personTravelStats.tripStats.dropRight(1).map(x => geo.distUTMInMeters(x.origin, x.destination)).sum
+    val tripTimePenalty = personTravelStats.tripStats
+      .map(
+        x =>
+          if (x.departureTime < 6.0) {
+            100000.0
+          } else if (x.departureTime > 23.5) {
+            100000.0
+          } else {
             0.0
         }
-      case None =>
-        logger.warn(s"Bad work coordinate")
-        0.0
-    }
-  }
-
-  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
-    getOptionDistUTMInMeters(personTravelStats.homeLocation, personTravelStats.tripStats.headOption match {
-      case Some(trip) =>
-        Some(trip.destination)
-      case None =>
-        None
-    })
+      )
+      .sum
+    distanceExcludingLastTrip + tripTimePenalty
   }
 
   case class PlanTripStats(
@@ -186,30 +179,10 @@ class UrbanSimScenarioLoader(
         .groupBy(_.personId)
         .map(x => (x._1, plansToTravelStats(x._2)))
 
-    val personIdToWorkLocation: Map[PersonId, Coord] =
-      plans
-        .filter(_.activityType.getOrElse("") == "Work")
-        .map(x => (x.personId, geo.wgs2Utm(new Coord(x.activityLocationX.get, x.activityLocationY.get))))
-        .groupBy(_._1)
-        .map(x => x._2.head)
-
-    val personIdToHomeLocation: Map[PersonId, Coord] =
-      plans
-        .filter(_.activityType.getOrElse("") == "Home")
-        .map(x => (x.personId, geo.wgs2Utm(new Coord(x.activityLocationX.get, x.activityLocationY.get))))
-        .groupBy(_._1)
-        .map(x => x._2.head)
-
-    val personToHomeWorkDistance: Map[PersonId, Double] =
-      personIdToHomeLocation.map {
-        case (pId, homeCoord) =>
-          (pId, getOptionDistUTMInMeters(personIdToWorkLocation.get(pId), Some(homeCoord)))
-      }
-
-    val householdIdToPersonScore: Map[HouseholdId, Iterable[Double]] =
+    val householdIdToPersonScore: Map[HouseholdId, Iterable[(PersonId, Double)]] =
       householdIdToPersons.map {
         case (hhId, persons) =>
-          (hhId, persons.map(x => personToHomeWorkDistance(x.personId)))
+          (hhId, persons.map(x => (x.personId, getPersonScore(x, personIdToTravelStats(x.personId)))))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -218,7 +191,7 @@ class UrbanSimScenarioLoader(
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-    assignVehicles(households, householdIdToPersons, personToHomeWorkDistance).foreach {
+    assignVehicles(households, householdIdToPersons, householdIdToPersonScore).foreach {
       case (householdInfo, nVehicles) =>
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -285,7 +258,7 @@ class UrbanSimScenarioLoader(
   private def assignVehicles(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
-    personToHomeWorkDistance: Map[PersonId, Double]
+    householdIdToPersonScore: Map[HouseholdId, Iterable[(PersonId, Double)]]
   ): Iterable[(HouseholdInfo, Int)] = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
       case "SECONDARY_VEHICLES_FIRST" =>
@@ -304,14 +277,12 @@ class UrbanSimScenarioLoader(
         val personsToGetCarsRemoved = households
           .flatMap(
             x =>
-              householdIdToPersons(x.householdId)
-                .map(per => (per.personId, personToHomeWorkDistance(per.personId)))
-                .toSeq
-                .sortBy(_._2) // for each household, assign vehicles to the people with the highest commute distances
-                .takeRight(x.cars) // only consider commutes of people who have a household car
+              householdIdToPersonScore(x.householdId).toSeq
+                .sortBy(_._2)
+                .takeRight(x.cars) // for each household, assign vehicles to the people with the highest commute distances
           )
           .toSeq
-          .sortBy(_._2) // sort all people with assigned cars by commmute distance
+          .sortBy(_._2) // sort all people with assigned cars by commute distance
           .map(_._1)
           .take(numberOfWorkVehiclesToBeRemoved) // Take the people with shortest commutes and remove their cars
           .toSet
