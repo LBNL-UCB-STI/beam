@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
  */
 public class ConvertScheduledTripsToFrequency extends Modification {
     public static final String type = "convert-to-frequency";
-    @Override
     public String getType() {
         return "convert-to-frequency";
     }

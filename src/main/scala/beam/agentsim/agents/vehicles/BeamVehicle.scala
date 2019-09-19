@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.BeamScenario
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
@@ -117,7 +117,17 @@ class BeamVehicle(
     // ~~~BEAM-COMP-ONLY~~~
 //    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, network)
     val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
-    if (fuelLevelInJoules < energyConsumed) {
+    if (primaryFuelLevelInJoules < energyConsumed) {
+      logger.warn(
+        "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
+        id,
+        distanceInMeters,
+        primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1)
+      )
+    }
+    primaryFuelLevelInJoules = Math.max(primaryFuelLevelInJoules - energyConsumed, 0.0)
+    energyConsumed
+  }
   /**
     *
     * @param startTick
