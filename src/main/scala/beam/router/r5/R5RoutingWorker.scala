@@ -1158,7 +1158,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
 }
 
 object R5RoutingWorker {
-  val  BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
+
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
