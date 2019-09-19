@@ -152,7 +152,10 @@ class UrbanSimScenarioLoader(
                 new Coord(firstElement.activityLocationX.getOrElse(0.0), firstElement.activityLocationY.getOrElse(0.0))
               ),
               geo.wgs2Utm(
-                new Coord(secondElement.activityLocationX.getOrElse(0.0), secondElement.activityLocationY.getOrElse(0.0))
+                new Coord(
+                  secondElement.activityLocationX.getOrElse(0.0),
+                  secondElement.activityLocationY.getOrElse(0.0)
+                )
               )
             )
           )
