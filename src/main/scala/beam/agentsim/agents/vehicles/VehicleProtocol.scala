@@ -7,7 +7,7 @@ import org.matsim.vehicles.Vehicle
 
 object VehicleProtocol {
 
-  case class RemovePassengerFromTrip(passId: VehiclePersonId)
+  case class RemovePassengerFromTrip(passId: PersonIdWithActorRef)
 
   case class StreetVehicle(
     id: Id[Vehicle],

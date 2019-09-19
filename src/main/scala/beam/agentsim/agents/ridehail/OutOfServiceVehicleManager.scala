@@ -63,7 +63,7 @@ class OutOfServiceVehicleManager(
       ModifyPassengerSchedule(passengerSchedules(vehicleId), tick),
       rideHailManagerActor
     )
-    rideHailAgent.tell(Resume(), rideHailManagerActor)
+    rideHailAgent.tell(Resume, rideHailManagerActor)
   }
 
   def releaseTrigger(

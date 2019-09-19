@@ -20,7 +20,7 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
   }
 
   private def vehicleType(vehicleId: Id[Vehicle]): String = {
-    beamServices.privateVehicles
+    beamServices.beamScenario.privateVehicles
       .get(vehicleId)
       .map(
         v => v.beamVehicleType.id.toString.trim

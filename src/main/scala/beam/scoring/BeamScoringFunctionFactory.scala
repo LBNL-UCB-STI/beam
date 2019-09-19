@@ -6,35 +6,35 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
+import beam.replanning.ReplanningUtil
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
+import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.language.postfixOps
 
 class BeamScoringFunctionFactory @Inject()(
   beamServices: BeamServices,
   beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends ScoringFunctionFactory
     with IterationEndsListener
-    with Observer {
+    with Observer
+    with LazyLogging {
 
   beamConfigChangesObservable.addObserver(this)
 
   private var beamConfig = beamServices.beamConfig
-  private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
@@ -58,9 +58,10 @@ class BeamScoringFunctionFactory @Inject()(
             // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
             // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
+            val bodyVehicleTypeId = trips.head.legs.head.beamVehicleTypeId
             trips.update(
               trips.size - 1,
-              PersonAgent.correctTripEndTime(trips.last, e.getTime().toInt, bodyVehicleId)
+              PersonAgent.correctTripEndTime(trips.last, e.getTime().toInt, bodyVehicleId, bodyVehicleTypeId)
             )
           case _ =>
         }
@@ -81,6 +82,18 @@ class BeamScoringFunctionFactory @Inject()(
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
+
+        val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+        if (personLegs.isEmpty) {
+          val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan, trips.toVector)
+          person.addPlan(newPlan)
+          person.removePlan(person.getSelectedPlan)
+          person.setSelectedPlan(newPlan)
+        }
+        trips.zip(personLegs).map {
+          case (trip, leg) =>
+            leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
+        }
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
 
@@ -164,11 +177,11 @@ class BeamScoringFunctionFactory @Inject()(
                   val (existingAverageGeneralizedTime, observedGeneralizedTimesCount) =
                     BeamScoringFunctionFactory.linkAverageGeneralizedTimes.getOrElse(linkId, 0D -> 0)
                   val generalizedLinkTime = attributes.getGeneralizedTimeOfLinkForMNL(
-                    (linkId, linkTT),
+                    (linkId, math.round(linkTT.toFloat)),
                     leg.beamLeg.mode,
                     modeChoiceMultinomialLogit,
                     beamServices,
-                    Option(leg.beamVehicleTypeId),
+                    leg.beamVehicleTypeId,
                     destinationActivity,
                     leg.isRideHail,
                     leg.isPooledTrip
@@ -254,8 +267,8 @@ class BeamScoringFunctionFactory @Inject()(
     val t = o.asInstanceOf[(_, _)]
     val beamConfig = t._2.asInstanceOf[BeamConfig]
     this.beamConfig = beamConfig
-
   }
+
 }
 
 /**
@@ -334,10 +347,10 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
       "mode"                  -> "Trip mode based on all legs within the trip",
       "cost"                  -> "Estimated cost incurred for the entire trip",
       "score"                 -> "Trip score calculated based on the scoring function"
-    ) map {
+    ).map {
       case (header, description) =>
         outputDataDescription.copy(field = header, description = description)
-    } asJava
+    }.asJava
   }
 
 }

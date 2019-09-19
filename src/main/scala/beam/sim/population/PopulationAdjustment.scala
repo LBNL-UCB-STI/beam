@@ -1,14 +1,16 @@
 package beam.sim.population
 
+import java.util.Random
+
 import beam.agentsim
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
+import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 
@@ -16,10 +18,10 @@ import scala.collection.JavaConverters._
   * An interface that handles setting/updating attributes for the population.
   */
 trait PopulationAdjustment extends LazyLogging {
-
   import PopulationAdjustment._
 
-  val beamServices: BeamServices
+  val scenario: Scenario
+  val beamScenario: BeamScenario
 
   /**
     * Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
@@ -28,10 +30,16 @@ trait PopulationAdjustment extends LazyLogging {
     * @return updated population
     */
   def updateAttributes(population: MPopulation): MPopulation = {
+    val personHouseholds = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     //Iterate over each person in the population
     population.getPersons.asScala.foreach {
       case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamServices, population, person)
+        val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
         person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
@@ -61,7 +69,7 @@ trait PopulationAdjustment extends LazyLogging {
     // initialize all excluded modes to empty array
     var allExcludedModes: Array[String] = Array.empty
 
-    // check if excluded modes is defined for all individuals
+// check if excluded modes is defined for all individuals
     val allAgentsHaveAttributes = population.getPersons.asScala.forall { entry =>
       val personExcludedModes = Option(
         population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
@@ -88,8 +96,8 @@ trait PopulationAdjustment extends LazyLogging {
     * Adds the given mode to the list of available modes for the person
     *
     * @param population population from the scenario
-    * @param personId   the person to whom the above mode needs to be added
-    * @param mode       mode to be added
+    * @param personId the person to whom the above mode needs to be added
+    * @param mode mode to be added
     */
   protected def addMode(population: MPopulation, personId: String, mode: String): MPopulation = {
     val person = population.getPersons.get(Id.createPersonId(personId))
@@ -104,8 +112,8 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Checks if the the given mode is available for the person
     *
-    * @param population  population from the scenario
-    * @param personId    the person to whom the above mode availability needs to be verified
+    * @param population population from the scenario
+    * @param personId the person to whom the above mode availability needs to be verified
     * @param modeToCheck mode to be checked
     */
   protected def existsMode(population: MPopulation, personId: String, modeToCheck: String): Boolean = {
@@ -120,8 +128,8 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Removes the given mode from the list of available modes for the person
     *
-    * @param population   population from the scenario
-    * @param personId     the person to whom the above mode needs to be removed
+    * @param population population from the scenario
+    * @param personId the person to whom the above mode needs to be removed
     * @param modeToRemove mode to be removed
     */
   protected def removeMode(population: MPopulation, personId: String, modeToRemove: String*): Unit = {
@@ -134,12 +142,21 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Remove the given mode from the list of available modes for all the individuals in the population
     *
-    * @param population   population from the scenario
+    * @param population population from the scenario
     * @param modeToRemove mode to be removed
     */
   protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
     population.getPersons.keySet() forEach { personId =>
       this.removeMode(population, personId.toString, modeToRemove: _*)
+    }
+  }
+
+  def assignModeUniformDistribution(population: MPopulation, mode: String, pct: Double): Unit = {
+    val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+    val numPop = population.getPersons.size()
+    rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
+      val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
+      addMode(population, personId, mode)
     }
   }
 }
@@ -151,6 +168,8 @@ object PopulationAdjustment extends LazyLogging {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val PERCENTAGE_ADJUSTMENT = "PERCENTAGE_ADJUSTMENT"
   val DIFFUSION_POTENTIAL_ADJUSTMENT = "DIFFUSION_POTENTIAL_ADJUSTMENT"
+  val EXCLUDE_TRANSIT = "EXCLUDE_TRANSIT"
+  val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
   val BEAM_ATTRIBUTES = "beam-attributes"
 
@@ -166,6 +185,10 @@ object PopulationAdjustment extends LazyLogging {
         DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
         PercentagePopulationAdjustment(beamServices)
+      case EXCLUDE_TRANSIT =>
+        ExcludeAllTransit(beamServices)
+      case HALF_TRANSIT =>
+        ExcludeHalfTransit(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case adjClass =>
@@ -186,7 +209,7 @@ object PopulationAdjustment extends LazyLogging {
     * Gets the beam attributes for the given person in the population
     *
     * @param population population from the scenario
-    * @param personId   the respective person's id
+    * @param personId the respective person's id
     * @return custom beam attributes as an instance of [[beam.sim.population.AttributesOfIndividual]]
     */
   def getBeamAttributes(population: MPopulation, personId: String): AttributesOfIndividual = {
@@ -197,47 +220,12 @@ object PopulationAdjustment extends LazyLogging {
       .asInstanceOf[AttributesOfIndividual]
   }
 
-  def createAttributesOfIndividual(population: MPopulation,
-                                   person: Person, defaultVOT: Double): AttributesOfIndividual = {
-    val personAttributes = population.getPersonAttributes
-    // Read excluded-modes set for the person and calculate the possible available modes for the person
-    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val availableModes: Seq[BeamMode] = BeamMode.allModes.filterNot { mode =>
-      excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
-    }
-    // Read person attribute "income" and default it to 0 if not set
-    val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
-      .map(_.asInstanceOf[Double])
-      .getOrElse(0D)
-    // Read person attribute "modalityStyle"
-    val modalityStyle =
-      Option(person.getSelectedPlan)
-        .map(_.getAttributes)
-        .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
-    val householdAttributes = HouseholdAttributes.EMPTY
-    val valueOfTime: Double =
-      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
-        .map(_.asInstanceOf[Double])
-        .getOrElse(
-          IncomeToValueOfTime(householdAttributes.householdIncome)
-            .getOrElse(defaultVOT)
-        )
-    AttributesOfIndividual(
-      householdAttributes,
-      modalityStyle,
-      Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
-      availableModes,
-      valueOfTime,
-      Option(PersonUtils.getAge(person)),
-      Some(income)
-    )
-  }
-
   def createAttributesOfIndividual(
-                                    beamServices: BeamServices,
-                                    population: MPopulation,
-                                    person: Person
-                                  ): AttributesOfIndividual = {
+    beamScenario: BeamScenario,
+    population: MPopulation,
+    person: Person,
+    household: Household
+  ): AttributesOfIndividual = {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
@@ -255,19 +243,18 @@ object PopulationAdjustment extends LazyLogging {
         .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
-    val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
-      household =>
-        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-          agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
-        HouseholdAttributes(household, houseHoldVehicles)
-    }
+    val householdAttributes = HouseholdAttributes(
+      household,
+      agentsim.agents.Population.getVehiclesFromHousehold(household, beamScenario)
+    )
+
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
     val valueOfTime: Double =
       Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
         .map(_.asInstanceOf[Double])
         .getOrElse(
           IncomeToValueOfTime(householdAttributes.householdIncome)
-            .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+            .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
@@ -280,7 +267,6 @@ object PopulationAdjustment extends LazyLogging {
       Some(income)
     )
   }
-
   private def IncomeToValueOfTime(income: Double): Option[Double] = {
     val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5

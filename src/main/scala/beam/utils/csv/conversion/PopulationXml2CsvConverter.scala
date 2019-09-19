@@ -8,7 +8,7 @@ import scala.xml.{Node, NodeSeq}
 
 class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: File) extends Xml2CsvFileConverter {
 
-  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
+  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes")
 
   private case class Person(
     personId: String,

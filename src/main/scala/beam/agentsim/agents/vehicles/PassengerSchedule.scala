@@ -1,16 +1,18 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
+import beam.router.BeamRouter.Location
 import beam.router.model.BeamLeg
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.Vehicle
-import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 
 import scala.collection.immutable.TreeMap
 
 /**
-  * Holds information about the numbers and identities of agents in the model
+  * Holds information about the numbers and identities of agents in on board a vehicle
+  * and the BeamLegs they are taking through the network
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
@@ -18,7 +20,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(schedule ++ legs.map(leg => (leg, Manifest())))
   }
 
-  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): PassengerSchedule = {
+  def addPassenger(passenger: PersonIdWithActorRef, legs: Seq[BeamLeg]): PassengerSchedule = {
     var newSchedule = schedule ++ legs.map(leg => {
       val manifest: Manifest = schedule.getOrElse(leg, Manifest())
       (leg, manifest.copy(riders = manifest.riders + passenger))
@@ -34,11 +36,19 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(newSchedule)
   }
 
-  def legsBeforePassengerBoards(passenger: VehiclePersonId): List[BeamLeg] = {
+  def removePassengerBoarding(passenger: PersonIdWithActorRef): PassengerSchedule = {
+    var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
+    schedule.foreach { legAndMan =>
+      newSchedule = newSchedule + (legAndMan._1 -> legAndMan._2.copy(boarders = legAndMan._2.boarders - passenger))
+    }
+    new PassengerSchedule(newSchedule)
+  }
+
+  def legsBeforePassengerBoards(passenger: PersonIdWithActorRef): List[BeamLeg] = {
     schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
   }
 
-  def legsWithPassenger(passenger: VehiclePersonId): List[BeamLeg] = {
+  def legsWithPassenger(passenger: PersonIdWithActorRef): List[BeamLeg] = {
     schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
   }
 
@@ -51,6 +61,30 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
       newSchedule = newSchedule + (newLeg -> legAndMan._2)
     }
     new PassengerSchedule(newSchedule)
+  }
+
+  def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
+
+  def passengersWhoNeverBoard: Set[PersonIdWithActorRef] = {
+    val allBoarders = schedule.values.flatMap(_.boarders).toSet
+    uniquePassengers.filterNot(allBoarders.contains(_))
+  }
+
+  def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
+
+  def numLegsWithPassengersAfter(legIndex: Int): Int =
+    schedule.slice(legIndex, schedule.size).values.filter(_.riders.size > 0).size
+
+  def linkAtTime(tick: Int): Int = {
+    if (tick < schedule.keys.head.startTime) {
+      schedule.keys.head.travelPath.linkIds.head
+    } else {
+      schedule.keys.toList.reverse.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).get
+    }
+  }
+
+  def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
+    beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord
   }
 
   override def toString: String = {
@@ -84,9 +118,9 @@ object PassengerSchedule {
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
   case class Manifest(
-    riders: Set[VehiclePersonId] = Set.empty,
-    boarders: Set[VehiclePersonId] = Set.empty,
-    alighters: Set[VehiclePersonId] = Set.empty
+    riders: Set[PersonIdWithActorRef] = Set.empty,
+    boarders: Set[PersonIdWithActorRef] = Set.empty,
+    alighters: Set[PersonIdWithActorRef] = Set.empty
   ) {
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
@@ -94,8 +128,4 @@ object PassengerSchedule {
   }
 }
 
-case class VehiclePersonId(
-  vehicleId: Id[Vehicle],
-  personId: Id[Person],
-  personRef: ActorRef
-)
+case class PersonIdWithActorRef(personId: Id[Person], personRef: ActorRef)

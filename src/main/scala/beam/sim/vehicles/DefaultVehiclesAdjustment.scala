@@ -2,13 +2,14 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 
-case class DefaultVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
+case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario)
+    extends VehiclesAdjustment {
   val carId: Id[BeamVehicleType] = Id.create("Car", classOf[BeamVehicleType])
-  val vehicleTypesByCategory: BeamVehicleType = beamServices.vehicleTypes.values.find(vt => vt.id == carId).get
+  val vehicleTypesByCategory: BeamVehicleType = beamScenario.vehicleTypes.values.find(vt => vt.id == carId).get
 
   override def sampleRideHailVehicleTypes(
     numVehicles: Int,

@@ -91,6 +91,9 @@ Clone the beam repository::
 Change directories into that repository::
 
    cd beam
+Fetch the remote branches and tags::
+
+    git fetch
 
 Now checkout the latest stable version of BEAM, v0.7.0::
 

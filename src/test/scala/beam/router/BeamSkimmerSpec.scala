@@ -2,7 +2,7 @@ package beam.router
 
 import java.io.{File, PrintWriter}
 
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamSkimmer.{BeamSkimmerADT, BeamSkimmerKey, SkimInternal}
 import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.Id

@@ -1,43 +1,42 @@
 package beam.agentsim.agents.ridehail
-
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
+import beam.sim.BeamHelper
+import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with MockitoSugar {
+class RideHailSurgePricingManagerSpec
+    extends WordSpecLike
+    with Matchers
+    with MockitoSugar
+    with BeamHelper
+    with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
   lazy val beamConfig: BeamConfig = BeamConfig(config)
-  lazy val tazTreeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.filePath)
+  val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
+  lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
+  lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+  lazy val injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
+  lazy val beamServices = buildBeamServices(injector, scenario)
 
-  lazy val beamServices: BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    val matsimServices = mock[MatsimServices]
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tazTreeMap)
-    val geo = new GeoUtilsImpl(beamConfig)
-    when(theServices.geo).thenReturn(geo)
-    theServices
+  override def afterAll(): Unit = {
+    injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()
+    super.afterAll()
   }
 
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
       val surgePricingManager = new RideHailSurgePricingManager(beamServices)
       surgePricingManager.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
-      surgePricingManager.surgePriceBins should have size beamServices.tazTreeMap.tazQuadTree.size()
+      surgePricingManager.surgePriceBins should have size beamScenario.tazTreeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
       surgePricingManager.surgePriceBins.values.map(f => f.map(_ shouldBe expectedResult))
     }
@@ -150,7 +149,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val rhspm = new RideHailSurgePricingManager(beamServices)
       rhspm.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toSeq
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
       val randomTaz = tazArray(Random.nextInt(tazArray.size))
 
       rhspm.getSurgeLevel(randomTaz.coord, 0) shouldEqual 1.0
@@ -160,7 +159,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val rhspm = new RideHailSurgePricingManager(beamServices)
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toSeq
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
 
       val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.timeBinSize
@@ -175,7 +174,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
     "correctly add ride cost" in {
       val rhspm = new RideHailSurgePricingManager(beamServices)
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toList
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toList
 
       val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.timeBinSize

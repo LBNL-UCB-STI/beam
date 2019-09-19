@@ -6,8 +6,9 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.sim.BeamServices
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.{Activity, Person}
 
 import scala.collection.mutable.ListBuffer
@@ -16,10 +17,11 @@ import scala.util.Random
 /**
   * BEAM
   */
-trait ModeChoiceCalculator extends HasServices {
+trait ModeChoiceCalculator {
 
-  implicit lazy val random: Random = new Random(
-    beamServices.beamConfig.matsim.modules.global.randomSeed
+  val beamConfig: BeamConfig
+  lazy val random: Random = new Random(
+    beamConfig.matsim.modules.global.randomSeed
   )
 
   def getGeneralizedTimeOfTrip(
@@ -49,7 +51,8 @@ trait ModeChoiceCalculator extends HasServices {
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip]
 
   def utilityOf(
@@ -60,16 +63,16 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
-  def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+  def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
     val totalCost = embodiedBeamTrip.tripClassifier match {
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
         val transitFareDefault =
           TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
-        (embodiedBeamTrip.costEstimate + transitFareDefault) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
+        (embodiedBeamTrip.costEstimate + transitFareDefault) * beamConfig.beam.agentsim.tuning.transitPrice
       case RIDE_HAIL | RIDE_HAIL_POOLED =>
         val rideHailDefault = RideHailDefaults.estimateRideHailCost(IndexedSeq(embodiedBeamTrip)).head
-        (embodiedBeamTrip.costEstimate + rideHailDefault) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
+        (embodiedBeamTrip.costEstimate + rideHailDefault) * beamConfig.beam.agentsim.tuning.rideHailPrice
       case RIDE_HAIL_TRANSIT =>
         val transitFareDefault =
           TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
@@ -77,15 +80,17 @@ trait ModeChoiceCalculator extends HasServices {
         (embodiedBeamTrip.legs.view
           .filter(_.beamLeg.mode.isTransit)
           .map(_.cost)
-          .sum + transitFareDefault) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
+          .sum + transitFareDefault) * beamConfig.beam.agentsim.tuning.transitPrice +
         (embodiedBeamTrip.legs.view
           .filter(_.isRideHail)
           .map(_.cost)
-          .sum + rideHailDefault * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice)
+          .sum + rideHailDefault * beamConfig.beam.agentsim.tuning.rideHailPrice)
       case _ =>
         embodiedBeamTrip.costEstimate
     }
-    totalCost + embodiedBeamTrip.replanningPenalty
+    if (includeReplanningPenalty) {
+      totalCost + embodiedBeamTrip.replanningPenalty
+    } else { totalCost }
   }
 
   def computeAllDayUtility(
@@ -107,7 +112,11 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
-  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
+  def apply(
+    classname: String,
+    beamServices: BeamServices,
+    configHolder: BeamConfigHolder
+  ): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
         val lccm = new LatentClassChoiceModel(beamServices)
@@ -116,7 +125,8 @@ object ModeChoiceCalculator {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
-                lccm.modeChoiceModels(Mandatory)(modalityStyle)
+                lccm.modeChoiceModels(Mandatory)(modalityStyle),
+                configHolder
               )
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")
@@ -132,13 +142,11 @@ object ModeChoiceCalculator {
           new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
         _ =>
-          new ModeChoiceUniformRandom(beamServices)
+          new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
-        )
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit)
+          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder)
     }
   }
   sealed trait ModeVotMultiplier

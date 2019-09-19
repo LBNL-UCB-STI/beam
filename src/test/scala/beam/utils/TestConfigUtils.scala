@@ -18,13 +18,3 @@ object TestConfigUtils {
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .withFallback(configLocation)
 }
-
-trait InjectableMock extends MockitoSugar {
-
-  def setupInjectableMock(beamConfig: BeamConfig, beamSvc: BeamServices) = {
-    lazy val injector = mock[com.google.inject.Injector](withSettings().stubOnly())
-    lazy val x = new beam.router.TravelTimeObserved(beamConfig, beamSvc)
-    when(injector.getInstance(classOf[beam.router.TravelTimeObserved])).thenReturn(x)
-    when(beamSvc.injector).thenReturn(injector)
-  }
-}

@@ -37,10 +37,9 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 
-  def beamLegs(): IndexedSeq[BeamLeg] =
-    legs.map(embodiedLeg => embodiedLeg.beamLeg)
+  def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
-  def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
+  def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
 
   def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
     var theMode: BeamMode = WALK

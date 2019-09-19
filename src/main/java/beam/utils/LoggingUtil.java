@@ -6,6 +6,7 @@ import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.core.joran.spi.JoranException;
 import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.SubstituteLoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +20,16 @@ public class LoggingUtil {
             LoggingUtil.keepConsoleAppenderOn = keepConsoleAppenderOn;
             // https://logback.qos.ch/faq.html#sharedConfiguration
             LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+
+            // THIS IS PURE FOR THE TEST BECAUSE THERE IS LEAKAGE
+            // https://imgur.com/a/v9qiASC
+            // ################################################
+            if (LoggerFactory.getILoggerFactory() instanceof SubstituteLoggerFactory) {
+                SubstituteLoggerFactory factory = (SubstituteLoggerFactory) LoggerFactory.getILoggerFactory();
+                factory.clear();
+            }
+            // ################################################
+
             InputStream resourceAsStream = context.getClass().getClassLoader().getResourceAsStream(logFileName);
             if (resourceAsStream != null) {
                 try {

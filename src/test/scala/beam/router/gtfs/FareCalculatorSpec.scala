@@ -1,17 +1,19 @@
 package beam.router.gtfs
 
-import java.nio.file.{Path, Paths}
-
 import beam.router.gtfs.FareCalculator._
+import beam.sim.BeamHelper
+import beam.sim.config.BeamConfig
+import beam.utils.TestConfigUtils.testConfig
+import com.typesafe.config.ConfigFactory
 import org.scalatest.WordSpecLike
 
 import scala.language.postfixOps
 
-class FareCalculatorSpec extends WordSpecLike {
+class FareCalculatorSpec extends WordSpecLike with BeamHelper {
 
   "Using sf-light calculator" when {
-    val sfLightGTFS: Path = Paths.get("test", "input", "sf-light", "r5")
-    val sfLightFareCalc = new FareCalculator(sfLightGTFS.toString)
+    val config = testConfig("test/input/sf-light/sf-light.conf").resolve()
+    val sfLightFareCalc = new FareCalculator(BeamConfig(config))
 
     "calculate fare for 3555 to 6332" should {
       "return $2.5 fare" in {
@@ -47,9 +49,12 @@ class FareCalculatorSpec extends WordSpecLike {
   }
 
   "Using test Calculator" when {
-    val testGTFS: Path = Paths.get("test", "input", "fares")
-    val testFareCalc = new FareCalculator(testGTFS.toString)
+    val config = ConfigFactory
+      .parseString("beam.routing.r5.directory=test/input/fares")
+      .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+      .resolve()
 
+    val testFareCalc = new FareCalculator(BeamConfig(config))
     "calculate fare from 55448 to 55450" should {
       "return 5.5 fare" in {
         assert(testFareCalc.calcFare("CE", "ACE", "55448", "55450") == 5.5)

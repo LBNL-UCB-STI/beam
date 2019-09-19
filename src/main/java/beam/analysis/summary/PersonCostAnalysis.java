@@ -5,23 +5,21 @@ import beam.analysis.IterationSummaryAnalysis;
 import beam.router.Modes;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Population;
 import org.matsim.households.Household;
+import org.matsim.households.Households;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.collection.Iterable;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
+  private final Map<Id<Person>, Household> personToHousehold;
   private Map<String,Double> personCostByCostType = new HashMap<>();
   private Map<String, Integer> personCostCount = new HashMap<>();
   private Map<String,Double> personCostByActivityType = new HashMap<>();
@@ -43,9 +41,20 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     this.beamServices = beamServices;
     averageVot=getAverageVOT();
 
-    if(beamServices.personHouseholds().values().filter((Household hh) -> hh.getIncome().getIncome()!=0).size()!=beamServices.personHouseholds().size()){
+    if(beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values().stream().filter((Household hh) -> hh.getIncome().getIncome()!=0).count() != beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().size()){
       logger.error("Some households have income not set - default dummy income values will be used: "+ defaultDummyHouseholdIncome);
     }
+    this.personToHousehold = buildServicesPersonHouseholds(beamServices.matsimServices().getScenario().getHouseholds());
+  }
+
+  private Map<Id<Person>, Household> buildServicesPersonHouseholds(Households households) {
+    Map<Id<Person>, Household> personToHousehold = new HashMap<>();
+    households.getHouseholds().values().forEach(h -> {
+      h.getMemberIds().forEach(id -> {
+        personToHousehold.put(id, h);
+      });
+    });
+    return personToHousehold;
   }
 
   private double getAverageVOT(){
@@ -96,10 +105,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     }
     if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
       ActivityStartEvent ase = (ActivityStartEvent) event;
-      Option<Household> householdOption = beamServices.personHouseholds().get(ase.getPersonId());
-      if (householdOption.nonEmpty()) {
+      Household householdOption = personToHousehold.get(ase.getPersonId());
+      if (householdOption != null) {
         String personId = ase.getPersonId().toString();
-        double householdIncome=householdOption.get().getIncome().getIncome();
+        double householdIncome=householdOption.getIncome().getIncome();
         if (householdIncome==0){
           householdIncome=defaultDummyHouseholdIncome;
         }

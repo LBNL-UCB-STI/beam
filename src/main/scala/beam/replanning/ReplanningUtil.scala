@@ -1,14 +1,19 @@
 package beam.replanning
 
+import beam.router.model.EmbodiedBeamTrip
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 object ReplanningUtil {
+
+  private val logger: Logger = LoggerFactory.getLogger("ReplanningUtil")
 
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
@@ -16,6 +21,18 @@ object ReplanningUtil {
       .asInstanceOf[Plan]
 
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
+      // keep track of the vehicles that been used during previous simulation
+      for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
+        experiencedPlan.getPlanElements.get(i) match {
+          case leg: Leg =>
+            // Make sure it is not `null`
+            Option(person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
+              attibValue =>
+                leg.getAttributes.putAttribute("vehicles", attibValue)
+            }
+          case _ =>
+        }
+      }
       // BeamMobsim needs activities with coords
       val plannedActivities =
         person.getSelectedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
@@ -28,12 +45,17 @@ object ReplanningUtil {
         case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
-      val selectedPlanAttributes = person.getSelectedPlan.getAttributes
-      attributes.putAttribute(
-        "modality-style",
-        selectedPlanAttributes.getAttribute("modality-style")
-      )
-      attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
+      val modalityStyle = if (person.getSelectedPlan.getAttributes.getAttribute("modality-style") == null) { "" } else {
+        person.getSelectedPlan.getAttributes.getAttribute("modality-style")
+      }
+      val scores = if (person.getSelectedPlan.getAttributes.getAttribute("scores") == null) { "" } else {
+        person.getSelectedPlan.getAttributes.getAttribute("scores")
+      }
+      attributes.putAttribute("modality-style", modalityStyle)
+      attributes.putAttribute("scores", scores)
+      if (attributes.getAttribute("modality-style") == null) {
+        val i = 0
+      }
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
 
       copyRemainingPlanElementsIfExperiencedPlanIncomplete(person.getSelectedPlan, experiencedPlan)
@@ -55,7 +77,11 @@ object ReplanningUtil {
               PopulationUtils.createActivity(activity)
             )
           case _ =>
-            experiencedPlan.addLeg(PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg]))
+            val newLeg = PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg])
+            Option(originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach { attribValue =>
+              newLeg.getAttributes.putAttribute("vehicles", attribValue)
+            }
+            experiencedPlan.addLeg(newLeg)
         }
       }
       DebugLib.emptyFunctionForSettingBreakPoint()
@@ -69,5 +95,16 @@ object ReplanningUtil {
     PopulationUtils.copyFromTo(person.getSelectedPlan, newPlan)
     person.addPlan(newPlan)
     person.setSelectedPlan(newPlan)
+  }
+
+  def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
+    val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
+      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
+      val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
+      newPlan.getPlanElements.add(newLeg)
+    }
+    newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
+    newPlan
   }
 }

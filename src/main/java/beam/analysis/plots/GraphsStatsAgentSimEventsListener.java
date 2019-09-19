@@ -61,7 +61,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.vehicleTypes()));
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.beamScenario().vehicleTypes()));
     }
 
     // helper methods
