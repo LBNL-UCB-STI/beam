@@ -23,14 +23,12 @@ class UrbanSimScenarioSource(
     with ExponentialLazyLogging {
   val fileExt: String = rdr.inputType.toFileExt
 
-  private val localBasePath = FileUtils.downloadAndUnpackIfNeeded(scenarioSrc)
-
-  val buildingFilePath: String = s"$localBasePath/buildings.$fileExt"
-  val personFilePath: String = s"$localBasePath/persons.$fileExt"
-  val householdFilePath: String = s"$localBasePath/households.$fileExt"
-  val planFilePath: String = s"$localBasePath/plans.$fileExt"
-  val unitFilePath: String = s"$localBasePath/units.$fileExt"
-  val parcelAttrFilePath: String = s"$localBasePath/parcels.$fileExt"
+  val buildingFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/buildings.$fileExt")
+  val personFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/persons.$fileExt")
+  val householdFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/households.$fileExt")
+  val planFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/plans.$fileExt")
+  val unitFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/units.$fileExt")
+  val parcelAttrFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"$scenarioSrc/parcels.$fileExt")
 
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(personFilePath).map { person: DataExchange.PersonInfo =>
