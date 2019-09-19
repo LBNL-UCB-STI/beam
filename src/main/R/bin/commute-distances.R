@@ -35,43 +35,44 @@ for(i in 1:nrow(plans)){
   make.dir(local.subdir)
   local.path <- pp(local.subdir,"plans.csv.gz")
   plans[i,plan.localfile:=local.path]
-  if(!file.exists(plans$plan.localfile[i])){
-    if(grepl("beam-outputs.s3",plans$url[i])){
-      if(substr(plans$url[i],0,5)=='https'){
-        http.str <- 'https'
-      }else{
-        http.str <- 'http'
-      }
-      bucket.name <- str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],".s3.")[[1]][1]
-      object.path <- pp(str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"amazonaws.com/")[[1]][2],"plans.csv.gz")
-      df <- NULL
-      tryCatch(df <- data.table(s3read_using(read.csv,object=object.path,bucket=bucket.name)),error=function(e){})
-      if(!is.null(df)){
-        write.csv(df,file=plans$plan.localfile[i])
-        save(df,file=pp(str_split(plans$plan.localfile[i],".csv.gz")[[1]][1],".Rdata"))
-      }
-    }else{
-      tryCatch(download.file(pp(plans$url[i],'/plans.csv.gz'),plans[i]$plan.localfile),error=function(e){})
-    }
-  }
-  if(file.exists(plans$plan.localfile[i])){
-    df <- csv2rdata(plans[i]$plan.localfile)
-    ds <- df[activityType%in%c('Home','Work'),.(x=c(activityLocationX[activityType=='Home'][1], activityLocationX[activityType=='Work'][1]),y=c(activityLocationY[activityType=='Home'][1], activityLocationY[activityType=='Work'][1])),by='personId'][,.(d=sqrt(diff(x)^2+diff(y)^2)/1609),by='personId']
-    print(summary(ds$d))
-    plans[i,min.dist:=min(ds$d)]
-    plans[i,max.dist:=max(ds$d)]
-    plans[i,mean.dist:=mean(ds$d)]
-    plans[i,median.dist:=median(ds$d)]
-    df[,year:=plans$year[i]]
-    df[,config:=plans$config[i]]
-    df[,frequency:=plans$frequency[i]]
-    all.plans[[length(all.plans)+1]] <- df
-  }
+  #if(!file.exists(plans$plan.localfile[i])){
+    #if(grepl("s3.us-east-2",plans$url[i])){
+      #if(substr(plans$url[i],0,5)=='https'){
+        #http.str <- 'https'
+      #}else{
+        #http.str <- 'http'
+      #}
+      #bucket.name <- str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"\\/")[[1]][2]
+      #object.path <- pp(str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"amazonaws.com/")[[1]][2],"plans.csv.gz")
+      #df <- NULL
+      #tryCatch(df <- data.table(s3read_using(read.csv,object=object.path,bucket=bucket.name)),error=function(e){})
+      #if(!is.null(df)){
+        #write.csv(df,file=plans$plan.localfile[i])
+        #save(df,file=pp(str_split(plans$plan.localfile[i],".csv.gz")[[1]][1],".Rdata"))
+      #}
+    #}else{
+      #tryCatch(download.file(pp(plans$url[i],'plans.csv.gz'),plans[i]$plan.localfile),error=function(e){})
+    #}
+  #}
+  #if(file.exists(plans$plan.localfile[i])){
+    #df <- csv2rdata(plans[i]$plan.localfile)
+    #ds <- df[activityType%in%c('Home','Work'),.(x=c(activityLocationX[activityType=='Home'][1], activityLocationX[activityType=='Work'][1]),y=c(activityLocationY[activityType=='Home'][1], activityLocationY[activityType=='Work'][1])),by='personId'][,.(d=sqrt(diff(x)^2+diff(y)^2)/1609),by='personId']
+    #print(summary(ds$d))
+    #plans[i,min.dist:=min(ds$d)]
+    #plans[i,max.dist:=max(ds$d)]
+    #plans[i,mean.dist:=mean(ds$d)]
+    #plans[i,median.dist:=median(ds$d)]
+    #df[,year:=plans$year[i]]
+    #df[,config:=plans$config[i]]
+    #df[,frequency:=plans$frequency[i]]
+    #all.plans[[length(all.plans)+1]] <- df
+  #}
   it <- as.numeric(substr(plans$config[i],4,4))
+  if(is.na(it))it <- 15
   local.path <- pp(local.subdir,"skims.csv.gz")
   plans[i,skim.localfile:=local.path]
   if(!file.exists(plans$skim.localfile[i])){
-    if(grepl("beam-outputs.s3",plans$url[i])){
+    if(grepl("s3.us-east-2",plans$url[i])){
       if(substr(plans$url[i],0,5)=='https'){
         http.str <- 'https'
       }else{
@@ -86,11 +87,11 @@ for(i in 1:nrow(plans)){
         save(df,file=pp(str_split(plans$skim.localfile[i],".csv.gz")[[1]][1],".Rdata"))
       }
     }else{
-      tryCatch(download.file(pp(plans$url[i],'/ITERS/it.',it,'/',it,'.skims.csv.gz'),plans$skim.localfile[i]),error=function(e){})
+      tryCatch(download.file(pp(plans$url[i],'ITERS/it.',it,'/',it,'.skims.csv.gz'),plans$skim.localfile[i]),error=function(e){})
     }
   }
   if(file.exists(plans$skim.localfile[i])){
-    df <- csv2rdata(plans$skim.localfile[i])[mode=='CAR']
+    df <- csv2rdata(plans$skim.localfile[i])
     plans[i,generalizedCost:=weighted.mean(df$generalizedCost,df$numObservations)]
     plans[i,generalizedTimeMinutes:=weighted.mean(df$generalizedTimeInS/60,df$numObservations)]
     plans[i,travelTimeMinutes:=weighted.mean(df$travelTimeInS/60,df$numObservations)]
@@ -105,11 +106,14 @@ for(i in 1:nrow(plans)){
 all.plans <- rbindlist(all.plans)
 all.skims <- rbindlist(all.skims)
 #write.csv(plans,'/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans-out.csv')
-#ggplot(melt(plans[,.(year,config,frequency,mean.dist)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Mean Home--Work Distance (mi)',colour='Scenario',shape='Scenario')+facet_wrap(~frequency)
+ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU','Base-Long-VTO'),.(year,config,frequency,mean.dist)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Mean Home--Work Distance (mi)',colour='Scenario',shape='Scenario')+scale_shape_manual(values=seq(0,15))
 #ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
 
 # Skims
-#ggplot(melt(plans[,.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_grid(variable~frequency,scales='free_y')
+ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU','Base-Long-VTO'),.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
+
+# Tabular analysis of skims
+all.skims[year==2040 & mode%in%c('CAR','CAV'),.(cost=weighted.mean(cost, numObservations), generalizedCost =weighted.mean(generalizedCost, numObservations),medianGenCost=median(generalizedCost),numObs=sum(numObservations),genTT= weighted.mean(generalizedTimeInS/60, numObservations),tt= weighted.mean(travelTimeInS/60, numObservations)),by='config']
 
 # BAUS using
 # workplace location
