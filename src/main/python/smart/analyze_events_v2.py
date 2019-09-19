@@ -161,18 +161,23 @@ def get_all_metrics(filename, __local_file_path):
     for mode in pathTraversalModes.index:
         metrics_json['VMT_' + mode] = float(pathTraversalModes.loc[mode, 'vehicleMiles'])
         metrics_json['PMT_' + mode] = float(pathTraversalModes.loc[mode, 'passengerMiles'])
-        metrics_json['Energy_' + mode] = float(pathTraversalModes.loc[mode, 'primaryFuel'] +
-                                               pathTraversalModes.loc[mode, 'secondaryFuel'])
+        metrics_json['Energy_' + mode] = float(pathTraversalModes.loc[mode, 'primaryFuel'] + pathTraversalModes.loc[mode, 'secondaryFuel'])
 
-    metrics_json['VMT_car_RH_empty'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_RH') & (pathTraversal['trueOccupancy'] == 0), 'miles'].sum())
-    metrics_json['VMT_car_RH_pooled'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_RH') & (pathTraversal['trueOccupancy'] > 1), 'miles'].sum())
-    metrics_json['VMT_car_RH_CAV_empty'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_RH_CAV') & (pathTraversal['trueOccupancy'] == 0), 'miles'].sum())
-    metrics_json['VMT_car_RH_CAV_pooled'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_RH_CAV') & (pathTraversal['trueOccupancy'] > 1), 'miles'].sum())
-    metrics_json['VMT_car_CAV_empty'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_CAV') & (pathTraversal['trueOccupancy'] == 0), 'miles'].sum())
-    metrics_json['VMT_car_CAV_shared'] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == 'car_CAV') & (pathTraversal['trueOccupancy'] > 1), 'miles'].sum())
-    metrics_json['VMT_L1'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L1'), 'miles'].sum())
-    metrics_json['VMT_L3'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L3'), 'miles'].sum())
-    metrics_json['VMT_L5'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L5'), 'miles'].sum())
+    for mode in pathTraversalModes.index:
+        metrics_json['VMT_' + mode + "_empty"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 0), 'vehicleMiles'].sum())
+        metrics_json['VMT_' + mode + "_shared"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] > 1), 'vehicleMiles'].sum())
+        metrics_json['VMT_' + mode + "_shared_2p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 2), 'vehicleMiles'].sum())
+        metrics_json['VMT_' + mode + "_shared_3p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 3), 'vehicleMiles'].sum())
+        metrics_json['VMT_' + mode + "_shared_4p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] >= 4), 'vehicleMiles'].sum())
+        metrics_json['PMT_' + mode + "_empty"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 0), 'passengerMiles'].sum())
+        metrics_json['PMT_' + mode + "_shared"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] > 1), 'passengerMiles'].sum())
+        metrics_json['PMT_' + mode + "_shared_2p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 2), 'passengerMiles'].sum())
+        metrics_json['PMT_' + mode + "_shared_3p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 3), 'passengerMiles'].sum())
+        metrics_json['PMT_' + mode + "_shared_4p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] >= 4), 'passengerMiles'].sum())
+
+    metrics_json['VMT_L1'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L1'), 'vehicleMiles'].sum())
+    metrics_json['VMT_L3'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L3'), 'vehicleMiles'].sum())
+    metrics_json['VMT_L5'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L5'), 'vehicleMiles'].sum())
 
     primaryFuelTypes = pathTraversal.groupby('primaryFuelType').agg({'primaryFuel': 'sum'})
     secondaryFuelTypes = pathTraversal.groupby('secondaryFuelType').agg({'secondaryFuel': 'sum'})

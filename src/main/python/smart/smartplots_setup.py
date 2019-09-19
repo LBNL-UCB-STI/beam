@@ -23,7 +23,7 @@ mode_colors = {'RH': colors['red'],
                'Walk': colors['green'],
                'Transit': colors['blue'],
                'RHT': colors['light.purple'],
-               'RHP': colors['purple'],
+               'RHP': 'mediumorchid',
                'CAV': colors['light.yellow'],
                'Bike': colors['light.orange'],
                'NM': colors['light.orange'],
@@ -31,31 +31,6 @@ mode_colors = {'RH': colors['red'],
                'gas': colors['purple'],
                'diesel': colors['yellow']}
 
-
-plt_setup_base_smart = {
-    'expansion_factor': 8000000/630000,
-    'rotation': 13,
-    'fig_size': (7.5, 4.5),
-    'scenarios': ['Base', 'Base-Short', 'Base-Long', 'Sharing is Caring', 'Technology Takeover', "All About Me"],
-    'scenarios_xpos': [1, 3.5, 6.5, 9.5, 12.5, 15.5],
-    'technologies': ["Base", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO"],
-    'technologies_xpos': [1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16],
-    'dimension': 11,
-    'rank_to_filterout': []
-}
-
-
-plt_setup_smart = {
-    'expansion_factor': 8000000/630000,
-    'rotation': 11,
-    'fig_size': (5, 4.5),
-    'scenarios': ['Base', 'Sharing is Caring', 'Technology Takeover', "All About Me"],
-    'scenarios_xpos': [1, 3.5, 6.5, 9.5],
-    'technologies': ["Base", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO"],
-    'technologies_xpos': [1, 3, 4, 6, 7, 9, 10],
-    'dimension': 7,
-    'rank_to_filterout': [2, 3, 4, 5]
-}
 
 # Plots
 
@@ -185,7 +160,7 @@ def pltEnergyPerCapita(_plt_setup, _df, output_folder, _output_plot_prefix):
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 0.02,  t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value,  t_names[ind], ha='center')
     plt.ylabel('Light Duty Vehicle Energy per Capita (GJ)')
     plt.legend((plt_Electricity, plt_Diesel, plt_Gas),
                ('Electricity', 'Diesel', 'Gasoline'), bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -208,32 +183,108 @@ def pltLdvRhOccupancy(_plt_setup, _df, output_folder, _output_plot_prefix):
     angle = _plt_setup['rotation']
     dimension = _plt_setup['dimension']
 
-    totalVMT = df['VMT_car'].values + df['VMT_car_CAV'].values + df['VMT_car_RH'].values + df['VMT_car_RH_CAV'].values
     data = pd.DataFrame(
-        {'rh': (df['PMT_car_RH'].values + df['PMT_car_RH_CAV'].values)/totalVMT,
-         'all_ldv': (df['PMT_car'].values + df['PMT_car_CAV'].values + df['PMT_car_RH'].values + df['PMT_car_RH_CAV'].values)/totalVMT,
+        {
+         'non_rh_ldv': df[['PMT_car', 'PMT_car_CAV']].sum(axis=1),
+         'rh_1p': df[['PMT_car_RH', 'PMT_car_RH_CAV']].sum(axis=1)-df[['PMT_car_RH_shared', 'PMT_car_RH_CAV_shared']].sum(axis=1),
+         'rh_2p': df[['PMT_car_RH_shared_2p', 'PMT_car_RH_CAV_shared_2p']].sum(axis=1),
+         'rh_3p': df[['PMT_car_RH_shared_3p', 'PMT_car_RH_CAV_shared_3p']].sum(axis=1),
+         'rh_4p': df[['PMT_car_RH_shared_4p', 'PMT_car_RH_CAV_shared_4p']].sum(axis=1)
          })
-    height_all = data['all_ldv']
+    data = data.div(df[['VMT_car', 'VMT_car_CAV', 'VMT_car_RH', 'VMT_car_RH_CAV']].sum(axis=1), axis=0)
+    height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()
     data['technology'] = df['Technology'].values.copy()
     data.to_csv(output_csv)
 
     plt.figure(figsize=_plt_setup['fig_size'])
-    plt_all = plt.bar(x=t_xpos, height=data['all_ldv'], color=colors['grey'])
-    plt.bar(x=t_xpos, height=-data['rh'], bottom=data['all_ldv'], color=colors['grey'], hatch='xx', fill=False)
-    plt_rh = mpatches.Patch(facecolor='white', label='The white data', hatch='xx')
+    plt_non_rh_ldv = plt.bar(x=t_xpos, height=data['non_rh_ldv'], color=colors['grey'])
+    plt_rh_1p = plt.bar(x=t_xpos, height=data['rh_1p'], bottom=data['non_rh_ldv'], color=mode_colors['RH'])
+    plt_rh_shared = plt.bar(x=t_xpos, height=data[['rh_2p', 'rh_3p', 'rh_4p']].sum(axis=1), bottom=data[['non_rh_ldv', 'rh_1p']].sum(axis=1), color=mode_colors['RHP'])
+    plt.bar(x=t_xpos, height=data['rh_2p'], bottom=data[['non_rh_ldv', 'rh_1p']].sum(axis=1), hatch='xxx', fill=False, linewidth=0)
+    plt.bar(x=t_xpos, height=data['rh_3p'], bottom=data[['non_rh_ldv', 'rh_1p', 'rh_2p']].sum(axis=1), hatch='|||', fill=False, linewidth=0)
+    plt.bar(x=t_xpos, height=data['rh_4p'], bottom=data[['non_rh_ldv', 'rh_1p', 'rh_2p', 'rh_3p']].sum(axis=1), hatch='....', fill=False, linewidth=0)
+    shared_2p = mpatches.Patch(facecolor='white', label='The white data', hatch='xxx')
+    shared_3p = mpatches.Patch(facecolor='white', label='The white data', hatch='|||')
+    shared_4p = mpatches.Patch(facecolor='white', label='The white data', hatch='....')
+
     plt.xticks(s_xpos, s_names, rotation=angle)
-    plt.legend((plt_all, plt_rh),
-               ('LDV Occupancy', 'RHV Occupancy'),
+    plt.legend((plt_non_rh_ldv, plt_rh_1p, plt_rh_shared, shared_2p, shared_3p, shared_4p),
+               ('non-Ridehail LDV', 'Ridehail', 'Ridehail Pool', '2 passengers', '3 passengers', '4+ passengers'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
-    plt.axhline(y=1.0, color='black', linestyle='dashed', lw=0.5)
+    plt.axhline(y=1.0, color='black', linestyle='dashed', lw=0.5, alpha=0.2)
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 0.02,  t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value,  t_names[ind], ha='center')
     plt.ylabel('Distance Based Occupancy')
+    plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+    plt.clf()
+    plt.close()
+
+
+def pltLdvRhOccupancyByVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
+    makeplots_folder = '{}/makeplots'.format(output_folder)
+    if not os.path.exists(makeplots_folder):
+        os.makedirs(makeplots_folder)
+    output_png = '{}/{}.ldv_rh_occupancy_vmt.png'.format(makeplots_folder, _output_plot_prefix)
+    output_csv = '{}/{}.ldv_rh_occupancy_vmt.csv'.format(makeplots_folder, _output_plot_prefix)
+    df = _df[~_df['Rank'].isin(_plt_setup['rank_to_filterout'])]
+    t_xpos = _plt_setup['technologies_xpos']
+    t_names = _plt_setup['technologies']
+    s_xpos = _plt_setup['scenarios_xpos']
+    s_names = _plt_setup['scenarios']
+    angle = _plt_setup['rotation']
+    dimension = _plt_setup['dimension']
+
+    factor = _plt_setup['expansion_factor'] / 1000000
+
+    data = pd.DataFrame(
+        {
+            'car': (df[['VMT_car', 'VMT_car_CAV']].sum(axis=1)-df[['VMT_car_shared', 'VMT_car_CAV_shared']].sum(axis=1)) * factor,
+            'car_shared': df[['VMT_car_shared', 'VMT_car_CAV_shared']].sum(axis=1) * factor,
+            'rh': (df[['VMT_car_RH', 'VMT_car_RH_CAV']].sum(axis=1)-df[['VMT_car_RH_shared', 'VMT_car_RH_CAV_shared']].sum(axis=1)) * factor,
+            'rh_2p': df[['VMT_car_RH_shared_2p', 'VMT_car_RH_CAV_shared_2p']].sum(axis=1) * factor,
+            'rh_3p': df[['VMT_car_RH_shared_3p', 'VMT_car_RH_CAV_shared_3p']].sum(axis=1) * factor,
+            'rh_4p': df[['VMT_car_RH_shared_4p', 'VMT_car_RH_CAV_shared_4p']].sum(axis=1) * factor
+        })
+    height_all = data.sum(axis=1)
+    data['car_empty'] = df[['VMT_car_empty', 'VMT_car_CAV_empty']].sum(axis=1) * factor
+    data['rh_empty'] = df[['VMT_car_RH_empty', 'VMT_car_RH_CAV_empty']].sum(axis=1) * factor
+    data['scenario'] = df['Scenario'].values.copy()
+    data['technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
+
+    plt.figure(figsize=_plt_setup['fig_size'])
+    plt_car = plt.bar(x=t_xpos, height=data['car'], color=mode_colors['Car'])
+    plt.bar(x=t_xpos, height=-data['car_empty'], bottom=data['car'], hatch='///', fill=False, linewidth=0)
+    plt_car_shared = plt.bar(x=t_xpos, height=data['car_shared'], bottom=data['car'], color=mode_colors['CAV'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['car', 'car_shared']].sum(axis=1), color=mode_colors['RH'])
+    plt.bar(x=t_xpos, height=-data['rh_empty'], bottom=data[['car', 'car_shared', 'rh']].sum(axis=1), hatch='///', fill=False, linewidth=0)
+
+    plt_rh_shared = plt.bar(x=t_xpos, height=data[['rh_2p', 'rh_3p', 'rh_4p']].sum(axis=1), bottom=data[['car', 'car_shared', 'rh']].sum(axis=1), color=mode_colors['RHP'])
+    plt.bar(x=t_xpos, height=data['rh_2p'], bottom=data[['car', 'car_shared', 'rh']].sum(axis=1), hatch='xxx', fill=False, linewidth=0)
+    plt.bar(x=t_xpos, height=data['rh_3p'], bottom=data[['car', 'car_shared', 'rh', 'rh_2p']].sum(axis=1), hatch='|||', fill=False, linewidth=0)
+    plt.bar(x=t_xpos, height=data['rh_4p'], bottom=data[['car', 'car_shared', 'rh', 'rh_2p', 'rh_3p']].sum(axis=1), hatch='....', fill=False, linewidth=0)
+    empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
+    shared_2p = mpatches.Patch(facecolor='white', label='The white data', hatch='xxx')
+    shared_3p = mpatches.Patch(facecolor='white', label='The white data', hatch='|||')
+    shared_4p = mpatches.Patch(facecolor='white', label='The white data', hatch='....')
+
+    plt.xticks(s_xpos, s_names, rotation=angle)
+    plt.legend((plt_car, plt_car_shared, plt_rh, plt_rh_shared, shared_2p, shared_3p, shared_4p, empty),
+               ('Car/CAV', 'CAV Shared', 'Ridehail', 'Ridehail Pool', '2 passengers', '3 passengers', '4+ passengers', 'Deadheading'),
+               labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
+    plt.axhline(y=1.0, color='black', linestyle='dashed', lw=0.5, alpha=0.2)
+    ax = plt.gca()
+    ax.grid(False)
+    max_value = max(height_all)
+    ax.set_ylim((0, max_value))
+    for ind in range(dimension):
+        plt.text(t_xpos[ind], max_value + 0.02*max_value,  t_names[ind], ha='center')
+    plt.ylabel('Light Duty Vehicle Miles Traveled (millions)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -274,15 +325,15 @@ def pltLdvPersonHourTraveled(_plt_setup, _df, output_folder, _output_plot_prefix
 
     plt.xticks(s_xpos, s_names, rotation=angle)
     plt.legend((plt_car, plt_cav, plt_rh, plt_rhp),
-               ('Car', 'CAV', 'Ridehail', 'Ridehail (Pooled)'),
+               ('Car', 'CAV', 'Ridehail', 'Ridehail Pool'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 0.05, t_names[ind], ha='center')
-    plt.ylabel('Person Hours Traveled (millions)')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
+    plt.ylabel('Person Hours Traveled in LDV (millions)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -336,7 +387,7 @@ def pltModeSplitInPMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 2, t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
     plt.ylabel('Person Miles Traveled (millions)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
@@ -365,13 +416,13 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
                      df['VMT_tram'].values+df['VMT_cable_car'].values) * factor,
          'car': df['VMT_car'].values * factor,
          'cav': df['VMT_car_CAV'].values * factor,
-         'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values) * factor,
+         'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor,
+         'rhp':(df['VMT_car_RH_shared'].values + df['VMT_car_RH_CAV_shared'].values) * factor,
          'nm': (df['VMT_walk'].values+df['VMT_bike'].values) * factor
          })
     height_all = data.sum(axis=1)
     data['cav_empty'] = df['VMT_car_CAV_empty'].values * factor
     data['cav_shared'] = df['VMT_car_CAV_shared'].values * factor
-    data['rhp'] = (df['VMT_car_RH_pooled'].values + df['VMT_car_RH_CAV_pooled'].values) * factor
     data['rh_empty'] = (df['VMT_car_RH_empty'].values + df['VMT_car_RH_CAV_empty'].values) * factor
     data['scenario'] = df['Scenario'].values.copy()
     data['technology'] = df['Technology'].values.copy()
@@ -382,25 +433,23 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     plt_car = plt.bar(x=t_xpos, height=data['car'], bottom=data['transit'], color=mode_colors['Car'])
     plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data[['transit', 'car']].sum(axis=1), color=mode_colors['CAV'])
     plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), color=mode_colors['RH'])
-    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['NM'])
-    empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///', linewidth=0.1)
-    shared = mpatches.Patch(facecolor='white', label='The white data', hatch='xx', linewidth=0.1)
+    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'])
+    plt_nm = plt.bar(x=t_xpos, height=data['nm'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp']].sum(axis=1), color=mode_colors['NM'])
+    empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
 
-    plt.bar(x=t_xpos, height=-data['cav_empty'], bottom=data['transit']+data['car']+data['cav'], hatch='///', fill=False)
-    plt.bar(x=t_xpos, height=data['cav_shared'], bottom=data['transit']+data['car'], hatch="xx", fill=False)
-    plt.bar(x=t_xpos, height=-data['rh_empty'], bottom=data['transit']+data['car']+data['cav']+data['rh'], hatch='///', fill=False)
-    plt.bar(x=t_xpos, height=data['rhp'], bottom=data['transit']+data['car']+data['cav'], hatch="xx", fill=False)
+    plt.bar(x=t_xpos, height=-data['cav_empty'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), hatch='///', fill=False, linewidth=0)
+    plt.bar(x=t_xpos, height=-data['rh_empty'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), hatch='///', fill=False, linewidth=0)
 
     plt.xticks(s_xpos, s_names, rotation=angle)
-    plt.legend((plt_car, plt_cav, plt_rh, plt_transit, plt_nm, empty, shared),
-               ('Car', 'CAV', 'Ridehail', 'Transit', 'NonMotorized', 'Deadheading', 'Shared'),
+    plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_rhp, plt_nm, empty),
+               ('Transit', 'Car', 'CAV', 'Ridehail', 'Ridehail Pool', 'NonMotorized', 'Deadheading'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 2, t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
     plt.ylabel('Vehicle Miles Traveled (millions)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
@@ -440,14 +489,14 @@ def pltLdvTechnologySplitInVMT(_plt_setup, _df, output_folder, _output_plot_pref
     plt_CAV = plt.bar(x=t_xpos, height=data['L5'], bottom=data[['L1', 'L3']].sum(axis=1))
     plt.xticks(s_xpos, s_names, rotation=angle)
     plt.legend((plt_Low, plt_High, plt_CAV),
-               ('No Automation', 'Partial Automation', 'CAV'),
+               ('No Automation', 'Partial Automation', 'Full Automation'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 2, t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
     plt.ylabel('Vehicle Miles Traveled (millions)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
@@ -485,7 +534,7 @@ def pltRHWaitTime(_plt_setup, _df, output_folder, _output_plot_prefix):
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 0.1, t_names[ind], ha='center')
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
     plt.ylabel('Average Ride Hail Wait (min)')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
@@ -496,8 +545,8 @@ def pltRHEmptyPooled(_plt_setup, _df, output_folder, _output_plot_prefix):
     makeplots_folder = '{}/makeplots'.format(output_folder)
     if not os.path.exists(makeplots_folder):
         os.makedirs(makeplots_folder)
-    output_png = '{}/{}.rh_empty_pooled.png'.format(makeplots_folder, _output_plot_prefix)
-    output_csv = '{}/{}.rh_empty_pooled.csv'.format(makeplots_folder, _output_plot_prefix)
+    output_png = '{}/{}.rh_empty_shared.png'.format(makeplots_folder, _output_plot_prefix)
+    output_csv = '{}/{}.rh_empty_shared.csv'.format(makeplots_folder, _output_plot_prefix)
     df = _df[~_df['Rank'].isin(_plt_setup['rank_to_filterout'])]
     t_xpos = _plt_setup['technologies_xpos']
     t_names = _plt_setup['technologies']
@@ -510,10 +559,10 @@ def pltRHEmptyPooled(_plt_setup, _df, output_folder, _output_plot_prefix):
     factor = _plt_setup['expansion_factor'] / 1000000
 
     data = pd.DataFrame(
-        {'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values) * factor
+        {'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor,
+         'rhp': (df['VMT_car_RH_shared'].values+df['VMT_car_RH_CAV_shared'].values) * factor
          })
     height_all = data.sum(axis=1)
-    data['rhp'] = (df['VMT_car_RH_pooled'].values+df['VMT_car_RH_CAV_pooled'].values) * factor
     data['rh_empty'] = (df['VMT_car_RH_empty'].values+df['VMT_car_RH_CAV_empty'].values) * factor
     data['scenario'] = df['Scenario'].values.copy()
     data['technology'] = df['Technology'].values.copy()
@@ -521,21 +570,21 @@ def pltRHEmptyPooled(_plt_setup, _df, output_folder, _output_plot_prefix):
 
     plt.figure(figsize=figure_size)
     plt_rh = plt.bar(x=t_xpos, height=data['rh'], color=mode_colors['RH'])
-    plt.bar(x=t_xpos, height=-data['rh_empty'], bottom=data['rh'], hatch='///', fill=False)
-    plt.bar(x=t_xpos, height=data['rhp'], hatch='xx', fill=False)
+    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data['rh'], color=mode_colors['RHP'])
+
+    plt.bar(x=t_xpos, height=-data['rh_empty'], bottom=data['rh'], hatch='///', fill=False, lw=0)
     plt.xticks(s_xpos, s_names, rotation=angle)
     empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
-    pooled = mpatches.Patch(facecolor='white', label='The white data', hatch='xx')
 
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)
     ax.set_ylim((0, max_value))
     for ind in range(dimension):
-        plt.text(t_xpos[ind], max_value + 0.5, t_names[ind], ha='center')
-    plt.ylabel('Light Duty Vehicle Miles Traveled (millions)')
-    plt.legend((plt_rh, empty, pooled),
-               ('Total Ridehail VMT', 'Empty VMT', 'Shared VMT'),
+        plt.text(t_xpos[ind], max_value + 0.02*max_value, t_names[ind], ha='center')
+    plt.ylabel('Ridehail Vehicle Miles Traveled (millions)')
+    plt.legend((plt_rh, plt_rhp, empty),
+               ('Ridehail', 'Ridehail Pool', 'Deadheading'),
                bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
