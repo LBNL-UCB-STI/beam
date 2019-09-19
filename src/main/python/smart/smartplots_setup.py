@@ -44,8 +44,8 @@ def tableSummary(_plt_setup, _df, _output_folder, _output_plot_prefix):
     factor = _plt_setup['expansion_factor']
 
     tot_vmt = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
-               df['VMT_subway'].values+df['VMT_tram'].values +
-               df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
+               df['VMT_subway'].values+df['VMT_tram'].values) +\
+              (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
                df['VMT_car_RH_CAV'].values +
                df['VMT_walk'].values+df['VMT_bike'].values) * factor
 

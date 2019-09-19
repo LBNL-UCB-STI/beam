@@ -38,7 +38,7 @@ a_lt_2040 = (6, 2040, 15, "a", "Low Tech", "a_lt", "beam/sfbay-smart-a-lt-pilate
 a_ht_2040 = (7, 2040, 15, "a", "High Tech", "a_ht", "beam/sfbay-smart-a-ht-pilates__2019-09-13_13-39-31")
 b_lt_2040 = (8, 2040, 15, "b", "Low Tech", "b_lt", "beam/sfbay-smart-b-lt-pilates__2019-09-14_00-24-55")
 b_ht_2040 = (9, 2040, 15, "b", "High Tech", "b_ht", "beam/sfbay-smart-b-ht-pilates__2019-09-14_21-40-59")
-c_lt_2040 = (10, 2040, 15, "c", "Low Tech", "c_lt", "beam/sfbay-smart-c-lt-ppilates__2019-09-12_18-48-36ilates__2019-09-13_17-09-33")
+c_lt_2040 = (10, 2040, 15, "c", "Low Tech", "c_lt", "beam/sfbay-smart-c-lt-pilates__2019-09-13_17-09-33")
 c_ht_2040 = (11, 2040, 15, "c", "High Tech", "c_ht", "beam/sfbay-smart-c-ht-pilates__2019-09-13_18-00-40")
 
 

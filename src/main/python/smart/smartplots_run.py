@@ -13,7 +13,7 @@ import pandas as pd
 
 
 plt_setup_base_smart = {
-    'expansion_factor': 1/(0.1*0.28),
+    'expansion_factor': (7.75/0.315) * 27.0 / 21.3,
     'rotation': 13,
     'fig_size': (7.5, 4.5),
     'scenarios': ['Base', 'Base-Short', 'Base-Long', 'Sharing is Caring', 'Technology Takeover', "All About Me"],
@@ -26,7 +26,7 @@ plt_setup_base_smart = {
 
 
 plt_setup_smart = {
-    'expansion_factor': 1/(0.1*0.28),
+    'expansion_factor': (7.75/0.315) * 27.0 / 21.3,
     'rotation': 11,
     'fig_size': (5, 4.5),
     'scenarios': ['Base', 'Sharing is Caring', 'Technology Takeover', "All About Me"],
