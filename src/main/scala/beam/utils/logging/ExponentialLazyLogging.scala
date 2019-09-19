@@ -4,4 +4,8 @@ trait ExponentialLazyLogging {
   lazy val logger: LoggerWrapper = new ExponentialLoggerWrapperImpl(getClass.getName)
 }
 
-object ExponentialLazyLogging extends ExponentialLazyLogging
+object ExponentialLazyLogging extends ExponentialLazyLogging {
+
+  def reset(): Unit = logger.reset()
+
+}

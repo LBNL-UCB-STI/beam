@@ -100,7 +100,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   private def getMaxPerActorType: Map[String, Map[String, Int]] = {
     // Do not remove `toIterable` (Map can't contain duplicates!)
-    val actorTypeToTriggers = actorToTriggerMessages.toIterable.map {
+    val actorTypeToTriggers = actorToTriggerMessages.map {
       case (actorRef, map) =>
         getType(actorRef) -> map.map { case (k, v) => k.getName -> v }
     }
@@ -171,7 +171,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     // To get default values that's why we create it from empty configuration
     val dummyCfg = ConfigFactory.parseString("thresholds = []")
     val stuckAgentDetection = StuckAgentDetection.apply(dummyCfg).copy(thresholds = sortedByTriggerType, enabled = true)
-    Printer.spaces2.copy(dropNullKeys = true).pretty(stuckAgentDetection.asJson)
+    Printer.spaces2.pretty(stuckAgentDetection.asJson)
   }
 
   private def getType(actorRef: ActorRef): String = {

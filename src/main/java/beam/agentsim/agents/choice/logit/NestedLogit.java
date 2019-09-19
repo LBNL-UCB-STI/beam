@@ -51,7 +51,7 @@ public class NestedLogit implements AbstractLogit {
         NestedLogitData theData = new NestedLogitData();
         theData.setNestName(rootElem.getAttributeValue("name"));
         NestedLogit tree = new NestedLogit(theData);
-        UtilityFunction utility;
+        UtilityFunctionJava utility;
         for (int i = 0; i < rootElem.getChildren().size(); i++) {
             Element elem = (Element) rootElem.getChildren().get(i);
             switch (elem.getName().toLowerCase()) {
@@ -59,7 +59,7 @@ public class NestedLogit implements AbstractLogit {
                     theData.setElasticity(Double.parseDouble(elem.getValue()));
                     break;
                 case "utility":
-                    utility = new UtilityFunction();
+                    utility = new UtilityFunctionJava();
                     for (int j = 0; j < elem.getChildren().size(); j++) {
                         Element paramElem = (Element) elem.getChildren().get(j);
                         if (paramElem.getName().toLowerCase().equals("param")) {

@@ -37,4 +37,9 @@ object MathUtils {
       }
     }
   }
+
+  def isNumberPowerOfTwo(number: Int): Boolean = {
+    number > 0 && ((number & (number - 1)) == 0)
+  }
+
 }

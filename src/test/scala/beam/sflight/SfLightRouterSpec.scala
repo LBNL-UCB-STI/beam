@@ -1,11 +1,12 @@
 package beam.sflight
 
+import akka.actor.Status.Failure
 import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRAM, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -17,18 +18,17 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
-      val destination =
-        new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
+      val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
       val time = 25740
       router ! RoutingRequest(
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -36,7 +36,139 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         )
       )
       val response = expectMsgType[RoutingResponse]
+      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
+      val routedStartTime = walkTrip.beamLegs.head.startTime
+      assert(routedStartTime == time)
+    }
+
+    "respond with a transit route to a second reasonable RoutingRequest" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+
       assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+      val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
+      assertMakesSense(transitOption.toBeamTrip)
+      assert(transitOption.totalTravelTimeInSecs == 1116)
+      assert(transitOption.legs(1).beamLeg.mode == TRAM)
+      assert(transitOption.costEstimate == 2.75)
+      assert(transitOption.legs.head.beamLeg.startTime == 25992)
+    }
+
+    "transit-route me to my destination vehicle, and to my final destination even if that's where I started" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val vehicleLocation = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val destination = origin
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("116378-2"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(vehicleLocation, 0),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          ),
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        ),
+        streetVehiclesUseIntermodalUse = Egress
+      )
+      val response = expectMsgType[RoutingResponse]
+
+      val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
+      assertMakesSense(transitOption.toBeamTrip)
+      assert(transitOption.totalTravelTimeInSecs > 1000) // I have to get my car
+      assert(!response.itineraries.exists(_.tripClassifier == WALK)) // I have to get my car
+    }
+
+    "respond with a ride-hail+transit route to a reasonable RoutingRequest" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("rideHailVehicle-person=17673-0"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
+            Modes.BeamMode.CAR,
+            asDriver = false
+          ),
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        ),
+        streetVehiclesUseIntermodalUse = AccessAndEgress
+      )
+      val response = expectMsgType[RoutingResponse]
+      val rideHailTransitOption = response.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT).get
+      assert(rideHailTransitOption.legs.count(l => l.beamLeg.mode == CAR) == 2, "Access and egress by car")
+    }
+
+    "respond with fast travel time for a fast bike" in {
+      val fastBike = beamScenario.vehicleTypes(Id.create("FAST-BIKE", classOf[BeamVehicleType]))
+      val expectedSpeed = 20
+      assume(fastBike.maxVelocity.get == expectedSpeed)
+
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = false,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("0"),
+            fastBike.id,
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
+            Modes.BeamMode.BIKE,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
+      val routedStartTime = bikeTrip.beamLegs.head.startTime
+      assert(routedStartTime == time)
+      val actualSpeed = bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs
+      assert(Math.abs(actualSpeed - expectedSpeed) < 4) // Difference probably due to start/end link
     }
 
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {
@@ -48,11 +180,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-56658-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -73,11 +205,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-80672-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -97,68 +229,48 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
-          ),
-          StreetVehicle(
-            Id.createVehicleId("17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
             asDriver = true
           )
         )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
-      assert(response.itineraries.exists(_.tripClassifier == CAR))
-
-      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      //      assertMakesSense(carOption)
-      val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
-      val origin = geoUtil.wgs2Utm(new Coord(-122.439194, 37.785368))
-      val destination = geoUtil.wgs2Utm(new Coord(-122.3712, 37.815819))
+      val origin = services.geo.wgs2Utm(new Coord(-122.439194, 37.785368))
+      val destination = services.geo.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = 27840
       router ! RoutingRequest(
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
             asDriver = true
           ),
           StreetVehicle(
-            Id.createVehicleId("rideHailVehicle-person=116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
-            asDriver = false
-          ),
-          StreetVehicle(
             Id.createVehicleId("body-116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -175,101 +287,107 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         case BeamTrip(legs) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
           inside(legs.loneElement) {
-            case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
+            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
               mode should be(WALK)
               links should be('empty)
           }
       }
 
+      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
+      assert(carOption.costEstimate > 1.0)
+      val carTrip = carOption.toBeamTrip
+      val actualModesOfCarOption = carTrip.legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
+      assert(carOption.legs(1).unbecomeDriverOnCompletion)
     }
 
-    "respond with a walk route and usually a car route for each trip in sflight" in {
-      var numFailedCarRoutes = 0
-      scenario.getPopulation.getPersons
-        .values()
-        .forEach(person => {
-          val activities = planToVec(person.getSelectedPlan)
-          activities
-            .sliding(2)
-            .foreach(pair => {
-              val origin = pair(0).getCoord
-              val destination = pair(1).getCoord
-              val time = pair(0).getEndTime.toInt
-              router ! RoutingRequest(
-                origin,
-                destination,
-                time,
-                Vector(),
-                Vector(
-                  StreetVehicle(
-                    Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
-                    new SpaceTime(origin, 0),
-                    Modes.BeamMode.CAR,
-                    asDriver = true
-                  ),
-                  StreetVehicle(
-                    Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
-                    new SpaceTime(new Coord(origin.getX, origin.getY), time),
-                    Modes.BeamMode.WALK,
-                    asDriver = true
-                  )
-                )
-              )
-              val response = expectMsgType[RoutingResponse]
-              assert(response.itineraries.exists(_.tripClassifier == WALK))
+    "respond with a unlimited transfer route having cost 2.75 USD." in {
+      val origin = new Coord(549598.9574660371, 4176177.2431860007)
+      val destination = new Coord(544417.3891361314, 4177016.733758491)
+      val time = 64080
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
 
-              val walkTrip = response.itineraries
-                .find(_.tripClassifier == WALK)
-                .get
-                .toBeamTrip
-              inside(walkTrip) {
-                case BeamTrip(legs) =>
-                  legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
-                  inside(legs.loneElement) {
-                    case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
-                      mode should be(WALK)
-                  }
-              }
-
-              if (response.itineraries.exists(_.tripClassifier == CAR)) {
-                val carTrip = response.itineraries
-                  .find(_.tripClassifier == CAR)
-                  .get
-                  .toBeamTrip
-                assertMakesSense(carTrip)
-                inside(carTrip) {
-                  case BeamTrip(legs) =>
-                    legs should have size 3
-                    inside(legs(0)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
-                    inside(legs(1)) {
-                      case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
-                        mode should be(CAR)
-                        links should not be 'empty
-                    }
-                    inside(legs(2)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
-                }
-              } else {
-                numFailedCarRoutes = numFailedCarRoutes + 1
-              }
-            })
-        })
-      // Sometimes car routes fail, but should be very rare
-      assert(numFailedCarRoutes < 5)
+      assert(response.itineraries.exists(_.costEstimate == 2.75))
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
+
+    "respond with a BART route without transfer having cost 1.95 USD." in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
+      val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val time = 51840
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          ),
+          StreetVehicle(
+            Id.createVehicleId("116378-2"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(origin, 0),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          ),
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+
+      assert(response.itineraries.exists(_.costEstimate == 1.95))
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    }
+
+    "respond with Failure(_) to a request with a bad coordinate" in {
+      val origin = services.geo.wgs2Utm(new Coord(999999999, 999999999))
+      val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val time = 51840
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        )
+      )
+      expectMsgType[Failure]
+    }
+
   }
 
   def assertMakesSense(trip: BeamTrip): Unit = {
     var time = trip.legs.head.startTime
     trip.legs.foreach(leg => {
-      assert(leg.startTime == time, "Leg starts when previous one finishes.")
+      assert(leg.startTime >= time, "Leg starts when previous one finishes.")
       time += leg.duration
     })
   }

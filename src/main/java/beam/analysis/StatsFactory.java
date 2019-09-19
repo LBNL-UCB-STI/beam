@@ -23,13 +23,20 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        MotorizedVehicleMilesTraveled,
+        VehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
         AboveCapacityPtUsageDuration,
         TollRevenue,
         AgencyRevenue,
-        ParkingDelay
+        ParkingDelay,
+        RideHailUtilization,
+        ParkingType,
+        ActivityType,
+        VehicleChargingAnalysis,
+        RideHailSummary,
+        LoadOverTimeAnalysis,
+        ChargingAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -83,18 +90,18 @@ public class StatsFactory {
             case PersonTravelTime:
                 return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs);
+                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
-                        beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
-            case MotorizedVehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
+                        beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
+            case VehicleMilesTraveled:
+                return new VehicleMilesTraveledAnalysis(beamServices.beamScenario().vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis(beamServices);
+                return new NumberOfVehiclesAnalysis(beamServices.beamScenario());
             case PersonCost:
-                return new PersonCostAnalysis();
+                return new PersonCostAnalysis(beamServices);
             case AboveCapacityPtUsageDuration:
                 return new AboveCapacityPtUsageDurationAnalysis();
             case TollRevenue:
@@ -103,6 +110,20 @@ public class StatsFactory {
                 return new AgencyRevenueAnalysis();
             case ParkingDelay:
                 return new ParkingStatsCollector(beamServices);
+            case RideHailUtilization:
+                return new SimpleRideHailUtilization();
+            case ParkingType:
+                return new ParkingTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
+            case ActivityType:
+                return new ActivityTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
+            case VehicleChargingAnalysis:
+                return new VehicleChargingAnalysis();
+            case RideHailSummary:
+                return new RideHailSummary();
+            case LoadOverTimeAnalysis:
+                return new LoadOverTimeAnalysis();
+            case ChargingAnalysis:
+                return new ChargingAnalysis();
             default:
                 return null;
         }

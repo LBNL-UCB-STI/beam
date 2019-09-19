@@ -2,9 +2,9 @@ package beam.integration
 
 import java.io.File
 
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
-import beam.integration.ReadEvents._
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
 import beam.sim.BeamHelper
+import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
@@ -69,7 +69,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
       .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
-        "beam.agentsim.taz.parking",
+        "beam.agentsim.taz.parkingFilePath",
         ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
       .withValue(
@@ -89,8 +89,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
-      val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(ReadEvents.fromFile(filePath).toSeq)
+      val filePath = EventReader.getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
+      queueEvents.append(EventReader.fromXmlFile(filePath))
     }
 
     val outputDirectoryFile = new File(outputDirectory)
@@ -99,10 +99,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     queueEvents
   }
 
-  private lazy val limitedEvents = runAndCollectForIterations("limited", 4)
-  private lazy val defaultEvents = runAndCollectForIterations("default", 4)
-  private lazy val expensiveEvents = runAndCollectForIterations("expensive", 4)
-  private lazy val emptyEvents = runAndCollectForIterations("empty", 4)
+  private lazy val defaultEvents = runAndCollectForIterations("default", 5)
 
   val countForPathTraversalAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
@@ -121,21 +118,17 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   "Parking system " must {
     "guarantee at least some parking used " in {
       val parkingEvents =
-        defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+        defaultEvents.head.filter(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
     "departure and arrival should be from same parking 4 tuple" in {
 
-      val parkingEvents = defaultEvents.head.filter(
-        e =>
-          ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
-            .equals(e.getEventType)
-      )
-
+      val parkingEvents =
+        defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent] || x.isInstanceOf[LeavingParkingEvent])
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
+          val vehId = ev.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
           val array = c.getOrElse(vehId, ArrayBuffer[Event]())
           array.append(ev)
           c.updated(vehId, array)
@@ -144,7 +137,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val res = groupedByVehicle.map {
         case (id, x) =>
           val (parkEvents, leavingEvents) =
-            x.partition(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+            x.partition(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
 
           //First and last park events won't match
           val parkEventsWithoutLast = parkEvents.dropRight(1)
@@ -159,10 +152,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           array.foreach {
             case (evA, evB) =>
               List(
-                ParkEventAttrs.ATTRIBUTE_PARKING_TAZ,
-                ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
-                ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
-                ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
+                ParkEvent.ATTRIBUTE_PARKING_TAZ,
+                ParkEvent.ATTRIBUTE_PARKING_TYPE,
+                ParkEvent.ATTRIBUTE_PRICING_MODEL,
+                ParkEvent.ATTRIBUTE_CHARGING_TYPE
               ).foreach { k =>
                 evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
               }
@@ -174,15 +167,12 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "Park event should be thrown after last path traversal" in {
-      val parkingEvents = defaultEvents.head.filter(
-        e =>
-          ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
-            .equals(e.getEventType)
-      )
+      val parkingEvents =
+        defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent] || x.isInstanceOf[LeavingParkingEvent])
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
+          val vehId = ev.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
           val array = c.getOrElse(vehId, ArrayBuffer[Event]())
           array.append(ev)
           c.updated(vehId, array)
@@ -191,7 +181,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val vehToParkLeavingEvents = groupedByVehicle.map {
         case (id, x) =>
           val (parkEvents, leavingEvents) =
-            x.partition(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+            x.partition(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
           (id, leavingEvents zip parkEvents)
       }
 
@@ -203,7 +193,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           events.foreach {
             case (leavingParkEvent, parkEvent) =>
               val pathTraversalEventsInRange = pathTraversalEvents.filter { event =>
-                val vehId = event.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
+                val vehId = event.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
                 currVehId.equals(vehId) &&
                 event.getTime >= leavingParkEvent.getTime &&
                 event.getTime <= parkEvent.getTime
@@ -217,7 +207,9 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
     }
 
-    "expensive parking should reduce driving" in {
+    "expensive parking should reduce driving" ignore {
+      val expensiveEvents = runAndCollectForIterations("expensive", 5)
+
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
@@ -229,7 +221,9 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "empty parking access should reduce driving" in {
+    "empty parking access should reduce driving" ignore {
+      val emptyEvents = runAndCollectForIterations("empty", 5)
+
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
@@ -242,6 +236,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "limited parking access should reduce driving" ignore {
+      val limitedEvents = runAndCollectForIterations("limited", 5)
+
       val limitedModeChoiceCarCount = limitedEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 

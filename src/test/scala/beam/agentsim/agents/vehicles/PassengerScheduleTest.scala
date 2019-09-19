@@ -7,9 +7,8 @@ import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.Vehicle
-import org.scalatest.mockito.MockitoSugar
 import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FunSpecLike, Matchers, _}
 
 /**
@@ -35,13 +34,12 @@ class PassengerScheduleTest
 
     it("should create a schedule for single passenger with one leg") {
 
-      val vehicleId: Id[Vehicle] = Id.createVehicleId("dummyVehicle")
       val passengerPersonId: Id[Person] = Id.createPersonId("passengerPerson")
 
       val leg = BeamLeg(0, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId, ActorRef.noSender), Vector(leg))
+        .addPassenger(PersonIdWithActorRef(passengerPersonId, ActorRef.noSender), Vector(leg))
 
       passengerSchedule.schedule.size should be(1)
       passengerSchedule.schedule(leg).riders.size should ===(1)
@@ -50,7 +48,6 @@ class PassengerScheduleTest
     }
     it("should create a schedule for single passenger with many legs") {
 
-      val vehicleId: Id[Vehicle] = Id.createVehicleId("dummyVehicle")
       val passengerPersonId: Id[Person] = Id.createPersonId("passengerPerson")
 
       val leg1 = BeamLeg(0, WALK, 1, BeamPath.empty)
@@ -58,7 +55,7 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
+        .addPassenger(PersonIdWithActorRef(passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 
@@ -76,10 +73,7 @@ class PassengerScheduleTest
     }
     it("should create a schedule for many passengers with many legs") {
 
-      val vehicleId1: Id[Vehicle] = Id.createVehicleId("dummyVehicle1")
       val passengerPersonId: Id[Person] = Id.createPersonId("passengerPerson")
-
-      val vehicleId2: Id[Vehicle] = Id.createVehicleId("dummyVehicle2")
       val passengerPersonId2: Id[Person] = Id.createPersonId("passengerPerson2")
 
       val leg1 = BeamLeg(0, WALK, 1, BeamPath.empty)
@@ -87,8 +81,8 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
-        .addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2, ActorRef.noSender), Vector(leg2, leg3))
+        .addPassenger(PersonIdWithActorRef(passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
+        .addPassenger(PersonIdWithActorRef(passengerPersonId2, ActorRef.noSender), Vector(leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 

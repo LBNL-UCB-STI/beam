@@ -1,11 +1,12 @@
 package beam.agentsim.agents
 
 import beam.integration.IntegrationSpecCommon
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.utils.FileUtils
+import com.google.inject
+import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -15,36 +16,42 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _
-  protected var networkCoordinator: DefaultNetworkCoordinator = _
+  protected var scenario: Scenario = _
+  private var injector: inject.Injector = _
 
   override def beforeAll(): Unit = {
 
     val beamConfig = BeamConfig(baseConfig)
+    val beamScenario = loadScenario(beamConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(beamScenario.network)
 
-    val scenario =
-      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
-
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      module(baseConfig, scenario, networkCoordinator, networkHelper)
+    injector = org.matsim.core.controler.Injector.createInjector(
+      matsimConfig,
+      module(baseConfig, beamConfig, scenario, beamScenario)
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])
+
     val popAdjustment = DefaultPopulationAdjustment(beamServices)
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])
+  }
+
+  override protected def afterAll(): Unit = {
+    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+    if (travelDistanceStats != null)
+      travelDistanceStats.close()
+    scenario = null
+    eventManager = null
+    beamServices = null
+    super.afterAll()
   }
 
   def processHandlers(eventHandlers: List[BasicEventHandler]): Unit = {

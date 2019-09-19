@@ -15,6 +15,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
+    private static double[][] matrixDataset;
 
     int eventCounter = 0;
     int passengerCounter = 0;
@@ -28,14 +29,14 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     public TncPassengerPerTrip(){ }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
         int hour = getEventHour(event.getTime());
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        Integer _num_passengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        String mode = event.mode().value();
+        String vehicle_id = event.vehicleId().toString();
+        Integer _num_passengers = event.numberOfPassengers();
 
         passengerCounter = passengerCounter + _num_passengers;
 
@@ -114,14 +115,15 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         processDeadHeadingPassengerPerTripRemainingRepositionings();
         CategoryDataset dataSet = getCategoryDataSet();
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        writeCSV(matrixDataset,dataSet.getRowCount(),event.getIteration());
     }
 
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-        double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
+         matrixDataset = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", matrixDataset);
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {

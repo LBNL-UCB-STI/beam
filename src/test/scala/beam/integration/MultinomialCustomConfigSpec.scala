@@ -14,7 +14,7 @@ class MultinomialCustomConfigSpec
     with LazyLogging {
 
   "Running beam with Multinomial ModeChoice custom config" must {
-    "Prefer mode choice car type in positive values than negative values " in {
+    "Prefer mode car when intercept is very high versus very low" in {
 
       val config1: Config = baseConfig
         .withValue(
@@ -24,6 +24,10 @@ class MultinomialCustomConfigSpec
         .withValue(
           "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
           ConfigValueFactory.fromAnyRef(100)
+        )
+        .withValue(
+          "beam.debug.debugEnabled",
+          ConfigValueFactory.fromAnyRef(true)
         )
         .resolve()
 
@@ -52,7 +56,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice bike type in positive values than negative values " in {
+    "Prefer mode bike when intercept is very high versus very low" in {
 
       val config1: Config = baseConfig
         .withValue(
@@ -85,7 +89,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice ride hailing type in positive values than negative values " in {
+    "Prefer mode ride_hail when intercept is very high versus very low" in {
 
       val config1: Config = baseConfig
         .withValue(
@@ -118,7 +122,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice drive_transit type in positive values than negative values " in {
+    "Prefer mode drive_transit when intercept is very high versus very low" in {
 
       val config1: Config = baseConfig
         .withValue(
@@ -153,7 +157,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice walk type in positive values than negative values " in {
+    "Prefer mode walk when intercept is very high versus very low" in {
 
       val config1: Config = baseConfig
         .withValue(

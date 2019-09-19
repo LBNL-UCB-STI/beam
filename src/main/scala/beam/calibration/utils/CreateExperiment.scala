@@ -14,6 +14,7 @@ object CreateExperiment extends ExperimentApp {
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
 
   override def lastThingDoneInMain(): Unit = {
+    Sigopt.clientToken = SigOptApiToken.getClientAPIToken
     val experimentLoc: String =
       "production/application-sfbay/calibration/experiment_modes_calibration.yml"
     val benchmarkLoc: String = "production/application-sfbay/calibration/benchmark.csv"

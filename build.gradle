@@ -1,5 +1,6 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import com.bmuschko.gradle.docker.tasks.image.*
 
 import java.time.Instant
 import java.time.ZoneOffset
@@ -17,13 +18,14 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
     }
 }
 
 plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "2.1.0"
+    id "org.scoverage" version "2.5.0"
     id 'maven-publish'
 }
 
@@ -39,9 +41,10 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
+apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.6.0'
+version = '0.8.0'
 
 description = """"""
 
@@ -50,7 +53,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.17"
+def akkaBinaryVersion = "2.5.22"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
@@ -62,11 +65,24 @@ sourceSets.main.java.srcDirs = []
 sourceSets.test.java.srcDirs = []
 sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
 
+sourceSets {
+    main {
+        resources {
+            srcDir "src/main/resources"
+        }
+    }
+    test {
+        resources {
+            srcDir "src/test/resources"
+        }
+    }
+}
+
 if (project.hasProperty('env')) {
     sourceSets {
         main {
             resources {
-                srcDirs "src/main/resources", "test/input/" + project.getProperty('env')
+                srcDirs "test/input/" + project.getProperty('env')
             }
         }
     }
@@ -98,8 +114,11 @@ allprojects {
 
 dependencies {
 
-    //beam-utilities
-    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.1'
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.4') {
+        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
+        exclude group: 'org.matsim', module: 'matsim'
+    }
+    
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -111,13 +130,14 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-text', version: '1.6'
     compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
 
+    // Apache 2.0
+    compile group: 'com.univocity', name: 'univocity-parsers', version: '2.8.1'
+
     // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
-    compile group: 'org.geotools', name: 'gt-referencing', version: '13.0'
     compile group: 'org.geotools', name: 'gt-shapefile', version: '13.0'
-    runtime group: 'org.geotools', name: 'gt-epsg-hsql', version: '13.0'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
+    compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
     compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
@@ -134,6 +154,8 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+    compile "org.jgrapht:jgrapht-core:1.3.0"
+
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
@@ -142,7 +164,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-6') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -151,7 +173,7 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.michaz', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -159,7 +181,7 @@ dependencies {
     compile "com.sigopt:sigopt-java:4.9.0"
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
-    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
     /////////////////////////////////
@@ -175,8 +197,11 @@ dependencies {
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
+    testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
+
+    compile group: 'org.jliszka', name: 'probability-monad_2.11', version: '1.0.1'
 
     // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
     compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
@@ -184,15 +209,10 @@ dependencies {
     compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
 
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
-    //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
-    // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
-    compile group: 'org.scalaz', name: "scalaz-core_${scalaBinaryVersion}", version: '7.3.0-M10'
-    //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
-    //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
@@ -233,6 +253,9 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
+    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
+    compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
+
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
@@ -244,6 +267,19 @@ dependencies {
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
+
+    compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version:'0.7.5'
+
+    compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
+
+    def parquet = "1.10.0"
+    compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
+    compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
+    compile (group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
+        exclude group: 'asm', module: 'asm'
+    }
 }
 
 // Autoformatting using scalafmt
@@ -273,10 +309,10 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
-test.dependsOn spec
+build.dependsOn spec
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
@@ -286,14 +322,12 @@ test.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
@@ -311,7 +345,6 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
                     '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
-
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
@@ -392,6 +425,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
+  "storage_size": ${project.findProperty('storageSize')},
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -542,7 +576,8 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
+                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC
 
 println(applicationDefaultJvmArgs)
 
@@ -589,12 +624,15 @@ task execute(type: JavaExec) {
     }
 }
 
+
 task matsimConversion(type: JavaExec) {
     main = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
+        // if this triggers an error, try
+        // args "${confPath}"
     }
 }
 
@@ -627,5 +665,31 @@ And that would only happen if the committed code is not formatted as expected.""
         } catch (e) {
             throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
         }
+    }
+}
+
+docker{
+
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = System.getenv("DOCKER_USER")
+        password = System.getenv("DOCKER_PASSWORD")
+    }
+
+    javaApplication {
+        baseImage = 'continuumio/miniconda3'
+        maintainer = 'LBNL Beam Team'
+        tag = "beammodel/beam:$version"
+    }
+}
+
+dockerDistTar {
+    instruction 'RUN apt-get update && apt-get -y install openjdk-8-jdk && rm -rf /var/lib/apt/lists/*'
+    addFile 'test/', 'test/'
+}
+
+dockerCopyDistResources {
+    from('test/') {
+        into('test/')
     }
 }

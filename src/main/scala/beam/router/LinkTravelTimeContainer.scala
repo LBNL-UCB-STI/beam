@@ -3,23 +3,26 @@ package beam.router
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import java.util.zip.GZIPInputStream
 
+import beam.utils.TravelTimeCalculatorHelper
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int)
     extends TravelTime
     with LazyLogging {
-  val linkTravelTimeMap: scala.collection.Map[Id[Link], Array[Double]] = loadLinkStats()
 
-  def loadLinkStats(): scala.collection.Map[Id[Link], Array[Double]] = {
+  private val travelTimeCalculator: TravelTime =
+    TravelTimeCalculatorHelper.CreateTravelTimeCalculator(timeBinSizeInSeconds, loadLinkStats().asJava)
+
+  def loadLinkStats(): scala.collection.Map[String, Array[Double]] = {
     val start = System.currentTimeMillis()
-    val linkTravelTimeMap: mutable.HashMap[Id[Link], Array[Double]] = mutable.HashMap()
+    val linkTravelTimeMap: mutable.HashMap[String, Array[Double]] = mutable.HashMap()
     logger.debug(s"Stats fileName -> $fileName is being loaded")
 
     val gzipStream = new GZIPInputStream(new FileInputStream(fileName))
@@ -32,7 +35,7 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
       }) {
         val linkStats = line.split(",")
         if (linkStats.length == 10 && "avg".equalsIgnoreCase(linkStats(7))) {
-          val linkId = Id.createLinkId(linkStats(0))
+          val linkId = linkStats(0)
           val hour = linkStats(3).toDouble.toInt
           val travelTime = linkStats(9).toDouble
           linkTravelTimeMap.get(linkId) match {
@@ -56,17 +59,7 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
   }
 
   def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
-    linkTravelTimeMap.get(link.getId) match {
-      case Some(traveTimePerHour) =>
-        val idx = getSlot(time)
-        if (idx < traveTimePerHour.size) traveTimePerHour(idx)
-        else {
-          logger.warn("Got {} as index for traveTimePerHour with max size {}. Something might be wrong!", idx, maxHour)
-          link.getLength / link.getFreespeed
-        }
-      case None =>
-        link.getLength / link.getFreespeed
-    }
+    travelTimeCalculator.getLinkTravelTime(link, time, person, vehicle)
   }
 
   private def getSlot(time: Double): Int = {

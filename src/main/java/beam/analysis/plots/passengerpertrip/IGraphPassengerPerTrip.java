@@ -1,17 +1,17 @@
 package beam.analysis.plots.passengerpertrip;
 
+import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.GraphUtils;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public interface IGraphPassengerPerTrip {
 
@@ -24,7 +24,7 @@ public interface IGraphPassengerPerTrip {
 
     String getLegendText(int i);
 
-    void collectEvent(Event event, Map<String, String> attributes);
+    void collectEvent(PathTraversalEvent event);
 
     void process(IterationEndsEvent event) throws IOException;
     CategoryDataset getCategoryDataSet();
@@ -44,6 +44,34 @@ public interface IGraphPassengerPerTrip {
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+
+    default void writeCSV(double[][] dataMatrix,int rowCount, int iterationNumber) {
+        String fileName = getFileName("csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        try(final BufferedWriter writer = new BufferedWriter(new FileWriter(csvFileName))) {
+            List<String> legendItemList = getLegendItemList(rowCount);
+            writer.write("hours");
+            for(String headerToken : legendItemList){
+                writer.write(","+headerToken);
+            }
+            writer.write("\n");
+            Map<Integer, String> hoursValue = new TreeMap<>();
+
+            for (double[] data : dataMatrix){
+                int hour = 1;
+                for(double hourData : data){
+                    hoursValue.merge(hour++, ","+hourData, String::concat);
+                }
+            }
+            Set<Integer> hours = hoursValue.keySet();
+            for(Integer hour : hours){
+                writer.write(hour+hoursValue.get(hour)+"\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     default List<String> getLegendItemList(int dataSetRowCount) {

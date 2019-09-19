@@ -36,8 +36,10 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       joulesPerMeter * distanceInMeters
     }
 
+    def getRateInJoulesPerMeter(fuelConsumption: FuelConsumptionData) = joulesPerMeter
+
     def estimateConsumptionInJoules(fuelConsumption: IndexedSeq[FuelConsumptionData]): Double = {
-      joulesPerMeter * fuelConsumption.map(_.linkLength).sum
+      joulesPerMeter * fuelConsumption.map(_.linkLength.getOrElse(0.0)).sum
     }
 
   }

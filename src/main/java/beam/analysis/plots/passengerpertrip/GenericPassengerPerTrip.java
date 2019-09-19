@@ -4,7 +4,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -15,6 +14,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
+    private static double[][] matrixDataSet;
     int eventCounter = 0;
     int maxHour = 0;
 
@@ -33,14 +33,14 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
         int hour = getEventHour(event.getTime());
         maxHour = maxHour < hour ? hour : maxHour;
 
-        Integer _num_passengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        Integer _num_passengers = event.numberOfPassengers();
         maxPassengersSeenOnGenericCase = maxPassengersSeenOnGenericCase < _num_passengers ? _num_passengers : maxPassengersSeenOnGenericCase;
 
         updateNumPassengerInDeadHeadingsMap(hour, graphName, _num_passengers);
@@ -52,14 +52,15 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
         CategoryDataset dataSet = getCategoryDataSet();
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        writeCSV(matrixDataSet,dataSet.getRowCount(),event.getIteration());
     }
 
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-        double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
+        matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", matrixDataSet);
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {

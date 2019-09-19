@@ -3,9 +3,12 @@ package beam.analysis;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.common.GeoUtils$;
+import beam.sim.common.GeoUtilsImpl;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import com.typesafe.config.ConfigFactory;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
@@ -14,7 +17,6 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
-import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -97,12 +99,15 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public static Map<String, R5NetworkLink> r5NetworkLinks;
     private static int numberOfLinkIdsMissingInR5NetworkFile = 0;
-    private static TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles;
+    private static Map<Id<BeamVehicleType>, BeamVehicleType> vehicles;
     private List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
     private Map<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap<>();
+
+
+    private final beam.sim.common.GeoUtils geoUtils = new GeoUtilsImpl(BeamConfig.apply(ConfigFactory.load()));
 
     public PathTraversalSpatialTemporalTableGenerator() {
         for (int i = 0; i < NUMBER_OF_BINS; i++) {
@@ -162,40 +167,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 //        new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
     }
 
-    public static void setVehicles(TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles) {
+    public static void setVehicles(Map<Id<BeamVehicleType>, BeamVehicleType> vehicles) {
         PathTraversalSpatialTemporalTableGenerator.vehicles = vehicles;
-    }
-
-    public static double getFuelConsumptionInMJ(String vehicleId, String mode, String fuelString, double lengthInMeters, String vehicleType) {
-        // initialize Fuel
-        Double fuel = CONST_NUM_ZERO;
-        if (fuelString.contains("NA")) {
-            if (vehicleId.contains("rideHail")) {
-                fuel = CAR_FUEL_ECONOMY_IN_LITER_PER_METER * lengthInMeters;
-                // fix for ride hailing vehicles
-            } else if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
-                if (lengthInMeters > 0) {
-                    DebugLib.emptyFunctionForSettingBreakPoint();
-                }
-
-                fuel = WALKING_ENERGY_IN_JOULE_PER_METER * lengthInMeters; // in Joule
-            } else {
-                DebugLib.stopSystemAndReportInconsistency();
-            }
-        } else {
-            fuel = Double.parseDouble(fuelString);
-        }
-
-        if (vehicleId.contains("rideHail")) {
-            vehicleType = "TNC";
-        }
-
-
-        boolean isElectricEnergy = isElectricEnergy(vehicleId, mode);
-
-        fuel = convertFuelToMJ(fuel, mode, isElectricEnergy);
-
-        return fuel;
     }
 
     private static String getFuelType(String vehicleIdString, String mode) {
@@ -215,11 +188,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
             Id<BeamVehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), BeamVehicleType.class);
 
-            if (!vehicles.contains(vehicleTypeId)) {
+            if (!vehicles.containsKey(vehicleTypeId)) {
                 vehicleTypeId = Id.create((mode + "-DEFAULT").toUpperCase(), BeamVehicleType.class);
             }
 
-            BeamVehicleType vehicleType = vehicles.get(vehicleTypeId).get();
+            BeamVehicleType vehicleType = vehicles.get(vehicleTypeId);
 
             String vehicleFuelType = vehicleType.primaryFuelType().toString();
 
@@ -362,9 +335,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String, String> pathTraversalEventAttributes) {
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
-        double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startAndEndCoordinates.getFirst().getY(),
-                startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(),
-                startAndEndCoordinates.getSecond().getX());
+        double lengthInMeters = geoUtils.distLatLon2Meters(startAndEndCoordinates.getFirst(), startAndEndCoordinates.getSecond());
         return fuelEconomy * lengthInMeters;
     }
 
@@ -379,7 +350,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
                 R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
                 Coord centerCoord = new Coord((startLink.coord.getX() + endLink.coord.getX()) / 2, (startLink.coord.getY() + endLink.coord.getY()) / 2);
-                double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
+                double lengthInMeters = geoUtils.distLatLon2Meters(startLink.coord, endLink.coord);
 // TODO: do county distribution again
 
                 if (linkId.equalsIgnoreCase("849856,1375838")) {
@@ -457,15 +428,15 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             return; // not using data after 'MAX_TIME_IN_SECONDS'
         }
 
-        String vehicleType = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicleId = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
-        double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
+        String vehicleType = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
+        String vehicleId = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
+        String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
+        Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS()));
+        double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH()));
+        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL());
 
-        double fuel = getFuelConsumptionInMJ(vehicleId, mode, fuelString, lengthInMeters, vehicleType);
+        double fuel = Double.parseDouble(fuelString);
 
 
         String vehicleTypeWithFuelType = getVehicleTypeWithFuelType(vehicleType, vehicleId, mode);
@@ -514,7 +485,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     @Override
     public void handleEvent(Event event) {
-        if (event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
+        if (event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE())) {
             handleEvent(event.getTime(), event.getAttributes());
         }
     }

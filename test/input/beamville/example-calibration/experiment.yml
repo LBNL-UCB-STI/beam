@@ -5,7 +5,7 @@
 header:
     title: Beamville Calibration
     author: BEAM Developers
-    beamTemplateConfPath: test/input/beamville/beam-calibration.conf
+    beamTemplateConfPath: test/input/beamville/beam.conf
     modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
     deployParams:

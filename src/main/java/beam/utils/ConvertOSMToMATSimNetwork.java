@@ -35,7 +35,7 @@ public class ConvertOSMToMATSimNetwork {
         osmReader.parse(args[0] + "/ontario-motorways-trunks.osm");
         new NetworkWriter(network).write(args[0] + "/ontario-motorways-trunks.xml");
 
-        // writing outWriter a cleaned matsim network and loading it
+        // writing out a cleaned matsim network and loading it
         // into the scenario
         (new NetworkCleaner()).run(args[0] + "/ontario-motorways-trunks.xml", args[0] + "/ontario-motorways-trunks-clean.xml.gz");
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
@@ -43,7 +43,7 @@ public class ConvertOSMToMATSimNetwork {
         /*
          * TODO Debug the following
          *
-         * The following code is outWriter of date from the online tutorial. Needs to be fixed
+         * The following code is out of date from the online tutorial. Needs to be fixed
          */
 //		new MatsimNetworkReader(scenario).readFile(OUTFILE.split(".xml")[0] + "_clean.xml.gz");
 //		network = (NetworkImpl) scenario.getNetwork();

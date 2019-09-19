@@ -1,75 +1,183 @@
 package beam.utils
+
 import java.io.File
 
-import com.typesafe.scalalogging.LazyLogging
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
+import beam.utils.ConfigConsistencyComparator.buildTopicWithKeysAndValues
 
 import scala.collection.JavaConverters._
+import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
+import com.typesafe.scalalogging.LazyLogging
 
-case class ConfigConsistencyComparator(userConfFileLocation: String) extends LazyLogging {
+import scala.collection.mutable
+import scala.io.Source
+import scala.util.Try
 
-  def parseBeamTemplateConfFile(): Unit = {
-    val baseUserConf = ConfigFactory.parseFile(new File(userConfFileLocation))
+object ConfigConsistencyComparator extends LazyLogging {
+  private val eol = System.lineSeparator()
+  private val borderLeft = "**  "
+  private val topicBorderLeft = "** "
+  private val sessionSeparator = "*" * 122
+  private val top = {
+    eol + sessionSeparator +
+    buildTopicTile("Config File Consistency Check") +
+    buildTopicTile("Testing your config file against what BEAM is expecting.")
+  }
+  private val bottom = sessionSeparator + eol
+  private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
+  private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
+
+  private var consistencyMessage: Option[String] = None
+
+  def getMessage: Option[String] = {
+    consistencyMessage
+  }
+
+  def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
+    val logStringBuilder = new java.lang.StringBuilder(top)
+    val configResolver = ConfigResolveOptions
+      .defaults()
+      .setAllowUnresolved(true)
+
+    val baseUserConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(new File(userConfFileLocation))
     val userBeamConf = baseUserConf.withOnlyPath("beam")
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
-    val userConf = userBeamConf.withFallback(userMatsimConf)
+    val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
 
-    var logString = "\n\n*************************************************************************************************************************\n" +
-    "** Config File Consistency Check\n" +
-    "** Testing your config file against what BEAM is expecting.\n" +
-    "**\n"
-    val deprecatedString = deprecatedParametersInConfig(userConf, templateConf)
-    if (!deprecatedString.equals("**\n")) {
-      logString += "** Found the following deprecated parameters, you can safely remove them from your config file:\n"
-      logString += deprecatedString
-      logString += "**\n"
-    }
-    val defaultString = defaultParametersInConfig(userConf, templateConf)
-    if (!defaultString.equals("**\n")) {
-      logString += "** The following parameters were missing from your config file, this is ok, but FYI these default values will be assigned:\n"
-      logString += defaultString
+    val duplicateKeys = findDuplicateKeys(userConfFileLocation)
+    if (duplicateKeys.nonEmpty) {
+      val title = "Found the following duplicate config keys from your config file:"
+      logStringBuilder.append(buildTopicWithKeys(title, duplicateKeys))
     }
 
-    if (deprecatedString.equals("**\n") && defaultString.equals("**\n")) {
-      logString += "** All good, your config file is fully consistent!\n"
-      logString += "**\n"
+    val deprecatedKeys = findDeprecatedKeys(userConf, templateConf)
+    if (deprecatedKeys.nonEmpty) {
+      val title = "Found the following deprecated parameters, you can safely remove them from your config file:"
+      logStringBuilder.append(buildTopicWithKeys(title, deprecatedKeys))
     }
-    logString += "*************************************************************************************************************************\n"
 
-    logger.info(logString)
+    val paramsWithDefaultValues = findParamsWithDefaultValues(userConf, templateConf)
+    if (paramsWithDefaultValues.nonEmpty) {
+      val title =
+        "The following parameters were missing from your config file, this is ok, but FYI these default values will be assigned:"
+      logStringBuilder.append(buildTopicWithKeysAndValues(title, paramsWithDefaultValues))
+    }
+
+    if (deprecatedKeys.isEmpty && paramsWithDefaultValues.isEmpty) {
+      logStringBuilder.append(consistentFileMessage)
+    }
+
+    val notFoundFiles = findNotFoundFiles(userConf)
+    if (notFoundFiles.nonEmpty) {
+      val title = "The following files were not found:"
+      logStringBuilder.append(buildTopicWithKeysAndValues(title, notFoundFiles))
+    }
+
+    logStringBuilder.append(bottom)
+
+    if (notFoundFiles.nonEmpty) {
+      throw new IllegalArgumentException(
+        s"The following files were not found: ${buildTopicWithKeysAndValues("", notFoundFiles)}"
+      )
+    }
+    consistencyMessage = Some(logStringBuilder.toString)
   }
 
-  def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
-
-    var logString = "**\n"
-    userConf.entrySet.asScala.foreach { entry =>
-      if (!(templateConf.hasPathOrNull(entry.getKey))) {
-        logString += "**\t" + entry.getKey + "\n"
+  //This method filter duplicate only for non nested keys
+  def findDuplicateKeys(userConfFileLocation: String): Seq[String] = {
+    val source = Source.fromFile(userConfFileLocation)
+    try {
+      val lines = Try(source.getLines().toList).getOrElse(List())
+      val bracketStack = mutable.Stack[String]()
+      val configKey = mutable.Map[String, Int]().withDefaultValue(0)
+      val withoutCommentConfigLines = lines.withFilter(!_.trim.startsWith("#"))
+      for (line <- withoutCommentConfigLines) {
+        if (line.contains("{") && !line.contains("${")) {
+          bracketStack.push("{")
+        } else if (line.contains("}") && !line.contains("${")) {
+          bracketStack.pop()
+        } else if (bracketStack.isEmpty && line.contains("=")) {
+          val keyedValue = line.split("=")
+          configKey.update(keyedValue(0).trim, configKey(keyedValue(0).trim) + 1)
+        }
       }
+      configKey.retain((_, value) => value > 1).keys.toSeq
+    } finally {
+      source.close()
     }
-    logString
   }
 
-  def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
-
-    var logString = "**\n"
-    val theparams = templateConf
+  def findDeprecatedKeys(userConf: TypesafeConfig, templateConf: TypesafeConfig): Seq[String] = {
+    userConf
       .entrySet()
       .asScala
-      .filter(entry => !userConf.hasPathOrNull(entry.getKey))
+      .map(_.getKey)
+      .filterNot(templateConf.hasPathOrNull)
+      .toSeq
+  }
+
+  def findParamsWithDefaultValues(userConf: TypesafeConfig, templateConf: TypesafeConfig): Seq[(String, String)] = {
+    templateConf
+      .entrySet()
+      .asScala
       .map { entry =>
         val paramValue = entry.getValue.unwrapped.toString
         val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
-        (entry.getKey -> value)
+        entry.getKey -> value
       }
-      .toMap
-    theparams.keys.toList.sorted.foreach { entryKey =>
-      val value = theparams(entryKey)
-      logString += "**\t" + entryKey + " = " + value + "\n"
-    }
-    logString
+      .filterNot { case (key, _) => userConf.hasPathOrNull(key) }
+      .toSeq
   }
-  parseBeamTemplateConfFile
+
+  private def buildTopicWithKeysAndValues(title: String, keysAndValues: Seq[(String, String)]): String = {
+    buildTopicTile(title) + buildStringFromKeysAndValues(keysAndValues)
+  }
+
+  def buildTopicWithKeys(title: String, keys: Seq[String]): String = {
+    buildTopicTile(title) + buildStringFromKeys(keys)
+  }
+
+  private def buildTopicTile(title: String): String = {
+    s"""$borderLeft
+       |$topicBorderLeft$title
+       |""".stripMargin
+  }
+
+  def findNotFoundFiles(userConf: TypesafeConfig): Seq[(String, String)] = {
+
+    def resolve(key: String, value: ConfigValue): String = {
+      try {
+        value.unwrapped().toString
+      } catch {
+        case _: ConfigException.NotResolved => value.render()
+      }
+    }
+
+    ConfigResolveOptions.defaults()
+    userConf
+      .entrySet()
+      .asScala
+      .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
+      .filter {
+        case (key, value) =>
+          val shouldCheck = !ignorePaths.contains(key)
+          shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
+      }
+      .toSeq
+  }
+
+  private def buildStringFromKeysAndValues(pairs: Seq[(String, String)]): String = {
+    pairs
+      .sortBy { case (key, _) => key }
+      .map { case (key, value) => s"$borderLeft$key = [$value]" }
+      .mkString(borderLeft + eol, eol, eol)
+  }
+
+  private def buildStringFromKeys(keys: Seq[String]): String = {
+    keys.sorted
+      .map(key => s"$borderLeft$key")
+      .mkString(borderLeft + eol, eol, eol)
+  }
+
 }

@@ -19,12 +19,12 @@ public class AboveCapacityPtUsageDurationAnalysis implements GraphAnalysis, Iter
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            Map<String, String> attributes = event.getAttributes();
-            Integer numberOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
-            Integer seatingCapacity = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
-            Double departureTime = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
-            Double arrivalTime = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME));
+        if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pte = (PathTraversalEvent)event;
+            Integer numberOfPassengers = pte.numberOfPassengers();
+            Integer seatingCapacity = pte.seatingCapacity();
+            int departureTime = pte.departureTime();
+            int arrivalTime = pte.arrivalTime();
 
             if (numberOfPassengers > seatingCapacity) {
                 aboveCapacityPtUsageDuration += arrivalTime - departureTime;

@@ -5,17 +5,16 @@ import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
-import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
+import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
-import org.apache.commons.io.FilenameUtils.getName
+import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
 
 import scala.language.reflectiveCalls
-import scala.util.Try
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -24,7 +23,7 @@ object FileUtils extends LazyLogging {
 
   val runStartTime: String = getDateString
 
-  def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): Unit = {
+  def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
@@ -40,6 +39,7 @@ object FileUtils extends LazyLogging {
     outputDir.mkdir()
     logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     matsimConfig.controler.setOutputDirectory(outputDir.getAbsolutePath)
+    outputDir.getAbsolutePath
   }
 
   def getConfigOutputFile(
@@ -54,7 +54,6 @@ object FileUtils extends LazyLogging {
     val outputDir = Paths
       .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
       .toFile
-    logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     outputDir.mkdir()
     outputDir.getAbsolutePath
   }
@@ -98,6 +97,7 @@ object FileUtils extends LazyLogging {
   def downloadFile(source: String, target: String): Unit = {
     assert(source != null)
     assert(target != null)
+    logger.info(s"Downloading [$source] to [$target]")
     copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 
@@ -129,4 +129,76 @@ object FileUtils extends LazyLogging {
     }
   }
 
+  def writeToFile(filePath: String, content: Iterator[String]): Unit = {
+    val bw = IOUtils.getBufferedWriter(filePath)
+    try {
+      content.foreach(bw.append)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing data to file - $filePath", e)
+    } finally {
+      bw.close()
+    }
+  }
+
+  /**
+    * Writes data to the output file at specified path.
+    * @param filePath path of the output file to write data to
+    * @param fileHeader an optional header to be appended (if any)
+    * @param data data to be written to the file
+    * @param fileFooter an optional footer to be appended (if any)
+    */
+  def writeToFileJava(
+    filePath: String,
+    fileHeader: java.util.Optional[String],
+    data: String,
+    fileFooter: java.util.Optional[String]
+  ): Unit = {
+    val bw = IOUtils.getBufferedWriter(filePath) //new BufferedWriter(new FileWriter(filePath))
+    try {
+      if (fileHeader.isPresent)
+        bw.append(fileHeader.get + "\n")
+      bw.append(data)
+      if (fileFooter.isPresent)
+        bw.append("\n" + fileFooter.get)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)
+    } finally {
+      bw.close()
+    }
+  }
+
+  def downloadAndUnpackIfNeeded(srcPath: String, remoteIfStartsWith: String = "http"): String = {
+    val srcName = getName(srcPath)
+    val srcBaseName = getBaseName(srcPath)
+
+    val localPath =
+      if (isRemote(srcPath, remoteIfStartsWith)) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        downloadFile(srcPath, tmpPath)
+        tmpPath
+      } else
+        srcPath
+
+    val unpackedPath =
+      if (isZipArchive(localPath)) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcBaseName).toString
+        unzip(localPath, tmpPath, false)
+        tmpPath
+      } else
+        localPath
+
+    unpackedPath
+  }
+
+  private def isZipArchive(sourceFilePath: String): Boolean = {
+    assert(sourceFilePath != null)
+    "zip".equalsIgnoreCase(getExtension(sourceFilePath))
+  }
+
+  private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
+    assert(sourceFilePath != null)
+    sourceFilePath.startsWith(remoteIfStartsWith)
+  }
 }

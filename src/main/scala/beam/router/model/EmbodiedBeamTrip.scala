@@ -4,6 +4,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
   CAR,
+  CAV,
   DRIVE_TRANSIT,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
@@ -31,12 +32,14 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     !_.asDriver
   )
 
-  val totalTravelTimeInSecs: Int = legs.map(_.beamLeg.duration).sum
+  @transient
+  lazy val replanningPenalty: Double = legs.map(_.replanningPenalty).sum
 
-  def beamLegs(): IndexedSeq[BeamLeg] =
-    legs.map(embodiedLeg => embodiedLeg.beamLeg)
+  val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 
-  def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
+  def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
+
+  def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
 
   def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
     var theMode: BeamMode = WALK
@@ -54,6 +57,8 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
         }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
         theMode = CAR
+      } else if (theMode == WALK && leg.beamLeg.mode == CAV) {
+        theMode = CAV
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = BIKE
       }

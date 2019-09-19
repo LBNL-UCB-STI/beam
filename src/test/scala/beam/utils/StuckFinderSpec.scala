@@ -1,13 +1,15 @@
 package beam.utils
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActors, TestKit}
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BoardVehicleTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm.ActorTypeToMaxNumberOfMessages
+import org.matsim.api.core.v01.Id
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class StuckFinderSpec
@@ -23,7 +25,13 @@ class StuckFinderSpec
   val threshold = Thresholds$Elm(
     ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
     100,
-    classOf[InitializeTrigger].getCanonicalName
+    classOf[InitializeTrigger].getName
+  )
+
+  val threshold2 = Thresholds$Elm(
+    ActorTypeToMaxNumberOfMessages(Some(3), Some(3), Some(3), Some(3)),
+    100,
+    classOf[BoardVehicleTrigger].getName
   )
 
   val stuckAgentDetectionCfg =
@@ -33,11 +41,14 @@ class StuckFinderSpec
       defaultTimeoutMs = 100,
       checkIntervalMs = 100,
       overallSimulationTimeoutMs = 60000,
-      thresholds = List(threshold)
+      thresholds = List(threshold, threshold2)
     )
 
   val devNull = system.actorOf(TestActors.blackholeProps)
   val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
+
+  val boardVehicleTrigger =
+    ScheduledTrigger(TriggerWithId(BoardVehicleTrigger(1, Id.createVehicleId(1)), 1L), devNull, 1)
 
   "A StuckFinder" should {
     "return true" when {
@@ -72,6 +83,36 @@ class StuckFinderSpec
           ValueWithTime(st.copy(priority = 10), 10)
         )
       )
+    }
+
+    "should return stuck agent due to exceed number of messages only once" in {
+      // Need to override the behaviour of `getActorType`
+      val s = new StuckFinder(stuckAgentDetectionCfg) {
+        override def getActorType(actorRef: ActorRef): String = "Population"
+      }
+      // Allowed max number of messages is 3
+      (1 to 3).foreach { time =>
+        println(time)
+        s.add(time, boardVehicleTrigger, isNew = true)
+      }
+      s.detectStuckAgents(0) should be(Seq.empty)
+
+      // It reaches max number of messages
+      s.add(1, boardVehicleTrigger, isNew = true)
+
+      // We have to find that agent it the stuck list
+      val stuck = s.detectStuckAgents(0)
+      stuck.head should be(ValueWithTime(boardVehicleTrigger, -1))
+
+      // Next call to `detectStuckAgents(0)` should not return it anymore
+      s.detectStuckAgents(0) should be(Seq.empty)
+      s.detectStuckAgents(0) should be(Seq.empty)
+      s.detectStuckAgents(0) should be(Seq.empty)
+
+      // Even when we add it again
+      s.add(1, boardVehicleTrigger, isNew = true)
+      s.detectStuckAgents(0) should be(Seq.empty)
+      s.detectStuckAgents(0) should be(Seq.empty)
     }
   }
 }

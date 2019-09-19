@@ -20,14 +20,12 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "endX";
     public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "endY";
 
-    private final Id<Person> customerId;
-    private final long departTime;
-    private final double originX;
-    private final double originY;
-    private final double destinationX;
-    private final double destinationY;
-    private Map<String, String> attr;
-
+    public final Id<Person> customerId;
+    public final long departTime;
+    public final double originX;
+    public final double originY;
+    public final double destinationX;
+    public final double destinationY;
 
     public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, Coord pickUpLocation, Coord dropOutLocation) {
         this(time,
@@ -68,17 +66,13 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
 
     @Override
     public Map<String, String> getAttributes() {
-        if (attr != null) return attr;
-
-        attr = super.getAttributes();
-
+        Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON_ID, customerId.toString());
         attr.put(ATTRIBUTE_DEPART_TIME, Long.toString(departTime));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_X, Double.toString(originX));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_Y, Double.toString(originY));
         attr.put(ATTRIBUTE_DROPOUT_LOCATION_X, Double.toString(destinationX));
         attr.put(ATTRIBUTE_DROPOUT_LOCATION_Y, Double.toString(destinationY));
-
         return attr;
     }
 
