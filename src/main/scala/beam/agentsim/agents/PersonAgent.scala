@@ -449,7 +449,7 @@ class PersonAgent(
                 }
               })
           })
-          stop replying CompletionNotice(triggerId)
+          stay replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
