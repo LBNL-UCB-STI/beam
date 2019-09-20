@@ -38,7 +38,7 @@ plt_setup_smart = {
 }
 
 output_folder = "/Users/haitam/workspace/pyscripts/data/smart/15thSep2019"
-year = "2040"
+year = "2010"
 iteration = "15"
 prefix = "{}.{}".format(year, iteration)
 metrics_file = "{}/{}.metrics-final.csv".format(output_folder, prefix)

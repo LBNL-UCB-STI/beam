@@ -362,7 +362,7 @@ def pltModeSplitInPMT(_plt_setup, _df, output_folder, _output_plot_prefix):
          'car': df['PMT_car'].values * factor,
          'cav': df['PMT_car_CAV'].values * factor,
          'rh': (df['PMT_car_RH'].values+df['PMT_car_RH_CAV'].values) * factor,
-         'walk': df['PMT_walk'] * factor,
+         'walk': df['PMT_walk'].values * factor,
          'bike': df['PMT_bike'].values * factor
          })
     height_all = data.sum(axis=1)
@@ -590,3 +590,66 @@ def pltRHEmptyPooled(_plt_setup, _df, output_folder, _output_plot_prefix):
     plt.clf()
     plt.close()
 
+
+def pltModeSplitByTrips2(_plt_setup2, _output_folder):
+    makeplots_folder = '{}/makeplots'.format(_output_folder)
+    if not os.path.exists(makeplots_folder):
+        os.makedirs(makeplots_folder)
+    t_xpos = _plt_setup2['technologies_xpos']
+    t_names = _plt_setup2['technologies']
+    s_xpos = _plt_setup2['scenarios_xpos']
+    s_names = _plt_setup2['scenarios']
+    angle = _plt_setup2['rotation']
+    dimension = _plt_setup2['dimension']
+    fig_size = _plt_setup2['fig_size']
+    iteration = _plt_setup2['iteration']
+    df = pd.DataFrame()
+    prefix = ""
+    for i in range(len(_plt_setup2['scenarios_year'])):
+        year = _plt_setup2['scenarios_year'][i]
+        prefix += "{}.".format(year)
+        rank = _plt_setup2['scenarios_rank'][i]
+        metrics_file = "{}/{}.{}.metrics-final.csv".format(_output_folder, year, iteration)
+        df_temp = pd.read_csv(metrics_file).fillna(0)
+        df = pd.concat([df, df_temp[df_temp['Rank'] == rank]])
+
+    output_png = '{}/{}modesplit_trips.png'.format(makeplots_folder, prefix)
+    output_csv = '{}/{}modesplit_trips.csv'.format(makeplots_folder, prefix)
+
+    df = df.sort_values(by=['Rank'])
+    data = pd.DataFrame(
+        {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values),
+         'car': df['car_counts'].values,
+         'cav': df['cav_counts'].values,
+         'rh': df['ride_hail_counts'].values,
+         'rhp': df['ride_hail_pooled_counts'].values,
+         'walk': df['walk_counts'].values,
+         'bike': df['bike_counts'].values
+         })
+    data = data.div(data.sum(axis=1), axis=0)
+    data['scenario'] = df['Scenario'].values.copy()
+    data['technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
+
+    plt.figure(figsize=fig_size)
+    plt_transit = plt.bar(x=t_xpos, height=data['transit'], color=mode_colors['Transit'])
+    plt_car = plt.bar(x=t_xpos, height=data['car'], bottom=data['transit'], color=mode_colors['Car'])
+    plt_cav = plt.bar(x=t_xpos, height=data['cav'], bottom=data[['transit', 'car']].sum(axis=1), color=mode_colors['CAV'])
+    plt_rh = plt.bar(x=t_xpos, height=data['rh'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), color=mode_colors['RH'])
+    plt_rhp = plt.bar(x=t_xpos, height=data['rhp'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'])
+    plt_bike = plt.bar(x=t_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp']].sum(axis=1), color=mode_colors['Bike'])
+    plt_walk = plt.bar(x=t_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp', 'bike']].sum(axis=1), color=mode_colors['Walk'])
+
+    plt.xticks(s_xpos, s_names, rotation=angle)
+    plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_rhp, plt_bike, plt_walk),
+               ('Transit', 'Car', 'CAV', 'Ridehail', 'Ridehail Pool', 'Bike', 'Walk'),
+               labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
+    ax = plt.gca()
+    ax.grid(False)
+    for ind in range(dimension):
+        plt.text(t_xpos[ind], 1.02, t_names[ind], ha='center')
+    ax.set_ylim((0, 1.0))
+    plt.ylabel('Portion of Trips')
+    plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+    plt.clf()
+    plt.close()
