@@ -1158,8 +1158,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
 }
 
 object R5RoutingWorker {
-  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
+  // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
@@ -1204,15 +1205,15 @@ object R5RoutingWorker {
     endUTM: Location,
     geo: GeoUtils
   ): BeamLeg = {
-    val beelineDistanceInMeters = geo.distUTMInMeters(startUTM, endUTM)
-    val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
+    val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
       Vector(),
       Vector(),
       None,
       SpaceTime(geo.utm2Wgs(startUTM), atTime),
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
-      beelineDistanceInMeters
+      distanceInMeters
     )
     BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
