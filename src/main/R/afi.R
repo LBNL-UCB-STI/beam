@@ -57,6 +57,7 @@ q[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by='vehi
 pr(q[type=='ChargingPlugInEvent' & hour!=arr])
 
 q[,hr:=round(hour,0)]
+setkey(q,key,hr)
 
 ch <- evs[type%in%c('ChargingPlugInEvent','RefuelSessionEvent','ChargingPlugOutEvent')]
 ch[,soc:=primaryFuelLevel/maxFuelLevel]
