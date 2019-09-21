@@ -48,6 +48,7 @@ scenarios_2025 = [baseline_2025, base_2030lt_2025, base_2030ht_2025, base_2045lt
                   a_lt_2025, a_ht_2025, b_lt_2025, b_ht_2025, c_lt_2025, c_ht_2025]
 scenarios_2040 = [baseline_2040, base_2030lt_2040, base_2030ht_2040, base_2045lt_2040, base_2045ht_2040,
                   a_lt_2040, a_ht_2040, b_lt_2040, b_ht_2040, c_lt_2040, c_ht_2040]
+
 scenarios = scenarios_2010 + scenarios_2025 + scenarios_2040
 
 setup_config_dict = {
