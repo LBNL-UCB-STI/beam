@@ -363,7 +363,7 @@ def pltModeSplitInVMT(_plt_setup2, _output_folder):
 
     data = pd.DataFrame(
     {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+
-                 df['VMT_tram'].values+df['VMT_cable_car'].values) * factor * scale,
+                 df['VMT_tram'].values+df['VMT_cable_car'].values) * scale,
      'car': df['VMT_car'].values * factor * scale,
      'cav': df['VMT_car_CAV'].values * factor * scale,
      'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor * scale,
@@ -454,8 +454,6 @@ def pltRHWaitTime(_plt_setup2, _output_folder):
     top_labels = _plt_setup2['top_labels']
     bottom_labels = _plt_setup2['bottom_labels']
     nb_scenarios = len(_plt_setup2['scenarios_id'])
-    factor = _plt_setup2['expansion_factor']
-    scale = 1 / 1000000
     angle = 12
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
     output_png = '{}/makeplots/{}.rh_wait_time.png'.format(_output_folder, _plt_setup2['name'])
@@ -534,7 +532,6 @@ def pltEnergyPerCapita(_plt_setup2, _output_folder):
     top_labels = _plt_setup2['top_labels']
     bottom_labels = _plt_setup2['bottom_labels']
     nb_scenarios = len(_plt_setup2['scenarios_id'])
-    factor = _plt_setup2['expansion_factor']
     scale = 1 / 1000000000
     angle = 12
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
@@ -542,9 +539,9 @@ def pltEnergyPerCapita(_plt_setup2, _output_folder):
     output_csv = '{}/makeplots/{}.energy_source_percapita.csv'.format(_output_folder, _plt_setup2['name'])
 
     data = pd.DataFrame(
-        {'gas': (df['totalEnergy_Gasoline'].values / df['population'].values) * factor * scale,
-         'diesel': (df['totalEnergy_Diesel'].values / df['population'].values) * factor * scale,
-         'electricity': (df['totalEnergy_Electricity'].values / df['population'].values) * factor * scale
+        {'gas': (df['totalEnergy_Gasoline'].values / df['population'].values) * scale,
+         'diesel': (df['totalEnergy_Diesel'].values / df['population'].values) * scale,
+         'electricity': (df['totalEnergy_Electricity'].values / df['population'].values) * scale
          })
     height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()

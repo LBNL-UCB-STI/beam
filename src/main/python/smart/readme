@@ -19,3 +19,16 @@ Rank here, serves as a way to order matrices or vectors in certain way to be abl
 "smartplots_run.py": contains the configuration required to generate a plot for a certain scenario.
 this is the main script that should be run to generate plots.
 Optionally, it is possible to call this script from "smartdata_run.py" immediately after the files have been downloaded, stored and processed.
+
+
+**** NEW
+
+"smartplots2_setup.py": contains same plot as "smartplots_setup.py", but these plots have mixed years
+
+"smartplots2_run.py": steps for plotting different scenarios in different years
+name => is the prefix for every png/csv file
+scenarios_id => the ids of the scenarios to plotted in that order
+scenarios_itr => the iteration from which to extract the corresponding data
+scenarios_year => the year from which to extract the corresponding data
+bottom_labels => labels at the bottom of x axis (scenarios)
+top_labels => labels on top fo the x axis (technologies)
