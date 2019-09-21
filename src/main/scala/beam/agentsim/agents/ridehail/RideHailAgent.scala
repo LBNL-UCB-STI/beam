@@ -628,16 +628,6 @@ class RideHailAgent(
   override def logPrefix(): String = s"RideHailAgent $id: "
 
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
-    nextNotifyVehicleResourceIdle = Some(
-      NotifyVehicleIdle(
-        currentBeamVehicle.id,
-        geo.wgs2Utm(currentBeamVehicle.spaceTime.copy(time = tick)),
-        PassengerSchedule(),
-        currentBeamVehicle.getState,
-        None,
-        _currentTriggerId
-      )
-    )
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
       new RefuelSessionEvent(
@@ -675,6 +665,16 @@ class RideHailAgent(
         currentLocation
     }
     vehicle.spaceTime = SpaceTime(newLocation, tick)
+    nextNotifyVehicleResourceIdle = Some(
+      NotifyVehicleIdle(
+        vehicle.id,
+        geo.wgs2Utm(vehicle.spaceTime),
+        PassengerSchedule(),
+        vehicle.getState,
+        None,
+        _currentTriggerId
+      )
+    )
   }
 
   def parkAndStartRefueling(stall: ParkingStall) = {

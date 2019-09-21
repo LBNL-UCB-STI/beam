@@ -23,12 +23,15 @@ object ParkingStallSampling {
 
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
+    val euclideanDistance = Math.sqrt(Math.pow(xDistance,2.0)+Math.pow(yDistance,2.0))
     val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
     val sampleStandardDeviation: Double = tazCharacteristicDiameter * 0.33
 
+    val adjustedAvailabilityRatio = if(euclideanDistance < tazCharacteristicDiameter)availabilityRatio else availabilityRatio / (euclideanDistance/tazCharacteristicDiameter)
+
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
-    val availabilityFactor: Double = if (availabilityRatio < 0.01) 1.0 else -0.25 * math.log(availabilityRatio)
+    val availabilityFactor: Double = if (adjustedAvailabilityRatio < 0.01) 1.0 else -0.25 * math.log(adjustedAvailabilityRatio)
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
     val (scaledXDistance, scaledYDistance) = (
