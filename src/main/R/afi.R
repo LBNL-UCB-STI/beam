@@ -13,7 +13,8 @@ runs[grepl('html\\#',url),url.corrected:=unlist(lapply(str_split(runs[grepl('htm
 
 evs <- list()
 #for(i in 1:nrow(runs)){
-for(i in c(10,2,12)){
+#for(i in c(1,2,9,10,12)){
+for(i in c(1,9)){
   my.cat(pp(names(runs),":",runs[i],collapse=' , '))
   if(!file.exists(runs$local.file[i])){
     for(it in 15:0){
@@ -28,7 +29,7 @@ for(i in c(10,2,12)){
   ev[,scen:=runs$scen[i]]
   ev[,run:=i]
   ev[,':='(links=NULL,linkTravelTime=NULL,isRH=substr(vehicle,0,4)=='ride')]
-  ev[substr(vehicleType,1,5)=='BeamV',vehicleType:=unlist(lapply(str_split(tmp$vehicleType,"BeamVehicleType\\("),function(ll){ str_split(ll[2],",")[[1]][1] }))]
+  ev[substr(vehicleType,1,5)=='BeamV',vehicleType:=unlist(lapply(str_split(vehicleType,"BeamVehicleType\\("),function(ll){ str_split(ll[2],",")[[1]][1] }))]
   evs[[length(evs)+1]] <- ev
 }
 evs <- rbindlist(evs,use.names=T,fill=T)
@@ -45,12 +46,13 @@ evs[,isCAV:=grepl("-L5-",vehicleType)]
 evs[,':='(hour=time/3600,dep=departureTime/3600,arr=arrivalTime/3600)]
 evs[,isBEV:=substr(vehicleType,1,3)=='ev-']
 evs[,key:=pp(infra,'-',range,'mi-',kw,'kw-',scen)]
+evs[!chargingType=='',ch.kw:=unlist(lapply(str_split(chargingType,"\\("),function(ll){ ifelse(length(ll)==1,NA,as.numeric(str_split(ll[2],"\\|")[[1]][1])) }))]
 
 # Queueing
-pr <- function(df){ df[,.(run,infra,range,kw,scen,type,hour,dep,arr,numPassengers,length,primaryFuel,primaryFuelLevel,startX,startY,endX,endY,person,parkingTaz,chargingType,parkingType,soc)] }
+pr <- function(df){ df[,.(run,infra,range,kw,scen,type,hour,dep,arr,numPassengers,length,primaryFuel,primaryFuelLevel,startX,startY,endX,endY,person,parkingTaz,chargingType,parkingType,soc,row)] }
 
 rh <- evs[(isRH)]
-q <- rh[run%in%c(10,12) & (isBEV) & (isCAV)] # where is q'ing likely to happen
+q <- rh[(isBEV) & (isCAV)] # where is q'ing likely to happen
 setkey(q,row)
 q[,arr:=ifelse(type=='ChargingPlugInEvent',c(-1,-1,head(arr,-2)),arr),by='vehicle']
 q[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by='vehicle']
@@ -59,6 +61,39 @@ pr(q[type=='ChargingPlugInEvent' & hour!=arr])
 q[,hr:=round(hour,0)]
 setkey(q,key,hr)
 
+q[type=='ChargingPlugInEvent' & hour!=arr,.(n=.N,duration=mean(hour-arr,na.rm=T)),by=c('infra','range','kw','scen')]
+
+# Why don't human driven have more impact with rich infra
+
+rh <- evs[(isRH)]
+
+rh[type=='PathTraversal',.(n=.N,miles=sum(length)/1609),by=c('infra','isBEV')]
+    #infra isBEV     n     miles
+#1:   rich FALSE 81114 946417.37
+#2: sparse FALSE 79535 942474.49
+#3:   rich  TRUE  2312  24999.39
+#4: sparse  TRUE  2182  23942.14
+evs[type=='RefuelSessionEvent' & ch.kw>20,.(n=.N),by=c('infra','isRH','chargingType')]
+    #infra  isRH               chargingType    n
+#1:   rich FALSE evi_public_dcfast(50.0|DC) 1161
+#2: sparse FALSE            custom(50.0|DC)  385
+#3:   rich  TRUE evi_public_dcfast(50.0|DC)  484
+#4: sparse  TRUE            custom(50.0|DC)  450
+rh[type=='RefuelSessionEvent',.(nUniqueTaz=length(u(parkingTaz))),by='infra']
+    #infra nUniqueTaz
+#1:   rich        170
+#2: sparse        112
+
+setkey(rh,row)
+rh[,arr:=ifelse(type=='ChargingPlugInEvent',c(-1,-1,head(arr,-2)),arr),by=c('run','vehicle')]
+rh[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by=c('run','vehicle')]
+
+pt <- rh[type=='PathTraversal']
+dev.new()
+ggplot(pt,aes(x=time/3600,y=soc,colour=vehicleType))+geom_point()+facet_wrap(~infra)
+
+
+# Old looking at soc, etc.
 ch <- evs[type%in%c('ChargingPlugInEvent','RefuelSessionEvent','ChargingPlugOutEvent')]
 ch[,soc:=primaryFuelLevel/maxFuelLevel]
 ch[,hour:=round(time/3600,0)]
