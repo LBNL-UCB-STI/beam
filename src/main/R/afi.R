@@ -1,6 +1,8 @@
 
 library(stringr)
 library(colinmisc)
+library(geosphere)
+library(sp)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 
@@ -14,7 +16,7 @@ runs[grepl('html\\#',url),url.corrected:=unlist(lapply(str_split(runs[grepl('htm
 evs <- list()
 #for(i in 1:nrow(runs)){
 #for(i in c(1,2,9,10,12)){
-for(i in c(1,9)){
+for(i in c(1,2,9,10)){
   my.cat(pp(names(runs),":",runs[i],collapse=' , '))
   if(!file.exists(runs$local.file[i])){
     for(it in 15:0){
@@ -37,10 +39,10 @@ evs <- rbindlist(evs,use.names=T,fill=T)
 evs[,row:=1:nrow(evs)]
 evs[,vehicle:=as.character(vehicle)]
 
-veh.types <- evs[type=='PathTraversal',.(vehicleType=vehicleType[1]),by='vehicle']
-max.fuel.levels <- evs[,.(maxFuelLevel=max(primaryFuelLevel,na.rm=T)),by='vehicleType']
-evs <- join.on(evs,veh.types,'vehicle','vehicle')
-evs <- join.on(evs,copy(max.fuel.levels),'vehicleType','vehicleType')
+veh.types <- evs[type=='PathTraversal',.(vehicleType=vehicleType[1]),by=c('run','vehicle')]
+max.fuel.levels <- evs[,.(maxFuelLevel=max(primaryFuelLevel,na.rm=T)),by=c('run','vehicleType')]
+evs <- join.on(evs,veh.types,c('run','vehicle'),c('run','vehicle'))
+evs <- join.on(evs,copy(max.fuel.levels),c('run','vehicleType'),c('run','vehicleType'))
 evs[,soc:=primaryFuelLevel/maxFuelLevel]
 evs[,isCAV:=grepl("-L5-",vehicleType)]
 evs[,':='(hour=time/3600,dep=departureTime/3600,arr=arrivalTime/3600)]
@@ -51,35 +53,54 @@ evs[!chargingType=='',ch.kw:=unlist(lapply(str_split(chargingType,"\\("),functio
 # Queueing
 pr <- function(df){ df[,.(run,infra,range,kw,scen,type,hour,dep,arr,numPassengers,length,primaryFuel,primaryFuelLevel,startX,startY,endX,endY,person,parkingTaz,chargingType,parkingType,soc,row)] }
 
-rh <- evs[(isRH)]
-q <- rh[(isBEV) & (isCAV)] # where is q'ing likely to happen
-setkey(q,row)
-q[,arr:=ifelse(type=='ChargingPlugInEvent',c(-1,-1,head(arr,-2)),arr),by='vehicle']
-q[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by='vehicle']
-pr(q[type=='ChargingPlugInEvent' & hour!=arr])
+#rh <- evs[(isRH)]
+#q <- rh[(isBEV) & (isCAV)] # where is q'ing likely to happen
+#setkey(q,row)
+#q[,arr:=ifelse(type=='ChargingPlugInEvent',c(-1,-1,head(arr,-2)),arr),by=c('run','vehicle')]
+#q[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by=c('run','vehicle')]
+#pr(q[type=='ChargingPlugInEvent' & hour!=arr])
 
-q[,hr:=round(hour,0)]
-setkey(q,key,hr)
+#q[,hr:=round(hour,0)]
+#setkey(q,key,hr)
 
-q[type=='ChargingPlugInEvent' & hour!=arr,.(n=.N,duration=mean(hour-arr,na.rm=T)),by=c('infra','range','kw','scen')]
+#q[type=='ChargingPlugInEvent' & hour!=arr,.(n=.N,duration=mean(hour-arr,na.rm=T)),by=c('infra','range','kw','scen')]
 
 # Why don't human driven have more impact with rich infra
 
 rh <- evs[(isRH)]
+load("/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/taz-centers.Rdata")
+df <- xy.dt.to.latlon(df,c('coord.x','coord.y'))
+rh <- join.on(rh,df,'parkingTaz','taz',c('coord.lon','coord.lat'))
 
-rh[type=='PathTraversal',.(n=.N,miles=sum(length)/1609),by=c('infra','isBEV')]
-    #infra isBEV     n     miles
-#1:   rich FALSE 81114 946417.37
-#2: sparse FALSE 79535 942474.49
-#3:   rich  TRUE  2312  24999.39
-#4: sparse  TRUE  2182  23942.14
-evs[type=='RefuelSessionEvent' & ch.kw>20,.(n=.N),by=c('infra','isRH','chargingType')]
-    #infra  isRH               chargingType    n
-#1:   rich FALSE evi_public_dcfast(50.0|DC) 1161
-#2: sparse FALSE            custom(50.0|DC)  385
-#3:   rich  TRUE evi_public_dcfast(50.0|DC)  484
-#4: sparse  TRUE            custom(50.0|DC)  450
-rh[type=='RefuelSessionEvent',.(nUniqueTaz=length(u(parkingTaz))),by='infra']
+rh[type=='PathTraversal',.(n=.N,miles=sum(length)/1609,pmt=sum(length*numPassengers)/1609),by=c('key','isBEV')]
+
+join.on(rh[type=='PathTraversal' & infra=='rich',.(n=.N,miles=sum(length)/1609,pmt=sum(length*numPassengers)/1609),by=c('scen','isBEV','isCAV')],rh[type=='PathTraversal' & infra=='sparse',.(n=.N,miles=sum(length)/1609,pmt=sum(length*numPassengers)/1609),by=c('scen','isBEV','isCAV')],c('scen','isBEV','isCAV'),c('scen','isBEV','isCAV'),NULL,'sparse.')[,.(scen,isBEV,isCAV,sparse.n,rich.n=n,sparse.miles,rich.miles=miles,sparse.pmt,rich.pmt=pmt)]
+   #scen isBEV isCAV sparse.n rich.n sparse.miles rich.miles sparse.pmt   rich.pmt
+#1:    a FALSE FALSE    73988  72306    716442.36  701402.35  513254.65  507076.85
+#2:    a  TRUE FALSE     2938   2913     22746.46   22876.59   15919.96   15947.41
+#3:    b FALSE FALSE   132882 125492   1068335.89 1020359.29  989640.71  910850.50
+#4:    b FALSE  TRUE   167955 154812   1154389.94 1061471.98 1147599.51 1002884.94
+#5:    b  TRUE FALSE    20288  19623    133987.60  129324.98  120840.57  116038.79
+#6:    b  TRUE  TRUE    28279 108844    214482.67  685816.70  128608.20  570465.36
+
+join.on(rh[type=='PathTraversal' & infra=='rich',.(n=.N,miles=sum(length)/1609,pmt=sum(length*numPassengers)/1609),by=c('scen')],rh[type=='PathTraversal' & infra=='sparse',.(n=.N,miles=sum(length)/1609,pmt=sum(length*numPassengers)/1609),by=c('scen')],c('scen'),c('scen'),NULL,'sparse.')[,.(scen,sparse.n,rich.n=n,sparse.miles,rich.miles=miles,sparse.pmt,rich.pmt=pmt,sparse.occupancy=sparse.pmt/sparse.miles,rich.occupancy=pmt/miles)]
+   #scen sparse.n rich.n sparse.miles rich.miles sparse.pmt  rich.pmt sparse.occupancy rich.occupancy
+#1:    a    76926  75219     739188.8   724278.9   529174.6  523024.3        0.7158856      0.7221310
+#2:    b   349404 408771    2571196.1  2896973.0  2386689.0 2600239.6        0.9282407      0.8975712
+
+evs[type=='RefuelSessionEvent' & ch.kw>20,.(n=.N,energy.delivered.MWh=sum(fuel)/3.6e9),by=c('key','isRH','chargingType')]
+                   #key  isRH               chargingType     n energy.delivered.MWh
+#1:   rich-100mi-50kw-a FALSE evi_public_dcfast(50.0|DC)  1376             4.769792
+#2:   rich-100mi-50kw-a  TRUE evi_public_dcfast(50.0|DC)   488             5.004889
+#3:   rich-100mi-50kw-b FALSE evi_public_dcfast(50.0|DC)   494             4.504847
+#4:   rich-100mi-50kw-b  TRUE evi_public_dcfast(50.0|DC)  3125            34.493736
+#5:   rich-100mi-50kw-b  TRUE          fcs_fast(50.0|DC) 11286           195.564056
+#6: sparse-100mi-50kw-a FALSE            custom(50.0|DC)   483             1.901222
+#7: sparse-100mi-50kw-a  TRUE            custom(50.0|DC)   491             5.086111
+#8: sparse-100mi-50kw-b FALSE            custom(50.0|DC)   238             2.026903
+#9: sparse-100mi-50kw-b  TRUE            custom(50.0|DC)  6492           100.495250
+
+rh[type=='RefuelSessionEvent',.(nUniqueTaz=length(u(parkingTaz))),by='key']
     #infra nUniqueTaz
 #1:   rich        170
 #2: sparse        112
@@ -87,10 +108,32 @@ rh[type=='RefuelSessionEvent',.(nUniqueTaz=length(u(parkingTaz))),by='infra']
 setkey(rh,row)
 rh[,arr:=ifelse(type=='ChargingPlugInEvent',c(-1,-1,head(arr,-2)),arr),by=c('run','vehicle')]
 rh[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by=c('run','vehicle')]
+rh[,arr:=ifelse(type=='RefuelSessionEvent',c(-1,-1,-1,head(arr,-3)),arr),by=c('run','vehicle')]
 
-pt <- rh[type=='PathTraversal']
+rh[vehicle==rh[type=='RefuelSessionEvent']$vehicle[1],.(key,range,kw,scen,type,hour,dep,arr,numPassengers,length,distToStall,primaryFuel,primaryFuelLevel,startX,startY,endX,endY,parkChoiceX,parkChoiceY,locationX,locationY,person,parkingTaz,chargingType,parkingType,soc,row)]
+rh[,':='(parkChoiceX=ifelse(type=='ParkEvent',c(0,head(startX,-1)),-Inf),parkChoiceY=ifelse(type=='ParkEvent',c(0,head(startY,-1)),-Inf)),by=c('run','vehicle')]
+rh[parkChoiceX== -Inf,parkChoiceX:=NA]
+rh[parkChoiceY== -Inf,parkChoiceY:=NA]
+rh[!is.na(parkChoiceX),distToStall:=apply(cbind(locationX,locationY,parkChoiceX,parkChoiceY),1,function(x){ distm(x[1:2],x[3:4], fun = distHaversine) })]
+rh[,.(n=sum(!is.na(distToStall)),meanDist=mean(distToStall,na.rm=T),medianDist=median(distToStall,na.rm=T),maxDist=max(distToStall,na.rm=T)),by='key']
+    #infra   n meanDist medianDist  maxDist
+#1:   rich 488 364.5045   188.0099 7070.401
+#2: sparse 495 625.6845   309.5007 8643.180
+
+rh[type=='RefuelSessionEvent',distTazToCharger:=apply(cbind(locationX,locationY,coord.lon,coord.lat),1,function(x){ distm(x[1:2],x[3:4], fun = distHaversine) })]
+rh[type=='RefuelSessionEvent',.(distTazToCharger=mean(distTazToCharger)),by='key']
+
+ggplot(rh[type=='RefuelSessionEvent'],aes(x=locationX,y=locationY))+geom_point()
+ggplot(rh[!is.na(parkChoiceX)],aes(x=locationX,y=locationY,xend=parkChoiceX,yend=parkChoiceY))+geom_segment()+facet_wrap(~key)
+
+rh[type=='PathTraversal' & numPassengers>0 & (isBEV),.(pmt=sum(length*numPassengers)),by='key']
+
+#ggplot(rh[type=='
+
+
+pt <- rh[type=='PathTraversal' & (isBEV)]
 dev.new()
-ggplot(pt,aes(x=time/3600,y=soc,colour=vehicleType))+geom_point()+facet_wrap(~infra)
+ggplot(pt,aes(x=time/3600,y=soc,colour=vehicleType))+geom_point()+facet_wrap(~key)
 
 
 # Old looking at soc, etc.
@@ -109,3 +152,12 @@ ggplot(ch[type=='ChargingPlugInEvent'][(isRH)],aes(x=time/3600,y=soc,colour=vehi
 pt <- evs[type=='PathTraversal'][(isRH)]                                  
 dev.new()
 ggplot(pt,aes(x=time/3600,y=soc,colour=vehicleType))+geom_point()
+
+# Verifying fix works
+
+df[,':='(parkChoiceX=ifelse(type=='ParkEvent',c(0,head(startX,-1)),-Inf),parkChoiceY=ifelse(type=='ParkEvent',c(0,head(startY,-1)),-Inf)),by='vehicle']
+df[person==df[type=='ModeChoice' & mode=='car']$person[1] | driver==df[type=='ModeChoice' & mode=='car']$person[1] | vehicle==df[type=='ModeChoice' & mode=='car']$person[1] ][,.(time,type,mode,parkingTaz,length,departTime,startX,startY,endX,endY,locationX,locationY,parkChoiceX,parkChoiceY)]
+df[parkChoiceX== -Inf,parkChoiceX:=NA]
+df[parkChoiceY== -Inf,parkChoiceY:=NA]
+
+df[,distToStall:=apply(cbind(locationX,locationY,parkChoiceX,parkChoiceY),1,function(x){ distm(x[1:2],x[3:4], fun = distHaversine) })]
