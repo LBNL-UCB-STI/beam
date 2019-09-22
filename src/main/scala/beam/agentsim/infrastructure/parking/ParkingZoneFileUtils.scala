@@ -156,7 +156,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     } match {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
-          fromBufferedReader(reader, parkingStallCountScalingFactor, parkingCostScalingFactor, rand)
+          fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
         )
@@ -176,9 +176,9 @@ object ParkingZoneFileUtils extends LazyLogging {
     */
   def fromBufferedReader(
     reader: BufferedReader,
+    rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
-    parkingCostScalingFactor: Double = 1.0,
-    rand: Random
+    parkingCostScalingFactor: Double = 1.0
   ): ParkingLoadingAccumulator = {
 
     @tailrec
