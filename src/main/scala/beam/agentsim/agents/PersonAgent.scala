@@ -668,6 +668,9 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
         if (currentBeamVehicle != body) {
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            if(currentBeamVehicle.stall.isEmpty)logWarn("Expected currentBeamVehicle.stall to be defined.")
+          }
           if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
