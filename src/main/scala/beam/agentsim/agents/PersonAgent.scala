@@ -669,7 +669,7 @@ class PersonAgent(
         )
         if (currentBeamVehicle != body) {
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
-            assert(currentBeamVehicle.stall.isDefined)
+            if(currentBeamVehicle.stall.isEmpty)logWarn("Expected currentBeamVehicle.stall to be defined.")
           }
           if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
