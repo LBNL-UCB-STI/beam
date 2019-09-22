@@ -10,7 +10,7 @@ plt_setup_smart2 = {
     'scenarios_year': [2010, 2025, 2025, 2025, 2025, 2040, 2040],
 
     'plot_size': (5, 4.5),
-    'bottom_labels': ['Base\n2010', 'Sharing is Caring\n2025', 'Technology Takeover\n2025', "All About Me\n2040"],
+    'bottom_labels': ['Base', 'Sharing is Caring', 'Technology Takeover', "All About Me"],
     'top_labels': ["Base", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO"],
 }
 
@@ -37,7 +37,7 @@ plt_setup_smart2_base = {
     'scenarios_year': [2010, 2025, 2025, 2025, 2025, 2025, 2025, 2040, 2040, 2040, 2040],
 
     'plot_size': (7.5, 4.5),
-    'bottom_labels': ['Base\n2010', 'Base Short\n2025', 'Sharing is Caring\n2025', 'Technology Takeover\n2025', "Base Long\n2040", "All About Me\n2040"],
+    'bottom_labels': ['Base', 'Base Short', 'Sharing is Caring', 'Technology Takeover', "Base Long", "All About Meter"],
     'top_labels': ["Base", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO", "BAU", "VTO"],
 }
 
