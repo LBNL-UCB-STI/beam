@@ -289,7 +289,6 @@ class RideHailAgent(
       }
   }
 
-
   when(Offline) {
 
     case ev @ Event(ParkingInquiryResponse(stall, _), _) =>
@@ -303,28 +302,28 @@ class RideHailAgent(
 //        // PARK AND CHARGE HERE
 //        parkAndStartRefueling(stall)
 //      } else {
-        // Else the stall requires a trip
-        val carStreetVeh =
-          StreetVehicle(
-            currentBeamVehicle.id,
-            currentBeamVehicle.beamVehicleType.id,
-            SpaceTime(currentLocationUTM,_currentTick.get),
-            CAR,
-            asDriver = true
-          )
-        val veh2StallRequest = RoutingRequest(
-          currentLocationUTM,
-          stall.locationUTM,
-          _currentTick.get,
-          withTransit = false,
-          Vector(carStreetVeh),
-          None
+      // Else the stall requires a trip
+      val carStreetVeh =
+        StreetVehicle(
+          currentBeamVehicle.id,
+          currentBeamVehicle.beamVehicleType.id,
+          SpaceTime(currentLocationUTM, _currentTick.get),
+          CAR,
+          asDriver = true
         )
-        isOnWayToParkAtStall = Some(stall)
-        beamServices.beamRouter ! veh2StallRequest
+      val veh2StallRequest = RoutingRequest(
+        currentLocationUTM,
+        stall.locationUTM,
+        _currentTick.get,
+        withTransit = false,
+        Vector(carStreetVeh),
+        None
+      )
+      isOnWayToParkAtStall = Some(stall)
+      beamServices.beamRouter ! veh2StallRequest
 //      }
       stay
-    case Event(RoutingResponse(itineraries,_),data) =>
+    case Event(RoutingResponse(itineraries, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
@@ -412,7 +411,7 @@ class RideHailAgent(
     case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_,_),_) =>
+    case ev @ Event(RoutingResponse(_, _), _) =>
       stash()
       stay()
   }
@@ -557,7 +556,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev@Event(PassengerScheduleEmptyMessage(lastTime, _, _), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       isOnWayToParkAtStall match {
         case Some(stall) =>
@@ -570,9 +569,9 @@ class RideHailAgent(
             .asInstanceOf[RideHailAgentData]
         case None =>
           if (!vehicle.isCAV && vehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
-          )) {
+                beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
+                beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
+              )) {
             log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
             rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
 
