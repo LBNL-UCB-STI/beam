@@ -119,14 +119,12 @@ def tableSummary(_plt_setup2, _output_folder):
 
     createColumnIfNotExist(df, 'VMT_car_CAV', 0)
     createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
-    tot_vmt = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
-               df['VMT_subway'].values+df['VMT_tram'].values) + \
-              (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
-               df['VMT_car_RH_CAV'].values +
-               df['VMT_walk'].values+df['VMT_bike'].values) * factor
+    tot_vmt_transit = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
+                       df['VMT_subway'].values+df['VMT_tram'].values)
+    tot_vmt_non_transit = (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
+                           df['VMT_car_RH_CAV'].values + df['VMT_walk'].values+df['VMT_bike'].values)
     
-    tot_ldv_vmt = (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
-               df['VMT_car_RH_CAV'].values)
+    tot_ldv_vmt = (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values + df['VMT_car_RH_CAV'].values)
 
     createColumnIfNotExist(df, 'personTravelTime_cav', 0)
     tot_pht = (df['personTravelTime_bike'].values+df['personTravelTime_car'].values+df['personTravelTime_cav'].values +
@@ -139,10 +137,10 @@ def tableSummary(_plt_setup2, _output_folder):
                   df['totalEnergy_Electricity'].values+df['totalEnergy_Gasoline'].values) * factor
 
     data = pd.DataFrame(
-        {'VMT Total (10^6)': tot_vmt / 1000000,
-         'VMT per Capita': (tot_vmt/df['population']/factor),
-         'VMT Light Duty Total (10^6)': (tot_ldv_vmt)  / 1000000*factor,
-         'VMT Light Duty per Capita': (tot_ldv_vmt/df['population']),
+        {'VMT Total (10^6)': (tot_vmt_transit + tot_vmt_non_transit * factor) / 1000000,
+         'VMT per Capita': (tot_vmt_transit+tot_vmt_non_transit)/df['population'],
+         'VMT Light Duty Total (10^6)': tot_ldv_vmt * factor / 1000000,
+         'VMT Light Duty per Capita': tot_ldv_vmt/df['population'],
          'Driving Speed [miles/h]': tot_ldv_vmt/df['total_vehicleHoursTravelled_LightDutyVehicles'],
          'Person Hours (10^6)': tot_pht / 60 / 1000000,
          'PEV (%)': 0,
