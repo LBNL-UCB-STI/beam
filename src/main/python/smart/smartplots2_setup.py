@@ -68,6 +68,7 @@ def pltModeSplitByTrips(_plt_setup2, _output_folder):
     output_png = '{}/makeplots/{}.modesplit_trips.png'.format(_output_folder, _plt_setup2['name'])
     output_csv = '{}/makeplots/{}.modesplit_trips.csv'.format(_output_folder, _plt_setup2['name'])
 
+    createColumnIfNotExist(df, 'cav_counts', 0)
     data = pd.DataFrame(
         {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values),
          'car': df['car_counts'].values,
@@ -105,18 +106,29 @@ def pltModeSplitByTrips(_plt_setup2, _output_folder):
     plt.close()
 
 
+def createColumnIfNotExist(df, name, value):
+    if name not in df.columns:
+        df[name] = value
+    else:
+        df[name].fillna(0, inplace=True)
 
 def tableSummary(_plt_setup2, _output_folder):
     factor = _plt_setup2['expansion_factor']
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
     output_csv = '{}/makeplots/{}.summary.csv'.format(_output_folder, _plt_setup2['name'])
 
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
     tot_vmt = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
                df['VMT_subway'].values+df['VMT_tram'].values) + \
               (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
                df['VMT_car_RH_CAV'].values +
                df['VMT_walk'].values+df['VMT_bike'].values) * factor
+    
+    tot_ldv_vmt = (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
+               df['VMT_car_RH_CAV'].values)
 
+    createColumnIfNotExist(df, 'personTravelTime_cav', 0)
     tot_pht = (df['personTravelTime_bike'].values+df['personTravelTime_car'].values+df['personTravelTime_cav'].values +
                df['personTravelTime_drive_transit'].values+df['personTravelTime_mixed_mode'].values +
                df['personTravelTime_onDemandRide'].values+df['personTravelTime_onDemandRide_pooled'].values +
@@ -128,8 +140,10 @@ def tableSummary(_plt_setup2, _output_folder):
 
     data = pd.DataFrame(
         {'VMT Total (10^6)': tot_vmt / 1000000,
-         'VMT per Capita': (tot_vmt/df['population']),
-         'Driving Speed': 0,
+         'VMT per Capita': (tot_vmt/df['population']/factor),
+         'VMT Light Duty Total (10^6)': (tot_ldv_vmt)  / 1000000*factor,
+         'VMT Light Duty per Capita': (tot_ldv_vmt/df['population']),
+         'Driving Speed [miles/h]': tot_ldv_vmt/df['total_vehicleHoursTravelled_LightDutyVehicles'],
          'Person Hours (10^6)': tot_pht / 60 / 1000000,
          'PEV (%)': 0,
          'Vehicle Energy (GJ)': tot_energy / 1000000000,
@@ -137,6 +151,7 @@ def tableSummary(_plt_setup2, _output_folder):
          })
     data['Scenario'] = df['Scenario'].values.copy()
     data['Technology'] = df['Technology'].values.copy()
+    data['year'] = _plt_setup2['scenarios_year']
     data.to_csv(output_csv)
 
 
@@ -151,6 +166,14 @@ def pltLdvRhOccupancy(_plt_setup2, _output_folder):
     output_png = '{}/makeplots/{}.ldv_rh_occupancy.png'.format(_output_folder, _plt_setup2['name'])
     output_csv = '{}/makeplots/{}.ldv_rh_occupancy.csv'.format(_output_folder, _plt_setup2['name'])
 
+    createColumnIfNotExist(df, 'PMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_2p', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_3p', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_4p', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
     data = pd.DataFrame(
         {
             'non_rh_ldv': df[['PMT_car', 'PMT_car_CAV']].sum(axis=1),
@@ -204,6 +227,16 @@ def pltLdvRhOccupancyByVMT(_plt_setup2, _output_folder):
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
     output_png = '{}/makeplots/{}.ldv_rh_occupancy_vmt.png'.format(_output_folder, _plt_setup2['name'])
     output_csv = '{}/makeplots/{}.ldv_rh_occupancy_vmt.csv'.format(_output_folder, _plt_setup2['name'])
+
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_2p', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_3p', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_4p', 0)
 
     data = pd.DataFrame(
         {
@@ -266,6 +299,8 @@ def pltLdvPersonHourTraveled(_plt_setup2, _output_folder):
     output_png = '{}/makeplots/{}.ldv_person_hours_traveled.png'.format(_output_folder, _plt_setup2['name'])
     output_csv = '{}/makeplots/{}.ldv_person_hours_traveled.csv'.format(_output_folder, _plt_setup2['name'])
 
+    createColumnIfNotExist(df, 'personTravelTime_cav', 0)
+
     data = pd.DataFrame(
         {'car': df['personTravelTime_car'].values * factor * scale,
          'cav': df['personTravelTime_cav'].values * factor * scale,
@@ -299,17 +334,29 @@ def pltLdvPersonHourTraveled(_plt_setup2, _output_folder):
     plt.close()
 
 
+ 
+    
 def pltModeSplitInPMT(_plt_setup2, _output_folder):
+    pltModeSplitInPMT_internal(_plt_setup2, _output_folder,_plt_setup2['expansion_factor'],'modesplit_pmt',1 / 1000000,'Person Miles Traveled (millions)')
+    
+def pltModeSplitInPMTPerCapita(_plt_setup2, _output_folder):
+    (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
+    pltModeSplitInPMT_internal(_plt_setup2, _output_folder,1/df['population'].values,'modesplit_pmt_per_capita',1,'Person Miles Traveled')
+
+def pltModeSplitInPMT_internal(_plt_setup2, _output_folder,factor,fileNameLabel,scale,ylabel):
     plot_size = _plt_setup2['plot_size']
     top_labels = _plt_setup2['top_labels']
     bottom_labels = _plt_setup2['bottom_labels']
     nb_scenarios = len(_plt_setup2['scenarios_id'])
-    factor = _plt_setup2['expansion_factor']
-    scale = 1 / 1000000
+    #factor = _plt_setup2['expansion_factor']
+    #scale = 1 / 1000000
     angle = 12
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
-    output_png = '{}/makeplots/{}.modesplit_pmt.png'.format(_output_folder, _plt_setup2['name'])
-    output_csv = '{}/makeplots/{}.modesplit_pmt.csv'.format(_output_folder, _plt_setup2['name'])
+    output_png = '{}/makeplots/{}.{}.png'.format(_output_folder, _plt_setup2['name'],fileNameLabel)
+    output_csv = '{}/makeplots/{}.{}.csv'.format(_output_folder, _plt_setup2['name'],fileNameLabel)
+
+    createColumnIfNotExist(df, 'PMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV', 0)
 
     data = pd.DataFrame(
         {'transit': (df['PMT_bus'].values+df['PMT_ferry'].values+df['PMT_rail'].values+df['PMT_subway'].values+
@@ -343,27 +390,41 @@ def pltModeSplitInPMT(_plt_setup2, _output_folder):
     ax.set_ylim((0, max_value))
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
-    plt.ylabel('Person Miles Traveled (millions)')
+    plt.ylabel(ylabel)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
 
 
 def pltModeSplitInVMT(_plt_setup2, _output_folder):
+    pltModeSplitInVMT_internal(_plt_setup2, _output_folder,_plt_setup2['expansion_factor'],'modesplit_vmt',1 / 1000000,'Vehicle Miles Traveled (millions)',1)
+    
+def pltModeSplitInVMTPerCapita(_plt_setup2, _output_folder):
+    (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
+    pltModeSplitInVMT_internal(_plt_setup2, _output_folder,1/df['population'].values,'modesplit_vmt_per_capita',1,'Vehicle Miles Traveled',1/_plt_setup2['expansion_factor']/df['population'].values)
+    
+def pltModeSplitInVMT_internal(_plt_setup2, _output_folder,factor,fileNameLabel,scale,ylabel,transitFactor):
     plot_size = _plt_setup2['plot_size']
     top_labels = _plt_setup2['top_labels']
     bottom_labels = _plt_setup2['bottom_labels']
     nb_scenarios = len(_plt_setup2['scenarios_id'])
-    factor = _plt_setup2['expansion_factor']
-    scale = 1 / 1000000
+    #factor = _plt_setup2['expansion_factor']
+    #scale = 1 / 1000000
     angle = 12
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup2, _output_folder)
-    output_png = '{}/makeplots/{}.modesplit_vmt.png'.format(_output_folder, _plt_setup2['name'])
-    output_csv = '{}/makeplots/{}.modesplit_vmt.csv'.format(_output_folder, _plt_setup2['name'])
+    output_png = '{}/makeplots/{}.{}.png'.format(_output_folder, _plt_setup2['name'],fileNameLabel)
+    output_csv = '{}/makeplots/{}.{}.csv'.format(_output_folder, _plt_setup2['name'],fileNameLabel)
+
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
 
     data = pd.DataFrame(
     {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+
-                 df['VMT_tram'].values+df['VMT_cable_car'].values) * scale,
+                 df['VMT_tram'].values+df['VMT_cable_car'].values) * scale * transitFactor,
      'car': df['VMT_car'].values * factor * scale,
      'cav': df['VMT_car_CAV'].values * factor * scale,
      'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor * scale,
@@ -400,7 +461,7 @@ def pltModeSplitInVMT(_plt_setup2, _output_folder):
     ax.set_ylim((0, max_value))
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
-    plt.ylabel('Vehicle Miles Traveled (millions)')
+    plt.ylabel(ylabel)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -494,10 +555,21 @@ def pltRHEmptyPooled(_plt_setup2, _output_folder):
     output_png = '{}/makeplots/{}.rh_empty_shared.png'.format(_output_folder, _plt_setup2['name'])
     output_csv = '{}/makeplots/{}.rh_empty_shared.csv'.format(_output_folder, _plt_setup2['name'])
 
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
+
     data = pd.DataFrame(
         {'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor * scale,
          'rhp': (df['VMT_car_RH_shared'].values+df['VMT_car_RH_CAV_shared'].values) * factor * scale
          })
+    
+    #print(df['VMT_car_RH_CAV_shared'])
+    #print(data)
+    
     height_all = data.sum(axis=1)
     data['rh_empty'] = (df['VMT_car_RH_empty'].values+df['VMT_car_RH_CAV_empty'].values) * factor * scale
     data['scenario'] = df['Scenario'].values.copy()
