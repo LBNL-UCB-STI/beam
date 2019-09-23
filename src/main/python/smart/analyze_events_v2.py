@@ -152,6 +152,19 @@ def get_all_metrics(filename, __local_file_path):
     pathTraversal.loc[pathTraversal['mode_extended'] == 'bike', 'trueOccupancy'] = 1
     pathTraversal['vehicleMiles'] = pathTraversal['length']/1609.34
     pathTraversal['passengerMiles'] = (pathTraversal['length'] * pathTraversal['trueOccupancy'])/1609.34
+    pathTraversal['vehicleHoursTravelled'] = (pathTraversal['arrivalTime'] - pathTraversal['departureTime'])/3600
+    
+    lightDutyVehiclePathTraversals=pathTraversal.loc[(pathTraversal['vehicleType'].str.contains("BUS")==False) &
+                  (pathTraversal['vehicleType'].str.contains("BIKE")==False) &
+                  (pathTraversal['vehicleType'].str.contains("BODY")==False) &
+                  (pathTraversal['vehicleType'].str.contains("CABLE")==False) &
+                  (pathTraversal['vehicleType'].str.contains("FERRY")==False) &
+                  (pathTraversal['vehicleType'].str.contains("SUBWAY")==False) &
+                  (pathTraversal['vehicleType'].str.contains("TRAM")==False) &
+                  (pathTraversal['vehicleType'].str.contains("TRAIN")==False),:]
+    
+    metrics_json['total_vehicleHoursTravelled_LightDutyVehicles'] = lightDutyVehiclePathTraversals['vehicleHoursTravelled'].sum()
+    
 
     modeChoiceTotals = modeChoice.groupby('mode').agg({'person': 'count', 'length': 'sum'})
     for mode in modeChoiceTotals.index:
