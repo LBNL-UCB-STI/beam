@@ -115,30 +115,28 @@ object RideHailAgent {
 
   case class ModifyPassengerScheduleAcks(acks: List[ModifyPassengerScheduleAck])
 
-  case class Interrupt(interruptId: Id[Interrupt], tick: Int)
+  case class Interrupt(interruptId: Int, tick: Int)
 
   case object Resume
 
   sealed trait InterruptReply {
-    val interruptId: Id[Interrupt]
+    val interruptId: Int
     val vehicleId: Id[Vehicle]
     val tick: Int
   }
 
   case class InterruptedWhileDriving(
-    interruptId: Id[Interrupt],
+    interruptId: Int,
     vehicleId: Id[Vehicle],
     tick: Int,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
 
-  case class InterruptedWhileOffline(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
-      extends InterruptReply
-  case class InterruptedWhileWaitingToDrive(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
-      extends InterruptReply
+  case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -311,7 +309,7 @@ class RideHailAgent(
         Some(triggerId)
       )
       goto(Idle)
-    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       goto(OfflineInterrupted) replying InterruptedWhileOffline(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(Resume, _) =>
@@ -386,7 +384,7 @@ class RideHailAgent(
       }
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
-    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(
@@ -480,7 +478,7 @@ class RideHailAgent(
     case ev @ Event(Resume, _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
-    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(
