@@ -53,7 +53,7 @@ class RideHailAgentSpec
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
 
-  lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("RideHailAgentSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
