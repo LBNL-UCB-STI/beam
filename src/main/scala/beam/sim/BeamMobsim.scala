@@ -65,7 +65,7 @@ class BeamMobsim @Inject()(
     validateVehicleTypes()
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
-      logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
+      logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
     eventsManager.initProcessing()
 
