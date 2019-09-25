@@ -187,7 +187,9 @@ class BeamSkimmer @Inject()(
           energy = 0.0
         )
     }
-    (pooled.time / solo.time, pooled.cost / solo.cost)
+    val timeFactor = if(solo.time > 0.0){pooled.time / solo.time}else{1.0}
+    val costFactor = if(solo.cost > 0.0){pooled.cost / solo.cost}else{1.0}
+    (timeFactor, costFactor)
   }
 
   private def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location) = {

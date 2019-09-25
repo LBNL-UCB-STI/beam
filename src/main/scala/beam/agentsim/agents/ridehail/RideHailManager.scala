@@ -21,23 +21,13 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManager.logger
-import beam.agentsim.infrastructure.parking.{
-  ParkingMNL,
-  ParkingType,
-  ParkingZone,
-  ParkingZoneFileUtils,
-  ParkingZoneSearch
-}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -65,6 +55,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -72,8 +63,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
 import scala.util.{Failure, Random, Success, Try}
-
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
@@ -660,7 +651,7 @@ class RideHailManager(
         )
         val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
 
-        val baseFare = embodiedBeamTrip.legs.map(_.cost).sum
+        val baseFare = embodiedBeamTrip.legs.map(leg => leg.cost - DrivingCost.estimateDrivingCost(leg.beamLeg, beamScenario.vehicleTypes(leg.beamVehicleTypeId), beamScenario.fuelTypePrices)).sum
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
