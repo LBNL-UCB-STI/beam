@@ -63,7 +63,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
@@ -644,7 +648,16 @@ class RideHailManager(
         )
         val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
 
-        val baseFare = embodiedBeamTrip.legs.map(_.cost).sum
+        val baseFare = embodiedBeamTrip.legs
+          .map(
+            leg =>
+              leg.cost - DrivingCost.estimateDrivingCost(
+                leg.beamLeg,
+                beamScenario.vehicleTypes(leg.beamVehicleTypeId),
+                beamScenario.fuelTypePrices
+            )
+          )
+          .sum
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
@@ -1532,7 +1545,19 @@ class RideHailManager(
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = mobilityRequestToPassengerSchedule(alloc.schedule)
-    val baseFare = alloc.schedule.flatMap(_.beamLegAfterTag.map(_.cost)).sum
+    val baseFare = alloc.schedule
+      .flatMap(
+        _.beamLegAfterTag.map(
+          leg =>
+            leg.cost - DrivingCost.estimateDrivingCost(
+              leg.beamLeg,
+              beamScenario.vehicleTypes(leg.beamVehicleTypeId),
+              beamScenario.fuelTypePrices
+          )
+        )
+      )
+      .sum
+
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
