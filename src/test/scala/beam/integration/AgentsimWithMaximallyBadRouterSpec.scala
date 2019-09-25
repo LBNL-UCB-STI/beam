@@ -38,7 +38,7 @@ class AgentsimWithMaximallyBadRouterSpec
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
 
-  lazy implicit val system: ActorSystem = ActorSystem("AgentSimWithBadRouterSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("AgentsimWithMaximallyBadRouterSpec", config)
 
   "The agentsim" must {
     "not get stuck even if the router only throws exceptions" in {
