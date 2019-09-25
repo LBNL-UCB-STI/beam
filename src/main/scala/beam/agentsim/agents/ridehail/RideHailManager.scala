@@ -1558,7 +1558,19 @@ class RideHailManager(
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = mobilityRequestToPassengerSchedule(alloc.schedule)
-    val baseFare = alloc.schedule.flatMap(_.beamLegAfterTag.map(_.cost)).sum
+    val baseFare = alloc.schedule
+      .flatMap(
+        _.beamLegAfterTag.map(
+          leg =>
+            leg.cost - DrivingCost.estimateDrivingCost(
+              leg.beamLeg,
+              beamScenario.vehicleTypes(leg.beamVehicleTypeId),
+              beamScenario.fuelTypePrices
+          )
+        )
+      )
+      .sum
+
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
