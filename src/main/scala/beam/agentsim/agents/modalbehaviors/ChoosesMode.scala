@@ -43,7 +43,7 @@ trait ChoosesMode {
 
   val dummyRHVehicle =
     StreetVehicle(
-      Id.create("dummyRH", classOf[Vehicle]),
+      BeamVehicleId(Id.create("dummyRH", classOf[BeamVehicle])),
       Id.create(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
@@ -200,7 +200,7 @@ trait ChoosesMode {
       }
 
       val bodyStreetVehicle = StreetVehicle(
-        body.id,
+        body.vehicleId,
         body.beamVehicleType.id,
         currentPersonLocation,
         WALK,
@@ -544,7 +544,7 @@ trait ChoosesMode {
           if (trip.legs.head.beamLeg.mode != WALK) {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc),
-              body.id,
+              body.vehicleId,
               body.beamVehicleType.id,
               asDriver = true,
               0,
@@ -557,7 +557,7 @@ trait ChoosesMode {
           if (trip.legs.last.beamLeg.mode != WALK) {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc),
-              body.id,
+              body.vehicleId,
               body.beamVehicleType.id,
               asDriver = true,
               0,
@@ -732,8 +732,8 @@ trait ChoosesMode {
           EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
               fullTrip.head.beamLeg.startTime,
-              body.id,
-              false,
+              body.vehicleId,
+              isLastLeg = false,
               fullTrip.head.beamLeg.travelPath.startPoint.loc,
               WALK,
               body.beamVehicleType.id
@@ -741,8 +741,8 @@ trait ChoosesMode {
             fullTrip :+
             EmbodiedBeamLeg.dummyLegAt(
               fullTrip.last.beamLeg.endTime,
-              body.id,
-              true,
+              body.vehicleId,
+              isLastLeg = true,
               fullTrip.last.beamLeg.travelPath.endPoint.loc,
               WALK,
               body.beamVehicleType.id
@@ -893,8 +893,8 @@ trait ChoosesMode {
             EmbodiedBeamTrip(
               (EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
-                body.id,
-                false,
+                body.vehicleId,
+                isLastLeg = false,
                 partialItin.head.beamLeg.travelPath.startPoint.loc,
                 WALK,
                 body.beamVehicleType.id
@@ -902,8 +902,8 @@ trait ChoosesMode {
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialItin.last.beamLeg.endTime,
-                body.id,
-                true,
+                body.vehicleId,
+                isLastLeg = true,
                 partialItin.last.beamLeg.travelPath.endPoint.loc,
                 WALK,
                 body.beamVehicleType.id
@@ -973,7 +973,7 @@ trait ChoosesMode {
               if (cavTripLegs.legs.nonEmpty) {
                 val walk1 = EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get,
-                  body.id,
+                  body.vehicleId,
                   isLastLeg = false,
                   cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc,
                   WALK,
@@ -981,7 +981,7 @@ trait ChoosesMode {
                 )
                 val walk2 = EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get + cavTripLegs.legs.map(_.beamLeg.duration).sum,
-                  body.id,
+                  body.vehicleId,
                   isLastLeg = true,
                   cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc,
                   WALK,

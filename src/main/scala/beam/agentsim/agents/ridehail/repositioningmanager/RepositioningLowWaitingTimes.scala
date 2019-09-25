@@ -4,6 +4,7 @@ import java.awt.Color
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils._
@@ -46,7 +47,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   val minDemandPercentageInRadius =
     repositioningConfig.minDemandPercentageInRadius
 
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Int): Vector[(BeamVehicleId, Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
@@ -106,7 +107,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
         // add keepMaxTopNScores (TODO)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =
+        val whichTAZToRepositionTo: Vector[(BeamVehicleId, Location)] =
           tncIterStats.reposition(
             vehiclesToReposition,
             repositionCircleRadiusInMeters,
@@ -261,7 +262,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: collection.mutable.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: collection.mutable.Map[BeamVehicleId, RideHailAgentLocation],
     maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(

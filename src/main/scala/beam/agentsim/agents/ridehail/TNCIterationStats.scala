@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter.Location
@@ -56,7 +57,7 @@ case class TNCIterationStats(
     tick: Double,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
     beamServices: BeamServices
-  ): Vector[(Id[vehicles.Vehicle], Location)] = {
+  ): Vector[(BeamVehicleId, Location)] = {
 
     // logger.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig =
@@ -78,7 +79,7 @@ case class TNCIterationStats(
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
-    val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
+    val tazVehicleMap = mutable.Map[TAZ, ListBuffer[BeamVehicleId]]()
 
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
@@ -86,11 +87,11 @@ case class TNCIterationStats(
         tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
-        case Some(lov: ListBuffer[Id[vehicles.Vehicle]]) =>
+        case Some(lov: ListBuffer[BeamVehicleId]) =>
           lov += rhaLoc.vehicleId
 
         case None =>
-          val lov = ListBuffer[Id[vehicles.Vehicle]]()
+          val lov = ListBuffer[BeamVehicleId]()
           lov += rhaLoc.vehicleId
           tazVehicleMap.put(vehicleTaz, lov)
       }

@@ -2,7 +2,7 @@ package beam.sim.population
 
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
@@ -192,7 +192,7 @@ case class AttributesOfIndividual(
 }
 
 object AttributesOfIndividual {
-  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
+  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, isMale = true, Seq(), 0.0, None, None)
 }
 
 case class HouseholdAttributes(
@@ -207,7 +207,7 @@ object HouseholdAttributes {
 
   val EMPTY = HouseholdAttributes("0", 0.0, 0, 0, 0)
 
-  def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
+  def apply(household: Household, vehicles: Map[BeamVehicleId, BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(
       householdId = household.getId.toString,
       householdIncome = Option(household.getIncome)
@@ -215,10 +215,10 @@ object HouseholdAttributes {
         .getIncome,
       householdSize = household.getMemberIds.size(),
       numCars = household.getVehicleIds.asScala
-        .map(id => vehicles(id))
+        .map(id => vehicles(BeamVehicleId(Id.create(id, classOf[BeamVehicle]))))
         .count(_.beamVehicleType.id.toString.toLowerCase.contains("car")),
       numBikes = household.getVehicleIds.asScala
-        .map(id => vehicles(id))
+        .map(id => vehicles(BeamVehicleId(Id.create(id, classOf[BeamVehicle]))))
         .count(_.beamVehicleType.id.toString.toLowerCase.contains("bike"))
     )
   }

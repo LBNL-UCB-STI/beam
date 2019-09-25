@@ -1,6 +1,6 @@
 package beam.utils.json
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{IntermodalUse, RoutingRequest, RoutingResponse}
@@ -17,6 +17,8 @@ object AllNeededFormats {
   implicit val beamVehicleTypeFormat = new IdFormat[BeamVehicleType]
 
   implicit val spaceTimeFormat = new Format[SpaceTime]
+  implicit val beamVehicle = new IdFormat[BeamVehicle]
+  implicit val beamVehicleId = new Format[BeamVehicleId]
   implicit val streetVehicleFormat = new Format[StreetVehicle]
   implicit val householdAttributesFormat = new Format[HouseholdAttributes]
   implicit val attributesOfIndividualFormat = new Format[AttributesOfIndividual]

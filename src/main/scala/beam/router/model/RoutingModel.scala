@@ -1,5 +1,6 @@
 package beam.router.model
 
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -69,7 +70,7 @@ object RoutingModel {
   case class TransitStopsInfo(
     agencyId: String,
     routeId: String,
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     fromIdx: Int,
     toIdx: Int
   )

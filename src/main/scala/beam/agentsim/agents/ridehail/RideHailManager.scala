@@ -134,7 +134,7 @@ object RideHailManager {
   case class RepositionVehicleRequest(
     passengerSchedule: PassengerSchedule,
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     rideHailAgent: RideHailAgentLocation
   )
 
@@ -216,7 +216,7 @@ class RideHailManager(
     with ActorLogging
     with Stash {
   type DepotId = Int
-  type VehicleId = Id[Vehicle]
+  type VehicleId = BeamVehicleId
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
@@ -253,7 +253,7 @@ class RideHailManager(
     .flatMap { hh =>
       hh.getVehicleIds.asScala.map { vehId =>
         beamScenario.privateVehicles
-          .get(vehId)
+          .get(BeamVehicleId(Id.create(vehId, classOf[BeamVehicle])))
           .map(_.beamVehicleType)
           .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
       }
@@ -307,9 +307,9 @@ class RideHailManager(
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
-  private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
-  private val cachedNotifyVehicleIdle = collection.mutable.Map[Id[_], NotifyVehicleIdle]()
-  val doNotUseInAllocation: mutable.Set[Id[_]] = collection.mutable.Set[Id[_]]()
+  private val pendingAgentsSentToPark = collection.mutable.Map[BeamVehicleId, ParkingStall]()
+  private val cachedNotifyVehicleIdle = collection.mutable.Map[BeamVehicleId, NotifyVehicleIdle]()
+  val doNotUseInAllocation: mutable.Set[BeamVehicleId] = collection.mutable.Set[BeamVehicleId]()
 
   // Tracking Inquiries and Reservation Requests
   val inquiryIdToInquiryAndResponse: mutable.Map[Int, (RideHailRequest, SingleOccupantQuoteAndPoolingInfo)] =
@@ -328,14 +328,14 @@ class RideHailManager(
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
-  val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  val resources: mutable.Map[BeamVehicleId, BeamVehicle] = mutable.Map[BeamVehicleId, BeamVehicle]()
 
   def findBeamVehicleUsing(vehicleId: VehicleId): Option[BeamVehicle] = {
-    resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId))
+    resources.get(vehicleId)
   }
 
   def unsafeFindBeamVehicleUsing(vehicleId: VehicleId): BeamVehicle = {
-    resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
+    resources(vehicleId)
   }
 
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
@@ -877,7 +877,7 @@ class RideHailManager(
   }
 
   def updatePassengerSchedule(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     passengerSchedule: Option[PassengerSchedule],
     passengerScheduleIndex: Option[Int]
   ): Boolean = {
@@ -898,7 +898,7 @@ class RideHailManager(
     }
   }
 
-  def updateLatestObservedTick(vehicleId: Id[Vehicle], tick: Int): Boolean = {
+  def updateLatestObservedTick(vehicleId: BeamVehicleId, tick: Int): Boolean = {
     // Update with latest tick
     val locationWithLatest = vehicleManager
       .getRideHailAgentLocation(vehicleId)
@@ -929,7 +929,7 @@ class RideHailManager(
   }
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {
-    val vehicleId = notifyVehicleIdleMessage.resourceId.asInstanceOf[Id[Vehicle]]
+    val vehicleId = notifyVehicleIdleMessage.resourceId
     log.debug(
       "RHM.NotifyVehicleIdle: {}, service status: {}",
       notifyVehicleIdleMessage,
@@ -945,7 +945,7 @@ class RideHailManager(
 
     vehicleManager.updateLocationOfAgent(vehicleId, whenWhere, vehicleManager.getServiceStatusOf(vehicleId))
 
-    val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
+    val beamVehicle = resources(vehicleId)
     val rideHailAgentLocation =
       RideHailAgentLocation(
         beamVehicle.driver.get,
@@ -1308,7 +1308,7 @@ class RideHailManager(
       cachedNotifyVehicleIdle.get(travelProposal.rideHailAgentLocation.vehicleId) match {
         case Some(notifyVehicleIdle) =>
           handleNotifyVehicleIdle(notifyVehicleIdle)
-          modifyPassengerScheduleManager.setStatusToIdle(notifyVehicleIdle.resourceId.asInstanceOf[Id[Vehicle]])
+          modifyPassengerScheduleManager.setStatusToIdle(notifyVehicleIdle.resourceId)
           cachedNotifyVehicleIdle.remove(travelProposal.rideHailAgentLocation.vehicleId)
         case None =>
       }
@@ -1427,7 +1427,7 @@ class RideHailManager(
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
-    vehicleManager.vehicleState.put(rideHailBeamVehicle.id, rideHailBeamVehicle.getState)
+    vehicleManager.vehicleState.put(rideHailBeamVehicle.vehicleId, rideHailBeamVehicle.getState)
 
     val rideHailAgentProps: Props = RideHailAgent.props(
       beamServices,
@@ -1452,7 +1452,7 @@ class RideHailManager(
 
     val agentLocation = RideHailAgentLocation(
       rideHailAgentRef,
-      rideHailBeamVehicle.id,
+      rideHailBeamVehicle.vehicleId,
       rideHailBeamVehicle.beamVehicleType,
       SpaceTime(rideInitialLocation, 0),
       geofence,
@@ -1470,7 +1470,7 @@ class RideHailManager(
         RideHailAgentInitCoord(rideHailAgentPersonId, rideInitialLocation)
       )
     RideHailAgentInputData(
-      id = rideHailBeamVehicle.id.toString,
+      id = rideHailBeamVehicle.vehicleId.toString,
       rideHailManagerId = id.toString,
       vehicleType = rideHailBeamVehicle.beamVehicleType.id.toString,
       initialLocationX = rideInitialLocation.getX,
@@ -1675,7 +1675,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
-    val futureRepoRoutingMap = mutable.Map[Id[Vehicle], Future[RoutingRequest]]()
+    val futureRepoRoutingMap = mutable.Map[BeamVehicleId, Future[RoutingRequest]]()
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId)) {

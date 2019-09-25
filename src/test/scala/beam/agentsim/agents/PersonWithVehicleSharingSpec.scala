@@ -346,7 +346,7 @@ class PersonWithVehicleSharingSpec
                     distanceInM = 1000D
                   )
                 ),
-                beamVehicleId = vehicle.id,
+                beamVehicleId = vehicle.vehicleId,
                 Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
@@ -429,7 +429,7 @@ class PersonWithVehicleSharingSpec
                     distanceInM = 1000D
                   )
                 ),
-                beamVehicleId = vehicle2.id,
+                beamVehicleId = vehicle2.vehicleId,
                 vehicle2.beamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
@@ -456,9 +456,9 @@ class PersonWithVehicleSharingSpec
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 
-      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
+      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.vehicleId)
       population.addPerson(person1)
-      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, 20)
+      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.vehicleId, 20)
       population.addPerson(person2)
 
       val modeChoiceEvents = TestProbe()
@@ -531,12 +531,12 @@ class PersonWithVehicleSharingSpec
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle)))
+            MobilityStatusResponse(Vector(Token(car1.vehicleId, car1.manager.get, car1.toStreetVehicle)))
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
-          assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
+          assert(vehicleId == car1.vehicleId, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
@@ -570,11 +570,11 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
-        Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
+        Vector(Token(car1.vehicleId, car1.manager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
-          assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
+          assert(vehicleId == car1.vehicleId, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,

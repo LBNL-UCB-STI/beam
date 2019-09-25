@@ -275,10 +275,10 @@ trait BeamHelper extends LazyLogging {
   def privateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
+  ): TrieMap[BeamVehicleId, BeamVehicle] =
     beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
       case true =>
-        TrieMap[Id[BeamVehicle], BeamVehicle]()
+        TrieMap[BeamVehicleId, BeamVehicle]()
       case false =>
         TrieMap(
           readVehiclesFile(
@@ -438,9 +438,9 @@ trait BeamHelper extends LazyLogging {
       scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
         householdId.getVehicleIds.asScala.foreach { vehicle =>
           beamServices.privateVehicles
-            .get(vehicle)
+            .get(BeamVehicleId(Id.create(vehicle, classOf[BeamVehicle])))
             .map(
-              v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
+              v => v.vehicleId.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
             )
             .foreach(csvWriter.write)
         }
@@ -554,7 +554,11 @@ trait BeamHelper extends LazyLogging {
       .flatMap(_.getVehicleIds.asScala)
 
     val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
-      v => beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+      v =>
+        beamScenario.privateVehicles
+          .get(BeamVehicleId(Id.create(v, classOf[BeamVehicle])))
+          .map(_.beamVehicleType.id.toString)
+          .getOrElse("")
     )
     val vehicleInfo = vehiclesGroupedByType.map {
       case (vehicleType, groupedValues) =>
@@ -740,7 +744,7 @@ trait BeamHelper extends LazyLogging {
       // Remove not selected vehicles
       notSelectedVehicleIds.foreach { vehicleId =>
         scenario.getVehicles.removeVehicle(vehicleId)
-        beamScenario.privateVehicles.remove(vehicleId)
+        beamScenario.privateVehicles.remove(BeamVehicleId(Id.create(vehicleId, classOf[BeamVehicle])))
       }
 
       // Remove not selected households
@@ -779,7 +783,11 @@ trait BeamHelper extends LazyLogging {
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
     vehicleIds
       .groupBy(
-        vehicleId => beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+        vehicleId =>
+          beamScenario.privateVehicles
+            .get(BeamVehicleId(Id.create(vehicleId, classOf[BeamVehicle])))
+            .map(_.beamVehicleType.id.toString)
+            .getOrElse("")
       )
       .map {
         case (vehicleType, ids) => s"$vehicleType (${ids.size})"

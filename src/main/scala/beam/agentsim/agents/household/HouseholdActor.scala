@@ -20,7 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -65,7 +65,7 @@ object HouseholdActor {
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
     matSimHousehold: Household,
-    houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
+    houseHoldVehicles: Map[BeamVehicleId, BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
@@ -129,7 +129,7 @@ object HouseholdActor {
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
     val household: Household,
-    vehicles: Map[Id[BeamVehicle], BeamVehicle],
+    vehicles: Map[BeamVehicleId, BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
@@ -189,7 +189,7 @@ object HouseholdActor {
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
               HouseholdCAVDriverAgent.props(
-                HouseholdCAVDriverAgent.idFromVehicleId(cav.id),
+                HouseholdCAVDriverAgent.idFromVehicleId(cav.vehicleId.id),
                 schedulerRef,
                 beamServices,
                 beamScenario,
@@ -200,7 +200,7 @@ object HouseholdActor {
                 transportNetwork,
                 tollCalculator
               ),
-              s"cavDriver-${cav.id.toString}"
+              s"cavDriver-${cav.vehicleId.toString}"
             )
             context.watch(cavDriverRef)
             cav.spaceTime = SpaceTime(homeCoord, 0)
@@ -414,7 +414,7 @@ object HouseholdActor {
                 bLeg =>
                   EmbodiedBeamLeg(
                     beamLeg = bLeg.copy(mode = CAV),
-                    beamVehicleId = cav.id,
+                    beamVehicleId = cav.vehicleId,
                     beamVehicleTypeId = cav.beamVehicleType.id,
                     asDriver = false,
                     cost = 0D,
@@ -427,8 +427,7 @@ object HouseholdActor {
             sender() ! CavTripLegsResponse(None, List())
         }
 
-      case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
-        val vehId = vId.asInstanceOf[Id[BeamVehicle]]
+      case NotifyVehicleIdle(vehId, whenWhere, _, _, _, _) =>
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 

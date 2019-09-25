@@ -8,7 +8,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   NotifyVehicleResourceIdleReply,
   Resume
 }
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicleId, PassengerSchedule}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.utils.DebugLib
@@ -25,11 +25,11 @@ class OutOfServiceVehicleManager(
 ) {
 
   // TODO: refactor the following two later, e.g. into class
-  val passengerSchedules: mutable.HashMap[Id[Vehicle], PassengerSchedule] = mutable.HashMap()
-  val triggerIds: mutable.HashMap[Id[Vehicle], Option[Long]] = mutable.HashMap()
+  val passengerSchedules: mutable.HashMap[BeamVehicleId, PassengerSchedule] = mutable.HashMap()
+  val triggerIds: mutable.HashMap[BeamVehicleId, Option[Long]] = mutable.HashMap()
 
   def initiateMovementToParkingDepot(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     passengerSchedule: PassengerSchedule,
     tick: Int
   ): Unit = {
@@ -46,12 +46,12 @@ class OutOfServiceVehicleManager(
       )
   }
 
-  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]): Option[Long] = {
+  def registerTrigger(vehicleId: BeamVehicleId, triggerId: Option[Long]): Option[Long] = {
     triggerIds.put(vehicleId, triggerId).flatten
   }
 
   def handleInterruptReply(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     tick: Int
   ): Unit = {
 
@@ -67,7 +67,7 @@ class OutOfServiceVehicleManager(
   }
 
   def releaseTrigger(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     triggersToSchedule: Seq[ScheduleTrigger] = Vector()
   ): Unit = {
     val rideHailAgent = rideHailManager.vehicleManager
@@ -82,11 +82,11 @@ class OutOfServiceVehicleManager(
 
 }
 
-case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
+case class ReleaseAgentTrigger(vehicleId: BeamVehicleId)
 
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
   tick: Int,
-  vehicleId: Id[Vehicle],
+  vehicleId: BeamVehicleId,
   stall: ParkingStall
 )

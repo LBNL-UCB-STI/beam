@@ -119,7 +119,7 @@ class PersonWithPersonalVehiclePlanSpec
             eventsManager,
             population,
             household,
-            Map(beamVehicle.id -> beamVehicle),
+            Map(beamVehicle.vehicleId -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
@@ -340,7 +340,7 @@ class PersonWithPersonalVehiclePlanSpec
             eventsManager,
             population,
             household,
-            Map(beamVehicle.id -> beamVehicle),
+            Map(beamVehicle.vehicleId -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
@@ -454,9 +454,9 @@ class PersonWithPersonalVehiclePlanSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id, CAR)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.vehicleId, CAR)
       population.addPerson(person)
-      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, CAR)
+      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.vehicleId, CAR)
       population.addPerson(otherPerson)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
@@ -485,7 +485,7 @@ class PersonWithPersonalVehiclePlanSpec
           eventsManager,
           population,
           household,
-          Map(car1.id -> car1, car2.id -> car2),
+          Map(car1.vehicleId -> car1, car2.vehicleId -> car2),
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
@@ -580,7 +580,7 @@ class PersonWithPersonalVehiclePlanSpec
           eventsManager,
           population,
           household,
-          Map(beamVehicle.id -> beamVehicle),
+          Map(beamVehicle.vehicleId -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),

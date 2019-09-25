@@ -4,7 +4,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
@@ -233,7 +233,7 @@ class FastHouseholdCAVScheduling(
       schedulesMap.toSet
         .foldLeft(new StringBuilder) {
           case (output, (cav, schedules)) =>
-            output.append(s"cavid: ${cav.id}\n")
+            output.append(s"cavid: ${cav.vehicleId}\n")
             val outputBis = schedules.schedule.foldLeft(output) {
               case (outputBisBis, schedule) =>
                 outputBisBis.append(s"\t$schedule\n")
@@ -268,7 +268,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
           None
         } else {
           val theVehicle = StreetVehicle(
-            Id.create(cav.id.toString, classOf[Vehicle]),
+            BeamVehicleId(Id.create(cav.vehicleId.toString, classOf[BeamVehicle])),
             cav.beamVehicleType.id,
             origin,
             CAV,
@@ -305,7 +305,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 withTransit = false,
                 IndexedSeq(
                   StreetVehicle(
-                    Id.create(cav.id.toString, classOf[Vehicle]),
+                    BeamVehicleId(Id.create(cav.vehicleId.toString, classOf[BeamVehicle])),
                     cav.beamVehicleType.id,
                     origin,
                     CAV,

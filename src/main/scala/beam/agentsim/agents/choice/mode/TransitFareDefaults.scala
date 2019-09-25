@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, FERRY, RAIL, SUBWAY}
 import beam.router.model.EmbodiedBeamTrip
@@ -29,9 +30,9 @@ object TransitFareDefaults {
           var vehId = Id.createVehicleId("dummy")
           var theFare = zero
           alt.legs.foreach { leg =>
-            if (leg.beamVehicleId != vehId && faresByMode.contains(leg.beamLeg.mode)) {
+            if (leg.beamVehicleId != BeamVehicleId.dummyVehicleId && faresByMode.contains(leg.beamLeg.mode)) {
               theFare = theFare + faresByMode(leg.beamLeg.mode)
-              vehId = leg.beamVehicleId
+              vehId = leg.beamVehicleId.id
             }
           }
           theFare

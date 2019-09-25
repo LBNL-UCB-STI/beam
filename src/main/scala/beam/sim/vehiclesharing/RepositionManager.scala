@@ -1,6 +1,6 @@
 package beam.sim.vehiclesharing
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
@@ -30,7 +30,7 @@ trait RepositionManager extends Actor with ActorLogging {
         val vehForReposition =
           algorithm.getVehiclesForReposition(tick, repTime, queryAvailableVehicles)
         val triggers = vehForReposition
-          .filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined)
+          .filter(rep => makeUnavailable(rep._1.vehicleId, rep._1.toStreetVehicle).isDefined)
           .map {
             case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
               collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
@@ -43,8 +43,8 @@ trait RepositionManager extends Actor with ActorLogging {
       }
 
     case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), triggerId) =>
-      makeTeleport(vehicle.id, whereWhen)
-      makeAvailable(vehicle.id)
+      makeTeleport(vehicle.vehicleId, whereWhen)
+      makeAvailable(vehicle.vehicleId)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
       sender ! CompletionNotice(triggerId)
   }
@@ -68,9 +68,9 @@ trait RepositionManager extends Actor with ActorLogging {
   // ****
   def getId: Id[VehicleManager]
   def queryAvailableVehicles: List[BeamVehicle]
-  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
-  def makeAvailable(vehId: Id[BeamVehicle]): Boolean
-  def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
+  def makeUnavailable(vehId: BeamVehicleId, streetVehicle: StreetVehicle): Option[BeamVehicle]
+  def makeAvailable(vehId: BeamVehicleId): Boolean
+  def makeTeleport(vehId: BeamVehicleId, whenWhere: SpaceTime): Unit
   def getScheduler: ActorRef
   def getServices: BeamServices
   def getSkimmer: BeamSkimmer

@@ -2,7 +2,7 @@ package beam.sim
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
@@ -31,7 +31,7 @@ import scala.collection.concurrent.TrieMap
 case class BeamScenario(
   fuelTypePrices: FuelTypePrices,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
+  privateVehicles: TrieMap[BeamVehicleId, BeamVehicle],
   vehicleEnergy: VehicleEnergy,
   beamConfig: BeamConfig,
   dates: DateUtils,

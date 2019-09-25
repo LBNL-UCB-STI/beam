@@ -1,5 +1,8 @@
 package beam.agentsim.agents.vehicles
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
@@ -39,7 +42,7 @@ import scala.util.Random
 
 // TODO: safety for
 class BeamVehicle(
-  val id: Id[BeamVehicle],
+  val vehicleId: BeamVehicleId,
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
   val randomSeed: Int = 0
@@ -117,7 +120,7 @@ class BeamVehicle(
     * @param startTick
     */
   def connectToChargingPoint(startTick: Long): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       connectedToCharger = true
       chargerConnectedTick = Some(startTick)
     } else
@@ -191,7 +194,7 @@ class BeamVehicle(
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
             "Vehicle does not have sufficient fuel to make trip (in both primary and secondary fuel tanks), allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
-            id,
+            vehicleId,
             beamLeg.travelPath.distanceInM
           )
           primaryEnergyConsumed = primaryEnergyForFullLeg - secondaryFuelLevelInJoules / secondaryEnergyConsumed
@@ -202,7 +205,7 @@ class BeamVehicle(
       } else {
         logger.warn(
           "Vehicle does not have sufficient fuel to make trip, allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
-          id,
+          vehicleId,
           beamLeg.travelPath.distanceInM
         )
       }
@@ -265,7 +268,7 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
+    StreetVehicle(vehicleId, beamVehicleType.id, spaceTime, mode, asDriver = true)
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
@@ -332,7 +335,41 @@ class BeamVehicle(
     }
   }
 
-  override def toString = s"$id ($beamVehicleType.id)"
+  override def toString = s"$vehicleId ($beamVehicleType.id)"
+}
+
+class BeamVehicleId(val localId: Int, val id: Id[BeamVehicle]) extends Serializable {
+  def canEqual(a: Any): Boolean = a.isInstanceOf[BeamVehicleId]
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: BeamVehicleId => that.canEqual(this) && this.localId == that.localId
+      case _                   => false
+    }
+  override def hashCode(): Int = localId.hashCode()
+
+  override def toString: String = {
+    s"BeamVehicleId(localId: ${localId}, id: ${id}"
+  }
+}
+
+object BeamVehicleId {
+  private val localIdGen: AtomicInteger = new AtomicInteger(0)
+  private val idStore: ConcurrentHashMap[Id[BeamVehicle], Int] = new ConcurrentHashMap[Id[BeamVehicle], Int]()
+
+  val dummyVehicleId: BeamVehicleId = apply(Id.create("dummy", classOf[BeamVehicle]))
+
+  def apply(id: Id[BeamVehicle]): BeamVehicleId = {
+    Option(idStore.get(id))
+      .map { existId =>
+        new BeamVehicleId(existId, id)
+      }
+      .getOrElse {
+        val localId = localIdGen.getAndIncrement()
+        idStore.put(id, localId)
+        new BeamVehicleId(localId, id)
+      }
+  }
 }
 
 object BeamVehicle {
@@ -347,12 +384,12 @@ object BeamVehicle {
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
-  def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
+  def createId[A](id: Id[A], prefix: Option[String] = None): BeamVehicleId = {
     createId(id.toString, prefix)
   }
 
-  def createId[A](id: String, prefix: Option[String]): Id[BeamVehicle] = {
-    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle])
+  def createId[A](id: String, prefix: Option[String]): BeamVehicleId = {
+    BeamVehicleId(Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle]))
   }
 
   case class BeamVehicleState(
@@ -364,7 +401,7 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   ) {
 
-    def totalRemainingRange = {
+    def totalRemainingRange: Double = {
       remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
     }
   }

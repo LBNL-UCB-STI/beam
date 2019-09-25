@@ -6,7 +6,7 @@ import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicleId, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.sim.config.BeamConfig
@@ -27,17 +27,17 @@ class RideHailModifyPassengerScheduleManager(
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Int, RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
-    mutable.Map[Id[Vehicle], RideHailModifyPassengerScheduleStatus]()
-  private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
+    mutable.Map[BeamVehicleId, RideHailModifyPassengerScheduleStatus]()
+  private val interruptedVehicleIds = mutable.Set[BeamVehicleId]() // For debug only
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
   var ignoreErrorPrint = false
   var numInterruptRepliesPending: Int = 0
 
   // We can change this to be Set[Id[Vehicle]], but then in case of terminated actor, we have to map it back to Id[Vehicle]
   //
-  var waitingToReposition: Set[Id[Vehicle]] = Set.empty
+  var waitingToReposition: Set[BeamVehicleId] = Set.empty
 
-  def setRepositioningsToProcess(toReposition: Set[Id[Vehicle]]): Unit = {
+  def setRepositioningsToProcess(toReposition: Set[BeamVehicleId]): Unit = {
     waitingToReposition = toReposition
   }
 
@@ -96,11 +96,11 @@ class RideHailModifyPassengerScheduleManager(
     )
   }
 
-  def cancelRepositionAttempt(vehicleId: Id[Vehicle]): Unit = {
+  def cancelRepositionAttempt(vehicleId: BeamVehicleId): Unit = {
     repositioningFinished(vehicleId)
   }
 
-  def repositioningFinished(vehicleId: Id[Vehicle]): Unit = {
+  def repositioningFinished(vehicleId: BeamVehicleId): Unit = {
     if (waitingToReposition.contains(vehicleId)) {
       waitingToReposition = waitingToReposition - vehicleId
       checkIfRoundOfRepositioningIsDone()
@@ -118,7 +118,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def modifyPassengerScheduleAckReceived(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger],
     tick: Int
   ): Unit = {
@@ -181,7 +181,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def sendNewPassengerScheduleToVehicle(
     passengerSchedule: PassengerSchedule,
-    rideHailVehicleId: Id[Vehicle],
+    rideHailVehicleId: BeamVehicleId,
     rideHailAgentRef: ActorRef,
     tick: Int,
     reservationRequestIdOpt: Option[Int] = None
@@ -289,7 +289,7 @@ class RideHailModifyPassengerScheduleManager(
   private def sendInterruptMessage(
     modifyPassengerSchedule: ModifyPassengerSchedule,
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     rideHailAgent: ActorRef,
     interruptOrigin: InterruptOrigin
   ): Unit = {
@@ -332,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
     interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
   }
 
-  def setStatusToIdle(vehicleId: Id[Vehicle]) = {
+  def setStatusToIdle(vehicleId: BeamVehicleId) = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
       case Some(status) =>
         val newStatus =
@@ -357,7 +357,7 @@ class RideHailModifyPassengerScheduleManager(
     interruptedVehicleIds.clear
   }
 
-  def clearModifyStatusFromCacheWithVehicleId(vehicleId: Id[Vehicle]): Unit = {
+  def clearModifyStatusFromCacheWithVehicleId(vehicleId: BeamVehicleId): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId).foreach { status =>
       interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
       log.debug("remove interrupt from clearModifyStatusFromCacheWithVehicleId {}", status.interruptId)
@@ -372,7 +372,7 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def isPendingReservation(vehicleId: Id[Vehicle]): Boolean = {
+  def isPendingReservation(vehicleId: BeamVehicleId): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).map(_.interruptOrigin == SingleReservation).getOrElse(false)
   }
 
@@ -385,7 +385,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def doesPendingReservationContainPassSchedule(
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     passengerSchedule: PassengerSchedule
   ): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus
@@ -397,7 +397,7 @@ class RideHailModifyPassengerScheduleManager(
       .getOrElse(false)
   }
 
-  def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
+  def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: BeamVehicleId): Boolean = {
     // FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
     // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
     true
@@ -433,7 +433,7 @@ case object HoldForPlanning extends InterruptOrigin
 
 case class RideHailModifyPassengerScheduleStatus(
   interruptId: Int,
-  vehicleId: Id[Vehicle],
+  vehicleId: BeamVehicleId,
   modifyPassengerSchedule: ModifyPassengerSchedule,
   interruptOrigin: InterruptOrigin,
   interruptReply: Option[InterruptReply],
@@ -442,7 +442,7 @@ case class RideHailModifyPassengerScheduleStatus(
   status: InterruptMessageStatus
 )
 
-case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle])
+case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: BeamVehicleId)
 
 object RideHailModifyPassengerScheduleManager {
   def nextRideHailAgentInterruptId: Int = InterruptIdIdGenerator.nextId

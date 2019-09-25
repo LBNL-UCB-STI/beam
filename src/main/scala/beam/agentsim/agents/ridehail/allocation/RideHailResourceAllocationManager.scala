@@ -10,7 +10,7 @@ import beam.agentsim.agents.ridehail.repositioningmanager.{
   RepositioningManager
 }
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.agents.vehicles.{BeamVehicleId, PersonIdWithActorRef}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
@@ -87,7 +87,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def isBufferEmpty = bufferedRideHailRequests.isEmpty
 
   def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
-    var allocationResponse = allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
+    val allocationResponse = allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
     allocationResponse match {
       case VehicleAllocations(allocations) =>
         allocations.foreach { alloc =>
@@ -125,7 +125,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponse = {
     // closest request
-    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    var alreadyAllocated: Set[BeamVehicleId] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if (routingResponses.isEmpty) =>
         rideHailManager.vehicleManager
@@ -183,12 +183,12 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   val repositioningManager: RepositioningManager = createRepositioningManager()
   logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
 
-  def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
-    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
+  def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(BeamVehicleId, ParkingStall)] = {
+    val idleVehicleIdsAndLocation: Vector[(BeamVehicleId, RideHailAgentLocation)] =
       rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.toVector
 
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
-      case ((vehicleId: Id[Vehicle], _)) => {
+      case ((vehicleId: BeamVehicleId, _)) => {
         rideHailManager.findBeamVehicleUsing(vehicleId) match {
           case Some(beamVehicle) => {
             if (cavOnly && !beamVehicle.isCAV) false
@@ -220,7 +220,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
    */
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+  def repositionVehicles(tick: Int): Vector[(BeamVehicleId, Location)] = {
     repositioningManager.repositionVehicles(tick)
   }
 
@@ -230,7 +230,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Use case: You want to overwrite a ride and make sure that it has been processed before cancelling it.
    * Reason: If you cancel it during the reservation, the reservation will overwrite the cancellation.
    */
-  def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
+  def reservationCompletionNotice(personId: Id[Person], vehicleId: BeamVehicleId): Unit = {}
 
   def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 

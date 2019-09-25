@@ -50,7 +50,7 @@ import beam.agentsim.infrastructure.parking.ParkingMNL
   */
 object PersonAgent {
 
-  type VehicleStack = Vector[Id[Vehicle]]
+  type VehicleStack = Vector[BeamVehicleId]
 
   def props(
     scheduler: ActorRef,
@@ -148,7 +148,7 @@ object PersonAgent {
     restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
     currentVehicle: VehicleStack = Vector(),
     currentTourMode: Option[BeamMode] = None,
-    currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
+    currentTourPersonalVehicle: Option[BeamVehicleId] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
@@ -208,7 +208,7 @@ object PersonAgent {
   def correctTripEndTime(
     trip: EmbodiedBeamTrip,
     endTime: Int,
-    bodyVehicleId: Id[BeamVehicle],
+    bodyVehicleId: BeamVehicleId,
     bodyVehicleTypeId: Id[BeamVehicleType]
   ) = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
@@ -218,7 +218,7 @@ object PersonAgent {
           .dummyLegAt(
             endTime,
             bodyVehicleId,
-            true,
+            isLastLeg = true,
             trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc,
             WALK,
             bodyVehicleTypeId
@@ -266,7 +266,7 @@ class PersonAgent(
     bodyType
   )
   body.manager = Some(self)
-  beamVehicles.put(body.id, ActualVehicle(body))
+  beamVehicles.put(body.vehicleId, ActualVehicle(body))
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -603,7 +603,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter.id))
 
       if (currentLeg.cost > 0.0) {
         currentLeg.beamLeg.travelPath.transitStops.foreach { transitStopInfo =>
@@ -637,7 +637,7 @@ class PersonAgent(
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
-      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit.id))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
@@ -665,7 +665,7 @@ class PersonAgent(
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
+          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head.id)
         )
         if (currentBeamVehicle != body) {
           if (!currentBeamVehicle.mustBeDrivenHome) {
@@ -677,7 +677,7 @@ class PersonAgent(
       }
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = data.restOfCurrentTrip.tail,
-        currentVehicle = Vector(body.id),
+        currentVehicle = Vector(body.vehicleId),
         currentTripCosts = 0.0
       )
   }
@@ -701,7 +701,7 @@ class PersonAgent(
 
   when(TryingToBoardVehicle) {
     case Event(Boarded(vehicle), basePersonData: BasePersonData) =>
-      beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
+      beamVehicles.put(vehicle.vehicleId, ActualVehicle(vehicle))
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
@@ -757,7 +757,7 @@ class PersonAgent(
               new PersonEntersVehicleEvent(
                 _currentTick.get,
                 Id.createPersonId(id),
-                nextLeg.beamVehicleId
+                nextLeg.beamVehicleId.id
               )
             )
             nextLeg.beamVehicleId +: currentVehicle
@@ -819,7 +819,7 @@ class PersonAgent(
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
         PersonIdWithActorRef(id, self)
       )
-      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
+      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId.id) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _))
@@ -880,7 +880,7 @@ class PersonAgent(
         PersonIdWithActorRef(id, self)
       )
       context.actorSelection(
-        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)
+        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId.id).toString)
       ) ! resRequest
       goto(WaitingForReservationConfirmation)
 
@@ -943,7 +943,7 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.vehicleId, body.beamVehicleType.id)
           val generalizedTime =
             modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
@@ -984,7 +984,7 @@ class PersonAgent(
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
-                  beamVehicles -= personalVeh.id
+                  beamVehicles -= personalVeh.vehicleId
                   personalVeh.manager.get ! ReleaseVehicle(personalVeh)
                   None
                 } else {

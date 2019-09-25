@@ -18,13 +18,13 @@ object BeamVehicleUtils {
     filePath: String,
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
     randomSeed: Long
-  ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
+  ): scala.collection.Map[BeamVehicleId, BeamVehicle] = {
     val rand: Random = new Random(randomSeed)
 
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[BeamVehicleId, BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+        val vehicleId = BeamVehicleId(Id.create(vehicleIdString, classOf[BeamVehicle]))
 
         val vehicleTypeIdString = line.get("vehicleTypeId")
         val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))

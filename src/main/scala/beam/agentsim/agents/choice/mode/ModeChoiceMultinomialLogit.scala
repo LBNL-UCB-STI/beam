@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 
 import scala.collection.mutable
@@ -171,8 +172,8 @@ class ModeChoiceMultinomialLogit(
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
           altAndIdx._1.legs.foreach { leg =>
-            if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
-              vehId = leg.beamVehicleId
+            if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != BeamVehicleId.dummyVehicleId) {
+              vehId = leg.beamVehicleId.id
               nVeh = nVeh + 1
             }
           }

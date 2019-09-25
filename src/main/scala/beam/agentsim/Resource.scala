@@ -3,7 +3,7 @@ package beam.agentsim
 import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.sim.Geofence
@@ -14,7 +14,7 @@ object Resource {
   case class ReleaseParkingStall(stallId: Int)
 
   case class NotifyVehicleIdle(
-    resourceId: Id[_],
+    resourceId: BeamVehicleId,
     whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
@@ -22,7 +22,7 @@ object Resource {
     triggerId: Option[Long] // triggerId is included to facilitate debugging
   )
 
-  case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])
+  case class NotifyVehicleOutOfService(vehicleId: BeamVehicleId)
 
   case class TryToBoardVehicle(token: Token, who: ActorRef)
 

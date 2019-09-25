@@ -4,7 +4,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
@@ -68,7 +68,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     var toAllocate: Set[RideHailRequest] = Set()
     var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: List[VehicleAllocation] = List()
-    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    var alreadyAllocated: Set[BeamVehicleId] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toAllocate += request
@@ -150,7 +150,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             )
             rideHailManager.log.debug(
               "%%%%% Vehicle {} is available with this schedule: \n {}",
-              vehAndSched.vehicle.id,
+              vehAndSched.vehicle.vehicleId,
               vehAndSched.schedule.map(_.toString).mkString("\n")
             )
             vehAndSched
@@ -196,22 +196,22 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           if (theTrip.schedule != vehicleAndOldSchedule.schedule) {
             rideHailManager.log.debug(
               "%%%%% Assigned vehicle {} the trip @ {}: \n {}",
-              vehicleAndOldSchedule.vehicle.id,
+              vehicleAndOldSchedule.vehicle.vehicleId,
               tick,
               theTrip
             )
             if (rideHailManager.vehicleManager
-                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
+                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.vehicleId)
                   .latestTickExperienced > 0) {
               rideHailManager.log.debug(
                 "\tlatest tick by vehicle {} is {}",
-                vehicleAndOldSchedule.vehicle.id,
+                vehicleAndOldSchedule.vehicle.vehicleId,
                 rideHailManager.vehicleManager
-                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
+                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.vehicleId)
                   .latestTickExperienced
               )
             }
-            alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.id
+            alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.vehicleId
             var newRideHailRequest: Option[RideHailRequest] = None
             var scheduleToCache: List[MobilityRequest] = List()
             val rReqs = (theTrip.schedule
@@ -246,7 +246,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                     withTransit = false,
                     IndexedSeq(
                       StreetVehicle(
-                        Id.create(vehicleAndOldSchedule.vehicle.id.toString, classOf[Vehicle]),
+                        BeamVehicleId(
+                          Id.create(vehicleAndOldSchedule.vehicle.vehicleId.toString, classOf[BeamVehicle])
+                        ),
                         vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                         origin,
                         CAR,

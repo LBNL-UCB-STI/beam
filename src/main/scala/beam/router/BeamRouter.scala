@@ -20,7 +20,7 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleId, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -402,7 +402,7 @@ object BeamRouter {
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
-    vehicleId: Id[Vehicle],
+    vehicleId: BeamVehicleId,
     vehicleTypeId: Id[BeamVehicleType],
     requestId: Int = IdGeneratorImpl.nextId
   )

@@ -2,7 +2,7 @@ package beam.router
 import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
@@ -71,7 +71,7 @@ class TravelTimeObserved @Inject()(
     legs.foreach { carLeg =>
       val dummyHead = EmbodiedBeamLeg.dummyLegAt(
         carLeg.beamLeg.startTime,
-        Id.createVehicleId(""),
+        BeamVehicleId(Id.create("", classOf[BeamVehicle])),
         isLastLeg = false,
         carLeg.beamLeg.travelPath.startPoint.loc,
         WALK,
@@ -80,7 +80,7 @@ class TravelTimeObserved @Inject()(
 
       val dummyTail = EmbodiedBeamLeg.dummyLegAt(
         carLeg.beamLeg.endTime,
-        Id.createVehicleId(""),
+        BeamVehicleId(Id.create("", classOf[BeamVehicle])),
         isLastLeg = true,
         carLeg.beamLeg.travelPath.endPoint.loc,
         WALK,
@@ -278,7 +278,7 @@ object TravelTimeObserved extends LazyLogging {
     val buckets = (1 to bucketsNum).map(_ * maxSkimCount / bucketsNum)
     def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
 
-    var dataset = new XYSeriesCollection()
+    val dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
     series.foreach {
       case (count, simulatedTime, observedTime) =>

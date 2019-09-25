@@ -96,7 +96,7 @@ trait ChoosesParking extends {
       val timeCost: Double = 0.0 //scaleTimeByValueOfTime(0.0)
       val score = calculateScore(distance, stallForLeavingParkingEvent.costInDollars, energyCharge, timeCost)
       eventsManager.processEvent(
-        LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.id)
+        LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.vehicleId.id)
       )
 
       goto(WaitingToDrive) using data
@@ -145,14 +145,14 @@ trait ChoosesParking extends {
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
           StreetVehicle(
-            currentBeamVehicle.id,
+            currentBeamVehicle.vehicleId,
             currentBeamVehicle.beamVehicleType.id,
             currentPointUTM,
             CAR,
             asDriver = true
           )
         val bodyStreetVeh =
-          StreetVehicle(body.id, body.beamVehicleType.id, currentPointUTM, WALK, asDriver = true)
+          StreetVehicle(body.vehicleId, body.beamVehicleType.id, currentPointUTM, WALK, asDriver = true)
         val veh2StallRequest = RoutingRequest(
           currentLocUTM,
           stall.locationUTM,
@@ -171,7 +171,7 @@ trait ChoosesParking extends {
           withTransit = false,
           Vector(
             StreetVehicle(
-              body.id,
+              body.vehicleId,
               body.beamVehicleType.id,
               SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
@@ -205,9 +205,9 @@ trait ChoosesParking extends {
             nextLeg,
             data.currentVehicle.head,
             body.beamVehicleType.id,
-            true,
+            asDriver = true,
             0.0,
-            true
+            unbecomeDriverOnCompletion = true
           ),
           routingResponse2.itineraries.head.legs.head
         )
@@ -237,15 +237,16 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || currentBeamVehicle.id == body.id) {
-        (data.currentVehicle, currentBeamVehicle)
-      } else {
-        currentBeamVehicle.unsetDriver()
-        eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
-        )
-        (data.currentVehicle.drop(1), body)
-      }
+      val (newVehicle, newVehicleToken) =
+        if (leg1.beamLeg.mode == CAR || currentBeamVehicle.vehicleId == body.vehicleId) {
+          (data.currentVehicle, currentBeamVehicle)
+        } else {
+          currentBeamVehicle.unsetDriver()
+          eventsManager.processEvent(
+            new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head.id)
+          )
+          (data.currentVehicle.drop(1), body)
+        }
 
       scheduler ! CompletionNotice(
         triggerId,

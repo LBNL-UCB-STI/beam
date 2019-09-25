@@ -1,10 +1,10 @@
 package beam.utils.scenario
 
 import java.util
-import scala.util.Random
 
+import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -82,7 +82,7 @@ class BeamScenarioLoader(
     beamScenario.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
-      .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+      .foreach(v => beamScenario.privateVehicles.put(v.vehicleId, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
@@ -341,7 +341,7 @@ object BeamScenarioLoader extends LazyLogging {
     val matsimVehicle: Vehicle =
       VehicleUtils.getFactory.createVehicle(Id.createVehicleId(info.vehicleId), matsimVehicleType)
 
-    val beamVehicleId = Id.create(matsimVehicle.getId, classOf[BeamVehicle])
+    val beamVehicleId = BeamVehicleId(Id.create(matsimVehicle.getId, classOf[BeamVehicle]))
     val beamVehicleTypeId = Id.create(info.vehicleTypeId, classOf[BeamVehicleType])
 
     val beamVehicleType = map(beamVehicleTypeId)

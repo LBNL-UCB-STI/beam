@@ -4,7 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
@@ -94,7 +94,7 @@ class Population(
           .asInstanceOf[Double]
       )
 
-      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+      val householdVehicles: Map[BeamVehicleId, BeamVehicle] = JavaConverters
         .collectionAsScalaIterable(household.getVehicleIds)
         .map { vid =>
           val bvid = BeamVehicle.createId(vid)
@@ -140,9 +140,12 @@ object Population {
   def getVehiclesFromHousehold(
     household: Household,
     beamScenario: BeamScenario
-  ): Map[Id[BeamVehicle], BeamVehicle] = {
+  ): Map[BeamVehicleId, BeamVehicle] = {
     val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
-    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamScenario.privateVehicles(i)).toMap
+    houseHoldVehicles.map { i =>
+      val vehId = BeamVehicle.createId(i)
+      vehId -> beamScenario.privateVehicles(vehId)
+    }.toMap
   }
 
   def personInitialLocation(person: Person): Coord =

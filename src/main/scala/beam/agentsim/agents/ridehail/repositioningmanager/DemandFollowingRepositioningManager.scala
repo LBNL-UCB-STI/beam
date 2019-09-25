@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.vehicles.BeamVehicleId
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
@@ -78,7 +79,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     createClusters
   }
 
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+  def repositionVehicles(tick: Int): Vector[(BeamVehicleId, Location)] = {
     val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
@@ -134,7 +135,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     shouldRepos
   }
 
-  private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: Id[Vehicle]): Option[Coord] = {
+  private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: BeamVehicleId): Option[Coord] = {
     val currentHour = tick / 3600
     val nextHour = currentHour + 1
     val fractionOfClosestClusters =

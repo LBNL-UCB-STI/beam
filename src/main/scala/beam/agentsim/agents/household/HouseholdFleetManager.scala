@@ -16,7 +16,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 }
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -26,7 +26,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
+class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[BeamVehicleId, BeamVehicle], homeCoord: Coord)
     extends Actor
     with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -53,7 +53,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
       val HasEnoughFuelToBeParked: Boolean = true
-      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
+      val listOfFutures: List[Future[(BeamVehicleId, ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
           (parkingManager ? ParkingInquiry(homeCoord, "init")).mapTo[ParkingInquiryResponse].map { r =>
             (id, r)
@@ -63,34 +63,35 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
       response.pipeTo(self)
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
-      val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-      vehicles(vehId).spaceTime = whenWhere
-      logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
+    case NotifyVehicleIdle(vehicleId, whenWhere, _, _, _, _) =>
+      vehicles(vehicleId).spaceTime = whenWhere
+      logger.debug("updated vehicle {} with location {}", vehicleId, whenWhere)
 
     case ReleaseVehicle(vehicle) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        logger.warn("I can't release vehicle {} because I have it already", vehicle.id)
+        logger.warn("I can't release vehicle {} because I have it already", vehicle.vehicleId)
       } else {
         availableVehicles = vehicle :: availableVehicles
-        logger.debug("Vehicle {} is now available", vehicle.id)
+        logger.debug("Vehicle {} is now available", vehicle.vehicleId)
       }
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
+        sender ! Failure(
+          new RuntimeException(s"I can't release vehicle ${vehicle.vehicleId} because I have it already")
+        )
       } else {
         availableVehicles = vehicle :: availableVehicles
-        logger.debug("Vehicle {} is now available", vehicle.id)
+        logger.debug("Vehicle {} is now available", vehicle.vehicleId)
         sender() ! Success
       }
 
     case MobilityStatusInquiry(_, _, _) =>
       availableVehicles = availableVehicles match {
         case firstVehicle :: rest =>
-          logger.debug("Vehicle {} is now taken", firstVehicle.id)
+          logger.debug("Vehicle {} is now taken", firstVehicle.vehicleId)
           firstVehicle.becomeDriver(sender)
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
           rest
@@ -108,5 +109,5 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 }
 
 object HouseholdFleetManager {
-  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
+  case class ResolvedParkingResponses(triggerId: Long, xs: List[(BeamVehicleId, ParkingInquiryResponse)])
 }

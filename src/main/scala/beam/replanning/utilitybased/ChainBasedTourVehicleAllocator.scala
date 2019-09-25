@@ -176,7 +176,7 @@ case class ChainBasedTourVehicleAllocator(
 object ChainBasedTourVehicleAllocator {
 
   case class VehicleRecord(
-    id: Id[BeamVehicle],
+    id: Id[Vehicle],
     var nAllocs: Int = 0,
     var availableFrom: Double = Double.NegativeInfinity
   )

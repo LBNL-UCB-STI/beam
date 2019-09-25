@@ -10,7 +10,7 @@ object VehicleProtocol {
   case class RemovePassengerFromTrip(passId: PersonIdWithActorRef)
 
   case class StreetVehicle(
-    id: Id[Vehicle],
+    id: BeamVehicleId,
     vehicleTypeId: Id[BeamVehicleType],
     locationUTM: SpaceTime,
     mode: BeamMode,

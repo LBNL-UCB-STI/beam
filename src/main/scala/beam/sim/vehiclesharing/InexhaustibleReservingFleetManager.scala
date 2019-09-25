@@ -11,7 +11,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -39,7 +39,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     case MobilityStatusInquiry(_, whenWhere, _) =>
       // Create a vehicle out of thin air
       val vehicle = new BeamVehicle(
-        Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
+        BeamVehicleId(Id.create(self.path.name + "-" + nextVehicleIndex, classOf[BeamVehicle])),
         new Powertrain(0.0),
         vehicleType,
         rand.nextInt()

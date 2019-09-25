@@ -17,7 +17,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -57,17 +57,17 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val vehicles = (locations.zipWithIndex map {
     case (location, ix) =>
       val vehicle = new BeamVehicle(
-        Id.createVehicleId(self.path.name + "-" + ix),
+        BeamVehicleId(Id.create(self.path.name + "-" + ix, classOf[BeamVehicle])),
         new Powertrain(0.0),
         vehicleType,
         rand.nextInt()
       )
       vehicle.manager = Some(self)
       vehicle.spaceTime = SpaceTime(location, 0)
-      vehicle.id -> vehicle
+      vehicle.vehicleId -> vehicle
   }).toMap
 
-  private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  private val availableVehicles = mutable.Map[BeamVehicleId, BeamVehicle]()
   private val availableVehiclesIndex = new Quadtree
 
   override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
@@ -94,14 +94,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
-        Token(vehicle.id, self, vehicle.toStreetVehicle)
+        Token(vehicle.vehicleId, self, vehicle.toStreetVehicle)
       })
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
-          log.debug("Checked out " + vehicle.id)
+          log.debug("Checked out " + vehicle.vehicleId)
           who ! Boarded(vehicle)
           collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
@@ -109,14 +109,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       }
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
-      makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
+      makeTeleport(vId, whenWhere)
 
     case ReleaseVehicle(vehicle) =>
-      makeAvailable(vehicle.id)
+      makeAvailable(vehicle.vehicleId)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
     case ReleaseVehicleAndReply(vehicle, _) =>
-      makeAvailable(vehicle.id)
+      makeAvailable(vehicle.vehicleId)
       sender() ! Success
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
@@ -131,7 +131,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
   override def getSkimmer: BeamSkimmer = beamSkimmer
 
-  override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
+  override def makeAvailable(vehId: BeamVehicleId): Boolean = {
     val vehicle = vehicles(vehId)
     availableVehicles += vehId -> vehicle
     availableVehiclesIndex.insert(
@@ -142,7 +142,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     true
   }
 
-  override def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle] = {
+  override def makeUnavailable(vehId: BeamVehicleId, streetVehicle: StreetVehicle): Option[BeamVehicle] = {
     availableVehicles.get(vehId) match {
       case Some(vehicle) if streetVehicle.locationUTM == vehicle.spaceTime =>
         availableVehicles.remove(vehId)
@@ -159,7 +159,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     }
   }
 
-  override def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit = {
+  override def makeTeleport(vehId: BeamVehicleId, whenWhere: SpaceTime): Unit = {
     vehicles(vehId).spaceTime = whenWhere
     log.debug("updated vehicle {} with location {}", vehId, whenWhere)
   }

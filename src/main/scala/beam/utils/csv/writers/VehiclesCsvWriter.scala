@@ -1,5 +1,6 @@
 package beam.utils.csv.writers
 
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId}
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -19,7 +20,7 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
     }
   }
 
-  private def vehicleType(vehicleId: Id[Vehicle]): String = {
+  private def vehicleType(vehicleId: BeamVehicleId): String = {
     beamServices.beamScenario.privateVehicles
       .get(vehicleId)
       .map(
@@ -33,7 +34,7 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
 
     val allVehicles = households.values.flatMap { hh =>
       hh.getVehicleIds.asScala.map { id: Id[Vehicle] =>
-        VehicleEntry(id.toString, vehicleType(id), hh.getId.toString).toString
+        VehicleEntry(id.toString, vehicleType(BeamVehicleId(Id.create(id, classOf[BeamVehicle]))), hh.getId.toString).toString
       }
     }
     allVehicles.toIterator

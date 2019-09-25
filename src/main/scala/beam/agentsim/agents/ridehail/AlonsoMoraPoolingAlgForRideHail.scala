@@ -4,7 +4,7 @@ import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
@@ -334,7 +334,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
-      Id.create(veh.vehicleId, classOf[BeamVehicle]),
+      BeamVehicleId(Id.create(veh.vehicleId, classOf[BeamVehicle])),
       new Powertrain(0.0),
       veh.vehicleType
     )
@@ -460,7 +460,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     seatsAvailable: Int
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
-      Id.create(vid, classOf[BeamVehicle]),
+      BeamVehicleId(Id.create(vid, classOf[BeamVehicle])),
       new Powertrain(0.0),
       vehicleType
     )
@@ -509,7 +509,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   ) extends RVGraphNode {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
-    override def getId: String = vehicle.id.toString
+    override def getId: String = vehicle.vehicleId.toString
     def getNoPassengers: Int = numberOfPassengers
     def getFreeSeats: Int = seatsAvailable - numberOfPassengers
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)

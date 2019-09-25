@@ -10,7 +10,7 @@ import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern._
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleId, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, UpdateTravelTimeLocal}
@@ -102,7 +102,7 @@ object R5RoutingApp extends BeamHelper {
     val endUTM = geoUtils.wgs2Utm(new Location(-122.0371486, 37.37157))
     val departureTime = 20131
     val bodyStreetVehicle = StreetVehicle(
-      Id.createVehicleId("1"),
+      BeamVehicleId(Id.create("1", classOf[BeamVehicle])),
       Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
       new SpaceTime(startUTM, time = departureTime),
       CAR,
