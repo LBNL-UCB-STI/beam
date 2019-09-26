@@ -96,7 +96,13 @@ trait ChoosesParking extends {
       val timeCost: Double = 0.0 //scaleTimeByValueOfTime(0.0)
       val score = calculateScore(distance, stallForLeavingParkingEvent.costInDollars, energyCharge, timeCost)
       eventsManager.processEvent(
-        LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.vehicleId.id)
+        LeavingParkingEvent(
+          tick,
+          stallForLeavingParkingEvent,
+          score,
+          id.toString,
+          currentBeamVehicle.vehicleId.matsimVehicleId
+        )
       )
 
       goto(WaitingToDrive) using data
@@ -243,7 +249,7 @@ trait ChoosesParking extends {
         } else {
           currentBeamVehicle.unsetDriver()
           eventsManager.processEvent(
-            new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head.id)
+            new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head.matsimVehicleId)
           )
           (data.currentVehicle.drop(1), body)
         }

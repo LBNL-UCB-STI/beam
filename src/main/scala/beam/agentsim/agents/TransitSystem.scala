@@ -81,8 +81,9 @@ class TransitSystem(
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
     transitSchedule.foreach {
       case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+        val matsmiVehId = Id.createVehicleId(tripVehId)
+        initializer.createTransitVehicle(matsmiVehId, route, legs, rand.nextInt()).foreach { vehicle =>
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(matsmiVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             beamScenario,

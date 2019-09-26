@@ -32,7 +32,7 @@ object TransitFareDefaults {
           alt.legs.foreach { leg =>
             if (leg.beamVehicleId != BeamVehicleId.dummyVehicleId && faresByMode.contains(leg.beamLeg.mode)) {
               theFare = theFare + faresByMode(leg.beamLeg.mode)
-              vehId = leg.beamVehicleId.id
+              vehId = leg.beamVehicleId.matsimVehicleId
             }
           }
           theFare

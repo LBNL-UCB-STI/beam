@@ -259,7 +259,9 @@ class RideHailAgent(
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.vehicleId.id))
+      eventsManager.processEvent(
+        new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.vehicleId.matsimVehicleId)
+      )
       val isTimeForShift = shifts.isEmpty || shifts.get
         .find(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
         .isDefined
@@ -292,7 +294,13 @@ class RideHailAgent(
       vehicle.useParkingStall(stall)
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(
-        ParkEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.vehicleId.id, id.toString)
+        ParkEvent(
+          tick,
+          stall,
+          geo.utm2Wgs(stall.locationUTM),
+          currentBeamVehicle.vehicleId.matsimVehicleId,
+          id.toString
+        )
       )
       log.debug("Refuel started at {}, triggerId: {}", tick, triggerId)
       startRefueling(tick, triggerId)
@@ -596,7 +604,7 @@ class RideHailAgent(
         energyInJoules,
         vehicle.primaryFuelLevelInJoules - energyInJoules,
         tick - sessionStart,
-        vehicle.vehicleId.id,
+        vehicle.vehicleId.matsimVehicleId,
         vehicle.beamVehicleType
       )
     )
@@ -616,7 +624,7 @@ class RideHailAgent(
               vehicle.stall.get,
               cost,
               driverId = id.toString,
-              currentBeamVehicle.vehicleId.id
+              currentBeamVehicle.vehicleId.matsimVehicleId
             )
           )
         if (!vehicle.isCAV) parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)

@@ -19,11 +19,6 @@ package object agentsim {
 
   implicit def personAgentId2PersonId(id: Id[PersonAgent]): Id[Person] = Id.createPersonId(id)
 
-  implicit def vehicleId2BeamVehicleId(id: BeamVehicleId): Id[BeamVehicle] =
-    Id.create(id, classOf[BeamVehicle])
-
-  implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
-
   implicit def beamVehicleMap2MatsimVehicleMap(
     beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
   ): Map[Id[BeamVehicle], BeamVehicle] = {

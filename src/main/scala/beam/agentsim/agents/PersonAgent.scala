@@ -603,7 +603,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter.id))
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter.matsimVehicleId))
 
       if (currentLeg.cost > 0.0) {
         currentLeg.beamLeg.travelPath.transitStops.foreach { transitStopInfo =>
@@ -637,7 +637,7 @@ class PersonAgent(
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
-      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit.id))
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit.matsimVehicleId))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
@@ -665,7 +665,11 @@ class PersonAgent(
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head.id)
+          new PersonLeavesVehicleEvent(
+            _currentTick.get,
+            Id.createPersonId(id),
+            data.currentVehicle.head.matsimVehicleId
+          )
         )
         if (currentBeamVehicle != body) {
           if (!currentBeamVehicle.mustBeDrivenHome) {
@@ -757,7 +761,7 @@ class PersonAgent(
               new PersonEntersVehicleEvent(
                 _currentTick.get,
                 Id.createPersonId(id),
-                nextLeg.beamVehicleId.id
+                nextLeg.beamVehicleId.matsimVehicleId
               )
             )
             nextLeg.beamVehicleId +: currentVehicle
@@ -819,7 +823,7 @@ class PersonAgent(
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
         PersonIdWithActorRef(id, self)
       )
-      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId.id) ! resRequest
+      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId.matsimVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _))
@@ -880,7 +884,7 @@ class PersonAgent(
         PersonIdWithActorRef(id, self)
       )
       context.actorSelection(
-        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId.id).toString)
+        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId.matsimVehicleId).toString)
       ) ! resRequest
       goto(WaitingForReservationConfirmation)
 

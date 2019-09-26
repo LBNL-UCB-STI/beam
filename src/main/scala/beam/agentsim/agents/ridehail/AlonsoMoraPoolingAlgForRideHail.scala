@@ -333,8 +333,9 @@ object AlonsoMoraPoolingAlgForRideHail {
     beamServices: BeamServices,
     remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
+    // TODO Why new `BeamVehicleId`, can't reuse the same from `veh.vehicleId`?
     val v1 = new BeamVehicle(
-      BeamVehicleId(Id.create(veh.vehicleId, classOf[BeamVehicle])),
+      BeamVehicleId(Id.create(veh.vehicleId.matsimVehicleId, classOf[BeamVehicle])),
       new Powertrain(0.0),
       veh.vehicleType
     )

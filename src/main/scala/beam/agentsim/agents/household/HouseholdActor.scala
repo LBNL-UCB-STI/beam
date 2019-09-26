@@ -189,7 +189,7 @@ object HouseholdActor {
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
               HouseholdCAVDriverAgent.props(
-                HouseholdCAVDriverAgent.idFromVehicleId(cav.vehicleId.id),
+                HouseholdCAVDriverAgent.idFromVehicleId(cav.vehicleId.matsimVehicleId),
                 schedulerRef,
                 beamServices,
                 beamScenario,

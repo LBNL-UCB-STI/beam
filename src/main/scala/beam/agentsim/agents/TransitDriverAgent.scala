@@ -129,7 +129,9 @@ class TransitDriverAgent(
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
       )
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.vehicleId.id))
+      eventsManager.processEvent(
+        new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.vehicleId.matsimVehicleId)
+      )
       val schedule = data.passengerSchedule.addLegs(legs)
       goto(WaitingToDrive) using data
         .copy(currentVehicle = Vector(vehicle.vehicleId))

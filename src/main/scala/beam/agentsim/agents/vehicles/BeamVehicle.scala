@@ -339,6 +339,8 @@ class BeamVehicle(
 }
 
 class BeamVehicleId(val localId: Int, val id: Id[BeamVehicle]) extends Serializable {
+  val matsimVehicleId: Id[Vehicle] = Id.createVehicleId(id)
+
   def canEqual(a: Any): Boolean = a.isInstanceOf[BeamVehicleId]
 
   override def equals(that: Any): Boolean =
