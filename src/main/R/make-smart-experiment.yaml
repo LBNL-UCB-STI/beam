@@ -1,0 +1,23 @@
+Name: afi-2019-09-20
+Mode: combinatorial
+Factors:
+  - Name: range
+    Levels:
+      - 100.0
+      - 200.0
+      - 300.0
+  - Name: power
+    Levels:
+      - 50.0
+      - 100.0
+      - 150.0
+  - Name: scenario
+    Levels:
+      - a-hightech
+      - b-lowtech 
+  - Name: infrastructure
+    Levels:
+      - sparse
+      - rich10
+      - rich5
+      - rich

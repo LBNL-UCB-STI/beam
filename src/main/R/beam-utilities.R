@@ -104,6 +104,7 @@ list_obj_sizes <- function(list_obj=ls(envir=.GlobalEnv)){
   sizes <- sapply(list_obj, function(n) object.size(get(n)), simplify = FALSE) 
   print(sapply(sizes[order(-as.numeric(sizes))], function(s) format(s, unit = 'auto'))) 
 }
+# coord.names must end in x/y 
 xy.dt.to.latlon <- function(dt,coord.names=c('x','y')){
   xy <- data.frame(x=streval(pp('dt$',coord.names[1])),y=streval(pp('dt$',coord.names[2])))
   xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
@@ -240,4 +241,7 @@ read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
   if(!is.na(header.word))match.words <- c(match.words,header.word)
   match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
   return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
+}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
 }
