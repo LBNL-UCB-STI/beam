@@ -21,6 +21,7 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.vehicles.Vehicle
@@ -370,6 +371,22 @@ object BeamVehicleId {
         val localId = localIdGen.getAndIncrement()
         idStore.put(id, localId)
         new BeamVehicleId(localId, id)
+      }
+  }
+
+  implicit val encodeBeamVehicleId: Encoder[BeamVehicleId] = new Encoder[BeamVehicleId] {
+    final def apply(a: BeamVehicleId): Json = Json.obj(
+      ("local_id", Json.fromInt(a.localId)),
+      ("id", Json.fromString(a.id.toString))
+    )
+  }
+  implicit val decodeBeamVehicleId: Decoder[BeamVehicleId] = new Decoder[BeamVehicleId] {
+    final def apply(c: HCursor): Decoder.Result[BeamVehicleId] =
+      for {
+        foo <- c.downField("local_id").as[Int]
+        bar <- c.downField("id").as[String].map(Id.create(_, classOf[BeamVehicle]))
+      } yield {
+        new BeamVehicleId(foo, bar)
       }
   }
 }
