@@ -9,15 +9,10 @@ Factors:
   - Name: power
     Levels:
       - 50.0
-      - 100.0
-      - 150.0
   - Name: scenario
     Levels:
       - a-hightech
-      - b-lowtech 
   - Name: infrastructure
     Levels:
       - sparse
-      - rich10
-      - rich5
-      - rich
+      - none
