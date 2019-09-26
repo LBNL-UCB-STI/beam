@@ -29,7 +29,7 @@ object ParkingStallSampling {
 
     val adjustedAvailabilityRatio =
       if (euclideanDistance < tazCharacteristicDiameter) availabilityRatio
-      else availabilityRatio / Math.pow(euclideanDistance / tazCharacteristicDiameter,2.0)
+      else availabilityRatio / Math.pow(euclideanDistance / tazCharacteristicDiameter, 2.0)
 
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
