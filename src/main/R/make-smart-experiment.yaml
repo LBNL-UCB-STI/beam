@@ -19,7 +19,7 @@ Factors:
       - sparse
       - none
       - rich10
-      - rich20
+      - rich5
   - Name: bev
     Levels:
       - 100
