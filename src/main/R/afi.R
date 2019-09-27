@@ -27,9 +27,11 @@ keynames <- c('key','infra','range','kw','scen')
 # this one for sf-light tazs
 #df <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/taz-centers.csv'))
 load("/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/taz-centers.Rdata")
+df <- xy.dt.to.latlon(df,c('coord.x','coord.y'))
+df[,taz:=as.character(taz)]
 
 scen.names <- c('b-lowtech'='B-Tech_Takeover','a-hightech'='A-Sharing_Caring')
-infra.names <- c('rich'='Rich-100%','sparse'='Sparse','rich5'='Rich-20%','rich10'='Rich-10%')
+infra.names <- c('rich'='Rich-100%','sparse'='Sparse','rich5'='Rich-20%','rich10'='Rich-10%','none'='None')
 
 ch.type.to.kw <- function(chargingType){
   unlist(lapply(str_split(chargingType,"\\("),function(ll){ ifelse(length(ll)==1,NA,as.numeric(str_split(ll[2],"\\|")[[1]][1])) }))
@@ -37,8 +39,6 @@ ch.type.to.kw <- function(chargingType){
 make.metrics <- function(ev,the.file){
   res <- list()
   rh <- ev[(isRH)]
-  df <- xy.dt.to.latlon(df,c('coord.x','coord.y'))
-  df[,taz:=as.character(taz)]
   rh[,parkingTaz:=as.character(parkingTaz)]
   rh <- join.on(rh,df,'parkingTaz','taz',c('coord.lon','coord.lat'))
 
@@ -58,7 +58,7 @@ make.metrics <- function(ev,the.file){
   rh[parkChoiceY== -Inf,parkChoiceY:=NA]
   rh[!is.na(parkChoiceX),distToStall:=apply(cbind(locationX,locationY,parkChoiceX,parkChoiceY),1,function(x){ distm(x[1:2],x[3:4], fun = distHaversine) })]
   res[['distToStall']] <- rh[,.(n=sum(!is.na(distToStall)),meanDist=mean(distToStall,na.rm=T),medianDist=median(distToStall,na.rm=T),maxDist=max(distToStall,na.rm=T)),by=keynames]
-  res[['numVehicles']] <- ev[,.(n=length(u(vehicle))),by=c('isCAV','isRH','isBEV')]
+  res[['numVehicles']] <- ev[!is.na(isBEV),.(n=length(u(vehicle))),by=c('isCAV','isRH','isBEV')]
 
   # Peak load a bit more complicated
   ev[is.na(ch.kw), ch.kw:=0]
@@ -80,7 +80,7 @@ for(i in 1:nrow(runs)){
         if(file.exists(runs$local.file[i]))break
       }
     }
-    ev <- csv2rdata(runs$local.file[i])[type%in%c('PathTraversal','RefuelSessionEvent','ChargingPlugInEvent','ParkEvent')]
+    ev <- csv2rdata(runs$local.file[i])[type%in%c('PathTraversal','RefuelSessionEvent','ChargingPlugInEvent','ParkEvent','PersonEntersVehicle')]
     ev[,':='(links=NULL,linkTravelTime=NULL,isRH=substr(vehicle,0,4)=='ride')]
     ev[,infra:=runs$infra[i]]
     ev[,range:=runs$range[i]]
@@ -163,6 +163,7 @@ chs[,ch.kw:=ch.type.to.kw(chargingType)]
 chs[,taz:=as.character(taz)]
 chs[,key:=pp(infra,'-',range,'mi-',kw,'kw-',scen)]
 chs <- join.on(chs,df,'taz','taz',c('coord.lat','coord.lon'))
+chs[,numStalls:=numStalls/10]
 summs <- join.on(summs,chs[ch.kw>=50,.(numPublicChargers=sum(numStalls[type=='public']),numDepotChargers=sum(numStalls[type=='depot'])),by='run'],'run','run')
 
 metrics <- list()
@@ -205,7 +206,7 @@ p <- ggplot(to.plot,aes(x=x,y=y,colour=type,size=numChargers))+geom_polygon(data
 ggsave(pp(plots.dir,'charging-infrastructure.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 # PMT Plots
-ggplot(mets[['vmt']][,.(pmt=sum(pmt)),by=keynames],aes(x=infra,y=pmt,colour=kw,shape=range))+geom_point()+facet_wrap(~scen,scales='free_y')+labs(x="Infrastructure Scenario",y="Passenger Miles Served",title="Passenger Miles Served by Whole Ride Hail Fleet")
+#ggplot(mets[['vmt']][,.(pmt=sum(pmt)),by=keynames],aes(x=infra,y=pmt,colour=kw,shape=range))+geom_point()+facet_wrap(~scen,scales='free_y')+labs(x="Infrastructure Scenario",y="Passenger Miles Served",title="Passenger Miles Served by Whole Ride Hail Fleet")
 p <- ggplot(mets[['vmt']][,.(pmt=sum(pmt)),by=c('isBEV',keynames)],aes(x=infra,y=pmt,fill=isBEV))+geom_bar(stat='identity')+facet_grid(kw~range)+labs(x="Infrastructure Scenario",y="Passenger Miles Served",title="Passenger Miles Served by Whole Ride Hail Fleet")+theme_bw()
 ggsave(pp(plots.dir,'pmt.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 p <- ggplot(mets[['vmt']][(isBEV),.(pmt=sum(pmt)),by=c(keynames,'range.str','power.str')],aes(x=infra,y=pmt,colour=power.str,group=power.str))+geom_point()+geom_line()+facet_wrap(~range.str)+labs(x="Infrastructure Scenario",y="Passenger Miles Served",title="Passenger Miles Served by BEVs in Ride Hail Fleet",colour='Charger Power')+theme_bw()
@@ -214,15 +215,15 @@ p <- ggplot(mets[['vmt']][,.(pmt=sum(pmt)),by=c('type',keynames,'range.str','pow
 ggsave(pp(plots.dir,'pmt-by-type.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 # Charging plots
-ggplot(mets[['chg']],aes(x=infra,y=n,colour=kw,shape=isRH))+geom_point()+facet_wrap(~scen,scales='free_y')
-ggplot(mets[['chg']],aes(x=infra,y=n,colour=kw,shape=isRH,size=energy.delivered.MWh))+geom_point()+facet_wrap(~scen,scales='free_y')
+#ggplot(mets[['chg']],aes(x=infra,y=n,colour=kw,shape=isRH))+geom_point()+facet_wrap(~scen,scales='free_y')
+#ggplot(mets[['chg']],aes(x=infra,y=n,colour=kw,shape=isRH,size=energy.delivered.MWh))+geom_point()+facet_wrap(~scen,scales='free_y')
 p <- ggplot(mets[['chg']],aes(x=infra,y=n,colour=kw,shape=type,size=energy.delivered.MWh))+geom_point()+facet_wrap(~range.str)+labs(x='Infrastructure Scenarios',y='Number of Charging Events',colour='Fast Charger Power (kW)',shape='Vehicle Type',size='Energy Delivered (MWh)')+theme_bw()+theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ggsave(pp(plots.dir,'charging.pdf'),p,width=10*pdf.scale,height=5*pdf.scale,units='in')
-ggplot(mets[['distToStall']],aes(x=infra,y=meanDist,colour=range,shape=kw))+geom_point()+facet_wrap(~scen,scales='free_y')
-ggplot(mets[['uniqueTaz']],aes(x=infra,y=nUniqueTaz,colour=range,shape=kw))+geom_point()+facet_wrap(~scen,scales='free_y')
+#ggplot(mets[['distToStall']],aes(x=infra,y=meanDist,colour=range,shape=kw))+geom_point()+facet_wrap(~scen,scales='free_y')
+#ggplot(mets[['uniqueTaz']],aes(x=infra,y=nUniqueTaz,colour=range,shape=kw))+geom_point()+facet_wrap(~scen,scales='free_y')
 
 # Number of Vehicles
-to.plot <- mets$numVehicles[key=='rich-100mi-50kw-b-lowtech' & (isCAV | isRH | isBEV)]
+to.plot <- mets$numVehicles[key=='rich-100mi-50kw-b-lowtech' & (isCAV | isRH | isBEV) & !is.na(isBEV)]
 to.plot[,type:=ifelse(isRH,ifelse(isCAV,'Ride Hail CAV','Ride Hail Human'),'Personal EVs')]
 to.plot[,powertrain:=ifelse(isBEV,'BEV','Non-BEV')]
 p <- ggplot(to.plot,aes(x=type,y=n,fill=powertrain))+geom_bar(stat='identity')+labs(x="Vehicle Type",y="Number of Vehicles",fill="Powertrain",title="Number of Vehicles in Scenario")+theme_bw()
@@ -235,12 +236,12 @@ to.plot[,type:=revalue(type,c('public'='Public','depot'='Depot'))]
 p <- ggplot(to.plot,aes(x=infra,y=numChargers,fill=type))+geom_bar(stat='identity')+labs(x='Infrastructure Scenarios',y='Number of Chargers',fill="Network Type",title="Number of Fast Chargers in Scenario")+theme_bw()
 ggsave(pp(plots.dir,'num-chargers.pdf'),p,width=8*pdf.scale,height=5*pdf.scale,units='in')
 
-for(sum.met in c('RHSummary_unmatchedPerRideHailRequests','RHSummary_multiPassengerTripsPerRideHailTrips','RHSummary_multiPassengerTripsPerPoolTrips','RHSummary_deadheadingPerRideHailTrips','averageOnDemandRideWaitTimeInMin')){
-  dev.new()
-  streval(pp('p <- ggplot(summs,aes(x=infra,y=',sum.met,',colour=kw,shape=range))+geom_point()+facet_wrap(~scen,scales="free_y")+labs(title="',sum.met,'")'))
-  print(p)
-  system('sleep 0.5')
-}
+#for(sum.met in c('RHSummary_unmatchedPerRideHailRequests','RHSummary_multiPassengerTripsPerRideHailTrips','RHSummary_multiPassengerTripsPerPoolTrips','RHSummary_deadheadingPerRideHailTrips','averageOnDemandRideWaitTimeInMin')){
+  #dev.new()
+  #streval(pp('p <- ggplot(summs,aes(x=infra,y=',sum.met,',colour=kw,shape=range))+geom_point()+facet_wrap(~scen,scales="free_y")+labs(title="',sum.met,'")'))
+  #print(p)
+  #system('sleep 0.5')
+#}
 
 # Costs
 
@@ -252,22 +253,27 @@ demand.ch.costs <- mets[['peakLoad']][,.(demand.charges=peakTotalLoadMW*1000/0.9
 demand.ch.costs[,variable:='All Charging']
 var.costs <- join.on(var.costs,demand.ch.costs,'key','key','demand.charges')
 var.costs[,total.cost:=energy.cost+demand.charges]
+var.costs[grepl('CAV',type),type:='CAV']
+var.costs[grepl('Human',type),type:='Human']
 ch.costs <- copy(chs[ch.kw>=50,.(numChargers=sum(numStalls),ch.kw=ch.kw[1]),by=c('type',keynames.plot)])
 ch.costs[,infra.cost:=numChargers*0.149029489*(624+298*(150-ch.kw)/100)*ch.kw] # .149 is Charger amort ratio @ 8%/10years, costs from Nicholas 2019
 ch.costs[,variable:=revalue(type,c('public'='Public','depot'='Depot'))]
 ch.costs[,infra:=revalue(infra,infra.names)]
-veh.costs <- copy(mets$numVehicles[(isCAV | isRH | isBEV)])
+veh.costs <- copy(mets$numVehicles[(isCAV | isRH | isBEV)& !is.na(isBEV)])
 veh.costs[,range:=as.numeric(as.character(range))]
 veh.costs[,per.veh.cost:=ifelse(isBEV,(145 + (300-range))*range,30e3)*ifelse((isCAV),1.2,1.0)]
 veh.costs[,cap.cost:=per.veh.cost*n*.339] # .339 amort ratio for EVs @ 8%/3.5year
-veh.costs[,variable:=ifelse(isRH,ifelse(isCAV,'Ride Hail CAV','Ride Hail Human'),'Personal EVs')]
+veh.costs[,variable:=ifelse(isRH,ifelse(isCAV,'CAV','Human'),'Personal EVs')]
 
-costs <- rbindlist(list(var.costs[!(isBEV),.(cost.type='Energy',variable=type,value=total.cost,infra,range,kw,scen,key,range.str,power.str)],ch.costs[,.(cost.type='Infrastructure',variable,value=infra.cost,infra,range,kw,scen,key,range.str,power.str)],veh.costs[(isBEV) & variable!='Personal EVs',.(cost.type='Fleet',variable,value=cap.cost,infra,range,kw,scen,key,range.str,power.str)]),fill=T)
+costs <- rbindlist(list(var.costs[(isBEV),.(cost.type=pp('Energy-',type),value=total.cost,infra,range,kw,scen,key,range.str,power.str)],
+                        ch.costs[,.(cost.type=pp('Infrastructure-',variable),value=infra.cost,infra,range,kw,scen,key,range.str,power.str)],
+                        veh.costs[(isBEV) & variable!='Personal EVs',.(cost.type=pp('Fleet-',variable),value=cap.cost,infra,range,kw,scen,key,range.str,power.str)]),fill=T)
 costs <- join.on(costs,var.costs[,.(pmt=sum(pmt)*365),by='key'],'key','key')
 
-ggplot(costs,aes(x=infra,y=value/1e6,fill=cost.type))+geom_bar(stat='identity')+facet_grid(power.str~range.str)+theme_bw()+scale_fill_manual(values=rev(colorRampPalette(brewer.pal(4, "Blues"))(4)))+theme(axis.text.x = element_text(angle = 30, hjust = 1))+labs(x="Infrastructure Scenario",y="Cost ($M per Year)",title="Annual Cost of Ride Hail Fleet and Public + Depot Charging Infrastructure",fill='Cost Type')
+#ggplot(costs,aes(x=infra,y=value/1e6,fill=cost.type))+geom_bar(stat='identity')+facet_grid(power.str~range.str)+theme_bw()+scale_fill_manual(values=rev(colorRampPalette(brewer.pal(4, "Blues"))(4)))+theme(axis.text.x = element_text(angle = 30, hjust = 1))+labs(x="Infrastructure Scenario",y="Cost ($M per Year)",title="Annual Cost of Ride Hail Fleet and Public + Depot Charging Infrastructure",fill='Cost Type')
 
-ggplot(costs,aes(x=infra,y=value/pmt,fill=cost.type))+geom_bar(stat='identity')+facet_grid(power.str~range.str)+theme_bw()+scale_fill_manual(values=rev(colorRampPalette(brewer.pal(4, "Blues"))(4)))+theme(axis.text.x = element_text(angle = 30, hjust = 1))+labs(x="Infrastructure Scenario",y="Cost ($/passenger-mile)",title="Cost per Passenger-Mile of Ride Hail Fleet and Public + Depot Charging Infrastructure",fill='Cost Type')
+p <- ggplot(costs,aes(x=infra,y=value/pmt,fill=cost.type))+geom_bar(stat='identity')+facet_grid(power.str~range.str)+theme_bw()+scale_fill_manual(values=c(rev(colorRampPalette(brewer.pal(4, "Blues"))(4)),colorRampPalette(brewer.pal(3, "Reds"))(3)))+theme(axis.text.x = element_text(angle = 30, hjust = 1))+labs(x="Infrastructure Scenario",y="Cost ($/passenger-mile)",title="Cost per Passenger-Mile of Ride Hail Fleet and Public + Depot Charging Infrastructure",fill='Cost Type')
+ggsave(pp(plots.dir,'costs.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
 # RH utilization
