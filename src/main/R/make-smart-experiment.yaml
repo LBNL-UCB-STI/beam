@@ -1,4 +1,4 @@
-Name: afi-2019-09-20
+Name: afi-2019-09-27
 Mode: combinatorial
 Factors:
   - Name: range
@@ -9,6 +9,8 @@ Factors:
   - Name: power
     Levels:
       - 50.0
+      - 100.0
+      - 150.0
   - Name: scenario
     Levels:
       - a-hightech
@@ -16,3 +18,12 @@ Factors:
     Levels:
       - sparse
       - none
+      - rich10
+      - rich20
+  - Name: bev
+    Levels:
+      - 100
+      - 80
+      - 60
+      - 40
+      - 20
