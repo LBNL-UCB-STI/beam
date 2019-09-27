@@ -30,17 +30,31 @@ afi.raw <- readLines(afi.template)
 
 runs <- load.experiment(exp.file)$runs
 exper.name <- load.experiment(exp.file)$yaml$Name
+runs <- runs[infrastructure!='none' | (infrastructure=='none' & power==50)]
+runs[,num:=1:nrow(runs)]
 
+deploy.command.raw <- pp('./gradlew deploy -PbeamConfigs=production/sfbay/smart/',exper.name,'-###infrastructure###-###range###mi-###power###kw-###scenario###-BEV###bev###.conf -Pregion=us-west-2 -Pbatch=false -PrunName=18-###runNumber###-',exper.name,'-###infrastructure###-###range###mi-###power###kw-###scenario###-BEV###bev### -PdeployMode=config -PinstanceType=m5.24xlarge -PbeamBranch=production-sfbay-develop-debug-afi-no-chargers -PbeamCommit=<commit>')
+
+deploy.cmds <- c('#!/bin/bash')
 for(i in 1:nrow(runs)){
   afi.new <- gsub(pattern="###scenario###",replace=runs$scenario[i],x=afi.raw)
   afi.new <- gsub(pattern="###power###",replace=runs$power[i],x=afi.new)
   afi.new <- gsub(pattern="###range###",replace=runs$range[i],x=afi.new)
+  afi.new <- gsub(pattern="###bev###",replace=runs$bev[i],x=afi.new)
   afi.new <- gsub(pattern="###infrastructure###",replace=runs$infrastructure[i],x=afi.new)
-  afi.new <- gsub(pattern="###infrastructure###",replace=runs$infrastructure[i],x=afi.new)
+  deploy.command.new <- gsub(pattern="###scenario###",replace=runs$scenario[i],x=deploy.command.raw)
+  deploy.command.new <- gsub(pattern="###power###",replace=runs$power[i],x=deploy.command.new)
+  deploy.command.new <- gsub(pattern="###range###",replace=runs$range[i],x=deploy.command.new)
+  deploy.command.new <- gsub(pattern="###bev###",replace=runs$bev[i],x=deploy.command.new)
+  deploy.command.new <- gsub(pattern="###runNumber###",replace=i,x=deploy.command.new)
+  deploy.command.new <- gsub(pattern="###infrastructure###",replace=runs$infrastructure[i],x=deploy.command.new)
   urbansim.input <- ifelse(str_split(runs$scenario[i],'-')[[1]][1]=='a','/../urbansim/2025/baseline/','/../urbansim/2040/b-lt/')
   veh.type.id <- ifelse(str_split(runs$scenario[i],'-')[[1]][2]=='lowtech','conv-L1-10000-to-25000-LowTech-2045','conv-L1-10000-to-25000-HighTech-2030')
   afi.new <- gsub(pattern="###scenario-specific-urbansim-input###",replace=urbansim.input,x=afi.new)
   afi.new <- gsub(pattern="###scenario-specific-vehicle-type-id###",replace=veh.type.id,x=afi.new)
-  new.filename <- pp(proj.dir,'production/sfbay/smart/',exper.name,'-',runs[i,.(pp(infrastructure,'-',range,'mi-',power,'kw-',scenario,'.conf'))]$V1)
+  new.filename <- pp(proj.dir,'production/sfbay/smart/',exper.name,'-',runs[i,.(pp(infrastructure,'-',range,'mi-',power,'kw-',scenario,'-BEV',bev,'.conf'))]$V1)
   writeLines(afi.new,con=new.filename)
+  deploy.cmds <- c(deploy.cmds,deploy.command.new)
 }
+writeLines(deploy.cmds,con=pp(proj.dir,'run-',exper.name,'.sh'))
+write.csv(runs,file=pp(proj.dir,'runs-',exper.name,'.csv'),row.names=F)

@@ -1,4 +1,4 @@
-Name: afi-2019-09-20
+Name: afi-2019-09-27
 Mode: combinatorial
 Factors:
   - Name: range
@@ -18,6 +18,13 @@ Factors:
   - Name: infrastructure
     Levels:
       - sparse
+      - none
       - rich10
-      - rich5
-      - rich
+      - rich20
+  - Name: bev
+    Levels:
+      - 100
+      - 80
+      - 60
+      - 40
+      - 20
