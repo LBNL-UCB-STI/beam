@@ -49,7 +49,7 @@ for(i in 1:nrow(runs)){
   deploy.command.new <- gsub(pattern="###runNumber###",replace=i,x=deploy.command.new)
   deploy.command.new <- gsub(pattern="###infrastructure###",replace=runs$infrastructure[i],x=deploy.command.new)
   urbansim.input <- ifelse(str_split(runs$scenario[i],'-')[[1]][1]=='a','/../urbansim/2025/baseline/','/../urbansim/2040/b-lt/')
-  veh.type.id <- ifelse(str_split(runs$scenario[i],'-')[[1]][2]=='lowtech','conv-L1-10000-to-25000-LowTech-2045','conv-L1-10000-to-25000-HighTech-2030')
+  veh.type.id <- ifelse(str_split(runs$scenario[i],'-')[[1]][2]=='lowtech','ev-L1-10000-to-25000-LowTech-2045','ev-L1-10000-to-25000-HighTech-2030')
   afi.new <- gsub(pattern="###scenario-specific-urbansim-input###",replace=urbansim.input,x=afi.new)
   afi.new <- gsub(pattern="###scenario-specific-vehicle-type-id###",replace=veh.type.id,x=afi.new)
   new.filename <- pp(proj.dir,'production/sfbay/smart/',exper.name,'-',runs[i,.(pp(infrastructure,'-',range,'mi-',power,'kw-',scenario,'-BEV',bev,'.conf'))]$V1)
