@@ -115,6 +115,28 @@ ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU'
 # Tabular analysis of skims
 all.skims[year==2040 & mode%in%c('CAR','CAV'),.(cost=weighted.mean(cost, numObservations), generalizedCost =weighted.mean(generalizedCost, numObservations),medianGenCost=median(generalizedCost),numObs=sum(numObservations),genTT= weighted.mean(generalizedTimeInS/60, numObservations),tt= weighted.mean(travelTimeInS/60, numObservations)),by='config']
 
+vot <- all.skims[(year==2040 & (grepl('B-',config) | grepl('C-',config)) | (year==2025 & grepl('A-',config)) | (year==2010 & config=='Base')),
+          .(cost=weighted.mean(cost, numObservations), 
+            numObs=sum(numObservations),
+            genTT= weighted.mean(generalizedTimeInS/60, numObservations),
+            tt= weighted.mean(travelTimeInS/60, numObservations),
+            vottWeight= weighted.mean(generalizedTimeInS/60, numObservations)/weighted.mean(travelTimeInS/60, numObservations)),
+by=c('mode','config')]
+vot[,config:=factor(config,c('Base','A-BAU','A-VTO','B-BAU','B-VTO','C-BAU','C-VTO'))]
+vot[,group:=factor(ifelse(config=='Base','Base',ifelse(grepl('A-',config),'A',ifelse(grepl('B-',config),'B','C'))),c('Base','A','B','C'))]
+ggplot(vot,aes(x=config,y=vottWeight,fill=group))+geom_bar(stat='identity')+facet_wrap(~mode)+ geom_hline(data=vot[config=='Base'],aes(yintercept=vottWeight),linetype="dashed",color = "red")+labs(x='Scenario',y='Mean VOTT Weighting Factor',title='Value of Travel Time Weighting Factor')+theme_bw()+theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+vot.ag <- all.skims[,
+          .(cost=weighted.mean(cost, numObservations), 
+            numObs=sum(numObservations),
+            genTT= weighted.mean(generalizedTimeInS/60, numObservations),
+            tt= weighted.mean(travelTimeInS/60, numObservations),
+            vottWeight= weighted.mean(generalizedTimeInS/60, numObservations)/weighted.mean(travelTimeInS/60, numObservations)),
+by=c('config')]
+
+
+
+
 # BAUS using
 # workplace location
 #   general TT CAR, WT, negative roughly same magnitude
