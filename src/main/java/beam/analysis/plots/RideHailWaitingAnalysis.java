@@ -124,7 +124,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "Waiting Time (frequencies)";
+    private static final String yAxisTitle = "Count";
     static final String fileName = "rideHailWaitingHistogram";
     static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private static final String rideHailWaitingSingleStatsFileBaseName = "rideHailWaitingSingleStats";
