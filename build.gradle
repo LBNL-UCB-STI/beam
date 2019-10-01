@@ -384,6 +384,69 @@ def getCurrentGitBranch() {
     return gitBranch
 }
 
+// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=https://inm-test-run-pilates.s3.us-east-2.amazonaws.com/urbansim_output/ -PinitialS3UrbansimOutput=https://inm-test-run-pilates.s3.us-east-2.amazonaws.com/urbansim_output/
+task deployPilates(type: AWSLambdaInvokeTask) {
+    doFirst {
+        def runExample = '\n Example: gradle deployPilates -PrunName=`run name` ' +
+                '-PstartYear=YYYY -PcountOfYears=XXX -PbeamItLen=XXX -PurbansimItLen=XXX ' +
+                '-PbeamBranch=`git branch name` ' +
+                '-PbeamConfigs=`beam config path starting from root of `beam` directory` ' +
+                '-PinitialS3UrbansimInput=`s3 bucket with initial urbansim input starting from double slash` ' +
+                '-PinitialS3UrbansimOutput=`s3 bucket with initial urbansim output starting from double slash` '
+        if (!project.hasProperty('runName')) {
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deployPilates -PrunName=sfbay-performance-run')
+        }
+        if (!project.hasProperty('startYear')) {
+            throw new GradleException('`startYear` argument required.' + runExample)
+        }
+        if (!project.hasProperty('countOfYears')) {
+            throw new GradleException('`countOfYears` argument required.')
+        }
+        if (!project.hasProperty('beamItLen')) {
+            throw new GradleException('`beamItLen` argument required.')
+        }
+        if (!project.hasProperty('urbansimItLen')) {
+            throw new GradleException('`urbansimItLen` argument required.')
+        }
+        if (!project.hasProperty('initialS3UrbansimInput')) {
+            throw new GradleException('`initialS3UrbansimInput` argument required.')
+        }
+        if (!project.hasProperty('initialS3UrbansimOutput')) {
+            throw new GradleException('`initialS3UrbansimOutput` argument required.')
+        }
+    }
+
+    def pload = """{
+  "title": "${project.findProperty('runName')}",
+  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
+  "commit": "${project.findProperty('beamCommit') ?: 'HEAD'}",
+  "start_year": "${project.findProperty('startYear')}",
+  "count_of_years": "${project.findProperty('countOfYears')}",
+  "beam_it_len": "${project.findProperty('beamItLen')}",
+  "urbansim_it_len": "${project.findProperty('urbansimItLen')}",
+  "initial_urbansim_input": "${project.findProperty('initialS3UrbansimInput')}",
+  "initial_urbansim_output": "${project.findProperty('initialS3UrbansimOutput')}",
+  "pilates_image_version": "${project.findProperty('pilatesImageVersion') ?: 'latest'}",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
+  "max_ram": "${maxRAM ?: '140g'}",
+  "storage_size": ${project.findProperty('storageSize')},
+  "batch": "$beamBatch",
+  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
+  "region": "$region",
+  "shutdown_wait": "$shutdownWait",
+  "shutdown_behaviour": "$shutdownBehaviour"
+}"""
+
+    functionName = "runPilates"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
         if (!project.hasProperty('runName')) {
@@ -415,7 +478,7 @@ task deploy(type: AWSLambdaInvokeTask) {
     def pload = """{
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "${beamCommit ?: 'HEAD'}",
+  "commit": "${project.findProperty('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
   "experiments": "${
