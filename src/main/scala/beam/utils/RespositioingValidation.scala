@@ -12,20 +12,20 @@ case class RepositioningDuration(repositioningDurationStart: Double, repositioni
 
 object RepositioningValidation {
 
-  val vehicleRepositioning = mutable.Map[String, ListBuffer[RepositioningDuration]]()
+  val vehicleRepositioning: mutable.Map[String, ListBuffer[RepositioningDuration]] =
+    mutable.Map[String, ListBuffer[RepositioningDuration]]()
 
   def main(args: Array[String]): Unit = {
     var eventsFileFormat = "xml"
-    if(args.length == 2){
+    if (args.length == 2) {
       eventsFileFormat = args(1)
     }
-    if(eventsFileFormat == "csv") {
+    if (eventsFileFormat == "csv") {
       val (eventCount, foundEvent) = readCSVEvents(args(0))
       println(s"Total event count $eventCount")
       println(s"Event found $foundEvent")
 
-    }
-    else{
+    } else {
       val (eventCount, foundEvent) = readXMLEvents(args(0))
       println(s"Total event count $eventCount")
       println(s"Event found $foundEvent")
@@ -35,13 +35,13 @@ object RepositioningValidation {
   }
 
   private def readCSVEvents(path: String): (Int, Int) = {
-    val (eventSeq, closeable) = EventReader.fromCsvFile(path, _ => true)
+    val (eventSeq, _) = EventReader.fromCsvFile(path, _ => true)
     var eventCount = 0
     var foundEvent = 0
     eventSeq.foreach(event => {
-      if(event.getEventType == "PathTraversal"){
+      if (event.getEventType == "PathTraversal") {
         eventCount += 1
-        if(processForRepositioningDebug(event))
+        if (processForRepositioningDebug(event))
           foundEvent += 1
       }
     })
@@ -56,7 +56,7 @@ object RepositioningValidation {
       def handleEvent(event: Event): Unit = {
         if (event.getEventType == "PathTraversal") {
           eventCount += 1
-          if(processForRepositioningDebug(PathTraversalEvent.apply(event)))
+          if (processForRepositioningDebug(PathTraversalEvent.apply(event)))
             foundEvent += 1
         }
       }
@@ -67,21 +67,22 @@ object RepositioningValidation {
 
   private def processForRepositioningDebug(event: PathTraversalEvent): Boolean = {
     var option = false
-    if(event.numberOfPassengers > 0){
-      vehicleRepositioning.get(event.vehicleId.toString).foreach(repositioningDurationBuffer => {
-        if (repositioningDurationBuffer.size > 1) {
-          val size = repositioningDurationBuffer.size
-          val deadHeading = repositioningDurationBuffer.last
-          val repositioning = repositioningDurationBuffer(size-2)
-          if(deadHeading.repositioningDurationStart == repositioning.repositioningDurationEnd){
-            println("Found PathTraversal event with start deadheading and end repositioning")
-            option = true
+    if (event.numberOfPassengers > 0) {
+      vehicleRepositioning
+        .get(event.vehicleId.toString)
+        .foreach(repositioningDurationBuffer => {
+          if (repositioningDurationBuffer.size > 1) {
+            val size = repositioningDurationBuffer.size
+            val deadHeading = repositioningDurationBuffer.last
+            val repositioning = repositioningDurationBuffer(size - 2)
+            if (deadHeading.repositioningDurationStart == repositioning.repositioningDurationEnd) {
+              println("Found PathTraversal event with start deadheading and end repositioning")
+              option = true
+            }
           }
-        }
-        vehicleRepositioning.remove(event.vehicleId.toString)
-      })
-    }
-    else {
+          vehicleRepositioning.remove(event.vehicleId.toString)
+        })
+    } else {
       val listBuffer = vehicleRepositioning.getOrElse(event.vehicleId.toString, ListBuffer[RepositioningDuration]())
       listBuffer += RepositioningDuration(event.departureTime, event.arrivalTime)
       vehicleRepositioning.put(event.vehicleId.toString, listBuffer)
@@ -93,21 +94,22 @@ object RepositioningValidation {
     var option = false
     val attr = event.getAttributes
     val vehicleId = attr.get("vehicle")
-    if(attr.get("numPassengers").toInt > 0){
-      vehicleRepositioning.get(vehicleId).foreach(repositioningDurationBuffer => {
-        if (repositioningDurationBuffer.size > 1) {
-          val size = repositioningDurationBuffer.size
-          val deadHeading = repositioningDurationBuffer.last
-          val repositioning = repositioningDurationBuffer(size-2)
-          if(deadHeading.repositioningDurationStart == repositioning.repositioningDurationEnd){
-            println("Found PathTraversal event with start deadheading and end repositioning")
-            option = true
+    if (attr.get("numPassengers").toInt > 0) {
+      vehicleRepositioning
+        .get(vehicleId)
+        .foreach(repositioningDurationBuffer => {
+          if (repositioningDurationBuffer.size > 1) {
+            val size = repositioningDurationBuffer.size
+            val deadHeading = repositioningDurationBuffer.last
+            val repositioning = repositioningDurationBuffer(size - 2)
+            if (deadHeading.repositioningDurationStart == repositioning.repositioningDurationEnd) {
+              println("Found PathTraversal event with start deadheading and end repositioning")
+              option = true
+            }
           }
-        }
-        vehicleRepositioning.remove(vehicleId)
-      })
-    }
-    else {
+          vehicleRepositioning.remove(vehicleId)
+        })
+    } else {
       val listBuffer = vehicleRepositioning.getOrElse(vehicleId, ListBuffer[RepositioningDuration]())
       listBuffer += RepositioningDuration(attr.get("departureTime").toInt, attr.get("arrivalTime").toInt)
       vehicleRepositioning.put(vehicleId, listBuffer)
