@@ -668,6 +668,9 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
         if (currentBeamVehicle != body) {
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
+          }
           if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
@@ -1139,8 +1142,8 @@ class PersonAgent(
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
-      if (vehicle.get.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle.get)
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>

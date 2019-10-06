@@ -28,3 +28,19 @@ object ParkingManagerIdGenerator extends IdGenerator {
     id.getAndIncrement()
   }
 }
+
+object InterruptIdIdGenerator extends IdGenerator {
+  private val id: AtomicInteger = new AtomicInteger(0)
+
+  def nextId: Int = {
+    id.getAndIncrement()
+  }
+}
+
+object ReservationRequestIdGenerator extends IdGenerator {
+  private val id: AtomicInteger = new AtomicInteger(0)
+
+  def nextId: Int = {
+    id.getAndIncrement()
+  }
+}
