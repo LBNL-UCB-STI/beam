@@ -286,7 +286,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     )
     val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-    val drivingCost = DrivingCost.estimateDrivingCost(leg, vehicleTypes(vehicleTypeId), fuelTypePrices)
+    val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
