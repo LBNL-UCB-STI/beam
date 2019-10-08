@@ -144,7 +144,6 @@ object ReadEvents {
             // 2.) try to find out, if any repositioning vehicle does get stopped for pickup
           }
 
-
         case _ =>
       }
     }
