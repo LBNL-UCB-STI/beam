@@ -155,7 +155,7 @@ object DrivesVehicle {
     tick: Int,
     sessionStart: Double,
     fuelAddedInJoule: Double,
-    vehicle: Option[BeamVehicle] = None
+    vehicle: BeamVehicle
   ) extends Trigger
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
@@ -233,6 +233,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamScenario, networkHelper)
+      currentBeamVehicle.spaceTime = geo.wgs2Utm(currentLeg.travelPath.endPoint)
 
       var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
       if (nbPassengers > 0) {
@@ -374,7 +375,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                         tick + sessionDuration.toInt,
                         tick,
                         energyDelivered,
-                        Some(currentBeamVehicle)
+                        currentBeamVehicle
                       ),
                       self
                     )
@@ -435,6 +436,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         data.passengerSchedule,
         data.currentLegPassengerScheduleIndex
       )
+
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), triggerId), _) =>
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
+      stay replying CompletionNotice(triggerId)
 
   }
 
@@ -570,6 +575,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), triggerId), _) =>
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      stay replying CompletionNotice(triggerId)
   }
 
   when(WaitingToDrive) {
@@ -816,9 +824,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       )
     case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
-      if (vehicle.get.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle.get)
-        vehicle.get.unsetParkingStall()
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
+        vehicle.unsetParkingStall()
       }
       stay() replying CompletionNotice(triggerId)
   }

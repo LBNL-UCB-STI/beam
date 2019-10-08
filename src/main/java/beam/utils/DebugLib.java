@@ -18,8 +18,7 @@ public class DebugLib {
 
     }
 
-    public static String gcAndGetMemoryLogMessage(String message) {
-        System.gc();
+    public static String getMemoryLogMessage(String message) {
         long jvmTotalMemoryInBytes = Runtime.getRuntime().totalMemory();
         long jvmFreeMemoryInBytes = Runtime.getRuntime().freeMemory();
         long jvmMemoryInUseInBytes = jvmTotalMemoryInBytes - jvmFreeMemoryInBytes;

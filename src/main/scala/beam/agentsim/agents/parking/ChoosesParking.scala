@@ -94,7 +94,7 @@ trait ChoosesParking extends {
         beamServices.geo.distUTMInMeters(stallForLeavingParkingEvent.locationUTM, nextLeg.travelPath.endPoint.loc)
       val energyCharge: Double = 0.0 //TODO
       val timeCost: Double = 0.0 //scaleTimeByValueOfTime(0.0)
-      val score = calculateScore(distance, stallForLeavingParkingEvent.cost, energyCharge, timeCost)
+      val score = calculateScore(distance, stallForLeavingParkingEvent.costInDollars, energyCharge, timeCost)
       eventsManager.processEvent(
         LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.id)
       )

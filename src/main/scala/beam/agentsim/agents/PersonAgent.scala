@@ -1,5 +1,7 @@
 package beam.agentsim.agents
 
+import scala.annotation.tailrec
+
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
@@ -317,12 +319,28 @@ class PersonAgent(
 
       val remainingTourDist: Double = nextActivity(personData) match {
         case Some(nextAct) =>
+          // in the case that we are headed "home", we need to motivate charging.
+          // in order to induce range anxiety, we need to have agents consider
+          // their tomorrow activities. the agent's first leg of the day
+          // is used here to add distance to a "ghost activity" tomorrow morning
+          // which is used in place of our real remaining tour distance of 0.0
+          // which should help encourage residential end-of-day charging
+          val tomorrowFirstLegDistance =
+            if (nextAct.getType.toLowerCase == "home") {
+              findFirstCarLegOfTrip(personData) match {
+                case Some(carLeg) =>
+                  carLeg.beamLeg.travelPath.distanceInM
+                case None =>
+                  0.0
+              }
+            } else 0.0
+
           val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct) - 1
           currentTour(personData).trips
             .slice(nextActIdx, currentTour(personData).trips.length)
             .sliding(2, 1)
             .toList
-            .foldLeft(0d) { (sum, pair) =>
+            .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
                   beamSkimmer
@@ -338,7 +356,7 @@ class PersonAgent(
             }
 
         case None =>
-          0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
+          0.0
       }
 
       Some(
@@ -379,6 +397,20 @@ class PersonAgent(
       None
     } else {
       Some(_experiencedBeamPlan.activities(ind))
+    }
+  }
+
+  def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
+    @tailrec
+    def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
+      if (remaining.isEmpty) None
+      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head } else _find(remaining.tail)
+    }
+    for {
+      trip <- data.currentTrip
+      leg  <- _find(trip.legs)
+    } yield {
+      leg
     }
   }
 
@@ -636,6 +668,9 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
         if (currentBeamVehicle != body) {
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
+          }
           if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
@@ -1107,8 +1142,8 @@ class PersonAgent(
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
-      if (vehicle.get.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle.get)
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>

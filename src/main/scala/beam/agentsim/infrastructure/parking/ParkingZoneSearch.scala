@@ -83,6 +83,7 @@ object ParkingZoneSearch {
     parkingStall: ParkingStall,
     parkingZone: ParkingZone,
     parkingZoneIdsSeen: List[Int] = List.empty,
+    parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
     iterations: Int = 1
   )
 
@@ -94,14 +95,14 @@ object ParkingZoneSearch {
     * @param parkingType parking type of the alternative
     * @param parkingZone parking zone of the alternative
     * @param coord location sampled for this alternative
-    * @param cost expected cost for using this alternative
+    * @param costInDollars expected cost for using this alternative
     */
   case class ParkingAlternative(
     taz: TAZ,
     parkingType: ParkingType,
     parkingZone: ParkingZone,
     coord: Coord,
-    cost: Double
+    costInDollars: Double
   )
 
   /**
@@ -141,6 +142,7 @@ object ParkingZoneSearch {
       thisInnerRadius: Double,
       thisOuterRadius: Double,
       parkingZoneIdsSeen: List[Int] = List.empty,
+      parkingZoneIdsSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult] = {
       if (thisInnerRadius > config.searchMaxRadius) None
@@ -166,14 +168,14 @@ object ParkingZoneSearch {
             // wrap ParkingZone in a ParkingAlternative
             val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
-            val stallPrice: Double =
+            val stallPriceInDollars: Double =
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPrice)
+              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
@@ -186,7 +188,13 @@ object ParkingZoneSearch {
 
         val validParkingAlternatives: Int = alternatives.count { _.isValidAlternative }
         if (validParkingAlternatives == 0) {
-          _search(thisOuterRadius, thisOuterRadius * config.searchExpansionFactor, parkingZoneIdsSeen, iterations + 1)
+          _search(
+            thisOuterRadius,
+            thisOuterRadius * config.searchExpansionFactor,
+            parkingZoneIdsSeen,
+            parkingZoneIdsSampled,
+            iterations + 1
+          )
         } else {
 
           // remove any invalid parking alternatives
@@ -204,24 +212,35 @@ object ParkingZoneSearch {
             )
 
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, cost) = result.alternativeType
+            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
 
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
               taz.tazId,
               parkingZone.parkingZoneId,
               coordinate,
-              cost,
+              costInDollars.toDouble,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType
             )
 
             val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
+            val theseSampledParkingZoneIds: List[(Int, Option[ChargingPointType], ParkingType, Double)] =
+              alternativesToSample.map { altWithParams =>
+                (
+                  altWithParams._1.parkingZone.parkingZoneId,
+                  altWithParams._1.parkingZone.chargingPointType,
+                  altWithParams._1.parkingType,
+                  altWithParams._1.costInDollars
+                )
+
+              }.toList
             ParkingZoneSearchResult(
               parkingStall,
               parkingZone,
               theseParkingZoneIds ++ parkingZoneIdsSeen,
+              theseSampledParkingZoneIds ++ parkingZoneIdsSampled,
               iterations = iterations
             )
           }
