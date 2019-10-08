@@ -568,7 +568,9 @@ class RideHailAgent(
           currentBeamVehicle.useParkingStall(stall)
           parkAndStartRefueling(stall)
           isOnWayToParkAtStall = None
-          eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
+          eventsManager.processEvent(
+            new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id)
+          )
           goto(Offline) using data
             .withPassengerSchedule(PassengerSchedule())
             .withCurrentLegPassengerScheduleIndex(0)
@@ -583,7 +585,9 @@ class RideHailAgent(
 
             requestParkingStall()
 
-            eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
+            eventsManager.processEvent(
+              new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id)
+            )
             goto(Offline) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
