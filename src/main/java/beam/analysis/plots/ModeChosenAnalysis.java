@@ -52,6 +52,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private final Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private final Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
+    private final Map<ModeChosenAvailableAlternatives, Integer> modeChosenAvailableAlternativesCount = new HashMap<>();
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -133,12 +134,15 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "Iteration", "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
         writeToRootCSVForReference(referenceModeChoiceFileBaseName);
+
+        writeModeChosenAvailableAlternativeCSV(event.getIteration());
     }
 
     @Override
     public void resetStats() {
         hourModeFrequency.clear();
         modesChosen.clear();
+        modeChosenAvailableAlternativesCount.clear();
     }
 
     private void processModeChoice(ModeChoiceEvent event) {
@@ -161,6 +165,8 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
         hourData.put(mode, frequency);
         hourModeFrequency.put(hour, hourData);
+
+        modeChosenAvailableAlternativesCount.merge(new ModeChosenAvailableAlternatives(mode, event.availableAlternatives), 1, Integer::sum);
     }
 
     //    accumulating data for each iteration
@@ -329,6 +335,27 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
+    private void writeModeChosenAvailableAlternativeCSV(Integer interation){
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(interation, "modeChosenAvailableAlternativesCount.csv");
+
+        try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            out.write("modeChosen, alternativesAvailable, numberOfTimes");
+            out.newLine();
+            modeChosenAvailableAlternativesCount.forEach((modeChosenAlternatives,count) -> {
+                try{
+                    out.write(modeChosenAlternatives.toCountString(count));
+                    out.newLine();
+                }catch (IOException exception){
+                    log.error(exception.getMessage(), exception);
+                }
+            });
+
+            out.flush();
+        } catch (IOException e) {
+            log.error("CSV generation failed.", e);
+        }
+    }
+
     private Map<String, Double> benchmarkCsvLoader(String path) {
         Map<String, Double> benchmarkData = new HashMap<>();
 
@@ -345,6 +372,42 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             log.warn("Unable to load benchmark CSV via path '{}'", path);
         }
         return benchmarkData;
+    }
+
+    class ModeChosenAvailableAlternatives {
+        String mode;
+        String availableModes;
+
+        public ModeChosenAvailableAlternatives(String mode, String availableModes) {
+            this.mode = mode;
+            this.availableModes = availableModes;
+        }
+
+        public String toCountString(Integer count) {
+            return mode+", "+availableModes+", "+count;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+
+            if (o == this) return true;
+            if (!(o instanceof ModeChosenAvailableAlternatives)) {
+                return false;
+            }
+
+            ModeChosenAvailableAlternatives modeChosenAvailableAlternatives = (ModeChosenAvailableAlternatives) o;
+
+            return modeChosenAvailableAlternatives.mode.equals(mode) &&
+                    modeChosenAvailableAlternatives.availableModes.equals(availableModes);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 17;
+            result = 31 * result + mode.hashCode();
+            result = 31 * result + availableModes.hashCode();
+            return result;
+        }
     }
 
 }

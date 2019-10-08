@@ -36,14 +36,14 @@ class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
     attributes.put(ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
-    attributes.put(ATTRIBUTE_PRICE, stall.cost.toString)
+    attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attributes.put(ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
     attributes.put(ATTRIBUTE_PARKING_TYPE, parkingType)
     attributes.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
-    attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
     attributes
   }
 }

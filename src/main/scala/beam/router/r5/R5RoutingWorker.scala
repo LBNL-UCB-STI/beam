@@ -286,7 +286,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     )
     val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-    val drivingCost = DrivingCost.estimateDrivingCost(leg, vehicleTypes(vehicleTypeId), fuelTypePrices)
+    val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -807,7 +807,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
             val fareSegments = getFareSegments(segments.toVector)
             filterFaresOnTransfers(fareSegments)
           }
-
           segments.foreach {
             case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -832,6 +831,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                   hasTransit = true
                 )
                 .toInt
+              val stopSequence =
+                tripPattern.getStops.asScala.toList.slice(segmentPattern.fromIndex, segmentPattern.toIndex + 1)
               val segmentLeg = BeamLeg(
                 startTime,
                 Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type)),
@@ -855,7 +856,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                   ),
                   SpaceTime(fromStop.lon, fromStop.lat, startTime),
                   SpaceTime(toStop.lon, toStop.lat, endTime),
-                  0.0
+                  stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
                 )
               )
               embodiedBeamLegs += EmbodiedBeamLeg(
@@ -956,6 +957,10 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     } else {
       RoutingResponse(embodiedTrips, request.requestId)
     }
+  }
+
+  private def getDistanceBetweenStops(fromStop: Stop, toStop: Stop): Double = {
+    geo.distLatLon2Meters(new Coord(fromStop.lon, fromStop.lat), new Coord(toStop.lon, toStop.lat))
   }
 
   private def buildStreetBasedLegs(
@@ -1153,8 +1158,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
 }
 
 object R5RoutingWorker {
-  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
+  // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
@@ -1199,15 +1205,15 @@ object R5RoutingWorker {
     endUTM: Location,
     geo: GeoUtils
   ): BeamLeg = {
-    val beelineDistanceInMeters = geo.distUTMInMeters(startUTM, endUTM)
-    val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
+    val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
       Vector(),
       Vector(),
       None,
       SpaceTime(geo.utm2Wgs(startUTM), atTime),
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
-      beelineDistanceInMeters
+      distanceInMeters
     )
     BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
