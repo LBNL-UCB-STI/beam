@@ -1,0 +1,25 @@
+@startuml
+
+scale 1000 width
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state Uninitialized #gray
+
+state Idle #eb1921
+
+state PassengerScheduleEmpty #eb1921
+
+'Transition State'
+
+[*] --> Uninitialized
+Uninitialized --> Idle: InitializeTrigger
+Idle --> WaitingToDrive: ModifyPassengerSchedule
+PassengerScheduleEmpty --> PassengerScheduleEmpty: PassengerScheduleEmptyMessage
+PassengerScheduleEmpty --> Idle: Success
+PassengerScheduleEmpty --> [*]: KillTrigger
+
+
+@enduml

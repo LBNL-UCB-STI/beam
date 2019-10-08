@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim
 
 import beam.sim.common.GeoUtils
-import beam.utils.ProfilingUtils
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario._
 import beam.utils.scenario.urbansim.DataExchange.{
   BuildingInfo,
@@ -9,13 +9,13 @@ import beam.utils.scenario.urbansim.DataExchange.{
   UnitInfo,
   HouseholdInfo => UrbanHouseholdInfo
 }
+import beam.utils.{FileUtils, ProfilingUtils}
 import org.matsim.api.core.v01.Coord
+
 import scala.collection.parallel.immutable.ParMap
 
-import beam.utils.logging.ExponentialLazyLogging
-
 class UrbanSimScenarioSource(
-  val scenarioFolder: String,
+  val scenarioSrc: String,
   val rdr: UrbanSimScenarioReader,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean
@@ -23,12 +23,12 @@ class UrbanSimScenarioSource(
     with ExponentialLazyLogging {
   val fileExt: String = rdr.inputType.toFileExt
 
-  val buildingFilePath: String = s"$scenarioFolder/buildings.$fileExt"
-  val personFilePath: String = s"$scenarioFolder/persons.$fileExt"
-  val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
-  val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
-  val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
-  val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
+  val buildingFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}buildings.$fileExt")
+  val personFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}persons.$fileExt")
+  val householdFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}households.$fileExt")
+  val planFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}plans.$fileExt")
+  val unitFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}units.$fileExt")
+  val parcelAttrFilePath: String = FileUtils.downloadAndUnpackIfNeeded(s"${scenarioSrc}parcels.$fileExt")
 
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(personFilePath).map { person: DataExchange.PersonInfo =>
@@ -42,6 +42,7 @@ class UrbanSimScenarioSource(
       )
     }
   }
+
   override def getPlans: Iterable[PlanElement] = {
     val rawPlanElements: Array[DataExchange.PlanElement] = rdr.readPlansFile(planFilePath)
     val planElements: Array[DataExchange.PlanElement] = dropCorruptedPlanElements(rawPlanElements)
@@ -51,7 +52,7 @@ class UrbanSimScenarioSource(
       )
     }
 
-    planElements.map { plan =>
+    planElements.map { plan: DataExchange.PlanElement =>
       val coord = (plan.x, plan.y) match {
         case (Some(x), Some(y)) =>
           val c =
@@ -69,18 +70,32 @@ class UrbanSimScenarioSource(
         case _ =>
           None
       }
+
       PlanElement(
         personId = PersonId(plan.personId),
+        planIndex = 0, // TODO FIXME!
         planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
+        planScore = 0, // TODO: DataExchange.PlanElement does not have score
+        planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected
         activityType = plan.activityType,
         activityLocationX = coord.map(_.getX),
         activityLocationY = coord.map(_.getY),
         activityEndTime = plan.endTime,
-        legMode = plan.mode
+        legMode = plan.mode,
+        // TODO: DataExchange.PlanElement does not have the following leg information
+        legDepartureTime = None,
+        legTravelTime = None,
+        legRouteType = None,
+        legRouteStartLink = None,
+        legRouteEndLink = None,
+        legRouteTravelTime = None,
+        legRouteDistance = None,
+        legRouteLinks = Seq.empty
       )
     }
   }
+
   override def getHousehold: Iterable[HouseholdInfo] = {
     val householdInfo = rdr.readHouseholdsFile(householdFilePath)
     val householdIdToCoord = getHouseholdIdToCoord(householdInfo)
