@@ -6,7 +6,7 @@ import java.util.Optional;
  * BEAM
  */
 public enum BeamEventsFileFormats {
-    XML("xml"), CSV("csv"), XML_GZ("xml.gz"), CSV_GZ("csv.gz");
+    XML("xml"), CSV("csv"), XML_GZ("xml.gz"), CSV_GZ("csv.gz"), PARQUET("parquet");
 
     private final String suffix;
 
@@ -28,7 +28,10 @@ public enum BeamEventsFileFormats {
             fmt = BeamEventsFileFormats.CSV;
         } else if (format.equalsIgnoreCase(CSV_GZ.suffix)) {
             fmt = BeamEventsFileFormats.CSV_GZ;
+        } else if (format.equalsIgnoreCase(PARQUET.suffix)) {
+            fmt = BeamEventsFileFormats.PARQUET;
         }
+
         return Optional.ofNullable(fmt);
     }
 

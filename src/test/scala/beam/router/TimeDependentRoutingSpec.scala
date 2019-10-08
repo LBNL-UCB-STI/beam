@@ -75,7 +75,7 @@ class TimeDependentRoutingSpec
         Id.create("beamVilleCar", classOf[BeamVehicleType])
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 89)
+      assert(response.itineraries.head.beamLegs.head.duration == 147)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -141,30 +141,7 @@ class TimeDependentRoutingSpec
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 89)
-
-      // Set a travel time function that would allow us to travel infinitely fast if there weren't also
-      // a finite vehicle speed
-      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0)
-      router ! RoutingRequest(
-        origin,
-        destination,
-        time,
-        withTransit = false,
-        Vector(
-          StreetVehicle(
-            Id.createVehicleId("car"),
-            Id.create("beamVilleCar", classOf[BeamVehicleType]),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
-            asDriver = true
-          )
-        )
-      )
-      val response2 = expectMsgType[RoutingResponse]
-      assert(response2.itineraries.exists(_.tripClassifier == CAR))
-      val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTimeInSecs == 67)
+      assert(carOption.totalTravelTimeInSecs == 147)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(

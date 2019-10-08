@@ -56,7 +56,7 @@ import org.matsim.core.controler._
 trait BeamServices {
   val injector: Injector
   val controler: ControlerI
-  val beamConfig: BeamConfig
+  def beamConfig: BeamConfig
   def beamScenario: BeamScenario
 
   val geo: GeoUtils
@@ -73,7 +73,11 @@ trait BeamServices {
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+
+  def beamConfig: BeamConfig = {
+    val inst = injector.getInstance(classOf[BeamConfigChangesObservable])
+    inst.lastBeamConfig
+  }
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 

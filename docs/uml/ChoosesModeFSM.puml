@@ -1,0 +1,24 @@
+@startuml
+
+scale 1000 width
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state ChoosingMode #eb1921
+
+state FinishingModeChoice #eb1921
+
+'Transition State'
+
+FinishingModeChoice -[#blue,dotted]-> WaitingForDeparture : IntermediateTransition
+ChoosingMode --> ChoosingMode : MobilityStatusResponse
+ChoosingMode --> ChoosingMode : RoutingResponse
+ChoosingMode --> ChoosingMode : RideHailResponse
+ChoosingMode --> ChoosingMode : ParkingInquiryResponse
+ChoosingMode --> ChoosingMode : CavTripLegsResponse
+ChoosingMode --> FinishingModeChoice
+
+
+@enduml

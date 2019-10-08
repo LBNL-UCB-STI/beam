@@ -14,7 +14,7 @@ import scala.collection.mutable
 
 class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging {
 
-  private val vehicleChargingFileBaseName = "vehicleCharging"
+  private val vehicleChargingFileBaseName = "chargingNumberVehicles"
 
   private val vehicleChargingTime = mutable.Map[String, Int]()
   private val hourlyChargingCount = mutable.TreeMap[Int, Int]().withDefaultValue(0)
@@ -54,7 +54,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
     val chargingDataset = createChargingDataset()
     val chargingGraphImageFile =
       outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$vehicleChargingFileBaseName.png")
-    createGraph(chargingDataset, chargingGraphImageFile, "Vehicle Charging")
+    createGraph(chargingDataset, chargingGraphImageFile, "Vehicles Charging")
 
   }
 
@@ -71,7 +71,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
 
     val chart =
-      ChartFactory.createLineChart(title, "Hour", "#Count", dataSet, PlotOrientation.VERTICAL, true, true, false)
+      ChartFactory.createLineChart(title, "Hour", "Count", dataSet, PlotOrientation.VERTICAL, true, true, false)
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,

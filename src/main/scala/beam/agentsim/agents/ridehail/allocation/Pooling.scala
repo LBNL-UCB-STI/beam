@@ -47,6 +47,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       case (request, _) =>
         notToPool += request
     }
+    val idleButFilteredVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
     notToPool.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
 
@@ -56,7 +57,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       } else {
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
-        if (rideHailManager.vehicleManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
+        if (idleButFilteredVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           val pickDropIdAndLegs = routeResponses.map { rResp =>
             tempPickDropStore
@@ -67,7 +68,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
-            rideHailManager.vehicleManager.getIdleVehicles(vehicleId),
+            idleButFilteredVehicles(vehicleId),
             pickDropIdAndLegs
           )
         } else {

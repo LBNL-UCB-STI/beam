@@ -10,12 +10,16 @@ import org.matsim.households.Household
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import scala.util.Random
+
 object BeamVehicleUtils {
 
   def readVehiclesFile(
     filePath: String,
-    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType]
+    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
+    randomSeed: Long
   ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
+    val rand: Random = new Random(randomSeed)
 
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
@@ -35,7 +39,7 @@ object BeamVehicleUtils {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType, rand.nextInt)
         acc += ((vehicleId, beamVehicle))
         acc
     }
