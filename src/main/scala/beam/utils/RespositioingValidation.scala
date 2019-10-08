@@ -1,6 +1,7 @@
 package beam.utils
 
 import beam.agentsim.events.PathTraversalEvent
+import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
@@ -30,7 +31,7 @@ object RepositioningValidation {
       println(s"Total event count $eventCount")
       println(s"Event found $foundEvent")
     }
-    //readEvents("/home/rajnikant/IdeaProjects/beam/output/sf-light/sf-light-1k-xml__2019-10-02_03-28-09/ITERS/it.0/0.events.xml.gz")
+    //readCSVEvents("/home/rajnikant/IdeaProjects/beam/output/sf-light/sf-light-1k-xml__2019-10-04_03-19-45/ITERS/it.0/0.events.csv.gz")
 
   }
 
@@ -41,7 +42,7 @@ object RepositioningValidation {
     eventSeq.foreach(event => {
       if (event.getEventType == "PathTraversal") {
         eventCount += 1
-        if (processForRepositioningDebug(event))
+        if (processForRepositioningDebug(PathTraversalEvent.apply(event)))
           foundEvent += 1
       }
     })
@@ -65,14 +66,12 @@ object RepositioningValidation {
     (eventCount, foundEvent)
   }
 
-  private def processForRepositioningDebug(event: Event): Boolean = {
+  private def processForRepositioningDebug(event: PathTraversalEvent): Boolean = {
     var option = false
-    val attr = event.getAttributes
-    val vehicleId = attr.get("vehicle")
+    val vehicleId = event.vehicleId.toString
 
-    if (attr.get("numPassengers").toInt > 0) {
-      val mode = attr.get("mode")
-      if (mode == "ride_hail") {
+    if (event.numberOfPassengers > 0) {
+      if (event.mode == BeamMode.CAR && vehicleId.contains("rideHail")) {
         vehicleRepositioning
           .get(vehicleId)
           .foreach(repositioningDurationBuffer => {
@@ -90,7 +89,7 @@ object RepositioningValidation {
       vehicleRepositioning.remove(vehicleId)
     } else {
       val listBuffer = vehicleRepositioning.getOrElse(vehicleId, ListBuffer[RepositioningDuration]())
-      listBuffer += RepositioningDuration(attr.get("departureTime").toInt, attr.get("arrivalTime").toInt)
+      listBuffer += RepositioningDuration(event.departureTime, event.arrivalTime)
       vehicleRepositioning.put(vehicleId, listBuffer)
     }
     option
