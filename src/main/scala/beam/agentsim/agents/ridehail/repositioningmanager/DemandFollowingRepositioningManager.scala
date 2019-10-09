@@ -55,12 +55,15 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   val hourToAct: Array[(Int, Activity)] = activitySegment.activities.map(act => ((act.getEndTime / 3600).toInt, act))
 
-  val hourToActivities: Array[Array[Activity]] =
-    hourToAct.groupBy { case (h, _) => h }.map { case (_, xs) => xs.map(_._2) }.toArray
+  val groupedByHour: Map[Int, Array[Activity]] =
+    hourToAct.groupBy { case (h, _) => h }.map { case (h, xs) => h -> xs.map(_._2) }
+
+  val hourToActivities: Array[Array[Activity]] = groupedByHour.toArray
+    .sortBy { case (h, _) => h }
+    .map(_._2)
 
   // Index is hour, value is number of activities
-  val activitiesPerHour: Array[Int] = hourToAct
-    .groupBy { case (h, _) => h }
+  val activitiesPerHour: Array[Int] = groupedByHour
     .map { case (h, xs) => (h, xs.length) }
     .toArray
     .sortBy { case (h, _) => h }
