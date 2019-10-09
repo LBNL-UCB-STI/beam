@@ -384,7 +384,7 @@ def getCurrentGitBranch() {
     return gitBranch
 }
 
-// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=https://inm-test-run-pilates.s3.us-east-2.amazonaws.com/urbansim_output/ -PinitialS3UrbansimOutput=https://inm-test-run-pilates.s3.us-east-2.amazonaws.com/urbansim_output/
+// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -PskipFirstBeam=on
 task deployPilates(type: AWSLambdaInvokeTask) {
     doFirst {
         def runExample = '\n Example: gradle deployPilates -PrunName=`run name` ' +
@@ -427,6 +427,10 @@ task deployPilates(type: AWSLambdaInvokeTask) {
   "initial_urbansim_input": "${project.findProperty('initialS3UrbansimInput')}",
   "initial_urbansim_output": "${project.findProperty('initialS3UrbansimOutput')}",
   "pilates_image_version": "${project.findProperty('pilatesImageVersion') ?: 'latest'}",
+  "pilates_image_name": "${project.findProperty('pilatesImageName') ?: 'beammodel/pilates'}",
+  "pilates_scenario_name": "${project.findProperty('pilatesScenarioName') ?: 'pilates'}",
+  "skip_first_beam": "${project.findProperty('skipFirstBeam') ?: 'off'}",
+  "in_year_output": "${project.findProperty('inYearOutput') ?: 'off'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
   "max_ram": "${maxRAM ?: '140g'}",
   "storage_size": ${project.findProperty('storageSize')},

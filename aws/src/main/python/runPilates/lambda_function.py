@@ -6,30 +6,25 @@ import uuid
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
-RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output beammodel/pilates:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN pilatesOutput /beam-project/$CONFIG'''
+RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN $SCENARIO_NAME /beam-project/$CONFIG $SKIP_FIRST_BEAM $IN_YEAR_OUTPUT'''
 
 PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/base/base/'
 
 PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/'
 
 PILATES_IMAGE_VERSION_DEFAULT = 'latest'
-
+PILATES_IMAGE_NAME_DEFAULT = 'pilates'
+PILATES_SCENARIO_NAME_DEFAULT = 'pilates'
+SKIP_FIRST_BEAM_DEFAULT = 'off'
+IN_YEAR_OUTPUT_DEFAULT = 'off'
 START_YEAR_DEFAULT = '2010'
-
 COUNT_OF_YEARS_DEFAULT = '30'
-
 BEAM_IT_LEN_DEFAULT = '5'
-
 URBANSIM_IT_LEN_DEFAULT = '5'
-
 BRANCH_DEFAULT = 'master'
-
 COMMIT_DEFAULT = 'HEAD'
-
 MAXRAM_DEFAULT = '2g'
-
 SHUTDOWN_DEFAULT = '30'
-
 TRUE = 'true'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
@@ -79,8 +74,8 @@ runcmd:
   - $PREPARE_URBANSIM_INPUT_SCRIPT
   - echo "$PREPARE_URBANSIM_OUTPUT_SCRIPT"
   - $PREPARE_URBANSIM_OUTPUT_SCRIPT
-  - sudo ls output/urbansim-outputs/*.gz | xargs gunzip
-  - sudo ls output/urbansim-inputs/base/base/*.gz | xargs gunzip 
+  - sudo ls output/urbansim-outputs/*.gz | sudo xargs gunzip
+  - sudo ls output/urbansim-inputs/base/base/*.gz | sudo xargs gunzip 
   - echo "installing dependencies ..."
   - sudo apt-get install curl
   - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
@@ -233,6 +228,10 @@ def lambda_handler(event, context):
     beam_iteration_length = event.get('beam_it_len', BEAM_IT_LEN_DEFAULT)
     urbansim_iteration_length = event.get('urbansim_it_len', URBANSIM_IT_LEN_DEFAULT)
     pilates_image_version = event.get('pilates_image_version', PILATES_IMAGE_VERSION_DEFAULT)
+    pilates_image_name = event.get('pilates_image_name', PILATES_IMAGE_NAME_DEFAULT)
+    pilates_scenario_name = event.get('pilates_scenario_name', PILATES_SCENARIO_NAME_DEFAULT)
+    skip_first_beam = event.get('skip_first_beam', SKIP_FIRST_BEAM_DEFAULT)
+    in_year_output = event.get('in_year_output', IN_YEAR_OUTPUT_DEFAULT)
 
     configs = event.get('configs', CONFIG_DEFAULT)
     batch = event.get('batch', TRUE)
@@ -284,12 +283,16 @@ def lambda_handler(event, context):
             script = initscript.replace('$RUN_SCRIPT', selected_script).replace('$REGION', region) \
                 .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
                 .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', PREPARE_URBANSIM_OUTPUT_SCRIPT) \
-                .replace('$S3_REGION',os.environ['REGION']) \
+                .replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$INITIAL_URBANSIM_INPUT', initial_urbansim_input) \
                 .replace('$INITIAL_URBANSIM_OUTPUT', initial_urbansim_output) \
                 .replace('$START_YEAR', start_year).replace('$COUNT_OF_YEARS', count_of_years) \
                 .replace('$BEAM_IT_LEN', beam_iteration_length).replace('$URBANSIM_IT_LEN', urbansim_iteration_length) \
                 .replace('$PILATES_IMAGE_VERSION', pilates_image_version) \
+                .replace('$SCENARIO_NAME', pilates_scenario_name) \
+                .replace('$SKIP_FIRST_BEAM', skip_first_beam) \
+                .replace('$IN_YEAR_OUTPUT', in_year_output) \
+                .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
                 .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$END_SCRIPT', end_script).replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
