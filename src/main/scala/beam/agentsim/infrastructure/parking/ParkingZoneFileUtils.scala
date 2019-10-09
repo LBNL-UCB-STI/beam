@@ -215,7 +215,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     */
   def fromIterator(
     csvFileContents: Iterator[String],
-    random: Random,
+    random: Random = Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
     header: Boolean = true
