@@ -6,7 +6,7 @@ import uuid
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
-RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN $SCENARIO_NAME /beam-project/$CONFIG $SKIP_FIRST_BEAM $IN_YEAR_OUTPUT'''
+RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN $SCENARIO_NAME /beam-project/$CONFIG $OUTPUT_BUCKET_BASE_PATH $IN_YEAR_OUTPUT $INITIAL_SKIMS_PATH'''
 
 PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/base/base/'
 
@@ -15,7 +15,7 @@ PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3
 PILATES_IMAGE_VERSION_DEFAULT = 'latest'
 PILATES_IMAGE_NAME_DEFAULT = 'pilates'
 PILATES_SCENARIO_NAME_DEFAULT = 'pilates'
-SKIP_FIRST_BEAM_DEFAULT = 'off'
+OUTPUT_BUCKET_BASE_PATH_DEFAULT = '//pilates-outputs'
 IN_YEAR_OUTPUT_DEFAULT = 'off'
 START_YEAR_DEFAULT = '2010'
 COUNT_OF_YEARS_DEFAULT = '30'
@@ -230,8 +230,9 @@ def lambda_handler(event, context):
     pilates_image_version = event.get('pilates_image_version', PILATES_IMAGE_VERSION_DEFAULT)
     pilates_image_name = event.get('pilates_image_name', PILATES_IMAGE_NAME_DEFAULT)
     pilates_scenario_name = event.get('pilates_scenario_name', PILATES_SCENARIO_NAME_DEFAULT)
-    skip_first_beam = event.get('skip_first_beam', SKIP_FIRST_BEAM_DEFAULT)
+    initial_skims_path = event.get('initial_skims_path', '')
     in_year_output = event.get('in_year_output', IN_YEAR_OUTPUT_DEFAULT)
+    output_bucket_base_path = event.get('output_bucket_base_path', OUTPUT_BUCKET_BASE_PATH_DEFAULT)
 
     configs = event.get('configs', CONFIG_DEFAULT)
     batch = event.get('batch', TRUE)
@@ -290,7 +291,8 @@ def lambda_handler(event, context):
                 .replace('$BEAM_IT_LEN', beam_iteration_length).replace('$URBANSIM_IT_LEN', urbansim_iteration_length) \
                 .replace('$PILATES_IMAGE_VERSION', pilates_image_version) \
                 .replace('$SCENARIO_NAME', pilates_scenario_name) \
-                .replace('$SKIP_FIRST_BEAM', skip_first_beam) \
+                .replace('$INITIAL_SKIMS_PATH', initial_skims_path) \
+                .replace('$OUTPUT_BUCKET_BASE_PATH', output_bucket_base_path) \
                 .replace('$IN_YEAR_OUTPUT', in_year_output) \
                 .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
                 .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \

@@ -384,7 +384,8 @@ def getCurrentGitBranch() {
     return gitBranch
 }
 
-// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -PskipFirstBeam=on
+// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -PoutputBucketBasePath=//inm-test-run-pilates/pilates-outputs -PinitialSkimsPath=//inm-test-run-pilates/pilates-outputs/pilatesScenarioName1_/2015/beam/sfbay-smart-base-pilates-small__2019-10-08_20-54-59/ITERS/it.0/0.skims.csv.gz
+// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -PoutputBucketBasePath=//inm-test-run-pilates/pilates-outputs
 task deployPilates(type: AWSLambdaInvokeTask) {
     doFirst {
         def runExample = '\n Example: gradle deployPilates -PrunName=`run name` ' +
@@ -429,7 +430,8 @@ task deployPilates(type: AWSLambdaInvokeTask) {
   "pilates_image_version": "${project.findProperty('pilatesImageVersion') ?: 'latest'}",
   "pilates_image_name": "${project.findProperty('pilatesImageName') ?: 'beammodel/pilates'}",
   "pilates_scenario_name": "${project.findProperty('pilatesScenarioName') ?: 'pilates'}",
-  "skip_first_beam": "${project.findProperty('skipFirstBeam') ?: 'off'}",
+  "initial_skims_path": "${project.findProperty('initialSkimsPath') ?: ''}",
+  "output_bucket_base_path": "${project.findProperty('outputBucketBasePath') ?: '//pilates-outputs'}",
   "in_year_output": "${project.findProperty('inYearOutput') ?: 'off'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
   "max_ram": "${maxRAM ?: '140g'}",
