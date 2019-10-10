@@ -10,6 +10,8 @@ import beam.agentsim.agents.ridehail.repositioningmanager.{
   RepositioningManager
 }
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -181,6 +183,35 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   val repositioningManager: RepositioningManager = createRepositioningManager()
   logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
 
+  def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
+    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
+      rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.toVector
+
+    val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
+      case ((vehicleId: Id[Vehicle], _)) => {
+        rideHailManager.findBeamVehicleUsing(vehicleId) match {
+          case Some(beamVehicle) => {
+            if (cavOnly && !beamVehicle.isCAV) false
+            else
+              beamVehicle.isRefuelNeeded(
+                rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters,
+                rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
+              )
+          }
+          case None => false
+        }
+      }
+    }
+
+    for {
+      (vehicleId, location) <- idleVehicleIdsWantingToRefuelWithLocation
+      beamVehicle           <- rideHailManager.findBeamVehicleUsing(vehicleId)
+      (parkingDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules()
+      parkingStall <- rideHailManager.rideHailDepotParkingManager
+        .findDepot(location.currentLocationUTM.loc, parkingDuration)
+    } yield (vehicleId, parkingStall)
+  }
+
   /*
    * repositionVehicles
    *
@@ -230,7 +261,6 @@ object RideHailResourceAllocationManager {
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val POOLING = "POOLING"
   val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
-  val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
@@ -247,8 +277,6 @@ object RideHailResourceAllocationManager {
         new Pooling(rideHailManager)
       case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
         new PoolingAlonsoMora(rideHailManager)
-      case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-        ???
       case classFullName =>
         try {
           Class

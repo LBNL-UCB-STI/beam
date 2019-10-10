@@ -87,7 +87,6 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     @Override
     public void enterRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
-
         double nextAvailableTimeForLeavingStreet = getNextAvailableTimeForLeavingStreet(simTime);
 
         markCarAsProcessed((Vehicle) vehicle);
@@ -97,18 +96,11 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
 
         if (onlyOneCarRoad()) {
-
-
-
-            nextAvailableTimeForLeavingStreet=Math.max(nextAvailableTimeForLeavingStreet,
-                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle,simTime));
+            double lastTimeLEavingPlusInverseCapacity = timeOfLastLeavingVehicle + getInverseCapacity(vehicle, simTime);
+            nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet, lastTimeLEavingPlusInverseCapacity);
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
-
     }
-
-
-
 
     private double getInverseCapacity(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
         double caccShare=getInitialCACCShare((Vehicle) vehicle);
@@ -117,12 +109,10 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             caccShare=caccShareEncounteredByVehicle.remove(vehicle);
         }
 
-        return (1/roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link,caccShare,simTime)*config.getFlowCapacityFactor());
+        double capacityWithCACCPerSecond = roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, simTime);
+        double flowCapacityFactor = config.getFlowCapacityFactor();
+        return (1 / capacityWithCACCPerSecond * flowCapacityFactor);
     }
-
-
-
-
 
     private LinkedList<Double> gap_;
     private LinkedList<org.matsim.core.mobsim.jdeqsim.Vehicle> interestedInEnteringRoad_;

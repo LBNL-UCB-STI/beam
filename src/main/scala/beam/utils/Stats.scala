@@ -13,7 +13,7 @@ object Stats {
 class Stats[T](values: Vector[T])(implicit ev$1: T => Double) {
   class _Stats(var minValue: Double, var maxValue: Double, var sum: Double, var sumSqr: Double)
   require(values.nonEmpty, "Stats: Cannot initialize stats with undefined values")
-  private[this] val sums = values./:((0.0, 0.0))((acc, s) => (acc._1 + s, acc._2 + s * s))
+  private[this] val sums = values.foldLeft((0.0, 0.0))((acc, s) => (acc._1 + s, acc._2 + s * s))
 
   @inline
   lazy val mean: Double = sums._1 / values.size

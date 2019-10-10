@@ -16,7 +16,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
 
-case class RideInfo(vehicleId: Id[Vehicle], time: Int, startCoord: Coord, endCoord: Coord, numOfPassengers: Int)
+case class RideInfo(
+  vehicleId: Id[Vehicle],
+  time: Int,
+  startCoord: Coord,
+  endCoord: Coord,
+  numOfPassengers: Int,
+  primaryFuelLevel: Double
+)
 case class RideHailHistoricalData(
   notMovedAtAll: Set[Id[Vehicle]],
   movedWithoutPassenger: Set[Id[Vehicle]],
@@ -85,7 +92,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     // Yes, PathTraversalEvent contains coordinates in WGS
     val startCoord = beamSvc.geo.wgs2Utm(new Coord(pte.startX, pte.startY))
     val endCoord = beamSvc.geo.wgs2Utm(new Coord(pte.endX, pte.endY))
-    val vri = RideInfo(pte.vehicleId, pte.time.toInt, startCoord, endCoord, pte.numberOfPassengers)
+    val vri =
+      RideInfo(pte.vehicleId, pte.time.toInt, startCoord, endCoord, pte.numberOfPassengers, pte.endLegPrimaryFuelLevel)
     rides += vri
     vri
   }

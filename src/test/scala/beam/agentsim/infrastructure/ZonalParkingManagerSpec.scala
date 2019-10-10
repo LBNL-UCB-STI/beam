@@ -75,19 +75,27 @@ class ZonalParkingManagerSpec
           new Random(randomSeed)
         )
       } {
-        val beta1 = 1
-        val beta2 = 1
-        val beta3 = 0.001
-        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-        )
-        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+//        val beta1 = 1
+//        val beta2 = 1
+//        val beta3 = 0.001
+//        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
+//          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+//          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+//          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+//        )
+//        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
+//        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, mnl, 0.0)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
+          new Envelope(
+            inquiry.destinationUtm.getX + 2000,
+            inquiry.destinationUtm.getX - 2000,
+            inquiry.destinationUtm.getY + 2000,
+            inquiry.destinationUtm.getY - 2000
+          ),
+          new Random(randomSeed)
+        )
 
         zonalParkingManager ! inquiry
 
@@ -133,9 +141,9 @@ class ZonalParkingManagerSpec
             Id.create(1, classOf[TAZ]),
             0,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
         zonalParkingManager ! firstInquiry
@@ -188,9 +196,9 @@ class ZonalParkingManagerSpec
             expectedTAZId,
             expectedParkingZoneId,
             coordCenterOfUTM,
-            1234.0,
+            12.34,
             None,
-            Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
+            Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
 
@@ -280,7 +288,19 @@ object ZonalParkingManagerSpec {
     boundingBox: Envelope,
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, tazTreeMap, geo, random, boundingBox))
+    val minSearchRadius = 1000.0
+    val maxSearchRadius = 16093.4 // meters, aka 10 miles
+    val zonalParkingManagerProps = Props(
+      ZonalParkingManager(
+        parkingDescription,
+        tazTreeMap,
+        geo,
+        random,
+        minSearchRadius,
+        maxSearchRadius,
+        boundingBox
+      )
+    )
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 
