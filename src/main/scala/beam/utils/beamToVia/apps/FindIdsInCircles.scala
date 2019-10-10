@@ -6,13 +6,13 @@ import beam.utils.beamToVia.{BeamEventsReader, LinkCoordinate, Point, Writer}
 import scala.collection.mutable
 
 object FindIdsInCircles extends App {
-  val sourceFileName = "v33.0.events.third.csv"
+  val sourceFileName = "40.events.csv"
 
-  val dirPath = "D:/Work/BEAM/visualizations/"
+  val dirPath = "D:/Work/beam/September2019/Runs/AnoterRun-40iter/"
   val sourcePath = dirPath + sourceFileName
   val baseOutputPath = dirPath + sourceFileName + ".in_SF"
 
-  val networkPath = dirPath + "v33.physSimNetwork.HQ.xml"
+  val networkPath = dirPath + "output_network.xml"
   //val networkPath = dirPath + "physSimNetwork.xml"
   //val networkPath = dirPath + "physSimNetwork.HQ.xml"
 
@@ -24,7 +24,7 @@ object FindIdsInCircles extends App {
   }
 
   val sfCircle = Circle(548966, 4179000, 5000)
-  def pointIsInteresting(point: Point): Boolean = point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
+  def pointIsInteresting(point: Point): Boolean = true
 
   val interestingNodes = nodes
     .foldLeft(mutable.Map.empty[Int, Point]) {
