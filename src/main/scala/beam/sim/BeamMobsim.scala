@@ -315,7 +315,7 @@ class BeamMobsimIteration(
 
   private def scheduleRideHailManagerTimerMessages(): Unit = {
     if (config.agents.rideHail.repositioningManager.timeout > 0)
-      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
+      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(config.agents.rideHail.repositioningManager.timeout / 2), rideHailManager)
     if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
       scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
   }
