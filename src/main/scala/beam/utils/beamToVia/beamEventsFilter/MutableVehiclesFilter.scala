@@ -136,6 +136,16 @@ object MutableVehiclesFilter {
 
     MutableVehiclesFilter(SelectNewVehicle1)
   }
+
+  def withListOfVehicleModes(vehicleModes: Seq[String]): MutableVehiclesFilter = {
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      val selectedModes: mutable.HashSet[String] = mutable.HashSet(vehicleModes.map(_.toLowerCase):_*)
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectedModes.contains(vehicleMode.toLowerCase)
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
+  }
 }
 
 class MutableVehiclesFilter(selectNewVehicle: MutableVehiclesFilter.SelectNewVehicle) extends MutableSamplingFilter {
