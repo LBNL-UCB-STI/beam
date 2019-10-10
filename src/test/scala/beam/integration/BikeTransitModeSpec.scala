@@ -22,7 +22,7 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class BikeTransitModeSpec
-  extends WordSpecLike
+    extends WordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest
@@ -93,4 +93,3 @@ class BikeTransitModeSpec
     }
   }
 }
-
