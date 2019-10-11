@@ -24,7 +24,7 @@ object FindIdsInCircles extends App {
   }
 
   val sfCircle = Circle(548966, 4179000, 5000)
-  def pointIsInteresting(point: Point): Boolean = true
+  def pointIsInteresting(point: Point): Boolean = true //  point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
 
   val interestingNodes = nodes
     .foldLeft(mutable.Map.empty[Int, Point]) {

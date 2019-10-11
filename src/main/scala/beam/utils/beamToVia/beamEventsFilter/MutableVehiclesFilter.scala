@@ -137,11 +137,25 @@ object MutableVehiclesFilter {
     MutableVehiclesFilter(SelectNewVehicle1)
   }
 
-  def withListOfVehicleModes(vehicleModes: Seq[String]): MutableVehiclesFilter = {
+  def withListOfVehicleModes(vehicleModes: Seq[String], sampling: Double): MutableVehiclesFilter = {
     object SelectNewVehicle1 extends SelectNewVehicle {
-      val selectedModes: mutable.HashSet[String] = mutable.HashSet(vehicleModes.map(_.toLowerCase):_*)
+      val selectedModes: mutable.HashSet[String] = mutable.HashSet(vehicleModes.map(_.toLowerCase): _*)
       override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
-        selectedModes.contains(vehicleMode.toLowerCase)
+        selectedModes.contains(vehicleMode.toLowerCase) && Math.random() <= sampling
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
+  }
+
+  def withListOfVehicleModesAndSelectedIds(
+    selectedIds: mutable.HashSet[String],
+    vehicleModes: Seq[String],
+    sampling: Double
+  ): MutableVehiclesFilter = {
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      val selectedModes: mutable.HashSet[String] = mutable.HashSet(vehicleModes.map(_.toLowerCase): _*)
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectedIds.contains(vehicleId) && selectedModes.contains(vehicleMode.toLowerCase) && Math.random() <= sampling
     }
 
     MutableVehiclesFilter(SelectNewVehicle1)
