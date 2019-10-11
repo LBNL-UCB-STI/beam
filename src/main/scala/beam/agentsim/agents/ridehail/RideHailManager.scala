@@ -1686,8 +1686,21 @@ class RideHailManager(
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
-    val repositionVehicles
-      : Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map {
+    val insideGeofence = nonRefuelingRepositionVehicles.filter {
+      case (vehicleId, loc) =>
+        val rha = vehicleManager.idleRideHailVehicles(vehicleId)
+        // Is chosen location inside geofence?
+        val isInside = rha.geofence.forall(g => g.contains(loc))
+        isInside
+    }
+    log.debug(
+      "continueRepositionig. Tick[{}] nonRefuelingRepositionVehicles: {}, insideGeofence: {}",
+      tick,
+      nonRefuelingRepositionVehicles.size,
+      insideGeofence.size
+    )
+
+    val repositionVehicles: Vector[(VehicleId, Location)] = insideGeofence ++ vehiclesHeadedToRefuelingDepot.map {
       case (vehicleId, parkingStall) => (vehicleId, parkingStall.locationUTM)
     }
 
