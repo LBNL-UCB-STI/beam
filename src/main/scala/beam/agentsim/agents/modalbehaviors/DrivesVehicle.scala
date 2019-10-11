@@ -588,7 +588,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
-        stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
+        stop(Failure("driver received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
+      } else if(!data.passengerSchedule.schedule.contains(newLeg)) {
+        stop(Failure("driver received StartLegTrigger for leg {} but no such leg in passenger schedule: {}", newLeg, data.passengerSchedule))
       } else {
         // Un-Park if necessary, this should only happen with RideHailAgents
         data.currentVehicle.headOption match {
