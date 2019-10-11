@@ -8,11 +8,17 @@ import beam.utils.beamToVia.viaEvent.ViaEvent
 import scala.collection.mutable
 
 object EventsByVehicleMode extends App {
+  // Events file path may be in csv or xml format. Does not work with archives.
   val beamEventsFilePath = "D:/Work/BEAM/history/visualizations/v35.it3.events.csv"
   val outputFile = "D:/Work/BEAM/_tmp/output.via.xml"
+
+  // list of vehicle modes, case insensitive
   val selectedVehiclesModes = Seq[String]("car", "bus")
+
+  // 1 means 100%
   val sampling = 0.1
 
+  // leave empty if do not need sampling by circle
   val networkPath = "D:/Work/BEAM/history/visualizations/physSimNetwork.xml"
 
   // san francisco, approximately: x:548966 y:4179000 r:5000
@@ -20,8 +26,17 @@ object EventsByVehicleMode extends App {
   val circleY = 4179000
   val circleR = 4000
 
-  val filter: MutableSamplingFilter = if (networkPath.nonEmpty)
-    getFilterWithCircleSampling(selectedVehiclesModes, sampling, networkPath, beamEventsFilePath, circleX, circleY, circleR)
+  val filter: MutableSamplingFilter =
+    if (networkPath.nonEmpty)
+      getFilterWithCircleSampling(
+        selectedVehiclesModes,
+        sampling,
+        networkPath,
+        beamEventsFilePath,
+        circleX,
+        circleY,
+        circleR
+      )
     else MutableVehiclesFilter.withListOfVehicleModes(selectedVehiclesModes, sampling)
 
   def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
