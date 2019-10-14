@@ -1690,11 +1690,15 @@ class RideHailManager(
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
     val insideGeofence = nonRefuelingRepositionVehicles.filter {
-      case (vehicleId, loc) =>
+      case (vehicleId, destLoc) =>
         val rha = vehicleManager.idleRideHailVehicles(vehicleId)
-        // Is chosen location inside geofence?
-        val isInside = rha.geofence.forall(g => g.contains(loc))
-        isInside
+        // Get locations of R5 edge for source and destination
+        val r5SrcLoc = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(rha.currentLocationUTM.loc))
+        val r5DestLoc = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(destLoc))
+        // Are those locations inside geofence?
+        val isSrcInside = rha.geofence.forall(g => g.contains(r5SrcLoc))
+        val isDestInside = rha.geofence.forall(g => g.contains(r5DestLoc))
+        isSrcInside && isDestInside
     }
     log.debug(
       "continueRepositionig. Tick[{}] nonRefuelingRepositionVehicles: {}, insideGeofence: {}",
