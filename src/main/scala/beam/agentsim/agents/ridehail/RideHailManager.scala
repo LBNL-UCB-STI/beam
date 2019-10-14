@@ -1182,16 +1182,19 @@ class RideHailManager(
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
     requestedRideHail += 1
-    rideHailResourceAllocationManager.respondToInquiry(inquiry) match {
+    val pickUpLocUpdated = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(inquiry.pickUpLocationUTM))
+    val destLocUpdated = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(inquiry.destinationUTM))
+    val inquiryWithUpdatedLoc = inquiry.copy(destinationUTM = destLocUpdated, pickUpLocationUTM = pickUpLocUpdated)
+    rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
-        log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
-        inquiry.customer.personRef ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
+        log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
+        inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(inquiryWithUpdatedLoc, None, Some(DriverNotFoundError))
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         servedRideHail += 1
-        inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
-        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
-        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
-        requestRoutes(inquiry.departAt, routingRequests)
+        inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
+        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiryWithUpdatedLoc.departAt, inquiryWithUpdatedLoc, agentLocation)
+        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiryWithUpdatedLoc.requestId))
+        requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests)
     }
   }
 
