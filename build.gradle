@@ -392,28 +392,26 @@ task deployPilates(type: AWSLambdaInvokeTask) {
                 '-PstartYear=YYYY -PcountOfYears=XXX -PbeamItLen=XXX -PurbansimItLen=XXX ' +
                 '-PbeamBranch=`git branch name` ' +
                 '-PbeamConfigs=`beam config path starting from root of `beam` directory` ' +
-                '-PinitialS3UrbansimInput=`s3 bucket with initial urbansim input starting from double slash` ' +
-                '-PinitialS3UrbansimOutput=`s3 bucket with initial urbansim output starting from double slash` '
+                '-PinitialS3UrbansimInput=`s3 bucket with initial urbansim input starting from double slash. Used as initial data for urbansim.` ' +
+                '-PinitialS3UrbansimOutput=`s3 bucket with initial urbansim output starting from double slash, Used as initial data for first beam run.` ' +
+                '-PinitialSkimsPath=`s3 path to initial skim file. if specified then first beam run will be skipped.`'
         if (!project.hasProperty('runName')) {
-            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deployPilates -PrunName=sfbay-performance-run')
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deployPilates -PrunName=sfbay-performance-run' + runExample)
         }
         if (!project.hasProperty('startYear')) {
             throw new GradleException('`startYear` argument required.' + runExample)
         }
         if (!project.hasProperty('countOfYears')) {
-            throw new GradleException('`countOfYears` argument required.')
+            throw new GradleException('`countOfYears` argument required.' + runExample)
         }
         if (!project.hasProperty('beamItLen')) {
-            throw new GradleException('`beamItLen` argument required.')
+            throw new GradleException('`beamItLen` argument required.' + runExample)
         }
         if (!project.hasProperty('urbansimItLen')) {
-            throw new GradleException('`urbansimItLen` argument required.')
+            throw new GradleException('`urbansimItLen` argument required.' + runExample)
         }
         if (!project.hasProperty('initialS3UrbansimInput')) {
-            throw new GradleException('`initialS3UrbansimInput` argument required.')
-        }
-        if (!project.hasProperty('initialS3UrbansimOutput')) {
-            throw new GradleException('`initialS3UrbansimOutput` argument required.')
+            throw new GradleException('`initialS3UrbansimInput` argument required.' + runExample)
         }
     }
 

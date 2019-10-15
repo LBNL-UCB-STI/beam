@@ -8,9 +8,9 @@ END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
 RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN $SCENARIO_NAME /beam-project/$CONFIG $OUTPUT_BUCKET_BASE_PATH $IN_YEAR_OUTPUT $INITIAL_SKIMS_PATH'''
 
-PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/base/base/'
+PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/initial/'
 
-PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/'
+PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/initial/'
 
 PILATES_IMAGE_VERSION_DEFAULT = 'latest'
 PILATES_IMAGE_NAME_DEFAULT = 'pilates'
@@ -65,17 +65,14 @@ runcmd:
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - echo "prepare urbansim input and output"
   - mkdir output
-  - mkdir output/sfbay
   - mkdir output/urbansim-outputs
   - mkdir output/urbansim-inputs
-  - mkdir output/urbansim-inputs/base
-  - mkdir output/urbansim-inputs/base/base
   - echo "$PREPARE_URBANSIM_INPUT_SCRIPT"
   - $PREPARE_URBANSIM_INPUT_SCRIPT
   - echo "$PREPARE_URBANSIM_OUTPUT_SCRIPT"
   - $PREPARE_URBANSIM_OUTPUT_SCRIPT
-  - sudo ls output/urbansim-outputs/*.gz | sudo xargs gunzip
-  - sudo ls output/urbansim-inputs/base/base/*.gz | sudo xargs gunzip 
+  - sudo ls output/urbansim-outputs/initial/*.gz | sudo xargs gunzip
+  - sudo ls output/urbansim-inputs/initial/*.gz | sudo xargs gunzip 
   - echo "installing dependencies ..."
   - sudo apt-get install curl
   - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
@@ -215,10 +212,11 @@ def lambda_handler(event, context):
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
-    initial_urbansim_output = event.get('initial_urbansim_output', None)
     initial_urbansim_input = event.get('initial_urbansim_input', None)
-    if initial_urbansim_output is None or initial_urbansim_input is None:
-        return "Unable to start the run, initialS3UrbansimOutput and initialS3UrbansimInput are required. Please restart with appropriate arguments."
+    if initial_urbansim_input is None:
+        return "Unable to start the run, initialS3UrbansimInput is required. Please restart with appropriate arguments."
+
+    initial_urbansim_output = event.get('initial_urbansim_output', None)
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
@@ -245,6 +243,9 @@ def lambda_handler(event, context):
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
+
+    if initial_urbansim_output is None and initial_skims_path is '':
+        return "Unable to start run, initialS3UrbansimOutput (initial beam data) or initialSkimsPath (initial skims file) should be specified."
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
@@ -273,6 +274,10 @@ def lambda_handler(event, context):
 
     txt = ''
 
+    prepareUrbansimOutScript = PREPARE_URBANSIM_OUTPUT_SCRIPT
+    if initial_urbansim_output is None:
+        prepareUrbansimOutScript = " "
+
     if validate(branch) and validate(commit_id):
         run_num = 1
         for arg in params:
@@ -283,7 +288,7 @@ def lambda_handler(event, context):
 
             script = initscript.replace('$RUN_SCRIPT', selected_script).replace('$REGION', region) \
                 .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
-                .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', PREPARE_URBANSIM_OUTPUT_SCRIPT) \
+                .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', prepareUrbansimOutScript) \
                 .replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$INITIAL_URBANSIM_INPUT', initial_urbansim_input) \
                 .replace('$INITIAL_URBANSIM_OUTPUT', initial_urbansim_output) \
