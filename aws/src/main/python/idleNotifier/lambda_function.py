@@ -30,14 +30,12 @@ def lambda_handler(event, context):
             }
         ]
     }
-    logger.info('Slack payload: ' + str(payload))
     slack_hook = os.environ['SLACK_HOOK']
-
     logger.info('Sending slack notification about idle instance with payload: ' + str(payload))
     response = requests.post(slack_hook, data=json.dumps(payload), headers=headers)
     logger.info('Received response from slack notification about idle instance with status code: ' + str(response.status_code) + ' and content: ' + str(response.content))
 
-    return json.dumps("{}")
+    return json.dumps({})
 
 def get_alarm_name_from(event):
     records = safe_get(event, 'Records')
