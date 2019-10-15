@@ -152,7 +152,10 @@ def get_all_metrics(filename, __local_file_path):
     pathTraversal.loc[pathTraversal['mode_extended'] == 'bike', 'trueOccupancy'] = 1
     pathTraversal['vehicleMiles'] = pathTraversal['length']/1609.34
     pathTraversal['passengerMiles'] = (pathTraversal['length'] * pathTraversal['trueOccupancy'])/1609.34
-    pathTraversal['vehicleHoursTravelled'] = (pathTraversal['arrivalTime'] - pathTraversal['departureTime'])/3600
+    pathTraversal['vehicleHours'] = (pathTraversal['arrivalTime'] - pathTraversal['departureTime'])/3600
+    pathTraversal['passengerHours'] = pathTraversal['vehicleHours'] * pathTraversal['trueOccupancy']
+      
+    pathTraversal = pathTraversal.loc[~((pathTraversal['mode']=='walk') & (pathTraversal['vehicleHours']>2)),:]
     
     lightDutyVehiclePathTraversals=pathTraversal.loc[(pathTraversal['vehicleType'].str.contains("BUS")==False) &
                   (pathTraversal['vehicleType'].str.contains("BIKE")==False) &
@@ -163,17 +166,19 @@ def get_all_metrics(filename, __local_file_path):
                   (pathTraversal['vehicleType'].str.contains("TRAM")==False) &
                   (pathTraversal['vehicleType'].str.contains("TRAIN")==False),:]
     
-    metrics_json['total_vehicleHoursTravelled_LightDutyVehicles'] = lightDutyVehiclePathTraversals['vehicleHoursTravelled'].sum()
+    metrics_json['total_VHT_LightDutyVehicles'] = lightDutyVehiclePathTraversals['vehicleHours'].sum()
     
 
     modeChoiceTotals = modeChoice.groupby('mode').agg({'person': 'count', 'length': 'sum'})
     for mode in modeChoiceTotals.index:
         metrics_json[mode+'_counts'] = int(modeChoiceTotals.loc[mode,'person'])
 
-    pathTraversalModes = pathTraversal.groupby('mode_extended').agg({'vehicleMiles': 'sum', 'primaryFuel': 'sum', 'secondaryFuel': 'sum', 'passengerMiles': 'sum'})
+    pathTraversalModes = pathTraversal.groupby('mode_extended').agg({'vehicleMiles': 'sum', 'primaryFuel': 'sum', 'secondaryFuel': 'sum', 'passengerMiles': 'sum','vehicleHours': 'sum', 'passengerHours':'sum'})
     for mode in pathTraversalModes.index:
         metrics_json['VMT_' + mode] = float(pathTraversalModes.loc[mode, 'vehicleMiles'])
         metrics_json['PMT_' + mode] = float(pathTraversalModes.loc[mode, 'passengerMiles'])
+        metrics_json['VHT_' + mode] = float(pathTraversalModes.loc[mode, 'vehicleHours'])
+        metrics_json['PHT_' + mode] = float(pathTraversalModes.loc[mode, 'passengerHours'])
         metrics_json['Energy_' + mode] = float(pathTraversalModes.loc[mode, 'primaryFuel'] + pathTraversalModes.loc[mode, 'secondaryFuel'])
 
     for mode in pathTraversalModes.index:
@@ -187,19 +192,58 @@ def get_all_metrics(filename, __local_file_path):
         metrics_json['PMT_' + mode + "_shared_2p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 2), 'passengerMiles'].sum())
         metrics_json['PMT_' + mode + "_shared_3p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 3), 'passengerMiles'].sum())
         metrics_json['PMT_' + mode + "_shared_4p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] >= 4), 'passengerMiles'].sum())
+        metrics_json['VHT_' + mode + "_empty"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 0), 'vehicleHours'].sum())
+        metrics_json['VHT_' + mode + "_shared"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] > 1), 'vehicleHours'].sum())
+        metrics_json['VHT_' + mode + "_shared_2p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 2), 'vehicleHours'].sum())
+        metrics_json['VHT_' + mode + "_shared_3p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] == 3), 'vehicleHours'].sum())
+        metrics_json['VHT_' + mode + "_shared_4p"] = float(pathTraversal.loc[(pathTraversal['mode_extended'] == mode) & (pathTraversal['trueOccupancy'] >= 4), 'vehicleHours'].sum())
 
     metrics_json['VMT_L1'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L1'), 'vehicleMiles'].sum())
     metrics_json['VMT_L3'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L3'), 'vehicleMiles'].sum())
     metrics_json['VMT_L5'] = float(pathTraversal.loc[pathTraversal['vehicleType'].str.contains('L5'), 'vehicleMiles'].sum())
 
+    expansion_factor=(7.75/0.315) * 27.0 / 21.3
+    
+    
+    
+    transitPathTraversals=pathTraversal.loc[(pathTraversal['vehicleType'].str.contains("BUS")==True) |
+                  (pathTraversal['vehicleType'].str.contains("BIKE")==True) |
+                  (pathTraversal['vehicleType'].str.contains("BODY")==True) |
+                  (pathTraversal['vehicleType'].str.contains("CABLE")==True) |
+                  (pathTraversal['vehicleType'].str.contains("FERRY")==True) |
+                  (pathTraversal['vehicleType'].str.contains("SUBWAY")==True) |
+                  (pathTraversal['vehicleType'].str.contains("TRAM")==True) |
+                  (pathTraversal['vehicleType'].str.contains("TRAIN")==True),:]
+    
+    
+    transit_primaryFuelTypes = transitPathTraversals.groupby('primaryFuelType').agg({'primaryFuel': 'sum'})
+    transit_secondaryFuelTypes = transitPathTraversals.groupby('secondaryFuelType').agg({'secondaryFuel': 'sum'})
+    
+    ldv_primaryFuelTypes = lightDutyVehiclePathTraversals.groupby('primaryFuelType').agg({'primaryFuel': 'sum'})
+    ldv_secondaryFuelTypes = lightDutyVehiclePathTraversals.groupby('secondaryFuelType').agg({'secondaryFuel': 'sum'})
+    
     primaryFuelTypes = pathTraversal.groupby('primaryFuelType').agg({'primaryFuel': 'sum'})
     secondaryFuelTypes = pathTraversal.groupby('secondaryFuelType').agg({'secondaryFuel': 'sum'})
+    
     for fueltype in primaryFuelTypes.index:
-        metrics_json['totalEnergy_' + fueltype] = float(primaryFuelTypes.loc[fueltype, 'primaryFuel'])
+        metrics_json['totalEnergy_' + fueltype] = 0
     for fuelType in secondaryFuelTypes.index:
-        if fuelType != 'None':
-            metrics_json['totalEnergy_' + fuelType] += float(secondaryFuelTypes.loc[fueltype, 'secondaryFuel'])
+        if 'None' not in fuelType:
+            metrics_json['totalEnergy_' + fuelType] = 0
 
+    for fueltype in transit_primaryFuelTypes.index:
+        metrics_json['totalEnergy_' + fueltype] += float(transit_primaryFuelTypes.loc[fueltype, 'primaryFuel']) /expansion_factor 
+    for fuelType in transit_secondaryFuelTypes.index:
+        if 'None' not in fuelType:
+            metrics_json['totalEnergy_' + fuelType] += float(transit_secondaryFuelTypes.loc[fueltype, 'secondaryFuel'])/expansion_factor
+
+    for fueltype in ldv_primaryFuelTypes.index:
+        metrics_json['totalEnergy_' + fueltype] += float(ldv_primaryFuelTypes.loc[fueltype, 'primaryFuel'])
+    for fuelType in ldv_secondaryFuelTypes.index:
+        if 'None' not in fuelType:
+            metrics_json['totalEnergy_' + fuelType] += float(ldv_secondaryFuelTypes.loc[fueltype, 'secondaryFuel'])
+            
+            
     print("get_all_metrics done")
     return metrics_json
 

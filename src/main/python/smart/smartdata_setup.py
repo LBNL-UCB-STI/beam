@@ -83,7 +83,7 @@ def get_metrics(__setup, __output_dir):
         output_file_path_itr = "{}-{}".format(output_file_path, iteration)
         local_metrics_file = "{}.metrics.csv".format(output_file_path_itr)
         if not os.path.exists(local_metrics_file):
-            url = "{}/{}/{}".format(__setup['base_url'], scenario_tech, remote_folder)
+            url = remote_folder
 
             summary_stats_df = get_metrics_from_stats(url, output_file_path, iteration)
             summary_stats_df['Scenario'] = scenario

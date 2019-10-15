@@ -34,6 +34,9 @@ mode_colors = {'RH': colors['red'],
 
 # Plots
 
+def createColumnIfNotExist(df, name, value):
+    if name not in df.columns:
+        df[name] = value
 
 def tableSummary(_plt_setup, _df, _output_folder, _output_plot_prefix):
     makeplots_folder = '{}/makeplots'.format(_output_folder)
@@ -43,12 +46,16 @@ def tableSummary(_plt_setup, _df, _output_folder, _output_plot_prefix):
     df = _df[~_df['Rank'].isin(_plt_setup['rank_to_filterout'])]
     factor = _plt_setup['expansion_factor']
 
+    print('ddd')
+
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
     tot_vmt = (df['VMT_bus'].values+df['VMT_cable_car'].values+df['VMT_ferry'].values+df['VMT_rail'].values +
                df['VMT_subway'].values+df['VMT_tram'].values) +\
               (df['VMT_car'].values+df['VMT_car_CAV'].values+df['VMT_car_RH'].values +
                df['VMT_car_RH_CAV'].values +
                df['VMT_walk'].values+df['VMT_bike'].values) * factor
-
+    createColumnIfNotExist(df, 'personTravelTime_cav', 0)
     tot_pht = (df['personTravelTime_bike'].values+df['personTravelTime_car'].values+df['personTravelTime_cav'].values +
                df['personTravelTime_drive_transit'].values+df['personTravelTime_mixed_mode'].values +
                df['personTravelTime_onDemandRide'].values+df['personTravelTime_onDemandRide_pooled'].values +
@@ -86,6 +93,7 @@ def pltModeSplitByTrips(_plt_setup, _df, _output_folder, _output_plot_prefix):
     angle = _plt_setup['rotation']
     dimension = _plt_setup['dimension']
 
+    createColumnIfNotExist(df, 'cav_counts', 0)
     data = pd.DataFrame(
         {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values),
          'car': df['car_counts'].values,
@@ -181,6 +189,14 @@ def pltLdvRhOccupancy(_plt_setup, _df, output_folder, _output_plot_prefix):
     angle = _plt_setup['rotation']
     dimension = _plt_setup['dimension']
 
+    createColumnIfNotExist(df, 'PMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_2p', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_3p', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV_shared_4p', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
     data = pd.DataFrame(
         {
          'non_rh_ldv': df[['PMT_car', 'PMT_car_CAV']].sum(axis=1),
@@ -238,6 +254,16 @@ def pltLdvRhOccupancyByVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     dimension = _plt_setup['dimension']
 
     factor = _plt_setup['expansion_factor'] / 1000000
+
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_2p', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_3p', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared_4p', 0)
 
     data = pd.DataFrame(
         {
@@ -304,6 +330,7 @@ def pltLdvPersonHourTraveled(_plt_setup, _df, output_folder, _output_plot_prefix
 
     factor = _plt_setup['expansion_factor'] / 1000000 / 60
 
+    createColumnIfNotExist(df, 'personTravelTime_cav', 0)
     data = pd.DataFrame(
         {'car': df['personTravelTime_car'].values * factor,
          'cav': df['personTravelTime_cav'].values * factor,
@@ -353,7 +380,8 @@ def pltModeSplitInPMT(_plt_setup, _df, output_folder, _output_plot_prefix):
     figure_size = _plt_setup['fig_size']
 
     factor = _plt_setup['expansion_factor'] / 1000000
-
+    createColumnIfNotExist(df, 'PMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'PMT_car_RH_CAV', 0)
     data = pd.DataFrame(
         {'transit': (df['PMT_bus'].values+df['PMT_ferry'].values+df['PMT_rail'].values+df['PMT_subway'].values+
                      df['PMT_tram'].values+df['PMT_cable_car'].values) * factor,
@@ -409,6 +437,12 @@ def pltModeSplitInVMT(_plt_setup, _df, output_folder, _output_plot_prefix):
 
     factor = _plt_setup['expansion_factor'] / 1000000
 
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
     data = pd.DataFrame(
         {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+
                      df['VMT_tram'].values+df['VMT_cable_car'].values) / 1000000,
@@ -555,7 +589,12 @@ def pltRHEmptyPooled(_plt_setup, _df, output_folder, _output_plot_prefix):
     figure_size = _plt_setup['fig_size']
 
     factor = _plt_setup['expansion_factor'] / 1000000
-
+    createColumnIfNotExist(df, 'VMT_car_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_empty', 0)
+    createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
+    createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
     data = pd.DataFrame(
         {'rh': (df['VMT_car_RH'].values+df['VMT_car_RH_CAV'].values-df['VMT_car_RH_shared'].values-df['VMT_car_RH_CAV_shared'].values) * factor,
          'rhp': (df['VMT_car_RH_shared'].values+df['VMT_car_RH_CAV_shared'].values) * factor
