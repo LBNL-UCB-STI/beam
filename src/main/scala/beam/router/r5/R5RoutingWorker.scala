@@ -30,6 +30,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils._
+import beam.utils.logging.ExponentialLazyLogging.logger
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -52,7 +53,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Success, Try}
 
 case class WorkerParameters(
   beamConfig: BeamConfig,
@@ -205,6 +206,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           log.error(e, "calcRoute failed")
           RoutingFailure(e, request.requestId)
       } pipeTo sender
+
+      eventualResponse.onComplete {
+        case Success(response) => beamLegsForHighEuclideanDistance(response)
+        case _                 =>
+      }
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
@@ -231,8 +237,29 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         embodyRequestId: Int
         ) =>
       val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
+      beamLegsForHighEuclideanDistance(response)
       sender ! response
       askForMoreWork()
+  }
+
+  def beamLegsForHighEuclideanDistance(response: RoutingResponse): Unit = {
+    val acceptableDistance = 500
+    response.itineraries.foreach(beamTrip => {
+      beamTrip.beamLegs.foreach(beamLeg => {
+        val travelPath = beamLeg.travelPath
+        val euclideanDistance = workerParams.geo.distLatLon2Meters(travelPath.startPoint.loc, travelPath.endPoint.loc)
+        val difference = euclideanDistance - travelPath.distanceInM
+        if (Math.abs(difference) > acceptableDistance) {
+          logger.warn(
+            "Distance between euclidean distance {} and beam leg distance {} is more then acceptable threshold({}) distance = {}",
+            euclideanDistance,
+            travelPath.distanceInM,
+            acceptableDistance,
+            difference
+          )
+        }
+      })
+    })
   }
 
   private def askForMoreWork(): Unit =
