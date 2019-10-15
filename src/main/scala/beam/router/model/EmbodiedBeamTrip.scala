@@ -3,6 +3,7 @@ package beam.router.model
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
+  BIKE_TRANSIT,
   CAR,
   CAV,
   DRIVE_TRANSIT,
@@ -44,6 +45,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
     var theMode: BeamMode = WALK
     var hasUsedCar: Boolean = false
+    var hasUsedBike: Boolean = false
     var hasUsedRideHail: Boolean = false
     legs.foreach { leg =>
       // Any presence of transit makes it transit
@@ -62,11 +64,16 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = BIKE
       }
+
       if (leg.beamLeg.mode == CAR) hasUsedCar = true
+      if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.isRideHail) hasUsedRideHail = true
+
     }
     if (theMode == TRANSIT && hasUsedRideHail) {
       RIDE_HAIL_TRANSIT
+    } else if (theMode == TRANSIT && hasUsedBike) {
+      BIKE_TRANSIT
     } else if (theMode == TRANSIT && hasUsedCar) {
       DRIVE_TRANSIT
     } else if (theMode == TRANSIT && !hasUsedCar) {

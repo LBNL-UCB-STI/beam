@@ -66,7 +66,7 @@ trait ModeChoiceCalculator {
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
     val totalCost = embodiedBeamTrip.tripClassifier match {
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | BIKE_TRANSIT =>
         val transitFareDefault =
           TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
         (embodiedBeamTrip.costEstimate + transitFareDefault) * beamConfig.beam.agentsim.tuning.transitPrice

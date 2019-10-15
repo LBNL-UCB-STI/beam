@@ -125,7 +125,6 @@ class PersonAgentSpec
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
-      expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
     }
 
