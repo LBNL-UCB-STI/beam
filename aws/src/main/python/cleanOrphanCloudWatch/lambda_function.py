@@ -66,11 +66,11 @@ def is_no_active_instance_associated_with(cloudwatch_alarm, region):
         ]
     )
     if(len(safe_get_with_default(running_instance_response, 'Reservations', [])) > 0):
-        logger.info('No active instance associated with ' + str(cloudwatch_alarm) + '. Response when checking for running instances: ' + str(running_instance_response))
-        return True
-    else:
         logger.info('Still an active instance associated with ' + str(cloudwatch_alarm) + '. Response when checking for running instances: ' + str(running_instance_response))
         return False
+    else:
+        logger.info(' No active instance associated with ' + str(cloudwatch_alarm) + '. Response when checking for running instances: ' + str(running_instance_response))
+        return True
 
 def delete_alarms(alarms_to_be_removed, region):
     logger.info('Alarms to be deleted for region \'' + region + '\' = ' + ' '.join([str(cloudwatch_alarm) for cloudwatch_alarm in alarms_to_be_removed]))
