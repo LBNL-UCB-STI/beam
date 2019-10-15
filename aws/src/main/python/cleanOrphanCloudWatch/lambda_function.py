@@ -17,8 +17,7 @@ class CloudWatchAlarm:
     def instanceid(self):
         instance_regex_extractor = '(.*?)_.*'
         matches = re.findall(instance_regex_extractor, self.alarm_name)
-        instance_match = safe_index(matches, 0)
-        return safe_index(instance_match, 0)
+        return safe_index(matches, 0)
 
 #Expected format: {"regions": ["us-east-1", "us-west-1"]}
 def lambda_handler(event, context):
