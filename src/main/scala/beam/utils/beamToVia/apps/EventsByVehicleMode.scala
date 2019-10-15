@@ -8,45 +8,74 @@ import beam.utils.beamToVia.viaEvent.ViaEvent
 import scala.collection.mutable
 
 object EventsByVehicleMode extends App {
-  // Events file path may be in csv or xml format. Does not work with archives.
-  val beamEventsFilePath = "D:/Work/BEAM/history/visualizations/v35.it3.events.csv"
-  val outputFile = "D:/Work/BEAM/_tmp/output.via.xml"
 
-  // list of vehicle modes, case insensitive
-  val selectedVehiclesModes = Seq[String]("car", "bus")
+  // gradle execute -PmainClass=beam.utils.beamToVia.apps.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
+  val exampleInputArgs = Seq(
+    // Events file path may be in csv or xml format. Does not work with archives.
+    "D:/Work/BEAM/history/visualizations/v35.it3.events.csv",
+    // output file path
+    "D:/Work/BEAM/_tmp/output.via.xml",
+    // list of vehicle modes, case insensitive
+    "car,bus",
+    // 1 means 100%
+    "0.5",
+    // network path
+    "D:/Work/BEAM/history/visualizations/physSimNetwork.xml",
+    // san francisco, approximately: x:548966 y:4179000 r:5000
+    "548966",
+    "4179000",
+    "1000"
+  )
 
-  // 1 means 100%
-  val sampling = 0.1
+  val inputArgs = args
 
-  // leave empty if do not need sampling by circle
-  val networkPath = "D:/Work/BEAM/history/visualizations/physSimNetwork.xml"
+  if (inputArgs.length == 4) {
+    val eventsFile = inputArgs(0)
+    val outputFile = inputArgs(1)
+    val selectedModes = inputArgs(2).split(',').toSeq
+    val sampling = inputArgs(3).toDouble
 
-  // san francisco, approximately: x:548966 y:4179000 r:5000
-  val circleX = 548966
-  val circleY = 4179000
-  val circleR = 4000
+    val filter = MutableVehiclesFilter.withListOfVehicleModes(selectedModes, sampling)
+    buildViaFile(eventsFile, outputFile, filter)
+  } else if (inputArgs.length == 8) {
+    val eventsFile = inputArgs(0)
+    val outputFile = inputArgs(1)
+    val selectedModes = inputArgs(2).split(',').toSeq
+    val sampling = inputArgs(3).toDouble
 
-  val filter: MutableSamplingFilter =
-    if (networkPath.nonEmpty)
-      getFilterWithCircleSampling(
-        selectedVehiclesModes,
-        sampling,
-        networkPath,
-        beamEventsFilePath,
-        circleX,
-        circleY,
-        circleR
-      )
-    else MutableVehiclesFilter.withListOfVehicleModes(selectedVehiclesModes, sampling)
+    val networkPath = inputArgs(4)
+    val circleX = inputArgs(5).toInt
+    val circleY = inputArgs(6).toInt
+    val circleR = inputArgs(7).toInt
 
-  def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
-  def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
+    val filter: MutableSamplingFilter = getFilterWithCircleSampling(
+      selectedModes,
+      sampling,
+      networkPath,
+      eventsFile,
+      circleX,
+      circleY,
+      circleR
+    )
 
-  val (vehiclesEvents, _) = EventsProcessor.readWithFilter(beamEventsFilePath, filter)
-  val (events, typeToId) = EventsProcessor.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
+    buildViaFile(eventsFile, outputFile, filter)
+  } else {
+    Console.print("wrong args");
+    Console.print("usage:");
+    Console.print("simple sampling args: beamEventsFile outputFile selectedModes sampling");
+    Console.print("with circle sampling args: beamEventsFile outputFile selectedModes sampling networkFile X Y R");
+  }
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, outputFile)
-  Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
+  def buildViaFile(eventsFile: String, outputFile: String, filter: MutableSamplingFilter): Unit = {
+    def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
+    def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
+
+    val (vehiclesEvents, _) = EventsProcessor.readWithFilter(eventsFile, filter)
+    val (events, typeToId) = EventsProcessor.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
+
+    Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, outputFile)
+    Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
+  }
 
   def getFilterWithCircleSampling(
     vehicleModes: Seq[String],
