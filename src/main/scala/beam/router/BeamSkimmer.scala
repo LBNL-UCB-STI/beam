@@ -10,6 +10,7 @@ import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
+  BIKE_TRANSIT,
   CAR,
   CAV,
   DRIVE_TRANSIT,
@@ -101,8 +102,8 @@ class BeamSkimmer @Inject()(
         beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
       case RIDE_HAIL_POOLED =>
         beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
-      case _                                                          => 0.0
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
+      case _                                                                         => 0.0
     }
     Skim(
       travelTime,
@@ -187,16 +188,18 @@ class BeamSkimmer @Inject()(
           energy = 0.0
         )
     }
-    (pooled.time / solo.time, pooled.cost / solo.cost)
+    val timeFactor = if (solo.time > 0.0) { pooled.time / solo.time } else { 1.0 }
+    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost } else { 1.0 }
+    (timeFactor, costFactor)
   }
 
   private def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location) = {
     val speed = mode match {
-      case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
-      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec / 1.1
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
-      case BIKE                                                       => bicycleSpeedMeterPerSec
-      case _                                                          => walkSpeedMeterPerSec
+      case CAR | CAV | RIDE_HAIL                                                     => carSpeedMeterPerSec
+      case RIDE_HAIL_POOLED                                                          => carSpeedMeterPerSec / 1.1
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => transitSpeedMeterPerSec
+      case BIKE                                                                      => bicycleSpeedMeterPerSec
+      case _                                                                         => walkSpeedMeterPerSec
     }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(originUTM, destinationUTM)).toInt
     val travelTime: Int = Math
@@ -659,6 +662,7 @@ object BeamSkimmer extends LazyLogging {
     RIDE_HAIL         -> carSpeedMeterPerSec,
     RIDE_HAIL_POOLED  -> carSpeedMeterPerSec,
     RIDE_HAIL_TRANSIT -> transitSpeedMeterPerSec,
+    BIKE_TRANSIT      -> transitSpeedMeterPerSec,
     TRANSIT           -> transitSpeedMeterPerSec
   )
 
