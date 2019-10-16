@@ -1700,6 +1700,13 @@ class RideHailManager(
       rideHailResourceAllocationManager
         .findDepotsForVehiclesInNeedOfRefueling()
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
+        .filter {
+          case (vehId, parkingStall) =>
+            val maybeGeofence = vehicleManager.getRideHailAgentLocation(vehId).geofence
+            val isInsideGeofence =
+              maybeGeofence.forall(g => g.contains(parkingStall.locationUTM.getX, parkingStall.locationUTM.getY))
+            isInsideGeofence
+        }
 
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
     vehiclesHeadedToRefuelingDepot.foreach {
