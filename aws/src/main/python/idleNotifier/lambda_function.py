@@ -1,9 +1,9 @@
 # coding=utf-8
 import json
-import requests
 import logging
 import os
 import re
+import http.client
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -32,8 +32,10 @@ def lambda_handler(event, context):
     }
     slack_hook = os.environ['SLACK_HOOK']
     logger.info('Sending slack notification about idle instance with payload: ' + str(payload))
-    response = requests.post(slack_hook, data=json.dumps(payload), headers=headers)
-    logger.info('Received response from slack notification about idle instance with status code: ' + str(response.status_code) + ' and content: ' + str(response.content))
+    conn = http.client.HTTPSConnection('hooks.slack.com')
+    conn.request('POST', slack_hook, json.dumps(payload), headers)
+    response = conn.getresponse()
+    logger.info('Received response from slack notification about idle instance with response: ' + response.read().decode())
 
     return json.dumps({})
 
