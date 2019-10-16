@@ -1704,7 +1704,15 @@ class RideHailManager(
           case (vehId, parkingStall) =>
             val maybeGeofence = vehicleManager.getRideHailAgentLocation(vehId).geofence
             val isInsideGeofence =
-              maybeGeofence.forall(g => g.contains(parkingStall.locationUTM.getX, parkingStall.locationUTM.getY))
+              maybeGeofence.forall { g =>
+                val locUTM = beamServices.geo.wgs2Utm(
+                  beamServices.geo.snapToR5Edge(
+                    beamServices.beamScenario.transportNetwork.streetLayer,
+                    beamServices.geo.utm2Wgs(parkingStall.locationUTM)
+                  )
+                )
+                g.contains(locUTM.getX, locUTM.getY)
+              }
             isInsideGeofence
         }
 
