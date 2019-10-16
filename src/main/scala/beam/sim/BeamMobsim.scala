@@ -314,8 +314,13 @@ class BeamMobsimIteration(
   }
 
   private def scheduleRideHailManagerTimerMessages(): Unit = {
-    if (config.agents.rideHail.repositioningManager.timeout > 0)
-      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
+    if (config.agents.rideHail.repositioningManager.timeout > 0) {
+      // We need to stagger init tick for repositioning manager and allocation manager
+      // This is important because during the `requestBufferTimeoutInSeconds` repositioned vehicle is not available, so to make them work together
+      // we have to make sure that there is no overlap
+      val initTick = config.agents.rideHail.repositioningManager.timeout / 2
+      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(initTick), rideHailManager)
+    }
     if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
       scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
   }
