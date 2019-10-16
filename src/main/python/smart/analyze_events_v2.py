@@ -83,7 +83,7 @@ def get_pooling_metrics(_data):
                 if vehicle not in d2d_nb_passengers_veh_map:
                     d2d_nb_passengers_veh_map[vehicle] = 0
                     d2d_nb_requests_served_veh_map[vehicle] = 0
-                if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 1:
+                if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 0:
                     # trip starting
                     d2d_nb_requests_served_veh_map[vehicle] = pool_sz
                 elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz - d2d_nb_passengers_veh_map[vehicle] > 0:
@@ -301,4 +301,3 @@ def generate_sankey_for_pooling(_df, _local_filename_itr, _unit=1000.0):
         ))])
     fig.update_layout(title_text="Sankey Diagram For Pooling", font_size=10)
     fig.write_image("{}.pooling-sankey.png".format(_local_filename_itr))
-

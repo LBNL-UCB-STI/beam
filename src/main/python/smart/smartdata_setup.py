@@ -60,8 +60,7 @@ def get_metrics_from_stats(__url, __output_file_path, __iteration):
 
 
 def get_metrics_from_events(__url, __output_file_path, __iteration):
-    metrics_json = analyze_events_v2.get_all_metrics(download_events(__url, __output_file_path, __iteration),
-                                                     __output_file_path)
+    metrics_json = analyze_events_v2.get_all_metrics(download_events(__url, __output_file_path, __iteration),__output_file_path)
     with open("{}.all-metrics.json".format(__output_file_path), 'w') as outfile:
         json.dump(metrics_json, outfile)
     return pd.DataFrame.from_dict(json_normalize(metrics_json))
