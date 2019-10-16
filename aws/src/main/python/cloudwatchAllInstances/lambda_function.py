@@ -24,12 +24,16 @@ def lambda_handler(event, context):
     regions = event.get('regions')
     run_frequency_in_minutes = event.get('run_frequency_in_minutes')
     logger.info('Regions checking for alarm existence: ' + str(regions))
+    excluded_instances = os.environ['EXCLUDED_INSTANCES']
     for region in regions:
         ec2_instances = get_running_instance_for(region)
         logger.info('Running instances returned for region \'' + region + '\' = ' + ' '.join([str(ec2_instance) for ec2_instance in ec2_instances]))
         for ec2_instance in ec2_instances:
-            add_watch_if_not_exists_using(ec2_instance, region)
-            notify_if_instance_up_multiple_of(uptime_interval_to_trigger_notification_in_days, ec2_instance, region, run_frequency_in_minutes)
+            if ec2_instance.instance_id not in excluded_instances:
+                add_watch_if_not_exists_using(ec2_instance, region)
+                notify_if_instance_up_multiple_of(uptime_interval_to_trigger_notification_in_days, ec2_instance, region, run_frequency_in_minutes)
+            else:
+                logger.info('Skipping instance ' + str(ec2_instance) + ' as it is part of the excluded instances list')
     return json.dumps({})
 
 def add_watch_if_not_exists_using(ec2_instance, region):
@@ -46,7 +50,6 @@ def add_watch_if_not_exists_using(ec2_instance, region):
         create_cloudwatch_alarm_for(cloudwatch, ec2_instance.instance_id, region)
 
 def notify_if_instance_up_multiple_of(time_interval_in_days, ec2_instance, region, run_frequency_in_minutes):
-    #TODO: Add an instance ignore list for things we know are long running and we don't want triggered on
     aws_lambda = boto3.client('lambda', region_name=region)
     current_datetime = datetime.now(timezone.utc)
     instance_launch_datetime = ec2_instance.launch_datetime
