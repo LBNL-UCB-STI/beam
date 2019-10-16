@@ -17,6 +17,11 @@ def get_pooling_metrics(_data):
     person_has_shared_a_trip = {}
     passengers_per_veh = {}
     person_in_veh = {}
+
+    d2d_nb_passengers_veh_map = {}
+    d2d_nb_requests_served_veh_map = {}
+    d2d_avg_requests_served = 0
+    d2d_nb_trips = 0
     for row in _data.itertuples():
         person = row.person
         vehicle = row.vehicle
@@ -73,9 +78,25 @@ def get_pooling_metrics(_data):
         elif event == "PathTraversal":
             if not vehicle.startswith("rideHailVehicle"):
                 continue
-            if int(passengers) < 1:
+            pool_sz = int(passengers)
+            if pool_sz >= 1:
+                if vehicle not in d2d_nb_passengers_veh_map:
+                    d2d_nb_passengers_veh_map[vehicle] = 0
+                    d2d_nb_requests_served_veh_map[vehicle] = 0
+                if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 1:
+                    # trip starting
+                    d2d_nb_requests_served_veh_map[vehicle] = pool_sz
+                elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz - d2d_nb_passengers_veh_map[vehicle] > 0:
+                    # new passengers
+                    d2d_nb_requests_served_veh_map[vehicle] += (pool_sz - d2d_nb_passengers_veh_map[vehicle])
+                elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz == 0:
+                    # trip ending
+                    d2d_avg_requests_served = (d2d_avg_requests_served * d2d_nb_trips + d2d_nb_requests_served_veh_map[vehicle])/(d2d_nb_trips+1)
+                    d2d_nb_trips += 1
+            else:
                 sum_deadheading_distance_traveled += float(distance)
             sum_ride_hail_distance_traveled += float(distance)
+            d2d_nb_passengers_veh_map[vehicle] = pool_sz
     del _data
     tot_pool_trips = count_of_multi_passenger_pool_trips + count_of_one_passenger_pool_trips + \
                      count_of_unmatched_pool_requests
@@ -104,7 +125,9 @@ def get_pooling_metrics(_data):
         "multi_passengers_trips_per_pool_trips": multi_passengers_trips_per_pool_trips,
         "multi_passengers_trips_per_ride_hail_trips": multi_passengers_trips_per_ride_hail_trips,
         "unmatched_per_ride_hail_requests": unmatched_per_ride_hail_requests,
-        "deadheading_per_ride_hail_trips": deadheading_per_ride_hail_trips
+        "deadheading_per_ride_hail_trips": deadheading_per_ride_hail_trips,
+        "rh_avg_requests_served_dh_to_dh": d2d_avg_requests_served,
+        "rh_nb_trips_dh_to_dh": d2d_nb_trips
     }
 
 
