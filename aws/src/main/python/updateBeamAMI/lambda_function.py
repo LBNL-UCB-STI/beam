@@ -14,8 +14,9 @@ def lambda_handler(event, context):
     image_ids['us-east-2'] = create_ami(image_name, instance_id)
     image_ids['us-east-1'] = copy_ami(image_name, image_ids['us-east-2'], 'us-east-1')
     image_ids['us-west-2'] = copy_ami(image_name, image_ids['us-east-2'], 'us-west-2')
-    update_lambda(image_ids)
-    
+    update_lambda(image_ids, 'simulateBeam')
+    update_lambda(image_ids, 'runPilates')
+
     return json.dumps(image_ids)
 
 
@@ -40,9 +41,9 @@ def wait4image(ec2, image_id):
     waiter.wait(Filters=[{'Name': 'state', 'Values': ['available']}],
                 ImageIds=[image_id])
                 
-def update_lambda(image_ids):
+def update_lambda(image_ids, function_name):
     lm = boto3.client('lambda')
-    en_var = lm.get_function_configuration(FunctionName='simulateBeam')['Environment']['Variables']
+    en_var = lm.get_function_configuration(FunctionName=function_name)['Environment']['Variables']
     en_var.update({
                     'us_east_2_IMAGE_ID': image_ids['us-east-2'],
                     'us_east_1_IMAGE_ID': image_ids['us-east-1'],
