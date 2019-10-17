@@ -846,13 +846,13 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     bottom_labels = _plt_setup3['bottom_labels']
     nb_scenarios = len(_plt_setup3['scenarios_id'])
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    output_png = '{}/{}/{}.rh_avg_chained_trips.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
-    output_csv = '{}/{}/{}.rh_avg_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_png = '{}/{}/{}.rh_chained_trips_requests.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_csv = '{}/{}/{}.rh_chained_trips_requests.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
     #createColumnIfNotExist(df, 'rh_avg_requests_served_dh_to_dh', 0)
     #print(df['rh_avg_requests_served_dh_to_dh'].values.copy())
 
-    data = pd.DataFrame({'rh_avg': df['rh_avg_requests_served_dh_to_dh'].values.copy()})
+    data = pd.DataFrame({'rh_avg': df['chained_trips_requests'].values.copy()})
 
     height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()
@@ -882,13 +882,13 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     bottom_labels = _plt_setup3['bottom_labels']
     nb_scenarios = len(_plt_setup3['scenarios_id'])
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    output_png = '{}/{}/{}.rh_nbr_chained_trips.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
-    output_csv = '{}/{}/{}.rh_nbr_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_png = '{}/{}/{}.rh_chained_trips_count.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_csv = '{}/{}/{}.rh_chained_trips_count.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
     #createColumnIfNotExist(df, 'rh_nb_trips_dh_to_dh', 0)
     #print(df['rh_nb_trips_dh_to_dh'].values.copy())
 
-    data = pd.DataFrame({'rh_nbr': df['rh_nb_trips_dh_to_dh'].values.copy()})
+    data = pd.DataFrame({'rh_nbr': df['chained_trips_count'].values.copy()})
 
     height_all = data.sum(axis=1)
     data['scenario'] = df['Scenario'].values.copy()

@@ -117,8 +117,8 @@ def get_pooling_metrics(_data):
         "multi_passengers_trips_per_ride_hail_trips": multi_passengers_trips_per_ride_hail_trips,
         "unmatched_per_ride_hail_requests": unmatched_per_ride_hail_requests,
         "deadheading_per_ride_hail_trips": deadheading_per_ride_hail_trips,
-        "rh_avg_requests_served_dh_to_dh": ct_avg_requests,
-        "rh_nb_trips_dh_to_dh": ct_nb_trips
+        "chained_trips_requests": ct_avg_requests,
+        "chained_trips_count": ct_nb_trips
     }
 
 
