@@ -19,8 +19,8 @@ def get_pooling_metrics(_data):
     person_in_veh = {}
 
     ct_nb_requests = {}
-    ct_avg_requests = 0
-    ct_nb_trips = 0
+    chained_trips_requests = 0
+    chained_trips_count = 0
     for row in _data.itertuples():
         person = row.person
         vehicle = row.vehicle
@@ -79,8 +79,8 @@ def get_pooling_metrics(_data):
                 passengers_per_veh[vehicle] -= 1
                 # chained trips metrics
                 if passengers_per_veh[vehicle] == 0:
-                    ct_avg_requests = (ct_avg_requests * ct_nb_trips + ct_nb_requests[vehicle])/(ct_nb_trips+1)
-                    ct_nb_trips += 1
+                    chained_trips_requests = (chained_trips_requests * chained_trips_count + ct_nb_requests[vehicle])/(chained_trips_count+1)
+                    chained_trips_count += 1
             del mode_choice_attempt[person]
         elif event == "PathTraversal":
             if not vehicle.startswith("rideHailVehicle"):
@@ -117,8 +117,8 @@ def get_pooling_metrics(_data):
         "multi_passengers_trips_per_ride_hail_trips": multi_passengers_trips_per_ride_hail_trips,
         "unmatched_per_ride_hail_requests": unmatched_per_ride_hail_requests,
         "deadheading_per_ride_hail_trips": deadheading_per_ride_hail_trips,
-        "chained_trips_requests": ct_avg_requests,
-        "chained_trips_count": ct_nb_trips
+        "chained_trips_requests": chained_trips_requests,
+        "chained_trips_count": chained_trips_count
     }
 
 
