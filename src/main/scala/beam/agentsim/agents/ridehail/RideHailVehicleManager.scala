@@ -340,6 +340,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
 }
 
 object RideHailVehicleManager {
+
+  /** Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
+    */
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,
     vehicleId: Id[Vehicle],
@@ -355,6 +358,19 @@ object RideHailVehicleManager {
     def toStreetVehicle: StreetVehicle = {
       StreetVehicle(vehicleId, vehicleType.id, currentLocationUTM, CAR, asDriver = true)
     }
+
+    override def equals(obj: Any): Boolean = {
+      obj match {
+        case that: RideHailAgentLocation =>
+          that.canEqual(this) && vehicleId == that.vehicleId
+      }
+    }
+
+    override def hashCode(): Int = {
+      vehicleId.hashCode()
+    }
+
+    def canEqual(other: Any): Boolean = other.isInstanceOf[RideHailAgentLocation]
   }
 
   case class RideHailAgentETA(
