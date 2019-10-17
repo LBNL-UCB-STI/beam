@@ -18,11 +18,9 @@ def get_pooling_metrics(_data):
     passengers_per_veh = {}
     person_in_veh = {}
 
-    vehicle_is_pooling = {}
-    d2d_nb_passengers_veh_map = {}
-    d2d_nb_requests_served_veh_map = {}
-    d2d_avg_requests_served = 0
-    d2d_nb_trips = 0
+    ct_nb_requests = {}
+    ct_avg_requests = 0
+    ct_nb_trips = 0
     for row in _data.itertuples():
         person = row.person
         vehicle = row.vehicle
@@ -51,15 +49,17 @@ def get_pooling_metrics(_data):
                 i = 0
                 # agent started walking towards ride hail vehicle
             elif chosen_mode == "ride_hail_pooled":
-                vehicle_is_pooling[vehicle] = True
                 person_in_veh[person] = vehicle
                 prev_pool = passengers_per_veh[vehicle] if vehicle in passengers_per_veh else 0
                 passengers_per_veh[vehicle] = prev_pool + 1
                 for p in {k: v for k, v in person_in_veh.items() if v == vehicle}:
                     if p not in person_has_shared_a_trip or not person_has_shared_a_trip[p]:
                         person_has_shared_a_trip[p] = passengers_per_veh[vehicle] > 1
+                # chained trips metrics
+                if prev_pool == 0:
+                    ct_nb_requests[vehicle] = 0
+                ct_nb_requests[vehicle] += 1
             else:
-                vehicle_is_pooling[vehicle] = False
                 count_of_solo_trips += 1
         elif event == "PersonLeavesVehicle":
             if person not in mode_choice_attempt:
@@ -77,28 +77,17 @@ def get_pooling_metrics(_data):
                 del person_has_shared_a_trip[person]
                 del person_in_veh[person]
                 passengers_per_veh[vehicle] -= 1
+                # chained trips metrics
+                if passengers_per_veh[vehicle] == 0:
+                    ct_avg_requests = (ct_avg_requests * ct_nb_trips + ct_nb_requests[vehicle])/(ct_nb_trips+1)
+                    ct_nb_trips += 1
             del mode_choice_attempt[person]
         elif event == "PathTraversal":
             if not vehicle.startswith("rideHailVehicle"):
                 continue
-            pool_sz = int(passengers)
-            if pool_sz == 0:
+            if int(passengers) == 0:
                 sum_deadheading_distance_traveled += float(distance)
             sum_ride_hail_distance_traveled += float(distance)
-
-            if vehicle_is_pooling[vehicle]:
-                if vehicle not in d2d_nb_passengers_veh_map:
-                    d2d_nb_passengers_veh_map[vehicle] = 0
-                    d2d_nb_requests_served_veh_map[vehicle] = 0
-                if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 0:# trip starting
-                    d2d_nb_requests_served_veh_map[vehicle] = pool_sz
-                elif d2d_nb_passengers_veh_map[vehicle] > 0 and (pool_sz - d2d_nb_passengers_veh_map[vehicle]) > 0:# new passengers
-                    d2d_nb_requests_served_veh_map[vehicle] += (pool_sz - d2d_nb_passengers_veh_map[vehicle])
-                elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz == 0:# trip ending
-                    d2d_avg_requests_served = (d2d_avg_requests_served * d2d_nb_trips + d2d_nb_requests_served_veh_map[vehicle])/(d2d_nb_trips+1)
-                    d2d_nb_trips += 1
-            d2d_nb_passengers_veh_map[vehicle] = pool_sz
-
     del _data
     tot_pool_trips = count_of_multi_passenger_pool_trips + count_of_one_passenger_pool_trips + \
                      count_of_unmatched_pool_requests
@@ -128,8 +117,8 @@ def get_pooling_metrics(_data):
         "multi_passengers_trips_per_ride_hail_trips": multi_passengers_trips_per_ride_hail_trips,
         "unmatched_per_ride_hail_requests": unmatched_per_ride_hail_requests,
         "deadheading_per_ride_hail_trips": deadheading_per_ride_hail_trips,
-        "rh_avg_requests_served_dh_to_dh": d2d_avg_requests_served,
-        "rh_nb_trips_dh_to_dh": d2d_nb_trips
+        "rh_avg_requests_served_dh_to_dh": ct_avg_requests,
+        "rh_nb_trips_dh_to_dh": ct_nb_trips
     }
 
 
