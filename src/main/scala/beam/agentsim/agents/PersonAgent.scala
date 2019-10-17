@@ -675,7 +675,7 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
         dataForNextLegOrActivity = data.copy(
-          restOfCurrentTrip = data.restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
+          restOfCurrentTrip = data.restOfCurrentTrip.tail,
           currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
           currentTripCosts = 0.0
         )
