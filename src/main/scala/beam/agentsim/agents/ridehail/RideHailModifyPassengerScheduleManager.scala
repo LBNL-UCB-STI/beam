@@ -6,14 +6,11 @@ import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.sim.config.BeamConfig
-import beam.utils.DebugLib
-import com.eaio.uuid.UUIDGen
+import beam.utils.InterruptIdIdGenerator
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -28,7 +25,7 @@ class RideHailModifyPassengerScheduleManager(
 ) extends HasTickAndTrigger {
 
   private val interruptIdToModifyPassengerScheduleStatus =
-    mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
+    mutable.Map[Int, RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Vehicle], RideHailModifyPassengerScheduleStatus]()
   private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
@@ -367,7 +364,7 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
   private def clearModifyStatusFromCacheWithInterruptId(
-    interruptId: Id[Interrupt]
+    interruptId: Int
   ): Unit = {
     log.debug("remove interrupt from clearModifyStatusFromCacheWithInterruptId {}", interruptId)
     interruptIdToModifyPassengerScheduleStatus.remove(interruptId).foreach { rideHailModifyPassengerScheduleStatus =>
@@ -435,7 +432,7 @@ case object Reposition extends InterruptOrigin
 case object HoldForPlanning extends InterruptOrigin
 
 case class RideHailModifyPassengerScheduleStatus(
-  interruptId: Id[Interrupt],
+  interruptId: Int,
   vehicleId: Id[Vehicle],
   modifyPassengerSchedule: ModifyPassengerSchedule,
   interruptOrigin: InterruptOrigin,
@@ -448,8 +445,5 @@ case class RideHailModifyPassengerScheduleStatus(
 case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle])
 
 object RideHailModifyPassengerScheduleManager {
-
-  def nextRideHailAgentInterruptId: Id[Interrupt] = {
-    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[Interrupt])
-  }
+  def nextRideHailAgentInterruptId: Int = InterruptIdIdGenerator.nextId
 }

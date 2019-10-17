@@ -233,6 +233,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamScenario, networkHelper)
+      currentBeamVehicle.spaceTime = geo.wgs2Utm(currentLeg.travelPath.endPoint)
 
       var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
       if (nbPassengers > 0) {
