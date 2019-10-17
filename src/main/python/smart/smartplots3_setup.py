@@ -850,7 +850,7 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     output_csv = '{}/{}/{}.rh_avg_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
     #createColumnIfNotExist(df, 'rh_avg_requests_served_dh_to_dh', 0)
-    print(df['rh_avg_requests_served_dh_to_dh'].values.copy())
+    #print(df['rh_avg_requests_served_dh_to_dh'].values.copy())
 
     data = pd.DataFrame({'rh_avg': df['rh_avg_requests_served_dh_to_dh'].values.copy()})
 
@@ -870,7 +870,7 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
     plt.ylabel('Average Served Requests Per Chained Trips')
-    plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
+    #plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -886,7 +886,7 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     output_csv = '{}/{}/{}.rh_nbr_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
     #createColumnIfNotExist(df, 'rh_nb_trips_dh_to_dh', 0)
-    print(df['rh_nb_trips_dh_to_dh'].values.copy())
+    #print(df['rh_nb_trips_dh_to_dh'].values.copy())
 
     data = pd.DataFrame({'rh_nbr': df['rh_nb_trips_dh_to_dh'].values.copy()})
 
@@ -906,7 +906,7 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
     plt.ylabel('Number of Chained Trips')
-    plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
+    #plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()

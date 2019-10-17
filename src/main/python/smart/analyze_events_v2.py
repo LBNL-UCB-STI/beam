@@ -18,6 +18,7 @@ def get_pooling_metrics(_data):
     passengers_per_veh = {}
     person_in_veh = {}
 
+    vehicle_is_pooling = {}
     d2d_nb_passengers_veh_map = {}
     d2d_nb_requests_served_veh_map = {}
     d2d_avg_requests_served = 0
@@ -50,6 +51,7 @@ def get_pooling_metrics(_data):
                 i = 0
                 # agent started walking towards ride hail vehicle
             elif chosen_mode == "ride_hail_pooled":
+                vehicle_is_pooling[vehicle] = True
                 person_in_veh[person] = vehicle
                 prev_pool = passengers_per_veh[vehicle] if vehicle in passengers_per_veh else 0
                 passengers_per_veh[vehicle] = prev_pool + 1
@@ -57,6 +59,7 @@ def get_pooling_metrics(_data):
                     if p not in person_has_shared_a_trip or not person_has_shared_a_trip[p]:
                         person_has_shared_a_trip[p] = passengers_per_veh[vehicle] > 1
             else:
+                vehicle_is_pooling[vehicle] = False
                 count_of_solo_trips += 1
         elif event == "PersonLeavesVehicle":
             if person not in mode_choice_attempt:
@@ -83,16 +86,17 @@ def get_pooling_metrics(_data):
                 sum_deadheading_distance_traveled += float(distance)
             sum_ride_hail_distance_traveled += float(distance)
 
-            if vehicle not in d2d_nb_passengers_veh_map:
-                d2d_nb_passengers_veh_map[vehicle] = 0
-                d2d_nb_requests_served_veh_map[vehicle] = 0
-            if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 0:# trip starting
-                d2d_nb_requests_served_veh_map[vehicle] = pool_sz
-            elif d2d_nb_passengers_veh_map[vehicle] > 0 and (pool_sz - d2d_nb_passengers_veh_map[vehicle]) > 0:# new passengers
-                d2d_nb_requests_served_veh_map[vehicle] += (pool_sz - d2d_nb_passengers_veh_map[vehicle])
-            elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz == 0:# trip ending
-                d2d_avg_requests_served = (d2d_avg_requests_served * d2d_nb_trips + d2d_nb_requests_served_veh_map[vehicle])/(d2d_nb_trips+1)
-                d2d_nb_trips += 1
+            if vehicle_is_pooling[vehicle]:
+                if vehicle not in d2d_nb_passengers_veh_map:
+                    d2d_nb_passengers_veh_map[vehicle] = 0
+                    d2d_nb_requests_served_veh_map[vehicle] = 0
+                if d2d_nb_passengers_veh_map[vehicle] == 0 and pool_sz > 0:# trip starting
+                    d2d_nb_requests_served_veh_map[vehicle] = pool_sz
+                elif d2d_nb_passengers_veh_map[vehicle] > 0 and (pool_sz - d2d_nb_passengers_veh_map[vehicle]) > 0:# new passengers
+                    d2d_nb_requests_served_veh_map[vehicle] += (pool_sz - d2d_nb_passengers_veh_map[vehicle])
+                elif d2d_nb_passengers_veh_map[vehicle] > 0 and pool_sz == 0:# trip ending
+                    d2d_avg_requests_served = (d2d_avg_requests_served * d2d_nb_trips + d2d_nb_requests_served_veh_map[vehicle])/(d2d_nb_trips+1)
+                    d2d_nb_trips += 1
             d2d_nb_passengers_veh_map[vehicle] = pool_sz
 
     del _data
@@ -154,7 +158,7 @@ def get_all_metrics(filename, __local_file_path):
         with open(pool_metrics_file_path, 'w') as outfile:
             json.dump(metrics_json, outfile)
             pooling_sankey_path = __local_file_path.rsplit("/", 1)[0] + "/sankey/" + __local_file_path.rsplit("/", 1)[1]
-        generate_sankey_for_pooling(metrics_json, pooling_sankey_path)
+        #generate_sankey_for_pooling(metrics_json, pooling_sankey_path)
     else:
         del data
 
