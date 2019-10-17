@@ -676,7 +676,7 @@ class PersonAgent(
         )
         dataForNextLegOrActivity = data.copy(
           restOfCurrentTrip = data.restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
-          currentVehicle = if(data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
           currentTripCosts = 0.0
         )
         if (currentBeamVehicle != body) {
