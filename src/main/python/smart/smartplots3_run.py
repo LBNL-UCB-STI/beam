@@ -65,6 +65,9 @@ smartplots3_setup.pltLdvRhOccupancyByVMT(plt_setup_smart3, output_folder)
 smartplots3_setup.pltOverallAverageSpeed(plt_setup_smart3, output_folder)
 smartplots3_setup.pltRHWaitTime(plt_setup_smart3, output_folder)
 
+smartplots3_setup.pltRHAverageChainedTrips(plt_setup_smart3, output_folder)
+smartplots3_setup.pltRHNumberChainedTrips(plt_setup_smart3, output_folder)
+
 
 settings=[]
 settings.append(createSettingRow(2010,1,15,"Base_CL_CT", ""))

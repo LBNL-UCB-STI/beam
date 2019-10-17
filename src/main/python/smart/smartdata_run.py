@@ -50,7 +50,7 @@ scenarios = scenarios_2010 + scenarios_2025 + scenarios_2040
 
 setup_config_dict = {
     "run_name": "20thSep2019",
-    "home_dir": "/home/ubuntu/git/jupyter/data",
+    "home_dir": "/Users/haitam/workspace/pyscripts/data/smart",
     "scenarios": scenarios
 }
 

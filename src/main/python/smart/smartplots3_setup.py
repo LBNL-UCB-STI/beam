@@ -585,8 +585,6 @@ def pltModeSplitInVMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,
     createColumnIfNotExist(df, 'VMT_car_CAV_shared', 0)
     createColumnIfNotExist(df, 'VMT_car_RH_CAV_empty', 0)
 
-
-
     data = pd.DataFrame(
         {'transit': (df['VMT_bus'].values+df['VMT_ferry'].values+df['VMT_rail'].values+df['VMT_subway'].values+
                      df['VMT_tram'].values+df['VMT_cable_car'].values) * scale * transitFactor,
@@ -636,8 +634,6 @@ def pltModeSplitInVMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
-
-
 
 def pltLdvTechnologySplitInVMT(_plt_setup3, _output_folder):
     plot_size = _plt_setup3['plot_size']
@@ -839,6 +835,78 @@ def pltEnergyPerCapita(_plt_setup3, _output_folder):
     plt.ylabel('Light Duty Vehicle Energy per Capita (MJ)')
     plt.legend((plt_Electricity, plt_Diesel, plt_Gas),
                ('Electricity', 'Diesel', 'Gasoline'), bbox_to_anchor=(1.05, 0.5), frameon=False)
+    plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+    plt.clf()
+    plt.close()
+
+
+def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
+    plot_size = _plt_setup3['plot_size']
+    top_labels = _plt_setup3['top_labels']
+    bottom_labels = _plt_setup3['bottom_labels']
+    nb_scenarios = len(_plt_setup3['scenarios_id'])
+    (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
+    output_png = '{}/{}/{}.rh_avg_chained_trips.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_csv = '{}/{}/{}.rh_avg_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+
+    #createColumnIfNotExist(df, 'rh_avg_requests_served_dh_to_dh', 0)
+    print(df['rh_avg_requests_served_dh_to_dh'].values.copy())
+
+    data = pd.DataFrame({'rh_avg': df['rh_avg_requests_served_dh_to_dh'].values.copy()})
+
+    height_all = data.sum(axis=1)
+    data['scenario'] = df['Scenario'].values.copy()
+    data['technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
+
+    plt.figure(figsize=plot_size)
+    plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_avg'], color=mode_colors['RH'])
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+
+    ax = plt.gca()
+    ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
+    max_value = max(height_all)*1.05
+    ax.set_ylim((0, max_value))
+    for ind in range(nb_scenarios):
+        plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
+    plt.ylabel('Average Served Requests Per Chained Trips')
+    plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
+    plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+    plt.clf()
+    plt.close()
+
+
+def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
+    plot_size = _plt_setup3['plot_size']
+    top_labels = _plt_setup3['top_labels']
+    bottom_labels = _plt_setup3['bottom_labels']
+    nb_scenarios = len(_plt_setup3['scenarios_id'])
+    (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
+    output_png = '{}/{}/{}.rh_nbr_chained_trips.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_csv = '{}/{}/{}.rh_nbr_chained_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+
+    #createColumnIfNotExist(df, 'rh_nb_trips_dh_to_dh', 0)
+    print(df['rh_nb_trips_dh_to_dh'].values.copy())
+
+    data = pd.DataFrame({'rh_nbr': df['rh_nb_trips_dh_to_dh'].values.copy()})
+
+    height_all = data.sum(axis=1)
+    data['scenario'] = df['Scenario'].values.copy()
+    data['technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
+
+    plt.figure(figsize=plot_size)
+    plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_nbr'], color=mode_colors['RH'])
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+
+    ax = plt.gca()
+    ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
+    max_value = max(height_all)*1.05
+    ax.set_ylim((0, max_value))
+    for ind in range(nb_scenarios):
+        plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
+    plt.ylabel('Number of Chained Trips')
+    plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
