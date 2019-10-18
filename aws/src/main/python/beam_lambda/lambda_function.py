@@ -90,6 +90,7 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
+  - sudo aws --region us-east-2 lambda invoke --function-name spreadsheetData --payload '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Started","name": "$TITLED","instance_id": "$(ec2metadata --instance-id)","instance_type": "$(ec2metadata --instance-type)","host_name": "$(ec2metadata --public-hostname)","browser": "http://$(ec2metadata --public-hostname):8000","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT"}}' response.json
   - s3p=""
   - for cf in $CONFIG
   -  do

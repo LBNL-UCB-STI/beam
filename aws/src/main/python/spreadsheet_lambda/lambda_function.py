@@ -7,6 +7,7 @@ import time
 import os
 from datetime import datetime
 from googleapiclient.discovery import build
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from botocore.errorfactory import ClientError
@@ -221,6 +222,10 @@ def load_creds():
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
+
+    if os.path.exists('/tmp/token.pickle'):
+        with open('/tmp/token.pickle', 'rb') as token:
+            creds = pickle.load(token)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -230,13 +235,18 @@ def load_creds():
                 'credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        with open('/tmp/token.pickle', 'wb') as token:
             pickle.dump(creds, token)
     return creds
 
 
+def load_service_creds():
+    creds = service_account.Credentials.from_service_account_file('beam-simulation.json', scopes=SCOPES)
+    return creds
+
+
 def add_handler(event):
-    creds = load_creds()
+    creds = load_service_creds()
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
     add_row(event.get('sheet_id'), event.get('run'), sheet)
@@ -264,14 +274,14 @@ def lambda_handler(event, context):
 
 
 def main():
-    creds = load_creds()
+    creds = load_service_creds()
     service = build('sheets', 'v4', credentials=creds)
     # Call the Sheets API
     sheet = service.spreadsheets()
-    datem = datetime.now().strftime('%h.%Y')
-    sheet_id = create_spreadsheet(sheet, '{0} {1}'.format(SHEET_NAME_PREFIX, datem))
+    #datem = datetime.now().strftime('%h.%Y')
+    #sheet_id = create_spreadsheet(sheet, '{0} {1}'.format(SHEET_NAME_PREFIX, datem))
     for i in range(10):
-        add_row(sheet_id, {
+        add_row("1JL4Sygkghx-ksaKsNc2JKzALfO3c_8yAV-9QRCp212A", {
             'status': 'Run Started',
             'name': 'Run Started',
             'instance_id': 'i13123qw',
@@ -286,7 +296,7 @@ def main():
         }, sheet)
 
     for i in range(10):
-        add_row(sheet_id, {
+        add_row("1JL4Sygkghx-ksaKsNc2JKzALfO3c_8yAV-9QRCp212A", {
             'status': 'Run Completed',
             'name': 'Run Started',
             'instance_id': 'i13123qw',
