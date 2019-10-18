@@ -97,9 +97,11 @@ def get_running_instance_for(region):
     )
     if len(safe_get(running_instances_response, 'Reservations')) > 0:
         reservations = safe_get(running_instances_response, 'Reservations')
-        first_reservation = safe_index(reservations ,0)
-        instances = safe_get(first_reservation, 'Instances')
-        return [convert_to_ec2_instance_from(instance) for instance in instances]
+        instance_list = []
+        for reservation in reservations:
+            instances = safe_get(reservation, 'Instances')
+            instance_list += [convert_to_ec2_instance_from(instance) for instance in instances]
+        return instance_list
     else:
         logger.info('0 running instances found in ' + region)
         return []
