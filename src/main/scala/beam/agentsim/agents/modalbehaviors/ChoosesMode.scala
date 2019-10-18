@@ -241,7 +241,8 @@ trait ChoosesMode {
           withTransit,
           vehicles,
           Some(attributes),
-          streetVehiclesIntermodalUse
+          streetVehiclesIntermodalUse,
+          initiatedFrom = s"ChoosesMode: withTransit=$withTransit, withParking=$withParking"
         )
         if (withParking) {
           requestParkingCost(
@@ -278,7 +279,8 @@ trait ChoosesMode {
           startWithWaitBuffer,
           withTransit = true,
           Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-          streetVehiclesUseIntermodalUse = AccessAndEgress
+          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          initiatedFrom = "ChoosesMode: makeRideHailTransitRoutingRequest"
         )
         router ! theRequest
         Some(theRequest.requestId)
@@ -456,7 +458,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId),
+        theRouterResult @ RoutingResponse(_, requestId, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>

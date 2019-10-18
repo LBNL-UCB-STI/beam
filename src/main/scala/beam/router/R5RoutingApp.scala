@@ -113,7 +113,8 @@ object R5RoutingApp extends BeamHelper {
       destinationUTM = endUTM,
       departureTime = departureTime,
       withTransit = false,
-      streetVehicles = Vector(bodyStreetVehicle)
+      streetVehicles = Vector(bodyStreetVehicle),
+      initiatedFrom = "RoutingApp"
     )
 
     println(routingRequest.asJson.toString())

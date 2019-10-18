@@ -315,13 +315,14 @@ class RideHailAgent(
         _currentTick.get,
         withTransit = false,
         Vector(carStreetVeh),
-        None
+        None,
+        initiatedFrom = "RideHailAgent: when(Offline) Event(ParkingInquiryResponse(stall, _), _). veh2StallRequest"
       )
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest
 //      }
       stay
-    case Event(RoutingResponse(itineraries, _), data) =>
+    case Event(RoutingResponse(itineraries, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
@@ -409,7 +410,7 @@ class RideHailAgent(
     case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _), _) =>
       stash()
       stay()
   }

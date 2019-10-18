@@ -302,7 +302,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           )
         )
       ),
-      embodyRequestId
+      embodyRequestId,
+      None
     )
     response
   }
@@ -946,16 +947,18 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
-          request.requestId
+          request.requestId,
+          Some(request)
         )
       } else {
         RoutingResponse(
           embodiedTrips,
-          request.requestId
+          request.requestId,
+          Some(request)
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId)
+      RoutingResponse(embodiedTrips, request.requestId, Some(request))
     }
   }
 

@@ -848,7 +848,8 @@ class RideHailManager(
         destinationUTM = stall.locationUTM,
         departureTime = agentLocation.currentLocationUTM.time,
         withTransit = false,
-        streetVehicles = Vector(agentLocation.toStreetVehicle)
+        streetVehicles = Vector(agentLocation.toStreetVehicle),
+        initiatedFrom = s"RideHailManager: ParkingInquiryResponse($stall, $requestId)"
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
 
@@ -1258,7 +1259,8 @@ class RideHailManager(
       request.pickUpLocationUTM,
       requestTime,
       withTransit = false,
-      Vector(rideHailVehicleAtOrigin)
+      Vector(rideHailVehicleAtOrigin),
+      initiatedFrom = s"RideHailManager: createRoutingRequestsToCustomerAndDestination (rideHailAgent2Customer)"
     )
 // route from customer to destination
     val rideHail2Destination = RoutingRequest(
@@ -1266,7 +1268,8 @@ class RideHailManager(
       request.destinationUTM,
       requestTime,
       withTransit = false,
-      Vector(rideHailVehicleAtPickup)
+      Vector(rideHailVehicleAtPickup),
+      initiatedFrom = s"RideHailManager: createRoutingRequestsToCustomerAndDestination (rideHail2Destination)"
     )
 
     List(rideHailAgent2Customer, rideHail2Destination)
@@ -1782,7 +1785,8 @@ class RideHailManager(
           destinationUTM = destinationLocation,
           departureTime = tick,
           withTransit = false,
-          streetVehicles = Vector(rideHailVehicleAtOrigin)
+          streetVehicles = Vector(rideHailVehicleAtOrigin),
+          initiatedFrom = s"RideHailManager: continueRepositioning($tick). vehicleId: ${vehicleId}, destinationLocation: $destinationLocation"
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest
         futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
@@ -1802,7 +1806,7 @@ class RideHailManager(
       if (itins2Cust.nonEmpty) {
         val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
           itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
-        val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId)
+        val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId, None)
 
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs

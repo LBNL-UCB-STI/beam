@@ -252,7 +252,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                         CAR,
                         asDriver = true
                       )
-                    )
+                    ),
+                    initiatedFrom = s"PoolingAlonsoMora: allocateVehiclesToCustomers($tick)"
                   )
                   scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                   Some(routingRequest)

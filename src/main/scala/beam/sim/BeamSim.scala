@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIteratio
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
+import beam.analysis.{DelayMetricAnalysis, GeofenceAnalyzer, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -91,12 +91,16 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
+  val geofenceAnalyzer: GeofenceAnalyzer = new GeofenceAnalyzer(beamServices)
+
+
   override def notifyStartup(event: StartupEvent): Unit = {
 
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
     eventsManager.addHandler(rideHailUtilizationCollector)
+    eventsManager.addHandler(geofenceAnalyzer)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -108,7 +112,8 @@ class BeamSim @Inject()(
         scenario,
         scenario.getTransitVehicles,
         beamServices.fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager
       ),
       "router"
     )
@@ -196,6 +201,7 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    geofenceAnalyzer.reset(event.getIteration)
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -222,6 +228,7 @@ class BeamSim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
+    geofenceAnalyzer.notifyIterationEnds(event)
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
