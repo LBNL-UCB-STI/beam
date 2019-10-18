@@ -30,7 +30,8 @@ mode_colors = {'RH': colors['red'],
                'electricity': colors['blue'],
                'gas': colors['purple'],
                'diesel': colors['yellow']}
-angle = 22
+angle = 0
+horizontal_align = "center"
 
 def getDfForPlt(_plt_setup3, _output_folder):
     if not os.path.exists('{}/{}'.format(_output_folder,_plt_setup3['plots_folder'])):
@@ -98,7 +99,7 @@ def pltModeSplitByTripsInternal(_plt_setup3, _output_folder, rh_realized, filena
     plt_rhp = plt.bar(x=top_labels_xpos, height=data['rhp'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'],zorder=3)
     plt_bike = plt.bar(x=top_labels_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp']].sum(axis=1), color=mode_colors['Bike'],zorder=3)
     plt_walk = plt.bar(x=top_labels_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp', 'bike']].sum(axis=1), color=mode_colors['Walk'],zorder=3)
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_rhp, plt_bike, plt_walk),
                ('Transit', 'Car', 'CAV', 'Ridehail', 'Ridehail Pool', 'Bike', 'Walk'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -250,7 +251,7 @@ def pltAverageSpeed_internal(_plt_setup3, _output_folder, outputFileName, plotOp
     plt.figure(figsize=plot_size)
     plt_non_rh_ldv = plt.bar(x=top_labels_xpos, height=data['averageSpeed'], color=colors['grey'],zorder=3)
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
 
     #plt.axhline(color='black', linestyle='dashed', lw=0.5, alpha=0.2)
     ax = plt.gca()
@@ -310,7 +311,7 @@ def pltLdvRhOccupancy(_plt_setup3, _output_folder):
     #     shared_3p = mpatches.Patch(facecolor='white', label='The white data', hatch='|||')
     #     shared_4p = mpatches.Patch(facecolor='white', label='The white data', hatch='....')
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     #     plt.legend((plt_non_rh_ldv, plt_rh_1p, plt_rh_shared, shared_2p, shared_3p, shared_4p),
     #                ('non-Ridehail LDV', 'Ridehail', 'Ridehail Pool', '2 passengers', '3 passengers', '4+ passengers'),
     #                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -382,7 +383,7 @@ def pltLdvRhOccupancyByVMT(_plt_setup3, _output_folder):
     shared_3p = mpatches.Patch(facecolor='white', label='The white data', hatch='|||')
     shared_4p = mpatches.Patch(facecolor='white', label='The white data', hatch='....')
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_car, plt_car_shared, plt_rh, plt_rh_shared, shared_2p, shared_3p, shared_4p, empty),
                ('Car/CAV', 'CAV Shared', 'Ridehail', 'Ridehail Pool', '2 passengers', '3 passengers', '4+ passengers', 'Deadheading'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -429,7 +430,7 @@ def pltLdvPersonHourTraveled(_plt_setup3, _output_folder):
     plt_rh = plt.bar(x=top_labels_xpos, height=data['rh'], bottom=data[['car', 'cav']].sum(axis=1), color=mode_colors['RH'],zorder=3)
     plt_rhp = plt.bar(x=top_labels_xpos, height=data['rhp'], bottom=data[['car', 'cav', 'rh']].sum(axis=1), color=mode_colors['RHP'],zorder=3)
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_car, plt_cav, plt_rh, plt_rhp),
                ('Car', 'CAV', 'Ridehail', 'Ridehail Pool'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -501,7 +502,7 @@ def pltModeSplitInPMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,
     plt_bike = plt.bar(x=top_labels_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['Bike'],zorder=3)
     plt_walk = plt.bar(x=top_labels_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'bike']].sum(axis=1), color=mode_colors['Walk'],zorder=3)
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_bike, plt_walk),
                ('Transit', 'Car', 'CAV', 'Ridehail', 'Bike', 'Walk'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -554,7 +555,7 @@ def pltModeSplitInPHT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,
     plt_bike = plt.bar(x=top_labels_xpos, height=data['bike'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), color=mode_colors['Bike'])
     plt_walk = plt.bar(x=top_labels_xpos, height=data['walk'], bottom=data[['transit', 'car', 'cav', 'rh', 'bike']].sum(axis=1), color=mode_colors['Walk'])
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_bike, plt_walk),
                ('Transit', 'Car', 'CAV', 'Ridehail', 'Bike', 'Walk'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -631,7 +632,7 @@ def pltModeSplitInVMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,
     plt.bar(x=top_labels_xpos, height=-data['cav_empty'], bottom=data[['transit', 'car', 'cav']].sum(axis=1), hatch='///', fill=False, linewidth=0,zorder=3)
     plt.bar(x=top_labels_xpos, height=-data['rh_empty'], bottom=data[['transit', 'car', 'cav', 'rh']].sum(axis=1), hatch='///', fill=False, linewidth=0,zorder=3)
 
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     if withNonMotorizedMode:
         plt_nm = plt.bar(x=top_labels_xpos, height=data['nm'], bottom=data[['transit', 'car', 'cav', 'rh', 'rhp']].sum(axis=1), color=mode_colors['NM'])
         plt.legend((plt_transit, plt_car, plt_cav, plt_rh, plt_rhp, plt_nm, empty),
@@ -677,7 +678,7 @@ def pltLdvTechnologySplitInVMT(_plt_setup3, _output_folder):
     plt_Low = plt.bar(x=top_labels_xpos, height=data['L1'],zorder=3)
     plt_High = plt.bar(x=top_labels_xpos, height=data['L3'], bottom=data['L1'],zorder=3)
     plt_CAV = plt.bar(x=top_labels_xpos, height=data['L5'], bottom=data[['L1', 'L3']].sum(axis=1),zorder=3)
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     plt.legend((plt_Low, plt_High, plt_CAV),
                ('No Automation', 'Partial Automation', 'Full Automation'),
                labelspacing=-2.5, bbox_to_anchor=(1.05, 0.5), frameon=False)
@@ -712,7 +713,7 @@ def pltRHWaitTime(_plt_setup3, _output_folder):
 
     plt.figure(figsize=plot_size)
     plt.bar(x=top_labels_xpos, height=data['rh_wait_time'], color=mode_colors['RH'],zorder=3)
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     ax = plt.gca()
     ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
     max_value = max(height_all)*1.05
@@ -752,7 +753,7 @@ def pltOverallAverageSpeed(_plt_setup3, _output_folder):
 
     plt.figure(figsize=plot_size)
     plt.bar(x=top_labels_xpos, height=data['avg_speed'], color=mode_colors['Car'])
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     ax = plt.gca()
     ax.grid(False)
     max_value = max(height_all)*1.05
@@ -801,7 +802,7 @@ def pltRHEmptyPooled(_plt_setup3, _output_folder):
     plt_rhp = plt.bar(x=top_labels_xpos, height=data['rhp'], bottom=data['rh'], color=mode_colors['RHP'])
 
     plt.bar(x=top_labels_xpos, height=-data['rh_empty'], bottom=data['rh'], hatch='///', fill=False, lw=0,zorder=3)
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
 
     ax = plt.gca()
@@ -842,7 +843,7 @@ def pltEnergyPerCapita(_plt_setup3, _output_folder):
     plt_Gas = plt.bar(x=top_labels_xpos, height=data['gas'], color=mode_colors['gas'],zorder=3)
     plt_Diesel = plt.bar(x=top_labels_xpos, height=data['diesel'], bottom=data['gas'], color=mode_colors['diesel'],zorder=3)
     plt_Electricity = plt.bar(x=top_labels_xpos, height=data['electricity'], bottom=data[['gas', 'diesel']].sum(axis=1), color=mode_colors['electricity'],zorder=3)
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     ax = plt.gca()
     ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
     max_value = max(height_all)*1.05
@@ -878,7 +879,7 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
 
     plt.figure(figsize=plot_size)
     plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_avg'], color=mode_colors['RH'])
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
 
     ax = plt.gca()
     ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
@@ -914,7 +915,7 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
 
     plt.figure(figsize=plot_size)
     plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_nbr'], color=mode_colors['RH'])
-    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha="right")
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
 
     ax = plt.gca()
     ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
