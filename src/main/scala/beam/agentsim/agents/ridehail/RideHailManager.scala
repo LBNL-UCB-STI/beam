@@ -1786,7 +1786,8 @@ class RideHailManager(
           departureTime = tick,
           withTransit = false,
           streetVehicles = Vector(rideHailVehicleAtOrigin),
-          initiatedFrom = s"RideHailManager: continueRepositioning($tick). vehicleId: ${vehicleId}, destinationLocation: $destinationLocation"
+          initiatedFrom =
+            s"RideHailManager: continueRepositioning($tick). vehicleId: ${vehicleId}, destinationLocation: $destinationLocation"
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest
         futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
@@ -1806,7 +1807,8 @@ class RideHailManager(
       if (itins2Cust.nonEmpty) {
         val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
           itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
-        val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId, None)
+        val rideHailAgent2CustomerResponseMod =
+          RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId, None)
 
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs

@@ -20,28 +20,29 @@ case class RoutingResponseEvent(routingResponse: RoutingResponse) extends Event(
   override def getEventType: String = "RoutingResponseEvent"
 }
 
-class GeofenceAnalyzer(beamSvc: BeamServices)
-    extends BasicEventHandler
-    with IterationEndsListener
-    with LazyLogging {
+class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with IterationEndsListener with LazyLogging {
   import beam.utils.json.AllNeededFormats._
 
   val errors: ArrayBuffer[PointInfo] = new ArrayBuffer[PointInfo]()
 
   val rideHail2Geofence: Map[String, Geofence] = {
     if (beamSvc.beamConfig.beam.agentsim.agents.rideHail.initialization.initType.equalsIgnoreCase("file")) {
-      RideHailFleetInitializer.readFleetFromCSV(beamSvc.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath).flatMap { fd =>
-        val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
-          case (Some(x), Some(y), Some(r)) => Some(Geofence(x, y, r))
-          case _ => None
+      RideHailFleetInitializer
+        .readFleetFromCSV(beamSvc.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath)
+        .flatMap { fd =>
+          val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
+            case (Some(x), Some(y), Some(r)) => Some(Geofence(x, y, r))
+            case _                           => None
+          }
+          maybeGeofence.map(g => fd.id -> g)
         }
-        maybeGeofence.map(g => fd.id -> g)
-      }.toMap
-    }
-    else Map.empty[String, Geofence]
+        .toMap
+    } else Map.empty[String, Geofence]
   }
 
-  logger.info(s"Created GeofenceAnalyzer with hashcode: ${this.hashCode()}. rideHail2Geofence size: ${rideHail2Geofence.keys.size}")
+  logger.info(
+    s"Created GeofenceAnalyzer with hashcode: ${this.hashCode()}. rideHail2Geofence size: ${rideHail2Geofence.keys.size}"
+  )
 
   override def handleEvent(event: Event): Unit = {
     event match {
@@ -61,24 +62,34 @@ class GeofenceAnalyzer(beamSvc: BeamServices)
     rideHailLegs.foreach { rhl =>
       rideHail2Geofence.get(rhl.beamVehicleId.toString).foreach { geofence =>
         val geofenceCoord = new Coord(geofence.geofenceX, geofence.geofenceY)
-        val diffStart = GeoUtils.distFormula(geofenceCoord, rhl.beamLeg.travelPath.startPoint.loc) - geofence.geofenceRadius
-        val diffEnd = GeoUtils.distFormula(geofenceCoord, rhl.beamLeg.travelPath.endPoint.loc) - geofence.geofenceRadius
+        val startUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.startPoint.loc)
+        val endUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.endPoint.loc)
+        val diffStart = GeoUtils.distFormula(geofenceCoord, startUtm) - geofence.geofenceRadius
+        val diffEnd = GeoUtils.distFormula(geofenceCoord, endUtm) - geofence.geofenceRadius
         if (diffStart > 0) {
-          val req = routingResponseEvent.routingResponse.request.map(r => r.asJson.toString()).getOrElse("### NO REQUEST ###")
+          val req =
+            routingResponseEvent.routingResponse.request.map(r => r.asJson.toString()).getOrElse("### NO REQUEST ###")
           val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
           logger.info(
             s"""Geofence is broken at start point. diffStart: $diffStart.
-               |  Routing request originated by ${routingResponseEvent.routingResponse.request.map(_.initiatedFrom)}: ${req}
+               |  travelPath => startUtm: $startUtm, endUtm: $endUtm
+               |  geofenceCoord => $geofenceCoord
+               |  Routing request originated by ${routingResponseEvent.routingResponse.request
+                 .map(_.initiatedFrom)}: ${req}
                |  Resp: $resp""".stripMargin
           )
           errors += PointInfo(diffStart, geofence.geofenceRadius)
         }
         if (diffEnd > 0) {
-          val req = routingResponseEvent.routingResponse.request.map(r => r.asJson.toString()).getOrElse("### NO REQUEST ###")
+          val req =
+            routingResponseEvent.routingResponse.request.map(r => r.asJson.toString()).getOrElse("### NO REQUEST ###")
           val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
           logger.info(
             s"""Geofence is broken at end point. diffEnd: $diffEnd.
-               |  Routing request originated by ${routingResponseEvent.routingResponse.request.map(_.initiatedFrom)}: ${req}
+               |  travelPath => startUtm: $startUtm, endUtm: $endUtm
+               |  geofenceCoord => $geofenceCoord
+               |  Routing request originated by ${routingResponseEvent.routingResponse.request
+              .map(_.initiatedFrom)}: ${req}
                |  Resp: $resp""".stripMargin
           )
           errors += PointInfo(diffEnd, geofence.geofenceRadius)
@@ -95,6 +106,4 @@ class GeofenceAnalyzer(beamSvc: BeamServices)
   }
 }
 
-object GeofenceAnalyzer {
-
-}
+object GeofenceAnalyzer {}

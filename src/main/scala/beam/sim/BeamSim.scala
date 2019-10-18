@@ -93,7 +93,6 @@ class BeamSim @Inject()(
 
   val geofenceAnalyzer: GeofenceAnalyzer = new GeofenceAnalyzer(beamServices)
 
-
   override def notifyStartup(event: StartupEvent): Unit = {
 
     metricsPrinter ! Subscribe("counter", "**")
