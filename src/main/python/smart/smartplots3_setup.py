@@ -59,22 +59,29 @@ def getDfForPlt(_plt_setup3, _output_folder):
 # plots
 
 
-def pltModeSplitByTrips(_plt_setup3, _output_folder):
+def pltModeSplitByTripsInternal(_plt_setup3, _output_folder, rh_realized, filename, title):
     plot_size = _plt_setup3['plot_size']
     top_labels = _plt_setup3['top_labels']
     bottom_labels = _plt_setup3['bottom_labels']
     nb_scenarios = len(_plt_setup3['scenarios_id'])
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    output_png = '{}/{}/{}.modesplit_trips.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
-    output_csv = '{}/{}/{}.modesplit_trips.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_png = '{}/{}/{}.{}.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'], filename)
+    output_csv = '{}/{}/{}.{}.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'], filename)
 
     createColumnIfNotExist(df, 'cav_counts', 0)
+
+    rh_multi_passenger = df['ride_hail_pooled_counts'].values
+    rh_solo_passenger = df['ride_hail_counts'].values
+    if rh_realized:
+        rh_multi_passenger = df['ride_hail_pooled_counts'].values * df["multi_passengers_trips_per_pool_trips"].values
+        rh_solo_passenger = rh_solo_passenger + (df['ride_hail_pooled_counts'].values - rh_multi_passenger)
+
     data = pd.DataFrame(
         {'transit': (df['drive_transit_counts'].values + df['ride_hail_transit_counts'].values + df['walk_transit_counts'].values),
          'car': df['car_counts'].values,
          'cav': df['cav_counts'].values,
-         'rh': df['ride_hail_counts'].values,
-         'rhp': df['ride_hail_pooled_counts'].values,
+         'rh': rh_solo_passenger,
+         'rhp': rh_multi_passenger,
          'walk': df['walk_counts'].values,
          'bike': df['bike_counts'].values
          })
@@ -104,10 +111,20 @@ def pltModeSplitByTrips(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
 
-    plt.ylabel('Portion of Trips')
+    plt.ylabel(title)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
+
+
+
+def pltModeSplitByTrips(_plt_setup3, _output_folder):
+    pltModeSplitByTripsInternal(_plt_setup3, _output_folder, False, "modesplit_trips", "Portion of Trips")
+
+
+
+def pltRealizedModeSplitByTrips(_plt_setup3, _output_folder):
+    pltModeSplitByTripsInternal(_plt_setup3, _output_folder, True, "realized_modesplit_trips", "Portion of Realized Trips")
 
 
 def createColumnIfNotExist(df, name, value):
