@@ -12,6 +12,10 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.util.Try
 
+case class PointInfo(offset: Double, geofenceRadius: Double) {
+  val ratio: Double = if (geofenceRadius == 0.0) Double.NaN else offset / geofenceRadius
+}
+
 object GeoFenceVerifier extends LazyLogging {
 
   val geoUtils = new beam.sim.common.GeoUtils {
@@ -53,48 +57,42 @@ object GeoFenceVerifier extends LazyLogging {
         events.map(PathTraversalEvent.apply).toArray
       }
       logger.info(s"pathTraversalEvents size: ${pathTraversalEvents.length}")
-      val distanceOutOfGeofenceWithError = pathTraversalEvents.map { pte =>
+      val geofenceErrorPerPte = pathTraversalEvents.map { pte =>
         vehIdToGeofence.get(pte.vehicleId.toString).map { maybeGeofence =>
           val error = maybeGeofence
             .map { geofence =>
               calculateError(pte, geofence)
             }
-            .getOrElse((0.0, 0.0))
+            .getOrElse(Array(PointInfo(0.0, 0.0), PointInfo(0.0, 0.0)))
           error
         }
       }
-      val totalNumberOfPTEOutOfGeofence = distanceOutOfGeofenceWithError.count(x => x.exists(z => z._1 > 0))
-      val totalPTEWithGeofence = distanceOutOfGeofenceWithError.count(x => x.isDefined)
-      val percent = 100 * totalNumberOfPTEOutOfGeofence.toDouble / totalPTEWithGeofence
+      val errors = geofenceErrorPerPte.flatten.flatten.filter(p => p.offset > 0)
       logger.info(
-        f"Total number of ride-hail PTE which does not respect geofence: ${totalNumberOfPTEOutOfGeofence}, total number of ride-hail PTE : ${totalPTEWithGeofence} => $percent%.2f %%"
+        s"Number of PTE for ride-hail is ${pathTraversalEvents.size}. There are ${errors.length} points which violate geofence"
       )
-      logger.info(s"Difference in the distance stats: ${Statistics(distanceOutOfGeofenceWithError.toVector.flatten.map { case (dist, _) => dist })}")
-      logger.info(s"Error(percent to the geofence radius) stats: ${Statistics(
-        distanceOutOfGeofenceWithError.flatten.map { case (_, ratio) => 100 * ratio }
-      )}")
+      logger.info("Stats about violations:")
+      logger.info(s"Distance: ${Statistics(errors.map(_.offset))}")
+      logger.info(s"Error(percent to the geofence radius): ${Statistics(errors.map(_.ratio * 100))}")
     } finally {
       Try(closable.close())
     }
   }
 
-  def calculateError(pte: PathTraversalEvent, geofence: Geofence): (Double, Double) = {
+  def calculateError(pte: PathTraversalEvent, geofence: Geofence): Array[PointInfo] = {
     val geofenceCoord = new Coord(geofence.geofenceX, geofence.geofenceY)
     val startUtm = geoUtils.wgs2Utm(new Coord(pte.startX, pte.startY))
     val endUtm = geoUtils.wgs2Utm(new Coord(pte.endX, pte.endY))
     val diffStart = GeoUtils.distFormula(geofenceCoord, startUtm) - geofence.geofenceRadius
     val diffEnd = GeoUtils.distFormula(geofenceCoord, endUtm) - geofence.geofenceRadius
-    val startOutsideOfGeofence = if (diffStart > 0) diffStart else 0
-    val endOutsideOfGeofence = if (diffEnd > 0) diffEnd else 0
-    if (startOutsideOfGeofence > 0)
+    if (diffStart > 0)
       logger.info(
-        s"Geofence is broken at start point. startOutsideOfGeofence: $startOutsideOfGeofence"
+        s"Geofence is broken at start point. startOutsideOfGeofence: $diffStart"
       )
-    if (endOutsideOfGeofence > 0)
+    if (diffEnd > 0)
       logger.info(
-        s"Geofence is broken at end point. endOutsideOfGeofence: $endOutsideOfGeofence"
+        s"Geofence is broken at end point. endOutsideOfGeofence: $diffEnd"
       )
-    val totalError = startOutsideOfGeofence + endOutsideOfGeofence
-    (totalError, totalError / geofence.geofenceRadius)
+    Array(PointInfo(diffStart, geofence.geofenceRadius), PointInfo(diffEnd, geofence.geofenceRadius))
   }
 }
