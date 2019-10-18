@@ -31,7 +31,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     beamScenario = loadScenario(beamConfig)
     scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    services = new BeamServicesImpl(injector)
+    services = injector.getInstance(classOf[BeamServices])
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services,

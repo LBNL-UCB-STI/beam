@@ -221,7 +221,7 @@ object HouseholdActor {
             cavs,
             beamServices = Some(beamServices),
             skimmer = beamSkimmer
-          )(beamServices.matsimServices.getScenario.getPopulation)
+          )(beamServices.matsimScenario.getPopulation)
 
           //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
           val optimalPlan = cavScheduler.getBestProductiveSchedule

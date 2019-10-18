@@ -34,7 +34,7 @@ class RideHailSurgePricingManagerSpec
 
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
-      val surgePricingManager = new RideHailSurgePricingManager(beamServices)
+      val surgePricingManager = new RideHailSurgePricingManager(beamConfig, beamScenario)
       surgePricingManager.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
       surgePricingManager.surgePriceBins should have size beamScenario.tazTreeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
@@ -46,7 +46,7 @@ class RideHailSurgePricingManagerSpec
       val mockRandom = mock[Random]
       when(mockRandom.nextBoolean) thenReturn true
 
-      var rhspm = new RideHailSurgePricingManager(beamServices) {
+      var rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario) {
         override val rand: Random = mockRandom
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
@@ -89,7 +89,7 @@ class RideHailSurgePricingManagerSpec
 //      random = new Random(){
 //        override def nextBoolean(): Boolean = false
 //      }
-      rhspm = new RideHailSurgePricingManager(beamServices) {
+      rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario) {
         override val rand: Random = mockRandom
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
@@ -129,7 +129,7 @@ class RideHailSurgePricingManagerSpec
     }
 
     "correctly update previous iteration revenues and resetting current" in {
-      val rhspm = new RideHailSurgePricingManager(beamServices)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario)
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
       val expectedResultCurrentIterationRevenue = 0
       val initialValueCurrent =
@@ -146,7 +146,7 @@ class RideHailSurgePricingManagerSpec
     }
 
     "return fixed value of 1.0 when KEEP_PRICE_LEVEL_FIXED_AT_ONE used" in {
-      val rhspm = new RideHailSurgePricingManager(beamServices)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario)
       rhspm.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
       val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
@@ -156,7 +156,7 @@ class RideHailSurgePricingManagerSpec
     }
 
     "return correct surge level" in {
-      val rhspm = new RideHailSurgePricingManager(beamServices)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario)
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
       val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
@@ -173,7 +173,7 @@ class RideHailSurgePricingManagerSpec
     }
 
     "correctly add ride cost" in {
-      val rhspm = new RideHailSurgePricingManager(beamServices)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, beamScenario)
       val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toList
 
       val randomTaz = tazArray(2)

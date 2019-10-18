@@ -99,7 +99,7 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
     parkingManager: ActorRef
   ): Props = {
     val initialSharedVehicleLocations =
-      beamServices.matsimServices.getScenario.getPopulation.getPersons
+      beamServices.matsimScenario.getPopulation.getPersons
         .values()
         .asScala
         .map(Population.personInitialLocation)

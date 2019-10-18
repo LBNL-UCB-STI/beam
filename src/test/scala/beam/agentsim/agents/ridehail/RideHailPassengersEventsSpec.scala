@@ -4,7 +4,7 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -43,7 +43,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       eventManager.addHandler(eventHandler)
       val popAdjustment = DefaultPopulationAdjustment
       popAdjustment(beamServices).update(scenario)
-      beamServices.controler.run()
+      injector.getInstance(classOf[BeamController]).run()
     }
 
     "keep passengers right count" ignore {

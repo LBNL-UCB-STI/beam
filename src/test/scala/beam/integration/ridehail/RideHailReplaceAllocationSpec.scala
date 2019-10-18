@@ -3,7 +3,7 @@ package beam.integration.ridehail
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.sim.config.BeamConfig
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -42,8 +42,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
 
     val services = injector.getInstance(classOf[BeamServices])
     DefaultPopulationAdjustment(services).update(scenario)
-    val controller = services.controler
-    controller.run()
+    injector.getInstance(classOf[BeamController]).run()
 
     verify(iterationCounter, times(1)).notifyIterationEnds(any())
   }

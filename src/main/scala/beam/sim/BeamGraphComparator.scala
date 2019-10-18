@@ -3,7 +3,7 @@ package beam.sim
 import java.io.{BufferedWriter, File, FileWriter, IOException}
 
 import org.apache.commons.io.{FileUtils, FilenameUtils}
-import org.matsim.core.controler.events.ControlerEvent
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import play.api.libs.json.{JsObject, Json}
 
 import scala.collection.immutable.ListMap
@@ -26,7 +26,7 @@ object BeamGraphComparator {
   private def generateHtml(
     files: mutable.HashMap[(String, String), Map[String, Array[(String, File)]]],
     iterationsCount: Int,
-    event: ControlerEvent
+    outputDirectoryHierarchy: OutputDirectoryHierarchy
   ): Elem = {
     val scriptToDisplayAllImages =
       """function displayAllGraphs(images){
@@ -61,7 +61,7 @@ object BeamGraphComparator {
             ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
               <li>
                 <h4><a href="javascript:" onclick={displayAllGraphs(t._2 map { f =>
-                  Json.obj("path" -> f._2.getCanonicalPath.replace(event.getServices.getControlerIO.getOutputPath + "/",""),
+                  Json.obj("path" -> f._2.getCanonicalPath.replace(outputDirectoryHierarchy.getOutputPath + "/",""),
                     "name" -> f._2.getName)
                 })}>{t._1}</a></h4>
               </li>
@@ -121,25 +121,19 @@ object BeamGraphComparator {
     </html>
   }
 
-  /**
-    *
-    * @param event A matsim controller event
-    * @param firstIteration value of first iteration
-    * @param lastIteration value of last iteration
-    */
-  def generateGraphComparisonHtmlPage(event: ControlerEvent, firstIteration: Int, lastIteration: Int): Unit = {
+  def generateGraphComparisonHtmlPage(outputDirectoryHierarchy: OutputDirectoryHierarchy, firstIteration: Int, lastIteration: Int): Unit = {
     val existingIterations = (firstIteration to lastIteration).filter { i =>
-      FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles() != null
+      FileUtils.getFile(new File(outputDirectoryHierarchy.getIterationPath(i))).listFiles() != null
     }
     // Yield all the png files (graph images) across all iterations
     val files: Seq[Array[File]] = for (i <- existingIterations) yield {
       (FileUtils
-        .getFile(new File(event.getServices.getControlerIO.getIterationPath(i)))
+        .getFile(new File(outputDirectoryHierarchy.getIterationPath(i)))
         .listFiles
         .filterNot(_ == null)
         .filter(f => f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram"))
         .flatMap(_.listFiles()) ++
-      FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
+      FileUtils.getFile(new File(outputDirectoryHierarchy.getIterationPath(i))).listFiles())
         .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
     val numberOfIterations = files.size
@@ -188,8 +182,8 @@ object BeamGraphComparator {
         subGroups.put("P04" + gc._1.headOption.getOrElse("") -> gc._1, gc._2)
     })
     //Generate graph comparison html element and write it to the html page at desired location
-    val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(subGroups, numberOfIterations, event)
+    val bw = new BufferedWriter(new FileWriter(outputDirectoryHierarchy.getOutputPath + "/comparison.html"))
+    val htmlElem = this.generateHtml(subGroups, numberOfIterations, outputDirectoryHierarchy)
     try {
       bw.write(htmlElem.mkString)
     } catch {

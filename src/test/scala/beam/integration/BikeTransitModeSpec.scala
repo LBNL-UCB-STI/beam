@@ -51,7 +51,7 @@ class BikeTransitModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      services.matsimServices.getEvents.addHandler(
+      services.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
@@ -68,9 +68,9 @@ class BikeTransitModeSpec
         beamScenario.transportNetwork,
         services.tollCalculator,
         scenario,
-        services.matsimServices.getEvents,
+        services.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new RideHailSurgePricingManager(beamConfig, beamScenario),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),

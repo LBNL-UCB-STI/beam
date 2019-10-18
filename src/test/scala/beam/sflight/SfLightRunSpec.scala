@@ -5,7 +5,7 @@ import java.nio.file.Paths
 import beam.agentsim.events.ModeChoiceEvent
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -74,8 +74,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       )
       val services = injector.getInstance(classOf[BeamServices])
       DefaultPopulationAdjustment(services).update(scenario)
-      val controler = services.controler
-      controler.run()
+      injector.getInstance(classOf[BeamController]).run()
       assert(nCarTrips > 1)
     }
 

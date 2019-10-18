@@ -6,8 +6,11 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.metrics.Metrics
 import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
+import org.matsim.api.core.v01.Scenario
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
 
 /**
@@ -54,8 +57,8 @@ import org.matsim.core.controler._
   */
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
-  val injector: Injector
-  val controler: ControlerI
+  val getEvents: EventsManager
+  val controlerIO: OutputDirectoryHierarchy
   def beamConfig: BeamConfig
   def beamScenario: BeamScenario
 
@@ -63,30 +66,20 @@ trait BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
 
   var beamRouter: ActorRef
-
-  def matsimServices: MatsimServices
+  def getIterationNumber: Int
+  def matsimScenario: Scenario
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
   def tollCalculator: TollCalculator
 }
 
-class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+class BeamServicesImpl @Inject()(val beamConfigChangesObservable: BeamConfigChangesObservable, val getEvents: EventsManager,
+                                 val beamScenario: BeamScenario, val geo: GeoUtils, val matsimScenario: Scenario,
+                                 val controlerIO: OutputDirectoryHierarchy, val networkHelper: NetworkHelper,
+                                 val fareCalculator: FareCalculator, val tollCalculator: TollCalculator) extends BeamServices {
 
-  val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-
-  def beamConfig: BeamConfig = {
-    val inst = injector.getInstance(classOf[BeamConfigChangesObservable])
-    inst.lastBeamConfig
-  }
-  val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
-  val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-
+  def getIterationNumber: Int = Metrics.iterationNumber
+  def beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
-
-  override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
-
-  override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-  override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
-  override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
 }

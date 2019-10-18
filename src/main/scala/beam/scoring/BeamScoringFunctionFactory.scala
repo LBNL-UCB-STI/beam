@@ -228,7 +228,7 @@ class BeamScoringFunctionFactory @Inject()(
       val fileHeader = "personId,tripIdx,departureTime,totalTravelTimeInSecs,mode,cost,score"
       // Output file relative path
       val filePath = event.getServices.getControlerIO.getIterationFilename(
-        beamServices.matsimServices.getIterationNumber,
+        beamServices.getIterationNumber,
         BeamScoringFunctionFactory.agentTripScoreFileBaseName + ".csv.gz"
       )
       // get the data stored in an in memory map
@@ -244,7 +244,7 @@ class BeamScoringFunctionFactory @Inject()(
       val fileHeader = "linkId,travelTime,cost,generalizedTravelTime,generalizedCost"
       // Output file relative path
       val filePath = event.getServices.getControlerIO.getIterationFilename(
-        beamServices.matsimServices.getIterationNumber,
+        beamServices.getIterationNumber,
         BeamScoringFunctionFactory.linkStatsFileBaseName + ".csv.gz"
       )
       val uniqueLinkIds = BeamScoringFunctionFactory.linkAverageTravelTimes.keySet

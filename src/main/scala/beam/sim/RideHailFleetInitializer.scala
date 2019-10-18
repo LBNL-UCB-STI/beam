@@ -46,9 +46,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     */
   def writeFleetData(beamServices: BeamServices, fleetData: Seq[RideHailAgentInputData]): Unit = {
     try {
-      val filePath = beamServices.matsimServices.getControlerIO
+      val filePath = beamServices.controlerIO
         .getIterationFilename(
-          beamServices.matsimServices.getIterationNumber,
+          beamServices.getIterationNumber,
           RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
         )
       writeFleetData(filePath, fleetData)

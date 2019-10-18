@@ -1,7 +1,7 @@
 package beam.sflight
 
 import beam.analysis.plots.PersonTravelTimeAnalysis
-import beam.sim.BeamHelper
+import beam.sim.{BeamController, BeamHelper}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.tags.{ExcludeRegular, Periodic}
@@ -55,8 +55,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val services = buildBeamServices(injector, scenario)
     DefaultPopulationAdjustment(services).update(scenario)
 
-    val controller = services.controler
-    controller.run()
+    injector.getInstance(classOf[BeamController]).run()
 
     CaccSpec.avgCarModeFromCsv(extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber))
   }

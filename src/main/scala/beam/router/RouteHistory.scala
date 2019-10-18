@@ -1,23 +1,20 @@
 package beam.router
 
 import java.io._
-import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
-import javax.inject.Inject
-
-import scala.collection.concurrent.TrieMap
 
 import beam.router.RouteHistory.{RouteHistoryADT, _}
 import beam.sim.config.BeamConfig
-import beam.sim.BeamWarmStart
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import javax.inject.Inject
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 import probability_monad.Distribution
+
+import scala.collection.concurrent.TrieMap
 
 class RouteHistory @Inject()(
   beamConfig: BeamConfig

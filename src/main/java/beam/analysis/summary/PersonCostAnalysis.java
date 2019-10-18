@@ -41,10 +41,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     this.beamServices = beamServices;
     averageVot=getAverageVOT();
 
-    if(beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values().stream().filter((Household hh) -> hh.getIncome().getIncome()!=0).count() != beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().size()){
+    if(beamServices.matsimScenario().getHouseholds().getHouseholds().values().stream().filter((Household hh) -> hh.getIncome().getIncome()!=0).count() != beamServices.matsimScenario().getHouseholds().getHouseholds().size()){
       logger.error("Some households have income not set - default dummy income values will be used: "+ defaultDummyHouseholdIncome);
     }
-    this.personToHousehold = buildServicesPersonHouseholds(beamServices.matsimServices().getScenario().getHouseholds());
+    this.personToHousehold = buildServicesPersonHouseholds(beamServices.matsimScenario().getHouseholds());
   }
 
   private Map<Id<Person>, Household> buildServicesPersonHouseholds(Households households) {
@@ -58,7 +58,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   }
 
   private double getAverageVOT(){
-    Population pop=beamServices.matsimServices().getScenario().getPopulation();
+    Population pop=beamServices.matsimScenario().getPopulation();
     double sumOfVOT=0;
     for (Id<Person> personId:pop.getPersons().keySet()){
       if (pop.getPersonAttributes().getAttribute(personId.toString(),votKeyString)==null){

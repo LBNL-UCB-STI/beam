@@ -58,7 +58,7 @@ class BeamMobsim @Inject()(
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
-    startMeasuringIteration(beamServices.matsimServices.getIterationNumber)
+    startMeasuringIteration(beamServices.getIterationNumber)
     logger.info("Preparing new Iteration (Start)")
     startSegment("iteration-preparation", "mobsim")
 
@@ -66,13 +66,14 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
-    Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
     eventsManager.initProcessing()
 
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          scenario,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory,
@@ -116,6 +117,8 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
   val beamServices: BeamServices,
+  val scenario: Scenario,
+  val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
@@ -147,7 +150,7 @@ class BeamMobsimIteration(
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
 
-  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(matsimServices.getScenario.getPopulation)
+  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(scenario.getPopulation)
   log.info(s"envelopeInUTM before expansion: $envelopeInUTM")
 
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)
@@ -170,8 +173,8 @@ class BeamMobsimIteration(
         beamScenario,
         beamScenario.transportNetwork,
         tollCalculator,
-        matsimServices.getScenario,
-        matsimServices.getEvents,
+        scenario,
+        eventsManager,
         scheduler,
         beamRouter,
         parkingManager,
@@ -216,14 +219,14 @@ class BeamMobsimIteration(
     Props(
       new TransitSystem(
         beamScenario,
-        matsimServices.getScenario,
+        scenario,
         beamScenario.transportNetwork,
         scheduler,
         parkingManager,
         tollCalculator,
         geo,
         networkHelper,
-        matsimServices.getEvents
+        eventsManager
       )
     ),
     "transit-system"
@@ -233,7 +236,7 @@ class BeamMobsimIteration(
 
   private val population = context.actorOf(
     Population.props(
-      matsimServices.getScenario,
+      scenario,
       beamScenario,
       beamServices,
       scheduler,
@@ -243,7 +246,7 @@ class BeamMobsimIteration(
       rideHailManager,
       parkingManager,
       sharedVehicleFleets,
-      matsimServices.getEvents,
+      eventsManager,
       routeHistory,
       beamSkimmer,
       travelTimeObserved,
@@ -310,7 +313,7 @@ class BeamMobsimIteration(
       log.info("Starting Agentsim")
       startSegment("agentsim-execution", "agentsim")
 
-      scheduler ! StartSchedule(matsimServices.getIterationNumber)
+      scheduler ! StartSchedule(getIterationNumber)
   }
 
   private def scheduleRideHailManagerTimerMessages(): Unit = {

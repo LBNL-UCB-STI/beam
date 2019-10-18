@@ -2,7 +2,7 @@ package beam.integration
 
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -73,8 +73,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
 
       val services = injector.getInstance(classOf[BeamServices])
       DefaultPopulationAdjustment(services).update(scenario)
-      val controler = services.controler
-      controler.run()
+      injector.getInstance(classOf[BeamController]).run()
       assert(nDepartures == nArrivals)
     }
   }

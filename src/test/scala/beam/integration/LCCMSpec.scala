@@ -2,7 +2,7 @@ package beam.integration
 
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
@@ -47,10 +47,9 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     val popAdjustment = DefaultPopulationAdjustment
 
     val beamServices = injector.getInstance(classOf[BeamServices])
-    val controller = beamServices.controler
     popAdjustment(beamServices).update(scenario)
 
-    controller.run()
+    injector.getInstance(classOf[BeamController]).run()
   }
 
 }

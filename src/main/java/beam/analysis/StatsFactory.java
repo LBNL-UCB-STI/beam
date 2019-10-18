@@ -94,7 +94,7 @@ public class StatsFactory {
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
-                return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
+                return new VehicleTravelTimeAnalysis(beamServices.matsimScenario(),
                         beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
             case VehicleMilesTraveled:
                 return new VehicleMilesTraveledAnalysis(beamServices.beamScenario().vehicleTypes().keySet());
@@ -113,9 +113,9 @@ public class StatsFactory {
             case RideHailUtilization:
                 return new SimpleRideHailUtilization();
             case ParkingType:
-                return new ParkingTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
+                return new ParkingTypeAnalysis(beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
             case ActivityType:
-                return new ActivityTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
+                return new ActivityTypeAnalysis(beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
             case VehicleChargingAnalysis:
                 return new VehicleChargingAnalysis();
             case RideHailSummary:

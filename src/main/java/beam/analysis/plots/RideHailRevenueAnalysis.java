@@ -29,14 +29,13 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
     @Inject
-    public RideHailRevenueAnalysis(RideHailSurgePricingManager surgePricingManager) {
+    public RideHailRevenueAnalysis(RideHailSurgePricingManager surgePricingManager, OutputDirectoryHierarchy outputDirectoryHierarchy) {
         this.surgePricingManager = surgePricingManager;
+        this.outputDirectoryHiearchy = outputDirectoryHierarchy;
     }
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
-
-        outputDirectoryHiearchy = event.getServices().getControlerIO();
 
         // for next iteration
         surgePricingManager.updateRevenueStats();
@@ -50,7 +49,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
         model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-        if(surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()){
+        if(surgePricingManager.beamConfig().beam().outputs().writeGraphs()){
             createGraph(data);
         }
 

@@ -553,7 +553,7 @@ object BeamRouter {
         None,
         beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),
-        RouteUtils.calcDistance(route, 1.0, 1.0, beamServices.matsimServices.getScenario.getNetwork)
+        RouteUtils.calcDistance(route, 1.0, 1.0, beamServices.matsimScenario.getNetwork)
       )
     )
     EmbodyWithCurrentTravelTime(

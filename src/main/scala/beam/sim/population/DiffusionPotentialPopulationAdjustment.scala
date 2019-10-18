@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
 
 case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
 
-  override lazy val scenario: Scenario = beamServices.matsimServices.getScenario
+  override lazy val scenario: Scenario = beamServices.matsimScenario
   override lazy val beamScenario: BeamScenario = beamServices.beamScenario
 
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)

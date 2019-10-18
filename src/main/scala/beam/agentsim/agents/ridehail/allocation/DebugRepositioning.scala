@@ -40,11 +40,11 @@ object DebugRepositioning {
         }
       })
 
-      val iteration = "it." + rideHailManager.beamServices.matsimServices.getIterationNumber
+      val iteration = "it." + rideHailManager.beamServices.getIterationNumber
       spatialPlot.writeImage(
-        rideHailManager.beamServices.matsimServices.getControlerIO
+        rideHailManager.beamServices.controlerIO
           .getIterationFilename(
-            rideHailManager.beamServices.matsimServices.getIterationNumber,
+            rideHailManager.beamServices.getIterationNumber,
             tick.toInt / 3600 + "locationOfAgentsInitally.png"
           )
           .replace(iteration, iteration + "/rideHailDebugging")

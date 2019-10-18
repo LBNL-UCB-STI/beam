@@ -62,9 +62,10 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private String revenueCsvFileName = "";
     private final RideHailSurgePricingManager surgePricingManager;
     private final boolean writeGraph;
+    private OutputDirectoryHierarchy odh;
 
     @Inject
-    public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager) {
+    public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager, OutputDirectoryHierarchy outputDirectoryHierarchy) {
         this.surgePricingManager = surgePricingManager;
         noOfCategories = this.surgePricingManager.numberOfCategories();
 
@@ -72,7 +73,8 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         min = null;
 
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
-        this.writeGraph = surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs();
+        this.writeGraph = surgePricingManager.beamConfig().beam().outputs().writeGraphs();
+        this.odh = outputDirectoryHierarchy;
     }
 
     @Override
@@ -83,8 +85,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         revenueDataSet = new double[numberOfTimeBins];
 
         final int iNo = event.getIteration();
-
-        OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
 
         graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
         surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");

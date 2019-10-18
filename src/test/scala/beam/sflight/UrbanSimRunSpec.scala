@@ -71,6 +71,7 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
 
       runBeam(
         services,
+        injector,
         scenario,
         beamScenario,
         output

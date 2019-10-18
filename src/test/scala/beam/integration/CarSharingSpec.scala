@@ -6,7 +6,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
 import beam.sim.vehiclesharing.FleetUtils
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -127,8 +127,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     beamScenario.privateVehicles.clear()
 
     DefaultPopulationAdjustment(services).update(scenario)
-    val controler = services.controler
-    controler.run()
+    injector.getInstance(classOf[BeamController]).run()
 
     val sharedCarType = beamScenario.vehicleTypes(sharedCarTypeId)
     assume(sharedCarType.monetaryCostPerSecond > 0, "I defined a per-time price for my car type.")
@@ -247,7 +246,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     beamScenario.privateVehicles.clear()
 
     DefaultPopulationAdjustment(services).update(scenario)
-    services.controler.run()
+    injector.getInstance(classOf[BeamController]).run()
 
     assume(carsharingTripsIt0 == 0, "no agent is supposed to be driving in iteration 1")
     assume(carsharingTripsIt1 > 0, "at least one agent has to be driving in iteration 2")

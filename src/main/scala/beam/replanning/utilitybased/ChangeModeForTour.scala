@@ -234,7 +234,7 @@ class ChangeModeForTour(
         .map(_.asInstanceOf[String])
 
     val valueOfTime: Double =
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+      beamServices.matsimScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "valueOfTime") match {
         case null =>
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
@@ -243,11 +243,11 @@ class ChangeModeForTour(
       }
 
     val availableModes: Seq[BeamMode] = PopulationAdjustment
-      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .getBeamAttributes(beamServices.matsimScenario.getPopulation, person.getId.toString)
       .availableModes
 
     val income = Option(
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+      beamServices.matsimScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "income")
         .asInstanceOf[Int]
     )

@@ -6,7 +6,7 @@ import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -86,8 +86,7 @@ class CAVSpec extends FlatSpec with Matchers with BeamHelper {
     }
 
     DefaultPopulationAdjustment(services).update(scenario)
-    val controler = services.controler
-    controler.run()
+    injector.getInstance(classOf[BeamController]).run()
 
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
     assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")

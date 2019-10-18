@@ -82,7 +82,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val intervalSize: Int = step
 
   val activitySegment: ActivitySegment =
-    ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+    ActivitySegment(rideHailManager.beamServices.matsimScenario, intervalSize)
 
   val algo8 = ProfilingUtils.timed("Initialized Algo8", x => logger.info(x)) {
     new DemandFollowingRepositioningManager(rideHailManager.beamServices, rideHailManager)
@@ -109,7 +109,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       val selectedActivities: ArrayBuffer[Activity] = ArrayBuffer[Activity]()
 
-      rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons
+      rideHailManager.beamServices.matsimScenario.getPopulation.getPersons
         .values()
         .asScala
         .toList
@@ -175,7 +175,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       )
     }
 
-    val iterationNumber = rideHailManager.beamServices.matsimServices.getIterationNumber
+    val iterationNumber = rideHailManager.beamServices.getIterationNumber
     val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
     val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO

@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamScenario, BeamServices}
 import beam.utils.FileUtils
 import com.google.inject
 import org.matsim.api.core.v01.Scenario
@@ -58,6 +58,6 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     for (eventHandler <- eventHandlers)
       eventManager.addHandler(eventHandler)
 
-    beamServices.controler.run()
+    injector.getInstance(classOf[BeamController]).run()
   }
 }

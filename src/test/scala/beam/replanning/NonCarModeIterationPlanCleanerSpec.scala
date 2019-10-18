@@ -3,7 +3,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamController, BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -75,7 +75,7 @@ class NonCarModeIterationPlanCleanerSpec extends FlatSpec with Matchers with Bea
     )
     val services = injector.getInstance(classOf[BeamServices])
     DefaultPopulationAdjustment(services).update(scenario)
-    services.controler.run()
+    injector.getInstance(classOf[BeamController]).run()
     assume(nonCarModes.isEmpty, "Something's wildly broken, I am not seeing any trips.")
   }
 }

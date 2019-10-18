@@ -5,47 +5,44 @@ import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.events.BeforeMobsimEvent;
+import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.listener.BeforeMobsimListener;
+import org.matsim.core.controler.listener.IterationEndsListener;
 
+import javax.inject.Inject;
 import java.util.*;
 
 
 /**
  * Logger class for BEAM events
  */
-class BeamEventsLogger {
+public class BeamEventsLogger implements BeforeMobsimListener, IterationEndsListener {
 
     private final EventsManager eventsManager;
-    private final MatsimServices matsimServices;
     private final BeamServices beamServices;
     private final List<BeamEventsWriterBase> writers = new ArrayList<>();
     private final Set<Class<?>> eventsToLog = new HashSet<>();
     private final List<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
+    private final OutputDirectoryHierarchy controlerIO;
 
-    BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
+    @Inject
+    BeamEventsLogger(BeamServices beamServices, OutputDirectoryHierarchy controlerIO, EventsManager eventsManager) {
         this.beamServices = beamServices;
-        this.matsimServices = matsimServices;
+        this.controlerIO = controlerIO;
         this.eventsManager = eventsManager;
+    }
+
+    @Override
+    public void notifyBeforeMobsim(BeforeMobsimEvent event) {
         setEventsFileFormats();
         overrideDefaultLoggerSetup();
-        createEventsWriters();
-    }
-
-    void iterationEnds() {
-        for (BeamEventsWriterBase writer : writers) {
-            writer.closeFile();
-            eventsManager.removeHandler(writer);
-        }
-        writers.clear();
-    }
-
-    private void createEventsWriters() {
-        int iterationNumber = matsimServices.getIterationNumber();
         final int writeEventsInterval = beamServices.beamConfig().beam().outputs().writeEventsInterval();
-        final boolean writeThisIteration = (writeEventsInterval > 0) && (iterationNumber % writeEventsInterval == 0);
+        final boolean writeThisIteration = (writeEventsInterval > 0) && (event.getIteration() % writeEventsInterval == 0);
         if (writeThisIteration) {
-            matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
-            String eventsFileBasePath = matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+            controlerIO.createIterationDirectory(event.getIteration());
+            String eventsFileBasePath = controlerIO.getIterationFilename(event.getIteration(), "events");
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter;
                 newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, null, fmt);
@@ -53,6 +50,15 @@ class BeamEventsLogger {
                 eventsManager.addHandler(newWriter);
             }
         }
+    }
+
+    @Override
+    public void notifyIterationEnds(IterationEndsEvent event) {
+        for (BeamEventsWriterBase writer : writers) {
+            writer.closeFile();
+            eventsManager.removeHandler(writer);
+        }
+        writers.clear();
     }
 
     private BeamEventsWriterBase createEventWriterForClassAndFormat(String eventsFilePathBase,
@@ -177,4 +183,5 @@ class BeamEventsLogger {
             }
         }
     }
+
 }

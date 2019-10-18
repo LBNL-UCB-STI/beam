@@ -19,11 +19,6 @@ class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with Sc
     ActorSystem("ClusterSystem", config)
   }
 
-  @Provides @Singleton
-  def provideBeamServices(injector: Injector): BeamServices = {
-    new BeamServicesImpl(injector)
-  }
-
   override def configure(): Unit = ()
 
 }

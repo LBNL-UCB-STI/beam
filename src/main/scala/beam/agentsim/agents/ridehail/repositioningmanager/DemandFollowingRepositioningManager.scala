@@ -37,7 +37,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
 
     ProfilingUtils.timed(s"Build ActivitySegment with intervalSize $intervalSize", x => logger.info(x)) {
-      ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+      ActivitySegment(rideHailManager.beamServices.matsimScenario, intervalSize)
     }
   }
 

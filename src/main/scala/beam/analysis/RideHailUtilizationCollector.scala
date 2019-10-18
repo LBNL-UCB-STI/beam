@@ -185,8 +185,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   }
 
   def writeRides(): Unit = {
-    val filePath = beamSvc.matsimServices.getControlerIO.getIterationFilename(
-      beamSvc.matsimServices.getIterationNumber,
+    val filePath = beamSvc.controlerIO.getIterationFilename(
+      beamSvc.getIterationNumber,
       "ridehailRides.csv.gz"
     )
 
@@ -226,7 +226,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   }
 
   def writeUtilization(): Unit = {
-    val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv")
+    val filePath = beamSvc.controlerIO.getOutputFilename("rideHailRideUtilization.csv")
 
     val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys): _*)
     val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys): _*)

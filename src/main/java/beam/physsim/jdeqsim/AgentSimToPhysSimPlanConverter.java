@@ -160,7 +160,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 );
             }
             org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario,
-                    jdeqsimEvents, iterationNumber, beamServices.matsimServices().getControlerIO(),
+                    jdeqsimEvents, iterationNumber, controlerIO,
                     roadCapacityAdjustmentFunction);
             linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 

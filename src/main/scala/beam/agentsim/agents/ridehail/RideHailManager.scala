@@ -243,7 +243,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        5 * beamServices.matsimServices.getScenario.getPopulation.getPersons.size // ZN: Changed this from 10x ride hail fleet, which is now not directly set
+        5 * beamServices.matsimScenario.getPopulation.getPersons.size // ZN: Changed this from 10x ride hail fleet, which is now not directly set
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
@@ -305,8 +305,8 @@ class RideHailManager(
   private val defaultCostPerSecond = defaultCostPerMinute / 60.0d
   private val pooledCostPerSecond = pooledCostPerMinute / 60.0d
 
-  beamServices.beamRouter ! GetTravelTime
-  beamServices.beamRouter ! GetMatSimNetwork
+  router ! GetTravelTime
+  router ! GetMatSimNetwork
   //TODO improve search to take into account time when available
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
@@ -470,19 +470,18 @@ class RideHailManager(
       )
   }
 
-  if (beamServices.matsimServices != null &&
-      new File(
-        beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber)
+  if (new File(
+        beamServices.controlerIO.getIterationPath(beamServices.getIterationNumber)
       ).exists()) {
     rideHailinitialLocationSpatialPlot.writeCSV(
-      beamServices.matsimServices.getControlerIO
-        .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".csv")
+      beamServices.controlerIO
+        .getIterationFilename(beamServices.getIterationNumber, fileBaseName + ".csv")
     )
 
     if (beamServices.beamConfig.beam.outputs.writeGraphs) {
       rideHailinitialLocationSpatialPlot.writeImage(
-        beamServices.matsimServices.getControlerIO
-          .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".png")
+        beamServices.controlerIO
+          .getIterationFilename(beamServices.getIterationNumber, fileBaseName + ".png")
       )
     }
   }
