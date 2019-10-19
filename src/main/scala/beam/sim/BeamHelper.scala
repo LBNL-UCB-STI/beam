@@ -45,6 +45,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.core.scoring.ExperiencedPlansModule
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
@@ -139,6 +140,7 @@ trait BeamHelper extends LazyLogging {
           install(new ConfigModule(typesafeConfig))
           install(new BeamAgentModule(beamConfig))
           install(new UtilsModule)
+          install(new ExperiencedPlansModule)
         }
       }).asJava,
       new AbstractModule() {

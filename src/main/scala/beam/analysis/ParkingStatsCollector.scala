@@ -1,7 +1,6 @@
 package beam.analysis
 import java.util
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events._
 import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
@@ -10,7 +9,6 @@ import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
-import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -44,11 +42,10 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
   /**
     * Creates the required output analysis files at the end of an iteration.
     *
-    * @param event an iteration end event.
     */
-  override def createGraph(event: IterationEndsEvent): Unit = {
+  override def createGraph(iteration: Int): Unit = {
     //write the parking stats collected by time bin and parking TAZ to a csv file
-    writeToCsv(event.getIteration, parkingStatsByBinAndTaz)
+    writeToCsv(iteration, parkingStatsByBinAndTaz)
   }
 
   /**

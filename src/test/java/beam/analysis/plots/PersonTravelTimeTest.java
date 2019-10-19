@@ -26,7 +26,7 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
+    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(null,
             new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {}, true);
 
     @Before

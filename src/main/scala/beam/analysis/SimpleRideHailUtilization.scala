@@ -8,18 +8,18 @@ import org.jfree.chart.JFreeChart
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnalysis {
+class SimpleRideHailUtilization(outputDirectoryHierarchy: OutputDirectoryHierarchy) extends IterationSummaryAnalysis with GraphAnalysis {
   // Offset is number of passengers, value is number of rides with that amount of passengers
   private var overallRideStat: Array[Int] = Array.fill[Int](0)(0)
   private var iterOverallRideStat = mutable.Map[Int, Array[Int]]()
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    iterOverallRideStat += event.getIteration -> overallRideStat.clone()
+  override def createGraph(iteration: Int): Unit = {
+    iterOverallRideStat += iteration -> overallRideStat.clone()
     val dataset = new DefaultCategoryDataset
     val revIteration = iterOverallRideStat.keys.toSeq.reverseIterator
     revIteration.foreach { iteration =>
@@ -32,7 +32,7 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
           )
       }
     }
-    val fileName = event.getServices.getControlerIO.getOutputFilename("rideHailUtilisation.png")
+    val fileName = outputDirectoryHierarchy.getOutputFilename("rideHailUtilisation.png")
     createGraphInRootDirectory(
       dataset,
       fileName,

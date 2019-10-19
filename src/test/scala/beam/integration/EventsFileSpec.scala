@@ -53,12 +53,6 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       .toMap
   }
 
-  override def afterAll(): Unit = {
-    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
-    if (travelDistanceStats != null)
-      travelDistanceStats.close()
-  }
-
   it should "contain the same bus trips entries" in {
     tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
     tripsFromGtfs(new File("test/input/beamville/r5/bus-freq/trips.txt"))

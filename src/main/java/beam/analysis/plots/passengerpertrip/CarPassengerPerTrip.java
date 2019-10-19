@@ -55,11 +55,11 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void process(IterationEndsEvent event) throws IOException {
+    public void process(int iteration) throws IOException {
 
         CategoryDataset dataSet = getCategoryDataSet();
-        writeCSV(matriXDataSet ,dataSet.getRowCount(), event.getIteration());
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        writeCSV(matriXDataSet ,dataSet.getRowCount(), iteration);
+        draw(dataSet, iteration, xAxisTitle, yAxisTitle);
     }
 
     @Override

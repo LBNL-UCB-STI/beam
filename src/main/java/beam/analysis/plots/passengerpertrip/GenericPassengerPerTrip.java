@@ -48,11 +48,11 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
 
     @Override
-    public void process(IterationEndsEvent event) throws IOException {
+    public void process(int iteration) throws IOException {
 
         CategoryDataset dataSet = getCategoryDataSet();
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
-        writeCSV(matrixDataSet,dataSet.getRowCount(),event.getIteration());
+        draw(dataSet, iteration, xAxisTitle, yAxisTitle);
+        writeCSV(matrixDataSet,dataSet.getRowCount(),iteration);
     }
 
     @Override

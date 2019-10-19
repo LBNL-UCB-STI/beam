@@ -8,11 +8,11 @@ import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.collection.mutable
 
-class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging {
+class VehicleChargingAnalysis(outputDirectoryHierarchy: OutputDirectoryHierarchy) extends GraphAnalysis with ExponentialLazyLogging {
 
   private val vehicleChargingFileBaseName = "chargingNumberVehicles"
 
@@ -48,12 +48,10 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
     hourlyChargingCount.clear()
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    val outputDirectoryHiearchy = event.getServices.getControlerIO
-
+  override def createGraph(iteration: Int): Unit = {
     val chargingDataset = createChargingDataset()
     val chargingGraphImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$vehicleChargingFileBaseName.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"$vehicleChargingFileBaseName.png")
     createGraph(chargingDataset, chargingGraphImageFile, "Vehicles Charging")
 
   }

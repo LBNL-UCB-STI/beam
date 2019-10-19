@@ -13,7 +13,6 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.misc.Time;
 
@@ -223,27 +222,27 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     //Prepare graph for each iteration
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
-        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+    public void createGraph(int iteration) throws IOException {
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(iteration);
         if (model == null)
             model = new RideHailDistanceRowModel();
         model.setRideHailWaitingTimeSum(this.waitTimeSum);
         model.setTotalRideHailCount(this.rideHailCount);
-        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(iteration, model);
         List<Double> listOfBounds = getCategories();
         Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
         if (modesFrequencyDataset != null && writeGraph)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            createModesFrequencyGraph(modesFrequencyDataset, iteration);
 
-        writeToCSV(event.getIteration(), data.getFirst());
-        writeRideHailWaitingIndividualStatCSV(event.getIteration());
+        writeToCSV(iteration, data.getFirst());
+        writeRideHailWaitingIndividualStatCSV(iteration);
 
         double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
         CategoryDataset singleStatsDataset = DatasetUtilities.createCategoryDataset("", "", singleStatsData);
         if (writeGraph)
-            createSingleStatsGraph(singleStatsDataset, event.getIteration());
-        writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
+            createSingleStatsGraph(singleStatsDataset, iteration);
+        writeRideHailWaitingSingleStatCSV(iteration, hoursSingleTimesMap);
     }
 
     @Override

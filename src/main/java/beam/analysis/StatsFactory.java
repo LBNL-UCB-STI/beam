@@ -82,17 +82,17 @@ public class StatsFactory {
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
-                return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
+                return new ModeChosenAnalysis(beamServices.controlerIO(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
                 return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),writeGraphs);
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
+                return new PersonTravelTimeAnalysis(beamServices.controlerIO(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
+                return new RealizedModeAnalysis(beamServices.controlerIO(), new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
-                return new DeadHeadingAnalysis(writeGraphs);
+                return new DeadHeadingAnalysis(beamServices.controlerIO(), writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimScenario(),
                         beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
@@ -111,17 +111,17 @@ public class StatsFactory {
             case ParkingDelay:
                 return new ParkingStatsCollector(beamServices);
             case RideHailUtilization:
-                return new SimpleRideHailUtilization();
+                return new SimpleRideHailUtilization(beamServices.controlerIO());
             case ParkingType:
-                return new ParkingTypeAnalysis(beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
+                return new ParkingTypeAnalysis(beamServices.controlerIO(), beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
             case ActivityType:
-                return new ActivityTypeAnalysis(beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
+                return new ActivityTypeAnalysis(beamServices.controlerIO(), beamServices.matsimScenario().getConfig().travelTimeCalculator().getMaxTime());
             case VehicleChargingAnalysis:
-                return new VehicleChargingAnalysis();
+                return new VehicleChargingAnalysis(beamServices.controlerIO());
             case RideHailSummary:
                 return new RideHailSummary();
             case LoadOverTimeAnalysis:
-                return new LoadOverTimeAnalysis();
+                return new LoadOverTimeAnalysis(beamServices.controlerIO());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
             default:

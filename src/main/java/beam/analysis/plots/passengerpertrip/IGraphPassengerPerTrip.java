@@ -26,7 +26,7 @@ public interface IGraphPassengerPerTrip {
 
     void collectEvent(PathTraversalEvent event);
 
-    void process(IterationEndsEvent event) throws IOException;
+    void process(int iteration) throws IOException;
     CategoryDataset getCategoryDataSet();
 
     default int getEventHour(double time) {

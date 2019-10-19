@@ -108,18 +108,18 @@ class RouteHistory @Inject()(
     }
   }
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-
-    if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
-      val filePath = event.getServices.getControlerIO.getIterationFilename(
-        event.getServices.getIterationNumber,
-        beamConfig.beam.warmStart.routeHistoryFileName
-      )
-
-      FileUtils.writeToFile(
-        filePath,
-        toCsv(routeHistory),
-      )
-    }
+//
+//    if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
+//      val filePath = event.getServices.getControlerIO.getIterationFilename(
+//        event.getServices.getIterationNumber,
+//        beamConfig.beam.warmStart.routeHistoryFileName
+//      )
+//
+//      FileUtils.writeToFile(
+//        filePath,
+//        toCsv(routeHistory),
+//      )
+//    }
 
     previousRouteHistory = routeHistory
     routeHistory = new TrieMap()

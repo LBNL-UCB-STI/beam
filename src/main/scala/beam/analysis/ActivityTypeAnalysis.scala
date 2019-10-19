@@ -7,13 +7,13 @@ import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, ActivityStartEvent, Event}
-import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.collection.mutable
 
 case class ActivityTime(activity: String, time: Int)
 
-class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLazyLogging {
+class ActivityTypeAnalysis(outputDirectoryHierarchy: OutputDirectoryHierarchy, maxTime: Int) extends GraphAnalysis with ExponentialLazyLogging {
 
   private val activityTypeFileBaseName = "activityType"
 
@@ -47,12 +47,10 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
     hourlyActivityCount.clear()
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    val outputDirectoryHiearchy = event.getServices.getControlerIO
-
+  override def createGraph(iteration: Int): Unit = {
     val activityDataset = createActivityDataset()
     val activityGraphImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$activityTypeFileBaseName.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"$activityTypeFileBaseName.png")
     createGraph(activityDataset, activityGraphImageFile, "Activity Type")
 
   }

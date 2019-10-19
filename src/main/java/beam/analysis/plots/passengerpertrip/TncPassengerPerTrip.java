@@ -4,7 +4,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
 import java.util.*;
@@ -110,12 +109,12 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
 
     @Override
-    public void process(IterationEndsEvent event) throws IOException {
+    public void process(int iteration) throws IOException {
 
         processDeadHeadingPassengerPerTripRemainingRepositionings();
         CategoryDataset dataSet = getCategoryDataSet();
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
-        writeCSV(matrixDataset,dataSet.getRowCount(),event.getIteration());
+        draw(dataSet, iteration, xAxisTitle, yAxisTitle);
+        writeCSV(matrixDataset,dataSet.getRowCount(),iteration);
     }
 
     @Override

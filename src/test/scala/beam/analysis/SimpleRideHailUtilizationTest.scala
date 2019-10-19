@@ -35,13 +35,13 @@ class SimpleRideHailUtilizationTest extends FunSuite with Matchers {
   )
 
   test("Should ignore non-ridehail vehicles") {
-    val rhu = new SimpleRideHailUtilization
+    val rhu = new SimpleRideHailUtilization(null)
     rhu.processStats(pathTraversalEvent.copy(vehicleId = Id.createVehicleId(1)))
     rhu.getStat(0) shouldBe None
   }
 
   test("Should process ridehail vehicles") {
-    val rhu = new SimpleRideHailUtilization
+    val rhu = new SimpleRideHailUtilization(null)
     rhu.getStat(0) shouldBe None
 
     rhu.processStats(

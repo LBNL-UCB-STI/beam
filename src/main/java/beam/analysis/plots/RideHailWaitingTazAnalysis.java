@@ -9,7 +9,6 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.io.IOUtils;
 
@@ -27,14 +26,9 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
         this.beamServices = beamServices;
     }
 
-    /**
-     * Creates graph on the notified iteration.
-     * @param iterationEndsEvent a notified iteration ended event
-     * @throws IOException exception
-     */
     @Override
-    public void createGraph(IterationEndsEvent iterationEndsEvent) throws IOException {
-        writeToCsv(iterationEndsEvent.getIteration(),binWaitingTimesMap);
+    public void createGraph(int iteration) {
+        writeToCsv(iteration, binWaitingTimesMap);
     }
 
     /**

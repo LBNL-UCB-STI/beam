@@ -8,13 +8,14 @@ import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
 case class VehicleParking(vehicleId: String, parkingType: String)
 
-class ParkingTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLazyLogging {
+class ParkingTypeAnalysis(outputDirectoryHierarchy: OutputDirectoryHierarchy, maxTime: Int) extends GraphAnalysis with ExponentialLazyLogging {
 
   private val parkingFileBaseName = "parkingType"
 
@@ -44,12 +45,10 @@ class ParkingTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLa
     vehicleParkingInHour.clear()
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    val outputDirectoryHiearchy = event.getServices.getControlerIO
-
+  override def createGraph(iteration: Int): Unit = {
     val parkingDataset = createParkingDataset()
     val parkingGraphImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$parkingFileBaseName.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"$parkingFileBaseName.png")
     createGraph(parkingDataset, parkingGraphImageFile, "Parking Type")
 
   }

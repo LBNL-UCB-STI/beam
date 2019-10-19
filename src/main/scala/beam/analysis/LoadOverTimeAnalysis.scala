@@ -1,19 +1,17 @@
 package beam.analysis
 
 import beam.agentsim.events._
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.utils.logging.ExponentialLazyLogging
-
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.collection.mutable
 
-class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
+class LoadOverTimeAnalysis(outputDirectoryHierarchy: OutputDirectoryHierarchy) extends GraphAnalysis with ExponentialLazyLogging {
   private val loadOverTimeFileBaseName = "chargingPower"
 
   val vehicleTypeToHourlyLoad = mutable.Map.empty[String, mutable.Map[Int, (Double, Int)]]
@@ -84,22 +82,20 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
     parkingTypeToHourlyLoad.clear
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    val outputDirectoryHiearchy = event.getServices.getControlerIO
-
+  override def createGraph(iteration: Int): Unit = {
     var loadDataset = createLoadDataset(vehicleTypeToHourlyLoad)
     var loadImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"${loadOverTimeFileBaseName}ByUser.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"${loadOverTimeFileBaseName}ByUser.png")
     createGraph(loadDataset, loadImageFile, "Load By User Type")
 
     loadDataset = createLoadDataset(chargerTypeToHourlyLoad)
     loadImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"${loadOverTimeFileBaseName}ByChargerType.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"${loadOverTimeFileBaseName}ByChargerType.png")
     createGraph(loadDataset, loadImageFile, "Load By Charger Type")
 
     loadDataset = createLoadDataset(parkingTypeToHourlyLoad)
     loadImageFile =
-      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"${loadOverTimeFileBaseName}ByParkingType.png")
+      outputDirectoryHierarchy.getIterationFilename(iteration, s"${loadOverTimeFileBaseName}ByParkingType.png")
     createGraph(loadDataset, loadImageFile, "Load By Parking Type")
   }
 

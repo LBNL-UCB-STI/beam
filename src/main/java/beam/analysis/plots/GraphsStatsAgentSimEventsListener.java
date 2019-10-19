@@ -9,7 +9,6 @@ import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,11 +92,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
         deadHeadingStats.collectEvents(event);
     }
 
-    public void createGraphs(IterationEndsEvent event) {
+    public void createGraphs(int iteration) {
             try {
-                for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(event);
+                for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(iteration);
                 DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
-                deadHeadingStats.createGraph(event, "TNC0");
+                deadHeadingStats.createGraph(iteration, "TNC0");
                 if (CONTROLLER_IO != null) {
                     // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 

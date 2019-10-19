@@ -77,12 +77,12 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
+    public void createGraph(int iteration) throws IOException {
         CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
         if(writeGraph){
-            createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+            createModesFuelageGraph(modesFuelageDataSet, iteration);
         }
-        createFuelCSV(hourModeFuelage, event.getIteration());
+        createFuelCSV(hourModeFuelage, iteration);
     }
 
     @Override

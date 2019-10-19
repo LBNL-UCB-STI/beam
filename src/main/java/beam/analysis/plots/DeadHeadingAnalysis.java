@@ -15,6 +15,7 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private static int maxPassengersSeenOnGenericCase = 0;
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEventsCache = new HashMap<>();
+    private final OutputDirectoryHierarchy controllerIO;
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
@@ -51,7 +53,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
 
 
-    public DeadHeadingAnalysis(boolean writeGraph){
+    public DeadHeadingAnalysis(OutputDirectoryHierarchy controllerIO, boolean writeGraph){
+        this.controllerIO = controllerIO;
         this.writeGraph = writeGraph;
     }
 
@@ -87,24 +90,24 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
+    public void createGraph(int iteration) throws IOException {
         processDeadHeadingPassengerPerTripRemainingRepositionings();
         //createDeadHeadingPassengerPerTripGraph(event, graphType);
 
         for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
             if(writeGraph){
-                graph.process(event);
+                graph.process(iteration);
             }
         }
     }
 
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(int iteration, String graphType) throws IOException {
         if ("TNC0".equalsIgnoreCase(graphType)) {
 
             processDeadHeadingDistanceRemainingRepositionings();
-            createDeadHeadingDistanceGraph(event);
+            createDeadHeadingDistanceGraph(iteration);
         } else {
-            createGraph(event);
+            createGraph(iteration);
         }
     }
 
@@ -266,28 +269,28 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         deadHeadingsTnc0Map.put(hour, hourData);
     }
 
-    private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
+    private void createDeadHeadingDistanceGraph(int iteration) throws IOException {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
         CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
         if(writeGraph){
-            createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+            createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, iteration, GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
-        writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+        writeToCSV(iteration, GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
 
         // Updating the model for the RideHailStats.csv
-        updateRideHailStatsModel(event);
-        writeRideHailStatsCSV(event);
+        updateRideHailStatsModel(iteration);
+        writeRideHailStatsCSV();
     }
 
-    private void updateRideHailStatsModel(IterationEndsEvent event) {
-        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(event.getIteration(), new RideHailDistanceRowModel());
+    private void updateRideHailStatsModel(int iteration) {
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(iteration, new RideHailDistanceRowModel());
 
         model.setPassengerVkt(passengerVkt);
         model.setDeadheadingVkt(deadHeadingVkt);
         model.setRepositioningVkt(repositioningVkt);
         model.setReservationCount(reservationCount);
-        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(iteration, model);
 
 
     }
@@ -730,9 +733,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
 
-    private void writeRideHailStatsCSV(IterationEndsEvent event) {
+    private void writeRideHailStatsCSV() {
 
-        String csvFileName = event.getServices().getControlerIO().getOutputFilename(dataFileBaseName + ".csv");
+        String csvFileName = controllerIO.getOutputFilename(dataFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "Iteration,onDemandRideRevenue,averageOnDemandRideWaitingTimeInSeconds,totalOnDemandRideWaitingTimeInSeconds,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";

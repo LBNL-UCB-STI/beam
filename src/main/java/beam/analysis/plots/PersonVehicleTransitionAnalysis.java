@@ -6,11 +6,9 @@ import beam.sim.metrics.MetricsSupport;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.misc.Time;
 
 import java.util.*;
-import java.util.List;
 
 public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSupport {
 
@@ -54,13 +52,13 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
+    public void createGraph(int iteration) {
         for (String mode : onRoutes.keySet()) {
             if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
                 continue;
             }
             if(writeGraph){
-                plotGraph.writeGraphic(GraphsStatsAgentSimEventsListener.CONTROLLER_IO, event.getIteration(), mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
+                plotGraph.writeGraphic(GraphsStatsAgentSimEventsListener.CONTROLLER_IO, iteration, mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
             }
         }
     }

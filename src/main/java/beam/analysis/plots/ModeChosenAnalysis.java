@@ -3,33 +3,14 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.MetricsSupport;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.io.*;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
@@ -56,6 +37,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
 
     public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 
@@ -87,11 +69,12 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
-    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(OutputDirectoryHierarchy outputDirectoryHierarchy, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
+        this.outputDirectoryHierarchy = outputDirectoryHierarchy;
     }
 
     public static String getModeChoiceFileBaseName() {
@@ -105,21 +88,20 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
+    public void createGraph(int iteration) throws IOException {
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
         hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
-        updateModeChoiceInIteration(event.getIteration());
+        updateModeChoiceInIteration(iteration);
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null && writeGraph) {
-            String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), modeChoiceFileBaseName + ".png");
+            String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, modeChoiceFileBaseName + ".png");
             createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, modesChosen);
         }
-        createModeChosenCSV(hourModeFrequency, event.getIteration(), modeChoiceFileBaseName);
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        createModeChosenCSV(hourModeFrequency, iteration, modeChoiceFileBaseName);
         String fileName = outputDirectoryHierarchy.getOutputFilename(modeChoiceFileBaseName + ".png");
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
         if (dataset != null && writeGraph) {
@@ -135,7 +117,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
         writeToRootCSVForReference(referenceModeChoiceFileBaseName);
 
-        writeModeChosenAvailableAlternativeCSV(event.getIteration());
+        writeModeChosenAvailableAlternativeCSV(iteration);
     }
 
     @Override

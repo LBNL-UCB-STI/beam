@@ -33,7 +33,7 @@ public class AboveCapacityPtUsageDurationAnalysis implements GraphAnalysis, Iter
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
+    public void createGraph(int iteration) {
 
     }
 
