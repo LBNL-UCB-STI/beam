@@ -1,4 +1,5 @@
 package beam.sim
+import java.util
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
@@ -14,7 +15,7 @@ import org.matsim.core.events.handler.EventHandler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class LoggingEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
+class LoggingEventsManager @Inject()(config: Config, val eventHandlersDeclaredByModules: util.Set[EventHandler]) extends EventsManager with LazyLogging {
   private val eventManager = new EventsManagerImpl()
   logger.info(s"Created ${eventManager.getClass} with hashcode: ${eventManager.hashCode()}")
 
@@ -30,6 +31,14 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   private var dedicatedHandler: Option[Future[Unit]] = None
   private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
     collection.mutable.HashMap()
+
+  import scala.collection.JavaConversions._
+
+  // Add event handlers that were declared via Guice.
+  // (But we can still add handlers manually, later, by calling addHandler.)
+  for (eventHandler <- eventHandlersDeclaredByModules) {
+    addHandler(eventHandler)
+  }
 
   override def processEvent(event: Event): Unit = {
     blockingQueue.add(event)

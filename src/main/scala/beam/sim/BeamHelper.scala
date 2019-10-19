@@ -3,7 +3,8 @@ package beam.sim
 import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
-import java.util.Properties
+import java.util
+import java.util.{Properties, Set}
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -40,6 +41,7 @@ import com.google.inject.multibindings.MapBinder
 import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
+import javax.inject.Inject
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -47,6 +49,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.{StrategyConfigGroup, TravelTimeCalculatorConfigGroup}
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
+import org.matsim.core.events.handler.EventHandler
 import org.matsim.core.replanning.selectors.WorstPlanForRemovalSelector
 import org.matsim.core.replanning.{PlanStrategy, StrategyManager}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
