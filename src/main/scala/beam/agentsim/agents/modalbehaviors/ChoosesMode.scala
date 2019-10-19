@@ -57,30 +57,32 @@ trait ChoosesMode {
 
   def boundingBox: Envelope
 
-  def currentTourBeamVehicle: Option[BeamVehicle] =
-    if (stateData.isInstanceOf[ChoosesModeData]) {
-      stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
-        case Some(personalVehicle) =>
-          Option(
-            beamVehicles(personalVehicle)
-              .asInstanceOf[ActualVehicle]
-              .vehicle
-          )
-        case _ => None
-      }
-    } else if (stateData.isInstanceOf[BasePersonData]) {
-      stateData.asInstanceOf[BasePersonData].currentTourPersonalVehicle match {
-        case Some(personalVehicle) =>
-          Option(
-            beamVehicles(personalVehicle)
-              .asInstanceOf[ActualVehicle]
-              .vehicle
-          )
-        case _ => None
-      }
-    } else {
-      None
+  def currentTourBeamVehicle: Option[BeamVehicle] = {
+    stateData match {
+      case data: ChoosesModeData =>
+        data.personData.currentTourPersonalVehicle match {
+          case Some(personalVehicle) =>
+            Option(
+              beamVehicles(personalVehicle)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+            )
+          case _ => None
+        }
+      case data: BasePersonData =>
+        data.currentTourPersonalVehicle match {
+          case Some(personalVehicle) =>
+            Option(
+              beamVehicles(personalVehicle)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+            )
+          case _ => None
+        }
+      case _ =>
+        None
     }
+  }
 
   onTransition {
     case _ -> ChoosingMode =>
@@ -117,7 +119,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | BIKE | DRIVE_TRANSIT),
+              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
               _,
               _,
               _,
@@ -214,7 +216,7 @@ trait ChoosesMode {
           case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
-          case Some(DRIVE_TRANSIT) =>
+          case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
             val tripIndex = tour.tripIndexOfElement(nextAct)
             if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
@@ -380,8 +382,8 @@ trait ChoosesMode {
               responsePlaceholders =
                 makeResponsePlaceholders(boundingBox, withRouting = true, withParking = mode == CAR)
           }
-        case Some(DRIVE_TRANSIT) =>
-          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+        case mode @ Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
+          val lastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
             choosesModeData.personData.currentTourPersonalVehicle
@@ -390,13 +392,16 @@ trait ChoosesMode {
               // We use our car if we are not replanning, otherwise we end up doing a walk transit (catch-all below)
               // we do not send parking inquiry here, instead we wait for drive_transit route to come back and we use
               // actual location of transit station
+
+              val r5Mode = mode.get
+
               makeRequestWith(
                 withTransit = true,
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), r5Mode) :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = false)
-            case (LastTripIndex, Some(currentTourPersonalVehicle)) =>
+            case (lastTripIndex, Some(currentTourPersonalVehicle)) =>
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               parkingRequestId = makeRequestWith(
                 withTransit = true,
@@ -731,21 +736,21 @@ trait ChoosesMode {
         Some(
           EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.head.beamLeg.startTime,
-              body.id,
-              false,
-              fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.head.beamLeg.startTime,
+              vehicleId = body.id,
+              isLastLeg = false,
+              location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.last.beamLeg.endTime,
-              body.id,
-              true,
-              fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.last.beamLeg.endTime,
+              vehicleId = body.id,
+              isLastLeg = true,
+              location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             )
           )
         )
@@ -891,23 +896,23 @@ trait ChoosesMode {
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
-              (EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get,
-                body.id,
-                false,
-                partialItin.head.beamLeg.travelPath.startPoint.loc,
-                WALK,
-                body.beamVehicleType.id
+              EmbodiedBeamLeg.dummyLegAt(
+                start = _currentTick.get,
+                vehicleId = body.id,
+                isLastLeg = false,
+                location = partialItin.head.beamLeg.travelPath.startPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
-                partialItin.last.beamLeg.endTime,
-                body.id,
-                true,
-                partialItin.last.beamLeg.travelPath.endPoint.loc,
-                WALK,
-                body.beamVehicleType.id
-              ))
+                start = partialItin.last.beamLeg.endTime,
+                vehicleId = body.id,
+                isLastLeg = true,
+                location = partialItin.last.beamLeg.travelPath.endPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
+              )
             )
           }
         case None =>
@@ -925,14 +930,14 @@ trait ChoosesMode {
       ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
-        case Some(DRIVE_TRANSIT) =>
+        case mode @ Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
             personData.hasDeparted
           ) match {
             case (0 | LastTripIndex, false) =>
-              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+              combinedItinerariesForChoice.filter(_.tripClassifier == mode.get)
             case _ =>
               combinedItinerariesForChoice.filter(
                 trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT

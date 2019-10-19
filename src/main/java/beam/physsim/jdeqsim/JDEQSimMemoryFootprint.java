@@ -21,7 +21,7 @@ public class JDEQSimMemoryFootprint implements BasicEventHandler {
         int currentHour = (int) Math.floor(event.getTime() / 3600.0);
         if (Math.abs(prevHour - currentHour) >= 1) {
             if (debugMode) {
-                log.info(DebugLib.gcAndGetMemoryLogMessage("Hour " + currentHour + " completed. "));
+                log.info(DebugLib.getMemoryLogMessage("Hour " + currentHour + " completed. "));
             } else {
                 log.info("Hour " + currentHour + " completed. ");
             }
