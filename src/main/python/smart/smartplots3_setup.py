@@ -804,6 +804,9 @@ def pltRHEmptyPooled(_plt_setup3, _output_folder):
     plt.bar(x=top_labels_xpos, height=-data['rh_empty'], bottom=data['rh'], hatch='///', fill=False, lw=0,zorder=3)
     plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     empty = mpatches.Patch(facecolor='white', label='The white data', hatch='///')
+    plt.legend((plt_rh, plt_rhp, empty),
+               ('Ridehail', 'Ridehail Pool', 'Deadheading'),
+               labelspacing=-2.5, bbox_to_anchor=(1.25, 0.5), frameon=False)
 
     ax = plt.gca()
     ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
@@ -812,9 +815,6 @@ def pltRHEmptyPooled(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
     plt.ylabel('Ridehail Vehicle Miles Traveled (millions)')
-    plt.legend((plt_rh, plt_rhp, empty),
-               ('Ridehail', 'Ridehail Pool', 'Deadheading'),
-               bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -867,9 +867,6 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     output_png = '{}/{}/{}.rh_chained_trips_requests.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
     output_csv = '{}/{}/{}.rh_chained_trips_requests.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
-    #createColumnIfNotExist(df, 'rh_avg_requests_served_dh_to_dh', 0)
-    #print(df['rh_avg_requests_served_dh_to_dh'].values.copy())
-
     data = pd.DataFrame({'rh_avg': df['chained_trips_requests'].values.copy()})
 
     height_all = data.sum(axis=1)
@@ -878,7 +875,7 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     data.to_csv(output_csv)
 
     plt.figure(figsize=plot_size)
-    plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_avg'], color=mode_colors['RH'])
+    plt.bar(x=top_labels_xpos, height=data['rh_avg'], color=mode_colors['RH'])
     plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
 
     ax = plt.gca()
@@ -888,7 +885,6 @@ def pltRHAverageChainedTrips(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
     plt.ylabel('Average Served Requests Per Chained Trips')
-    #plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
@@ -903,9 +899,6 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     output_png = '{}/{}/{}.rh_chained_trips_count.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
     output_csv = '{}/{}/{}.rh_chained_trips_count.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
 
-    #createColumnIfNotExist(df, 'rh_nb_trips_dh_to_dh', 0)
-    #print(df['rh_nb_trips_dh_to_dh'].values.copy())
-
     data = pd.DataFrame({'rh_nbr': df['chained_trips_count'].values.copy()})
 
     height_all = data.sum(axis=1)
@@ -914,7 +907,7 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     data.to_csv(output_csv)
 
     plt.figure(figsize=plot_size)
-    plt_rh = plt.bar(x=top_labels_xpos, height=data['rh_nbr'], color=mode_colors['RH'])
+    plt.bar(x=top_labels_xpos, height=data['rh_nbr'], color=mode_colors['RH'])
     plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
 
     ax = plt.gca()
@@ -924,7 +917,39 @@ def pltRHNumberChainedTrips(_plt_setup3, _output_folder):
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
     plt.ylabel('Number of Chained Trips')
-    #plt.legend( (plt_rh), ('Ridehail'), bbox_to_anchor=(1.05, 0.5), frameon=False)
+    plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+    plt.clf()
+    plt.close()
+
+
+def pltMEP(_plt_setup3, _output_folder, _mep_data):
+    plot_size = _plt_setup3['plot_size']
+    top_labels = _plt_setup3['top_labels']
+    bottom_labels = _plt_setup3['bottom_labels']
+    nb_scenarios = len(_plt_setup3['scenarios_id'])
+    (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
+    output_png = '{}/{}/{}.mep.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+    output_csv = '{}/{}/{}.mep.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
+
+    df['mep'] = _mep_data
+    data = pd.DataFrame({'mep': df['mep'].values.copy()})
+
+    height_all = data.sum(axis=1)
+    data['scenario'] = df['Scenario'].values.copy()
+    data['technology'] = df['Technology'].values.copy()
+    data.to_csv(output_csv)
+
+    plt.figure(figsize=plot_size)
+    plt.bar(x=top_labels_xpos, height=data['mep'], color=colors['grey'])
+    plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
+
+    ax = plt.gca()
+    ax.grid(axis='y',linestyle='dashed', lw=0.5, alpha=0.5,zorder=0)
+    max_value = max(height_all)*1.05
+    ax.set_ylim((0, max_value))
+    for ind in range(nb_scenarios):
+        plt.text(top_labels_xpos[ind], max_value + 0.02*max_value, top_labels[ind], ha='center')
+    plt.ylabel('MEP')
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
     plt.clf()
     plt.close()
