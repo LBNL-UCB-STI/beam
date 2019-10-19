@@ -35,15 +35,20 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
+import com.google.inject.Key
+import com.google.inject.multibindings.MapBinder
+import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.config.groups.{StrategyConfigGroup, TravelTimeCalculatorConfigGroup}
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
+import org.matsim.core.replanning.selectors.WorstPlanForRemovalSelector
+import org.matsim.core.replanning.{PlanStrategy, StrategyManager}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.scoring.ExperiencedPlansModule
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -150,6 +155,30 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
+
+          addControlerListenerBinding().to(classOf[BeamReplanning]).asEagerSingleton()
+          bind(classOf[StrategyManager]).asEagerSingleton()
+          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+            bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+          } else {
+            bindPlanSelectorForRemoval().to(classOf[WorstPlanForRemovalSelector])
+          }
+          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
+          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
+          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
+          addPlanStrategyBinding("UtilityBasedModeChoice").toProvider(classOf[UtilityBasedModeChoice])
+          val planStrategyMapBinder = MapBinder.newMapBinder(binder, classOf[StrategyConfigGroup.StrategySettings], classOf[PlanStrategy])
+          import scala.collection.JavaConversions._
+          for (settings <- getConfig.strategy.getStrategySettings) {
+            planStrategyMapBinder.addBinding(settings).to(Key.get(classOf[PlanStrategy], Names.named(settings.getStrategyName)))
+          }
+
+          bindMobsim().to(classOf[BeamMobsim])
+
+          bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+
           bind(classOf[BeamConfigHolder])
           val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
 
@@ -168,18 +197,6 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
           addControlerListenerBinding().to(classOf[NonCarModeIterationPlanCleaner])
 
-          bindMobsim().to(classOf[BeamMobsim])
-          bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
-          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
-            bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
-          }
-          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
-          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
-          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
-          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
-          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
-          addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
-            .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
             .toInstance(new AttributeConverter[MapStringDouble] {
               override def convertToString(o: scala.Any): String =
@@ -190,13 +207,6 @@ trait BeamHelper extends LazyLogging {
             })
           bind(classOf[BeamScenario]).toInstance(beamScenario)
           bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
-          bind(classOf[TravelTimeCalculator]).toInstance(
-            new FakeTravelTimeCalculator(
-              beamScenario.network,
-              new TravelTimeCalculatorConfigGroup()
-            )
-          )
-
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
