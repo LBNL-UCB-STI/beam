@@ -1,9 +1,8 @@
 # coding=utf-8
 import boto3
+import os
 import time
 import uuid
-import os
-import glob
 from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
@@ -90,7 +89,7 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
-  - sudo aws --region us-east-2 lambda invoke --function-name spreadsheetData --payload '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Started","name": "$TITLED","instance_id": "$(ec2metadata --instance-id)","instance_type": "$(ec2metadata --instance-type)","host_name": "$(ec2metadata --public-hostname)","browser": "http://$(ec2metadata --public-hostname):8000","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT"}}' response.json
+  - curl -X POST https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet -H 'Content-Type: application/json' -d '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Started","name": "$TITLED","instance_id": "'"$(ec2metadata --instance-id)"'","instance_type": "'"$(ec2metadata --instance-type)"'","host_name": "'"$(ec2metadata --public-hostname)"'","browser": "'"http://$(ec2metadata --public-hostname):8000"'","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT"}}'
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -106,6 +105,7 @@ runcmd:
   - echo "$bye_msg"
   - /tmp/slack.sh "$bye_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - curl -X POST https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet -H 'Content-Type: application/json' -d '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Completed","name": "$TITLED","instance_id": "'"$(ec2metadata --instance-id)"'","instance_type": "'"$(ec2metadata --instance-type)"'","host_name": "'"$(ec2metadata --public-hostname)"'","browser": "'"http://$(ec2metadata --public-hostname):8000"'","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT", "s3_link": "'"$s3glip"'"}}'
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
@@ -141,9 +141,11 @@ instance_operations = ['start', 'stop', 'terminate']
 s3 = boto3.client('s3')
 ec2 = None
 
+
 def init_ec2(region):
     global ec2
-    ec2 = boto3.client('ec2',region_name=region)
+    ec2 = boto3.client('ec2', region_name=region)
+
 
 def check_resource(bucket, key):
     try:
@@ -153,21 +155,25 @@ def check_resource(bucket, key):
         print 'error sending Slack response: ' + str(ex)
     return False
 
+
 def check_branch(branch):
     try:
-        s3.list_objects_v2(Bucket='beam-builds', Prefix=branch+'/')['Contents']
+        s3.list_objects_v2(Bucket='beam-builds', Prefix=branch + '/')['Contents']
         return True
     except Exception:
         return False
 
+
 def get_latest_build(branch):
     get_last_modified = lambda obj: int(obj['LastModified'].strftime('%s'))
-    objs = s3.list_objects_v2(Bucket='beam-builds', Prefix=branch+'/')['Contents']
+    objs = s3.list_objects_v2(Bucket='beam-builds', Prefix=branch + '/')['Contents']
     last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified, reverse=True)][0]
-    return last_added[last_added.rfind('-')+1:-4]
+    return last_added[last_added.rfind('-') + 1:-4]
+
 
 def validate(name):
     return True
+
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
@@ -186,16 +192,17 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
         MinCount=1,
         MaxCount=1,
         SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE']},
         InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-        TagSpecifications=[ {
+        TagSpecifications=[{
             'ResourceType': 'instance',
-            'Tags': [ {
+            'Tags': [{
                 'Key': 'Name',
                 'Value': instance_name
-            } ]
-        } ])
+            }]
+        }])
     return res['Instances'][0]['InstanceId']
+
 
 def get_dns(instance_id):
     host = None
@@ -209,6 +216,7 @@ def get_dns(instance_id):
                     host = dns
     return host
 
+
 def check_instance_id(instance_ids):
     for reservation in ec2.describe_instances()['Reservations']:
         for instance in reservation['Instances']:
@@ -216,14 +224,18 @@ def check_instance_id(instance_ids):
                 instance_ids.remove(instance['InstanceId'])
     return instance_ids
 
+
 def start_instance(instance_ids):
     return ec2.start_instances(InstanceIds=instance_ids)
+
 
 def stop_instance(instance_ids):
     return ec2.stop_instances(InstanceIds=instance_ids)
 
+
 def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
+
 
 def deploy_handler(event):
     titled = event.get('title', 'hostname-test')
@@ -251,7 +263,7 @@ def deploy_handler(event):
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
-        #instance_type = os.environ['INSTANCE_TYPE']
+        # instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
@@ -269,13 +281,13 @@ def deploy_handler(event):
         params = experiments
 
     if batch == TRUE:
-        params = [ params.replace(',', ' ') ]
+        params = [params.replace(',', ' ')]
     else:
         params = params.split(',')
 
     if deploy_mode == 'execute':
         selected_script = EXECUTE_SCRIPT
-        params = [ '"{args}"'.format(args=execute_args) ]
+        params = ['"{args}"'.format(args=execute_args)]
 
     if end_script != END_SCRIPT_DEFAULT:
         end_script = '/home/ubuntu/git/beam/sec/main/bash/' + end_script
@@ -294,20 +306,27 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
-                .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
+            script = initscript.replace('$RUN_SCRIPT', selected_script).replace('$REGION', region).replace('$S3_REGION',
+                                                                                                           os.environ[
+                                                                                                               'REGION']) \
+                .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
-                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
-                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN'])
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
+                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace(
+                '$END_SCRIPT', end_script) \
+                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+                .replace('$SHEET_ID', os.environ['SHEET_ID'])
+            instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, runName,
+                                 volume_size)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
+                branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
             runNum += 1
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
 
     return txt
+
 
 def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
@@ -316,7 +335,8 @@ def instance_handler(event):
     system_instances = os.environ['SYSTEM_INSTANCES']
 
     if region not in regions:
-        return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id, region=region)
+        return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id,
+                                                                                        region=region)
 
     init_ec2(region)
 
@@ -328,7 +348,8 @@ def instance_handler(event):
 
     if command_id == 'start':
         start_instance(allowed_ids)
-        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
+        return "Started instance(s) {insts}.".format(
+            insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
 
     if command_id == 'stop':
         stop_instance(allowed_ids)
@@ -336,10 +357,12 @@ def instance_handler(event):
     if command_id == 'terminate':
         terminate_instance(allowed_ids)
 
-    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(allowed_ids))
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id,
+                                                                             ids=",".join(allowed_ids))
+
 
 def lambda_handler(event, context):
-    command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
+    command_id = event.get('command', 'deploy')  # deploy | start | stop | terminate | log
 
     if command_id == 'deploy':
         return deploy_handler(event)
@@ -347,4 +370,5 @@ def lambda_handler(event, context):
     if command_id in instance_operations:
         return instance_handler(event)
 
-    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). ".format(command=command_id)
+    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). ".format(
+        command=command_id)
