@@ -1,6 +1,7 @@
 package beam.analysis
 
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
@@ -12,6 +13,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.SortedSet
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -40,7 +42,10 @@ case class Utilization(
   numberOfRidesServedByNumberOfVehicles: Map[Int, Int],
   rideHailModeChoices: Int,
   rideHailInAlternatives: Int,
-  totalModeChoices: Int
+  rideHailPooledChoices: Int,
+  rideHailPooledInAlternatives: Int,
+  totalModeChoices: Int,
+  replanningReasonToCounter: Map[String, Int]
 )
 
 class RideHailUtilizationCollector(beamSvc: BeamServices)
@@ -51,8 +56,11 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   private val rides: ArrayBuffer[RideInfo] = ArrayBuffer()
   private val utilizations: ArrayBuffer[Utilization] = ArrayBuffer()
   private var rideHailChoices: Int = 0
+  private var rideHailPooledChoices: Int = 0
   private var rideHailInAlternatives: Int = 0
+  private var rideHailPooledInAlternatives: Int = 0
   private var totalModeChoices: Int = 0
+  private val replanningReasonToCounter: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
 
   val commonHeaders: Vector[String] = Vector(
     "iteration",
@@ -71,11 +79,23 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       case pte: PathTraversalEvent if pte.vehicleId.toString.contains("rideHailVehicle-") =>
         handle(pte)
       case mc: ModeChoiceEvent =>
-        if (mc.mode == "ride_hail")
+        if (mc.mode == BeamMode.RIDE_HAIL.value)
           rideHailChoices += 1
-        if (mc.availableAlternatives.contains("RIDE_HAIL"))
+        else if (mc.mode == BeamMode.RIDE_HAIL_POOLED.value)
+          rideHailPooledChoices += 1
+        if (mc.availableAlternatives.contains("RIDE_HAIL:"))
           rideHailInAlternatives += 1
+        if (mc.availableAlternatives.contains("RIDE_HAIL_POOLED"))
+          rideHailPooledInAlternatives += 1
         totalModeChoices += 1
+      case replanningEvent: ReplanningEvent =>
+        val shouldProcess = replanningEvent.getReason.contains("RIDE_HAIL") || replanningEvent.getReason.contains(
+          "RIDE_HAIL_POOLED"
+        )
+        if (shouldProcess) {
+          val cnt = replanningReasonToCounter.getOrElse(replanningEvent.getReason, 0) + 1
+          replanningReasonToCounter.update(replanningEvent.getReason, cnt)
+        }
       case _ =>
     }
   }
@@ -84,8 +104,11 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     logger.info(s"There were ${rides.length} ride-hail rides for iteration $iteration")
     rides.clear()
     rideHailChoices = 0
+    rideHailPooledChoices = 0
     rideHailInAlternatives = 0
+    rideHailPooledInAlternatives = 0
     totalModeChoices = 0
+    replanningReasonToCounter.clear()
   }
 
   def handle(pte: PathTraversalEvent): RideInfo = {
@@ -142,7 +165,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       numberOfRidesServedByNumberOfVehicles = ridesToVehicles,
       rideHailModeChoices = rideHailChoices,
       rideHailInAlternatives = rideHailInAlternatives,
-      totalModeChoices = totalModeChoices
+      rideHailPooledChoices = rideHailPooledChoices,
+      rideHailPooledInAlternatives = rideHailPooledInAlternatives,
+      totalModeChoices = totalModeChoices,
+      replanningReasonToCounter = replanningReasonToCounter.toMap
     )
   }
 
@@ -160,7 +186,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
             |numberOfRidesServedByNumberOfVehicles: ${sorted}
             |rideHailChoices: ${utilization.rideHailModeChoices}
             |rideHailInAlternatives: ${utilization.rideHailInAlternatives}
-            |totalModeChoices: ${utilization.totalModeChoices}""".stripMargin
+            |rideHailPooledChoices: ${utilization.rideHailPooledChoices}
+            |rideHailPooledInAlternatives: ${utilization.rideHailPooledInAlternatives}
+            |totalModeChoices: ${utilization.totalModeChoices}
+            |replannings: ${utilization.replanningReasonToCounter}""".stripMargin
     logger.info(msg)
 
     if (shouldDumpRides) {
