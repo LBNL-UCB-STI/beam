@@ -3,10 +3,11 @@ package beam.sim
 import java.nio.file.{Files, Paths}
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.common.Range
+import beam.sim.common.{GeoUtils, Range}
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Coord
 
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -288,8 +289,20 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
 }
 
-case class Geofence(
+final case class Geofence(
   geofenceX: Double,
   geofenceY: Double,
   geofenceRadius: Double
-)
+) {
+
+  /**
+    * Check whether provided point inside Geofence
+    *
+    */
+  def contains(x: Double, y: Double): Boolean = {
+    val dist = GeoUtils.distFormula(geofenceX, geofenceY, x, y)
+    dist <= geofenceRadius
+  }
+
+  def contains(coord: Coord): Boolean = contains(coord.getX, coord.getY)
+}
