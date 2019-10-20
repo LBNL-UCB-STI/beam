@@ -104,8 +104,7 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
       logger.info(s"Distance: ${Statistics(errors.map(_.offset))}")
       logger.info(s"Error(percent to the geofence radius): ${Statistics(errors.map(_.ratio * 100))}")
       errors.clear()
-    }
-    else {
+    } else {
       logger.info(s"There were no violation of geofence at iteration ${event.getIteration}")
     }
   }
