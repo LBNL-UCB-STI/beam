@@ -66,6 +66,22 @@ runcmd:
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+   - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - chmod +x /tmp/slack.sh
   - echo "notification sent..."
   - echo "notification saved..."
@@ -89,7 +105,7 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
-  - curl -X POST https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet -H 'Content-Type: application/json' -d '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Started","name": "$TITLED","instance_id": "'"$(ec2metadata --instance-id)"'","instance_type": "'"$(ec2metadata --instance-type)"'","host_name": "'"$(ec2metadata --public-hostname)"'","browser": "'"http://$(ec2metadata --public-hostname):8000"'","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT"}}'
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -103,9 +119,26 @@ runcmd:
   - fi
   - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
   - echo "$bye_msg"
+  - stop_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Completed\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"%s\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) ${s3p#","})
   - /tmp/slack.sh "$bye_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
-  - curl -X POST https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet -H 'Content-Type: application/json' -d '{"command": "add","sheet_id": "$SHEET_ID","run": {"status": "Run Completed","name": "$TITLED","instance_id": "'"$(ec2metadata --instance-id)"'","instance_type": "'"$(ec2metadata --instance-type)"'","host_name": "'"$(ec2metadata --public-hostname)"'","browser": "'"http://$(ec2metadata --public-hostname):8000"'","branch": "$BRANCH","region": "$REGION","batch": "$UID","commit": "$COMMIT", "s3_link": "'"$s3glip"'"}}'
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
