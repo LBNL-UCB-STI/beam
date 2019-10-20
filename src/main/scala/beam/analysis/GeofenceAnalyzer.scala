@@ -89,7 +89,7 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
                |  travelPath => startUtm: $startUtm, endUtm: $endUtm
                |  geofenceCoord => $geofenceCoord
                |  Routing request originated by ${routingResponseEvent.routingResponse.request
-              .map(_.initiatedFrom)}: ${req}
+                 .map(_.initiatedFrom)}: ${req}
                |  Resp: $resp""".stripMargin
           )
           errors += PointInfo(diffEnd, geofence.geofenceRadius)

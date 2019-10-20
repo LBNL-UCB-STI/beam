@@ -20,6 +20,7 @@ import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
@@ -72,7 +73,8 @@ class TollRoutingSpec
         scenario,
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager = mock[EventsManager]
       )
     )
   }
@@ -107,7 +109,8 @@ class TollRoutingSpec
             None,
             None
           )
-        )
+        ),
+        initiatedFrom = "TollRoutingSpec"
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
@@ -136,7 +139,8 @@ class TollRoutingSpec
           scenario,
           scenario.getTransitVehicles,
           fareCalculator,
-          moreExpensiveTollCalculator
+          moreExpensiveTollCalculator,
+          eventsManager = mock[EventsManager]
         )
       )
       moreExpensiveRouter ! request
@@ -146,11 +150,11 @@ class TollRoutingSpec
       assert(moreExpensiveCarOption.costEstimate == 4.0)
 
       val tollSensitiveRequest = RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
@@ -171,7 +175,8 @@ class TollRoutingSpec
             None,
             None
           )
-        )
+        ),
+        initiatedFrom = "TollRoutingSpec"
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
@@ -182,11 +187,11 @@ class TollRoutingSpec
 
     "not report a toll when walking" in {
       val request = RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
@@ -194,7 +199,8 @@ class TollRoutingSpec
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        )
+        ),
+        initiatedFrom = "TollRoutingSpec"
       )
       router ! request
       val response = expectMsgType[RoutingResponse]

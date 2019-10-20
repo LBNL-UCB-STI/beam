@@ -165,7 +165,7 @@ class PersonWithVehicleSharingSpec
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -185,7 +185,8 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -355,7 +356,8 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -438,7 +440,8 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -552,8 +555,9 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None
           )
       }
 
@@ -590,8 +594,9 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None
           )
       }
 
@@ -612,7 +617,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
@@ -628,8 +633,9 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None
           )
       }
 

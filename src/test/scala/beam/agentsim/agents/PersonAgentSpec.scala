@@ -199,7 +199,8 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
-        requestId = request1.requestId
+        requestId = request1.requestId,
+        None
       )
 
       // This is the regular routing request.
@@ -233,7 +234,8 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = request2.requestId
+        requestId = request2.requestId,
+        request = None
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -438,7 +440,8 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -726,7 +729,8 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -755,7 +759,7 @@ class PersonAgentSpec
       events.expectMsgType[ReplanningEvent]
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             Vector(
               replannedTramLeg,
@@ -782,7 +786,8 @@ class PersonAgentSpec
             )
           )
         ),
-        1
+        requestId = 1,
+        request = None
       )
       events.expectMsgType[ModeChoiceEvent]
 

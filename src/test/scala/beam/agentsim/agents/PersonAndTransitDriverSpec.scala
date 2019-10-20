@@ -404,7 +404,8 @@ class PersonAndTransitDriverSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]
