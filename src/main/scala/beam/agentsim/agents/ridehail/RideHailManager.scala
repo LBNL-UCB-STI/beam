@@ -1182,16 +1182,40 @@ class RideHailManager(
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
     requestedRideHail += 1
-    rideHailResourceAllocationManager.respondToInquiry(inquiry) match {
+    val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.geo.utm2Wgs(inquiry.pickUpLocationUTM)
+      )
+    )
+    val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.geo.utm2Wgs(inquiry.destinationUTM)
+      )
+    )
+    val inquiryWithUpdatedLoc =
+      inquiry.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)
+    rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
-        log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
-        inquiry.customer.personRef ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
+        log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
+        inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(
+          inquiryWithUpdatedLoc,
+          None,
+          Some(DriverNotFoundError)
+        )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         servedRideHail += 1
-        inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
-        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
-        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
-        requestRoutes(inquiry.departAt, routingRequests)
+        inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
+        val routingRequests = createRoutingRequestsToCustomerAndDestination(
+          inquiryWithUpdatedLoc.departAt,
+          inquiryWithUpdatedLoc,
+          agentLocation
+        )
+        routingRequests.foreach(
+          rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiryWithUpdatedLoc.requestId)
+        )
+        requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests)
     }
   }
 
@@ -1676,6 +1700,21 @@ class RideHailManager(
       rideHailResourceAllocationManager
         .findDepotsForVehiclesInNeedOfRefueling()
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
+        .filter {
+          case (vehId, parkingStall) =>
+            val maybeGeofence = vehicleManager.getRideHailAgentLocation(vehId).geofence
+            val isInsideGeofence =
+              maybeGeofence.forall { g =>
+                val locUTM = beamServices.geo.wgs2Utm(
+                  beamServices.geo.snapToR5Edge(
+                    beamServices.beamScenario.transportNetwork.streetLayer,
+                    beamServices.geo.utm2Wgs(parkingStall.locationUTM)
+                  )
+                )
+                g.contains(locUTM.getX, locUTM.getY)
+              }
+            isInsideGeofence
+        }
 
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
     vehiclesHeadedToRefuelingDepot.foreach {
@@ -1686,8 +1725,33 @@ class RideHailManager(
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
-    val repositionVehicles
-      : Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map {
+    val insideGeofence = nonRefuelingRepositionVehicles.filter {
+      case (vehicleId, destLoc) =>
+        val rha = vehicleManager.idleRideHailVehicles(vehicleId)
+        // Get locations of R5 edge for source and destination
+        val r5SrcLocUTM = beamServices.geo.wgs2Utm(
+          beamServices.geo.snapToR5Edge(
+            beamServices.beamScenario.transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(rha.currentLocationUTM.loc)
+          )
+        )
+        val r5DestLocUTM = beamServices.geo.wgs2Utm(
+          beamServices.geo
+            .snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(destLoc))
+        )
+        // Are those locations inside geofence?
+        val isSrcInside = rha.geofence.forall(g => g.contains(r5SrcLocUTM))
+        val isDestInside = rha.geofence.forall(g => g.contains(r5DestLocUTM))
+        isSrcInside && isDestInside
+    }
+    log.debug(
+      "continueRepositionig. Tick[{}] nonRefuelingRepositionVehicles: {}, insideGeofence: {}",
+      tick,
+      nonRefuelingRepositionVehicles.size,
+      insideGeofence.size
+    )
+
+    val repositionVehicles: Vector[(VehicleId, Location)] = insideGeofence ++ vehiclesHeadedToRefuelingDepot.map {
       case (vehicleId, parkingStall) => (vehicleId, parkingStall.locationUTM)
     }
 

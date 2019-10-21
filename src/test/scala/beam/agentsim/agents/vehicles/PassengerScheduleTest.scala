@@ -8,7 +8,7 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{FunSpecLike, Matchers, _}
 
 /**
