@@ -5,6 +5,7 @@ import os.path
 import boto3
 import time
 import os
+import sys, getopt
 from datetime import datetime
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -36,6 +37,11 @@ def create_spreadsheet(sheet_api, title):
                                    fields='spreadsheetId').execute()
     sheet_id = spreadsheet.get('spreadsheetId')
     print('Spreadsheet ID: {0}'.format(sheet_id))
+    apply_formatting(sheet_api, sheet_id)
+    return sheet_id
+
+
+def apply_formatting(sheet_api, sheet_id):
     body = {
         'requests': [
             {
@@ -105,7 +111,6 @@ def create_spreadsheet(sheet_api, title):
     sheet_api.values().append(
         spreadsheetId=sheet_id, range="BEAM Instances!A1:K1",
         valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=header).execute()
-
     empty = {
         'values': [
             []
@@ -114,14 +119,12 @@ def create_spreadsheet(sheet_api, title):
     sheet_api.values().append(
         spreadsheetId=sheet_id, range="BEAM Instances!A2:K2",
         valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
-
     row_range = {
         'sheetId': 0,
         'startRowIndex': 1,
         'startColumnIndex': 0,
         'endColumnIndex': 1
     }
-
     requests = [{
         'addConditionalFormatRule': {
             'rule': {
@@ -171,8 +174,6 @@ def create_spreadsheet(sheet_api, title):
         'requests': requests
     }
     sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
-
-    return sheet_id
 
 
 def find_actual_sheet(creds):
@@ -273,43 +274,13 @@ def lambda_handler(event, context):
         command=command_id)
 
 
-def main():
+def main(sheet_id):
     creds = load_service_creds()
     service = build('sheets', 'v4', credentials=creds)
     # Call the Sheets API
     sheet = service.spreadsheets()
-    #datem = datetime.now().strftime('%h.%Y')
-    #sheet_id = create_spreadsheet(sheet, '{0} {1}'.format(SHEET_NAME_PREFIX, datem))
-    for i in range(10):
-        add_row("1JL4Sygkghx-ksaKsNc2JKzALfO3c_8yAV-9QRCp212A", {
-            'status': 'Run Started',
-            'name': 'Run Started',
-            'instance_id': 'i13123qw',
-            'instance_type': 'i13123qw',
-            'host_name': 'Hst',
-            'browser': 'https://www.googleapis.com/auth/drive.file',
-            'branch': 'test_branch',
-            'region': 'RGN',
-            'batch': 'RGN',
-            'commit': 'RGN',
-            's3_link': 'https://www.googleapis.com/auth/drive.file'
-        }, sheet)
-
-    for i in range(10):
-        add_row("1JL4Sygkghx-ksaKsNc2JKzALfO3c_8yAV-9QRCp212A", {
-            'status': 'Run Completed',
-            'name': 'Run Started',
-            'instance_id': 'i13123qw',
-            'instance_type': 'i13123qw',
-            'host_name': 'Hst',
-            'browser': 'https://www.googleapis.com/auth/drive.file',
-            'branch': 'test_branch',
-            'region': 'RGN',
-            'batch': 'RGN',
-            'commit': 'RGN',
-            's3_link': 'https://www.googleapis.com/auth/drive.file'
-        }, sheet)
+    apply_formatting(sheet, sheet_id)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1])
