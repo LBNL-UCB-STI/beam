@@ -3,7 +3,7 @@ package beam.utils.scenario.urbansim
 import beam.utils.scenario.urbansim.DataExchange._
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.collection.JavaConverters._

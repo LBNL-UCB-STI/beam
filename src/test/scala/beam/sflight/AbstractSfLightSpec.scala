@@ -1,19 +1,15 @@
 package beam.sflight
 
-import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKitBase}
-import beam.router.BeamRouter
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamScenario, BeamServices, BeamServicesImpl}
+import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{NetworkHelperImpl, SimRunnerForTest}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.scalatest._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec(val name: String)
