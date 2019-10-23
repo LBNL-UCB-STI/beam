@@ -384,12 +384,6 @@ def getCurrentGitBranch() {
     return gitBranch
 }
 
-// gradle deployPilates -PrunName=inm/testRunPilatesWithFirstBeamSkipped -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfig=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=skippingFirstBeam -Ps3OutputBucket=//inm-test-run-pilates -Ps3OutputBasePath=/pilates-outputs -PinitialSkimsPath=//inm-test-run-pilates/pilates-outputs/pilatesScenarioName1_/2015/beam/sfbay-smart-base-pilates-small__2019-10-08_20-54-59/ITERS/it.0/0.skims.csv.gz
-// gradle deployPilates -PrunName=inm/testRunPilates -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfig=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -Ps3OutputBucket=//inm-test-run-pilates -Ps3OutputBasePath=/pilates-outputs
-
-// different regions:
-// gradle deployPilates -PrunName=inm/testRunPilates -Pregion=us-west-2 -PpilatesDataRegion=us-east-2 -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfig=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PinitialS3UrbansimOutput=//inm-test-run-pilates/initial_output/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=pilatesScenarioName1 -Ps3OutputBucket=//inm-test-run-pilates -Ps3OutputBasePath=/pilates-outputs
-// gradle deployPilates -PrunName=inm/testRunPilatesWithFirstBeamSkipped -Pregion=us-west-2 -PpilatesDataRegion=us-east-2 -PstartYear=2010 -PcountOfYears=15 -PbeamItLen=5 -PurbansimItLen=5 -PbeamBranch=production-sfbay-develop -PbeamConfig=production/sfbay/smart/smart-baseline-pilates-small-test.conf -PinitialS3UrbansimInput=//inm-test-run-pilates/initial_input/ -PpilatesImageName=irishwithaxe/pilates-inm -PpilatesScenarioName=skippingFirstBeam -Ps3OutputBucket=//inm-test-run-pilates -Ps3OutputBasePath=/pilates-outputs -PinitialSkimsPath=//inm-test-run-pilates/pilates-outputs/pilatesScenarioName1_/2015/beam/sfbay-smart-base-pilates-small__2019-10-08_20-54-59/ITERS/it.0/0.skims.csv.gz?region=us-east-2
 task deployPilates(type: AWSLambdaInvokeTask) {
     doFirst {
         def runExample = '\n Example: gradle deployPilates -PrunName=`run name` ' +
@@ -459,7 +453,6 @@ task deployPilates(type: AWSLambdaInvokeTask) {
     }
 }
 
-// gradle deploy -PrunName=inm/testRun -PdeployMode=config -PbeamBranch=production-sfbay-develop -PbeamConfigs=production/sfbay/smart/smart-baseline-pilates-small-test.conf
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
         if (!project.hasProperty('runName')) {
