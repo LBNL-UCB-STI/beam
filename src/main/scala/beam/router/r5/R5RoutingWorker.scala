@@ -1124,11 +1124,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
       }
   }
 
+
   private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
     ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
   }
-
-  private val error: Double = 0.1
+  private val error: Double = 0.05
   private val errors: Array[Double] = Array.fill(1000000) {
    ThreadLocalRandom.current().nextDouble(1 - error, 1 + error)
   }
@@ -1150,7 +1150,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
           val idx = Math.abs(errorIdx.getAndIncrement()) % errors.length
-          val err = if (isZeroIter) zeroIterErrors(idx) else errors(idx)
+          val err = errors(idx)
           val physSimTravelTime = (travelTime.getLinkTravelTime(link, time, null, null) * err).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
