@@ -1128,7 +1128,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
   private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
     ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
   }
-  private val error: Double = 0.1
+  private val error: Double = 0.2
   private val errors: Array[Double] = Array.fill(1000000) {
    ThreadLocalRandom.current().nextDouble(1 - error, 1 + error)
   }
