@@ -36,7 +36,8 @@ public class StatsFactory {
         VehicleChargingAnalysis,
         RideHailSummary,
         LoadOverTimeAnalysis,
-        ChargingAnalysis
+        ChargingAnalysis,
+        LinkStatsAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -124,6 +125,8 @@ public class StatsFactory {
                 return new LoadOverTimeAnalysis();
             case ChargingAnalysis:
                 return new ChargingAnalysis();
+            case LinkStatsAnalysis:
+                return new LinkTraversalAnalysis(beamServices.geo(), beamServices.matsimServices().getScenario().getNetwork());
             default:
                 return null;
         }
