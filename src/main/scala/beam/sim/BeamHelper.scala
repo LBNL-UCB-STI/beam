@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream, FileWriter}
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -577,18 +577,13 @@ trait BeamHelper extends LazyLogging {
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
-        val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
-        if (externalFolderExists) {
-          val beamScenario = loadScenario(beamConfig)
-          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
-          val scenario = {
-            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
-          }.asInstanceOf[MutableScenario]
-          (scenario, beamScenario)
-        } else {
-          throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
-        }
+        val beamScenario = loadScenario(beamConfig)
+        val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+        val scenario = {
+          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+        }.asInstanceOf[MutableScenario]
+        (scenario, beamScenario)
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>

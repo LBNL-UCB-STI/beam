@@ -74,36 +74,14 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
-  - echo "git checkout ..."
+  - 'echo "git checkout: $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  - echo "preparing for python analysis"
-  - sudo dpkg --configure -a
-  - sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
-  - sudo apt-get install unattended-upgrades
-  - sudo dpkg --configure -a
-  - sudo apt update
-  - sudo apt install npm -y
-  - sudo apt install nodejs-legacy -y
-  - sudo apt install python-pip -y
-  - pip install --upgrade pip
-  - sudo pip install pandas
-  - sudo pip install plotly
-  - sudo pip install psutil requests
-  - sudo npm cache clean -f
-  - sudo npm install -g n
-  - sudo n stable
-  - sudo npm install -g npm
-  - sudo apt-get install curl
-  - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-  - sudo apt-get install nodejs -y
-  - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
-  - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
-  - sudo apt-get install xvfb -y
-  - echo "gradlew assemble ..."
+
+  - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
@@ -192,30 +170,30 @@ def validate(name):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[ {
+            'ResourceType': 'instance',
+            'Tags': [ {
+                'Key': 'Name',
+                'Value': instance_name
+            } ]
+        } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
