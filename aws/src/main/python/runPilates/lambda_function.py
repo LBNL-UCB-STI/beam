@@ -254,15 +254,15 @@ def lambda_handler(event, context):
     all_run_params_comma = all_run_params_comma[:-2]
     all_run_params_comma_le = all_run_params_comma_le[:-5]
 
-    titled = event.get('title', None)
+    titled = event.get('title')
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
-    initial_urbansim_input = event.get('initial_urbansim_input', None)
+    initial_urbansim_input = event.get('initial_urbansim_input')
     if initial_urbansim_input is None:
         return "Unable to start the run, initialS3UrbansimInput is required. Please restart with appropriate arguments."
 
-    initial_urbansim_output = event.get('initial_urbansim_output', None)
+    initial_urbansim_output = event.get('initial_urbansim_output')
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
