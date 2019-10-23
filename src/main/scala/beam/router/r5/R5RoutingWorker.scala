@@ -137,7 +137,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var workAssigner: ActorRef = context.parent
 
-  private var r5: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime)
+  private var r5: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, isZeroIter = true)
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -209,14 +209,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      r5 = new R5Wrapper(workerParams, newTravelTime)
+      r5 = new R5Wrapper(workerParams, newTravelTime, isZeroIter = false)
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
       r5 = new R5Wrapper(
         workerParams,
-        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
+        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
+        isZeroIter = false
       )
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
@@ -240,7 +241,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 }
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends MetricsSupport {
+class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIter: Boolean) extends MetricsSupport {
 
   private val WorkerParameters(
     beamConfig,
@@ -1123,10 +1124,15 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       }
   }
 
-  private val error: Double = 0.3
+  private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
+    ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
+  }
+
+  private val error: Double = 0.1
   private val errors: Array[Double] = Array.fill(1000000) {
    ThreadLocalRandom.current().nextDouble(1 - error, 1 + error)
   }
+
   private val errorIdx: AtomicInteger = new AtomicInteger(0)
 
   private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
@@ -1144,7 +1150,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
           val idx = errorIdx.getAndIncrement() % errors.length
-          val err = errors(idx)
+          val err = if (isZeroIter) zeroIterErrors(idx) else errors(idx)
           val physSimTravelTime = (travelTime.getLinkTravelTime(link, time, null, null) * err).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
