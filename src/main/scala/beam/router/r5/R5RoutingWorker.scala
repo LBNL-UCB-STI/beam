@@ -1149,7 +1149,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
         } else {
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
-          val idx = Math.abs(errorIdx.getAndIncrement()) % errors.length
+          val idx = Math.abs(errorIdx.getAndIncrement() % errors.length)
           val err = errors(idx)
           val physSimTravelTime = (travelTime.getLinkTravelTime(link, time, null, null) * err).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
