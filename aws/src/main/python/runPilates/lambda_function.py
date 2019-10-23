@@ -38,7 +38,6 @@ URBANSIM_IT_LEN_DEFAULT = '5'
 COMMIT_DEFAULT = 'HEAD'
 MAXRAM_DEFAULT = '2g'
 SHUTDOWN_DEFAULT = '30'
-TRUE = 'true'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
@@ -307,8 +306,10 @@ def lambda_handler(event, context):
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
-    if volume_size < 64 or volume_size > 256:
+    if volume_size < 64:
         volume_size = 64
+    if volume_size > 256:
+        volume_size = 256
 
     if region not in regions:
         return "Unable to start run, {region} region not supported.".format(region=region)
