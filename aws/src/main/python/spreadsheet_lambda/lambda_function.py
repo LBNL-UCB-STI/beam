@@ -200,6 +200,7 @@ def add_row(sheet_id, row_data, sheet_api):
                 row_data.get('name'),
                 row_data.get('instance_id'),
                 row_data.get('instance_type'),
+                datetime.now().strftime('%m/%d/%Y, %H:%M:%S'),
                 row_data.get('host_name'),
                 row_data.get('browser'),
                 row_data.get('region'),
@@ -211,7 +212,7 @@ def add_row(sheet_id, row_data, sheet_api):
         ]
     }
     sheet_api.values().append(
-        spreadsheetId=sheet_id, range="BEAM Instances!A2:E2",
+        spreadsheetId=sheet_id, range="BEAM Instances!A2:F2",
         valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
 
 

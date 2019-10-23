@@ -174,8 +174,6 @@ task installSpreadPythonDependency(type: Exec) {
 task packageSpreadSheetFunction(dependsOn: [installSpreadPythonDependency], type: Zip) {
     from fileTree('src/main/python/spreadsheet_lambda/package')
     from ('src/main/python/spreadsheet_lambda/lambda_function.py')
-    from ('src/main/python/spreadsheet_lambda/credentials.json')
-    from ('src/main/python/spreadsheet_lambda/token.pickle')
     from ('src/main/python/spreadsheet_lambda/beam-simulation.json')
     include '**/'
     archiveName = 'function.zip'
