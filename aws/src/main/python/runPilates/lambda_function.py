@@ -254,7 +254,7 @@ def lambda_handler(event, context):
     all_run_params_comma = all_run_params_comma[:-2]
     all_run_params_comma_le = all_run_params_comma_le[:-5]
 
-    titled = event.get('title', 'hostname-test')
+    titled = event.get('title', None)
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
