@@ -3,7 +3,8 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{ExecutorService, Executors, ThreadLocalRandom}
 import java.util.{Collections, Optional}
 
 import akka.actor._
@@ -23,7 +24,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -1122,6 +1123,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
       }
   }
 
+  private val error: Double = 0.05
+  private val errors: Array[Double] = Array.fill(1000000) {
+   ThreadLocalRandom.current().nextDouble(1 - error, 1 + error)
+  }
+  private val errorIdx: AtomicInteger = new AtomicInteger(0)
+
   private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
     (time: Double, linkId: Int, streetMode: StreetMode) =>
@@ -1136,7 +1143,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         } else {
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
-          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).ceil.toInt
+          val idx = errorIdx.getAndIncrement() % errors.length
+          val err = errors(idx)
+          val physSimTravelTime = (travelTime.getLinkTravelTime(link, time, null, null) * err).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         }
