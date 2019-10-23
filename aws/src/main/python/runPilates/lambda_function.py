@@ -35,7 +35,6 @@ START_YEAR_DEFAULT = '2010'
 COUNT_OF_YEARS_DEFAULT = '30'
 BEAM_IT_LEN_DEFAULT = '5'
 URBANSIM_IT_LEN_DEFAULT = '5'
-BRANCH_DEFAULT = 'master'
 COMMIT_DEFAULT = 'HEAD'
 MAXRAM_DEFAULT = '2g'
 SHUTDOWN_DEFAULT = '30'
@@ -264,7 +263,10 @@ def lambda_handler(event, context):
 
     initial_urbansim_output = event.get('initial_urbansim_output')
 
-    branch = event.get('branch', BRANCH_DEFAULT)
+    branch = event.get('branch')
+    if branch is None:
+        return "Unable to start the run, branch is required. Please restart with appropriate arguments."
+
     commit_id = event.get('commit', COMMIT_DEFAULT)
 
     start_year = event.get('start_year', START_YEAR_DEFAULT)
