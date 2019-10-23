@@ -447,6 +447,8 @@ object HouseholdActor {
 
     def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
 
+      val HasEnoughFuelToBeParked: Boolean = true
+
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -454,7 +456,7 @@ object HouseholdActor {
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init", None)
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")
           } {
             veh.useParkingStall(stall)
           }

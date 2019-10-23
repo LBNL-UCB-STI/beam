@@ -1,5 +1,6 @@
 package beam.utils.scripts
 
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
@@ -40,10 +41,13 @@ object FailFast extends LazyLogging {
       )
     }
 
-    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds != 0 &&
-        beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds) {
+    /*
+     * We don't expect "Electricity" to be a secondary powertrain type and it can produce unexpected results if set as such. So we fail.
+     */
+
+    if (beamServices.beamScenario.vehicleTypes.find(_._2.secondaryFuelType == Some(Electricity)).isDefined) {
       throw new RuntimeException(
-        "Scheduler Parallelism Window must be less than Request Buffer Timeout"
+        s"Found BeamVehicleType ${beamServices.beamScenario.vehicleTypes.find(_._2.secondaryFuelType == Some(Electricity)).get._2.id} with 'Electricity' specified as a FuelType for the secondary powertrain. This is likely a mistake and we are failing so it can be corrected otherwise unexpected behavior will result. For a BEV the primary fuel type should be Electricity and secondary should be empty / blank. For PHEV the primary should be Electricity and secondary should be Gasoline."
       )
     }
 

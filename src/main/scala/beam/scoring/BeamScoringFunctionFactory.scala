@@ -267,8 +267,8 @@ class BeamScoringFunctionFactory @Inject()(
     val t = o.asInstanceOf[(_, _)]
     val beamConfig = t._2.asInstanceOf[BeamConfig]
     this.beamConfig = beamConfig
-
   }
+
 }
 
 /**

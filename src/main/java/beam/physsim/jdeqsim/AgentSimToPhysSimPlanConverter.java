@@ -159,7 +159,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         this.beamConfigChangesObservable
                 );
             }
-            org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig,
+            org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario,
                     jdeqsimEvents, iterationNumber, beamServices.matsimServices().getControlerIO(),
                     roadCapacityAdjustmentFunction);
             linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
@@ -167,7 +167,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info("JDEQSim Start");
             startSegment("jdeqsim-execution", "jdeqsim");
             if (beamConfig.beam().debug().debugEnabled()) {
-                log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+                log.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
             }
 
             jdeqSimulation.run();
@@ -177,7 +177,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         if (beamConfig.beam().debug().debugEnabled()) {
-            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
+            log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
         }
 
         endSegment("jdeqsim-execution", "jdeqsim");
@@ -279,12 +279,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig,
-                                                                           EventsManager jdeqsimEvents, int iterationNumber,
-                                                                           OutputDirectoryHierarchy controlerIO,
-                                                                           RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
+    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, EventsManager jdeqsimEvents,
+            int iterationNumber, OutputDirectoryHierarchy controlerIO, RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
-        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
+        double flowCapacityFactor = beamConfig.beam().physsim().flowCapacityFactor();
+
+        config.setFlowCapacityFactor(flowCapacityFactor);
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
 

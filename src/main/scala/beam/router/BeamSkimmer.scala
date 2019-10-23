@@ -79,12 +79,12 @@ class BeamSkimmer @Inject()(
 
   def getSkimDefaultValue(
     mode: BeamMode,
-    origin: Location,
-    destination: Location,
+    originUTM: Location,
+    destinationUTM: Location,
     departureTime: Int,
     vehicleTypeId: Id[BeamVehicleType]
   ): Skim = {
-    val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
+    val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val travelCost: Double = mode match {
       case CAR | CAV =>
         DrivingCost.estimateDrivingCost(
@@ -116,19 +116,25 @@ class BeamSkimmer @Inject()(
   }
 
   def getTimeDistanceAndCost(
-    origin: Location,
-    destination: Location,
+    originUTM: Location,
+    destinationUTM: Location,
     departureTime: Int,
     mode: BeamMode,
     vehicleTypeId: Id[BeamVehicleType]
   ): Skim = {
-    val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-    val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
+    val origTaz = tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
+    val destTaz = tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     getSkimValue(departureTime, mode, origTaz, destTaz) match {
       case Some(skimValue) =>
         skimValue.toSkimExternal
       case None =>
-        getSkimDefaultValue(mode, origin, destination, departureTime, vehicleTypeId)
+        getSkimDefaultValue(
+          mode,
+          originUTM,
+          new Coord(destinationUTM.getX, destinationUTM.getY),
+          departureTime,
+          vehicleTypeId
+        )
     }
   }
 
@@ -181,10 +187,12 @@ class BeamSkimmer @Inject()(
           energy = 0.0
         )
     }
-    (pooled.time / solo.time, pooled.cost / solo.cost)
+    val timeFactor = if (solo.time > 0.0) { pooled.time / solo.time } else { 1.0 }
+    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost } else { 1.0 }
+    (timeFactor, costFactor)
   }
 
-  private def distanceAndTime(mode: BeamMode, origin: Location, destination: Location) = {
+  private def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location) = {
     val speed = mode match {
       case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
       case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec / 1.1
@@ -192,7 +200,7 @@ class BeamSkimmer @Inject()(
       case BIKE                                                       => bicycleSpeedMeterPerSec
       case _                                                          => walkSpeedMeterPerSec
     }
-    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
+    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(originUTM, destinationUTM)).toInt
     val travelTime: Int = Math
       .ceil(travelDistance / speed)
       .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
@@ -234,13 +242,14 @@ class BeamSkimmer @Inject()(
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
     val timeBin = timeToBin(origLeg.startTime)
+    val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val key = (timeBin, mode, origTaz, destTaz)
     val payload =
       SkimInternal(
         correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInHours * 3600,
         generalizedCost,
-        beamLegs.map(_.travelPath.distanceInM).sum,
+        if (dist > 0.0) { dist } else { 1.0 },
         correctedTrip.costEstimate,
         1,
         energyConsumption

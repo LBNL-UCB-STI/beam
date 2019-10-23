@@ -22,10 +22,12 @@ import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
-import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils}
+import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+//import com.zaxxer.nuprocess.NuProcess
+import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
@@ -43,7 +45,7 @@ import org.matsim.core.controler.listener.{
 }
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -85,6 +87,7 @@ class BeamSim @Inject()(
   val graphFileNameDirectory = mutable.Map[String, Int]()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
+  val runningPythonScripts = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
@@ -216,7 +219,7 @@ class BeamSim @Inject()(
     }
 
     if (beamConfig.beam.debug.debugEnabled)
-      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
+      logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
 
@@ -231,8 +234,12 @@ class BeamSim @Inject()(
         .flatMap(_.getSummaryStats.asScala)
         .toMap
 
+      val summaryVehicleStatsFile =
+        Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryVehicleStats.csv")).toFile
+      val unProcessedStats = writeSummaryVehicleStats(summaryVehicleStatsFile)
+
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
-      writeSummaryStats(summaryStatsFile)
+      writeSummaryStats(summaryStatsFile, unProcessedStats)
 
       iterationSummaryStats.flatMap(_.keySet).distinct.foreach { x =>
         val key = x.split("_")(0)
@@ -266,7 +273,7 @@ class BeamSim @Inject()(
     }
 
     if (beamConfig.beam.debug.debugEnabled)
-      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+      logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 
     val persons = scenario.getPopulation.getPersons.values().asScala
@@ -304,6 +311,24 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+
+    writeEventsAnalysisUsing(event)
+  }
+
+  private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
+    if (beamServices.beamConfig.beam.outputs.writeAnalysis) {
+      val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
+      val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
+      if (writeEventAnalysisInThisIteration) {
+        val currentEventsFilePath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
+        val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
+          "src/main/python/events_analysis/analyze_events.py",
+          if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+        )
+        runningPythonScripts += pythonProcess
+      }
+    }
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
@@ -365,10 +390,46 @@ class BeamSim @Inject()(
     }
     BeamConfigChangesObservable.clear()
 
+    runningPythonScripts
+      .filter(process => process.isRunning)
+      .foreach(process => {
+        logger.info("Waiting for python process to complete running.")
+        process.waitFor(5, TimeUnit.MINUTES)
+        logger.info("Python process completed.")
+      })
   }
 
-  private def writeSummaryStats(summaryStatsFile: File): Unit = {
-    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
+  private def writeSummaryVehicleStats(summaryVehicleStatsFile: File): immutable.HashSet[String] = {
+    val columns = Seq("vehicleMilesTraveled", "vehicleHoursTraveled", "numberOfVehicles")
+
+    val out = new BufferedWriter(new FileWriter(summaryVehicleStatsFile))
+    out.write("iteration,vehicleType,")
+    out.write(columns.mkString(","))
+    out.newLine()
+
+    val ignoredStats = mutable.HashSet.empty[String]
+    iterationSummaryStats.zipWithIndex.foreach {
+      case (stats, it) =>
+        val (ignored, parsed) =
+          SummaryVehicleStatsParser.splitStatsMap(stats.map(kv => (kv._1, Double2double(kv._2))), columns)
+
+        ignoredStats ++= ignored
+        parsed.foreach {
+          case (vehicleType, statsValues) =>
+            out.write(s"$it,$vehicleType,")
+            out.write(statsValues.mkString(","))
+            out.newLine()
+        }
+    }
+
+    out.close()
+    // because motorizedVehicleMilesTraveled and vehicleMilesTraveled contains the same data
+    // so we assume that we already processed both
+    immutable.HashSet[String](ignoredStats.filterNot(_.startsWith("motorizedVehicleMilesTraveled")).toSeq: _*)
+  }
+
+  private def writeSummaryStats(summaryStatsFile: File, unProcessedStats: immutable.HashSet[String]): Unit = {
+    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.filter(unProcessedStats.contains).sorted
 
     val out = new BufferedWriter(new FileWriter(summaryStatsFile))
     out.write("Iteration,")

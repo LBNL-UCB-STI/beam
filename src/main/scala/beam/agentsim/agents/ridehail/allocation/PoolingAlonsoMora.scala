@@ -175,7 +175,12 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       rideHailManager.log
         .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       val alg =
-        new AsyncAlonsoMoraAlgForRideHail(spatialPoolCustomerReqs, availVehicles, rideHailManager.beamServices, skimmer)
+        new VehicleCentricMatchingForRideHail(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices,
+          skimmer
+        )
       import scala.concurrent.duration._
       val assignment = try {
         Await.result(alg.matchAndAssign(tick), atMost = 2.minutes)
@@ -263,10 +268,24 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val wereAllocated = allocResponses
         .flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .toSet
-      pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach { unsatisfiedReq =>
-        allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
+
+      val nonAllocated = pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId))
+      var s = System.currentTimeMillis()
+      nonAllocated.foreach { unsatisfiedReq =>
+        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager) match {
+          case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
+            allocResponses = allocResponses :+ res
+            alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
+          case res =>
+            allocResponses = allocResponses :+ res
+        }
       }
+      var e = System.currentTimeMillis()
+      logger.debug(s"Served nonAllocated ${nonAllocated.size} in ${e - s} ms")
+
+      s = System.currentTimeMillis()
       // Now satisfy the solo customers
+      val soloCustomer = toAllocate.filterNot(_.asPooled)
       toAllocate.filterNot(_.asPooled).foreach { req =>
         Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
@@ -288,6 +307,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             )
         }
       }
+      e = System.currentTimeMillis()
+      logger.debug(s"Served soloCustomer ${soloCustomer.size} in ${e - s} ms")
     }
     rideHailManager.log.debug(
       "AllocResponses: {}",

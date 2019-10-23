@@ -74,13 +74,14 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
-  - echo "git checkout ..."
+  - 'echo "git checkout: $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  - echo "gradlew assemble ..."
+
+  - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
@@ -169,30 +170,30 @@ def validate(name):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[ {
+            'ResourceType': 'instance',
+            'Tags': [ {
+                'Key': 'Name',
+                'Value': instance_name
+            } ]
+        } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):

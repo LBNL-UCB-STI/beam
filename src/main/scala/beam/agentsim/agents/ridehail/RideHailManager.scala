@@ -2,19 +2,18 @@ package beam.agentsim.agents.ridehail
 
 import java.awt.Color
 import java.io.File
-import java.lang.reflect.Method
 import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Stash, Terminated}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
+import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
@@ -29,10 +28,9 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.{
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
+import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ZonalParkingManager.logger
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, ParkingZoneSearch}
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -51,7 +49,6 @@ import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
-import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -68,6 +65,8 @@ import scala.concurrent.Future
 import scala.math.{max, min}
 import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object RideHailManager {
@@ -76,10 +75,6 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
-
-  def nextRideHailInquiryId: Id[RideHailRequest] = {
-    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailRequest])
-  }
 
   sealed trait RideHailServiceStatus
 
@@ -154,6 +149,10 @@ object RideHailManager {
   case object DebugRideHailManagerDuringExecution
 
   case class ContinueBufferedRideHailRequests(tick: Int)
+
+  sealed trait RefuelSource
+  case object JustArrivedAtDepot extends RefuelSource
+  case object DequeuedToCharge extends RefuelSource
 
   final val fileBaseName = "rideHailInitialLocation"
 
@@ -250,6 +249,8 @@ class RideHailManager(
       .build()
   }
 
+  private val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+
   private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
@@ -262,7 +263,7 @@ class RideHailManager(
       }
     }
     .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+    .size / fleet
   // Undo sampling to estimate initial number
 
   val numRideHailAgents: Long = math.round(
@@ -344,25 +345,20 @@ class RideHailManager(
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
-  // for parking/charging search
-  val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
-    new MultinomialLogit(
-      Map.empty,
-      Map(
-        "distanceFactor" -> UtilityFunctionOperation(
-          "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier
-        ),
-        "installedCapacity" -> UtilityFunctionOperation(
-          "multiplier",
-          beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier
-        ),
-        "parkingCostsPriceFactor" -> UtilityFunctionOperation(
-          "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier
-        )
-      )
+  // parking choice function parameters
+  val mnlParamsFromConfig = beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
+
+  val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
+    ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.rangeAnxietyMultiplier
+    ),
+    ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.distanceMultiplier
+    ),
+    ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.parkingPriceMultiplier
     )
+  )
 
   // provides tracking of parking/charging alternatives and their availability
   val rideHailDepotParkingManager = RideHailDepotParkingManager(
@@ -373,7 +369,7 @@ class RideHailManager(
     rand,
     boundingBox,
     beamServices.geo.distUTMInMeters,
-    utilityFunction,
+    mnlMultiplierParameters,
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
@@ -652,7 +648,16 @@ class RideHailManager(
         )
         val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
 
-        val baseFare = embodiedBeamTrip.legs.map(_.cost).sum
+        val baseFare = embodiedBeamTrip.legs
+          .map(
+            leg =>
+              leg.cost - DrivingCost.estimateDrivingCost(
+                leg.beamLeg,
+                beamScenario.vehicleTypes(leg.beamVehicleTypeId),
+                beamScenario.fuelTypePrices
+            )
+          )
+          .sum
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
@@ -967,11 +972,13 @@ class RideHailManager(
       )
     vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
-    removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
+    val triggerToSend = removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(vehicleId, parkingStall, whenWhere.time, triggerId, "JustArrivedAtDepot")
+        attemptToRefuel(vehicleId, beamVehicle.driver.get, parkingStall, whenWhere.time, triggerId, JustArrivedAtDepot)
       //If not arrived for refueling;
       case _ => {
+        log.debug("Making vehicle {} available", vehicleId)
+        vehicleManager.makeAvailable(rideHailAgentLocation)
         removeFromCharging(vehicleId) match {
           case Some(parkingStall) => {
             rideHailDepotParkingManager.releaseStall(parkingStall)
@@ -979,18 +986,25 @@ class RideHailManager(
             //QUESTION: Maybe a new trigger should be set to check for queue instead of this inline?
             dequeueNextVehicleForRefuelingFrom(depotId) match {
               case Some((nextVehicleId, nextVehiclesParkingStall)) => {
-                attemptToRefuel(nextVehicleId, nextVehiclesParkingStall, whenWhere.time, triggerId, "DequeuedToCharge")
+                attemptToRefuel(
+                  nextVehicleId,
+                  vehicleManager.getRideHailAgentLocation(nextVehicleId).rideHailAgent,
+                  nextVehiclesParkingStall,
+                  whenWhere.time,
+                  triggerId,
+                  DequeuedToCharge
+                )
               }
               case None =>
+                Vector()
             }
           }
           case None =>
+            Vector()
         }
-        log.debug("Making vehicle {} available", vehicleId)
-        vehicleManager.makeAvailable(rideHailAgentLocation)
-        rideHailAgentLocation.rideHailAgent ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
       }
     }
+    rideHailAgentLocation.rideHailAgent ! NotifyVehicleResourceIdleReply(triggerId, triggerToSend)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1053,8 +1067,8 @@ class RideHailManager(
   }
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
-    val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "charge", Option(beamVehicle))
+    val destinationUtm: Coord = rideHailAgentLocation.currentLocationUTM.loc
+    val inquiry = ParkingInquiry(destinationUtm, "charge", Some(beamVehicle), None)
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }
@@ -1066,7 +1080,7 @@ class RideHailManager(
   def addVehicleAndStallToRefuelingQueueFor(
     vehicleId: VehicleId,
     parkingStall: ParkingStall,
-    source: String
+    source: RefuelSource
   ): Unit = {
     depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
@@ -1106,7 +1120,7 @@ class RideHailManager(
   private val chargingVehicleToParkingStallMap: mutable.Map[VehicleId, ParkingStall] =
     mutable.Map.empty[VehicleId, ParkingStall]
 
-  def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId, source: String): Unit = {
+  def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId, source: RefuelSource): Unit = {
     if (chargingVehicleToParkingStallMap.keys.exists(_ == vehicleId)) {
       log.warning(
         "{} is already charging in {}, yet it is being added to {}. Source: {} THIS SHOULD NOT HAPPEN!",
@@ -1140,44 +1154,68 @@ class RideHailManager(
 
   def attemptToRefuel(
     vehicleId: VehicleId,
+    driverAgent: ActorRef,
     originalParkingStallFoundDuringAssignment: ParkingStall,
     time: Int,
     triggerId: Option[Long],
-    source: String
-  ): Unit = {
+    source: RefuelSource
+  ): Vector[ScheduleTrigger] = {
     val beamVehicleOption = findBeamVehicleUsing(vehicleId)
     rideHailDepotParkingManager.findAndClaimStallAtDepot(originalParkingStallFoundDuringAssignment) match {
       case Some(claimedParkingStall: ParkingStall) => {
         beamVehicleOption match {
           case Some(beamVehicle) =>
             beamVehicle.useParkingStall(claimedParkingStall)
-            beamVehicle.driver.foreach(driverAgent => {
-              addVehicleToChargingInDepotUsing(claimedParkingStall, vehicleId, source)
-              driverAgent ! NotifyVehicleResourceIdleReply(
-                triggerId,
-                Vector(ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent))
-              )
-            })
-          case None => log.warning("Unable to find vehicle {} to start depot refueling")
+            addVehicleToChargingInDepotUsing(claimedParkingStall, vehicleId, source)
+            Vector(ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent))
+          case None =>
+            log.warning("Unable to find vehicle {} to start depot refueling")
+            Vector()
         }
       }
-      case None => addVehicleAndStallToRefuelingQueueFor(vehicleId, originalParkingStallFoundDuringAssignment, source)
+      case None =>
+        addVehicleAndStallToRefuelingQueueFor(vehicleId, originalParkingStallFoundDuringAssignment, source)
+        Vector()
     }
   }
   /* END: Refueling Logic */
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
     requestedRideHail += 1
-    rideHailResourceAllocationManager.respondToInquiry(inquiry) match {
+    val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.geo.utm2Wgs(inquiry.pickUpLocationUTM)
+      )
+    )
+    val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.geo.utm2Wgs(inquiry.destinationUTM)
+      )
+    )
+    val inquiryWithUpdatedLoc =
+      inquiry.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)
+    rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
-        log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
-        inquiry.customer.personRef ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
+        log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
+        inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(
+          inquiryWithUpdatedLoc,
+          None,
+          Some(DriverNotFoundError)
+        )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         servedRideHail += 1
-        inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
-        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
-        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
-        requestRoutes(inquiry.departAt, routingRequests)
+        inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
+        val routingRequests = createRoutingRequestsToCustomerAndDestination(
+          inquiryWithUpdatedLoc.departAt,
+          inquiryWithUpdatedLoc,
+          agentLocation
+        )
+        routingRequests.foreach(
+          rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiryWithUpdatedLoc.requestId)
+        )
+        requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests)
     }
   }
 
@@ -1531,7 +1569,19 @@ class RideHailManager(
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = mobilityRequestToPassengerSchedule(alloc.schedule)
-    val baseFare = alloc.schedule.flatMap(_.beamLegAfterTag.map(_.cost)).sum
+    val baseFare = alloc.schedule
+      .flatMap(
+        _.beamLegAfterTag.map(
+          leg =>
+            leg.cost - DrivingCost.estimateDrivingCost(
+              leg.beamLeg,
+              beamScenario.vehicleTypes(leg.beamVehicleTypeId),
+              beamScenario.fuelTypePrices
+          )
+        )
+      )
+      .sum
+
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
@@ -1650,6 +1700,21 @@ class RideHailManager(
       rideHailResourceAllocationManager
         .findDepotsForVehiclesInNeedOfRefueling()
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
+        .filter {
+          case (vehId, parkingStall) =>
+            val maybeGeofence = vehicleManager.getRideHailAgentLocation(vehId).geofence
+            val isInsideGeofence =
+              maybeGeofence.forall { g =>
+                val locUTM = beamServices.geo.wgs2Utm(
+                  beamServices.geo.snapToR5Edge(
+                    beamServices.beamScenario.transportNetwork.streetLayer,
+                    beamServices.geo.utm2Wgs(parkingStall.locationUTM)
+                  )
+                )
+                g.contains(locUTM.getX, locUTM.getY)
+              }
+            isInsideGeofence
+        }
 
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
     vehiclesHeadedToRefuelingDepot.foreach {
@@ -1660,8 +1725,33 @@ class RideHailManager(
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
-    val repositionVehicles
-      : Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map {
+    val insideGeofence = nonRefuelingRepositionVehicles.filter {
+      case (vehicleId, destLoc) =>
+        val rha = vehicleManager.idleRideHailVehicles(vehicleId)
+        // Get locations of R5 edge for source and destination
+        val r5SrcLocUTM = beamServices.geo.wgs2Utm(
+          beamServices.geo.snapToR5Edge(
+            beamServices.beamScenario.transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(rha.currentLocationUTM.loc)
+          )
+        )
+        val r5DestLocUTM = beamServices.geo.wgs2Utm(
+          beamServices.geo
+            .snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, beamServices.geo.utm2Wgs(destLoc))
+        )
+        // Are those locations inside geofence?
+        val isSrcInside = rha.geofence.forall(g => g.contains(r5SrcLocUTM))
+        val isDestInside = rha.geofence.forall(g => g.contains(r5DestLocUTM))
+        isSrcInside && isDestInside
+    }
+    log.debug(
+      "continueRepositionig. Tick[{}] nonRefuelingRepositionVehicles: {}, insideGeofence: {}",
+      tick,
+      nonRefuelingRepositionVehicles.size,
+      insideGeofence.size
+    )
+
+    val repositionVehicles: Vector[(VehicleId, Location)] = insideGeofence ++ vehiclesHeadedToRefuelingDepot.map {
       case (vehicleId, parkingStall) => (vehicleId, parkingStall.locationUTM)
     }
 

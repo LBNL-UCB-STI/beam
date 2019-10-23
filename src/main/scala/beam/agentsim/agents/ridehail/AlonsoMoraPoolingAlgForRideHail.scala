@@ -10,6 +10,7 @@ import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
+import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
@@ -20,6 +21,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -28,14 +30,12 @@ class AlonsoMoraPoolingAlgForRideHail(
   skimmer: BeamSkimmer
 ) {
 
-  var solutionSpaceSizePerVehicle =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+  // Methods below should be kept as def (instead of val) to allow automatic value updating
+  private def alonsoMora: AllocationManager.AlonsoMora =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
+  private def solutionSpaceSizePerVehicle: Int = alonsoMora.solutionSpaceSizePerVehicle
+  private def waitingTimeInSec: Int = alonsoMora.waitingTimeInSec
 
-  var waitingTimeInSec =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-
-  var travelTimeDelayAsFraction =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction
   val rvG = RVGraph(classOf[RideHailTrip])
   val rTvG = RTVGraph(classOf[DefaultEdge])
   // Request Vehicle Graph
@@ -162,6 +162,14 @@ class AlonsoMoraPoolingAlgForRideHail(
 
 object AlonsoMoraPoolingAlgForRideHail {
 
+  def checkDistance(r: MobilityRequest, schedule: List[MobilityRequest], searchRadius: Double): Boolean = {
+    schedule.foreach { s =>
+      if (GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
+        return true
+    }
+    false
+  }
+
   // a greedy assignment using a cost function
   def greedyAssignment(
     rTvG: RTVGraph,
@@ -188,7 +196,7 @@ object AlonsoMoraPoolingAlgForRideHail {
                 .head
             )
             .asInstanceOf[VehicleAndSchedule]
-          val cost = trip.requests.size * trip.getSumOfDelaysAsFraction + (solutionSpaceSizePerVehicle - trip.requests.size) * 1.0
+          val cost = trip.requests.size * trip.sumOfDelaysAsFraction + (solutionSpaceSizePerVehicle - trip.requests.size) * 1.0
           (trip, vehicle, cost)
         }
         .toList
@@ -273,10 +281,11 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
-    val waitingTimeInSec =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction
+    val alonsoMora: AllocationManager.AlonsoMora =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
+    val waitingTimeInSec = alonsoMora.waitingTimeInSec
+    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
+
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
@@ -324,10 +333,6 @@ object AlonsoMoraPoolingAlgForRideHail {
     beamServices: BeamServices,
     remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
-    val waitingTimeInSec =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
@@ -338,6 +343,12 @@ object AlonsoMoraPoolingAlgForRideHail {
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
+
+    val alonsoMora: AllocationManager.AlonsoMora =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
+    val waitingTimeInSec = alonsoMora.waitingTimeInSec
+    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
+
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach {
         case (leg, manifest) =>
@@ -510,7 +521,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val sumOfDelays: Int = schedule.foldLeft(0) { case (c, r)              => c + (r.serviceTime - r.baselineNonPooledTime) }
 
-    val getSumOfDelaysAsFraction: Int = sumOfDelays / schedule.foldLeft(0) {
+    val sumOfDelaysAsFraction: Int = sumOfDelays / schedule.foldLeft(0) {
       case (c, r) => c + (r.upperBoundTime - r.baselineNonPooledTime)
     }
     override def toString: String =

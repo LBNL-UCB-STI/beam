@@ -64,7 +64,6 @@ class ModeChoiceMultinomialLogit(
         }
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
-
       val chosenModeOpt = {
         model.sampleAlternative(inputData, random)
       }
@@ -152,7 +151,7 @@ class ModeChoiceMultinomialLogit(
   ): IndexedSeq[ModeCostTimeTransfer] = {
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
-      val totalCost = getNonTimeCost(altAndIdx._1)
+      val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =
@@ -291,7 +290,8 @@ object ModeChoiceMultinomialLogit {
     val commonUtility: Map[String, UtilityFunctionOperation] = Map(
       "cost" -> UtilityFunctionOperation("multiplier", -1)
     )
-
+    val scale_factor: Double =
+      configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
       "car" -> Map(
         "intercept" ->
@@ -320,7 +320,8 @@ object ModeChoiceMultinomialLogit {
 
     logit.MultinomialLogit(
       mnlUtilityFunctions,
-      commonUtility
+      commonUtility,
+      scale_factor
     )
   }
 
