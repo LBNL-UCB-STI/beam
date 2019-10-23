@@ -2,20 +2,34 @@
 import boto3
 import os
 import time
-import uuid
 
-END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
+PILATES_INPUT_DATA_PATH = '/output/urbansim-inputs'
 
-RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun -v /home/ubuntu/git/beam:/beam-project -v /home/ubuntu/git/beam/output:/output $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN $SCENARIO_NAME /beam-project/$CONFIG $OUTPUT_BUCKET_BASE_PATH $IN_YEAR_OUTPUT $INITIAL_SKIMS_PATH'''
+PILATES_OUTPUT_DATA_PATH = '/output/urbansim-outputs'
 
-PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/initial/'
+RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun 
+        -v /home/ubuntu/git/beam:/beam-project 
+        -v /home/ubuntu/git/beam/output:/output 
+        $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION 
+        $START_YEAR $COUNT_OF_YEARS $BEAM_IT_LEN $URBANSIM_IT_LEN 
+        $OUTPUT_FOLDER 
+        /beam-project/$CONFIG 
+        $S3_OUTPUT_PATH 
+        $S3_DATA_REGION 
+        $PILATES_INPUT_DATA_PATH
+        $PILATES_OUTPUT_DATA_PATH
+        $IN_YEAR_OUTPUT 
+        $INITIAL_SKIMS_PATH'''
 
-PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/initial/'
+PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/initial/'
+
+PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/initial/'
 
 PILATES_IMAGE_VERSION_DEFAULT = 'latest'
 PILATES_IMAGE_NAME_DEFAULT = 'pilates'
 PILATES_SCENARIO_NAME_DEFAULT = 'pilates'
-OUTPUT_BUCKET_BASE_PATH_DEFAULT = '//pilates-outputs'
+S3_OUTPUT_BUCKET_DEFAULT = '//pilates-outputs'
+S3_OUTPUT_BASE_PATH_DEFAULT = ''
 IN_YEAR_OUTPUT_DEFAULT = 'off'
 START_YEAR_DEFAULT = '2010'
 COUNT_OF_YEARS_DEFAULT = '30'
@@ -41,18 +55,45 @@ write_files:
           curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json $SLACK_HOOK_WITH_TOKEN
       path: /tmp/slack.sh
     - content: |
-          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
-      path: /tmp/slack_notification
+          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Instance of type $(ec2metadata --instance-type) is still running in $INSTANCE_REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
+      path: /tmp/slack_notification 
 runcmd:
   - echo "-------------------Starting Pilates----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
-  - hello_msg=$(printf "PILATES Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - instance_description=$(printf "
+        Run name      $TITLED \\n 
+        Instance ID      %s \\n 
+        Instance type      %s \\n 
+        Host name      %s \\n 
+        Region      $INSTANCE_REGION \\n 
+        Branch      $BRANCH \\n 
+        Commit      $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname))
+  - instance_resources=$(printf "
+        Web browser      http://%s:8000 \\n 
+        S3 url      $HTTP_OUTPUT_PATH" $(ec2metadata --public-hostname))
+  - hello_msg="PILATES Started \\n$instance_description \\n$instance_resources \\nPARAMS \\t\\t $RUN_PARAMS"
+  - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"PILATES Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$INSTANCE_REGION\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
+     }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - chmod +x /tmp/slack.sh
-  - echo "notification sent..."
-  - echo "notification saved..."
+  - echo $hello_msg > /tmp/msg_hello
+  - echo $start_json > /tmp/msg_start_json
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
@@ -64,9 +105,12 @@ runcmd:
   - echo "git checkout -qf for commit $COMMIT ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - echo "prepare urbansim input and output"
-  - mkdir output
-  - mkdir output/urbansim-outputs
-  - mkdir output/urbansim-inputs
+  - rm -rf /home/ubuntu/git/beam$PILATES_INPUT_DATA_PATH
+  - rm -rf /home/ubuntu/git/beam$PILATES_OUTPUT_DATA_PATH
+  - mkdir -p /home/ubuntu/git/beam$PILATES_INPUT_DATA_PATH
+  - mkdir -p /home/ubuntu/git/beam$PILATES_OUTPUT_DATA_PATH/$OUTPUT_FOLDER
+  - run_params="$RUN_PARAMS_FOR_FILE"
+  - echo $run_params > /home/ubuntu/git/beam$PILATES_OUTPUT_DATA_PATH/$OUTPUT_FOLDER/run-params.log
   - echo "$PREPARE_URBANSIM_INPUT_SCRIPT"
   - $PREPARE_URBANSIM_INPUT_SCRIPT
   - echo "$PREPARE_URBANSIM_OUTPUT_SCRIPT"
@@ -83,25 +127,42 @@ runcmd:
   - sudo apt-get install xvfb -y
   - echo "gradlew assemble ..."
   - ./gradlew assemble
-  - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
-  - echo $MAXRAM
+  - echo "MAXRAM is $MAXRAM"
+  - sudo docker pull $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION
   - /tmp/slack.sh "$hello_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
-  - s3p=""
-  - for cf in $CONFIG
-  -  do
-  -    echo "-------------------running $cf----------------------"
-  -    $RUN_SCRIPT
-  -  done
-  - s3glip=""
-  - bye_msg=$(printf "PILATES Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
-  - echo "$bye_msg"
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
+  - echo "Running $RUN_SCRIPT"
+  - bye_msg="PILATES Completed \\n$instance_description \\n$instance_resources \\nShutdown in $SHUTDOWN_WAIT minutes"
+  - $RUN_SCRIPT
+  - returnCode=$?
+  - status="PILATES completed"
+  - if [ $returnCode -ne 0 ]; then
+  -     bye_msg="PILATES completed with ERROR!\\nDOCKER RETURN CODE $returnCode \\n$instance_description \\n$instance_resources \\nShutdown in $SHUTDOWN_WAIT minutes"
+  -     status="PILATES completed with ERROR (docker return code $returnCode)"
+  - fi
+  - stop_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"%s\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$INSTANCE_REGION\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
+      }
+    }" $status $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - echo $stop_json > /tmp/msg_stop_json
+  - echo $bye_msg > /tmp/msg_bye
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - /tmp/slack.sh "$bye_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
-  - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -141,20 +202,16 @@ def init_ec2(region):
     ec2 = boto3.client('ec2', region_name=region)
 
 
-def validate(name):
-    return True
-
-
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-        {
-            'DeviceName': '/dev/sda1',
-            'Ebs': {
-                'VolumeSize': volume_size,
-                'VolumeType': 'gp2'
+            {
+                'DeviceName': '/dev/sda1',
+                'Ebs': {
+                    'VolumeSize': volume_size,
+                    'VolumeType': 'gp2'
+                }
             }
-        }
-    ],
+        ],
         ImageId=os.environ[region_prefix + 'IMAGE_ID'],
         InstanceType=instance_type,
         UserData=script,
@@ -187,27 +244,16 @@ def get_dns(instance_id):
     return host
 
 
-def check_instance_id(instance_ids):
-    for reservation in ec2.describe_instances()['Reservations']:
-        for instance in reservation['Instances']:
-            if instance['InstanceId'] in instance_ids:
-                instance_ids.remove(instance['InstanceId'])
-    return instance_ids
-
-
-def start_instance(instance_ids):
-    return ec2.start_instances(InstanceIds=instance_ids)
-
-
-def stop_instance(instance_ids):
-    return ec2.stop_instances(InstanceIds=instance_ids)
-
-
-def terminate_instance(instance_ids):
-    return ec2.terminate_instances(InstanceIds=instance_ids)
-
-
 def lambda_handler(event, context):
+    all_run_params_comma = ''
+    all_run_params_comma_le = ''
+    for key, value in event.items():
+        all_run_params_comma += str(key) + ":\'" + str(value) + "\', "
+        all_run_params_comma_le += str(key) + ":\'" + str(value) + "\',\\n"
+
+    all_run_params_comma = all_run_params_comma[:-2]
+    all_run_params_comma_le = all_run_params_comma_le[:-5]
+
     titled = event.get('title', 'hostname-test')
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
@@ -230,10 +276,17 @@ def lambda_handler(event, context):
     pilates_scenario_name = event.get('pilates_scenario_name', PILATES_SCENARIO_NAME_DEFAULT)
     initial_skims_path = event.get('initial_skims_path', '')
     in_year_output = event.get('in_year_output', IN_YEAR_OUTPUT_DEFAULT)
-    output_bucket_base_path = event.get('output_bucket_base_path', OUTPUT_BUCKET_BASE_PATH_DEFAULT)
+    s3_output_bucket = event.get('s3_output_bucket', S3_OUTPUT_BUCKET_DEFAULT)
+    s3_output_base_path = event.get('s3_output_base_path', S3_OUTPUT_BASE_PATH_DEFAULT)
 
-    configs = event.get('configs', CONFIG_DEFAULT)
-    batch = event.get('batch', TRUE)
+    s3_data_region = event.get('pilates_data_region', os.environ['REGION'])
+
+    scenario_with_date = pilates_scenario_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S")
+    relative_output_path = s3_output_base_path + '/' + scenario_with_date
+    full_output_bucket_path = s3_output_bucket + relative_output_path
+    full_http_output_path = "https://s3." + s3_data_region + ".amazonaws.com" + s3_output_bucket[1:] + '/index.html#' + relative_output_path[1:]
+
+    config = event.get('config', CONFIG_DEFAULT)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
     volume_size = event.get('storage_size', 64)
@@ -242,7 +295,6 @@ def lambda_handler(event, context):
     shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
-    end_script = event.get('end_script', END_SCRIPT_DEFAULT)
 
     if initial_urbansim_output is None and initial_skims_path is '':
         return "Unable to start run, initialS3UrbansimOutput (initial beam data) or initialSkimsPath (initial skims file) should be specified."
@@ -256,63 +308,46 @@ def lambda_handler(event, context):
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = RUN_PILATES_SCRIPT
-
-    params = configs
-    if batch == TRUE:
-        params = [params.replace(',', ' ')]
-    else:
-        params = params.split(',')
-
-    if end_script != END_SCRIPT_DEFAULT:
-        end_script = '/home/ubuntu/git/beam/sec/main/bash/' + end_script
-
     if region not in regions:
         return "Unable to start run, {region} region not supported.".format(region=region)
 
     init_ec2(region)
 
-    txt = ''
-
-    prepareUrbansimOutScript = PREPARE_URBANSIM_OUTPUT_SCRIPT
+    prepare_urbansim_output_script = PREPARE_URBANSIM_OUTPUT_SCRIPT
     if initial_urbansim_output is None:
-        prepareUrbansimOutScript = " "
+        prepare_urbansim_output_script = " "
 
-    if validate(branch) and validate(commit_id):
-        run_num = 1
-        for arg in params:
-            uid = str(uuid.uuid4())[:8]
-            run_name = titled
-            if len(params) > 1:
-                run_name += "-" + repr(run_num)
+    run_name = titled
 
-            script = initscript.replace('$RUN_SCRIPT', selected_script).replace('$REGION', region) \
-                .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
-                .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', prepareUrbansimOutScript) \
-                .replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$INITIAL_URBANSIM_INPUT', initial_urbansim_input) \
-                .replace('$INITIAL_URBANSIM_OUTPUT', initial_urbansim_output) \
-                .replace('$START_YEAR', start_year).replace('$COUNT_OF_YEARS', count_of_years) \
-                .replace('$BEAM_IT_LEN', beam_iteration_length).replace('$URBANSIM_IT_LEN', urbansim_iteration_length) \
-                .replace('$PILATES_IMAGE_VERSION', pilates_image_version) \
-                .replace('$SCENARIO_NAME', pilates_scenario_name) \
-                .replace('$INITIAL_SKIMS_PATH', initial_skims_path) \
-                .replace('$OUTPUT_BUCKET_BASE_PATH', output_bucket_base_path) \
-                .replace('$IN_YEAR_OUTPUT', in_year_output) \
-                .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
-                .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
-                .replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$END_SCRIPT', end_script).replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
-                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
-                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN'])
+    script = initscript.replace('$RUN_SCRIPT', RUN_PILATES_SCRIPT) \
+        .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \
+        .replace('$RUN_PARAMS', all_run_params_comma) \
+        .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
+        .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', prepare_urbansim_output_script) \
+        .replace('$INSTANCE_REGION', region) \
+        .replace('$S3_DATA_REGION', s3_data_region) \
+        .replace('$INITIAL_URBANSIM_INPUT', initial_urbansim_input) \
+        .replace('$INITIAL_URBANSIM_OUTPUT', initial_urbansim_output) \
+        .replace('$PILATES_INPUT_DATA_PATH', PILATES_INPUT_DATA_PATH) \
+        .replace('$PILATES_OUTPUT_DATA_PATH', PILATES_OUTPUT_DATA_PATH) \
+        .replace('$START_YEAR', start_year).replace('$COUNT_OF_YEARS', count_of_years) \
+        .replace('$BEAM_IT_LEN', beam_iteration_length).replace('$URBANSIM_IT_LEN', urbansim_iteration_length) \
+        .replace('$PILATES_IMAGE_VERSION', pilates_image_version) \
+        .replace('$OUTPUT_FOLDER', scenario_with_date) \
+        .replace('$INITIAL_SKIMS_PATH', initial_skims_path) \
+        .replace('$S3_OUTPUT_PATH', full_output_bucket_path) \
+        .replace('$HTTP_OUTPUT_PATH', full_http_output_path) \
+        .replace('$IN_YEAR_OUTPUT', in_year_output) \
+        .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
+        .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', config) \
+        .replace('$SHUTDOWN_WAIT', shutdown_wait) \
+        .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
+        .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
+        .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+        .replace('$SHEET_ID', os.environ['SHEET_ID'])
 
-            instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name,
-                                 volume_size)
-            host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
-                branch=branch, titled=run_name, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
-            run_num += 1
-    else:
-        txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
+    instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size)
+    host = get_dns(instance_id)
 
-    return txt
+    return 'Started with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '\
+        .format(branch=branch, titled=run_name, commit=commit_id, dns=host, instance_id=instance_id)
