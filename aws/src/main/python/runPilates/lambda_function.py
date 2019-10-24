@@ -323,7 +323,12 @@ def lambda_handler(event, context):
     initial_urbansim_output = event.get('initialS3UrbansimOutput')
     initial_skims_path = event.get('initialSkimPath')
     if parameter_wasnt_specified(initial_urbansim_output) and parameter_wasnt_specified(initial_skims_path):
-        return "Unable to start, initialS3UrbansimOutput (initial beam data) or initialSkimsPath (initial skims file) should be specified."
+        return "Unable to start, initialS3UrbansimOutput (initial beam data) or initialSkimPath (initial skim file) should be specified."
+
+    if parameter_wasnt_specified(initial_urbansim_output):
+        initial_urbansim_output = ""
+    if parameter_wasnt_specified(initial_skims_path):
+        initial_skims_path = ""
 
     if instance_type not in instance_types:
         return "Unable to start, {instance_type} instance type not supported.".format(instance_type=instance_type)
