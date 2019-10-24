@@ -57,30 +57,32 @@ trait ChoosesMode {
 
   def boundingBox: Envelope
 
-  def currentTourBeamVehicle: Option[BeamVehicle] =
-    if (stateData.isInstanceOf[ChoosesModeData]) {
-      stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
-        case Some(personalVehicle) =>
-          Option(
-            beamVehicles(personalVehicle)
-              .asInstanceOf[ActualVehicle]
-              .vehicle
-          )
-        case _ => None
-      }
-    } else if (stateData.isInstanceOf[BasePersonData]) {
-      stateData.asInstanceOf[BasePersonData].currentTourPersonalVehicle match {
-        case Some(personalVehicle) =>
-          Option(
-            beamVehicles(personalVehicle)
-              .asInstanceOf[ActualVehicle]
-              .vehicle
-          )
-        case _ => None
-      }
-    } else {
-      None
+  def currentTourBeamVehicle: Option[BeamVehicle] = {
+    stateData match {
+      case data: ChoosesModeData =>
+        data.personData.currentTourPersonalVehicle match {
+          case Some(personalVehicle) =>
+            Option(
+              beamVehicles(personalVehicle)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+            )
+          case _ => None
+        }
+      case data: BasePersonData =>
+        data.currentTourPersonalVehicle match {
+          case Some(personalVehicle) =>
+            Option(
+              beamVehicles(personalVehicle)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+            )
+          case _ => None
+        }
+      case _ =>
+        None
     }
+  }
 
   onTransition {
     case _ -> ChoosingMode =>
@@ -731,21 +733,21 @@ trait ChoosesMode {
         Some(
           EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.head.beamLeg.startTime,
-              body.id,
-              false,
-              fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.head.beamLeg.startTime,
+              vehicleId = body.id,
+              isLastLeg = false,
+              location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
             EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.last.beamLeg.endTime,
-              body.id,
-              true,
-              fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              WALK,
-              body.beamVehicleType.id
+              start = fullTrip.last.beamLeg.endTime,
+              vehicleId = body.id,
+              isLastLeg = true,
+              location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
+              mode = WALK,
+              vehicleTypeId = body.beamVehicleType.id
             )
           )
         )
@@ -891,23 +893,23 @@ trait ChoosesMode {
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
-              (EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get,
-                body.id,
-                false,
-                partialItin.head.beamLeg.travelPath.startPoint.loc,
-                WALK,
-                body.beamVehicleType.id
+              EmbodiedBeamLeg.dummyLegAt(
+                start = _currentTick.get,
+                vehicleId = body.id,
+                isLastLeg = false,
+                location = partialItin.head.beamLeg.travelPath.startPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
-                partialItin.last.beamLeg.endTime,
-                body.id,
-                true,
-                partialItin.last.beamLeg.travelPath.endPoint.loc,
-                WALK,
-                body.beamVehicleType.id
-              ))
+                start = partialItin.last.beamLeg.endTime,
+                vehicleId = body.id,
+                isLastLeg = true,
+                location = partialItin.last.beamLeg.travelPath.endPoint.loc,
+                mode = WALK,
+                vehicleTypeId = body.beamVehicleType.id
+              )
             )
           }
         case None =>
