@@ -21,6 +21,7 @@ RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun
         $IN_YEAR_OUTPUT 
         $INITIAL_SKIMS_PATH'''
 
+
 PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/initial/'
 
 PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/initial/'
@@ -40,6 +41,51 @@ MAXRAM_DEFAULT = '2g'
 SHUTDOWN_DEFAULT = '30'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
+
+# JSON notification fields:
+# "status": text field which contains status of run;
+# "name": s2 instance name;
+# "instance_id": s2 instance id;
+# "instance_type": s2 instance type;
+# "host_name": s2 host name;
+# "browser": s2 browsable path;
+# "s3_URL": s3 output URL;
+# "instance_region": s2 instance region;
+# "data_region": s3 data region which is used when copying from s3 and writing to s3 buckets;
+# "branch": git branch;
+# "commit": git commit;
+# "s3_path": s3 path to output folder started with double slash;
+# "title": used as instance name only;
+# "start_year": pilates simulation start year;
+# "count_of_years": pilates simulation count of years;
+# "beam_it_len": pilates simulation delta year;
+# "urbansim_it_len": parameter for urbansim simulation run;
+# "in_year_output": generate in year output for pilates;
+# "config": path to BEAM config file;
+# "pilates_image_version": version of pilates image;
+# "pilates_image_name": fully specified pilates image name;
+# "pilates_scenario_name": used to name output folder like;
+# "initial_urbansim_input": initial data for first urbansim run;
+# "initial_urbansim_output": initial data for first BEAM run. If first BEAM run is not skipped;
+# "initial_skims_path": initial skim file path. If first beam run is skipped;
+# "s3_output_bucket": path to s3 output bucket;
+# "s3_output_base_path": base path inside s3 output bucket;
+# "max_ram": max ram;
+# "storage_size": storage size;
+# "shutdown_wait": wait timeout in minutes before shutdown after simulation end;
+# "shutdown_behaviour": shutdown behaviour.
+
+JSON_SPREADSHEET_MESSAGE_BODY='''
+    \\"name\\":\\"$TITLED\\",
+    \\"instance_id\\":\\"%s\\",
+    \\"instance_type\\":\\"%s\\",
+    \\"host_name\\":\\"%s\\",
+    \\"browser\\":\\"http://%s:8000\\",
+    \\"branch\\":\\"$BRANCH\\",
+    \\"region\\":\\"$INSTANCE_REGION\\",
+    \\"commit\\":\\"$COMMIT\\",
+    \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
+'''
 
 initscript = (('''
 #cloud-config
@@ -78,15 +124,7 @@ runcmd:
       \\"sheet_id\\":\\"$SHEET_ID\\",
       \\"run\\":{
         \\"status\\":\\"PILATES Started\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"region\\":\\"$INSTANCE_REGION\\",
-        \\"commit\\":\\"$COMMIT\\",
-        \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
+        $JSON_SPREADSHEET_MESSAGE_BODY
      }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - chmod +x /tmp/slack.sh
@@ -146,15 +184,7 @@ runcmd:
       \\"sheet_id\\":\\"$SHEET_ID\\",
       \\"run\\":{
         \\"status\\":\\"%s\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"region\\":\\"$INSTANCE_REGION\\",
-        \\"commit\\":\\"$COMMIT\\",
-        \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
+        $JSON_SPREADSHEET_MESSAGE_BODY
       }
     }" $status $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - echo $stop_json > /tmp/msg_stop_json
@@ -250,10 +280,10 @@ def lambda_handler(event, context):
         all_run_params_comma_le += str(key) + ":\'" + str(value) + "\',\\n"
 
     all_run_params_comma = all_run_params_comma[:-2]
-    all_run_params_comma_le = all_run_params_comma_le[:-5]
+    all_run_params_comma_le = all_run_params_comma_le[:-4]
 
-    titled = event.get('title')
-    if titled is None:
+    run_name = event.get('title')
+    if run_name is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
     initial_urbansim_input = event.get('initial_urbansim_input')
@@ -320,11 +350,8 @@ def lambda_handler(event, context):
     if initial_urbansim_output is None:
         prepare_urbansim_output_script = " "
 
-    run_name = titled
-
     script = initscript.replace('$RUN_SCRIPT', RUN_PILATES_SCRIPT) \
-        .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \
-        .replace('$RUN_PARAMS', all_run_params_comma) \
+        .replace('$JSON_SPREADSHEET_MESSAGE_BODY', JSON_SPREADSHEET_MESSAGE_BODY) \
         .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
         .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', prepare_urbansim_output_script) \
         .replace('$INSTANCE_REGION', region) \
@@ -347,7 +374,9 @@ def lambda_handler(event, context):
         .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
         .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
         .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
-        .replace('$SHEET_ID', os.environ['SHEET_ID'])
+        .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+        .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \
+        .replace('$RUN_PARAMS', all_run_params_comma)
 
     instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size)
     host = get_dns(instance_id)
