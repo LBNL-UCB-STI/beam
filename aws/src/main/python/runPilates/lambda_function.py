@@ -21,26 +21,9 @@ RUN_PILATES_SCRIPT = '''sudo docker run --name pilatesRun
         $IN_YEAR_OUTPUT 
         $INITIAL_SKIMS_PATH'''
 
-
 PREPARE_URBANSIM_INPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_INPUT output/urbansim-inputs/initial/'
 
 PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursive s3:$INITIAL_URBANSIM_OUTPUT output/urbansim-outputs/initial/'
-
-PILATES_IMAGE_VERSION_DEFAULT = 'latest'
-PILATES_IMAGE_NAME_DEFAULT = 'pilates'
-PILATES_SCENARIO_NAME_DEFAULT = 'pilates'
-S3_OUTPUT_BUCKET_DEFAULT = '//pilates-outputs'
-S3_OUTPUT_BASE_PATH_DEFAULT = ''
-IN_YEAR_OUTPUT_DEFAULT = 'off'
-START_YEAR_DEFAULT = '2010'
-COUNT_OF_YEARS_DEFAULT = '30'
-BEAM_IT_LEN_DEFAULT = '5'
-URBANSIM_IT_LEN_DEFAULT = '5'
-COMMIT_DEFAULT = 'HEAD'
-MAXRAM_DEFAULT = '2g'
-SHUTDOWN_DEFAULT = '30'
-
-CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
 # JSON notification fields:
 # "status": text field which contains status of run;
@@ -75,7 +58,7 @@ CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 # "shutdown_wait": wait timeout in minutes before shutdown after simulation end;
 # "shutdown_behaviour": shutdown behaviour.
 
-JSON_SPREADSHEET_MESSAGE_BODY='''
+JSON_SPREADSHEET_MESSAGE_BODY = '''
     \\"name\\":\\"$TITLED\\",
     \\"instance_id\\":\\"%s\\",
     \\"instance_type\\":\\"%s\\",
@@ -232,14 +215,14 @@ def init_ec2(region):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-            {
-                'DeviceName': '/dev/sda1',
-                'Ebs': {
-                    'VolumeSize': volume_size,
-                    'VolumeType': 'gp2'
-                }
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
             }
-        ],
+        }
+    ],
         ImageId=os.environ[region_prefix + 'IMAGE_ID'],
         InstanceType=instance_type,
         UserData=script,
@@ -260,16 +243,26 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
 
 
 def get_dns(instance_id):
+    iteration = 1
     host = None
     while host is None:
         time.sleep(2)
+
+        # 40 seconds limit
+        if iteration > 20:
+            host = 'unknown dns'
+
         instances = ec2.describe_instances(InstanceIds=[instance_id])
         for r in instances['Reservations']:
             for i in r['Instances']:
                 dns = i['PublicDnsName']
                 if dns != '':
                     host = dns
+
+        iteration = iteration + 1
+
     return host
+
 
 
 def lambda_handler(event, context):
@@ -282,67 +275,78 @@ def lambda_handler(event, context):
     all_run_params_comma = all_run_params_comma[:-2]
     all_run_params_comma_le = all_run_params_comma_le[:-4]
 
-    run_name = event.get('title')
-    if run_name is None:
-        return "Unable to start the run, runName is required. Please restart with appropriate runName."
+    missing_parameters = []
 
-    initial_urbansim_input = event.get('initial_urbansim_input')
-    if initial_urbansim_input is None:
-        return "Unable to start the run, initialS3UrbansimInput is required. Please restart with appropriate arguments."
+    def parameter_wasnt_specified(parameter_value):
+        # in gradle if parameter wasn't specified then project.findProperty return 'null'
+        return parameter_value is None or parameter_value == 'null'
 
-    initial_urbansim_output = event.get('initial_urbansim_output')
+    def get_param(param_name):
+        param_value = event.get(param_name)
+        if parameter_wasnt_specified(param_value):
+            missing_parameters.append(param_name)
+        return param_value
 
-    branch = event.get('branch')
-    if branch is None:
-        return "Unable to start the run, branch is required. Please restart with appropriate arguments."
+    run_name = get_param('runName')
+    initial_urbansim_input = get_param('initialS3UrbansimInput')
+    branch = get_param('beamBranch')
+    commit_id = get_param('beamCommit')
 
-    commit_id = event.get('commit', COMMIT_DEFAULT)
+    start_year = get_param('startYear')
+    count_of_years = get_param('countOfYears')
+    beam_iteration_length = get_param('beamItLen')
+    urbansim_iteration_length = get_param('urbansimItLen')
+    pilates_image_version = get_param('pilatesImageVersion')
+    pilates_image_name = get_param('pilatesImageName')
+    pilates_scenario_name = get_param('pilatesScenarioName')
+    in_year_output = get_param('inYearOutput')
+    s3_output_bucket = get_param('s3OutputBucket')
 
-    start_year = event.get('start_year', START_YEAR_DEFAULT)
-    count_of_years = event.get('count_of_years', COUNT_OF_YEARS_DEFAULT)
-    beam_iteration_length = event.get('beam_it_len', BEAM_IT_LEN_DEFAULT)
-    urbansim_iteration_length = event.get('urbansim_it_len', URBANSIM_IT_LEN_DEFAULT)
-    pilates_image_version = event.get('pilates_image_version', PILATES_IMAGE_VERSION_DEFAULT)
-    pilates_image_name = event.get('pilates_image_name', PILATES_IMAGE_NAME_DEFAULT)
-    pilates_scenario_name = event.get('pilates_scenario_name', PILATES_SCENARIO_NAME_DEFAULT)
-    initial_skims_path = event.get('initial_skims_path', '')
-    in_year_output = event.get('in_year_output', IN_YEAR_OUTPUT_DEFAULT)
-    s3_output_bucket = event.get('s3_output_bucket', S3_OUTPUT_BUCKET_DEFAULT)
-    s3_output_base_path = event.get('s3_output_base_path', S3_OUTPUT_BASE_PATH_DEFAULT)
+    s3_data_region = get_param('dataRegion')
 
-    s3_data_region = event.get('pilates_data_region', os.environ['REGION'])
+    config = get_param('beamConfig')
+    max_ram = get_param('maxRam')
+    shutdown_wait = get_param('shutdownWait')
 
-    scenario_with_date = pilates_scenario_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S")
-    relative_output_path = s3_output_base_path + '/' + scenario_with_date
-    full_output_bucket_path = s3_output_bucket + relative_output_path
-    full_http_output_path = "https://s3." + s3_data_region + ".amazonaws.com" + s3_output_bucket[1:] + '/index.html#' + relative_output_path[1:]
+    instance_type = get_param('instanceType')
+    volume_size = get_param('storageSize')
+    region = get_param('region')
+    shutdown_behaviour = get_param('shutdownBehaviour')
 
-    config = event.get('config', CONFIG_DEFAULT)
-    max_ram = event.get('max_ram', MAXRAM_DEFAULT)
-    instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
-    volume_size = event.get('storage_size', 64)
-    shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
-    region = event.get('region', os.environ['REGION'])
-    shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
-    sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
-    sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
+    if missing_parameters:
+        return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
 
-    if initial_urbansim_output is None and initial_skims_path is '':
-        return "Unable to start run, initialS3UrbansimOutput (initial beam data) or initialSkimsPath (initial skims file) should be specified."
+    s3_output_base_path = event.get('s3OutputBasePath')
+    if parameter_wasnt_specified(s3_output_base_path):
+        s3_output_base_path = ""
+
+    initial_urbansim_output = event.get('initialS3UrbansimOutput')
+    initial_skims_path = event.get('initialSkimPath')
+    if parameter_wasnt_specified(initial_urbansim_output) and parameter_wasnt_specified(initial_skims_path):
+        return "Unable to start, initialS3UrbansimOutput (initial beam data) or initialSkimsPath (initial skims file) should be specified."
 
     if instance_type not in instance_types:
-        return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
+        return "Unable to start, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
     if shutdown_behaviour not in shutdown_behaviours:
-        shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
+        return "Unable to start, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
+
+    if region not in regions:
+        return "Unable to start, {region} region not supported.".format(region=region)
 
     if volume_size < 64:
         volume_size = 64
     if volume_size > 256:
         volume_size = 256
 
-    if region not in regions:
-        return "Unable to start run, {region} region not supported.".format(region=region)
+    sigopt_client_id = os.environ['SIGOPT_CLIENT_ID']
+    sigopt_dev_id = os.environ['SIGOPT_DEV_ID']
+
+    scenario_with_date = pilates_scenario_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S")
+    relative_output_path = s3_output_base_path + '/' + scenario_with_date
+    full_output_bucket_path = s3_output_bucket + relative_output_path
+    full_http_output_path = "https://s3." + s3_data_region + ".amazonaws.com" + s3_output_bucket[1:] \
+                            + '/index.html#' + relative_output_path[1:]
 
     init_ec2(region)
 
