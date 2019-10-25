@@ -162,8 +162,7 @@ dependencies {
     compile(group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44') {
         exclude group: 'org.matsim', module: 'matsim'
     }
-
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-7') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-11') {
         exclude group: 'log4j', module: 'log4j'
     }
 
