@@ -9,14 +9,14 @@ import org.matsim.core.controler.MatsimServices
 
 import scala.collection.{immutable, mutable}
 
-class FlatSkimmer @Inject()(val injector: Injector)
+class Skimmer @Inject()(val injector: Injector)
     extends AbstractBeamSkimmer(
       injector.getInstance(classOf[BeamScenario]),
       injector.getInstance(classOf[MatsimServices])
     ) {
-  import FlatSkimmer._
+  import Skimmer._
   val h3taz: H3TAZ = H3TAZ.build(matsimServices.getScenario, beamScenario.tazTreeMap)
-  override def skimmerId: String = "flatSkim"
+  override def skimmerId: String = Skimmer.ID
   override def cvsFileHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
   override def strMapToKeyData(strMap: immutable.Map[String, String]): (BeamSkimmerKey, BeamSkimmerData) = {
     val time = strMap("timeBin").toInt
@@ -25,20 +25,20 @@ class FlatSkimmer @Inject()(val injector: Injector)
     val manager = Id.create(strMap("idVehManager"), classOf[VehicleManager])
     val label = strMap("label")
     val value = strMap("value").toDouble
-    (FlatSkimmerKey(time, tazId, hex, manager, label), FlatSkimmerData(value))
+    (SkimmerKey(time, tazId, hex, manager, label), SkimmerData(value))
   }
   override def keyDataToStrMap(keyVal: (BeamSkimmerKey, BeamSkimmerData)): immutable.Map[String, String] = {
     val imap = mutable.Map.empty[String, String]
-    imap.put("timeBin", keyVal._1.asInstanceOf[FlatSkimmerKey].timBin.toString)
-    imap.put("idTaz", keyVal._1.asInstanceOf[FlatSkimmerKey].idTaz.toString)
-    imap.put("hexIndex", keyVal._1.asInstanceOf[FlatSkimmerKey].hexIndex.toString)
-    imap.put("idVehManager", keyVal._1.asInstanceOf[FlatSkimmerKey].idVehManager.toString)
-    imap.put("label", keyVal._1.asInstanceOf[FlatSkimmerKey].label.toString)
-    imap.put("value", keyVal._2.asInstanceOf[FlatSkimmerData].value.toString)
+    imap.put("timeBin", keyVal._1.asInstanceOf[SkimmerKey].timBin.toString)
+    imap.put("idTaz", keyVal._1.asInstanceOf[SkimmerKey].idTaz.toString)
+    imap.put("hexIndex", keyVal._1.asInstanceOf[SkimmerKey].hexIndex.toString)
+    imap.put("idVehManager", keyVal._1.asInstanceOf[SkimmerKey].idVehManager.toString)
+    imap.put("label", keyVal._1.asInstanceOf[SkimmerKey].label.toString)
+    imap.put("value", keyVal._2.asInstanceOf[SkimmerData].value.toString)
     imap.toMap
   }
   override def mergeDataWithSameKey(storedData: BeamSkimmerData, newData: BeamSkimmerData): BeamSkimmerData = {
-    FlatSkimmerData(storedData.asInstanceOf[FlatSkimmerData].value + newData.asInstanceOf[FlatSkimmerData].value)
+    SkimmerData(storedData.asInstanceOf[SkimmerData].value + newData.asInstanceOf[SkimmerData].value)
   }
   override def dataToPersistAtEndOfIteration(
     persistedData: immutable.Map[BeamSkimmerKey, BeamSkimmerData],
@@ -47,12 +47,14 @@ class FlatSkimmer @Inject()(val injector: Injector)
   override def checkIfDataShouldBePersistedThisIteration(iteration: Int) = {
     iteration % beamScenario.beamConfig.beam.outputs.writeSkimsInterval == 0
   }
-
 }
 
-object FlatSkimmer {
+object Skimmer {
   import AbstractBeamSkimmer._
-  case class FlatSkimmerKey(
+
+  val ID: String = "Skim"
+
+  case class SkimmerKey(
     timBin: Int,
     idTaz: Id[TAZ],
     hexIndex: String,
@@ -60,27 +62,26 @@ object FlatSkimmer {
     label: String
   ) extends BeamSkimmerKey
 
-  case class FlatSkimmerData(value: Double) extends BeamSkimmerData
+  case class SkimmerData(value: Double) extends BeamSkimmerData
 
   def getEvent(time: Double, bin: Int, coord: Coord, vehMng: Id[VehicleManager], label: String, value: Double) =
     new BeamSkimmerEvent(time) {
-      override def getEventType: String = "FlatSkimmerEvent"
+      override def getEventType: String = "SkimmerEvent"
       override def getKey: BeamSkimmerKey = {
         var hexIndex = "NA"
         var idTaz = H3TAZ.emptyTAZId
-        get("flatSkim") match {
-          case Some(flatSkimmer: FlatSkimmer) =>
-            flatSkimmer.h3taz.getHex(coord.getX, coord.getY) match {
+        get(ID) match {
+          case Some(skimmer: Skimmer) =>
+            skimmer.h3taz.getHex(coord.getX, coord.getY) match {
               case Some(hex) =>
                 hexIndex = hex
-                idTaz = flatSkimmer.h3taz.getTAZ(hex)
+                idTaz = skimmer.h3taz.getTAZ(hex)
               case _ =>
             }
           case _ =>
         }
-        FlatSkimmerKey(bin, idTaz, hexIndex, vehMng, label)
+        SkimmerKey(bin, idTaz, hexIndex, vehMng, label)
       }
-      override def getData: BeamSkimmerData = FlatSkimmerData(value)
+      override def getData: BeamSkimmerData = SkimmerData(value)
     }
-
 }
