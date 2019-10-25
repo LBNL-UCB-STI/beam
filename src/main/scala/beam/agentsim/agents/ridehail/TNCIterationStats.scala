@@ -17,6 +17,7 @@ import org.matsim.vehicles
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.reflect.ClassTag
 
 case class TNCIterationStats(
   rideHailStats: Map[String, List[Option[RideHailStatsEntry]]],
@@ -160,23 +161,20 @@ case class TNCIterationStats(
 
       // filter top N scores
       // ignore scores smaller than minScoreThresholdForRepositioning
-      val tmp = scoredTAZInRadius
-        .take(keepMaxTopNScores)
+      val topScored = takeTopN(scoredTAZInRadius, keepMaxTopNScores)
         .filter(
           tazScore => tazScore.score > minScoreThresholdForRepositioning && tazScore.score > 0
         )
 
-      scoredTAZInRadius = tmp
-
       // TODO: add WEIGHTED_KMEANS as well
 
-      val vehicleToCoordAssignment = if (scoredTAZInRadius.nonEmpty) {
+      val vehicleToCoordAssignment = if (topScored.nonEmpty) {
         val coords =
           if (repositioningMethod
-                .equalsIgnoreCase("TOP_SCORES") || scoredTAZInRadius.size <= vehicles.size) {
+                .equalsIgnoreCase("TOP_SCORES") || topScored.size <= vehicles.size) {
             // Not using
             val scoreExpSumOverAllTAZInRadius =
-              scoredTAZInRadius.map(taz => taz.score).sum
+              topScored.map(taz => taz.score).sum
             //scoredTAZInRadius.map(taz => exp(taz.score)).sum
 
             if (scoreExpSumOverAllTAZInRadius == 0) {
@@ -185,7 +183,7 @@ case class TNCIterationStats(
 
             val mapping =
               new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
-            scoredTAZInRadius.foreach { tazScore =>
+            topScored.foreach { tazScore =>
               //logger.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
 
               mapping.add(
@@ -202,8 +200,7 @@ case class TNCIterationStats(
 
             sample.map(_.coord)
           } else if (repositioningMethod.equalsIgnoreCase("KMEANS")) {
-            val clusterInput =
-              scoredTAZInRadius.map(t => new LocationWrapper(t.taz.coord))
+            val clusterInput = topScored.map(t => new LocationWrapper(t.taz.coord))
 
             val clusterSize =
               if (clusterInput.size < vehicles.size) clusterInput.size
@@ -317,8 +314,7 @@ case class TNCIterationStats(
 
      */
 
-    val head = priorityQueue
-      .take(maxNumberOfVehiclesToReposition.toInt)
+    val head = takeTopN(priorityQueue, maxNumberOfVehiclesToReposition.toInt)
 
     //printTAZForVehicles(idleVehicles)
 
@@ -395,8 +391,7 @@ case class TNCIterationStats(
      */
     // TODO: replace below code with above - was getting stuck perhaps due to empty set?
 
-    val head = priorityQueue
-      .take(maxNumberOfVehiclesToReposition.toInt)
+    val head = takeTopN(priorityQueue, maxNumberOfVehiclesToReposition.toInt)
 
     //printTAZForVehicles(idleVehicles)
 
@@ -418,6 +413,21 @@ case class TNCIterationStats(
           tazTreeMap.getTAZ(x.currentLocationUTM.loc.getX, x.currentLocationUTM.loc.getY).tazId
       )
     )
+  }
+
+  def takeTopN[T](pq: mutable.PriorityQueue[T], n: Int)(implicit ct: ClassTag[T]): Array[T] = {
+    if (n <= 0 || pq.isEmpty) Array.empty[T]
+    else {
+      var i: Int = 0
+      val resSize: Int = if (pq.size > n) n else pq.size
+      val result = Array.ofDim[T](resSize)
+      while (i < resSize) {
+        val top = pq.dequeue()
+        result.update(i, top)
+        i += 1
+      }
+      result
+    }
   }
 
   def getUpdatedCircleSize(

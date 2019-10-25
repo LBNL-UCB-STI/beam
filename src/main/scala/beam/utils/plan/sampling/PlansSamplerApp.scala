@@ -338,8 +338,7 @@ object PlansSampler {
   val conf: Config = ConfigUtils.createConfig()
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
-  private val newPop: Population =
-    PopulationUtils.createPopulation(ConfigUtils.createConfig())
+  private val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -347,8 +346,7 @@ object PlansSampler {
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
 
-  val modeAllocator: AvailableModeUtils.AllowAllModes =
-    new AvailableModeUtils.AllowAllModes
+  val modeAllocator: AvailableModeUtils.AllowAllModes.type = AvailableModeUtils.AllowAllModes
 
   private var synthHouseholds = Vector[SynthHousehold]()
 

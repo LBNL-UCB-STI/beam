@@ -133,6 +133,12 @@ case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleRes
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
     )
-    Props(new InexhaustibleReservingFleetManager(parkingManager, vehicleType))
+    Props(
+      new InexhaustibleReservingFleetManager(
+        parkingManager,
+        vehicleType,
+        beamServices.beamConfig.matsim.modules.global.randomSeed
+      )
+    )
   }
 }

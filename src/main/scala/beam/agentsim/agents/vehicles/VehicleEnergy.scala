@@ -116,7 +116,11 @@ class ConsumptionRateFilterStoreImpl(
       .foreach(csvRecord => {
         val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(speedBinHeader), isDouble = true)
         val gradePercentBin = convertRecordStringToRange(csvRecord.getString(gradeBinHeader), isDouble = true)
-        val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(lanesBinHeader))
+        val numberOfLanesBin = if (csvRecord.getMetaData.containsColumn(lanesBinHeader)) {
+          convertRecordStringToRange(csvRecord.getString(lanesBinHeader))
+        } else {
+          convertRecordStringToRange("(0,100]")
+        }
         val rawRate = csvRecord.getDouble(rateHeader)
         if (rawRate == null)
           throw new Exception(
@@ -230,8 +234,8 @@ class VehicleEnergy(
         numberOfLanesOption,
         _,
         _,
-        _,
         speedInMetersPerSecondOption,
+        _,
         _,
         _,
         _

@@ -9,6 +9,7 @@ import org.matsim.core.controler.MatsimServices;
 
 import java.util.*;
 
+
 /**
  * Logger class for BEAM events
  */
@@ -55,13 +56,17 @@ class BeamEventsLogger {
     }
 
     private BeamEventsWriterBase createEventWriterForClassAndFormat(String eventsFilePathBase,
-                                                                    Class<?> theClass, BeamEventsFileFormats fmt) {
+                                                                    Class<?> theClass,
+                                                                    BeamEventsFileFormats fmt) {
         final String path = eventsFilePathBase + "." + fmt.getSuffix();
         if (fmt == BeamEventsFileFormats.XML || fmt == BeamEventsFileFormats.XML_GZ) {
             return new BeamEventsWriterXML(path, this, beamServices, theClass);
         } else if (fmt == BeamEventsFileFormats.CSV || fmt == BeamEventsFileFormats.CSV_GZ) {
             return new BeamEventsWriterCSV(path, this, beamServices, theClass);
+        } else if (fmt == BeamEventsFileFormats.PARQUET) {
+            return new BeamEventsWriterParquet(path, this, beamServices, theClass);
         }
+
         return null;
     }
 
@@ -81,8 +86,7 @@ class BeamEventsLogger {
         eventsFileFormatsArray.clear();
         String eventsFileFormats = beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
         for (String format : eventsFileFormats.split(",")) {
-            BeamEventsFileFormats.from(format)
-                    .ifPresent(eventsFileFormatsArray::add);
+            BeamEventsFileFormats.from(format).ifPresent(eventsFileFormatsArray::add);
         }
     }
 
@@ -97,9 +101,8 @@ class BeamEventsLogger {
         Class<?> eventClass = null;
         // Generate the required event class reference based on the class name
         String eventsToWrite = beamServices.beamConfig().beam().outputs().events().eventsToWrite();
-        if(!eventsToWrite.isEmpty()) {
-            for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite()
-                    .split(",")) {
+        if (!eventsToWrite.isEmpty()) {
+            for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite().split(",")) {
                 switch (className) {
                     case "ActivityStartEvent":
                         eventClass = ActivityStartEvent.class;
@@ -137,8 +140,14 @@ class BeamEventsLogger {
                     case "PersonLeavesVehicleEvent":
                         eventClass = PersonLeavesVehicleEvent.class;
                         break;
-                    case "RefuelEvent":
-                        eventClass = RefuelEvent.class;
+                    case "RefuelSessionEvent":
+                        eventClass = RefuelSessionEvent.class;
+                        break;
+                    case "ChargingPlugOutEvent":
+                        eventClass = ChargingPlugOutEvent.class;
+                        break;
+                    case "ChargingPlugInEvent":
+                        eventClass = ChargingPlugInEvent.class;
                         break;
                     case "ReplanningEvent":
                         eventClass = ReplanningEvent.class;
@@ -159,7 +168,8 @@ class BeamEventsLogger {
                         eventClass = AgencyRevenueEvent.class;
                         break;
                     default:
-                        DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
+                        DebugLib.stopSystemAndReportInconsistency(
+                                "Logging class name: Unidentified event type class " + className);
                 }
                 //add the matched event class to the list of events to log
                 if (eventClass != null)

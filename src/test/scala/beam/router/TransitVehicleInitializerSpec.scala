@@ -7,7 +7,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
 class TransitVehicleInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {

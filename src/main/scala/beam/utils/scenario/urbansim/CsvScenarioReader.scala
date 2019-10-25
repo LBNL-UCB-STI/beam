@@ -13,28 +13,6 @@ import scala.util.Try
 
 object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
-  def main(array: Array[String]): Unit = {
-
-//    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.csv").take(3).foreach(println)
-//    val buildings = readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.csv")
-
-//    println(s"buildingId: ${buildings.map(_.buildingId).distinct.size}")
-//    println(s"parcelId: ${buildings.map(_.parcelId).distinct.size}")
-//
-//    readPersonsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\persons.csv").take(3).foreach(println)
-//    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.csv").take(3).foreach(println)
-    val hh = readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.csv")
-    println(s"household_id: ${hh.map(_.householdId).distinct.size}")
-    println(s"building_id: ${hh.map(_.buildingId).distinct.size}")
-
-    val units = readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.csv")
-    println(s"unitId: ${units.map(_.unitId).distinct.size}")
-    println(s"buildingId: ${units.map(_.buildingId).distinct.size}")
-
-    val buildings = readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.csv")
-    println(s"buildingId: ${buildings.map(_.buildingId).distinct.size}")
-    println(s"parcelId: ${buildings.map(_.parcelId).distinct.size}")
-  }
   def inputType: InputType = InputType.CSV
 
   def readUnitsFile(path: String): Array[UnitInfo] = {

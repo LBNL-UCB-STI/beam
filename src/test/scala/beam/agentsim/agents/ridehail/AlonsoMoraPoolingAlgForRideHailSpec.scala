@@ -1,254 +1,268 @@
 package beam.agentsim.agents.ridehail
 
-import java.util.concurrent.TimeUnit
-
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import akka.util.Timeout
+import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.router.BeamSkimmer
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamScenario, Geofence}
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, Geofence}
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.AbstractModule
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
-import scala.concurrent.ExecutionContext
 
-class AlonsoMoraPoolingAlgForRideHailSpec
-    extends TestKit(
-      ActorSystem(
-        name = "AlonsoMoraPoolingAlgForRideHailSpec",
-        config = ConfigFactory
-          .parseString("""
-               akka.log-dead-letters = 10
-               akka.actor.debug.fsm = true
-               akka.loglevel = debug
-            """)
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      )
+class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
+
+  "Running Alonso Mora Algorithm" must "creates a consistent plan" in {
+    val config = ConfigFactory
+      .parseString("""
+                     |beam.outputs.events.fileOutputFormats = xml
+                     |beam.physsim.skipPhysSim = true
+                     |beam.agentsim.lastIteration = 0
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec = 360
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction= 0.2
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle = 1000
+        """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runConsistentPlanCheck(config)
+  }
+
+  private def runConsistentPlanCheck(config: Config): Unit = {
+    val configBuilder = new MatSimBeamConfigBuilder(config)
+    val matsimConfig = configBuilder.buildMatSimConf()
+    val beamConfig = BeamConfig(config)
+    implicit val beamScenario = loadScenario(beamConfig)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      new AbstractModule() {
+        override def install(): Unit = {
+          install(module(config, beamConfig, scenario, beamScenario))
+        }
+      }
     )
-    with Matchers
-    with FunSpecLike
-    with BeforeAndAfterAll
-    with MockitoSugar
-    with BeamHelper
-    with ImplicitSender {
-
-  val probe: TestProbe = TestProbe.apply()
-  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  private implicit val executionContext: ExecutionContext = system.dispatcher
-  implicit val mockActorRef: ActorRef = probe.ref
-  val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
-  implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
-  lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
-  lazy val services = buildBeamServices(injector, scenario)
-
-  describe("AlonsoMoraPoolingAlgForRideHail") {
-    it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(
-        beamScenario,
-        new GeoUtilsImpl(beamExecConfig.beamConfig)
+    implicit val services = injector.getInstance(classOf[BeamServices])
+    implicit val skimmer = injector.getInstance(classOf[BeamSkimmer])
+    implicit val actorRef = ActorRef.noSender
+    val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
+    val alg: AlonsoMoraPoolingAlgForRideHail =
+      new AlonsoMoraPoolingAlgForRideHail(
+        AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
+        sc._1,
+        services,
+        skimmer
       )
-      val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
-      val alg: AlonsoMoraPoolingAlgForRideHail =
-        new AlonsoMoraPoolingAlgForRideHail(
-          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
-          sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-          maxRequestsPerVehicle = 1000,
-          services
-        )
 
-      val rvGraph: RVGraph = alg.pairwiseRVGraph
-      for (e <- rvGraph.edgeSet.asScala) {
-        rvGraph.getEdgeSource(e).getId match {
-          case "p1" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p4")
-            )
-          case "p2" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p3") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p4")
-            )
-          case "p3" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p2")
-            )
-          case "p4" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p2")
-            )
-          case "v1" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p3")
-            )
-          case "v2" =>
-            assert(
-              rvGraph.getEdgeTarget(e).getId.equals("p1") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p2") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p3") ||
-              rvGraph.getEdgeTarget(e).getId.equals("p4")
-            )
-        }
+    val assignment = alg.matchAndAssign(0)
+    for (row <- assignment) {
+      assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
+      assert(row._2.getId == "v2" || row._2.getId == "v1")
+    }
+    val rvGraph: RVGraph = alg.rvG
+    for (e <- rvGraph.edgeSet.asScala) {
+      rvGraph.getEdgeSource(e).getId match {
+        case "p1" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p2") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p4")
+          )
+        case "p2" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p1") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p3") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p4")
+          )
+        case "p3" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p2")
+          )
+        case "p4" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p1") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p2")
+          )
+        case "v1" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p2") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p3")
+          )
+        case "v2" =>
+          assert(
+            rvGraph.getEdgeTarget(e).getId.equals("p1") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p2") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p3") ||
+            rvGraph.getEdgeTarget(e).getId.equals("p4")
+          )
       }
+    }
 
-      val rtvGraph = alg.rTVGraph(rvGraph, services)
-
-      for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
-        v.getId match {
-          case "trip:[p3] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
-            )
-          case "trip:[p1] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
-            )
-          case "trip:[p2] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
-            )
-          case "trip:[p4] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
-            )
-          case "trip:[p1] -> [p4] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
-            )
-          case "trip:[p2] -> [p3] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
-            )
-          case "trip:[p2] -> [p4] -> " =>
-            assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
-            )
-          case _ =>
-        }
-      }
-
-      val assignment = alg.greedyAssignment(rtvGraph)
-
-      for (row <- assignment) {
-        assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
-        assert(row._2.getId == "v2" || row._2.getId == "v1")
+    val rtvGraph = alg.rTvG
+    for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
+      v.getId match {
+        case "trip:[p3] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v1") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+          )
+        case "trip:[p1] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+          )
+        case "trip:[p2] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+          )
+        case "trip:[p4] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+          )
+        case "trip:[p1] -> [p4] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+          )
+        case "trip:[p2] -> [p3] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+          )
+        case "trip:[p2] -> [p4] -> " =>
+          assert(
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+            rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+          )
+        case _ =>
       }
     }
   }
-
 }
 
 object AlonsoMoraPoolingAlgForRideHailSpec {
 
-  def scenario1(
-    implicit skimmer: BeamSkimmer,
+  def scenario1()(
+    implicit
+    skimmer: BeamSkimmer,
+    services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
+      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, None, 4)
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, None, 4)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
-        new Coord(18000, 19000)
+        new Coord(18000, 19000),
+        services
       )
     val p4Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
-        new Coord(20000, 18000)
+        new Coord(20000, 18000),
+        services
       )
     val p2Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
-        new Coord(19000, 18000)
+        new Coord(19000, 18000),
+        services
       )
     val p3Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
-        new Coord(21000, 20000)
+        new Coord(21000, 21000),
+        services
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def scenarioGeoFence(
-    implicit skimmer: BeamSkimmer,
+  def scenarioGeoFence()(
+    implicit
+    skimmer: BeamSkimmer,
+    services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
-    val gf = Geofence(10000, 10000, 13400)
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule(
+        "v1",
+        vehicleType,
+        new Coord(5000, 5000),
+        8.hours.toSeconds.toInt,
+        Some(Geofence(10000, 10000, 13400)),
+        4
+      )
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule(
+        "v2",
+        vehicleType,
+        new Coord(2000, 2000),
+        8.hours.toSeconds.toInt,
+        Some(Geofence(10000, 10000, 13400)),
+        4
+      )
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
-        new Coord(18000, 19000)
+        new Coord(18000, 19000),
+        services
       )
     val p4Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
-        new Coord(20000, 18000)
+        new Coord(20000, 18000),
+        services
       )
     val p2Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
-        new Coord(19000, 18000)
+        new Coord(19000, 18000),
+        services
       )
     val p3Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
-        new Coord(21000, 20000)
+        new Coord(21000, 20000),
+        services
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }

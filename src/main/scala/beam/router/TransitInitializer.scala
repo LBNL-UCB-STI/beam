@@ -16,7 +16,8 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, Vehicles}
+import beam.sim.common.GeoUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -24,10 +25,11 @@ import scala.collection.mutable.ArrayBuffer
 
 class TransitInitializer(
   beamConfig: BeamConfig,
+  geo: GeoUtils,
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
-  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
+  travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
 
@@ -72,7 +74,7 @@ class TransitInitializer(
           None,
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
-          0
+          geo.distLatLon2Meters(fromCoord, toCoord)
         )
     }
 
@@ -101,12 +103,17 @@ class TransitInitializer(
           StreetMode.CAR,
           transportNetwork.streetLayer
         )
+        val scaledLinkTimes = TravelTimeUtils.scaleTravelTime(
+          streetSeg.getDuration,
+          math.round(linksTimesAndDistances.travelTimes.tail.sum.toFloat),
+          linksTimesAndDistances.travelTimes
+        )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
           edges.map(_.intValue()).toVector,
           TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
-            linksTimesAndDistances.travelTimes.sum,
+            math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
           None,
@@ -118,7 +125,7 @@ class TransitInitializer(
           SpaceTime(
             endEdge.getGeometry.getEndPoint.getX,
             endEdge.getGeometry.getEndPoint.getY,
-            departureTime + streetSeg.getDuration
+            departureTime + math.round(streetSeg.getDuration - scaledLinkTimes.head).toInt
           ),
           distance
         )

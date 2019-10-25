@@ -34,7 +34,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -125,7 +125,6 @@ class PersonAgentSpec
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
-      expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
     }
 
@@ -221,7 +220,7 @@ class PersonAgentSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    endPoint = SpaceTime(1.0, 1.0, 28850),
                     distanceInM = 1000D
                   )
                 ),

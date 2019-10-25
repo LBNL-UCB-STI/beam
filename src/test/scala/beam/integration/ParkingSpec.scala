@@ -99,7 +99,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     queueEvents
   }
 
-  private lazy val defaultEvents = runAndCollectForIterations("default", 4)
+  private lazy val defaultEvents = runAndCollectForIterations("default", 5)
 
   val countForPathTraversalAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
@@ -207,8 +207,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
     }
 
-    "expensive parking should reduce driving" in {
-      val expensiveEvents = runAndCollectForIterations("expensive", 4)
+    "expensive parking should reduce driving" ignore {
+      val expensiveEvents = runAndCollectForIterations("expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
@@ -221,8 +221,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "empty parking access should reduce driving" in {
-      val emptyEvents = runAndCollectForIterations("empty", 4)
+    "empty parking access should reduce driving" ignore {
+      val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
@@ -236,7 +236,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "limited parking access should reduce driving" ignore {
-      val limitedEvents = runAndCollectForIterations("limited", 4)
+      val limitedEvents = runAndCollectForIterations("limited", 5)
 
       val limitedModeChoiceCarCount = limitedEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)

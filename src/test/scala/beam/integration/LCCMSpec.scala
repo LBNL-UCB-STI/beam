@@ -9,7 +9,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Ignore}
 
 @Ignore
@@ -39,7 +39,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, beamScenario))
+          install(module(config, beamConfig, scenario, beamScenario))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

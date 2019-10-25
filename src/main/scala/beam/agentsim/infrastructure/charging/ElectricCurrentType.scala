@@ -8,7 +8,7 @@ object ElectricCurrentType {
   case object DC extends ElectricCurrentType
 
   def apply(s: String): ElectricCurrentType = {
-    s.toLowerCase match {
+    s.trim.toLowerCase match {
       case "ac" => AC
       case "dc" => DC
       case _    => throw new IllegalArgumentException("invalid electric current type provided")
