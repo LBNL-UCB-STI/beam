@@ -437,10 +437,10 @@ task deployPilates(type: AWSLambdaInvokeTask) {
   "storageSize": ${project.findProperty('storageSize')},
   "instanceType": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "dataRegion": "${project.findProperty('dataRegion') ?: region}",
-  "maxRam": "${maxRAM ?: '140g'}",
-  "region": "$region",
-  "shutdownWait": "$shutdownWait",
-  "shutdownBehaviour": "$shutdownBehaviour"
+  "maxRam": "${project.findProperty('maxRAM') ?: 140g}",
+  "region": "${project.findProperty('region')}",
+  "shutdownWait": "${project.findProperty('shutdownWait')}",
+  "shutdownBehaviour": "${project.findProperty('shutdownBehaviour')}"
 }"""
 
     functionName = "runPilates"
@@ -487,9 +487,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "commit": "${project.findProperty('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
-  "experiments": "${
-        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
-    }",
+  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')}",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
