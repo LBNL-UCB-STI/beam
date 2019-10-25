@@ -25,7 +25,7 @@ abstract class AbstractBeamSkimmer(val beamScenario: BeamScenario, val matsimSer
     with IterationEndsListener {
   private var data: mutable.Map[BeamSkimmerKey, BeamSkimmerData] = mutable.Map()
   private var persistedData: immutable.Map[BeamSkimmerKey, BeamSkimmerData] = read
-  protected def skimmerId: String
+  protected def cvsFileName: String
   protected def cvsFileHeader: String
   protected def keyDataToStrMap(keyVal: (BeamSkimmerKey, BeamSkimmerData)): immutable.Map[String, String]
   protected def strMapToKeyData(strMap: immutable.Map[String, String]): (BeamSkimmerKey, BeamSkimmerData)
@@ -42,7 +42,7 @@ abstract class AbstractBeamSkimmer(val beamScenario: BeamScenario, val matsimSer
     var mapReader: CsvMapReader = null
     val res = mutable.Map.empty[BeamSkimmerKey, BeamSkimmerData]
     try {
-      mapReader = new CsvMapReader(FileUtils.readerFromFile(skimmerId+".csv.gz"), CsvPreference.STANDARD_PREFERENCE)
+      mapReader = new CsvMapReader(FileUtils.readerFromFile(cvsFileName+".csv.gz"), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -61,7 +61,7 @@ abstract class AbstractBeamSkimmer(val beamScenario: BeamScenario, val matsimSer
   private def write(event: org.matsim.core.controler.events.IterationEndsEvent) = {
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
-      skimmerId + ".csv.gz"
+      cvsFileName + ".csv.gz"
     )
     val writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
     writer.write(cvsFileHeader + "\n")
@@ -83,7 +83,7 @@ abstract class AbstractBeamSkimmer(val beamScenario: BeamScenario, val matsimSer
     persistedData = dataToPersistAtEndOfIteration(persistedData, data.toMap)
     data = mutable.Map()
     if (checkIfDataShouldBePersistedThisIteration(event.getIteration)) {
-      ProfilingUtils.timed(s"write to $skimmerId on iteration ${event.getIteration}", x => logger.info(x)) {
+      ProfilingUtils.timed(s"write to $cvsFileName on iteration ${event.getIteration}", x => logger.info(x)) {
         write(event)
       }
     }
@@ -91,18 +91,18 @@ abstract class AbstractBeamSkimmer(val beamScenario: BeamScenario, val matsimSer
   override def notifyStartup(event: StartupEvent): Unit = {
     // attach all handlers
     matsimServices.getEvents.addHandler(this)
-    AbstractBeamSkimmer.skimmerMap.put(this.skimmerId, this)
+    AbstractBeamSkimmer.skimmerMap.put(this.getClass, this)
   }
 }
 
 object AbstractBeamSkimmer {
-  private val skimmerMap = TrieMap.empty[String, AbstractBeamSkimmer]
+  private val skimmerMap = TrieMap.empty[Class[_ <: AbstractBeamSkimmer], AbstractBeamSkimmer]
   // Event
   abstract class BeamSkimmerEvent(time: Double) extends Event(time) with ScalaEvent {
     def getKey: BeamSkimmerKey
     def getData: BeamSkimmerData
   }
-  def get[T <: AbstractBeamSkimmer](skimmerId: String) = {
-    skimmerMap.get(skimmerId)
+  def get[T <: AbstractBeamSkimmer](skimmerClass: Class[_ <: AbstractBeamSkimmer]) = {
+    skimmerMap.get(skimmerClass)
   }
 }

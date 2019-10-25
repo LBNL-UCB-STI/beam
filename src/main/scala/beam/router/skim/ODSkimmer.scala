@@ -11,7 +11,7 @@ class ODSkimmer @Inject()(val injector: Injector)
   ) {
   import ODSkimmer._
 
-  override protected def skimmerId: String = ODSkimmer.ID
+  override protected def cvsFileName: String = "ODSkim"
 
   override protected def cvsFileHeader: String = "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
 
@@ -23,12 +23,13 @@ class ODSkimmer @Inject()(val injector: Injector)
 
   override protected def dataToPersistAtEndOfIteration(persistedData: Map[BeamSkimmerKey, BeamSkimmerData], collectedData: Map[BeamSkimmerKey, BeamSkimmerData]): Map[BeamSkimmerKey, BeamSkimmerData] = ???
 
-  override protected def checkIfDataShouldBePersistedThisIteration(iteration: Int): Boolean = ???
+  override def checkIfDataShouldBePersistedThisIteration(iteration: Int) = {
+    iteration % beamScenario.beamConfig.beam.beamskimmer.writeObservedSkimsInterval == 0
+  }
 }
 
 object ODSkimmer {
   import AbstractBeamSkimmer._
 
-  val ID: String = "ODSkim"
 
 }

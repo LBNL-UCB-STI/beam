@@ -16,7 +16,8 @@ class Skimmer @Inject()(val injector: Injector)
     ) {
   import Skimmer._
   val h3taz: H3TAZ = H3TAZ.build(matsimServices.getScenario, beamScenario.tazTreeMap)
-  override def skimmerId: String = Skimmer.ID
+  //override def skimmerId: String = Skimmer.ID
+  override def cvsFileName: String = "skim"
   override def cvsFileHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
   override def strMapToKeyData(strMap: immutable.Map[String, String]): (BeamSkimmerKey, BeamSkimmerData) = {
     val time = strMap("timeBin").toInt
@@ -45,14 +46,12 @@ class Skimmer @Inject()(val injector: Injector)
     collectedData: immutable.Map[BeamSkimmerKey, BeamSkimmerData]
   ): immutable.Map[BeamSkimmerKey, BeamSkimmerData] = collectedData
   override def checkIfDataShouldBePersistedThisIteration(iteration: Int) = {
-    iteration % beamScenario.beamConfig.beam.outputs.writeSkimsInterval == 0
+    iteration % beamScenario.beamConfig.beam.beamskimmer.writeObservedSkimsPlusInterval == 0
   }
 }
 
 object Skimmer {
   import AbstractBeamSkimmer._
-
-  val ID: String = "Skim"
 
   case class SkimmerKey(
     timBin: Int,
@@ -70,7 +69,7 @@ object Skimmer {
       override def getKey: BeamSkimmerKey = {
         var hexIndex = "NA"
         var idTaz = H3TAZ.emptyTAZId
-        get(ID) match {
+        get(Skimmer.getClass) match {
           case Some(skimmer: Skimmer) =>
             skimmer.h3taz.getHex(coord.getX, coord.getY) match {
               case Some(hex) =>
