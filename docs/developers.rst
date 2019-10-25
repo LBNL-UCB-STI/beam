@@ -202,6 +202,44 @@ Just like starting instance, you can also stop already running instances using a
 .. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
 .. _link: https://goo.gl/Db37yM
 
+
+
+PILATES run on EC2
+~~~~~~~~~~~~~~~~~~
+
+It is possible to start PILATES simulation on AWS instance from gradle task  ::
+
+  gradle deployPilates <parameters>
+
+This command will start PILATES simulation on ec2 instance with given parameters:
+
+* **runName**: to specify instance name.
+* **startYear**: to specify start year of simulation.
+* **countOfYears**: to specify count of years.
+* **beamItLen**: to specify simulations year step.
+* **urbansimItLen**: to specify urbansim simulation length.
+* **inYearOutput**: to allow urbansim to write in year output, default is 'off'.
+* **beamConfig**: to specify BEAM config file for all runs during simulation.
+* **initialS3UrbansimInput**: to specify initial data for first urbansim run.
+* **initialS3UrbansimOutput**: to specify initial urbansim data for first BEAM run if it is not skipped.
+* **initialSkimPath**: to specify initial skim file for first urbansim run if first BEAM run is skipped. Setting this parameter to any value will lead to skipping first BEAM run.
+* **s3OutputBucket**: to specify s3 output bucket name, default is `//pilates-outputs`.
+* **s3OutputBasePath**: to specify s3 output path from bucket to output folder. Setting this parameter empty will lead to putting output folder in root of s3 output bucket. By default is empty.
+* **pilatesScenarioName**: name of output folder. Full name will contain this parameter value and datetime of start of run. By default is `pilates`.
+* **beamBranch**: to specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: the commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **maxRAM**: used to specify MAXRAM environment variable for simulation.
+* **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `stop`.
+* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **region**: to specify region to deploy ec2 instance. May be different from s3 bucket instance.
+* **dataRegion**: to specify region of s3 buckets. All operations with s3 buckets will be use this region. By default equal to `region`.
+* **instanceType**: to specify instance type.
+* **pilatesImageVersion**: to specify pilates image version, default is `latest`.
+* **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
+
+Parameters may be configured in `gradle.properties` file, so it is not necessary to specify them every run.
+
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -487,6 +525,8 @@ Use ``mutable`` buffer instead of ``immutable var``:
    buffer += 2
    
 **Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
+
+::
 
    val mutableList = scala.collection.mutable.MutableList(1,2)
    mutableList += 3
