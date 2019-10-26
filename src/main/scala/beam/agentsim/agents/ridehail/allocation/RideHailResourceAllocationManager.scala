@@ -183,10 +183,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   val repositioningManager: RepositioningManager = createRepositioningManager()
   logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
 
-  def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
-    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
-      rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.toVector
-
+  def findDepotsForVehiclesInNeedOfRefueling(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
+    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] = idleVehicles.toVector
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
       case ((vehicleId: Id[Vehicle], _)) => {
         rideHailManager.findBeamVehicleUsing(vehicleId) match {
@@ -220,8 +218,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
    */
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    repositioningManager.repositionVehicles(tick)
+  def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)] = {
+    repositioningManager.repositionVehicles(idleVehicles, tick)
   }
 
   /*

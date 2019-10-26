@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
@@ -12,7 +13,7 @@ abstract class RepositioningManager(
   private val beamServices: BeamServices,
   private val rideHailManager: RideHailManager
 ) {
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)]
+  def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)]
 }
 
 object RepositioningManager {
@@ -31,5 +32,5 @@ object RepositioningManager {
 
 class DefaultRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager) {
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = Vector.empty
+  override def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)] = Vector.empty
 }

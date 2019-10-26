@@ -1695,10 +1695,11 @@ class RideHailManager(
   }
 
   def continueRepositioning(tick: Int): Unit = {
+    val idleVehicles: mutable.Map[Id[Vehicle], RideHailAgentLocation] = vehicleManager.getIdleVehiclesAndFilterOutExluded
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
       rideHailResourceAllocationManager
-        .findDepotsForVehiclesInNeedOfRefueling()
+        .findDepotsForVehiclesInNeedOfRefueling(idleVehicles)
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
         .filter {
           case (vehId, parkingStall) =>
@@ -1723,7 +1724,7 @@ class RideHailManager(
     }
 
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick)
+      rideHailResourceAllocationManager.repositionVehicles(idleVehicles, tick)
 
     val insideGeofence = nonRefuelingRepositionVehicles.filter {
       case (vehicleId, destLoc) =>
