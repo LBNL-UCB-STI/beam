@@ -8,7 +8,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
-import beam.router.skim.Skimmer
+import beam.router.skim.Skimmer2.SkimmerEvent2
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -82,7 +82,7 @@ trait RepositionManager extends Actor with ActorLogging {
     if (statTime != 0) {
       getSkimmer.countEventsByTAZ(time / statTime, coord, getId, label)
       getServices.matsimServices.getEvents
-        .processEvent(Skimmer.getEvent(time, time / statTime, coord, getId, label, 1.0))
+        .processEvent(SkimmerEvent2(time, time / statTime, coord, getId, label, 1.0))
     }
   }
 
@@ -96,7 +96,7 @@ trait RepositionManager extends Actor with ActorLogging {
       )
       getAvailableVehicles.foreach { vehicle =>
         getServices.matsimServices.getEvents.processEvent(
-          Skimmer.getEvent(time, time / statTime, vehicle.spaceTime.loc, getId, RepositionManager.availability, 1.0)
+          SkimmerEvent2(time, time / statTime, vehicle.spaceTime.loc, getId, RepositionManager.availability, 1.0)
         )
       }
     }

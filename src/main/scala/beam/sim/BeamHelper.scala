@@ -18,7 +18,7 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.skim.Skimmer
+import beam.router.skim.DataCollector
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -161,7 +161,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
           addControlerListenerBinding().to(classOf[RouteHistory])
-          addControlerListenerBinding().to(classOf[Skimmer])
+          addControlerListenerBinding().to(classOf[DataCollector])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
