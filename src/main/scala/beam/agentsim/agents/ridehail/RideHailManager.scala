@@ -116,7 +116,7 @@ object RideHailManager {
 
   case class RoutingResponses(
     tick: Int,
-    routingResponses: List[RoutingResponse]
+    routingResponses: Seq[RoutingResponse]
   )
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
@@ -493,7 +493,7 @@ class RideHailManager(
     this
   )
 
-  def storeRoutes(responses: List[RoutingResponse]): Unit = {
+  def storeRoutes(responses: Seq[RoutingResponse]): Unit = {
     responses.foreach {
       _.itineraries.view.foreach { resp =>
         resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
@@ -1272,7 +1272,7 @@ class RideHailManager(
     List(rideHailAgent2Customer, rideHail2Destination)
   }
 
-  def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
+  def requestRoutes(tick: Int, routingRequests: Seq[RoutingRequest]): Unit = {
     cacheAttempts = cacheAttempts + 1
     val routeOrEmbodyReqs = routingRequests.map { rReq =>
       routeHistory.getRoute(
@@ -1525,7 +1525,7 @@ class RideHailManager(
    */
   private def findAllocationsAndProcess(tick: Int): Unit = {
     val s = System.currentTimeMillis()
-    var allRoutesRequired: List[RoutingRequest] = List()
+    var allRoutesRequired: Vector[RoutingRequest] = Vector()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
