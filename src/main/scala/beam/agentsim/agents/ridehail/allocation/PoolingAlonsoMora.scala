@@ -67,7 +67,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toAllocate: Set[RideHailRequest] = Set()
     var toFinalize: Set[RideHailRequest] = Set()
-    var allocResponses: List[VehicleAllocation] = List()
+    var allocResponses: Vector[VehicleAllocation] = Vector()
     var alreadyAllocated: Set[Id[Vehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>

@@ -39,7 +39,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
-    var allocResponses: List[VehicleAllocation] = List()
+    var allocResponses: Vector[VehicleAllocation] = Vector()
     var alreadyAllocated: Set[Id[Vehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>

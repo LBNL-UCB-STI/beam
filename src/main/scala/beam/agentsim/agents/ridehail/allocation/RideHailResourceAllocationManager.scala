@@ -176,7 +176,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case None =>
             NoVehicleAllocated(request)
         }
-    }.toList
+    }.toVector
     VehicleAllocations(allocResponses)
   }
 
@@ -311,7 +311,7 @@ case class SingleOccupantQuoteAndPoolingInfo(
  */
 trait AllocationResponse
 case object NoRidesRequested extends AllocationResponse
-case class VehicleAllocations(allocations: List[VehicleAllocation]) extends AllocationResponse
+case class VehicleAllocations(allocations: IndexedSeq[VehicleAllocation]) extends AllocationResponse
 
 /*
  * A VehicleAllocation is a specific directive about one ride hail vehicle
