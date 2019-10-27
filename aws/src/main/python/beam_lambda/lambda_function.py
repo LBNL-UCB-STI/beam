@@ -68,6 +68,7 @@ runcmd:
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
    - start_json=$(printf "{
       \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
       \\"sheet_id\\":\\"$SHEET_ID\\",
       \\"run\\":{
         \\"status\\":\\"Run Started\\",
@@ -79,7 +80,11 @@ runcmd:
         \\"branch\\":\\"$BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\"
+        \\"commit\\":\\"$COMMIT\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - chmod +x /tmp/slack.sh
@@ -120,6 +125,7 @@ runcmd:
   - echo "$bye_msg"
   - stop_json=$(printf "{
       \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
       \\"sheet_id\\":\\"$SHEET_ID\\",
       \\"run\\":{
         \\"status\\":\\"Run Completed\\",
@@ -132,7 +138,11 @@ runcmd:
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
-        \\"s3_link\\":\\"%s\\"
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) ${s3p#","})
   - /tmp/slack.sh "$bye_msg"

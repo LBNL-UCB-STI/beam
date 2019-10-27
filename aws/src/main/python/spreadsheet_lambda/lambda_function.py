@@ -37,17 +37,168 @@ def create_spreadsheet(sheet_api, title):
                                    fields='spreadsheetId').execute()
     sheet_id = spreadsheet.get('spreadsheetId')
     print('Spreadsheet ID: {0}'.format(sheet_id))
-    apply_formatting(sheet_api, sheet_id)
+    apply_beam_formatting(sheet_api, sheet_id)
     return sheet_id
 
 
-def apply_formatting(sheet_api, sheet_id):
+def apply_pilates_formatting(sheet_api, sheet_id):
+    body = {
+        'requests': [
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": 1,
+                        "dimension": "COLUMNS",
+                        "startIndex": 0,
+                        "endIndex": 32
+                    },
+                    "properties": {
+                        "pixelSize": 160
+                    },
+                    "fields": "pixelSize"
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": 1,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {
+                                "red": 0.5,
+                                "green": 0.5,
+                                "blue": 0.5
+                            },
+                            "horizontalAlignment": "CENTER",
+                            "textFormat": {
+                                "foregroundColor": {
+                                    "red": 1.0,
+                                    "green": 1.0,
+                                    "blue": 1.0
+                                },
+                                "fontSize": 10,
+                                "bold": 'true'
+                            }
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                }
+            }
+        ]
+    }
+    sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
+    header = {
+        'values': [
+            ["Status", "Run Name", "Instance ID", "Instance type", "Time", "Host name", "Web browser", "S3 Url",
+             "Instance region", "Data region", "Branch", "Commit", "S3 URL", "S3 Path", "Title", "Start year",
+             "Count of years", "Delta years", "UrbanSim parameters", "In year output", "Config File",
+             "PILATES Image Version", "PILATES Image Name", "PILATES Scenario Name", "UrbanSim Input",
+             "UrbanSim Output",
+             "Skim Path", "S3 Output", "S3 Base Path", "Max RAM", "Storage Size", "Shutdown Wait", "Shutdown Behavior"]
+        ]
+    }
+    sheet_api.values().append(
+        spreadsheetId=sheet_id, range="PILATES Instances!A1:K1",
+        valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=header).execute()
+    empty = {
+        'values': [
+            []
+        ]
+    }
+    sheet_api.values().append(
+        spreadsheetId=sheet_id, range="PILATES Instances!A2:K2",
+        valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
+    row_range = {
+        'sheetId': 1,
+        'startRowIndex': 1,
+        'startColumnIndex': 0,
+        'endColumnIndex': 1
+    }
+    requests = [{
+        'addConditionalFormatRule': {
+            'rule': {
+                'ranges': [row_range],
+                'booleanRule': {
+                    'condition': {
+                        'type': 'TEXT_EQ',
+                        'values': [{
+                            'userEnteredValue': 'Run Started'
+                        }]
+                    },
+                    'format': {
+                        'backgroundColor': {
+                            'red': 0.4,
+                            'green': 1,
+                            'blue': 0.4
+                        }
+                    }
+                }
+            },
+            'index': 0
+        }
+    }, {
+        'addConditionalFormatRule': {
+            'rule': {
+                'ranges': [row_range],
+                'booleanRule': {
+                    'condition': {
+                        'type': 'TEXT_EQ',
+                        'values': [{
+                            'userEnteredValue': 'Run Completed'
+                        }]
+                    },
+                    'format': {
+                        'backgroundColor': {
+                            'red': 1,
+                            'green': 0.4,
+                            'blue': 0.4
+                        }
+                    }
+                }
+            },
+            'index': 0
+        }
+    }]
+    body = {
+        'requests': requests
+    }
+    sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
+
+
+def add_pilates_sheet(sheet_api, sheet_id):
+    body = {
+        'requests': [
+            {
+                "addSheet": {
+                    "properties": {
+                        "sheetId": 1,
+                        "title": "PILATES Instances",
+                        "gridProperties": {
+                            "frozenRowCount": 1
+                        },
+                        "tabColor": {
+                            "red": 1.0,
+                            "green": 0.3,
+                            "blue": 0.4
+                        }
+                    }
+                }
+            }
+        ]
+    }
+    sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
+
+
+def apply_beam_formatting(sheet_api, sheet_id):
     body = {
         'requests': [
             {
                 'updateSheetProperties': {
                     'properties': {
-                        'sheetId': '0',
+                        'sheetId': 0,
                         'title': 'BEAM Instances',
                         "gridProperties": {
                             "frozenRowCount": 1
@@ -62,7 +213,7 @@ def apply_formatting(sheet_api, sheet_id):
                         "sheetId": 0,
                         "dimension": "COLUMNS",
                         "startIndex": 0,
-                        "endIndex": 11
+                        "endIndex": 26
                     },
                     "properties": {
                         "pixelSize": 160
@@ -104,8 +255,8 @@ def apply_formatting(sheet_api, sheet_id):
     sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
     header = {
         'values': [
-            ["Status", "Run Name", "Instance ID", "Instance type", "Host name", "Web browser", "Region", "Batch",
-             "Branch", "Commit", "S3 Url"]
+            ["Status", "Run Name", "Instance ID", "Instance type", "Time", "Host name", "Web browser", "Region",
+             "Batch", "Branch", "Commit", "S3 Url", "Config File"]
         ]
     }
     sheet_api.values().append(
@@ -192,27 +343,75 @@ def find_actual_sheet(creds):
         return True
 
 
-def add_row(sheet_id, row_data, sheet_api):
+def add_beam_row(sheet_id, row_data, sheet_api):
     empty = {
         'values': [
             [
-                row_data.get('status'),
-                row_data.get('name'),
-                row_data.get('instance_id'),
-                row_data.get('instance_type'),
+                row_data.pop('status'),
+                row_data.pop('name'),
+                row_data.pop('instance_id'),
+                row_data.pop('instance_type'),
                 datetime.now().strftime('%m/%d/%Y, %H:%M:%S'),
-                row_data.get('host_name'),
-                row_data.get('browser'),
-                row_data.get('region'),
-                row_data.get('batch'),
-                row_data.get('branch'),
-                row_data.get('commit'),
-                row_data.get('s3_link', '')
+                row_data.pop('host_name'),
+                row_data.pop('browser'),
+                row_data.pop('region'),
+                row_data.pop('batch'),
+                row_data.pop('branch'),
+                row_data.pop('commit'),
+                row_data.pop('s3_link', ''),
+                row_data.pop('config_file', ''),
+                row_data.pop('max_ram', ''),
+                *row_data.values()
             ]
         ]
     }
     sheet_api.values().append(
         spreadsheetId=sheet_id, range="BEAM Instances!A2:F2",
+        valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
+
+
+def add_pilates_row(sheet_id, row_data, sheet_api):
+    empty = {
+        'values': [
+            [
+                row_data.pop('status'),
+                row_data.pop('name'),
+                row_data.pop('instance_id'),
+                row_data.pop('instance_type'),
+                datetime.now().strftime('%m/%d/%Y, %H:%M:%S'),
+                row_data.pop('host_name'),
+                row_data.pop('browser'),
+                row_data.pop('instance_region'),
+                row_data.pop('data_region'),
+                row_data.pop('branch'),
+                row_data.pop('commit'),
+                row_data.pop('s3_URL'),
+                row_data.pop('s3_path', ''),
+                row_data.pop('title', ''),
+                row_data.pop('start_year', ''),
+                row_data.pop('count_of_years', ''),
+                row_data.pop('beam_it_len', ''),
+                row_data.pop('urbansim_it_len', ''),
+                row_data.pop('in_year_output', ''),
+                row_data.pop('config', ''),
+                row_data.pop('pilates_image_version', ''),
+                row_data.pop('pilates_image_name', ''),
+                row_data.pop('pilates_scenario_name', ''),
+                row_data.pop('initial_urbansim_input', ''),
+                row_data.pop('initial_urbansim_output', ''),
+                row_data.pop('initial_skims_path', ''),
+                row_data.pop('s3_output_bucket', ''),
+                row_data.pop('s3_output_base_path', ''),
+                row_data.pop('max_ram', ''),
+                row_data.pop('storage_size', ''),
+                row_data.pop('shutdown_wait', ''),
+                row_data.pop('shutdown_behaviour', ''),
+                *row_data.values()
+            ]
+        ]
+    }
+    sheet_api.values().append(
+        spreadsheetId=sheet_id, range="PILATES Instances!A2:F2",
         valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
 
 
@@ -251,7 +450,11 @@ def add_handler(event):
     creds = load_service_creds()
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
-    add_row(event.get('sheet_id'), event.get('run'), sheet)
+    row_type = event.get('type')
+    if row_type == 'beam':
+        return add_beam_row(event.get('sheet_id'), event.get('run'), sheet)
+    if row_type == 'pilates':
+        return add_pilates_row(event.get('sheet_id'), event.get('run'), sheet)
 
 
 def create_handler(event):
@@ -280,7 +483,9 @@ def main(sheet_id):
     service = build('sheets', 'v4', credentials=creds)
     # Call the Sheets API
     sheet = service.spreadsheets()
-    apply_formatting(sheet, sheet_id)
+    # apply_beam_formatting(sheet, sheet_id)
+    add_pilates_sheet(sheet, sheet_id)
+    apply_pilates_formatting(sheet, sheet_id)
 
 
 if __name__ == '__main__':
