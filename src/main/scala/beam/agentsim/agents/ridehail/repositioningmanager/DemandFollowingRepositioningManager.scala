@@ -81,7 +81,10 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     createClusters
   }
 
-  def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)] = {
+  def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
     val nonRepositioningIdleVehicles = idleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {

@@ -1697,7 +1697,8 @@ class RideHailManager(
   }
 
   def continueRepositioning(tick: Int): Unit = {
-    val idleVehicles: mutable.Map[Id[Vehicle], RideHailAgentLocation] = vehicleManager.getIdleVehiclesAndFilterOutExluded
+    val idleVehicles: mutable.Map[Id[Vehicle], RideHailAgentLocation] =
+      vehicleManager.getIdleVehiclesAndFilterOutExluded
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
       rideHailResourceAllocationManager

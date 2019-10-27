@@ -46,7 +46,10 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   val minDemandPercentageInRadius =
     repositioningConfig.minDemandPercentageInRadius
 
-  override def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>

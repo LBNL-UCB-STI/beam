@@ -155,7 +155,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 vehAndSched.schedule.map(_.toString).mkString("\n")
               )
             }
-              vehAndSched
+            vehAndSched
           }.toList,
           pooledAllocationReqs.map(
             rhr =>

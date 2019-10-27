@@ -13,7 +13,11 @@ abstract class RepositioningManager(
   private val beamServices: BeamServices,
   private val rideHailManager: RideHailManager
 ) {
-  def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)]
+
+  def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)]
 }
 
 object RepositioningManager {
@@ -32,5 +36,8 @@ object RepositioningManager {
 
 class DefaultRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager) {
-  override def repositionVehicles(idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation], tick: Int): Vector[(Id[Vehicle], Location)] = Vector.empty
+  override def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = Vector.empty
 }
