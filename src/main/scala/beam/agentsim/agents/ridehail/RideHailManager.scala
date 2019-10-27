@@ -1364,13 +1364,15 @@ class RideHailManager(
     tick: Int,
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
-    log.debug(
-      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferSize: {}",
-      requestId,
-      s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
-      numPendingRoutingRequestsForReservations,
-      rideHailResourceAllocationManager.getBufferSize
-    )
+    if (log.isDebugEnabled) {
+      log.debug(
+        "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferSize: {}",
+        requestId,
+        s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
+        numPendingRoutingRequestsForReservations,
+        rideHailResourceAllocationManager.getBufferSize
+      )
+    }
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
