@@ -58,18 +58,6 @@ PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursi
 # "shutdown_wait": wait timeout in minutes before shutdown after simulation end;
 # "shutdown_behaviour": shutdown behaviour.
 
-JSON_SPREADSHEET_MESSAGE_BODY = '''
-    \\"name\\":\\"$TITLED\\",
-    \\"instance_id\\":\\"%s\\",
-    \\"instance_type\\":\\"%s\\",
-    \\"host_name\\":\\"%s\\",
-    \\"browser\\":\\"http://%s:8000\\",
-    \\"branch\\":\\"$BRANCH\\",
-    \\"region\\":\\"$INSTANCE_REGION\\",
-    \\"commit\\":\\"$COMMIT\\",
-    \\"s3_link\\":\\"$HTTP_OUTPUT_PATH\\"
-'''
-
 initscript = (('''
 #cloud-config
 write_files:
@@ -90,6 +78,41 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
+  - instID=$(ec2metadata --instance-id)
+  - instTYPE=$(ec2metadata --instance-type)
+  - instPHN=$(ec2metadata --public-hostname)
+  - spreadsheetMSGBODY=$(printf "
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"s3_URL\\":\\"$HTTP_OUTPUT_PATH\\",
+        \\"s3_path\\":\\"$S3_OUTPUT_PATH\\",
+        \\"instance_region\\":\\"$INSTANCE_REGION\\",
+        \\"data_region\\":\\"$S3_DATA_REGION\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"title\\":\\"$TITLED\\",
+        \\"start_year\\":\\"$START_YEAR\\",
+        \\"count_of_years\\":\\"$COUNT_OF_YEARS\\",
+        \\"beam_it_len\\":\\"$BEAM_IT_LEN\\",
+        \\"urbansim_it_len\\":\\"$URBANSIM_IT_LEN\\",
+        \\"in_year_output\\":\\"$IN_YEAR_OUTPUT\\",
+        \\"config\\":\\"$CONFIG\\",
+        \\"pilates_image_version\\":\\"$PILATES_IMAGE_VERSION\\",
+        \\"pilates_image_name\\":\\"$PILATES_IMAGE_NAME\\",
+        \\"pilates_scenario_name\\":\\"$PILATES_SCENARIO_NAME\\",
+        \\"initial_urbansim_input\\":\\"$INITIAL_URBANSIM_INPUT\\",
+        \\"initial_urbansim_output\\":\\"$INITIAL_URBANSIM_OUTPUT\\",
+        \\"initial_skims_path\\":\\"$INITIAL_SKIMS_PATH\\",
+        \\"s3_output_bucket\\":\\"$S3_OUTPUT_BUCKET\\",
+        \\"s3_output_base_path\\":\\"$S3_OUTPUT_BASE_PATH\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"storage_size\\":\\"$STORAGE_SIZE\\",
+        \\"shutdown_wait\\":\\"$SHUTDOWN_WAIT\\",
+        \\"shutdown_behaviour\\":\\"$SHUTDOWN_BEHAVIOUR\\"
+        " "$instID" "$instTYPE" "$instPHN" "$instPHN" )
   - instance_description=$(printf "
         Run name      $TITLED \\n 
         Instance ID      %s \\n 
@@ -97,22 +120,23 @@ runcmd:
         Host name      %s \\n 
         Region      $INSTANCE_REGION \\n 
         Branch      $BRANCH \\n 
-        Commit      $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname))
+        Commit      $COMMIT" "$(ec2metadata --instance-id)" "$(ec2metadata --instance-type)" "$(ec2metadata --public-hostname)" )
   - instance_resources=$(printf "
         Web browser      http://%s:8000 \\n 
         S3 url      $HTTP_OUTPUT_PATH" $(ec2metadata --public-hostname))
   - hello_msg="PILATES Started \\n$instance_description \\n$instance_resources \\nPARAMS \\t\\t $RUN_PARAMS"
-  - start_json=$(printf "{
-      \\"command\\":\\"add\\",
-      \\"sheet_id\\":\\"$SHEET_ID\\",
-      \\"run\\":{
-        \\"status\\":\\"PILATES Started\\",
-        $JSON_SPREADSHEET_MESSAGE_BODY
-     }
-    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - start_json="{
+          \\"command\\":\\"add\\",
+          \\"type\\":\\"pilates\\",
+          \\"sheet_id\\":\\"$SHEET_ID\\",
+          \\"run\\":{
+            \\"status\\":\\"PILATES Started\\",
+            $spreadsheetMSGBODY
+            }
+        }"
   - chmod +x /tmp/slack.sh
   - echo $hello_msg > /tmp/msg_hello
-  - echo $start_json > /tmp/msg_start_json
+  - echo $start_json > /tmp/msg_spreadsheet_start
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
@@ -162,15 +186,16 @@ runcmd:
   -     bye_msg="PILATES completed with ERROR!\\nDOCKER RETURN CODE $returnCode \\n$instance_description \\n$instance_resources \\nShutdown in $SHUTDOWN_WAIT minutes"
   -     status="PILATES completed with ERROR (docker return code $returnCode)"
   - fi
-  - stop_json=$(printf "{
+  - stop_json="{
       \\"command\\":\\"add\\",
+      \\"type\\":\\"pilates\\",
       \\"sheet_id\\":\\"$SHEET_ID\\",
       \\"run\\":{
-        \\"status\\":\\"%s\\",
-        $JSON_SPREADSHEET_MESSAGE_BODY
+        \\"status\\":\\"$status\\",
+        $spreadsheetMSGBODY
       }
-    }" $status $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - echo $stop_json > /tmp/msg_stop_json
+    }" 
+  - echo $stop_json > /tmp/msg_spreadsheet_end
   - echo $bye_msg > /tmp/msg_bye
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - /tmp/slack.sh "$bye_msg"
@@ -360,7 +385,6 @@ def lambda_handler(event, context):
         prepare_urbansim_output_script = " "
 
     script = initscript.replace('$RUN_SCRIPT', RUN_PILATES_SCRIPT) \
-        .replace('$JSON_SPREADSHEET_MESSAGE_BODY', JSON_SPREADSHEET_MESSAGE_BODY) \
         .replace('$PREPARE_URBANSIM_INPUT_SCRIPT', PREPARE_URBANSIM_INPUT_SCRIPT) \
         .replace('$PREPARE_URBANSIM_OUTPUT_SCRIPT', prepare_urbansim_output_script) \
         .replace('$INSTANCE_REGION', region) \
@@ -380,6 +404,11 @@ def lambda_handler(event, context):
         .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
         .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', config) \
         .replace('$SHUTDOWN_WAIT', shutdown_wait) \
+        .replace('$SHUTDOWN_BEHAVIOUR', shutdown_behaviour) \
+        .replace('$STORAGE_SIZE', str(volume_size)) \
+        .replace('$S3_OUTPUT_BUCKET', s3_output_bucket) \
+        .replace('$S3_OUTPUT_BASE_PATH', s3_output_base_path) \
+        .replace('$PILATES_SCENARIO_NAME', pilates_scenario_name) \
         .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
         .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
         .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
