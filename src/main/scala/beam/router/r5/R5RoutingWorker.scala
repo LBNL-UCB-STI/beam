@@ -24,7 +24,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
+import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -1124,15 +1124,19 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
       }
   }
 
-
   private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
     ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
   }
-  private val error: Double = 0.1
-  private val errors: Array[Double] = Array.fill(1000000) {
-   ThreadLocalRandom.current().nextDouble(1 - error, 1 + error)
-  }
 
+  val travelTimeError: Double = workerParams.beamConfig.beam.routing.r5.travelTimeError
+
+  private val errors: Array[Double] = if (travelTimeError == 0.0) {
+    Array.empty
+  } else {
+    Array.fill(1000000) {
+      ThreadLocalRandom.current().nextDouble(1 - travelTimeError, 1 + travelTimeError)
+    }
+  }
   private val errorIdx: AtomicInteger = new AtomicInteger(0)
 
   private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
@@ -1149,10 +1153,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
         } else {
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
-          val idx = Math.abs(errorIdx.getAndIncrement() % errors.length)
-          val err = errors(idx)
-          val physSimTravelTime = (travelTime.getLinkTravelTime(link, time, null, null) * err).ceil.toInt
-          val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
+          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
+          val physSimTravelTimeWithError = (if (travelTimeError == 0.0) { physSimTravelTime } else {
+                                              val idx = Math.abs(errorIdx.getAndIncrement() % errors.length)
+                                              physSimTravelTime * errors(idx)
+                                            }).ceil.toInt
+          val linkTravelTime = Math.max(physSimTravelTimeWithError, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         }
       }
