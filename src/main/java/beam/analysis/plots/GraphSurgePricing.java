@@ -446,7 +446,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private void writeTazCsv(Map<String, double[][]> dataset) {
-        // try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)))) {
         try (BufferedWriter out = IOUtils.getBufferedWriter(surgePricingAndRevenueWithTaz)) {
             out.write("TazId,DataType,Value,Hour");
             out.newLine();
