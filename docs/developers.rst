@@ -240,6 +240,17 @@ This command will start PILATES simulation on ec2 instance with given parameters
 
 Parameters may be configured in `gradle.properties` file, so it is not necessary to specify them every run.
 
+Running this function will leads to:
+ #. creating new ec2 instance
+ #. pulling from github selected branch/commit
+ #. pulling from docker hub selected PILATES image (`beammodel/pilates:latest` by default)
+
+All run parameters are stored in `run-params` file in root of PILATES output.
+
+Also during simulation for every BEAM run will be created a new config file with specified paths to output folder and to urbansim data.
+Those config files will be created near original config file (from `beamConfig` variable) with year added to the name.
+So it is will be possible to rerun BEAM for selected year.
+
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
