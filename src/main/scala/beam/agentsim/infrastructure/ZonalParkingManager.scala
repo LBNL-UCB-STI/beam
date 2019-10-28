@@ -400,15 +400,15 @@ object ZonalParkingManager extends LazyLogging {
     }
 
     val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
-      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
+      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath, random)
     } else {
       Try {
-        ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor, parkingCostScalingFactor)
+        ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor, parkingCostScalingFactor)
       } match {
         case Success((s, t)) => (s, t)
         case Failure(e) =>
           logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
+          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath, random)
       }
     }
 
@@ -443,7 +443,7 @@ object ZonalParkingManager extends LazyLogging {
     boundingBox: Envelope,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
-    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, header = includesHeader)
+    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, random, 1.0, 1.0, true)
     new ZonalParkingManager(
       tazTreeMap,
       geo,
