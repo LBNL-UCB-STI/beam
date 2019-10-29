@@ -330,7 +330,7 @@ def lambda_handler(event, context):
     s3_data_region = get_param('dataRegion')
 
     config = get_param('beamConfig')
-    max_ram = get_param('maxRAM')
+    max_ram = get_param('pilatesMaxRAM')
     shutdown_wait = get_param('shutdownWait')
 
     instance_type = get_param('instanceType')

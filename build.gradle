@@ -437,7 +437,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
   "storageSize": ${project.findProperty('storageSize')},
   "instanceType": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "dataRegion": "${project.findProperty('dataRegion') ?: region}",
-  "maxRAM": "${project.findProperty('maxRAM')}",
+  "pilatesMaxRAM": "${project.findProperty('pilatesMaxRAM')}",
   "region": "${project.findProperty('region')}",
   "shutdownWait": "${project.findProperty('shutdownWait')}",
   "shutdownBehaviour": "${project.findProperty('shutdownBehaviour')}"
