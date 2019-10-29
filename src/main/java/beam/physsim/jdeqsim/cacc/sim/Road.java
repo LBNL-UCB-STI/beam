@@ -17,7 +17,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
     private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
     private double speedAdjustmentFactor;
-    private double minimumRoadSpeedInMetersPerSecond=3.0;
+    private double minimumRoadSpeedInMetersPerSecond=1.3;
 
     public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor) {
 
