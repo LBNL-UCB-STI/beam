@@ -114,6 +114,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
         }
 
         if(personIdCost.containsKey(personId)){
+          System.out.println("ddddddddddddd");
           String actType = ase.getActType();
           String actType2;
           if(actType.equals("Work") || actType.equals("University"))
