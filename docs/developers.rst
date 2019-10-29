@@ -228,7 +228,7 @@ This command will start PILATES simulation on ec2 instance with given parameters
 * **pilatesScenarioName**: name of output folder. Full name will contain this parameter value and datetime of start of run. By default is `pilates`.
 * **beamBranch**: to specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: the commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* **maxRAM**: used to specify MAXRAM environment variable for simulation.
+* **pilatesMaxRAM**: to specify MAXRAM environment variable for simulation.
 * **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `stop`.
 * **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
