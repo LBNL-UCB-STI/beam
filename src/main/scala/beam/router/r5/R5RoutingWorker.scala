@@ -158,6 +158,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     execSvc.shutdown()
   }
 
+  val shouldFixError: Boolean = false
+
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
 
@@ -199,24 +201,27 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val routeWithError = r5.calcRoute(request)
-          val itinerariesWithoutError = routeWithError.itineraries.map { itinerary =>
-            if (!itinerary.tripClassifier.isTransit) {
-              val newLegs = itinerary.legs.map { leg =>
-                if (leg.beamLeg.mode == BeamMode.CAR) {
-                  val updatedLeg = r5.createBeamLeg(
-                    leg.beamVehicleTypeId,
-                    leg.beamLeg.travelPath.startPoint,
-                    leg.beamLeg.travelPath.endPoint.loc,
-                    leg.beamLeg.mode.r5Mode.get.left.get,
-                    leg.beamLeg.travelPath.linkIds
-                  )
-                  leg.copy(beamLeg = updatedLeg)
-                } else leg
-              }
-              itinerary.copy(legs = newLegs)
-            } else itinerary
+          if (shouldFixError) {
+            val itinerariesWithoutError = routeWithError.itineraries.map { itinerary =>
+              if (!itinerary.tripClassifier.isTransit) {
+                val newLegs = itinerary.legs.map { leg =>
+                  if (leg.beamLeg.mode == BeamMode.CAR) {
+                    val updatedLeg = r5.createBeamLeg(
+                      leg.beamVehicleTypeId,
+                      leg.beamLeg.travelPath.startPoint,
+                      leg.beamLeg.travelPath.endPoint.loc,
+                      leg.beamLeg.mode.r5Mode.get.left.get,
+                      leg.beamLeg.travelPath.linkIds
+                    )
+                    leg.copy(beamLeg = updatedLeg)
+                  } else leg
+                }
+                itinerary.copy(legs = newLegs)
+              } else itinerary
+            }
+            routeWithError.copy(itineraries = itinerariesWithoutError)
           }
-          routeWithError.copy(itineraries = itinerariesWithoutError)
+          else routeWithError
         }
       }
       eventualResponse.recover {
