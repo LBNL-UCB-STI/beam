@@ -379,69 +379,65 @@ def getCurrentGitBranch() {
         if (result.exitValue() == 0) {
             gitBranch = result.text.trim()
         }
-    } catch (e) {
+    } catch (ignored) {
     }
     return gitBranch
 }
 
 task deployPilates(type: AWSLambdaInvokeTask) {
-    doFirst {
-        def runExample = '\n Example: gradle deployPilates -PrunName=`run name` ' +
-                '-PstartYear=YYYY -PcountOfYears=XXX -PbeamItLen=XXX -PurbansimItLen=XXX ' +
-                '-PbeamBranch=`git branch name` ' +
-                '-PbeamConfigs=`beam config path starting from root of `beam` directory` ' +
-                '-PinitialS3UrbansimInput=`s3 bucket with initial urbansim input starting from double slash. Used as initial data for urbansim.` ' +
-                '-PinitialS3UrbansimOutput=`s3 bucket with initial urbansim output starting from double slash, Used as initial data for first beam run.` ' +
-                '-PinitialSkimsPath=`s3 path to initial skim file. if specified then first beam run will be skipped.`'
-        if (!project.hasProperty('runName')) {
-            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deployPilates -PrunName=sfbay-performance-run' + runExample)
-        }
-        if (!project.hasProperty('startYear')) {
-            throw new GradleException('`startYear` argument required.' + runExample)
-        }
-        if (!project.hasProperty('countOfYears')) {
-            throw new GradleException('`countOfYears` argument required.' + runExample)
-        }
-        if (!project.hasProperty('beamItLen')) {
-            throw new GradleException('`beamItLen` argument required.' + runExample)
-        }
-        if (!project.hasProperty('urbansimItLen')) {
-            throw new GradleException('`urbansimItLen` argument required.' + runExample)
-        }
-        if (!project.hasProperty('initialS3UrbansimInput')) {
-            throw new GradleException('`initialS3UrbansimInput` argument required.' + runExample)
-        }
-        if (!project.hasProperty('beamConfig')) {
-            throw new GradleException('`beamConfig` argument required.' + runExample)
+    def propsFileName = "gradle.deployPilates.properties"
+    if (project.hasProperty('propsFile')){
+        propsFileName = project.findProperty('propsFile')
+    }
+
+    def props = new Properties()
+    props.load(project.file(propsFileName).newDataInputStream())
+
+    ext.getParameterValue = { paramName ->
+        // function hasProperty does not work with Properties object
+        // so, it is just check if parameter value not 'null'
+        def propVal = props.getProperty(paramName)
+        if (propVal){
+            return propVal
+        } else {
+            return project.findProperty(paramName)
         }
     }
 
-    def pload = """{
-  "runName": "${project.findProperty('runName')}",
-  "beamBranch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "beamCommit": "${project.findProperty('beamCommit') ?: 'HEAD'}",
-  "startYear": "${project.findProperty('startYear')}",
-  "countOfYears": "${project.findProperty('countOfYears')}",
-  "beamItLen": "${project.findProperty('beamItLen')}",
-  "urbansimItLen": "${project.findProperty('urbansimItLen')}",
-  "initialS3UrbansimInput": "${project.findProperty('initialS3UrbansimInput')}",
-  "initialS3UrbansimOutput": "${project.findProperty('initialS3UrbansimOutput')}",
-  "pilatesImageVersion": "${project.findProperty('pilatesImageVersion') ?: 'latest'}",
-  "pilatesImageName": "${project.findProperty('pilatesImageName') ?: 'beammodel/pilates'}",
-  "pilatesScenarioName": "${project.findProperty('pilatesScenarioName') ?: 'pilates'}",
-  "initialSkimPath": "${project.findProperty('initialSkimPath')}",
-  "s3OutputBucket": "${project.findProperty('s3OutputBucket') ?: '//pilates-outputs'}",
-  "s3OutputBasePath": "${project.findProperty('s3OutputBasePath')}",
-  "inYearOutput": "${project.findProperty('inYearOutput') ?: 'off'}",
-  "beamConfig": "${project.findProperty('beamConfig')}",
-  "storageSize": ${project.findProperty('storageSize')},
-  "instanceType": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-  "dataRegion": "${project.findProperty('dataRegion') ?: region}",
-  "pilatesMaxRAM": "${project.findProperty('pilatesMaxRAM')}",
-  "region": "${project.findProperty('region')}",
-  "shutdownWait": "${project.findProperty('shutdownWait')}",
-  "shutdownBehaviour": "${project.findProperty('shutdownBehaviour')}"
-}"""
+    def defaultParamVals = [:]
+    defaultParamVals['beamBranch'] = getCurrentGitBranch()
+    if (ext.getParameterValue('region')) {
+        defaultParamVals['dataRegion'] = ext.getParameterValue('region')
+    }
+
+    def paramMap = [:]
+    def missing = []
+
+    // all possible parameters
+    ['runName', 'pilatesScenarioName',
+     'beamBranch', 'beamCommit',
+     'beamConfig',
+     'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
+     'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
+     'pilatesImageVersion', 'pilatesImageName',
+     's3OutputBucket', 's3OutputBasePath',
+     'inYearOutput', 'pilatesMaxRAM',
+     'storageSize', 'instanceType', 'dataRegion', 'region',
+     'shutdownWait', 'shutdownBehaviour'].each {
+        def pval = ext.getParameterValue(it)
+        if (pval) {
+            paramMap[it] = pval
+        } else if (defaultParamVals.containsKey(it)) {
+            paramMap[it] = defaultParamVals[it]
+        } else {
+            missing += it
+        }
+    }
+
+    println ("parameters wasn't specified: " + missing.join(', '))
+
+    // create a string with json object which contains all parameters
+    def pload= "{\n" + paramMap.collect { key,val ->  "   \"$key\": \"$val\"" }.join(",\n") + "\n}"
 
     functionName = "runPilates"
     invocationType = InvocationType.RequestResponse
