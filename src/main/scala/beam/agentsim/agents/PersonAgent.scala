@@ -252,7 +252,7 @@ class PersonAgent(
     with ChoosesMode
     with ChoosesParking
     with Stash
-    with ExponentialLazyLogging{
+    with ExponentialLazyLogging {
   val networkHelper = beamServices.networkHelper
   val geo = beamServices.geo
 
@@ -1063,9 +1063,9 @@ class PersonAgent(
       if (stateName == Moving) {
         log.warning("Still travelling at end of simulation.")
         log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }else if (stateName == PerformingActivity){
+      } else if (stateName == PerformingActivity) {
         logger.warn(s"Performing Activity at end of simulation")
-      }else{
+      } else {
         logger.warn(s"Received Finish while in state: ${stateName}")
       }
       stop

@@ -192,7 +192,11 @@ object GeoUtils {
   }
 
   def distFormula(coord1: Coord, coord2: Coord): Double = {
-    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
+    distFormula(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
+  }
+
+  def distFormula(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
+    Math.sqrt(Math.pow(x1 - x2, 2.0) + Math.pow(y1 - y2, 2.0))
   }
 
   /**
