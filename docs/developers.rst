@@ -209,11 +209,19 @@ PILATES run on EC2
 
 It is possible to start PILATES simulation on AWS instance from gradle task  ::
 
-  gradle deployPilates <parameters>
+  gradle deployPilates [-PpropsFile=<path to file with parameters>]
 
-This command will start PILATES simulation on ec2 instance with given parameters:
+This command will start PILATES simulation on ec2 instance with specified parameters.
 
-* **propsFile**: to specify file with parameters, default is `gradle.deployPILATES.properties`
+* **propsFile**: to specify file with parameters, by default is **gradle.deployPILATES.properties**
+
+Parameters described below will be looked in order:
+ #. from file specified in `propsFile` parameter (by default `gradle.deployPILATES.properties`)
+ #. parameters specified in command line
+ #. from file `gradle.properties`
+
+If none of sources contains parameter, then parameter will be omitted. This will ends with output message: "`parameters wasn't specified: <parameters list>`"
+
 * **runName**: to specify instance name.
 * **startYear**: to specify start year of simulation.
 * **countOfYears**: to specify count of years.
@@ -239,19 +247,18 @@ This command will start PILATES simulation on ec2 instance with given parameters
 * **pilatesImageVersion**: to specify pilates image version, default is `latest`.
 * **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
 
-Parameters may be configured in `gradle.deployPILATES.properties` file, so it is not necessary to specify them every run.
-Otherwise parameters may be configured in any other file and passed to task with `propsFile` parameter.
-
 Running this function will leads to:
  #. creating new ec2 instance
  #. pulling from github selected branch/commit
- #. pulling from docker hub selected PILATES image (`beammodel/pilates:latest` by default)
+ #. pulling from docker hub PILATES image
+ #. running PILATES image with specified parameters
+ #. writing output from every iteration to s3 bucket
 
-All run parameters are stored in `run-params` file in root of PILATES output.
+All run parameters will be stored in `run-params` file in root of PILATES output.
 
 Also during simulation for every BEAM run will be created a new config file with specified paths to output folder and to urbansim data.
 Those config files will be created near original config file (from `beamConfig` variable) with year added to the name.
-So it is will be possible to rerun BEAM for selected year.
+So it will be possible to rerun BEAM for selected year.
 
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
