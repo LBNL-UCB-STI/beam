@@ -213,6 +213,7 @@ It is possible to start PILATES simulation on AWS instance from gradle task  ::
 
 This command will start PILATES simulation on ec2 instance with given parameters:
 
+* **propsFile**: to specify file with parameters, default is `gradle.deployPILATES.properties`
 * **runName**: to specify instance name.
 * **startYear**: to specify start year of simulation.
 * **countOfYears**: to specify count of years.
@@ -238,7 +239,8 @@ This command will start PILATES simulation on ec2 instance with given parameters
 * **pilatesImageVersion**: to specify pilates image version, default is `latest`.
 * **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
 
-Parameters may be configured in `gradle.properties` file, so it is not necessary to specify them every run.
+Parameters may be configured in `gradle.deployPILATES.properties` file, so it is not necessary to specify them every run.
+Otherwise parameters may be configured in any other file and passed to task with `propsFile` parameter.
 
 Running this function will leads to:
  #. creating new ec2 instance
