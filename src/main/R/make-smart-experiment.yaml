@@ -1,15 +1,13 @@
-Name: afi-2019-09-27
+Name: afi-2019-10-29
 Mode: combinatorial
 Factors:
   - Name: range
     Levels:
       - 100.0
-      - 200.0
       - 300.0
   - Name: power
     Levels:
       - 50.0
-      - 100.0
       - 150.0
   - Name: scenario
     Levels:
@@ -23,8 +21,5 @@ Factors:
       - rich20
   - Name: bev
     Levels:
-      - 100
       - 80
-      - 60
-      - 40
       - 20

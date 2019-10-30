@@ -1,4 +1,5 @@
 library('yaml')
+library('stringr')
 
 load.experiment <- function(experiment.file,add.timestamp=T){
   if(file.exists(experiment.file)){
@@ -23,7 +24,7 @@ load.experiment <- function(experiment.file,add.timestamp=T){
   }
 }
 
-proj.dir <- '~/Dropbox/ucb/vto/beam-all/beam/'
+proj.dir <- '~/Dropbox/ucb/vto/beam-all/beam-laptop/beam/'
 exp.file <- pp(proj.dir,'src/main/R/make-smart-experiment.yaml')
 afi.template <- pp(proj.dir,'production/sfbay/smart/afi-template.conf')
 afi.raw <- readLines(afi.template)
