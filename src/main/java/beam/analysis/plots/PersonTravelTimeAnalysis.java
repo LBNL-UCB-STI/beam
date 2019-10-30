@@ -122,6 +122,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             createNonArrivalAgentAtTheEndOfSimulationGraph(event.getIteration());
         }
 
+        createNonArrivalAgentAtTheEndOfSimulationCSV(event.getIteration());
         createCSV(data, event.getIteration());
         createRootCSVForAverageCarTravelTime(event);
     }
@@ -309,6 +310,25 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         GraphUtils.plotLegendItems(plot, defaultCategoryDataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) throws IOException {
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.csv");
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            String heading = "modes,count";
+            out.write(heading);
+            out.newLine();
+            Set<String> modes = personLastDepartureEvents.keySet();
+            for(String mode: modes){
+                Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
+                out.write(mode+","+personDepartureEventMap.size());
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
