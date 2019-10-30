@@ -998,7 +998,7 @@ class PersonAgent(
             hasDeparted = false
           )
         case None =>
-          logDebug("PersonAgent nextActivity returned None")
+          logger.warn("PersonAgent:1000 nextActivity returned None")
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId)
           stop
