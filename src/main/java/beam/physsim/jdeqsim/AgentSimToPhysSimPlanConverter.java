@@ -167,7 +167,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info("JDEQSim Start");
             startSegment("jdeqsim-execution", "jdeqsim");
             if (beamConfig.beam().debug().debugEnabled()) {
-                log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+                log.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
             }
 
             jdeqSimulation.run();
@@ -177,7 +177,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         if (beamConfig.beam().debug().debugEnabled()) {
-            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
+            log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
         }
 
         endSegment("jdeqsim-execution", "jdeqsim");

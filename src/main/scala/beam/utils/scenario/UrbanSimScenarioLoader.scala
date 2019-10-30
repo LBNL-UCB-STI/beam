@@ -16,12 +16,11 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import scala.collection.Iterable
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-
 import scala.util.Random
 
 class UrbanSimScenarioLoader(
@@ -70,7 +69,7 @@ class UrbanSimScenarioLoader(
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
     logger.info("Applying households...")
-    applyHousehold(householdsWithMembers, householdIdToPersons)
+    applyHousehold(householdsWithMembers, householdIdToPersons, plans)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
@@ -105,9 +104,72 @@ class UrbanSimScenarioLoader(
     Seq.fill(nTrials)(randomSeed.nextDouble).count(_ < p)
   }
 
+  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+    val distanceExcludingLastTrip =
+      personTravelStats.tripStats.dropRight(1).map(x => geo.distUTMInMeters(x.origin, x.destination)).sum
+    val tripTimePenalty = personTravelStats.tripStats
+      .map(
+        x =>
+          if (x.departureTime < 6.0) {
+            5000.0
+          } else if (x.departureTime > 23.5) {
+            5000.0
+          } else {
+            0.0
+        }
+      )
+      .sum
+    distanceExcludingLastTrip + tripTimePenalty
+  }
+
+  case class PlanTripStats(
+    departureTime: Double,
+    origin: Coord,
+    destination: Coord
+  )
+
+  case class PersonTravelStats(
+    homeLocation: Option[Coord],
+    tripStats: Seq[PlanTripStats]
+  )
+
+  private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
+    val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
+      case Some(homeElement) =>
+        Some(geo.wgs2Utm(new Coord(homeElement.activityLocationX.get, homeElement.activityLocationY.get)))
+      case None =>
+        None
+    }
+    val planTripStats = planElements.toSeq
+      .filter(_.planElementType == "activity")
+      .sliding(2)
+      .flatMap {
+        case Seq(firstElement, secondElement, _*) =>
+          Some(
+            PlanTripStats(
+              firstElement.activityEndTime.getOrElse(0.0),
+              geo.wgs2Utm(
+                new Coord(firstElement.activityLocationX.getOrElse(0.0), firstElement.activityLocationY.getOrElse(0.0))
+              ),
+              geo.wgs2Utm(
+                new Coord(
+                  secondElement.activityLocationX.getOrElse(0.0),
+                  secondElement.activityLocationY.getOrElse(0.0)
+                )
+              )
+            )
+          )
+        case _ =>
+          None
+      }
+      .toSeq
+    PersonTravelStats(homeCoord, planTripStats)
+  }
+
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
-    householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]]
+    householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
+    plans: Iterable[PlanElement]
   ): Unit = {
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -115,6 +177,16 @@ class UrbanSimScenarioLoader(
     var vehicleCounter: Int = 0
     var initialVehicleCounter: Int = 0
     var totalCarCount: Int = 0
+    val personIdToTravelStats: Map[PersonId, PersonTravelStats] =
+      plans
+        .groupBy(_.personId)
+        .map(x => (x._1, plansToTravelStats(x._2)))
+
+    val householdIdToPersonScore: Map[HouseholdId, Iterable[(PersonId, Double)]] =
+      householdIdToPersons.map {
+        case (hhId, persons) =>
+          (hhId, persons.map(x => (x.personId, getPersonScore(x, personIdToTravelStats(x.personId)))))
+      }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
@@ -122,7 +194,7 @@ class UrbanSimScenarioLoader(
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-    assignVehicles(households).foreach {
+    assignVehicles(households, householdIdToPersons, householdIdToPersonScore).foreach {
       case (householdInfo, nVehicles) =>
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -186,40 +258,111 @@ class UrbanSimScenarioLoader(
     )
   }
 
-  // Iterable[(HouseholdInfo, List[BeamVehicleType])]
-
-  private def assignVehicles(households: Iterable[HouseholdInfo]): Iterable[(HouseholdInfo, Int)] = {
+  private def assignVehicles(
+    households: Iterable[HouseholdInfo],
+    householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
+    householdIdToPersonScore: Map[HouseholdId, Iterable[(PersonId, Double)]]
+  ): Iterable[(HouseholdInfo, Int)] = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
       case "SECONDARY_VEHICLES_FIRST" =>
+        val numberOfWorkersWithVehicles =
+          households.map(x => math.min(x.cars, householdIdToPersons(x.householdId).size)).sum
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-        val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
+        val hh_car_count =
+          collection.mutable.Map(collection.mutable.ArrayBuffer(households.toSeq: _*).groupBy(_.cars).toSeq: _*)
         val totalCars = households.foldLeft(0)(_ + _.cars)
+
         val goalCarTotal = math
           .round(beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
+        val numberOfWorkVehiclesToBeRemoved = math.max(numberOfWorkersWithVehicles - goalCarTotal, 0)
+        val numberOfExcessVehiclesToBeRemoved = totalCars - goalCarTotal - numberOfWorkVehiclesToBeRemoved
+        val personsToGetCarsRemoved = households
+          .flatMap(
+            x =>
+              householdIdToPersonScore(x.householdId).toSeq
+                .sortBy(_._2)
+                .takeRight(x.cars) // for each household, assign vehicles to the people with the highest commute distances
+          )
+          .toSeq
+          .sortBy(_._2) // sort all people with assigned cars by commute distance
+          .map(_._1)
+          .take(numberOfWorkVehiclesToBeRemoved) // Take the people with shortest commutes and remove their cars
+          .toSet
+        logger.info(
+          s"Identified $numberOfWorkVehiclesToBeRemoved household vehicles with short commutes and $numberOfExcessVehiclesToBeRemoved excess vehicles to be removed"
+        )
+        val householdIdToPersonToHaveVehicleRemoved = householdIdToPersons
+          .map(x => x._2.map(y => (x._1, y)))
+          .flatten
+          .filter(x => personsToGetCarsRemoved.contains(x._2.personId))
+          .groupBy(_._1)
+
         var currentTotalCars = totalCars
-        hh_car_count.keys.toSeq.sorted.reverse.foreach { key =>
-          if (currentTotalCars > goalCarTotal) {
-            if (currentTotalCars - hh_car_count(key).size > goalCarTotal) {
-              currentTotalCars -= hh_car_count(key).size
-              hh_car_count(key - 1) ++= hh_car_count(key)
-              hh_car_count -= key
+        hh_car_count.keys.toSeq.sorted.reverse.foreach { key => // start with households with the most vehicles
+          if ((currentTotalCars > (goalCarTotal + numberOfWorkVehiclesToBeRemoved)) & key > 0) {
+            val numberOfHouseholdsWithThisManyVehicles = hh_car_count(key).size
+
+            val (householdsWithExcessVehicles, householdsWithCorrectNumberOfVehicles) =
+              hh_car_count(key).partition(x => key > householdIdToPersons(x.householdId).size)
+            val numberOfExcessVehicles = householdsWithExcessVehicles.size
+            logger.info(
+              s"Identified $numberOfExcessVehicles excess vehicles from the $numberOfHouseholdsWithThisManyVehicles households with $key vehicles"
+            )
+            if (currentTotalCars - numberOfExcessVehicles > goalCarTotal) {
+              logger.info(
+                s"Removing all $numberOfExcessVehicles excess vehicles"
+              )
+              currentTotalCars -= numberOfExcessVehicles
+              hh_car_count(key - 1) ++= householdsWithExcessVehicles
+              hh_car_count(key) = householdsWithCorrectNumberOfVehicles
             } else {
-              val householdsInGroup = hh_car_count(key).size
+              val householdsInGroup = householdsWithExcessVehicles.size
               val numberToRemain = householdsInGroup - (currentTotalCars - goalCarTotal)
-              val shuffled = rand.shuffle(hh_car_count(key))
-              hh_car_count(key) = shuffled.take(numberToRemain)
+              logger.info(
+                s"Removing all but $numberToRemain of the $numberOfExcessVehicles excess vehicles"
+              )
+              val shuffled = rand.shuffle(householdsWithExcessVehicles)
+              hh_car_count(key) = shuffled.take(numberToRemain) ++ householdsWithCorrectNumberOfVehicles
               hh_car_count(key - 1) ++= shuffled.takeRight(householdsInGroup - numberToRemain)
-              currentTotalCars -= (currentTotalCars - goalCarTotal)
+              currentTotalCars -= (householdsInGroup - numberToRemain)
             }
+          }
+        }
+        logger.info(
+          s"Currently $currentTotalCars are left, $numberOfWorkVehiclesToBeRemoved work vehicles are yet to be removed"
+        )
+        hh_car_count.keys.toSeq.sorted.foreach { key =>
+          if (key > 0) {
+            val initialNumberOfHouseholds = hh_car_count(key).size
+            hh_car_count(key) = hh_car_count(key).filter(
+              hh =>
+                householdIdToPersonToHaveVehicleRemoved.get(hh.householdId) match {
+                  case Some(personIdsToRemove) =>
+                    hh_car_count(key - personIdsToRemove.size) ++= Iterable(hh)
+                    currentTotalCars -= personIdsToRemove.size
+                    false
+                  case None =>
+                    true
+              }
+            )
+            val nRemoved = initialNumberOfHouseholds - hh_car_count(key).size
+            logger.info(
+              s"Originally had $initialNumberOfHouseholds work vehicles from households with $key workers, removed vehicles from $nRemoved of them"
+            )
           }
         }
         val householdsOut = ArrayBuffer[HouseholdInfo]()
         val nVehiclesOut = ArrayBuffer[Int]()
-        hh_car_count.toSeq.foreach { hhGroup =>
-          householdsOut ++= hhGroup._2
-          nVehiclesOut ++= ArrayBuffer.fill(hhGroup._2.size)(hhGroup._1)
+        hh_car_count.toSeq.foreach {
+          case (nVehicles, householdIds) =>
+            householdsOut ++= householdIds
+            nVehiclesOut ++= ArrayBuffer.fill(householdIds.size)(nVehicles)
         }
+        val totalVehiclesOut = nVehiclesOut.sum
+        logger.info(
+          s"Ended up with $totalVehiclesOut vehicles"
+        )
         householdsOut.zip(nVehiclesOut)
       case "RANDOM" =>
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
