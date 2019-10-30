@@ -332,7 +332,7 @@ class BeamVehicle(
     }
   }
 
-  override def toString = s"$id ($beamVehicleType.id)"
+  override def toString = s"$id (${beamVehicleType.id})"
 }
 
 object BeamVehicle {
