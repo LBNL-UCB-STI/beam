@@ -45,7 +45,7 @@ case class Utilization(
   rideHailPooledChoices: Int,
   rideHailPooledInAlternatives: Int,
   totalModeChoices: Int,
-  replanningReasonToCounter: Map[String, Int]
+  replanningReasonToTotalCountMap: Map[String, Int]
 )
 
 class RideHailUtilizationCollector(beamSvc: BeamServices)
@@ -60,7 +60,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   private var rideHailInAlternatives: Int = 0
   private var rideHailPooledInAlternatives: Int = 0
   private var totalModeChoices: Int = 0
-  private val replanningReasonToCounter: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
+  private val replanningReasonToTotalCountMap: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
 
   val commonHeaders: Vector[String] = Vector(
     "iteration",
@@ -83,7 +83,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
           rideHailChoices += 1
         else if (mc.mode == BeamMode.RIDE_HAIL_POOLED.value)
           rideHailPooledChoices += 1
-        if (mc.availableAlternatives.contains("RIDE_HAIL:"))
+        if (mc.availableAlternatives == "RIDE_HAIL" || mc.availableAlternatives.contains("RIDE_HAIL:"))
           rideHailInAlternatives += 1
         if (mc.availableAlternatives.contains("RIDE_HAIL_POOLED"))
           rideHailPooledInAlternatives += 1
@@ -93,8 +93,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
           "RIDE_HAIL_POOLED"
         )
         if (shouldProcess) {
-          val cnt = replanningReasonToCounter.getOrElse(replanningEvent.getReason, 0) + 1
-          replanningReasonToCounter.update(replanningEvent.getReason, cnt)
+          val cnt = replanningReasonToTotalCountMap.getOrElse(replanningEvent.getReason, 0) + 1
+          replanningReasonToTotalCountMap.update(replanningEvent.getReason, cnt)
         }
       case _ =>
     }
@@ -108,7 +108,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     rideHailInAlternatives = 0
     rideHailPooledInAlternatives = 0
     totalModeChoices = 0
-    replanningReasonToCounter.clear()
+    replanningReasonToTotalCountMap.clear()
   }
 
   def handle(pte: PathTraversalEvent): RideInfo = {
@@ -168,7 +168,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       rideHailPooledChoices = rideHailPooledChoices,
       rideHailPooledInAlternatives = rideHailPooledInAlternatives,
       totalModeChoices = totalModeChoices,
-      replanningReasonToCounter = replanningReasonToCounter.toMap
+      replanningReasonToTotalCountMap = replanningReasonToTotalCountMap.toMap
     )
   }
 
@@ -189,7 +189,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
             |rideHailPooledChoices: ${utilization.rideHailPooledChoices}
             |rideHailPooledInAlternatives: ${utilization.rideHailPooledInAlternatives}
             |totalModeChoices: ${utilization.totalModeChoices}
-            |replannings: ${utilization.replanningReasonToCounter}""".stripMargin
+            |replannings: ${utilization.replanningReasonToTotalCountMap}""".stripMargin
     logger.info(msg)
 
     if (shouldDumpRides) {

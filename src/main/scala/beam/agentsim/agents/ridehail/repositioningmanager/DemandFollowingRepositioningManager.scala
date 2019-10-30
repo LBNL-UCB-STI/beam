@@ -75,9 +75,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
   }
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
-  logger.info(
-    s"timeBinToActivitiesWeight: ${timeBinToActivitiesWeight.toVector.sortBy { case (timeBin, weight) => timeBin }}"
-  )
+  val sortedTimeBinToActivitiesWeight = timeBinToActivitiesWeight.toVector.sortBy { case (timeBin, weight) => timeBin }
+  logger.info(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
