@@ -18,7 +18,7 @@ object GraphSurgePricingObject extends OutputDataDescriptor {
     val revenueOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, "rideHailRevenue.csv")
     val surgePricingAndRevenueOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, "tazRideHailSurgePriceLevel.csv")
+      .getIterationFilename(0, "tazRideHailSurgePriceLevel.csv.gz")
     val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
     val surgePricingRelativePath: String = surgePricingOutputFilePath.replace(outputDirPath, "")
     val revenueRelativePath: String = revenueOutputFilePath.replace(outputDirPath, "")
