@@ -115,9 +115,9 @@ class PersonAgentSpec
           parkingManager,
           services.tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamScenario, services.geo),
+          beamSkimmer = new BeamSkimmer(services, beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo),
+          travelTimeObserved = new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox = boundingBox
         )
       )
@@ -180,8 +180,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -379,8 +379,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -657,8 +657,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )

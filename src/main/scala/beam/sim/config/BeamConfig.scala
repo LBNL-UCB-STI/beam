@@ -2448,6 +2448,7 @@ object BeamConfig {
       counts: BeamConfig.Matsim.Modules.Counts,
       global: BeamConfig.Matsim.Modules.Global,
       households: BeamConfig.Matsim.Modules.Households,
+      linkStats: BeamConfig.Matsim.Modules.LinkStats,
       network: BeamConfig.Matsim.Modules.Network,
       parallelEventHandling: BeamConfig.Matsim.Modules.ParallelEventHandling,
       planCalcScore: BeamConfig.Matsim.Modules.PlanCalcScore,
@@ -2547,6 +2548,23 @@ object BeamConfig {
             inputHouseholdAttributesFile =
               if (c.hasPathOrNull("inputHouseholdAttributesFile")) c.getString("inputHouseholdAttributesFile")
               else "/test/input/beamville/householdAttributes.xml"
+          )
+        }
+      }
+
+      case class LinkStats(
+        averageLinkStatsOverIterations: scala.Int,
+        writeLinkStatsInterval: scala.Int
+      )
+
+      object LinkStats {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.LinkStats = {
+          BeamConfig.Matsim.Modules.LinkStats(
+            averageLinkStatsOverIterations =
+              if (c.hasPathOrNull("averageLinkStatsOverIterations")) c.getInt("averageLinkStatsOverIterations") else 5,
+            writeLinkStatsInterval =
+              if (c.hasPathOrNull("writeLinkStatsInterval")) c.getInt("writeLinkStatsInterval") else 10
           )
         }
       }
@@ -2830,6 +2848,10 @@ object BeamConfig {
           households = BeamConfig.Matsim.Modules.Households(
             if (c.hasPathOrNull("households")) c.getConfig("households")
             else com.typesafe.config.ConfigFactory.parseString("households{}")
+          ),
+          linkStats = BeamConfig.Matsim.Modules.LinkStats(
+            if (c.hasPathOrNull("linkStats")) c.getConfig("linkStats")
+            else com.typesafe.config.ConfigFactory.parseString("linkStats{}")
           ),
           network = BeamConfig.Matsim.Modules.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
