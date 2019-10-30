@@ -1,8 +1,10 @@
 package beam.sim.population
 
+import java.util.Random
+
 import beam.sim.{BeamScenario, BeamServices}
-import org.matsim.api.core.v01.population.Population
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Id, Scenario}
 
 case class PercentagePopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
 
