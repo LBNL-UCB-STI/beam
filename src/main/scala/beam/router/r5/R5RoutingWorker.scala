@@ -158,7 +158,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     execSvc.shutdown()
   }
 
-  val shouldFixError: Boolean = false
+  val shouldFixError: Boolean = true
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
