@@ -12,7 +12,6 @@ Factors:
   - Name: scenario
     Levels:
       - a-hightech
-      - b-lowtech 
   - Name: infrastructure
     Levels:
       - sparse
