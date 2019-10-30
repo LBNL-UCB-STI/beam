@@ -12,7 +12,15 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.util.Random
 
+trait Decoder[T <: Product] {
+  def apply(row: String): T
+}
+
 object BeamVehicleUtils {
+
+  implicit class StringToObj[T <: Product](row: String)(implicit dec: Decoder[T]) {
+    def beam: T = dec.apply(row)
+  }
 
   def readVehiclesFile(
     filePath: String,
@@ -127,4 +135,5 @@ object BeamVehicleUtils {
     }
   }
 
+  def read[A <: Product: Decoder](filePath: String): Iterator[A] = FileUtils.lines(filePath).map(_.beam)
 }
