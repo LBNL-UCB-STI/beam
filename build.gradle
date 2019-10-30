@@ -421,7 +421,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
      'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
      'pilatesImageVersion', 'pilatesImageName',
      's3OutputBucket', 's3OutputBasePath',
-     'inYearOutput', 'pilatesMaxRAM',
+     'inYearOutput', 'maxRAM',
      'storageSize', 'instanceType', 'dataRegion', 'region',
      'shutdownWait', 'shutdownBehaviour'].each {
         def pval = ext.getParameterValue(it)
