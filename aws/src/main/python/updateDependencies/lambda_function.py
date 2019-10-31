@@ -61,7 +61,7 @@ def lambda_handler(event, context):
 
     region = 'us-east-2'
     instance_type = os.environ['INSTANCE_TYPE']
-    shutdown_behaviour = 'stop'
+    shutdown_behaviour = 'terminate'
     shutdown_wait = "1"
     runName = 'update-beam-dependencies'
     branches = os.environ['BRANCHES']
