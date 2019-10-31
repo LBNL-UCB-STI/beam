@@ -1,16 +1,10 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.repositioningmanager.{
-  DefaultRepositioningManager,
-  DemandFollowingRepositioningManager,
-  RepositioningLowWaitingTimes,
-  RepositioningManager
-}
+import beam.agentsim.agents.ridehail.repositioningmanager._
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
@@ -176,17 +170,18 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case None =>
             NoVehicleAllocated(request)
         }
-    }.toList
+    }.toVector
     VehicleAllocations(allocResponses)
   }
 
   val repositioningManager: RepositioningManager = createRepositioningManager()
   logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
 
-  def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
-    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
-      rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.toVector
-
+  def findDepotsForVehiclesInNeedOfRefueling(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    cavOnly: Boolean = true
+  ): Vector[(Id[Vehicle], ParkingStall)] = {
+    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] = idleVehicles.toVector
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
       case ((vehicleId: Id[Vehicle], _)) => {
         rideHailManager.findBeamVehicleUsing(vehicleId) match {
@@ -220,8 +215,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
    */
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    repositioningManager.repositionVehicles(tick)
+  def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
+    repositioningManager.repositionVehicles(idleVehicles, tick)
   }
 
   /*
@@ -244,6 +242,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case "REPOSITIONING_LOW_WAITING_TIMES" =>
           RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
+        case "THE_SAME_LOCATION_REPOSITIONING_MANAGER" =>
+          RepositioningManager[TheSameLocationRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case x =>
           throw new IllegalStateException(s"There is no implementation for `$x`")
       }
@@ -311,7 +311,7 @@ case class SingleOccupantQuoteAndPoolingInfo(
  */
 trait AllocationResponse
 case object NoRidesRequested extends AllocationResponse
-case class VehicleAllocations(allocations: List[VehicleAllocation]) extends AllocationResponse
+case class VehicleAllocations(allocations: IndexedSeq[VehicleAllocation]) extends AllocationResponse
 
 /*
  * A VehicleAllocation is a specific directive about one ride hail vehicle
