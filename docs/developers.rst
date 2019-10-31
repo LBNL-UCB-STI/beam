@@ -178,12 +178,12 @@ Similarly for experiment batch, you can specify comma-separated experiment files
 
 For demo and presentation material, please follow the link_ on google drive.
 
+
 AWS EC2 Start
 ~~~~~~~~~~~~~
 
 To maintain ec2 instances, there are some utility tasks that reduce operation cost tremendously. You can start already available instances using a simple `start` gradle task under aws module. You can specify one or more instance ids by a comma saturated list as `instanceIds` argument. Below is syntax to use the command::
 
-  cd aws
   gradle start -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 As a result of task, instance DNS would be printed on the console.
@@ -194,7 +194,6 @@ AWS EC2 Stop
 
 Just like starting instance, you can also stop already running instances using a simple `stop` gradle task under aws module. You can specify one or more instance ids by a comma saturated list as `instanceIds` argument. Below is syntax to use the command::
 
-  cd aws
   gradle stop -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 .. _Colin: mailto:colin.sheppard@lbl.gov

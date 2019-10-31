@@ -15,8 +15,8 @@ buildscript {
     }
 }
 
-group 'beam'
-version '0.5.0-SNAPSHOT'
+group = 'beam'
+version = '0.8.0'
 
 apply plugin: "base"
 apply plugin: "jp.classmethod.aws.lambda"
@@ -32,23 +32,23 @@ lambda {
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
         switch (project.findProperty('deployMode')) {
             case 'config':
-                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
                     throw new GradleException('beamConfigs is required to deploy config run.')
                 }
                 break
             case 'experiment':
-                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
                     throw new GradleException('beamExperiments is required to deploy experement.')
                 }
                 break
             case 'execute':
-                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
                     throw new GradleException('executeClass and executeArgs are required to deploy execute.')
                 }
                 break
@@ -56,18 +56,18 @@ task deploy(type: AWSLambdaInvokeTask) {
                 throw new GradleException('Please provide a valid deployMode.')
                 break
         }
-    }
 
-    def pload = """{
+        def pload = """{
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "${beamCommit ?: 'HEAD'}",
+  "commit": "${project.findProperty('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
-  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')}",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '2g'}",
+  "max_ram": "${maxRAM ?: '140g'}",
+  "storage_size": ${project.findProperty('storageSize')},
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -77,12 +77,80 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy"
 }"""
 
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
+        functionName = "simulateBeam"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
+    }
 
     doLast {
-        println pload
+        println payload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task deployPilates(type: AWSLambdaInvokeTask) {
+    doFirst {
+        def propsFileName = "../gradle.deployPilates.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def props = new Properties()
+        props.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            // function hasProperty does not work with Properties object
+            // so, it is just check if parameter value not 'null'
+            def propVal = props.getProperty(paramName)
+            if (propVal) {
+                return propVal
+            } else {
+                return project.findProperty(paramName)
+            }
+        }
+
+        def defaultParamVals = [:]
+        defaultParamVals['beamBranch'] = getCurrentGitBranch()
+        if (ext.getParameterValue('region')) {
+            defaultParamVals['dataRegion'] = ext.getParameterValue('region')
+        }
+
+        def paramMap = [:]
+        def missing = []
+
+        // all possible parameters
+        ['runName', 'pilatesScenarioName',
+         'beamBranch', 'beamCommit',
+         'beamConfig',
+         'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
+         'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
+         'pilatesImageVersion', 'pilatesImageName',
+         's3OutputBucket', 's3OutputBasePath',
+         'inYearOutput', 'maxRAM',
+         'storageSize', 'instanceType', 'dataRegion', 'region',
+         'shutdownWait', 'shutdownBehaviour'].each {
+            def pval = ext.getParameterValue(it)
+            if (pval) {
+                paramMap[it] = pval
+            } else if (defaultParamVals.containsKey(it)) {
+                paramMap[it] = defaultParamVals[it]
+            } else {
+                missing += it
+            }
+        }
+
+        println("parameters wasn't specified: " + missing.join(', '))
+
+        // create a string with json object which contains all parameters
+        def pload = "{\n" + paramMap.collect { key, val -> "   \"$key\": \"$val\"" }.join(",\n") + "\n}"
+
+        functionName = "runPilates"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
+    }
+
+    doLast {
+        println payload
         println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
@@ -90,25 +158,29 @@ task deploy(type: AWSLambdaInvokeTask) {
 task start(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
-    }
 
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("start")
+        functionName = "ec2StartStop"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("start")
+    }
 
     doLast {
         printResult(payload, invokeResult)
     }
 }
 
+task startEC2() {
+    dependsOn(start)
+}
+
 task stop(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
-    }
 
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("stop")
+        functionName = "ec2StartStop"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("stop")
+    }
 
     doLast {
         printResult(payload, invokeResult)
@@ -118,11 +190,28 @@ task stop(type: AWSLambdaInvokeTask) {
 task terminate(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
+
+        functionName = "simulateBeam"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("terminate")
     }
 
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("terminate")
+    doLast {
+        printResult(payload, invokeResult)
+    }
+}
+
+task stopEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        checkInstanceId()
+
+        def command = project.hasProperty('terminate') ? "terminate" : "stop"
+        def lambdaFunctionName = project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"
+
+        functionName = "$lambdaFunctionName"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload(command)
+    }
 
     doLast {
         printResult(payload, invokeResult)
@@ -158,7 +247,7 @@ def getCurrentGitBranch() {
         if (result.exitValue() == 0) {
             gitBranch = result.text.trim()
         }
-    } catch (e) {
+    } catch (ignored) {
     }
     return gitBranch
 }
