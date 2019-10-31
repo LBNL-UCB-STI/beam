@@ -290,7 +290,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             )
           }
         if (nonRepositioningIdleVehicles.size >= 2) {
-          val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
+          val activitiesCoordinates = activitySegment.getActivities(tick + 20 * 60, tick + 3600).map(_.getCoord)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
             val vehicleId = vehIdAndLoc.vehicleId
             val location = vehIdAndLoc.currentLocationUTM
@@ -343,7 +343,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             )
           }
         if (nonRepositioningIdleVehicles.size >= 2) {
-          val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
+          val activitiesCoordinates = activitySegment.getActivities(tick + 20 * 60, tick + 3600).map(_.getCoord)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
             val vehicleId = vehIdAndLoc.vehicleId
             val location = vehIdAndLoc.currentLocationUTM
@@ -492,7 +492,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             val map = (0 to lastTickWithRepos by step).map {
               case t =>
                 val activities: Vector[Location] = rand
-                  .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+                  .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
+                  .map(_.getCoord)
                   .take(numberOfRepos)
                   .toVector
                 // Use `lift` to be in safe
@@ -527,7 +528,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         vehicleAllowedToReposition --= toReposition
 
         val activities: Vector[Location] = rand
-          .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+          .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
+          .map(_.getCoord)
           .take(repositionPerTick.toInt)
           .toVector
 
