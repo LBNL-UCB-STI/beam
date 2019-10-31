@@ -1,6 +1,11 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
+import java.io.FileWriter
+import java.util
+
+import beam.agentsim.infrastructure.taz.H3TAZ.{HexIndex, UBoundResolution, fillBox, hexToCoord, quadTreeExtentFromShapeFile}
+import beam.sim.vehiclesharing.FleetUtils.fileHeader
+import beam.utils.FileUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
@@ -9,43 +14,45 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
+import org.supercsv.io.CsvMapWriter
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class H3TAZ(val scenarioEPSG: String) {
-  val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
+class H3TAZ(scenario: Scenario, tazTreeMap: TAZTreeMap) {
+  val scenarioEPSG: String = scenario.getConfig.global().getCoordinateSystem
   val outTransform: GeotoolsTransformation = new GeotoolsTransformation(H3TAZ.H3Projection, scenarioEPSG)
   val inTransform: GeotoolsTransformation = new GeotoolsTransformation(scenarioEPSG, H3TAZ.H3Projection)
+
+  val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
+    scenario.getNetwork.getNodes.values().asScala.map(n => inTransform.transform(n.getCoord))
+  )
+  val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
+  fillBox(boundingBox, H3TAZ.UBoundResolution).foreach { hex =>
+    val hexCentroid = H3TAZ.hexToCoord(hex)
+    val hexCentroidBis = outTransform.transform(hexCentroid)
+    val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
+    tazToH3TAZMapping.put(hex, tazId)
+  }
+  //H3TAZ.writeToShp("output/test/polygons2.shp", tazToH3TAZMapping.map(m => (m._1, m._2.toString, 0.0)))
 
   def getAll: Iterable[HexIndex] = {
     tazToH3TAZMapping.keys
   }
 
-  def getHex(x: Double, y: Double): Option[HexIndex] = {
+  def getHRHex(x: Double, y: Double): HexIndex = {
     val coord = H3TAZ.toGeoCoord(inTransform.transform(new Coord(x, y)))
-    var curResolution = H3TAZ.UBoundResolution
-    var hexFound: Option[HexIndex] = None
-    while (hexFound.isEmpty && curResolution >= H3TAZ.LBoundResolution) {
-      val hex = H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, H3TAZ.UBoundResolution)
-      if (tazToH3TAZMapping.contains(hex))
-        hexFound = Some(hex)
-      curResolution -= 1
-    }
-    hexFound
+    H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, H3TAZ.UBoundResolution)
   }
 
-  def getHexByTAZ(h3TazId: Id[TAZ]): Iterable[HexIndex] = {
-    tazToH3TAZMapping.filter(_._2 == h3TazId).keys
+  def getHRHex(tazId: Id[TAZ]): Iterable[HexIndex] = {
+    tazToH3TAZMapping.filter(_._2 == tazId).keys
   }
 
-  def getTAZ(hex: HexIndex) = {
-    tazToH3TAZMapping.getOrElse(H3TAZ.H3.h3ToParentAddress(hex, H3TAZ.LBoundResolution), H3TAZ.emptyTAZId)
-  }
-
-  private def add(x: Double, y: Double, hex: HexIndex, h3TazId: Id[TAZ] = H3TAZ.emptyTAZId) = {
-    tazToH3TAZMapping.put(hex, h3TazId)
+  def getTAZ(hex: HexIndex): Id[TAZ] = {
+    tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   }
 
 }
@@ -53,32 +60,9 @@ class H3TAZ(val scenarioEPSG: String) {
 object H3TAZ {
   type HexIndex = String
   private val H3 = com.uber.h3core.H3Core.newInstance
-  val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
   val H3Projection = "EPSG:4326"
   val LBoundResolution: Int = 6 // 3391m radius
   val UBoundResolution: Int = 10 // 69m radius
-
-  def build(scenario: Scenario, tazTreeMap: TAZTreeMap): H3TAZ = {
-    val crs = scenario.getConfig.global().getCoordinateSystem
-    val in: GeotoolsTransformation = new GeotoolsTransformation(crs, H3Projection)
-    val out: GeotoolsTransformation = new GeotoolsTransformation(H3Projection, crs)
-    val box = quadTreeExtentFromShapeFile(
-      scenario.getNetwork.getNodes.values().asScala.map(n => in.transform(n.getCoord))
-    )
-    val h3Map = new H3TAZ(crs)
-//    val gf = new GeometryFactory()
-//    val tazToPolygon = tazTreeMap.getTAZs.filter(_.geom.nonEmpty).map { taz =>
-//      val boundary = taz.geom.map(in.transform).map(c => new Coordinate(c.getX, c.getY))
-//      taz.tazId -> gf.createPolygon(boundary :+ boundary.head)
-//    }.toMap
-    fillBox(box, UBoundResolution).foreach { hex =>
-      val hexCentroid = hexToCoord(hex)
-      val hexCentroidBis = out.transform(hexCentroid)
-      val selectedTAZ = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY)
-      h3Map.add(hexCentroid.getX, hexCentroid.getY, hex, selectedTAZ.tazId)
-    }
-    h3Map
-  }
 
   def breakdownByPopulation(scenario: Scenario, granularity: Int, h3Taz: H3TAZ) = {
     val crs = scenario.getConfig.global().getCoordinateSystem
@@ -193,7 +177,7 @@ object H3TAZ {
       )
       .asInstanceOf[Geometry]
       .getEnvelopeInternal
-    QuadTreeBounds(box.getMinX, box.getMinY, box.getMaxX, box.getMaxY)
+    QuadTreeBounds(box.getMinX - 0.01, box.getMinY - 0.01, box.getMaxX + 0.01, box.getMaxY + 0.01)
   }
   private def fillBox(box: QuadTreeBounds, resolution: Int): Iterable[String] = {
     val points = List(

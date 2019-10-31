@@ -4,6 +4,10 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 
 class ODSkimmer2(h3taz: H3TAZ) extends AbstractBeamSkimmer2(h3taz) {
-  override def handleEvent(event: Event): Unit = ???
-  override def persist(event: IterationEndsEvent): Unit = ???
+  override def handleEvent(event: Event): Unit = {
+
+  }
+  override def persist(event: IterationEndsEvent): Unit = {
+
+  }
 }

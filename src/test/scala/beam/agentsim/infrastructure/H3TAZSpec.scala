@@ -35,7 +35,7 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
     networkCoordinator.convertFrequenciesToTrips()
     scenario.setNetwork(networkCoordinator.network)
     val tazMap = TAZTreeMap.fromShapeFile("test/input/sf-light/shape/sf-light-tazs.shp", "taz")
-    val hexMap = H3TAZ.build(scenario, tazMap)
+    val hexMap = new H3TAZ(scenario, tazMap)
     val popPerHex = H3TAZ.breakdownByPopulation(scenario, 10, hexMap)
     assert(popPerHex.foldLeft(0)(_ + _._3.toInt) == scenario.getPopulation.getPersons.size)
     assert(popPerHex.map(_._2).distinct.size == tazMap.getTAZs.size)

@@ -13,7 +13,7 @@ class DataCollector @Inject()(beamScenario: BeamScenario, matsimServices: Matsim
   extends StartupListener
     with IterationEndsListener {
 
-  val h3taz: H3TAZ = H3TAZ.build(matsimServices.getScenario, beamScenario.tazTreeMap)
+  val h3taz: H3TAZ = new H3TAZ(matsimServices.getScenario, beamScenario.tazTreeMap)
 
   private var skims: immutable.Map[String, AbstractBeamSkimmer2] = immutable.Map(
     "Skimmer" -> new Skimmer2(h3taz),
