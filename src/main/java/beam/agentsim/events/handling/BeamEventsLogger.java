@@ -6,6 +6,7 @@ import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.MatsimServices;
+import scopt.Read;
 
 import java.util.*;
 
@@ -104,6 +105,9 @@ class BeamEventsLogger {
         if (!eventsToWrite.isEmpty()) {
             for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite().split(",")) {
                 switch (className) {
+                    case "RefuelEvent":
+                        eventClass = RefuelSessionEvent.class;
+                        break;
                     case "ActivityStartEvent":
                         eventClass = ActivityStartEvent.class;
                         break;
