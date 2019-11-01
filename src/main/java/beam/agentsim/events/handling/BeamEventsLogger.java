@@ -104,6 +104,9 @@ class BeamEventsLogger {
         if (!eventsToWrite.isEmpty()) {
             for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite().split(",")) {
                 switch (className) {
+                    case "RefuelEvent":
+                        eventClass = RefuelSessionEvent.class;
+                        break;
                     case "ActivityStartEvent":
                         eventClass = ActivityStartEvent.class;
                         break;
