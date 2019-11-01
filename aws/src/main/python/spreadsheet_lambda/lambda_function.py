@@ -92,9 +92,9 @@ def apply_pilates_formatting(sheet_api, sheet_id):
     sheet_api.batchUpdate(spreadsheetId=sheet_id, body=body).execute()
     header = {
         'values': [
-            ["Status", "Run Name", "Instance ID", "Instance type", "Time", "Host name", "Web browser", "S3 Url",
+            ["Status", "Run Name", "Instance ID", "Instance type", "Time", "Host name", "Web browser",
              "Instance region", "Data region", "Branch", "Commit", "S3 URL", "S3 Path", "Title", "Start year",
-             "Count of years", "Delta years", "UrbanSim parameters", "In year output", "Config File",
+             "Count of years", "BEAM it len", "Urbansim it len", "In year output", "Config File",
              "PILATES Image Version", "PILATES Image Name", "PILATES Scenario Name", "UrbanSim Input",
              "UrbanSim Output",
              "Skim Path", "S3 Output", "S3 Base Path", "Max RAM", "Storage Size", "Shutdown Wait", "Shutdown Behavior"]
@@ -123,9 +123,9 @@ def apply_pilates_formatting(sheet_api, sheet_id):
                 'ranges': [row_range],
                 'booleanRule': {
                     'condition': {
-                        'type': 'TEXT_EQ',
+                        'type': 'TEXT_CONTAINS',
                         'values': [{
-                            'userEnteredValue': 'Run Started'
+                            'userEnteredValue': 'Started'
                         }]
                     },
                     'format': {
@@ -145,9 +145,9 @@ def apply_pilates_formatting(sheet_api, sheet_id):
                 'ranges': [row_range],
                 'booleanRule': {
                     'condition': {
-                        'type': 'TEXT_EQ',
+                        'type': 'TEXT_CONTAINS',
                         'values': [{
-                            'userEnteredValue': 'Run Completed'
+                            'userEnteredValue': 'Completed'
                         }]
                     },
                     'format': {
@@ -447,6 +447,7 @@ def load_service_creds():
 
 
 def add_handler(event):
+    print(event)
     creds = load_service_creds()
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
