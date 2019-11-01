@@ -405,7 +405,7 @@ has the same general structure as the one used to specify tuning hyperparameters
   executeClass: "beam.calibration.RunCalibration"
   beamBatch: "false"
   shutdownWait: "15"
-  shutdownBehavior: "stop"
+  shutdownBehavior: "terminate"
   s3Backup: "true"
   maxRAM: "140g"
   region: "us-west-2"

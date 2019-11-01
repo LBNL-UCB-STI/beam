@@ -6,21 +6,22 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.router.BeamSkimmer
-import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamHelper, BeamServicesImpl}
+import beam.utils.TestConfigUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactoryImpl, HouseholdsReaderV10}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
@@ -55,7 +56,15 @@ class FastHouseholdCAVSchedulingSpec
   private lazy val beamCfg = BeamConfig(system.settings.config)
   private lazy val beamScenario = loadScenario(beamCfg)
 
-  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamScenario, new GeoUtilsImpl(beamCfg))
+  private val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSimConf()
+  matsimConfig.controler.setOutputDirectory(TestConfigUtils.testOutputDir)
+  matsimConfig.controler.setOverwriteFileSetting(OverwriteFileSetting.overwriteExistingFiles)
+
+  private val scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
+  private val injector = buildInjector(system.settings.config, beamCfg, scenario, beamScenario)
+  val services = new BeamServicesImpl(injector)
+
+  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(services, beamScenario, new GeoUtilsImpl(beamCfg))
 
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {

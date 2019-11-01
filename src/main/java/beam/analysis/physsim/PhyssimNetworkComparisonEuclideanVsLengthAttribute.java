@@ -53,7 +53,7 @@ public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
     private void writeComparisonEuclideanVsLengthAttributeCsv(int iterationNumber) throws IOException {
         String pathToCsv = outputDirectoryHierarchy.getIterationFilename(
                 iterationNumber,
-                "EuclideanVsLengthAttribute.csv"
+                "EuclideanVsLengthAttribute.csv.gz"
         );
 
         BufferedWriter writerObservedVsSimulated = IOUtils.getBufferedWriter(pathToCsv);
