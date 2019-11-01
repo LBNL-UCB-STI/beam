@@ -15,6 +15,8 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -24,6 +26,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+
+    private final Logger log = LoggerFactory.getLogger(PersonTravelTimeAnalysis.class);
+
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String xAxisRootTitle = "Iteration";
@@ -159,7 +164,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error in Average Travel Time CSV generation", e);
         }
     }
 
@@ -176,7 +181,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             out.write(heading.toString());
             out.newLine();
 
-
             for (int category = 0; category < dataSets.length; category++) {
                 out.write(modes.get(category));
                 double[] categories = dataSets[category];
@@ -187,7 +191,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error in Average Travel Time CSV generation", e);
         }
     }
 
@@ -326,7 +330,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error in Non Arrival Agent CSV generation", e);
         }
 
     }
