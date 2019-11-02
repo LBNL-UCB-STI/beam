@@ -22,7 +22,7 @@ header:
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
       shutdownWait: "15"
-      shutdownBehavior: "stop"
+      shutdownBehavior: "terminate"
       s3Backup: "true"
       maxRAM: "120g"
       region: "us-east-2"
