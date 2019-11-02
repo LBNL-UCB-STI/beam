@@ -29,16 +29,15 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
 
   private var observationsCounter: Int = 0
 
-  protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
+  private[skim] val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
   protected var pastSkims: immutable.List[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = immutable.List()
   protected var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = readAggregatedSkims
 
-  protected val aggregatedSkimsFilePath: String
-  protected def writeToDisk(event: IterationEndsEvent)
-  protected def fromCsv(line: immutable.Map[String, String]): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[skim] val aggregatedSkimsFilePath: String
+  private[skim] def writeToDisk(event: IterationEndsEvent)
+  private[skim] def fromCsv(line: immutable.Map[String, String]): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
 
-
-  private[skim] def persist(event: IterationEndsEvent) = {
+  private[SkimManager] def persist(event: IterationEndsEvent) = {
     writeToDisk(event)
     // keep in memory
     if(beamConfig.beam.skimmanager.keepTheNLastestSkims > 0) {
