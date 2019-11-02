@@ -14,10 +14,18 @@ class Skimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimmer(
   import Skimmer._
   import beamServices._
 
-  val aggregatedSkimsFilePath: String = beamConfig.beam.warmStart.skimsPlusFilePath
-  val aggregatedSkimsFileBaseName: String = "skimsAggregated.csv.gz"
-  val observedSkimsFileBaseName: String = "skims.csv.gz"
-  val CsvLineHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
+
+  def getSkimValue: Option[Double] = {
+
+  }
+
+
+  private val aggregatedSkimsFileBaseName: String = "skimsAggregated.csv.gz"
+  private val observedSkimsFileBaseName: String = "skims.csv.gz"
+  private val CsvLineHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
+  private val Eol = "\n"
+
+  override val aggregatedSkimsFilePath: String = beamConfig.beam.warmStart.skimsPlusFilePath
 
   override def handleEvent(event: Event): Unit = {
     event match {

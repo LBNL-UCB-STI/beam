@@ -27,21 +27,19 @@ trait AbstractSkimmerInternal {
 abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends BasicEventHandler with LazyLogging {
   import beamServices._
 
+  private var observationsCounter: Int = 0
+
   protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
   protected var pastSkims: immutable.List[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = immutable.List()
   protected var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = readAggregatedSkims
-  private var observationsCounter: Int = 0
-  protected val Eol = "\n"
 
-  val aggregatedSkimsFilePath: String
+  protected val aggregatedSkimsFilePath: String
   protected def writeToDisk(event: IterationEndsEvent)
   protected def fromCsv(line: immutable.Map[String, String]): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
 
 
-  def persist(event: IterationEndsEvent) = {
-
+  private[skim] def persist(event: IterationEndsEvent) = {
     writeToDisk(event)
-
     // keep in memory
     if(beamConfig.beam.skimmanager.keepTheNLastestSkims > 0) {
       if (pastSkims.size == beamConfig.beam.skimmanager.keepTheNLastestSkims) {
@@ -50,7 +48,6 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
         pastSkims = currentSkim.toMap :: pastSkims
       }
     }
-
     // aggregate
     beamConfig.beam.skimmanager.aggregateFunction match {
       case "LATEST_SKIM" =>
@@ -59,11 +56,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
         aggregatedSkim = aggregateAVG()
       case _ => // default
     }
-
     observationsCounter += 1
     currentSkim.clear()
   }
 
+  // ***
+  // Helpers
   private def aggregateAVG(): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     val avgSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     aggregatedSkim.foreach { case (k, aggSkim) =>
