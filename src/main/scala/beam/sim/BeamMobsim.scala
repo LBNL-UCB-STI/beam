@@ -60,13 +60,14 @@ class BeamMobsim @Inject()(
     logger.info("Starting Iteration")
     startMeasuringIteration(beamServices.matsimServices.getIterationNumber)
     logger.info("Preparing new Iteration (Start)")
-    startSegment("iteration-preparation", "mobsim")
+    startMeasuring("iteration-preparation:mobsim")
 
     validateVehicleTypes()
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
+    increment("beam-iteration", Metrics.ShortLevel)
     eventsManager.initProcessing()
 
     val iteration = actorSystem.actorOf(
@@ -87,7 +88,7 @@ class BeamMobsim @Inject()(
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
-    endSegment("agentsim-events", "agentsim")
+    stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
   }
@@ -277,10 +278,10 @@ class BeamMobsimIteration(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
-      endSegment("agentsim-execution", "agentsim")
+      stopMeasuring("agentsim-execution:agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")
-      startSegment("agentsim-events", "agentsim")
+      stopMeasuring("agentsim-events:agentsim")
 
       population ! Finish
       rideHailManager ! Finish
@@ -304,11 +305,11 @@ class BeamMobsimIteration(
     case "Run!" =>
       runSender = sender
       log.info("Running BEAM Mobsim")
-      endSegment("iteration-preparation", "mobsim")
+      stopMeasuring("iteration-preparation:mobsim")
 
       log.info("Preparing new Iteration (End)")
       log.info("Starting Agentsim")
-      startSegment("agentsim-execution", "agentsim")
+      startMeasuring("agentsim-execution:agentsim")
 
       scheduler ! StartSchedule(matsimServices.getIterationNumber)
   }

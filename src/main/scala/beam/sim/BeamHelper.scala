@@ -401,7 +401,9 @@ trait BeamHelper extends LazyLogging {
           """.stripMargin)
       .withFallback(config)
 
-    if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) {
+      Kamon.init()
+    }
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
     import akka.cluster.singleton.{
@@ -434,7 +436,6 @@ trait BeamHelper extends LazyLogging {
 
     import scala.concurrent.ExecutionContext.Implicits.global
     Await.ready(system.whenTerminated.map(_ => {
-      if (isMetricsEnable) Kamon.shutdown()
       logger.info("Exiting BEAM")
     }), scala.concurrent.duration.Duration.Inf)
   }
@@ -637,7 +638,9 @@ trait BeamHelper extends LazyLogging {
 
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) {
+      Kamon.init(config.withFallback(ConfigFactory.load()))
+    }
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
@@ -696,7 +699,6 @@ trait BeamHelper extends LazyLogging {
 
   def run(beamServices: BeamServices) {
     beamServices.controler.run()
-    if (isMetricsEnable) Kamon.shutdown()
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)

@@ -56,7 +56,7 @@ def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.5.22"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
-def kamonVersion = "0.6.7"
+def kamonVersion = "2.0.3"
 def tscfgVersion = "0.9.4"
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
@@ -232,12 +232,14 @@ dependencies {
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
 
-    compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
-    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
+    // compile("io.kamon:kamon-bundle_${scalaBinaryVersion}:${kamonVersion}")
+    compile("io.kamon:kamon-core_${scalaBinaryVersion}:2.0.1")
+    compile("io.kamon:kamon-prometheus_${scalaBinaryVersion}:2.0.0")
+
+//    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:${kamonVersion}")
+//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
+//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
+//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
     /////////////
     // Akka Dependencies

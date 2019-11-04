@@ -14,17 +14,14 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -43,6 +40,7 @@ import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils._
 import beam.utils.logging.LogActorState
@@ -63,11 +61,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-import scala.util.{Failure, Random, Success, Try}
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
+import scala.util.Random
 
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
@@ -218,7 +212,8 @@ class RideHailManager(
   val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
-    with Stash {
+    with Stash
+    with MetricsSupport{
   type DepotId = Int
   type VehicleId = Id[Vehicle]
 
@@ -1198,6 +1193,7 @@ class RideHailManager(
       inquiry.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)
     rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
+        increment("ride-hail-inquiry-not-available", Metrics.ShortLevel)
         log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
         inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(
           inquiryWithUpdatedLoc,
@@ -1206,6 +1202,7 @@ class RideHailManager(
         )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         servedRideHail += 1
+        increment("ride-hail-inquiry-served", Metrics.ShortLevel)
         inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(
           inquiryWithUpdatedLoc.departAt,
@@ -1316,6 +1313,7 @@ class RideHailManager(
       request.pickUpLocationUTM
     )
     if (vehicleManager.inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
+      increment("ride-hail-allocation-failed", Metrics.ShortLevel)
       failedAllocation(request, tick)
     } else {
       // Track remaining seats available
@@ -1330,6 +1328,7 @@ class RideHailManager(
         RideHailResponse(request, Some(travelProposal))
       )
 
+      increment("ride-hail-allocation-reserved", Metrics.ShortLevel)
       log.debug(
         "Reserving vehicle: {} customer: {} request: {} pendingAcks: {}",
         travelProposal.rideHailAgentLocation.vehicleId,
@@ -1546,8 +1545,10 @@ class RideHailManager(
               handleReservation(request, tick, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
+              increment("ride-hail-allocation-failed", Metrics.ShortLevel)
               failedAllocation(request, tick)
             case NoVehicleAllocated(request) =>
+              increment("ride-hail-allocation-failed", Metrics.ShortLevel)
               failedAllocation(request, tick)
           }
         }

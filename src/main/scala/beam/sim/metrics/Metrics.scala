@@ -1,24 +1,27 @@
 package beam.sim.metrics
 
+import java.util.concurrent.ConcurrentHashMap
+
 import akka.util.Helpers.toRootLowerCase
 import beam.utils.FileUtils
-import kamon.trace.{Segment, TraceContext}
-
-import scala.collection.mutable
+import kamon.metric.Timer.Started
 
 object Metrics {
-
   var level: String = "off"
 
   var runName: String = "beam"
 
+  @volatile
   var iterationNumber: Int = 0
 
-  val currentSegments: mutable.Map[String, Segment] = mutable.Map()
+  val timers: ConcurrentHashMap[String, Started] = new ConcurrentHashMap[String, Started]()
 
-  var currentContext: TraceContext = _
-
-  def setCurrentContext(context: TraceContext): Unit = currentContext = context
+  def addTimer(name: String, started: Started): Unit = {
+    timers.putIfAbsent(name, started)
+  }
+  def getTimer(name: String): Option[Started] = {
+    Option(timers.get(name))
+  }
 
   def defaultTags: Map[String, String] =
     Map(
