@@ -1,8 +1,7 @@
 package beam.utils.beamToVia.apps
 
-import beam.utils.beamToVia.{BeamEventsReader, HashSetReader, Writer}
-import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
-import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
+import beam.utils.beamToVia.IO.{BeamEventsReader, HashSetReader, Writer}
+import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
 
 import scala.collection.mutable
 

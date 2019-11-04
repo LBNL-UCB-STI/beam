@@ -1,7 +1,7 @@
 package beam.utils.beamToVia.apps
 
+import beam.utils.beamToVia.IO.{BeamEventsReader, Writer}
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
-import beam.utils.beamToVia.{BeamEventsReader, LinkCoordinate, Point, Writer}
 
 import scala.collection.mutable
 

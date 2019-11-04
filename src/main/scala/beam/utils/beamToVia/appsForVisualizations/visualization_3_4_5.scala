@@ -1,5 +1,6 @@
 package beam.utils.beamToVia.appsForVisualizations
 
+import beam.utils.beamToVia.IO.{EventsReader, HashSetReader, Writer}
 import beam.utils.beamToVia._
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter, VehicleSample}
@@ -58,8 +59,8 @@ object visualization_3_4_5 extends App {
   def vehicleId(pte: BeamPathTraversal): String =
     idPrefix + vehicleType(pte) + "__" + pte.vehicleId
 
-  val (vehiclesEvents, _) = EventsProcessor.readWithFilter(beamEventsFilePath, filter)
-  val (events, typeToId) = EventsProcessor.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
+  val (vehiclesEvents, _) = EventsReader.readWithFilter(beamEventsFilePath, filter)
+  val (events, typeToId) = EventsReader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
   Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
   Writer.writeViaIdFile(typeToId, viaIdsFile)

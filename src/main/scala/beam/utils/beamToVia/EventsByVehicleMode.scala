@@ -1,6 +1,7 @@
-package beam.utils.beamToVia.apps
+package beam.utils.beamToVia
 
-import beam.utils.beamToVia.{BeamEventsReader, EventsProcessor, LinkCoordinate, Point, Writer}
+import beam.utils.beamToVia.IO.{BeamEventsReader, EventsReader, Writer}
+import beam.utils.beamToVia.apps.{LinkCoordinate, Point}
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter}
 import beam.utils.beamToVia.viaEvent.ViaEvent
@@ -27,7 +28,7 @@ object EventsByVehicleMode extends App {
     "1000"
   )
 
-  val inputArgs = args
+  val inputArgs = exampleInputArgs // args
 
   if (inputArgs.length == 4) {
     val eventsFile = inputArgs(0)
@@ -70,8 +71,8 @@ object EventsByVehicleMode extends App {
     def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
     def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
 
-    val (vehiclesEvents, _) = EventsProcessor.readWithFilter(eventsFile, filter)
-    val (events, typeToId) = EventsProcessor.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
+    val (vehiclesEvents, _) = EventsReader.readWithFilter(eventsFile, filter)
+    val (events, typeToId) = EventsReader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
     Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, outputFile)
     Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")

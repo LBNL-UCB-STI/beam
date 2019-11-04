@@ -1,4 +1,4 @@
-package beam.utils.beamToVia
+package beam.utils.beamToVia.apps
 
 import scala.collection.mutable
 import scala.xml.{Elem, Node}

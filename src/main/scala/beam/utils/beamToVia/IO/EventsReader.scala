@@ -1,28 +1,12 @@
-package beam.utils.beamToVia
+package beam.utils.beamToVia.IO
 
-import beam.utils.beamToVia.beamEvent.{
-  BeamActivityEnd,
-  BeamActivityStart,
-  BeamEvent,
-  BeamModeChoice,
-  BeamPathTraversal,
-  BeamPersonEntersVehicle,
-  BeamPersonLeavesVehicle
-}
+import beam.utils.beamToVia.beamEvent.{BeamActivityEnd, BeamActivityStart, BeamModeChoice, BeamPathTraversal}
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
-import beam.utils.beamToVia.viaEvent.{
-  EnteredLink,
-  LeftLink,
-  ViaActivity,
-  ViaEvent,
-  ViaPersonArrivalEvent,
-  ViaPersonDepartureEvent,
-  ViaTraverseLinkEvent
-}
+import beam.utils.beamToVia.viaEvent._
 
 import scala.collection.mutable
 
-object EventsProcessor {
+object EventsReader {
 
   def readWithFilter(
     eventsPath: String,

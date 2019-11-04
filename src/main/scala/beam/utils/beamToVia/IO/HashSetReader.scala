@@ -1,4 +1,4 @@
-package beam.utils.beamToVia
+package beam.utils.beamToVia.IO
 
 import scala.collection.mutable
 

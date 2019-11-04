@@ -1,11 +1,7 @@
-package beam.utils.beamToVia
+package beam.utils.beamToVia.IO
 
 import beam.utils.EventReader
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamEventReader}
-import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
-import org.matsim.api.core.v01.events.Event
-
-import scala.collection.mutable
 
 object BeamEventsReader {
 

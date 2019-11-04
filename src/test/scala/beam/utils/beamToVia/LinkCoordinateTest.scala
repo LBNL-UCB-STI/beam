@@ -1,6 +1,8 @@
 package beam.utils.beamToVia
 
+import beam.utils.beamToVia.apps.{LinkCoordinate, Point}
 import org.scalatest.{FlatSpecLike, Matchers}
+
 import scala.collection.mutable
 
 class LinkCoordinateTest extends FlatSpecLike with Matchers {
