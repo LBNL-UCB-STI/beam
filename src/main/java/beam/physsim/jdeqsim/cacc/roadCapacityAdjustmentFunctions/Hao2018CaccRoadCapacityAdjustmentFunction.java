@@ -55,7 +55,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
     private int nonCACCCategoryRoadsTravelled = 0;
     private int caccCategoryRoadsTravelled = 0;
-    private double flowCapacityFactor;
     private final MultiValuedMap<Double, Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
     private final Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
     private final Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
@@ -66,7 +65,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
         double caccMinSpeedMetersPerSec = beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec();
         log.info("caccMinRoadCapacity: " + caccMinRoadCapacity + ", caccMinSpeedMetersPerSec: " + caccMinSpeedMetersPerSec);
-        this.flowCapacityFactor = beamConfig.beam().physsim().flowCapacityFactor();
         this.caccMinRoadCapacity = caccMinRoadCapacity;
         this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
         this.currentIterationNumber = iterationNumber;

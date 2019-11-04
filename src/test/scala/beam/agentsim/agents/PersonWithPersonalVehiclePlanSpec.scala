@@ -31,7 +31,7 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.Matchers._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.{mutable, JavaConverters}
@@ -123,8 +123,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
+            new BeamSkimmer(services, beamScenario, services.geo),
+            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -145,7 +145,11 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
+                    .copy(
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      endPoint = embodyRequest.leg.travelPath.endPoint
+                        .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
+                    )
                 ),
                 beamVehicleId = vehicleId,
                 Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -204,7 +208,7 @@ class PersonWithPersonalVehiclePlanSpec
                       parkingRoutingRequest.departureTime
                     ),
                     endPoint =
-                      SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 50),
+                      SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 200),
                     distanceInM = 1000D
                   )
                 ),
@@ -242,7 +246,7 @@ class PersonWithPersonalVehiclePlanSpec
                       SpaceTime(services.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
                     endPoint = SpaceTime(
                       services.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
-                      walkFromParkingRoutingRequest.departureTime + 50
+                      walkFromParkingRoutingRequest.departureTime + 200
                     ),
                     distanceInM = 1000D
                   )
@@ -340,8 +344,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
+            new BeamSkimmer(services, beamScenario, services.geo),
+            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -362,7 +366,11 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
+                    .copy(
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      endPoint = embodyRequest.leg.travelPath.endPoint
+                        .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
+                    )
                 ),
                 beamVehicleId = vehicleId,
                 Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -481,8 +489,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -496,7 +504,10 @@ class PersonWithPersonalVehiclePlanSpec
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
-                travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 100, 100, 100, 100, 100, 0))
+                travelPath = leg.travelPath.copy(
+                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                  endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+                )
               ),
               beamVehicleId = vehicleId,
               Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -573,8 +584,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -596,7 +607,7 @@ class PersonWithPersonalVehiclePlanSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.0, 28850),
                     distanceInM = 1000D
                   )
                 ),

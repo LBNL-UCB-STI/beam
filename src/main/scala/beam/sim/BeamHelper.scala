@@ -1,9 +1,9 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream, FileWriter}
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
-import java.util.{Properties, Random}
+import java.util.Properties
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -12,6 +12,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
+import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
@@ -21,7 +22,7 @@ import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoord
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, BeamExecutionConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.config._
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
@@ -44,7 +45,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -56,6 +57,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
+import scala.util.Random
 
 trait BeamHelper extends LazyLogging {
 
@@ -149,8 +151,17 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
-          bind(classOf[BeamConfig]).toInstance(beamConfig)
-          bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
+          bind(classOf[BeamConfigHolder])
+          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
+
+          bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
+
+          bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
+
+          bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
+
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
@@ -162,6 +173,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          addControlerListenerBinding().to(classOf[NonCarModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])
           bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
@@ -276,7 +288,13 @@ trait BeamHelper extends LazyLogging {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*)
+        TrieMap(
+          readVehiclesFile(
+            beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+            vehicleTypes,
+            beamConfig.matsim.modules.global.randomSeed
+          ).toSeq: _*
+        )
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
@@ -567,18 +585,13 @@ trait BeamHelper extends LazyLogging {
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
-        val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
-        if (externalFolderExists) {
-          val beamScenario = loadScenario(beamConfig)
-          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
-          val scenario = {
-            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
-          }.asInstanceOf[MutableScenario]
-          (scenario, beamScenario)
-        } else {
-          throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
-        }
+        val beamScenario = loadScenario(beamConfig)
+        val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+        val scenario = {
+          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+        }.asInstanceOf[MutableScenario]
+        (scenario, beamScenario)
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
@@ -651,11 +664,17 @@ trait BeamHelper extends LazyLogging {
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
     new java.io.File(outputDirectory).mkdirs
-    val outConf = Paths.get(outputDirectory, "beam.conf")
     val location = config.getString("config")
 
-    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
-    logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    val confNameToPath = BeamConfigUtils.getFileNameToPath(location)
+
+    logger.info("Processing configs for [{}] simulation.", beamConfig.beam.agentsim.simulationName)
+    confNameToPath.foreach {
+      case (fileName, filePath) =>
+        val outFile = Paths.get(outputDirectory, fileName)
+        Files.copy(Paths.get(filePath), outFile, StandardCopyOption.REPLACE_EXISTING)
+        logger.info("Config '{}' copied to '{}'.", filePath, outFile)
+    }
   }
 
   private def buildMatsimConfig(
@@ -714,7 +733,7 @@ trait BeamHelper extends LazyLogging {
            |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamScenario)}
            |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
-      val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
+      val iterHouseholds = rand.shuffle(scenario.getHouseholds.getHouseholds.values().asScala).iterator
       var numberOfAgents = 0
       // We start from the first household and remove its vehicles and persons from the sets to clean
       while (numberOfAgents < numAgents && iterHouseholds.hasNext) {
@@ -793,7 +812,7 @@ trait BeamHelper extends LazyLogging {
     }
 
     new UrbanSimScenarioSource(
-      scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+      scenarioSrc = beamConfig.beam.exchange.scenario.folder,
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm

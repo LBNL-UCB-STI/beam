@@ -46,11 +46,13 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   val minDemandPercentageInRadius =
     repositioningConfig.minDemandPercentageInRadius
 
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
         //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER)) {
         // allow more aggressive repositioning at start of day
         //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
@@ -230,7 +232,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
       case None =>
         // iteration 0
 
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
 
         if (firstRepositioningOfDay && idleVehicles.nonEmpty) {
           // these are zero distance repositionings
@@ -261,7 +263,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: collection.mutable.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
     maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(

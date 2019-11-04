@@ -1,0 +1,20 @@
+@startuml
+
+scale 1000 width
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+state Uninitialized #gray
+
+state PassengerScheduleEmpty  #eb1921
+
+
+[*] --> Uninitialized
+Uninitialized --> WaitingToDrive : InitializeTrigger
+
+PassengerScheduleEmpty --> PassengerScheduleEmpty : PassengerScheduleEmptyMessage
+PassengerScheduleEmpty --> [*] : KillTrigger
+
+
+@enduml

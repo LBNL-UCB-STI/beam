@@ -12,7 +12,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest._
 
 import scala.language.postfixOps
@@ -31,10 +31,14 @@ class AgentsimWithMaximallyBadRouterSpec
           |akka.loglevel = off
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      .withValue(
+        "beam.agentsim.agents.rideHail.repositioningManager.name",
+        ConfigValueFactory.fromAnyRef("DEFAULT_REPOSITIONING_MANAGER")
+      )
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
 
-  lazy implicit val system: ActorSystem = ActorSystem("AgentSimWithBadRouterSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("AgentsimWithMaximallyBadRouterSpec", config)
 
   "The agentsim" must {
     "not get stuck even if the router only throws exceptions" in {
@@ -52,8 +56,8 @@ class AgentsimWithMaximallyBadRouterSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(beamScenario, services.geo),
-        new TravelTimeObserved(beamScenario, services.geo),
+        new BeamSkimmer(services, beamScenario, services.geo),
+        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )

@@ -1,5 +1,6 @@
 package beam.utils.scripts
 
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
@@ -26,18 +27,33 @@ object FailFast extends LazyLogging {
     }
 
     /*
-     * Pooling not ready yet
+     * Pooling with timeout zero or non-pooling with non-zero don't mix yet
      */
-    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name.equals("POOLING")) {
+    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
+          .equals("POOLING_ALONSO_MORA") && beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0) {
       throw new RuntimeException(
-        "Pooling, while a class in the code base, is not ready for use yet. In other words, please do not set beamConfig.beam.agentsim.agents.rideHail.allocationManager.name == \"POOLING\""
+        "PoolingAlonsoMora is not yet compatible with a parameter value of 0 for requestBufferTimeoutInSeconds. Either make that parameter non-zero or use DEFAULT_MANAGER for the allocationManager."
+      )
+    } else if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
+                 .equals("DEFAULT_MANAGER") && beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0) {
+      throw new RuntimeException(
+        "AllocationManager DEFAULT_MANAGER is not yet compatible with a non-zero parameter value for requestBufferTimeoutInSeconds. Either make that parameter zero or use POOLING_ALONSO_MORA for the allocationManager."
       )
     }
 
-    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds != 0 &&
-        beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow > beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds) {
+    /*
+     * We don't expect "Electricity" to be a secondary powertrain type and it can produce unexpected results if set as such. So we fail.
+     */
+
+    if (beamServices.beamScenario.vehicleTypes.find(_._2.secondaryFuelType == Some(Electricity)).isDefined) {
       throw new RuntimeException(
-        "Scheduler Parallelism Window must be less than Request Buffer Timeout"
+        s"Found BeamVehicleType ${beamServices.beamScenario.vehicleTypes.find(_._2.secondaryFuelType == Some(Electricity)).get._2.id} with 'Electricity' specified as a FuelType for the secondary powertrain. This is likely a mistake and we are failing so it can be corrected otherwise unexpected behavior will result. For a BEV the primary fuel type should be Electricity and secondary should be empty / blank. For PHEV the primary should be Electricity and secondary should be Gasoline."
+      )
+    }
+
+    if (beamServices.beamConfig.beam.physsim.writeRouteHistoryInterval < 0) {
+      throw new RuntimeException(
+        "Wrong value of Route History file writing iteration"
       )
     }
   }

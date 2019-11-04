@@ -59,7 +59,7 @@ public class PhyssimCalcLinkStatsTest {
 
     @Test
     public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour() {
-        Double expectedResult = 10.0;
+        Double expectedResult = 7.0;
         Double actualResult = physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0, 7);
         assertEquals(expectedResult, actualResult);
     }
@@ -77,7 +77,7 @@ public class PhyssimCalcLinkStatsTest {
 
     @Test
     public void testShouldPassShouldReturnSumOfRelativeSpeedForSpecificHour() {
-        Double expectedResult = 148.0;
+        Double expectedResult = 111.0;
         Double actualResult = physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
         assertEquals(expectedResult, actualResult);
     }

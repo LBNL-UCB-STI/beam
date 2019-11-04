@@ -49,7 +49,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        long expectedResult = 462764867L;
+        long expectedResult = 675705873L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -57,7 +57,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalBusFuel() {
-        long expectedResult = 4238592864L;
+        long expectedResult = 135249995867L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(BUS, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -65,7 +65,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventSubwayFuel() {
-        long expectedResult = 4865519250L;
+        long expectedResult = 0L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(SUBWAY, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -73,7 +73,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventWalkFuel() {
-        long expectedResult = 7588808L;
+        long expectedResult = 1787333L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);

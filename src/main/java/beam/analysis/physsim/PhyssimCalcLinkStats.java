@@ -130,7 +130,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
 
-                double relativeSpeed = Math.round(averageSpeedToFreeSpeedRatio * 10) / 10;
+                double relativeSpeed = Math.round(averageSpeedToFreeSpeedRatio * 50) / 10;
 
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
@@ -179,26 +179,32 @@ public class PhyssimCalcLinkStats implements Observer {
         List<Double> relativeSpeedsCategoriesList = getSortedListRelativeSpeedCategoryList();
 
 
-        double[][] dataset = new double[relativeSpeedsCategoriesList.size()][noOfBins];
+        double[][] dataset = new double[0][];
 
-        for (int i = 0; i < relativeSpeedsCategoriesList.size(); i++) {
+        Optional<Double> optionalMaxRelativeSpeedsCategories = relativeSpeedsCategoriesList.stream().max(Comparator.naturalOrder());
 
-            Double relativeSpeedCategory = relativeSpeedsCategoriesList.get(i);
-            Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.get(relativeSpeedCategory);
+        if(optionalMaxRelativeSpeedsCategories.isPresent()) {
+            int maxRelativeSpeedsCategories = optionalMaxRelativeSpeedsCategories.get().intValue();
+            dataset = new double[maxRelativeSpeedsCategories+1][noOfBins];
 
-            double[] relativeSpeedFrequencyPerHour = new double[noOfBins];
-            int index = 0;
+            for (int i = 0; i <= maxRelativeSpeedsCategories; i++) {
 
-            for (int binIndex = 0; binIndex < noOfBins; binIndex++) {
-                Integer hourFrequency = relativeSpeedBins.get(binIndex);
-                if (hourFrequency != null) {
-                    relativeSpeedFrequencyPerHour[index] = hourFrequency;
-                } else {
-                    relativeSpeedFrequencyPerHour[index] = 0;
+                Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.getOrDefault((double)i, new HashMap<>());
+
+                double[] relativeSpeedFrequencyPerHour = new double[noOfBins];
+                int index = 0;
+
+                for (int binIndex = 0; binIndex < noOfBins; binIndex++) {
+                    Integer hourFrequency = relativeSpeedBins.get(binIndex);
+                    if (hourFrequency != null) {
+                        relativeSpeedFrequencyPerHour[index] = hourFrequency;
+                    } else {
+                        relativeSpeedFrequencyPerHour[index] = 0;
+                    }
+                    index = index + 1;
                 }
-                index = index + 1;
+                dataset[i] = relativeSpeedFrequencyPerHour;
             }
-            dataset[i] = relativeSpeedFrequencyPerHour;
         }
 
         return dataset;
@@ -228,13 +234,12 @@ public class PhyssimCalcLinkStats implements Observer {
 
 
         List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
-        Collections.sort(relativeSpeedsCategoriesList);
 
+        int max = Collections.max(relativeSpeedsCategoriesList).intValue();
 
-        for (int i = 0; i < dataset.getRowCount(); i++) {
+        for (int i = 0; i <= max ; i++) {
 
-
-            legendItems.add(new LegendItem(relativeSpeedsCategoriesList.get(i).toString(), getColor(i)));
+            legendItems.add(new LegendItem(String.valueOf(i), getColor(i)));
 
             plot.getRenderer().setSeriesPaint(i, getColor(i));
 
