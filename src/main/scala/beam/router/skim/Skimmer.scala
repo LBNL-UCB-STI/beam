@@ -1,6 +1,6 @@
 package beam.router.skim
 import beam.agentsim.events.ScalaEvent
-import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}BeamConfig.scalaBeamConfig.scalaBeamConfig.scala
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.sim.BeamServices
 import beam.sim.vehiclesharing.VehicleManager
 import beam.utils.ProfilingUtils
