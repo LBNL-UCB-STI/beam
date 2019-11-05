@@ -132,18 +132,31 @@ object Skimmer {
       .asInstanceOf[Option[SkimmerInternal]]
   }
 
-  def getLatestSkim(timeBin: Int, hexIndex: String, idVehMng: Id[VehicleManager], valLabel: String): Option[SkimmerInternal] = {
+  def getLatestSkim(
+    timeBin: Int,
+    hexIndex: String,
+    idVehMng: Id[VehicleManager],
+    valLabel: String
+  ): Option[SkimmerInternal] = {
     getLatestSkim(timeBin, h3taz.getTAZ(hexIndex), hexIndex, idVehMng, valLabel)
   }
 
-  def getLatestSkim(timeBin: Int, idTaz: Id[TAZ], idVehMng: Id[VehicleManager], valLabel: String): Option[SkimmerInternal] = {
-    h3taz.getHRHex(idTaz).flatMap(hexIndex => getLatestSkim(timeBin, idTaz, hexIndex, idVehMng, valLabel)).foldLeft[Option[SkimmerInternal]](None) {
-      case (acc, skimInternal) =>
-      acc match {
-        case Some(skim) => Some((skim + skimInternal).asInstanceOf[SkimmerInternal])
-        case _ => Some(skimInternal)
+  def getLatestSkim(
+    timeBin: Int,
+    idTaz: Id[TAZ],
+    idVehMng: Id[VehicleManager],
+    valLabel: String
+  ): Option[SkimmerInternal] = {
+    h3taz
+      .getHRHex(idTaz)
+      .flatMap(hexIndex => getLatestSkim(timeBin, idTaz, hexIndex, idVehMng, valLabel))
+      .foldLeft[Option[SkimmerInternal]](None) {
+        case (acc, skimInternal) =>
+          acc match {
+            case Some(skim) => Some((skim + skimInternal).asInstanceOf[SkimmerInternal])
+            case _          => Some(skimInternal)
+          }
       }
-    }
   }
 
   def getAggregatedSkim(
@@ -179,12 +192,12 @@ object Skimmer {
   }
 
   case class SkimmerEvent(
-                           eventTime: Double,
-                           timeBin: Int,
-                           coord: Coord,
-                           idVehMng: Id[VehicleManager],
-                           valLabel: String,
-                           dblValue: Double
+    eventTime: Double,
+    timeBin: Int,
+    coord: Coord,
+    idVehMng: Id[VehicleManager],
+    valLabel: String,
+    dblValue: Double
   ) extends Event(eventTime)
       with ScalaEvent {
     override def getEventType: String = "SkimmerEvent"

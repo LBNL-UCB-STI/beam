@@ -5,7 +5,18 @@ import beam.agentsim.events.ScalaEvent
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -31,7 +42,6 @@ class ODSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimme
   private val observedSkimsFileBaseName = "odskims"
   private val fullSkimsFileBaseName = "odskimsFull"
   private val excerptSkimsFileBaseName = "odskimsExcerpt"
-
 
   override val aggregatedSkimsFilePath: String = beamConfig.beam.warmStart.skimsFilePath
 
@@ -471,13 +481,13 @@ object ODSkimmer extends LazyLogging {
   }
 
   def getTimeDistanceAndCost(
-                              originUTM: Location,
-                              destinationUTM: Location,
-                              departureTime: Int,
-                              mode: BeamMode,
-                              vehicleTypeId: Id[BeamVehicleType],
-                              beamServices: BeamServices
-                            ): Skim = {
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+    beamServices: BeamServices
+  ): Skim = {
     val origTaz = beamServices.beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
     val destTaz = beamServices.beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     getSkimValue(departureTime, mode, origTaz, destTaz) match {
@@ -494,7 +504,6 @@ object ODSkimmer extends LazyLogging {
         )
     }
   }
-
 
   // cases
   case class ODSkimmerKey(timeBin: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])

@@ -77,12 +77,12 @@ trait RepositionManager extends Actor with ActorLogging {
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
 
   def collectData(time: Int, coord: Coord, label: String): Unit = {
-    if(statTime == 0) return
+    if (statTime == 0) return
     getServices.matsimServices.getEvents.processEvent(SkimmerEvent(time, time / statTime, coord, getId, label, 1.0))
   }
 
   def collectData(time: Int): Unit = {
-    if(statTime == 0) return
+    if (statTime == 0) return
     queryAvailableVehicles.foreach(v => collectData(time, v.spaceTime.loc, RepositionManager.availability))
   }
 }
