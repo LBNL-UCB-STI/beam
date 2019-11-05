@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.infrastructure.taz.H3TAZ.{HexIndex, fillBox}
+import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, HexIndex}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}

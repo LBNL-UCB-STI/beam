@@ -17,6 +17,7 @@ import scala.util.control.NonFatal
 trait AbstractSkimmerKey {
   def toCsv: String
 }
+
 trait AbstractSkimmerInternal {
   def +(that: AbstractSkimmerInternal): AbstractSkimmerInternal
   def /(thatInt: Int): AbstractSkimmerInternal
@@ -28,31 +29,33 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
   import beamServices._
 
   private var observationsCounter: Int = 0
+  protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
+  updateAggregatedSkim(readAggregatedSkims)
 
-  private[skim] val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
-  protected var pastSkims: immutable.List[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = immutable.List()
-  protected var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = readAggregatedSkims
+  protected val aggregatedSkimsFilePath: String
+  protected def writeToDisk(event: IterationEndsEvent)
+  protected def fromCsv(line: immutable.Map[String, String]): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  protected def getPastSkims: immutable.List[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
+  protected def updatePastSkims(skims: immutable.List[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]])
+  protected def getAggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  protected def updateAggregatedSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal])
 
-  private[skim] val aggregatedSkimsFilePath: String
-  private[skim] def writeToDisk(event: IterationEndsEvent)
-  private[skim] def fromCsv(line: immutable.Map[String, String]): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
-
-  private[SkimManager] def persist(event: IterationEndsEvent) = {
+  private[skim] def persist(event: IterationEndsEvent) = {
     writeToDisk(event)
     // keep in memory
-    if(beamConfig.beam.skimmanager.keepTheNLastestSkims > 0) {
-      if (pastSkims.size == beamConfig.beam.skimmanager.keepTheNLastestSkims) {
-        pastSkims = currentSkim.toMap :: pastSkims.dropRight(1)
+    if (beamConfig.beam.skimmanager.keepTheNLastestSkims > 0) {
+      if (getPastSkims.size == beamConfig.beam.skimmanager.keepTheNLastestSkims) {
+        updatePastSkims(currentSkim.toMap :: getPastSkims.dropRight(1))
       } else {
-        pastSkims = currentSkim.toMap :: pastSkims
+        updatePastSkims(currentSkim.toMap :: getPastSkims)
       }
     }
     // aggregate
     beamConfig.beam.skimmanager.aggregateFunction match {
       case "LATEST_SKIM" =>
-        aggregatedSkim = pastSkims.head
+        updateAggregatedSkim(getPastSkims.head)
       case "AVG" =>
-        aggregatedSkim = aggregateAVG()
+        updateAggregatedSkim(aggregateAVG())
       case _ => // default
     }
     observationsCounter += 1
@@ -63,17 +66,19 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
   // Helpers
   private def aggregateAVG(): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     val avgSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-    aggregatedSkim.foreach { case (k, aggSkim) =>
-      currentSkim.get(k) match {
-        case Some(curSkim) =>
-          avgSkim.put(k, ((aggSkim * observationsCounter) + curSkim) / (observationsCounter + 1))
-          currentSkim.remove(k)
-        case _ =>
-          avgSkim.put(k, (aggSkim * observationsCounter) / (observationsCounter + 1))
-      }
+    getAggregatedSkim.foreach {
+      case (k, aggSkim) =>
+        currentSkim.get(k) match {
+          case Some(curSkim) =>
+            avgSkim.put(k, ((aggSkim * observationsCounter) + curSkim) / (observationsCounter + 1))
+            currentSkim.remove(k)
+          case _ =>
+            avgSkim.put(k, (aggSkim * observationsCounter) / (observationsCounter + 1))
+        }
     }
-    currentSkim.foreach { case (k, curSkim) =>
-      avgSkim.put(k, curSkim/(observationsCounter + 1))
+    currentSkim.foreach {
+      case (k, curSkim) =>
+        avgSkim.put(k, curSkim / (observationsCounter + 1))
     }
     avgSkim.toMap
   }
@@ -84,7 +89,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, h3taz: H3TAZ) extends
     if (beamConfig.beam.warmStart.enabled) {
       try {
         if (new File(aggregatedSkimsFilePath).isFile) {
-          mapReader = new CsvMapReader(FileUtils.readerFromFile(aggregatedSkimsFilePath), CsvPreference.STANDARD_PREFERENCE)
+          mapReader =
+            new CsvMapReader(FileUtils.readerFromFile(aggregatedSkimsFilePath), CsvPreference.STANDARD_PREFERENCE)
           val header = mapReader.getHeader(true)
           var line: java.util.Map[String, String] = mapReader.read(header: _*)
           while (null != line) {

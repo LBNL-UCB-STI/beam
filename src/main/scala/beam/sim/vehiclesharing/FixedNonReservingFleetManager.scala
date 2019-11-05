@@ -8,12 +8,7 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -22,7 +17,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
@@ -41,7 +35,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val vehicleType: BeamVehicleType,
   val mainScheduler: ActorRef,
   val beamServices: BeamServices,
-  val beamSkimmer: BeamSkimmer,
   val maxWalkingDistance: Int,
   val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
 ) extends Actor
@@ -129,7 +122,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getServices: BeamServices = beamServices
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
-  override def getSkimmer: BeamSkimmer = beamSkimmer
   override def getAvailableVehicles: Iterable[BeamVehicle] = availableVehicles.values
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {

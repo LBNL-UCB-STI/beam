@@ -205,7 +205,7 @@ class BeamMobsimIteration(
 
   private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
-      Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingManager),
       fleetConfig.name
     )
   }

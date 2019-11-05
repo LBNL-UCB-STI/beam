@@ -7,7 +7,6 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
 import beam.router.skim.Skimmer.SkimmerEvent
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
@@ -58,7 +57,7 @@ trait RepositionManager extends Actor with ActorLogging {
       getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(algorithmType.getStatTimeBin), self)
       var alg: RepositionAlgorithm = null
       if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
-        alg = algorithmType.getInstance(getId, getServices, getSkimmer)
+        alg = algorithmType.getInstance(getId, getServices)
         getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }
       (alg, algorithmType.getRepositionTimeBin, algorithmType.getStatTimeBin)
@@ -75,31 +74,16 @@ trait RepositionManager extends Actor with ActorLogging {
   def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
   def getScheduler: ActorRef
   def getServices: BeamServices
-  def getSkimmer: BeamSkimmer
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
 
-  def collectData(time: Int, coord: Coord, label: String) = {
-    if (statTime != 0) {
-      getSkimmer.countEventsByTAZ(time / statTime, coord, getId, label)
-      getServices.matsimServices.getEvents
-        .processEvent(SkimmerEvent(time, time / statTime, coord, getId, label, 1.0))
-    }
+  def collectData(time: Int, coord: Coord, label: String): Unit = {
+    if(statTime == 0) return
+    getServices.matsimServices.getEvents.processEvent(SkimmerEvent(time, time / statTime, coord, getId, label, 1.0))
   }
 
-  def collectData(time: Int) = {
-    if (statTime != 0) {
-      getSkimmer.observeVehicleAvailabilityByTAZ(
-        time / statTime,
-        getId,
-        RepositionManager.availability,
-        queryAvailableVehicles
-      )
-      getAvailableVehicles.foreach { vehicle =>
-        getServices.matsimServices.getEvents.processEvent(
-          SkimmerEvent(time, time / statTime, vehicle.spaceTime.loc, getId, RepositionManager.availability, 1.0)
-        )
-      }
-    }
+  def collectData(time: Int): Unit = {
+    if(statTime == 0) return
+    queryAvailableVehicles.foreach(v => collectData(time, v.spaceTime.loc, RepositionManager.availability))
   }
 }
 

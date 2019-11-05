@@ -15,9 +15,11 @@ class Skimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimmer(
   import beamServices._
 
   private val aggregatedSkimsFileBaseName: String = "skimsAggregated.csv.gz"
-  private val observedSkimsFileBaseName: String = "skims.csv.gz"
-  private val CsvLineHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
+  private val observedSkimsFileBaseName: String = "skims2.csv.gz"
+  private val CsvLineHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,dblValue"
   private val Eol = "\n"
+
+  Skimmer.h3taz = h3taz
 
   override val aggregatedSkimsFilePath: String = beamConfig.beam.warmStart.skimsPlusFilePath
 
@@ -31,12 +33,12 @@ class Skimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimmer(
           case Some(internal: SkimmerInternal) =>
             currentSkim.put(
               SkimmerKey(e.timeBin, idTaz, hexIndex, e.idVehMng, e.valLabel),
-              SkimmerInternal(e.value + internal.value)
+              SkimmerInternal(e.dblValue + internal.dblValue)
             )
           case _ =>
-            currentSkim.put(SkimmerKey(e.timeBin, idTaz, hexIndex, e.idVehMng, e.valLabel), SkimmerInternal(e.value))
+            currentSkim.put(SkimmerKey(e.timeBin, idTaz, hexIndex, e.idVehMng, e.valLabel), SkimmerInternal(e.dblValue))
         }
-        currentSkim.put(SkimmerKey(e.timeBin, idTaz, hexIndex, e.idVehMng, e.valLabel), SkimmerInternal(e.value))
+        currentSkim.put(SkimmerKey(e.timeBin, idTaz, hexIndex, e.idVehMng, e.valLabel), SkimmerInternal(e.dblValue))
       case _ =>
     }
   }
@@ -53,7 +55,7 @@ class Skimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimmer(
         )
         val writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
         writer.write(CsvLineHeader + Eol)
-        currentSkim.foreach(row => writer.write(row._1.toCsv + "," + row._2 + Eol))
+        currentSkim.foreach(row => writer.write(row._1.toCsv + "," + row._2.toCsv + Eol))
         writer.close()
       }
     }
@@ -86,14 +88,77 @@ class Skimmer(beamServices: BeamServices, h3taz: H3TAZ) extends AbstractSkimmer(
         Id.create(line("idVehManager"), classOf[VehicleManager]),
         line("label")
       )
-      -> SkimmerInternal(line("value").toDouble)
+      -> SkimmerInternal(line("dblValue").toDouble)
     )
   }
 
+  override protected def getPastSkims: List[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = {
+    Skimmer.pastSkims.map(
+      list => list.map(kv => kv._1.asInstanceOf[AbstractSkimmerKey] -> kv._2.asInstanceOf[AbstractSkimmerInternal])
+    )
+  }
+
+  override protected def getAggregatedSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+    Skimmer.aggregatedSkim.map(
+      kv => kv._1.asInstanceOf[AbstractSkimmerKey] -> kv._2.asInstanceOf[AbstractSkimmerInternal]
+    )
+  }
+
+  override protected def updatePastSkims(skims: List[Map[AbstractSkimmerKey, AbstractSkimmerInternal]]): Unit = {
+    Skimmer.pastSkims =
+      skims.map(list => list.map(kv => kv._1.asInstanceOf[SkimmerKey] -> kv._2.asInstanceOf[SkimmerInternal]))
+  }
+
+  override protected def updateAggregatedSkim(skim: Map[AbstractSkimmerKey, AbstractSkimmerInternal]): Unit = {
+    Skimmer.aggregatedSkim = skim.map(kv => kv._1.asInstanceOf[SkimmerKey] -> kv._2.asInstanceOf[SkimmerInternal])
+  }
 }
 
 object Skimmer {
 
+  private var pastSkims: immutable.List[immutable.Map[SkimmerKey, SkimmerInternal]] = immutable.List()
+  private var aggregatedSkim: immutable.Map[SkimmerKey, SkimmerInternal] = immutable.Map()
+  private var h3taz: H3TAZ = _
+
+  def getLatestSkim(
+    timeBin: Int,
+    idTaz: Id[TAZ],
+    hexIndex: String,
+    idVehMng: Id[VehicleManager],
+    valLabel: String
+  ): Option[SkimmerInternal] = {
+    pastSkims.headOption
+      .flatMap(_.get(SkimmerKey(timeBin, idTaz, hexIndex, idVehMng, valLabel)))
+      .asInstanceOf[Option[SkimmerInternal]]
+  }
+
+  def getLatestSkim(timeBin: Int, hexIndex: String, idVehMng: Id[VehicleManager], valLabel: String): Option[SkimmerInternal] = {
+    getLatestSkim(timeBin, h3taz.getTAZ(hexIndex), hexIndex, idVehMng, valLabel)
+  }
+
+  def getLatestSkim(timeBin: Int, idTaz: Id[TAZ], idVehMng: Id[VehicleManager], valLabel: String): Option[SkimmerInternal] = {
+    h3taz.getHRHex(idTaz).flatMap(hexIndex => getLatestSkim(timeBin, idTaz, hexIndex, idVehMng, valLabel)).foldLeft[Option[SkimmerInternal]](None) {
+      case (acc, skimInternal) =>
+      acc match {
+        case Some(skim) => Some((skim + skimInternal).asInstanceOf[SkimmerInternal])
+        case _ => Some(skimInternal)
+      }
+    }
+  }
+
+  def getAggregatedSkim(
+    timeBin: Int,
+    idTaz: Id[TAZ],
+    hexIndex: String,
+    idVehMng: Id[VehicleManager],
+    valLabel: String
+  ): Option[SkimmerInternal] = {
+    aggregatedSkim
+      .get(SkimmerKey(timeBin, idTaz, hexIndex, idVehMng, valLabel))
+      .asInstanceOf[Option[SkimmerInternal]]
+  }
+
+  // Cases
   case class SkimmerKey(
     timeBin: Int,
     idTaz: Id[TAZ],
@@ -104,23 +169,25 @@ object Skimmer {
     override def toCsv: String = timeBin + "," + idTaz + "," + hexIndex + "," + idVehManager + "," + valueLabel
   }
 
-  case class SkimmerInternal(value: Double) extends AbstractSkimmerInternal {
+  case class SkimmerInternal(dblValue: Double) extends AbstractSkimmerInternal {
+
     def +(that: AbstractSkimmerInternal): AbstractSkimmerInternal =
-      SkimmerInternal(this.value + that.asInstanceOf[SkimmerInternal].value)
-    def /(thatInt: Int): AbstractSkimmerInternal = SkimmerInternal(this.value / thatInt)
-    def *(thatInt: Int): AbstractSkimmerInternal = SkimmerInternal(this.value * thatInt)
-    override def toCsv: String = value.toString
+      SkimmerInternal(this.dblValue + that.asInstanceOf[SkimmerInternal].dblValue)
+    def /(thatInt: Int): AbstractSkimmerInternal = SkimmerInternal(this.dblValue / thatInt)
+    def *(thatInt: Int): AbstractSkimmerInternal = SkimmerInternal(this.dblValue * thatInt)
+    override def toCsv: String = dblValue.toString
   }
 
-  private case class SkimmerEvent(
-    eventTime: Double,
-    timeBin: Int,
-    coord: Coord,
-    idVehMng: Id[VehicleManager],
-    valLabel: String,
-    value: Double
+  case class SkimmerEvent(
+                           eventTime: Double,
+                           timeBin: Int,
+                           coord: Coord,
+                           idVehMng: Id[VehicleManager],
+                           valLabel: String,
+                           dblValue: Double
   ) extends Event(eventTime)
       with ScalaEvent {
     override def getEventType: String = "SkimmerEvent"
   }
+
 }
