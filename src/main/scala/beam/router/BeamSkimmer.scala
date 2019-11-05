@@ -1,7 +1,6 @@
 package beam.router
 
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -22,13 +21,13 @@ import beam.router.Modes.BeamMode.{
 }
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.VehicleManager
-import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
@@ -40,18 +39,21 @@ import scala.util.control.NonFatal
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val geo: GeoUtils
 ) extends LazyLogging {
   import BeamSkimmer._
   import beamScenario._
 
+  def beamConfig: BeamConfig = beamServices.beamConfig
+
   // The OD/Mode/Time Matrix
   private var previousSkims: BeamSkimmerADT = initialPreviousSkims()
   private var skims: BeamSkimmerADT = TrieMap()
 
   private def skimsFilePath: Option[String] = {
-    val filePath = beamScenario.beamConfig.beam.warmStart.skimsFilePath
+    val filePath = beamConfig.beam.warmStart.skimsFilePath
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
@@ -385,7 +387,7 @@ class BeamSkimmer @Inject()(
       BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
     )
     val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
     val writer = IOUtils.getBufferedWriter(filePath)
@@ -444,7 +446,7 @@ class BeamSkimmer @Inject()(
     val uniqueTimeBins = 0 to 23
 
     val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
 
@@ -513,7 +515,7 @@ class BeamSkimmer @Inject()(
     initialPreviousSkimsPlus()
   private var skimsPlus: TrieMap[BeamSkimmerPlusKey, Double] = TrieMap()
   private def skimsPlusFilePath: Option[String] = {
-    val filePath = beamScenario.beamConfig.beam.warmStart.skimsPlusFilePath
+    val filePath = beamConfig.beam.warmStart.skimsPlusFilePath
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
@@ -561,7 +563,13 @@ class BeamSkimmer @Inject()(
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
   }
 
-  def addValue(curBin: Int, tazId: Id[TAZ], vehicleManager: Id[VehicleManager], label: Label, value: Double) = {
+  def addValue(
+    curBin: Int,
+    tazId: Id[TAZ],
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    value: Double
+  ): Option[Double] = {
     if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
     val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + value)

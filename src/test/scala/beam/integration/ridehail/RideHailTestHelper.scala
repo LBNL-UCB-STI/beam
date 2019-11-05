@@ -29,6 +29,8 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef(0)
       )
       .withValue("beam.debug.stuckAgentDetection.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
+      .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(0))
       .resolve()
 
     config
@@ -38,7 +40,6 @@ object RideHailTestHelper {
     val configBuilder = new MatSimBeamConfigBuilder(config)
 
     val matsimConfig = configBuilder.buildMatSimConf()
-    matsimConfig.controler().setLastIteration(0)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     matsimConfig
   }

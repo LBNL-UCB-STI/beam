@@ -26,18 +26,17 @@ import scala.util.Random
 
 case class ClusterInfo(size: Int, coord: Coord)
 
-// To start using it you should set `beam.agentsim.agents.rideHail.repositioningManager.name="DemandFollowingRepositioningManager"` in configuration
+// To start using it you should set `beam.agentsim.agents.rideHail.repositioningManager.name="DEMAND_FOLLOWING_REPOSITIONING_MANAGER"` in configuration
 // Check `beam-template.conf` to see the configurable parameters
 class DemandFollowingRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
 
+  val repositionTimeout: Int =
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
   private val activitySegment: ActivitySegment = {
-    val intervalSize: Int =
-      rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
-
-    ProfilingUtils.timed(s"Build ActivitySegment with intervalSize $intervalSize", x => logger.info(x)) {
-      ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+    ProfilingUtils.timed(s"Build ActivitySegment with bin size $repositionTimeout", x => logger.info(x)) {
+      ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, repositionTimeout)
     }
   }
 
@@ -51,38 +50,46 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   val sensitivityOfRepositioningToDemandForCAVs: Double = cfg.sensitivityOfRepositioningToDemandForCAVs
   val numberOfClustersForDemand: Int = cfg.numberOfClustersForDemand
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
-  val rng = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
+  val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 
-  val hourToAct: Array[(Int, Activity)] = activitySegment.activities.map(act => ((act.getEndTime / 3600).toInt, act))
+  val horizon: Int = if (cfg.horizon < repositionTimeout) {
+    logger.warn(
+      s"horizon[${cfg.horizon} is less than repositioningManager.timeout[$repositionTimeout], will use repositioningManager.timeout"
+    )
+    repositionTimeout
+  } else {
+    cfg.horizon
+  }
 
-  val groupedByHour: Map[Int, Array[Activity]] =
-    hourToAct.groupBy { case (h, _) => h }.map { case (h, xs) => h -> xs.map(_._2) }
+  val timeBinToActivities: Map[Int, collection.Set[Activity]] =
+    Range(0, activitySegment.maxTime + horizon, horizon).zipWithIndex.map {
+      case (t, idx) =>
+        val activities = activitySegment.getActivities(t, t + horizon)
+        logger.debug(s"Time [$t, ${t + horizon}], idx $idx, num of activities: ${activities.size}")
+        idx -> activities
+    }.toMap
 
-  val hourToActivities: Array[Array[Activity]] = groupedByHour.toArray
-    .sortBy { case (h, _) => h }
-    .map(_._2)
+  val totalNumberOfActivities: Int = activitySegment.sorted.length
 
-  // Index is hour, value is number of activities
-  val activitiesPerHour: Array[Int] = groupedByHour
-    .map { case (h, xs) => (h, xs.length) }
-    .toArray
-    .sortBy { case (h, _) => h }
-    .map(_._2)
-
-  val totalNumberOfActivities: Int = activitiesPerHour.sum
-  val activityWeight: Array[Double] = activitiesPerHour.map(x => x.toDouble / totalNumberOfActivities)
+  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
+    case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
+  }
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
-  logger.info(s"activitiesPerHour: ${activitiesPerHour.toVector}")
-  logger.info(s"activityWeight: ${activityWeight.toVector}")
+  val sortedTimeBinToActivitiesWeight = timeBinToActivitiesWeight.toVector.sortBy { case (timeBin, weight) => timeBin }
+  logger.info(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
+  logger.info(s"horizon: ${horizon}")
 
-  val hourToClusters: Array[Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
     createClusters
   }
 
-  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
+  def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
+    val nonRepositioningIdleVehicles = idleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
         nonRepositioningIdleVehicles.filter { rha =>
@@ -122,8 +129,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
-    val currentHour = tick / 3600
-    val weight = activityWeight.lift(currentHour).getOrElse(0.0)
+    val currentTimeBin = getTimeBin(tick)
+    val weight = timeBinToActivitiesWeight.getOrElse(currentTimeBin, 0.0)
     val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
                              sensitivityOfRepositioningToDemandForCAVs
                            } else {
@@ -132,70 +139,78 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
-      s"tick: $tick, hour: $currentHour, vehicleId: ${vehicle.vehicleId}, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
+      s"tick: $tick, currentTimeBin: $currentTimeBin, vehicleId: ${vehicle.vehicleId}, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
     )
     shouldRepos
   }
 
   private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: Id[Vehicle]): Option[Coord] = {
-    val currentHour = tick / 3600
-    val nextHour = currentHour + 1
+    val currentTimeBin = getTimeBin(tick)
+    val nextTimeBin = currentTimeBin + 1
     val fractionOfClosestClusters =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
 
-    hourToClusters.lift(nextHour).map { clusters =>
-      val N: Int = Math.max(1, Math.round(clusters.length * fractionOfClosestClusters).toInt)
+    timeBinToClusters.get(nextTimeBin).flatMap { clusters =>
+      if (clusters.map(_.size).sum == 0) None
+      else {
+        val N: Int = Math.max(1, Math.round(clusters.length * fractionOfClosestClusters).toInt)
 
-      // We get top N closest clusters and randomly pick one of them.
-      // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
-      val topNClosest = clusters.sortBy(x => beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)).take(N)
-      val pmf = topNClosest.map { x =>
-        new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble)
-      }.toList
+        // We get top N closest clusters and randomly pick one of them.
+        // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
+        val topNClosest = clusters.sortBy(x => beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)).take(N)
+        val pmf = topNClosest.map { x =>
+          new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble)
+        }.toList
 
-      val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
-      val sampled = distr.sample()
-      logger.debug(
-        s"tick $tick, currentHour: $currentHour, nextHour: $nextHour, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled"
-      )
-      sampled.coord
+        val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
+        val sampled = distr.sample()
+        logger.debug(
+          s"tick $tick, currentTimeBin: $currentTimeBin, nextTimeBin: $nextTimeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled"
+        )
+        Some(sampled.coord)
+      }
     }
   }
 
-  private def createClusters: Array[Array[ClusterInfo]] = {
-    // Build clusters for every hour. Number of clusters is configured
-    hourToActivities.zipWithIndex.map {
-      case (acts, hour) =>
-        val db: Database = createDatabase(acts)
-        try {
-          val kmeans = new KMeansElkan[NumberVector](
-            SquaredEuclideanDistanceFunction.STATIC,
-            numberOfClustersForDemand,
-            1000,
-            new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
-            true
-          )
-          val result = kmeans.run(db)
-          logger.debug(s"Hour $hour")
-          result.getAllClusters.asScala.zipWithIndex.map {
-            case (clu, idx) =>
-              logger.debug(s"# $idx: ${clu.getNameAutomatic}")
-              logger.debug(s"Size: ${clu.size()}")
-              logger.debug(s"Model: ${clu.getModel}")
-              logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
-              logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
-              ClusterInfo(clu.size, new Coord(clu.getModel.getMean))
-          }.toArray
-        } catch {
-          case ex: Exception =>
-            logger.error("err clustering", ex)
-            throw ex
-        }
+  private def createClusters: Map[Int, Array[ClusterInfo]] = {
+    // Build clusters for every time bin. Number of clusters is configured
+    timeBinToActivities.map {
+      case (timeBin, acts) =>
+        val clusters =
+          if (acts.isEmpty) Array.empty[ClusterInfo]
+          else {
+            val db: Database = createDatabase(acts)
+            try {
+              val kmeans = new KMeansElkan[NumberVector](
+                SquaredEuclideanDistanceFunction.STATIC,
+                numberOfClustersForDemand,
+                1000,
+                new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+                true
+              )
+              val result = kmeans.run(db)
+              logger.debug(s"timeBin: $timeBin, seconds: ${timeBinToSeconds(timeBin)}")
+              result.getAllClusters.asScala.zipWithIndex.map {
+                case (clu, idx) =>
+                  logger.debug(s"# $idx: ${clu.getNameAutomatic}")
+                  logger.debug(s"Size: ${clu.size()}")
+                  logger.debug(s"Model: ${clu.getModel}")
+                  logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
+                  logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
+                  ClusterInfo(clu.size, new Coord(clu.getModel.getMean))
+              }.toArray
+            } catch {
+              case ex: Exception =>
+                logger.error("err clustering", ex)
+                throw ex
+            }
+          }
+        timeBin -> clusters
     }
   }
 
-  private def createDatabase(acts: Array[Activity]): Database = {
-    val data = Array.ofDim[Double](acts.length, 2)
+  private def createDatabase(acts: scala.collection.Iterable[Activity]): Database = {
+    val data = Array.ofDim[Double](acts.size, 2)
     acts.zipWithIndex.foreach {
       case (act, idx) =>
         val x = act.getCoord.getX
@@ -209,4 +224,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     db.initialize()
     db
   }
+
+  private def getTimeBin(tick: Int): Int = tick / horizon
+
+  private def timeBinToSeconds(timeBin: Int): Int = timeBin * horizon
 }

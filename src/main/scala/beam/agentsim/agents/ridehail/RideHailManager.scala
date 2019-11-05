@@ -116,7 +116,7 @@ object RideHailManager {
 
   case class RoutingResponses(
     tick: Int,
-    routingResponses: List[RoutingResponse]
+    routingResponses: Seq[RoutingResponse]
   )
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
@@ -493,7 +493,7 @@ class RideHailManager(
     this
   )
 
-  def storeRoutes(responses: List[RoutingResponse]): Unit = {
+  def storeRoutes(responses: Seq[RoutingResponse]): Unit = {
     responses.foreach {
       _.itineraries.view.foreach { resp =>
         resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
@@ -1272,7 +1272,7 @@ class RideHailManager(
     List(rideHailAgent2Customer, rideHail2Destination)
   }
 
-  def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
+  def requestRoutes(tick: Int, routingRequests: Seq[RoutingRequest]): Unit = {
     cacheAttempts = cacheAttempts + 1
     val routeOrEmbodyReqs = routingRequests.map { rReq =>
       routeHistory.getRoute(
@@ -1364,13 +1364,15 @@ class RideHailManager(
     tick: Int,
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
-    log.debug(
-      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferSize: {}",
-      requestId,
-      s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
-      numPendingRoutingRequestsForReservations,
-      rideHailResourceAllocationManager.getBufferSize
-    )
+    if (log.isDebugEnabled) {
+      log.debug(
+        "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferSize: {}",
+        requestId,
+        s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
+        numPendingRoutingRequestsForReservations,
+        rideHailResourceAllocationManager.getBufferSize
+      )
+    }
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
@@ -1525,7 +1527,7 @@ class RideHailManager(
    */
   private def findAllocationsAndProcess(tick: Int): Unit = {
     val s = System.currentTimeMillis()
-    var allRoutesRequired: List[RoutingRequest] = List()
+    var allRoutesRequired: Vector[RoutingRequest] = Vector()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
@@ -1695,10 +1697,12 @@ class RideHailManager(
   }
 
   def continueRepositioning(tick: Int): Unit = {
+    val idleVehicles: mutable.Map[Id[Vehicle], RideHailAgentLocation] =
+      vehicleManager.getIdleVehiclesAndFilterOutExluded
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
       rideHailResourceAllocationManager
-        .findDepotsForVehiclesInNeedOfRefueling()
+        .findDepotsForVehiclesInNeedOfRefueling(idleVehicles)
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
         .filter {
           case (vehId, parkingStall) =>
@@ -1723,7 +1727,7 @@ class RideHailManager(
     }
 
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick)
+      rideHailResourceAllocationManager.repositionVehicles(idleVehicles, tick)
 
     val insideGeofence = nonRefuelingRepositionVehicles.filter {
       case (vehicleId, destLoc) =>

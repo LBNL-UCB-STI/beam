@@ -79,6 +79,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         )
       )
       .withValue(
+        "beam.agentsim.lastIteration",
+        ConfigValueFactory.fromAnyRef(iterations)
+      )
+      .withValue(
         "matsim.modules.controler.lastIteration",
         ConfigValueFactory.fromAnyRef(iterations)
       )
