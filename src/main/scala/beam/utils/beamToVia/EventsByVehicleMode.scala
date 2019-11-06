@@ -1,6 +1,6 @@
 package beam.utils.beamToVia
 
-import beam.utils.beamToVia.IO.{BeamEventsReader, EventsReader, Writer}
+import beam.utils.beamToVia.IO.{BeamEventsReader, Reader, Writer}
 import beam.utils.beamToVia.apps.{LinkCoordinate, Point}
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter}
@@ -10,10 +10,10 @@ import scala.collection.mutable
 
 object EventsByVehicleMode extends App {
 
-  // gradle execute -PmainClass=beam.utils.beamToVia.apps.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
-  val exampleInputArgs = Seq(
+  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
+  val example1InputArgs = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
-    "D:/Work/BEAM/history/visualizations/v35.it3.events.csv",
+    "D:/Work/BEAM/history/visualizations/v33.0.events.csv",
     // output file path
     "D:/Work/BEAM/_tmp/output.via.xml",
     // list of vehicle modes, case insensitive
@@ -25,29 +25,50 @@ object EventsByVehicleMode extends App {
     // san francisco, approximately: x:548966 y:4179000 r:5000
     "548966",
     "4179000",
-    "1000"
+    "50000"
   )
 
-  val inputArgs = exampleInputArgs // args
+  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
+  val example2InputArgs = Seq(
+    // Events file path may be in csv or xml format. Does not work with archives.
+    "D:/Work/BEAM/history/visualizations/v33.0.events.csv", //v35.it3.events.csv", //
+    // output file path
+    "D:/Work/BEAM/_tmp/output.via.xml",
+    // list of vehicle modes, case insensitive
+    "car,bus",
+    // 1 means 100%
+    "1"
+  )
+
+  val inputArgs = args // example2InputArgs
 
   if (inputArgs.length == 4) {
-    val eventsFile = inputArgs(0)
+    val eventsFile = inputArgs.head
     val outputFile = inputArgs(1)
     val selectedModes = inputArgs(2).split(',').toSeq
     val sampling = inputArgs(3).toDouble
+
+    Console.println(s"going to transform BEAM events from $eventsFile and write them into $outputFile")
+    Console.println(s"selected modes are: ${selectedModes.mkString(",")} and samling is: $sampling")
 
     val filter = MutableVehiclesFilter.withListOfVehicleModes(selectedModes, sampling)
     buildViaFile(eventsFile, outputFile, filter)
   } else if (inputArgs.length == 8) {
-    val eventsFile = inputArgs(0)
+    val eventsFile = inputArgs.head
     val outputFile = inputArgs(1)
     val selectedModes = inputArgs(2).split(',').toSeq
     val sampling = inputArgs(3).toDouble
+
+    Console.println(s"going to transform BEAM events from $eventsFile and write them into $outputFile")
+    Console.println(s"selected modes are: ${selectedModes.mkString(",")} and samling is: $sampling")
 
     val networkPath = inputArgs(4)
     val circleX = inputArgs(5).toInt
     val circleY = inputArgs(6).toInt
     val circleR = inputArgs(7).toInt
+
+    Console.println(s"also will be used only cars that moved through circle (X:$circleX Y:$circleY R:$circleR)")
+    Console.println(s"coordinates of network will be read from $networkPath")
 
     val filter: MutableSamplingFilter = getFilterWithCircleSampling(
       selectedModes,
@@ -61,20 +82,22 @@ object EventsByVehicleMode extends App {
 
     buildViaFile(eventsFile, outputFile, filter)
   } else {
-    Console.print("wrong args");
-    Console.print("usage:");
-    Console.print("simple sampling args: beamEventsFile outputFile selectedModes sampling");
-    Console.print("with circle sampling args: beamEventsFile outputFile selectedModes sampling networkFile X Y R");
+    Console.print("wrong args")
+    Console.print("usage:")
+    Console.print("simple sampling args: beamEventsFile outputFile selectedModes sampling")
+    Console.print("with circle sampling args: beamEventsFile outputFile selectedModes sampling networkFile X Y R")
   }
 
   def buildViaFile(eventsFile: String, outputFile: String, filter: MutableSamplingFilter): Unit = {
+    Console.println(s"reading events with vehicles sampling ...")
+
     def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
     def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
 
-    val (vehiclesEvents, _) = EventsReader.readWithFilter(eventsFile, filter)
-    val (events, typeToId) = EventsReader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
+    val (vehiclesEvents, _) = Reader.readWithFilter(eventsFile, filter)
+    val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
-    Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, outputFile)
+    Writer.writeViaEventsQueue[ViaEvent](events, _.toXmlString, outputFile)
     Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
   }
 
@@ -122,6 +145,8 @@ object EventsByVehicleMode extends App {
       }
     }
 
+    Console.println(s"looking for vehicles which move through circle (X:$circleX Y:$circleY R:$circleR) ...")
+
     val vehiclesInCircle = BeamEventsReader
       .fromFileFoldLeft[CircleAccumulator](eventsPath, new CircleAccumulator(), (acc, event) => {
         acc.process(event)
@@ -130,7 +155,7 @@ object EventsByVehicleMode extends App {
       .getOrElse(new CircleAccumulator())
       .interestingVehicles
 
-    Console.println("sampled " + vehiclesInCircle.size + " vehicles moved through selected circle")
+    Console.println(s"found ${vehiclesInCircle.size} vehicles moved through the circle")
 
     MutableVehiclesFilter.withListOfVehicleModesAndSelectedIds(vehiclesInCircle, vehicleModes, sampling)
   }

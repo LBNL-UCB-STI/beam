@@ -12,6 +12,12 @@ object ViaTraverseLinkEvent{
 case class ViaTraverseLinkEvent(var time: Double, vehicle: String, eventType: ViaTraverseLinkEventType, link: Int)
     extends ViaEvent {
 
+  def toXmlString: String =
+    eventType match {
+      case EnteredLink => s"""<event time=$timeString type="entered link" vehicle=$vehicle link=${link.toString} />"""
+      case LeftLink    => s"""<event time=$timeString type="left link" vehicle=$vehicle link=${link.toString} />"""
+    }
+
   def toXml: scala.xml.Elem =
     eventType match {
       case EnteredLink => <event time={timeString} type="entered link" vehicle={vehicle} link={link.toString} />

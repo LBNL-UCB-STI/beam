@@ -1,6 +1,6 @@
 package beam.utils.beamToVia.appsForVisualizations
 
-import beam.utils.beamToVia.IO.{EventsReader, Writer}
+import beam.utils.beamToVia.IO.{Reader, Writer}
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutableVehiclesFilter, VehicleTrip}
 import beam.utils.beamToVia.viaEvent.ViaEvent
@@ -30,7 +30,7 @@ object visualization_35 extends App {
   }
 
   val eventsWithAlternatives = {
-    val (vehiclesEvents, _) = EventsReader.readWithFilter(beamEventsFilePath, MutableVehiclesFilter(Selector))
+    val (vehiclesEvents, _) = Reader.readWithFilter(beamEventsFilePath, MutableVehiclesFilter(Selector))
 
     def alternativePathToVehiclesTrips(path: Seq[BeamPathTraversal], idPrefix: String): Iterable[VehicleTrip] = {
       val trips = mutable.Map.empty[String, VehicleTrip]
@@ -72,7 +72,7 @@ object visualization_35 extends App {
   def vehicleType(pte: BeamPathTraversal): String = pte.mode + "_P%03d".format(pte.numberOfPassengers)
   def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
 
-  val (events, typeToId) = EventsReader.transformPathTraversals(eventsWithAlternatives, vehicleId, vehicleType)
+  val (events, typeToId) = Reader.transformPathTraversals(eventsWithAlternatives, vehicleId, vehicleType)
 
   Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
   Writer.writeViaIdFile(typeToId, viaIdFile)

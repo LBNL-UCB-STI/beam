@@ -1,6 +1,6 @@
 package beam.utils.beamToVia.appsForVisualizations
 
-import beam.utils.beamToVia.IO.{EventsReader, HashSetReader, Writer}
+import beam.utils.beamToVia.IO.{Reader, HashSetReader, Writer}
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
 import beam.utils.beamToVia.viaEvent.ViaEvent
@@ -23,10 +23,10 @@ object visualization_12  extends App {
 
   val filter: MutableSamplingFilter = MutablePopulationFilter(Seq(PopulationSample(0.3, personsInCircle.contains)))
 
-  val (vehiclesEvents, personsEvents) = EventsReader.readWithFilter(beamEventsFilePath, filter)
+  val (vehiclesEvents, personsEvents) = Reader.readWithFilter(beamEventsFilePath, filter)
 
   val events = mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time))
-  val (activities, activityToCnt) = EventsReader.transformActivities(personsEvents)
+  val (activities, activityToCnt) = Reader.transformActivities(personsEvents)
   activities.foreach(events.enqueue(_))
 
   Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)

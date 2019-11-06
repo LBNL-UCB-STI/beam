@@ -15,16 +15,21 @@ object Writer {
   }
 
   def writeViaEventsQueue[T](queue: mutable.PriorityQueue[T], transform: T => String, outputPath: String): Unit = {
-    Console.println("started writing via events")
+    val eventsCount = queue.size
+    Console.println(s"started writing $eventsCount events ...")
+    val progress = new ConsoleProgress("evenst written", eventsCount, 5)
 
     val pw = new PrintWriter(new File(outputPath))
     pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
     while (queue.nonEmpty) {
+      progress.step()
       val entry = queue.dequeue()
       pw.println(transform(entry))
     }
     pw.println("</events>")
     pw.close()
+
+    progress.finish()
 
     Console.println("via events written into " + outputPath)
   }

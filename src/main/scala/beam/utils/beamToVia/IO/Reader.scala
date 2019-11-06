@@ -6,7 +6,7 @@ import beam.utils.beamToVia.viaEvent._
 
 import scala.collection.mutable
 
-object EventsReader {
+object Reader {
 
   def readWithFilter(
     eventsPath: String,
@@ -47,20 +47,31 @@ object EventsReader {
     val personsTrips = beamEventsFilter.personsTrips
     val personsEvents = beamEventsFilter.personsEvents
 
+    Console.println("fixing overlapped events ...")
+    val progress = new ConsoleProgress("events fixed", vehiclesTrips.size + personsTrips.size, 34)
+
     if (vehiclesTrips.nonEmpty)
-      vehiclesTrips.foreach {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
-        case _                          =>
-      }
+      vehiclesTrips.foreach(trip => {
+        progress.step()
+        trip match {
+          case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+          case _                          =>
+        }
+      })
 
     if (personsTrips.nonEmpty)
-      personsTrips.foreach {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
-        case _                          =>
-      }
+      personsTrips.foreach(trip => {
+        progress.step()
+        trip match {
+          case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+          case _                          =>
+        }
+      })
 
-    Console.println(vehiclesTrips.size + " vehicle selected")
-    Console.println(personsEvents.size + " persons selected")
+    progress.finish()
+
+    Console.println(vehiclesTrips.size + " vehicle trips collected")
+    Console.println(personsEvents.size + " persons trips collected")
 
     (vehiclesTrips, personsEvents)
   }
@@ -210,11 +221,17 @@ object EventsReader {
       }
     }
 
+    Console.println(s"transforming ${vehiclesTrips.size} trips into MATSIM format ...")
+    val progress = new ConsoleProgress("trips transformed", vehiclesTrips.size, 17)
+
     val viaEventsCollector =
       vehiclesTrips.foldLeft(ViaEventsCollector(vehicleId, vehicleType))((acc, trip) => {
+        progress.step()
         acc.collectVehicleTrip(trip.trip)
         acc
       })
+
+    progress.finish()
 
     Console.println(viaEventsCollector.events.size + " via events with vehicles trips")
     Console.println(viaEventsCollector.vehicleTypeToId.size + " vehicle types")

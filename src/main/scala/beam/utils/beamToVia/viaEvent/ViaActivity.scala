@@ -24,11 +24,19 @@ case class ViaActivity(
   actionName: String
 ) extends ViaEvent {
 
+  def toXmlString: String =
+    eventType match {
+      case ActionStart =>
+          s"""<event time=$timeString type="actstart" person=$person link=${link.toString} actType=$actionName />"""
+      case ActionEnd =>
+          s"""<event time=$timeString type="actend" person=$person link=${link.toString} actType=$actionName />"""
+    }
+
   def toXml: scala.xml.Elem =
     eventType match {
       case ActionStart =>
-        <event time={timeString} type="actstart" person={person} link={link.toString} actType={actionName} />
+          <event time={timeString} type="actstart" person={person} link={link.toString} actType={actionName} />
       case ActionEnd =>
-        <event time={timeString} type="actend" person={person} link={link.toString} actType={actionName} />
+          <event time={timeString} type="actend" person={person} link={link.toString} actType={actionName} />
     }
 }
