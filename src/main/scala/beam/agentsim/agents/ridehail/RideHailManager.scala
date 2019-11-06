@@ -1724,6 +1724,9 @@ class RideHailManager(
     vehiclesHeadedToRefuelingDepot.foreach {
       case (vehicleId, _) =>
         doNotUseInAllocation.add(vehicleId)
+        // We have to remove this vehicle from `idleVehicles` before passing it to `rideHailResourceAllocationManager.repositionVehicles`
+        // Too much side-effects, sorry :(
+        idleVehicles.remove(vehicleId)
     }
 
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
