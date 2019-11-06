@@ -15,8 +15,8 @@ buildscript {
     }
 }
 
-group 'beam'
-version '0.5.0-SNAPSHOT'
+group = 'beam'
+version = '0.8.0'
 
 apply plugin: "base"
 apply plugin: "jp.classmethod.aws.lambda"
@@ -32,23 +32,39 @@ lambda {
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        def propsFileName = "../gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            } else {
+                return propsFile.getProperty(paramName)
+            }
+        }
+
+        if (!ext.getParameterValue('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
-        switch (project.findProperty('deployMode')) {
+        switch (ext.getParameterValue('deployMode')) {
             case 'config':
-                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                if (!ext.getParameterValue('beamConfigs') && !ext.getParameterValue(getCurrentGitBranch() + '.configs')) {
                     throw new GradleException('beamConfigs is required to deploy config run.')
                 }
                 break
             case 'experiment':
-                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                if (!ext.getParameterValue('beamExperiments') && !ext.getParameterValue(getCurrentGitBranch() + '.experiments')) {
                     throw new GradleException('beamExperiments is required to deploy experement.')
                 }
                 break
             case 'execute':
-                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                if (!ext.getParameterValue('executeClass') || !ext.getParameterValue('executeArgs')) {
                     throw new GradleException('executeClass and executeArgs are required to deploy execute.')
                 }
                 break
@@ -56,73 +72,138 @@ task deploy(type: AWSLambdaInvokeTask) {
                 throw new GradleException('Please provide a valid deployMode.')
                 break
         }
-    }
 
-    def pload = """{
-  "title": "${project.findProperty('runName')}",
-  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "${beamCommit ?: 'HEAD'}",
-  "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
-  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
-  "execute_class": "${project.findProperty('executeClass')}",
-  "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '2g'}",
-  "batch": "$beamBatch",
-  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
-  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-  "region": "$region",
-  "shutdown_wait": "$shutdownWait",
-  "shutdown_behaviour": "$shutdownBehaviour",
+        def pload = """{
+  "title": "${ext.getParameterValue('runName')}",
+  "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+  "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
+  "deploy_mode": "${ext.getParameterValue('deployMode')}",
+  "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${ext.getParameterValue('beamExperiments') ?: ext.getParameterValue(getCurrentGitBranch() + '.experiments')}",
+  "execute_class": "${ext.getParameterValue('executeClass')}",
+  "execute_args": "${ext.getParameterValue('executeArgs')}",
+  "max_ram": "${ext.getParameterValue('maxRAM') ?: '140g'}",
+  "storage_size": ${ext.getParameterValue('storageSize')},
+  "batch": "${ext.getParameterValue('beamBatch')}",
+  "s3_publish": "${ext.getParameterValue('s3Backup') ?: true}",
+  "instance_type": "${ext.getParameterValue('instanceType') ?: defaultInstanceType}",
+  "region": "${ext.getParameterValue('region') ?: defaultRegion}",
+  "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
+  "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
   "command": "deploy"
 }"""
 
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
+        functionName = "simulateBeam"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
+    }
 
     doLast {
-        println pload
+        println payload
         println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
 
-task start(type: AWSLambdaInvokeTask) {
+task deployPilates(type: AWSLambdaInvokeTask) {
     doFirst {
-        checkInstanceId()
+        def propsFileName = "../gradle.deployPILATES.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            } else {
+                return propsFile.getProperty(paramName)
+            }
+        }
+
+        def defaultParamVals = [:]
+        def defRegion = ext.getParameterValue('region') ?: defaultRegion
+        defaultParamVals['region'] = defRegion
+        defaultParamVals['dataRegion'] = defRegion
+        defaultParamVals['beamBranch'] = getCurrentGitBranch()
+
+        def paramMap = [:]
+        def missing = []
+
+        // all possible parameters
+        ['runName', 'pilatesScenarioName',
+         'beamBranch', 'beamCommit',
+         'beamConfig',
+         'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
+         'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
+         'pilatesImageVersion', 'pilatesImageName',
+         's3OutputBucket', 's3OutputBasePath',
+         'inYearOutput', 'maxRAM',
+         'storageSize', 'instanceType', 'dataRegion', 'region',
+         'shutdownWait', 'shutdownBehaviour'].each {
+            def pval = ext.getParameterValue(it)
+            if (pval) {
+                paramMap[it] = pval
+            } else if (defaultParamVals.containsKey(it)) {
+                paramMap[it] = defaultParamVals[it]
+            } else {
+                missing += it
+            }
+        }
+
+        println("parameters wasn't specified: " + missing.join(', '))
+
+        // create a string with json object which contains all parameters
+        def pload = "{\n" + paramMap.collect { key, val -> "   \"$key\": \"$val\"" }.join(",\n") + "\n}"
+
+        functionName = "runPilates"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
     }
 
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("start")
+    doLast {
+        println payload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task startEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        checkInstanceId()
+
+        functionName = "ec2StartStop"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("start")
+    }
 
     doLast {
         printResult(payload, invokeResult)
     }
 }
 
-task stop(type: AWSLambdaInvokeTask) {
+task stopEC2(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
-    }
 
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("stop")
+        functionName = "ec2StartStop"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("stop")
+    }
 
     doLast {
         printResult(payload, invokeResult)
     }
 }
 
-task terminate(type: AWSLambdaInvokeTask) {
+task terminateEC2(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
-    }
 
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = buildPayload("terminate")
+        functionName = "simulateBeam"
+        invocationType = InvocationType.RequestResponse
+        payload = buildPayload("terminate")
+    }
 
     doLast {
         printResult(payload, invokeResult)
@@ -139,7 +220,7 @@ def buildPayload(command) {
     println "command:"+command
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
+  "region": "${project.findProperty('region') ?: defaultRegion}",
   "command": "$command"
 }"""
 }
@@ -158,7 +239,7 @@ def getCurrentGitBranch() {
         if (result.exitValue() == 0) {
             gitBranch = result.text.trim()
         }
-    } catch (e) {
+    } catch (ignored) {
     }
     return gitBranch
 }

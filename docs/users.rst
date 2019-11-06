@@ -91,6 +91,7 @@ Clone the beam repository::
 Change directories into that repository::
 
    cd beam
+
 Fetch the remote branches and tags::
 
     git fetch
@@ -413,11 +414,9 @@ has the same general structure as the one used to specify tuning hyperparameters
 
 The major exceptions are the following:
 
-* Factors may have only a single numeric parameter, which may (at the moment) only take two levels (High and Low).
-These act as bounds on the values that SigOpt will try for a particular decision variable.
+* Factors may have only a single numeric parameter, which may (at the moment) only take two levels (High and Low). These act as bounds on the values that SigOpt will try for a particular decision variable.
 
-* The level of parallelism is controlled by a new parameter in the header called `numberOfWorkers`. Setting its value
-above 1 permits running calibrations in parallel in response to multiple concurrent open `Suggestions`.
+* The level of parallelism is controlled by a new parameter in the header called `numberOfWorkers`. Setting its value above 1 permits running calibrations in parallel in response to multiple concurrent open `Suggestions`.
 
 Create Experiment
 ~~~~~~~~~~~~~~~~~
@@ -454,8 +453,7 @@ following arguments:
 
 --num_iters     Number of SigOpt iterations to be conducted (in series).
 
---experiment_id     If an `experimentID` has already been defined, add it here to continue an experiment or put
-"None" to start a new experiment.
+--experiment_id     If an `experimentID` has already been defined, add it here to continue an experiment or put "None" to start a new experiment.
 
 --run_type      Can be local or remote
 
