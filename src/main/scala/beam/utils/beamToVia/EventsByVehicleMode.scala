@@ -11,7 +11,7 @@ import scala.collection.mutable
 object EventsByVehicleMode extends App {
 
   // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
-  val example1InputArgs = Seq(
+  val inputArgs1 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
     "D:/Work/BEAM/history/visualizations/v33.0.events.csv",
     // output file path
@@ -29,7 +29,7 @@ object EventsByVehicleMode extends App {
   )
 
   // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
-  val example2InputArgs = Seq(
+  val nputArgs2 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
     "D:/Work/BEAM/history/visualizations/v33.0.events.csv", //v35.it3.events.csv", //
     // output file path
@@ -40,7 +40,7 @@ object EventsByVehicleMode extends App {
     "1"
   )
 
-  val inputArgs = args // example2InputArgs
+  val inputArgs = args // inputArgs2
 
   if (inputArgs.length == 4) {
     val eventsFile = inputArgs.head
