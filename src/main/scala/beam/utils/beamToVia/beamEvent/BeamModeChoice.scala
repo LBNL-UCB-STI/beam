@@ -4,7 +4,6 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.xml.Elem
 
 object BeamModeChoice {
   val EVENT_TYPE: String = "ModeChoice"
@@ -18,11 +17,11 @@ object BeamModeChoice {
 
     val time = genericEvent.getTime
     val personId: String = attr(ATTRIBUTE_PERSON_ID)
-    val linkId:Int = attr(ATTRIBUTE_LINK_ID).toInt
+    val linkId: Int = attr(ATTRIBUTE_LINK_ID).toInt
     val mode = attr(ATTRIBUTE_MODE)
 
     new BeamModeChoice(time, personId, linkId, mode)
   }
 }
 
-case class BeamModeChoice(time: Double, personId: String, linkId:Int, mode:String) extends BeamEvent
+case class BeamModeChoice(time: Double, personId: String, linkId: Int, mode: String) extends BeamEvent

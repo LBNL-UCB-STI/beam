@@ -1,13 +1,12 @@
 package beam.utils.beamToVia.appsForVisualizations
 
-import beam.utils.beamToVia.IO.{Reader, HashSetReader, Writer}
-import beam.utils.beamToVia.beamEvent.BeamPathTraversal
+import beam.utils.beamToVia.IO.{HashSetReader, Reader, Writer}
 import beam.utils.beamToVia.beamEventsFilter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
 import beam.utils.beamToVia.viaEvent.ViaEvent
 
 import scala.collection.mutable
 
-object visualization_12  extends App {
+object visualization_12 extends App {
   val personsInCircleFilePath = "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.persons.txt"
   val personsInCircle = HashSetReader.fromFile(personsInCircleFilePath)
 

@@ -1,6 +1,6 @@
 package beam.utils.beamToVia.beamEventsFilter
 
-import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonLeavesVehicle}
+import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
 
 import scala.collection.mutable
 

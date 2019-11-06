@@ -1,7 +1,6 @@
 package beam.utils.beamToVia.appsForVisualizations
 
-import beam.utils.beamToVia.IO.{Reader, HashSetReader, Writer}
-import beam.utils.beamToVia._
+import beam.utils.beamToVia.IO.{HashSetReader, Reader, Writer}
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter, VehicleSample}
 import beam.utils.beamToVia.viaEvent.ViaEvent

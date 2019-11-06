@@ -10,7 +10,7 @@ object BeamEventsReader {
     val fileLength = src.getLines.size
     src.close()
 
-    new ConsoleProgress ("events from file analyzed", fileLength, 17)
+    new ConsoleProgress("events from file analyzed", fileLength, 17)
   }
 
   def fromFileFoldLeft[T](filePath: String, accumulator: T, foldLeft: (T, BeamEvent) => T): Option[T] = {

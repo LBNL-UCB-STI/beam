@@ -1,12 +1,12 @@
 package beam.utils.beamToVia.appsForVisualizations
 
 import beam.utils.beamToVia.IO.{Reader, Writer}
+import beam.utils.beamToVia.appsForVisualizations.{visualization_35_person1_alternatives => person1}
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutableVehiclesFilter, VehicleTrip}
 import beam.utils.beamToVia.viaEvent.ViaEvent
 
 import scala.collection.mutable
-import beam.utils.beamToVia.appsForVisualizations.{visualization_35_person1_alternatives => person1}
 
 object visualization_35 extends App {
   val dirPath = "D:/Work/BEAM/visualizations/vis35/"

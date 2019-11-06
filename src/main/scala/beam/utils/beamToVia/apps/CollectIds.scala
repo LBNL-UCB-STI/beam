@@ -11,7 +11,7 @@ object CollectIds extends App {
 
   val dirPath = "D:/Work/BEAM/visualizations/"
   val sourcePath = dirPath + sourceFileName
-  val outputPath =  dirPath + "collectedIds/" + sourceFileName
+  val outputPath = dirPath + "collectedIds/" + sourceFileName
 
   val vehiclesInCircle = HashSetReader.fromFile(dirPath + "v34.it30.events.third.csv.in_SF.vehicles.txt")
 

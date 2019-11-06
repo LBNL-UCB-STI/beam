@@ -1,10 +1,9 @@
 package beam.utils.beamToVia.appsForVisualizations
 
-import beam.utils.beamToVia.IO.{Reader}
+import beam.utils.beamToVia.IO.{HashSetReader, Reader, Writer}
 import beam.utils.beamToVia.beamEvent.BeamPathTraversal
 import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter, VehicleSample}
 import beam.utils.beamToVia.viaEvent.ViaEvent
-import beam.utils.beamToVia.IO.{HashSetReader, Writer}
 
 import scala.collection.mutable
 
@@ -22,6 +21,7 @@ object BeamEventsToPhysSim extends App {
   val vehiclesInCircle = HashSetReader.fromFile(vehiclesInCircleFilePath)
 
   val sampleSize = 1
+
   val filter: MutableSamplingFilter = MutableVehiclesFilter.withListOfIncludeAndNecessary(
     vehiclesInCircle,
     necessaryVehicles,

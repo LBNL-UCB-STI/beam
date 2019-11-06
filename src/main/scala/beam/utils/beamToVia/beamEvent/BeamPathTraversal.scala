@@ -1,12 +1,11 @@
 package beam.utils.beamToVia.beamEvent
 
 import beam.router.Modes.BeamMode
-import beam.utils.beamToVia.viaEvent.{EnteredLink, LeftLink, ViaEvent, ViaTraverseLinkEvent}
+import beam.utils.beamToVia.viaEvent.ViaTraverseLinkEvent
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.xml.Elem
 
 object BeamPathTraversal {
   val EVENT_TYPE: String = "PathTraversal"

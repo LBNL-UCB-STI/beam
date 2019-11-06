@@ -1,14 +1,6 @@
 package beam.utils.beamToVia.beamEventsFilter
 
-import beam.utils.beamToVia.beamEvent.{
-  BeamActivityEnd,
-  BeamActivityStart,
-  BeamEvent,
-  BeamModeChoice,
-  BeamPathTraversal,
-  BeamPersonEntersVehicle,
-  BeamPersonLeavesVehicle
-}
+import beam.utils.beamToVia.beamEvent._
 
 import scala.collection.mutable
 

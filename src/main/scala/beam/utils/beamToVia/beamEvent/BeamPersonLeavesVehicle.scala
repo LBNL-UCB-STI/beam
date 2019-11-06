@@ -4,7 +4,6 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.xml.Elem
 
 object BeamPersonLeavesVehicle {
   val EVENT_TYPE: String = "PersonLeavesVehicle"

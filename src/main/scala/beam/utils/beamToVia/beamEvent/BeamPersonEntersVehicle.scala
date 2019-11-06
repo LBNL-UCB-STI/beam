@@ -4,7 +4,6 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.xml.Elem
 
 object BeamPersonEntersVehicle {
   val EVENT_TYPE: String = "PersonEntersVehicle"
@@ -26,4 +25,4 @@ object BeamPersonEntersVehicle {
   }
 }
 
-case class BeamPersonEntersVehicle(time:Double, personId: String, vehicleId: String) extends BeamEvent
+case class BeamPersonEntersVehicle(time: Double, personId: String, vehicleId: String) extends BeamEvent
