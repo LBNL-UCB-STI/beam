@@ -1,10 +1,13 @@
-package beam.utils.beam_to_matsim.apps
+package beam.utils.beam_to_matsim.utils
 
 import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
 
 import scala.collection.mutable
 
+/*
+a script to collect ids of all vehicles which move through selected circle
+ */
 object FindIdsInCircles extends App {
   val sourceFileName = "40.events.csv"
 
@@ -24,7 +27,7 @@ object FindIdsInCircles extends App {
   }
 
   val sfCircle = Circle(548966, 4179000, 5000)
-  def pointIsInteresting(point: Point): Boolean = true //  point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
+  def pointIsInteresting(point: Point): Boolean = point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
 
   val interestingNodes = nodes
     .foldLeft(mutable.Map.empty[Int, Point]) {

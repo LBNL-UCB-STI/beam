@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.apps
+package beam.utils.beam_to_matsim.utils
 
 import scala.collection.mutable
 import scala.xml.{Elem, Node}

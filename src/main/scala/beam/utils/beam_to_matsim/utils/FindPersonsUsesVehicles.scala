@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.apps
+package beam.utils.beam_to_matsim.utils
 
 import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
@@ -6,6 +6,9 @@ import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
 import scala.collection.mutable
 import scala.io.Source
 
+/*
+a script to find all persons which uses specific vehicles
+ */
 object FindPersonsUsesVehicles extends App {
 
   val personsIds: Iterable[String] = find(
@@ -20,10 +23,6 @@ object FindPersonsUsesVehicles extends App {
     val idsSource = Source fromFile vehiclesIdsFilePath
     idsSource.getLines().foreach(vehicleIds += _)
     idsSource.close()
-
-    val notADriver = (id: String) => {
-      !id.contains("rideHailAgent") && !id.contains("TransitDriverAgent")
-    }
 
     def foldLeftFunc(acc: mutable.HashSet[String], event: BeamEvent): mutable.HashSet[String] = {
       event match {

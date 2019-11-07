@@ -1,6 +1,6 @@
 package beam.utils.beam_to_matsim
 
-import beam.utils.beam_to_matsim.apps.{LinkCoordinate, Point}
+import beam.utils.beam_to_matsim.utils.{LinkCoordinate, Point}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.mutable

@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.apps
+package beam.utils.beam_to_matsim.utils
 
 import java.io.{File, PrintWriter}
 
@@ -8,6 +8,10 @@ import scala.collection.mutable
 import scala.io.Source
 import scala.language.postfixOps
 import scala.xml.{Node, XML}
+
+/*
+a script to merge two files from EventsByVehicleMode script output to get one file containings all events
+ */
 
 object ZipViaEventsFiles extends App {
   /*zipEventsFilesInMemory(
