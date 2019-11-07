@@ -1,7 +1,5 @@
 package beam.utils.beam_to_matsim.apps
 
-import beam.utils.beam.to.matsim.beamEvent.BeamPathTraversal
-import beam.utils.beam.to.matsim.io.BeamEventsReader
 import beam.utils.beam_to_matsim.io.{BeamEventsReader, HashSetReader, Writer}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
 

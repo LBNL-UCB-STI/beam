@@ -1,7 +1,6 @@
 package beam.utils.beam_to_matsim.io
 
 import beam.utils.EventReader
-import beam.utils.beam.to.matsim.beamEvent.BeamEvent
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamEventReader}
 
 object BeamEventsReader {

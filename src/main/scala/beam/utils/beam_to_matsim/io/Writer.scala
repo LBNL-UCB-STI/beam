@@ -78,7 +78,7 @@ object Writer {
 
   def writeViaModes(modeToCount: mutable.Map[String, Int], outputPath: String): Unit = {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
-      modeToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw2.println)
+      modeToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw.println)
     }
 
     Console.println("via modes written into " + outputPath)
@@ -86,7 +86,7 @@ object Writer {
 
   def writeViaActivities(activityToCount: mutable.Map[String, Int], outputPath: String): Unit = {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
-      activityToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw2.println)
+      activityToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw.println)
     }
 
     Console.println("via activities written into " + outputPath)

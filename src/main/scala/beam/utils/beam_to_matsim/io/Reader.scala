@@ -1,8 +1,5 @@
 package beam.utils.beam_to_matsim.io
 
-import beam.utils.beam.to.matsim.beamEvent.BeamPathTraversal
-import beam.utils.beam.to.matsim.beamEventsFilter.MutableSamplingFilter
-import beam.utils.beam.to.matsim.viaEvent.ViaTraverseLinkEvent
 import beam.utils.beam_to_matsim.events.{BeamActivityEnd, BeamActivityStart, BeamModeChoice, BeamPathTraversal}
 import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
 import beam.utils.beam_to_matsim.via_event._

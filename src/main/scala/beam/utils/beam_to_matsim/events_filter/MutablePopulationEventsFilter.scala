@@ -1,6 +1,5 @@
 package beam.utils.beam_to_matsim.events_filter
 
-import beam.utils.beam.to.matsim.beamEvent.BeamEvent
 import beam.utils.beam_to_matsim.events.{BeamActivityEnd, BeamActivityStart, BeamEvent, BeamModeChoice}
 
 import scala.collection.mutable

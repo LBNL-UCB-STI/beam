@@ -1,9 +1,5 @@
 package beam.utils.beam_to_matsim
 
-import beam.utils.beam.to.matsim.apps.{LinkCoordinate, Point}
-import beam.utils.beam.to.matsim.beamEvent.{BeamEvent, BeamPathTraversal}
-import beam.utils.beam.to.matsim.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter}
-import beam.utils.beam.to.matsim.io.{BeamEventsReader, Reader, Writer}
 import beam.utils.beam_to_matsim.io.{BeamEventsReader, Reader, Writer}
 import beam.utils.beam_to_matsim.apps.{LinkCoordinate, Point}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
