@@ -3,6 +3,7 @@ package beam.agentsim.agents.ridehail.allocation
 import java.io.{File, FileWriter}
 
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
@@ -192,7 +193,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   // Map from tick to the pair of vehicleId (who to reposition) and location (where).
   var tickToLocation: Map[Int, Vector[(Id[Vehicle], Location)]] = Map.empty
 
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    tick: Int
+  ): Vector[(Id[Vehicle], Location)] = {
 
 //    VehicleShouldRefuel(Id,Option[RefuelingLocation]) // None -> signal the human to refuel
 
@@ -204,7 +208,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     algorithm match {
       case 8 =>
-        algo8.repositionVehicles(tick)
+        algo8.repositionVehicles(Map.empty, tick)
       // TODO: destinations of idle vehicles selected for repositioning should be uniformally distributed in activity space
 
       // This should perform the same as DEFAULT_MANAGER!!!
@@ -286,7 +290,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             )
           }
         if (nonRepositioningIdleVehicles.size >= 2) {
-          val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
+          val activitiesCoordinates = activitySegment.getActivities(tick + 20 * 60, tick + 3600).map(_.getCoord)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
             val vehicleId = vehIdAndLoc.vehicleId
             val location = vehIdAndLoc.currentLocationUTM
@@ -339,7 +343,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             )
           }
         if (nonRepositioningIdleVehicles.size >= 2) {
-          val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60, tick + 3600)
+          val activitiesCoordinates = activitySegment.getActivities(tick + 20 * 60, tick + 3600).map(_.getCoord)
           val vehiclesToReposition = nonRepositioningIdleVehicles.par.flatMap { vehIdAndLoc =>
             val vehicleId = vehIdAndLoc.vehicleId
             val location = vehIdAndLoc.currentLocationUTM
@@ -488,7 +492,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             val map = (0 to lastTickWithRepos by step).map {
               case t =>
                 val activities: Vector[Location] = rand
-                  .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+                  .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
+                  .map(_.getCoord)
                   .take(numberOfRepos)
                   .toVector
                 // Use `lift` to be in safe
@@ -523,7 +528,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         vehicleAllowedToReposition --= toReposition
 
         val activities: Vector[Location] = rand
-          .shuffle(activitySegment.getCoords(tick + 20 * 60, tick + 3600))
+          .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
+          .map(_.getCoord)
           .take(repositionPerTick.toInt)
           .toVector
 

@@ -177,8 +177,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     solutionSpaceSizePerVehicle: Int
   ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
-    val Rok = MListBuffer.empty[CustomerRequest]
-    val Vok = MListBuffer.empty[VehicleAndSchedule]
+    val Rok = collection.mutable.HashSet.empty[CustomerRequest]
+    val Vok = collection.mutable.HashSet.empty[VehicleAndSchedule]
     val greedyAssignmentList = MListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
     for (k <- maximumVehCapacity to 1 by -1) {
       rTvG
@@ -203,8 +203,8 @@ object AlonsoMoraPoolingAlgForRideHail {
         .sortBy(_._3)
         .foreach {
           case (trip, vehicle, cost) if !(Vok contains vehicle) && !(trip.requests exists (r => Rok contains r)) =>
-            Rok.appendAll(trip.requests)
-            Vok.append(vehicle)
+            trip.requests.foreach(Rok.add)
+            Vok.add(vehicle)
             greedyAssignmentList.append((trip, vehicle, cost))
           case _ =>
         }

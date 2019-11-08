@@ -14,13 +14,12 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
   "Beam WarmStart" must {
     "run sf-light scenario for two iteration with warmstart" in {
 
-      val homeDirectory = new java.io.File(".").getCanonicalPath
       val baseConf = ConfigFactory
         .parseString(s"""
                        |beam.agentsim.lastIteration = 1
                        |beam.warmStart.enabled = true
                        |beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds = 0
-                       |beam.warmStart.path = $homeDirectory/test/input/sf-light/warmstart
+                       |beam.warmStart.path = test/input/sf-light/warmstart
                      """.stripMargin)
         .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
         .resolve()
