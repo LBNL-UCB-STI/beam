@@ -150,12 +150,12 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
          |beam.outputs.writeSkimsInterval = 1
-         |beam.skimmanager.h3.resolution = 10
-         |beam.skimmanager.h3.lowerBoundResolution = 10
-         |beam.skimmanager.keepTheNLastestSkims = 1
-         |beam.skimmanager.aggregateFunction = "LATEST_SKIM"
-         |beam.skimmanager.skimmer.writeSkimsInterval = 1
-         |beam.skimmanager.skimmer.writeAggregatedSkimsInterval = 1
+         |beam.h3.resolution = 10
+         |beam.h3.lowerBoundResolution = 10
+         |beam.abstractSkimmer.keepKLatestSkims = 1
+         |beam.abstractSkimmer.aggregateFunction = "LATEST_SKIM"
+         |beam.abstractSkimmer.writeSkimsInterval = 1
+         |beam.abstractSkimmer.writeAggregatedSkimsInterval = 1
          |beam.agentsim.agents.vehicles.sharedFleets = [
          | {
          |    name = "fixed-non-reserving-fleet-by-taz"

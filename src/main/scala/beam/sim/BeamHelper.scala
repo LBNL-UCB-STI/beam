@@ -9,7 +9,7 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
@@ -19,7 +19,7 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.skim.SkimManager
+import beam.router.skim.{CountSkimmer, ODSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -169,7 +169,8 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
           addControlerListenerBinding().to(classOf[RouteHistory])
-          addControlerListenerBinding().to(classOf[SkimManager])
+          addControlerListenerBinding().to(classOf[ODSkimmer])
+          addControlerListenerBinding().to(classOf[CountSkimmer])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -244,6 +245,7 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
+    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
@@ -258,8 +260,9 @@ trait BeamHelper extends LazyLogging {
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
       networkCoordinator.network,
-      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath),
-      ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
+      tazMap,
+      ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
+      H3TAZ(networkCoordinator.network, tazMap, beamConfig)
     )
   }
 
@@ -406,12 +409,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 

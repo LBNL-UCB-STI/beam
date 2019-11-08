@@ -1,9 +1,11 @@
 package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, HexIndex}
+import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -14,18 +16,21 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-case class H3TAZ(scenario: Scenario, tazTreeMap: TAZTreeMap, resolution: Int, lowerBoundResolution: Int) {
-  val scenarioEPSG: String = scenario.getConfig.global().getCoordinateSystem
-  val outTransform: GeotoolsTransformation = new GeotoolsTransformation(H3TAZ.H3Projection, scenarioEPSG)
-  val inTransform: GeotoolsTransformation = new GeotoolsTransformation(scenarioEPSG, H3TAZ.H3Projection)
+case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) {
+  private val transformToH3Proj =
+    new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
 
-  val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
-    scenario.getNetwork.getNodes.values().asScala.map(n => inTransform.transform(n.getCoord))
+  private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
+    network.getNodes.values().asScala.map(n => transformToH3Proj.transform(n.getCoord))
   )
-  val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
+  private val resolution = beamConfig.beam.h3.resolution
+  private val lowerBoundResolution = beamConfig.beam.h3.lowerBoundResolution
+  private val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
   fillBox(boundingBox, resolution).foreach { hex =>
     val hexCentroid = H3TAZ.hexToCoord(hex)
-    val hexCentroidBis = outTransform.transform(hexCentroid)
+    val hexCentroidBis =
+      new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
+        .transform(hexCentroid)
     val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
     tazToH3TAZMapping.put(hex, tazId)
   }
@@ -36,7 +41,7 @@ case class H3TAZ(scenario: Scenario, tazTreeMap: TAZTreeMap, resolution: Int, lo
   }
 
   def getHRHex(x: Double, y: Double): HexIndex = {
-    val coord = H3TAZ.toGeoCoord(inTransform.transform(new Coord(x, y)))
+    val coord = H3TAZ.toGeoCoord(transformToH3Proj.transform(new Coord(x, y)))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, resolution)
   }
 
@@ -55,10 +60,10 @@ object H3TAZ {
   private val H3 = com.uber.h3core.H3Core.newInstance
   val H3Projection = "EPSG:4326"
 
-  def breakdownByPopulation(hexMap: H3TAZ, granularity: Int) = {
-    val popPerHexMap = hexMap.scenario.getPopulation.getPersons.asScala
+  def breakdownByPopulation(scenario: Scenario, hexMap: H3TAZ, granularity: Int) = {
+    val popPerHexMap = scenario.getPopulation.getPersons.asScala
       .map(_._2.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord)
-      .map(hexMap.inTransform.transform)
+      .map(hexMap.transformToH3Proj.transform)
       .map(home => H3.geoToH3Address(home.getY, home.getX, hexMap.lowerBoundResolution) -> home)
       .toBuffer
     val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
@@ -80,33 +85,6 @@ object H3TAZ {
     }
     popPerHexList
   }
-
-//  def breakdownByPopulation2(scenario: Scenario, granularity: Int, h3Taz: H3TAZ) = {
-//    val crs = scenario.getConfig.global().getCoordinateSystem
-//    val in: GeotoolsTransformation = new GeotoolsTransformation(crs, H3Projection)
-//    val resolutionMap = mutable.HashMap.empty[Int, mutable.HashMap[HexIndex, Int]]
-//    resolutionMap.put(UBoundResolution, mutable.HashMap.empty)
-//    resolutionMap(UBoundResolution) ++= scenario.getPopulation.getPersons.asScala
-//      .map(_._2.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord)
-//      .map(in.transform)
-//      .map(home => H3.geoToH3Address(home.getY, home.getX, UBoundResolution) -> home)
-//      .groupBy(_._1)
-//      .mapValues(_.size)
-//    (LBoundResolution until UBoundResolution).foreach { res =>
-//      if (resolutionMap(res).isEmpty)
-//        resolutionMap.put(res, mutable.HashMap.empty)
-//
-//    }
-//
-//    val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
-//    val hexIndexList = h3Taz.getAll.toBuffer
-//    var currentResolution = LBoundResolution
-//    while (hexIndexList.nonEmpty && currentResolution < UBoundResolution) {
-//
-//      currentResolution = currentResolution + 1
-//    }
-//    popPerHexList
-//  }
 
   def writeToShp(filename: String, h3Tazs: Iterable[(HexIndex, String, Double)]): Unit = {
     val gf = new GeometryFactory()

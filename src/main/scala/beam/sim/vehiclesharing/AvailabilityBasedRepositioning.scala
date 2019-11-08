@@ -3,7 +3,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
-import beam.router.skim.{ODSkimmer, Skimmer}
+import beam.router.skim.{CountSkimmer, ODSkimmer}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
@@ -27,15 +27,14 @@ case class AvailabilityBasedRepositioning(
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
-      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.dblValue.toInt).getOrElse(0)) {
-        (minV, cur) =>
-          Math.min(minV, cur.dblValue.toInt)
+      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.count.toInt).getOrElse(0)) { (minV, cur) =>
+        Math.min(minV, cur.count.toInt)
       }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
       val inquiryVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.dblValue).sum.toInt
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.count).sum.toInt
       val boardingVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.dblValue).sum.toInt
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.count).sum.toInt
       unboardedVehicleInquiry.put((i, taz.tazId), inquiryVal - boardingVal)
     }
   }
@@ -45,7 +44,7 @@ case class AvailabilityBasedRepositioning(
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
       .map { i =>
-        Skimmer.getLatestSkim(i, idTAZ, vehicleManager, label)
+        CountSkimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager, label)
       }
       .toVector
       .flatten
