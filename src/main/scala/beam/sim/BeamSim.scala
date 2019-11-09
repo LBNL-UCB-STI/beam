@@ -17,6 +17,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
@@ -38,7 +39,12 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.corelisteners.DumpDataAtEnd
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -166,8 +172,8 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
-    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable for the dashboard
-    increment("beam-run", Metrics.ShortLevel)
+    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
+    beamServices.simMetricCollector.increment("beam-run", SimulationTime(0), Metrics.ShortLevel)
 
     FailFast.run(beamServices)
   }
@@ -193,6 +199,8 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+
+    beamServices.simMetricCollector.clear()
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {

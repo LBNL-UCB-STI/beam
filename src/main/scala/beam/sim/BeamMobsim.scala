@@ -18,6 +18,7 @@ import beam.router._
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
@@ -67,7 +68,13 @@ class BeamMobsim @Inject()(
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
-    increment("beam-iteration", Metrics.ShortLevel)
+    // This is needed to get all iterations in Grafana. Take a look to variable `$iteration_num` in the dashboard
+    beamServices.simMetricCollector.count(
+      "beam-iteration",
+      SimulationTime(0),
+      beamServices.matsimServices.getIterationNumber.toLong,
+      Metrics.ShortLevel
+    )
     eventsManager.initProcessing()
 
     val iteration = actorSystem.actorOf(
