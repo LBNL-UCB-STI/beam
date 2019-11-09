@@ -55,7 +55,3 @@ src/main/scala/beam/sandbox
 test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
 .Rproj.user
-metrics2.0/grafana/data/**
-metrics2.0/grafana/log/**
-metrics2.0/influxdb/data/**
-metrics2.0/influxdb/log/**
