@@ -1,12 +1,16 @@
 package beam.sim.metrics
 
-import java.util.concurrent.ConcurrentHashMap
-
 import akka.util.Helpers.toRootLowerCase
 import beam.utils.FileUtils
 import kamon.metric.Timer.Started
+import org.influxdb.{InfluxDB, InfluxDBFactory}
+import org.influxdb.BatchOptions
+
+import java.time.{LocalDate, ZoneId}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 object Metrics {
+
   var level: String = "off"
 
   var runName: String = "beam"
@@ -19,6 +23,7 @@ object Metrics {
   def addTimer(name: String, started: Started): Unit = {
     timers.putIfAbsent(name, started)
   }
+
   def getTimer(name: String): Option[Started] = {
     Option(timers.get(name))
   }

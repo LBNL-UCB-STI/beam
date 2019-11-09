@@ -24,6 +24,7 @@ import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
 import beam.sim.metrics.Metrics._
+import beam.sim.metrics.{InfluxDbSimulationMetricCollector, SimulationMetricCollector}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -214,6 +215,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
+          bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
         }
       }
     )

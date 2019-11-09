@@ -7,6 +7,7 @@ import kamon.tag.TagSet
 import scala.collection.JavaConverters._
 
 trait MetricsSupport {
+
   def countOccurrence(
     name: String,
     times: Long = 1,
@@ -14,7 +15,7 @@ trait MetricsSupport {
     tags: Map[String, String] = Map.empty
   ): Unit = {
     if (isRightLevel(level)) {
-       Kamon.counter(name).withTags(TagSet.from(defaultTags ++ tags)).increment(times)
+      Kamon.counter(name).withTags(TagSet.from(defaultTags ++ tags)).increment(times)
     }
   }
 
@@ -43,15 +44,14 @@ trait MetricsSupport {
       val res = thunk
       Kamon.histogram(name).withTags(TagSet.from(defaultTags)).record(System.currentTimeMillis() - start)
       res
-    }
-    else thunk
+    } else thunk
   }
 
   def record(
-              name: String,
-              level: MetricLevel,
-              msTime: Long,
-              tags: Map[String, String] = Map.empty
+    name: String,
+    level: MetricLevel,
+    msTime: Long,
+    tags: Map[String, String] = Map.empty
   ): Unit = {
     if (isRightLevel(level)) {
       Kamon.histogram(name).withTags(TagSet.from(defaultTags ++ tags)).record(msTime)
