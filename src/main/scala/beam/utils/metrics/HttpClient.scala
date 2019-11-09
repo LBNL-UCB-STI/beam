@@ -11,6 +11,7 @@ import akka.util.ByteString
 import scala.concurrent.Future
 
 class HttpClient(implicit val system: ActorSystem, val materializer: Materializer) {
+
   def postString(uri: String, data: String): Future[HttpResponse] = {
     val entity = HttpEntity(`text/plain`.withCharset(`UTF-8`), data)
     Http().singleRequest(HttpRequest(HttpMethods.POST, uri = uri, entity = entity))

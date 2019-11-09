@@ -234,7 +234,9 @@ dependencies {
 
     // compile("io.kamon:kamon-bundle_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:2.0.1")
-    compile("io.kamon:kamon-prometheus_${scalaBinaryVersion}:2.0.0")
+    // compile("io.kamon:kamon-influxdb_2.12:2.0.0")
+
+    compile("org.influxdb:influxdb-java:2.16")
 
 //    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:${kamonVersion}")
 //    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
