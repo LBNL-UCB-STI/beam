@@ -145,44 +145,45 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     @Override
     public void procsessFilledRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
-            if (getGap() == null) {
-                setGap(new LinkedList<>());
-            } else {
-                getGap().clear();
-            }
+        LinkedList<Double> gap = getGap();
+        if (gap == null) {
+            gap = new LinkedList<>();
+        } else {
+            gap.clear();
+        }
 
-            getInterestedInEnteringRoad().add(vehicle);
+        getInterestedInEnteringRoad().add(vehicle);
 
-            /*
-             * the first car interested in entering a road has to wait
-             * 'stuckTime' the car behind has to wait an additional stuckTime
-             * (this logic was adapted to adhere to the C++ implementation)
-             */
-            double nextStuckTime=0;
+        /*
+         * the first car interested in entering a road has to wait
+         * 'stuckTime' the car behind has to wait an additional stuckTime
+         * (this logic was adapted to adhere to the C++ implementation)
+         */
+        double nextStuckTime=0;
 
-            if (getDeadlockPreventionMessages().size() > 0) {
-                nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
+        if (getDeadlockPreventionMessages().size() > 0) {
+            nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
 
-            } else {
-                nextStuckTime=simTime + config.getSqueezeTime();
-            }
+        } else {
+            nextStuckTime=simTime + config.getSqueezeTime();
+        }
 
-            if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
-                Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
-            } else {
-                System.out.print("");
-            }
+        if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
+            Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
+        } else {
+            System.out.print("");
+        }
 
-            double minTimeForNextDeadlockPreventionMessageTime=0;
+        double minTimeForNextDeadlockPreventionMessageTime=0;
 
-            if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
-                    getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+0.0000000001; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
+        if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
+                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+0.0000000001; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
 
-            double timeToLeaveRoad=Math.max(Math.min(Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
+        double timeToLeaveRoad=Math.max(Math.min(Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
 
-            getDeadlockPreventionMessages().add(vehicle.scheduleDeadlockPreventionMessage(timeToLeaveRoad, this));
+        getDeadlockPreventionMessages().add(vehicle.scheduleDeadlockPreventionMessage(timeToLeaveRoad, this));
 
-            assert (getInterestedInEnteringRoad().size()== getDeadlockPreventionMessages().size()) :getInterestedInEnteringRoad().size() + " - " + getDeadlockPreventionMessages().size();
+        assert (getInterestedInEnteringRoad().size()== getDeadlockPreventionMessages().size()) :getInterestedInEnteringRoad().size() + " - " + getDeadlockPreventionMessages().size();
     }
 
     public static Road getRoad(Id<Link> linkId) {
