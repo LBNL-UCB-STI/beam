@@ -63,8 +63,8 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     // implement the iteration start notification class
-    public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
-        Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+    public void notifyIterationEnds(int iteration, TravelTime travelTime) {
+        Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
         CategoryDataset dataSet = generateGraphCategoryDataSet(processedData);
         if (this.outputDirectoryHierarchy != null) {
             //If not running in test mode , write output to a csv file
@@ -100,9 +100,7 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     // generate the data required as input to generate a graph
-    private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
-        TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-
+    private Map<Integer, Double> generateInputDataForGraph(TravelTime travelTime) {
         return IntStream.range(0, noOfBins).parallel().boxed()
                 .collect(Collectors.toMap(Function.identity(),
                         idx -> calcLinkAvgSpeedPercentage(travelTime, idx)));
@@ -195,9 +193,9 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
 
-    public double getAverageSpeedPercentageOfBin(int bin, TravelTimeCalculator travelTimeCalculator) {
+    public double getAverageSpeedPercentageOfBin(int bin, TravelTime travelTime) {
         try {
-            Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+            Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
             double[][] dataSet = buildDataSetFromProcessedData(processedData);
             double[] averageSpeedPercentages = dataSet[0];
             return averageSpeedPercentages[bin];
@@ -207,8 +205,8 @@ public class PhyssimCalcLinkSpeedStats {
         }
     }
 
-    public double[] getAverageSpeedPercentagesOfAllBins(TravelTimeCalculator travelTimeCalculator) {
-        Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+    public double[] getAverageSpeedPercentagesOfAllBins(TravelTime travelTime) {
+        Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
         double[][] dataSet = buildDataSetFromProcessedData(processedData);
         return dataSet[0];
     }
