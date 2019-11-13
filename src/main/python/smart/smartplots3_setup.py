@@ -458,12 +458,12 @@ def pltModeSplitInPHT(_plt_setup3, _output_folder):
 
 def pltModeSplitInPMTPerCapita(_plt_setup3, _output_folder):
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    pltModeSplitInPMT_internal(_plt_setup3, _output_folder,1/df['population'].values,'modesplit_pmt_per_capita',1,'Person Miles Traveled')
+    pltModeSplitInPMT_internal(_plt_setup3, _output_folder,_plt_setup3['percapita_factor']/df['population'].values,'modesplit_pmt_per_capita',1,'Person Miles Traveled')
 
 
 def pltModeSplitInPHTPerCapita(_plt_setup3, _output_folder):
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    pltModeSplitInPHT_internal(_plt_setup3, _output_folder,1/df['population'].values,'modesplit_pht_per_capita',1,'Person Hours Traveled')
+    pltModeSplitInPHT_internal(_plt_setup3, _output_folder,_plt_setup3['percapita_factor']/df['population'].values,'modesplit_pht_per_capita',1,'Person Hours Traveled')
 
 
 def pltModeSplitInPMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,scale,ylabel):
@@ -576,14 +576,14 @@ def pltModeSplitInVMT_withoutNonMotorizedMode(_plt_setup3, _output_folder):
 
 def pltModeSplitInVMTPerCapita_withoutNonMotorizedMode(_plt_setup3, _output_folder):
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    pltModeSplitInVMT_internal(_plt_setup3, _output_folder,1/df['population'].values,'modesplit_vmt_per_capita_withoutNonMotorizedMode',1,'Vehicle Miles Traveled',1/_plt_setup3['expansion_factor']/df['population'].values,False)
+    pltModeSplitInVMT_internal(_plt_setup3, _output_folder,_plt_setup3['percapita_factor']/df['population'].values,'modesplit_vmt_per_capita_withoutNonMotorizedMode',1,'Vehicle Miles Traveled',1/_plt_setup3['expansion_factor']/df['population'].values,False)
 
 def pltModeSplitInVMT(_plt_setup3, _output_folder):
     pltModeSplitInVMT_internal(_plt_setup3, _output_folder,_plt_setup3['expansion_factor'],'modesplit_vmt',1 / 1000000,'Vehicle Miles Traveled (millions)',1,True)
 
 def pltModeSplitInVMTPerCapita(_plt_setup3, _output_folder):
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
-    pltModeSplitInVMT_internal(_plt_setup3, _output_folder,1/df['population'].values,'modesplit_vmt_per_capita',1,'Vehicle Miles Traveled',1/_plt_setup3['expansion_factor']/df['population'].values,True)
+    pltModeSplitInVMT_internal(_plt_setup3, _output_folder,_plt_setup3['percapita_factor']/df['population'].values,'modesplit_vmt_per_capita',1,'Vehicle Miles Traveled',1/_plt_setup3['expansion_factor']/df['population'].values,True)
 
 def pltModeSplitInVMT_internal(_plt_setup3, _output_folder,factor,fileNameLabel,scale,ylabel,transitFactor,withNonMotorizedMode):
     plot_size = _plt_setup3['plot_size']
@@ -825,7 +825,7 @@ def pltEnergyPerCapita(_plt_setup3, _output_folder):
     top_labels = _plt_setup3['top_labels']
     bottom_labels = _plt_setup3['bottom_labels']
     nb_scenarios = len(_plt_setup3['scenarios_id'])
-    scale = 1 / 1000000
+    scale = 2.77778e-13*_plt_setup3['percapita_factor']
     (df, top_labels_xpos, bottom_labels_xpos) = getDfForPlt(_plt_setup3, _output_folder)
     output_png = '{}/{}/{}.energy_source_percapita.png'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
     output_csv = '{}/{}/{}.energy_source_percapita.csv'.format(_output_folder,_plt_setup3['plots_folder'], _plt_setup3['name'])
@@ -850,7 +850,7 @@ def pltEnergyPerCapita(_plt_setup3, _output_folder):
     ax.set_ylim((0, max_value))
     for ind in range(nb_scenarios):
         plt.text(top_labels_xpos[ind], max_value + 0.02*max_value,  top_labels[ind], ha='center')
-    plt.ylabel('Light Duty Vehicle Energy per Capita (MJ)')
+    plt.ylabel('Light Duty Vehicle Energy per Capita (GWh)')
     plt.legend((plt_Electricity, plt_Diesel, plt_Gas),
                ('Electricity', 'Diesel', 'Gasoline'), bbox_to_anchor=(1.05, 0.5), frameon=False)
     plt.savefig(output_png, transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
