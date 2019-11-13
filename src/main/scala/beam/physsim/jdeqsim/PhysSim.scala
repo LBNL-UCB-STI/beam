@@ -146,7 +146,7 @@ class PhysSim(
     if (takeN > 0) {
       val toReroute =
         new Random(beamConfig.matsim.modules.global.randomSeed).shuffle(personToRoutes).take(takeN).toArray
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime)
+      val r5Wrapper = new R5Wrapper(workerParams, travelTime, isZeroIter = iterationNumber == 0)
       // Get new routes
       val result = ProfilingUtils.timed(
         s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",

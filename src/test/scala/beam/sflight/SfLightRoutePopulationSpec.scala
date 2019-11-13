@@ -35,7 +35,8 @@ class SfLightRoutePopulationSpec
           services.fareCalculator,
           services.tollCalculator
         ),
-        new FreeFlowTravelTime
+        new FreeFlowTravelTime,
+        isZeroIter = false
       )
       var numFailedCarRoutes = 0
       scenario.getPopulation.getPersons
