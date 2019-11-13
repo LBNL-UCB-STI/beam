@@ -73,7 +73,7 @@ class PhysSim(
 
   def run(nIterations: Int, reroutePerIterPct: Double): TravelTime = {
     assert(nIterations >= 1)
-
+    logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
     run(1, nIterations, reroutePerIterPct, new FreeFlowTravelTime)
   }
 
