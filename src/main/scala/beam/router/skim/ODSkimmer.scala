@@ -7,8 +7,8 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -16,7 +16,7 @@ import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.immutable
 
-class ODSkimmer @Inject()(beamServices: BeamServices) extends AbstractSkimmer(beamServices) {
+class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends AbstractSkimmer(beamServices, config) {
 
   import ODSkimmer._
   import beamServices._

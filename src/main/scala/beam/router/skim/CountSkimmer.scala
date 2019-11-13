@@ -1,14 +1,14 @@
 package beam.router.skim
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.VehicleManager
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-class CountSkimmer @Inject()(beamServices: BeamServices) extends AbstractSkimmer(beamServices) {
+class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends AbstractSkimmer(beamServices, config) {
   import CountSkimmer._
   CountSkimmer.h3taz = beamServices.beamScenario.h3taz
 

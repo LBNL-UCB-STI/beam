@@ -4,6 +4,7 @@ import java.io.{BufferedWriter, File}
 
 import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -35,7 +36,7 @@ abstract class SkimmerEvent(eventTime: Double, beamServices: BeamServices) exten
   def getSkimmerInternal: AbstractSkimmerInternal
 }
 
-abstract class AbstractSkimmer @Inject()(beamServices: BeamServices) extends BasicEventHandler with StartupListener with IterationEndsListener with LazyLogging {
+abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends BasicEventHandler with StartupListener with IterationEndsListener with LazyLogging {
   import beamServices._
 
   protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
@@ -56,17 +57,11 @@ abstract class AbstractSkimmer @Inject()(beamServices: BeamServices) extends Bas
       case _               =>
     }
   }
-
-  override def notifyStartup(event: StartupEvent): Unit = {
-    beamServices.matsimServices.getEvents.addHandler(this)
-  }
-
-  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    this.persist(event)
-  }
+  override def notifyStartup(event: StartupEvent): Unit = {}
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = this.persist(event)
 
   protected def writeToDisk(event: IterationEndsEvent) = {
-    if (beamConfig.beam.abstractSkimmer.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.abstractSkimmer.writeSkimsInterval == 0)
+    if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.skimManager.writeSkimsInterval on iteration ${event.getIteration}",
         x => logger.info(x)
@@ -76,7 +71,7 @@ abstract class AbstractSkimmer @Inject()(beamServices: BeamServices) extends Bas
         writeSkim(currentSkim.toMap, filePath)
       }
 
-    if (beamConfig.beam.abstractSkimmer.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.abstractSkimmer.writeAggregatedSkimsInterval == 0) {
+    if (config.writeAggregatedSkimsInterval > 0 && event.getIteration % config.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
         s"beam.skimManager.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
         x => logger.info(x)
@@ -91,14 +86,14 @@ abstract class AbstractSkimmer @Inject()(beamServices: BeamServices) extends Bas
   private def persist(event: IterationEndsEvent) = {
     writeToDisk(event)
     // keep in memory
-    if (beamConfig.beam.abstractSkimmer.keepKLatestSkims > 0) {
-      if (pastSkims.size == beamConfig.beam.abstractSkimmer.keepKLatestSkims) {
+    if (config.keepKLatestSkims > 0) {
+      if (pastSkims.size == config.keepKLatestSkims) {
         pastSkims.dropRight(1)
       }
       pastSkims.prepend(currentSkim.toMap)
     }
     // aggregate
-    beamConfig.beam.abstractSkimmer.aggregateFunction match {
+    config.aggregateFunction match {
       case "LATEST_SKIM" =>
         aggregatedSkim = pastSkims.head
       case "AVG" =>

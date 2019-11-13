@@ -16,6 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
 import beam.router.osm.TollCalculator
+import beam.router.skim.Skims
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -211,6 +212,12 @@ class BeamMobsimIteration(
   }
   sharedVehicleFleets.foreach(context.watch)
   sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
+
+
+  private val skims = beamConfig.beam.router.skim.map(Skims.lookup(_).getInstance(beamServices))
+  skims.foreach(beamServices.matsimServices.addControlerListener(_))
+  skims.foreach(beamServices.matsimServices.getEvents.addHandler(_))
+
 
   private val transitSystem = context.actorOf(
     Props(
