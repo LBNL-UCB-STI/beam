@@ -4,8 +4,26 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, getSkimDefaultValue, rdOnlyAggregatedSkim, rdOnlyPastSkims}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
+import beam.router.skim.ODSkimmer.{
+  getSkimDefaultValue,
+  rdOnlyAggregatedSkim,
+  rdOnlyPastSkims,
+  ExcerptData,
+  ODSkimmerInternal,
+  ODSkimmerKey
+}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -67,11 +85,11 @@ object ODSkimmerUtils {
   }
 
   def getRideHailCost(
-                               mode: BeamMode,
-                               distanceInMeters: Double,
-                               timeInSeconds: Double,
-                               beamConfig: BeamConfig
-                             ): Double = {
+    mode: BeamMode,
+    distanceInMeters: Double,
+    timeInSeconds: Double,
+    beamConfig: BeamConfig
+  ): Double = {
     mode match {
       case RIDE_HAIL =>
         beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
@@ -83,15 +101,15 @@ object ODSkimmerUtils {
   }
 
   def getExcerptData(
-                              timePeriodString: String,
-                              hoursIncluded: List[Int],
-                              origin: TAZ,
-                              destination: TAZ,
-                              mode: BeamMode,
-                              dummyId: Id[BeamVehicleType],
-                              skim: immutable.Map[ODSkimmerKey, ODSkimmerInternal],
-                              beamServices: BeamServices
-                            ): ExcerptData = {
+    timePeriodString: String,
+    hoursIncluded: List[Int],
+    origin: TAZ,
+    destination: TAZ,
+    mode: BeamMode,
+    dummyId: Id[BeamVehicleType],
+    skim: immutable.Map[ODSkimmerKey, ODSkimmerInternal],
+    beamServices: BeamServices
+  ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
         .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))

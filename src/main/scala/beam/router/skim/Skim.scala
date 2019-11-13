@@ -14,7 +14,6 @@ case class ODSkimType(config: BeamConfig.Beam.Router.Skim$Elm) extends SkimType 
   }
 }
 
-
 case class CountSkimType(config: BeamConfig.Beam.Router.Skim$Elm) extends SkimType with LazyLogging {
   override def getInstance(beamServices: BeamServices): AbstractSkimmer = {
     new CountSkimmer(beamServices, config)

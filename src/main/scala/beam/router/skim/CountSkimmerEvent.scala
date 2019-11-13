@@ -6,14 +6,14 @@ import beam.sim.vehiclesharing.VehicleManager
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class CountSkimmerEvent(
-                              eventTime: Double,
-                              beamServices: BeamServices,
-                              timeBin: Int,
-                              coord: Coord,
-                              idVehMng: Id[VehicleManager],
-                              variableName: String,
-                              count: Int = 1
-                            ) extends SkimmerEvent(eventTime, beamServices) {
+  eventTime: Double,
+  beamServices: BeamServices,
+  timeBin: Int,
+  coord: Coord,
+  idVehMng: Id[VehicleManager],
+  variableName: String,
+  count: Int = 1
+) extends SkimmerEvent(eventTime, beamServices) {
   override def getEventType: String = CountSkimmer.eventType
   private val hexIndex = beamServices.beamScenario.h3taz.getHRHex(coord.getX, coord.getY)
   private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)

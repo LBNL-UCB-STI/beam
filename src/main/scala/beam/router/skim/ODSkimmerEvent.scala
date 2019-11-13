@@ -6,13 +6,13 @@ import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 
 case class ODSkimmerEvent(
-                           eventTime: Double,
-                           beamServices: BeamServices,
-                           trip: EmbodiedBeamTrip,
-                           generalizedTimeInHours: Double,
-                           generalizedCost: Double,
-                           energyConsumption: Double
-                         ) extends SkimmerEvent(eventTime, beamServices) {
+  eventTime: Double,
+  beamServices: BeamServices,
+  trip: EmbodiedBeamTrip,
+  generalizedTimeInHours: Double,
+  generalizedCost: Double,
+  energyConsumption: Double
+) extends SkimmerEvent(eventTime, beamServices) {
   override def getEventType: String = "ODSkimmerEvent"
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
@@ -20,11 +20,11 @@ case class ODSkimmerEvent(
   val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
 
   private def observeTrip(
-                           trip: EmbodiedBeamTrip,
-                           generalizedTimeInHours: Double,
-                           generalizedCost: Double,
-                           energyConsumption: Double
-                         ) = {
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ) = {
     import beamServices._
     val mode = trip.tripClassifier
     val correctedTrip = mode match {

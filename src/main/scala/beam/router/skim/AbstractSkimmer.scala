@@ -23,6 +23,7 @@ trait AbstractSkimmerKey {
 }
 
 trait AbstractSkimmerInternal {
+
   def aggregateOverIterations(
     nbOfIterations: Int,
     newSkim: Option[_ <: AbstractSkimmerInternal]
@@ -36,7 +37,11 @@ abstract class SkimmerEvent(eventTime: Double, beamServices: BeamServices) exten
   def getSkimmerInternal: AbstractSkimmerInternal
 }
 
-abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends BasicEventHandler with StartupListener with IterationEndsListener with LazyLogging {
+abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm)
+    extends BasicEventHandler
+    with StartupListener
+    with IterationEndsListener
+    with LazyLogging {
   import beamServices._
 
   protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
@@ -54,7 +59,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     event match {
       case e: SkimmerEvent if e.getEventType == this.getEventType =>
         currentSkim.put(e.getKey, e.getSkimmerInternal.aggregateByKey(currentSkim.get(e.getKey)))
-      case _               =>
+      case _ =>
     }
   }
   override def notifyStartup(event: StartupEvent): Unit = {}
@@ -67,7 +72,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
         x => logger.info(x)
       ) {
         val filePath =
-          beamServices.matsimServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
+          beamServices.matsimServices.getControlerIO
+            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
         writeSkim(currentSkim.toMap, filePath)
       }
 
@@ -77,7 +83,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
         x => logger.info(x)
       ) {
         val filePath =
-          beamServices.matsimServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "Aggregated.csv.gz")
+          beamServices.matsimServices.getControlerIO
+            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "Aggregated.csv.gz")
         writeSkim(aggregatedSkim, filePath)
       }
     }

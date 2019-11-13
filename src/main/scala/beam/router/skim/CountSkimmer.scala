@@ -8,7 +8,8 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends AbstractSkimmer(beamServices, config) {
+class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm)
+    extends AbstractSkimmer(beamServices, config) {
   import CountSkimmer._
   CountSkimmer.h3taz = beamServices.beamScenario.h3taz
 

@@ -4,7 +4,16 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -16,7 +25,8 @@ import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.immutable
 
-class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm) extends AbstractSkimmer(beamServices, config) {
+class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm)
+    extends AbstractSkimmer(beamServices, config) {
 
   import ODSkimmer._
   import beamServices._
@@ -71,8 +81,6 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$
     ODSkimmer.rdOnlyAggregatedSkim =
       aggregatedSkim.map(kv => kv._1.asInstanceOf[ODSkimmerKey] -> kv._2.asInstanceOf[ODSkimmerInternal])
   }
-
-
 
   // *****
   // Helpers
