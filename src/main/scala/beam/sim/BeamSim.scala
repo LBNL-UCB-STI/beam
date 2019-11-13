@@ -26,6 +26,7 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.population.Leg
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -174,6 +175,8 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    clearRoutesIfNeeded()
+    clearModesIfNeeded()
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
@@ -195,6 +198,34 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+  }
+
+  private def clearRoutesIfNeeded(): Unit = {
+    if (beamServices.beamConfig.beam.physsim.relaxation.clearRoutesEveryIteration) {
+      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+        p.getPlans.asScala.foreach { plan =>
+          plan.getPlanElements.asScala.foreach {
+            case leg: Leg =>
+              leg.setRoute(null)
+            case _ =>
+          }
+        }
+      }
+    }
+  }
+
+  private def clearModesIfNeeded(): Unit = {
+    if (beamServices.beamConfig.beam.physsim.relaxation.clearModesEveryIteration) {
+      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+        p.getPlans.asScala.foreach { plan =>
+          plan.getPlanElements.asScala.foreach {
+            case leg: Leg =>
+              leg.setMode("")
+            case _ =>
+          }
+        }
+      }
+    }
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {

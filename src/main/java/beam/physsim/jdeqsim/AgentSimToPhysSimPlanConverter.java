@@ -129,7 +129,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         PhysSim sim = new PhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices,
                 controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber));
-        TravelTime travelTimes = sim.run(1, 0.1);
+        TravelTime travelTimes = sim.run(beamConfig.beam().physsim().relaxation().internalNumberOfIterations(), beamConfig.beam().physsim().relaxation().fractionOfPopulationToReroute());
 
 //        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
 //        jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());

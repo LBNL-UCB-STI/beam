@@ -87,7 +87,9 @@ class PhysSim(
     if (currentIter > nIterations) lastTravelTime
     else {
       val travelTime = simulate(shouldWritePhysSimEvents && currentIter == nIterations - 1)
-      reroute(travelTime, reroutePerIterPct)
+      if (reroutePerIterPct > 0) {
+        reroute(travelTime, reroutePerIterPct)
+      }
       run(currentIter + 1, nIterations, reroutePerIterPct, travelTime)
     }
   }
