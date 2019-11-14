@@ -6,15 +6,13 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) {
   private val transformToH3Proj =
@@ -34,7 +32,6 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
     tazToH3TAZMapping.put(hex, tazId)
   }
-  //H3TAZ.writeToShp("output/test/polygons2.shp", tazToH3TAZMapping.map(m => (m._1, m._2.toString, 0.0)))
 
   def getAll: Iterable[HexIndex] = {
     tazToH3TAZMapping.keys
@@ -59,32 +56,6 @@ object H3TAZ {
   type HexIndex = String
   private val H3 = com.uber.h3core.H3Core.newInstance
   val H3Projection = "EPSG:4326"
-
-  def breakdownByPopulation(scenario: Scenario, hexMap: H3TAZ, granularity: Int) = {
-    val popPerHexMap = scenario.getPopulation.getPersons.asScala
-      .map(_._2.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord)
-      .map(hexMap.transformToH3Proj.transform)
-      .map(home => H3.geoToH3Address(home.getY, home.getX, hexMap.lowerBoundResolution) -> home)
-      .toBuffer
-    val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
-    val hexIndexList = hexMap.getAll.toBuffer
-    while (hexIndexList.nonEmpty) {
-      val hex = hexIndexList.remove(0)
-      val res = H3.h3GetResolution(hex)
-      val count = popPerHexMap.filter(_._1 == hex).map(_._1).groupBy(identity).mapValues(_.size).getOrElse(hex, 0)
-      if (count <= granularity || res == hexMap.resolution) {
-        popPerHexList.append((hex, hexMap.getTAZ(hex).toString, count))
-      } else {
-        val subHex = popPerHexMap.filter(_._1 == hex).map {
-          case (_, home) => H3.geoToH3Address(home.getY, home.getX, res + 1) -> home
-        }
-        val allSubHex = H3.h3ToChildren(hex, res + 1).asScala
-        popPerHexMap.appendAll(subHex)
-        hexIndexList.appendAll(allSubHex)
-      }
-    }
-    popPerHexList
-  }
 
   def writeToShp(filename: String, h3Tazs: Iterable[(HexIndex, String, Double)]): Unit = {
     val gf = new GeometryFactory()

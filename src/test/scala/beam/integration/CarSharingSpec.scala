@@ -176,6 +176,30 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |   }
          | }
          |]
+         |beam.router.skim = {
+         |  keepKLatestSkims = 1
+         |  aggregateFunction = "LATEST_SKIM"
+         |  writeSkimsInterval = 1
+         |  writeAggregatedSkimsInterval = 1
+         |  skimmers = [
+         |    {
+         |      name = "origin-destination-skimmer"
+         |      skimType = "od-skim"
+         |      origin-destination-skimmer {
+         |        skimType = "od-skim"
+         |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
+         |        writeFullSkimsInterval = 0
+         |      }
+         |    },
+         |    {
+         |      name = "count-skimmer"
+         |      skimType = "count-skim"
+         |      count-skimmer {
+         |        skimType = "count-skim"
+         |      }
+         |    }
+         |  ]
+         |}
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
                    """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))

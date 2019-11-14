@@ -22,7 +22,7 @@ class VehicleCentricMatchingForRideHail(
   skimmer: BeamSkimmer
 ) {
   private val solutionSpaceSizePerVehicle =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
   private val waitingTimeInSec =
     services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
   private val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)

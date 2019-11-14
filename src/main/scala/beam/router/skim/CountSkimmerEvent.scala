@@ -13,8 +13,8 @@ case class CountSkimmerEvent(
   idVehMng: Id[VehicleManager],
   variableName: String,
   count: Int = 1
-) extends SkimmerEvent(eventTime, beamServices) {
-  override def getEventType: String = CountSkimmer.eventType
+) extends AbstractSkimmerEvent(eventTime, beamServices) {
+  override def getEventType: String = "count-skim"
   private val hexIndex = beamServices.beamScenario.h3taz.getHRHex(coord.getX, coord.getY)
   private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)
   override def getKey: AbstractSkimmerKey = CountSkimmerKey(timeBin, idTaz, hexIndex, idVehMng, variableName)

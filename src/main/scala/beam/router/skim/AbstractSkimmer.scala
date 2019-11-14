@@ -6,7 +6,6 @@ import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, StartupEvent}
@@ -23,100 +22,97 @@ trait AbstractSkimmerKey {
 }
 
 trait AbstractSkimmerInternal {
-
-  def aggregateOverIterations(
-    nbOfIterations: Int,
-    newSkim: Option[_ <: AbstractSkimmerInternal]
-  ): AbstractSkimmerInternal
+  def aggregateOverIterations(iterations: Int, newSkim: Option[_ <: AbstractSkimmerInternal]): AbstractSkimmerInternal
   def aggregateByKey(newSkim: Option[_ <: AbstractSkimmerInternal]): AbstractSkimmerInternal
   def toCsv: String
 }
 
-abstract class SkimmerEvent(eventTime: Double, beamServices: BeamServices) extends Event(eventTime) with ScalaEvent {
+abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
+    extends Event(eventTime)
+    with ScalaEvent {
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
 }
 
-abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim$Elm)
+abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyLogging {
+  protected[skim] val pastSkims: mutable.ListBuffer[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
+    mutable.ListBuffer()
+  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
+}
+
+abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.Skimmers$Elm)
     extends BasicEventHandler
     with StartupListener
     with IterationEndsListener
     with LazyLogging {
   import beamServices._
 
-  protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
-  protected val pastSkims: mutable.ListBuffer[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
-    mutable.ListBuffer()
-  protected var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = readAggregatedSkims
-
+  protected[skim] val readOnlySkim: AbstractSkimmerReadOnly
+  protected val skimFileBaseName: String
+  protected val skimFileHeader: String
   protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
-  protected def publishReadOnlySkims()
-  protected def getEventType: String
-  protected def skimFileBaseName: String
-  protected def skimFileHeader: String
+
+  protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
+
+  override def notifyStartup(event: StartupEvent): Unit = {
+    readOnlySkim.aggregatedSkim = readAggregatedSkims
+  }
+
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    writeToDisk(event)
+    // keep in memory
+    if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
+      if (readOnlySkim.pastSkims.size == beamConfig.beam.router.skim.keepKLatestSkims) {
+        readOnlySkim.pastSkims.dropRight(1)
+      }
+      readOnlySkim.pastSkims.prepend(currentSkim.toMap)
+    }
+    // aggregate
+    beamConfig.beam.router.skim.aggregateFunction match {
+      case "LATEST_SKIM" =>
+        readOnlySkim.aggregatedSkim = readOnlySkim.pastSkims.head
+      case "AVG" =>
+        readOnlySkim.aggregatedSkim = aggregateAVG(event.getIteration)
+      case _ => // default
+        logger.info("no aggregation function is chosen for the skimmers!")
+    }
+    currentSkim.clear()
+  }
 
   override def handleEvent(event: Event): Unit = {
     event match {
-      case e: SkimmerEvent if e.getEventType == this.getEventType =>
+      case e: AbstractSkimmerEvent if e.getEventType == config.skimType =>
         currentSkim.put(e.getKey, e.getSkimmerInternal.aggregateByKey(currentSkim.get(e.getKey)))
       case _ =>
     }
   }
-  override def notifyStartup(event: StartupEvent): Unit = {}
-  override def notifyIterationEnds(event: IterationEndsEvent): Unit = this.persist(event)
 
   protected def writeToDisk(event: IterationEndsEvent) = {
-    if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0)
-      ProfilingUtils.timed(
-        s"beam.skimManager.writeSkimsInterval on iteration ${event.getIteration}",
-        x => logger.info(x)
-      ) {
+    if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
+      ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info(_)) {
         val filePath =
           beamServices.matsimServices.getControlerIO
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
         writeSkim(currentSkim.toMap, filePath)
       }
 
-    if (config.writeAggregatedSkimsInterval > 0 && event.getIteration % config.writeAggregatedSkimsInterval == 0) {
+    if (beamConfig.beam.router.skim.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
-        s"beam.skimManager.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
-        x => logger.info(x)
+        s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}", logger.info(_)
       ) {
         val filePath =
           beamServices.matsimServices.getControlerIO
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "Aggregated.csv.gz")
-        writeSkim(aggregatedSkim, filePath)
+        writeSkim(readOnlySkim.aggregatedSkim, filePath)
       }
     }
-  }
-
-  private def persist(event: IterationEndsEvent) = {
-    writeToDisk(event)
-    // keep in memory
-    if (config.keepKLatestSkims > 0) {
-      if (pastSkims.size == config.keepKLatestSkims) {
-        pastSkims.dropRight(1)
-      }
-      pastSkims.prepend(currentSkim.toMap)
-    }
-    // aggregate
-    config.aggregateFunction match {
-      case "LATEST_SKIM" =>
-        aggregatedSkim = pastSkims.head
-      case "AVG" =>
-        aggregatedSkim = aggregateAVG(event.getIteration)
-      case _ => // default
-        logger.info("no aggregation function is chosen for the skimmers!")
-    }
-    currentSkim.clear()
-    publishReadOnlySkims()
   }
 
   // ***
   // Helpers
   private def aggregateAVG(numIterations: Int): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     val avgSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-    aggregatedSkim.foreach {
+    readOnlySkim.aggregatedSkim.foreach {
       case (k, aggSkim) =>
         avgSkim.put(k, aggSkim.aggregateOverIterations(numIterations, currentSkim.get(k)))
     }
@@ -165,7 +161,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       writer.close()
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not load warmStart skim from '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()

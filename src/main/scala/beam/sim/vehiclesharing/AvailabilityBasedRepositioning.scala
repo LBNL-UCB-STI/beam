@@ -3,7 +3,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
-import beam.router.skim.{CountSkimmer, ODSkimmer}
+import beam.router.skim.{CountSkims, ODSkims, Skims}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
@@ -16,6 +16,9 @@ case class AvailabilityBasedRepositioning(
   vehicleManager: Id[VehicleManager],
   beamServices: BeamServices
 ) extends RepositionAlgorithm {
+
+  val countSkims = Skims.lookup("count-skim").map(_.asInstanceOf[CountSkims]).get
+  val odSkims = Skims.lookup("od-skim").map(_.asInstanceOf[ODSkims]).get
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
@@ -43,9 +46,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map { i =>
-        CountSkimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager, label)
-      }
+      .map(i => countSkims.getLatestSkimByTAZ(i, idTAZ, vehicleManager, label))
       .toVector
       .flatten
   }
@@ -78,7 +79,7 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = ODSkimmer.getTimeDistanceAndCost(
+        val skim = odSkims.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,

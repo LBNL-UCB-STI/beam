@@ -213,9 +213,7 @@ class BeamMobsimIteration(
   sharedVehicleFleets.foreach(context.watch)
   sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
-  private val skims = beamConfig.beam.router.skim.map(Skims.lookup(_).getInstance(beamServices))
-  skims.foreach(beamServices.matsimServices.addControlerListener(_))
-  skims.foreach(beamServices.matsimServices.getEvents.addHandler(_))
+  beamConfig.beam.router.skim.skimmers.map(Skims.setup(beamServices, _))
 
   private val transitSystem = context.actorOf(
     Props(

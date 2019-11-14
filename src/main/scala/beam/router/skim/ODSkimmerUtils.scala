@@ -1,7 +1,5 @@
 package beam.router.skim
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
@@ -16,20 +14,8 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.router.skim.ODSkimmer.{
-  getSkimDefaultValue,
-  rdOnlyAggregatedSkim,
-  rdOnlyPastSkims,
-  ExcerptData,
-  ODSkimmerInternal,
-  ODSkimmerKey
-}
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.{Coord, Id}
-
-import scala.collection.immutable
 
 object ODSkimmerUtils {
 
@@ -98,71 +84,6 @@ object ODSkimmerUtils {
       case _ =>
         0.0
     }
-  }
-
-  def getExcerptData(
-    timePeriodString: String,
-    hoursIncluded: List[Int],
-    origin: TAZ,
-    destination: TAZ,
-    mode: BeamMode,
-    dummyId: Id[BeamVehicleType],
-    skim: immutable.Map[ODSkimmerKey, ODSkimmerInternal],
-    beamServices: BeamServices
-  ): ExcerptData = {
-    val individualSkims = hoursIncluded.map { timeBin =>
-      skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
-        .map(_.toSkimExternal)
-        .getOrElse {
-          val adjustedDestCoord = if (origin.equals(destination)) {
-            new Coord(
-              origin.coord.getX,
-              origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-            )
-          } else {
-            destination.coord
-          }
-          getSkimDefaultValue(
-            mode,
-            origin.coord,
-            adjustedDestCoord,
-            timeBin * 3600,
-            dummyId,
-            beamServices
-          )
-        }
-    }
-    val weights = individualSkims.map(sk => Math.max(sk.count, 1).toDouble)
-    val sumWeights = weights.sum
-    val weightedDistance = individualSkims.map(_.distance).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedTime = individualSkims.map(_.time).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedGeneralizedTime = individualSkims
-      .map(_.generalizedTime)
-      .zip(weights)
-      .map(tup => tup._1 * tup._2)
-      .sum / sumWeights
-    val weightedCost = individualSkims.map(_.cost).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedGeneralizedCost = individualSkims
-      .map(_.generalizedCost)
-      .zip(weights)
-      .map(tup => tup._1 * tup._2)
-      .sum / sumWeights
-    val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-
-    ExcerptData(
-      timePeriodString = timePeriodString,
-      mode = mode,
-      originTazId = origin.tazId,
-      destinationTazId = destination.tazId,
-      weightedTime = weightedTime,
-      weightedGeneralizedTime = weightedGeneralizedTime,
-      weightedCost = weightedCost,
-      weightedGeneralizedCost = weightedGeneralizedCost,
-      weightedDistance = weightedDistance,
-      sumWeights = sumWeights,
-      weightedEnergy = weightedEnergy
-    )
   }
 
 }

@@ -12,8 +12,9 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double
-) extends SkimmerEvent(eventTime, beamServices) {
-  override def getEventType: String = "ODSkimmerEvent"
+) extends AbstractSkimmerEvent(eventTime, beamServices) {
+
+  override def getEventType: String = "od-skim"
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
