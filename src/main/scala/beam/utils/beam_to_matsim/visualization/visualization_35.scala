@@ -1,13 +1,11 @@
-package beam.utils.beam_to_matsim.visualizations
+package beam.utils.beam_to_matsim.visualization
 
-import beam.utils.beam.to.matsim.beamEventsFilter.{MutableVehiclesFilter, VehicleTrip}
-import beam.utils.beam.to.matsim.io.{Reader, Writer}
-import beam.utils.beam.to.matsim.viaEvent.ViaEvent
 import beam.utils.beam_to_matsim.io.{Reader, Writer}
-import beam.utils.beam_to_matsim.visualizations.{visualization_35_person1_alternatives => person1}
 import beam.utils.beam_to_matsim.events.BeamPathTraversal
 import beam.utils.beam_to_matsim.events_filter.{MutableVehiclesFilter, VehicleTrip}
 import beam.utils.beam_to_matsim.via_event.ViaEvent
+
+import beam.utils.beam_to_matsim.visualization.{visualization_35_person1_alternatives => person1}
 
 import scala.collection.mutable
 
@@ -21,14 +19,10 @@ object visualization_35 extends App {
 
   object Selector extends MutableVehiclesFilter.SelectNewVehicle {
     override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean = {
-//      if (person1.vehicleIds.contains(vehicleId)) {
-//        false
-//      } else {
       vehicleMode match {
         case "CAR" | "BUS" => true
         case _             => false
       }
-//      }
     }
   }
 

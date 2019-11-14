@@ -1,8 +1,5 @@
-package beam.utils.beam_to_matsim.visualizations
+package beam.utils.beam_to_matsim.visualization
 
-import beam.utils.beam.to.matsim.beamEventsFilter.{MutableSamplingFilter, MutableVehiclesFilter, VehicleSample}
-import beam.utils.beam.to.matsim.io.{HashSetReader, Reader, Writer}
-import beam.utils.beam.to.matsim.viaEvent.ViaEvent
 import beam.utils.beam_to_matsim.io.{HashSetReader, Reader, Writer}
 import beam.utils.beam_to_matsim.events.BeamPathTraversal
 import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter, VehicleSample}
