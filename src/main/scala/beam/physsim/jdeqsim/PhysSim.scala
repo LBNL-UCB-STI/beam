@@ -152,11 +152,11 @@ class PhysSim(
         s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",
         x => logger.info(x)
       ) {
-        // `toReroute.par` => so it will run rerouting in parallel
-        toReroute.par.map {
+        // TODO: `toReroute.par` => so it will run rerouting in parallel
+        toReroute.map {
           case (person, xs) =>
             reroute(r5Wrapper, person, xs)
-        }.seq
+        }
       }
       ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
         // Update plans
@@ -201,6 +201,8 @@ class PhysSim(
         val route = leg.getRoute
         val startCoord = beamServices.networkHelper.getLinkUnsafe(route.getStartLinkId.toString.toInt).getCoord
         val endCoord = beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getCoord
+        val startCoordWGS = beamServices.geo.utm2Wgs(startCoord)
+        val endCoordWGS = beamServices.geo.utm2Wgs(endCoord)
         val departTime = leg.getDepartureTime.toInt
         val currentPointUTM = SpaceTime(startCoord, departTime)
         val carStreetVeh =
