@@ -8,7 +8,7 @@ object MutableVehiclesFilter {
 
   trait SelectNewVehicle {
     def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean
-    def fitIn(chanсe: Double): Boolean = Math.random() <= chanсe
+    def fitIn(chance: Double): Boolean = Math.random() <= chance
   }
 
   def apply(selectNewVehicle: SelectNewVehicle): MutableVehiclesFilter = new MutableVehiclesFilter(selectNewVehicle)
