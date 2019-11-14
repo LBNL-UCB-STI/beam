@@ -87,6 +87,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
 
+
+    private TravelTime prevTravelTime = new FreeFlowTravelTime();
+
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
@@ -129,7 +132,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         PhysSim sim = new PhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices,
                 controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber));
-        TravelTime travelTimes = sim.run(beamConfig.beam().physsim().relaxation().internalNumberOfIterations(), beamConfig.beam().physsim().relaxation().fractionOfPopulationToReroute());
+
+        TravelTime travelTimes = sim.run(beamConfig.beam().physsim().relaxation().internalNumberOfIterations(),
+                beamConfig.beam().physsim().relaxation().fractionOfPopulationToReroute(), prevTravelTime);
+        // Safe travel time to reuse it on the next PhysSim iteration
+        prevTravelTime = travelTimes;
 
 //        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
 //        jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());

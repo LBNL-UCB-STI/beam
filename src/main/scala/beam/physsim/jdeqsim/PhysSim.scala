@@ -71,10 +71,10 @@ class PhysSim(
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
     .maxBy(_._2.sampleProbabilityWithinCategory)
 
-  def run(nIterations: Int, reroutePerIterPct: Double): TravelTime = {
+  def run(nIterations: Int, reroutePerIterPct: Double, travelTime: TravelTime): TravelTime = {
     assert(nIterations >= 1)
     logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
-    run(1, nIterations, reroutePerIterPct, new FreeFlowTravelTime)
+    run(1, nIterations, reroutePerIterPct, travelTime)
   }
 
   @tailrec
@@ -146,7 +146,7 @@ class PhysSim(
     if (takeN > 0) {
       val toReroute =
         new Random(beamConfig.matsim.modules.global.randomSeed).shuffle(personToRoutes).take(takeN).toArray
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, isZeroIter = iterationNumber == 0)
+      val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0, isZeroIter = iterationNumber == 0)
       // Get new routes
       val result = ProfilingUtils.timed(
         s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",
@@ -223,7 +223,8 @@ class PhysSim(
           attributesOfIndividual = maybeAttributes,
           streetVehiclesUseIntermodalUse = Access
         )
-        ElementIndexToRoutingResponse(idx, Try(r5.calcRoute(routingRequest)))
+        val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
+        ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
     }
     person -> idxToResponse
   }
