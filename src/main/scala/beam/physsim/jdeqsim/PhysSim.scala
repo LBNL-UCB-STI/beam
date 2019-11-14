@@ -6,10 +6,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.agentsim.events.SpaceTime
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.FreeFlowTravelTime
@@ -21,7 +18,7 @@ import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
-import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
@@ -153,10 +150,10 @@ class PhysSim(
         x => logger.info(x)
       ) {
         // TODO: `toReroute.par` => so it will run rerouting in parallel
-        toReroute.map {
+        toReroute.par.map {
           case (person, xs) =>
             reroute(r5Wrapper, person, xs)
-        }
+        }.seq
       }
       ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
         // Update plans
@@ -196,13 +193,21 @@ class PhysSim(
       new Powertrain(carVehType.primaryFuelConsumptionInJoulePerMeter),
       carVehType
     )
+
+    def getR5UtmCoord(linkId: Int): Coord = {
+      val utmCoord = beamServices.networkHelper.getLinkUnsafe(linkId).getCoord
+      val wgsCoord = beamServices.geo.utm2Wgs(utmCoord)
+      val snappedWGSCoord = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, wgsCoord)
+      beamServices.geo.wgs2Utm(snappedWGSCoord)
+    }
+
     val idxToResponse = elemIdxToRoute.map {
       case ElementIndexToLeg(idx, leg) =>
         val route = leg.getRoute
-        val startCoord = beamServices.networkHelper.getLinkUnsafe(route.getStartLinkId.toString.toInt).getCoord
-        val endCoord = beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getCoord
-        val startCoordWGS = beamServices.geo.utm2Wgs(startCoord)
-        val endCoordWGS = beamServices.geo.utm2Wgs(endCoord)
+        // Do we need to snap it to R5 edge?
+        val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
+        val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
+
         val departTime = leg.getDepartureTime.toInt
         val currentPointUTM = SpaceTime(startCoord, departTime)
         val carStreetVeh =

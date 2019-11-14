@@ -206,7 +206,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val routeWithError = r5.calcRoute(request)
-          if (shouldFixError) {
+          if (shouldFixError && workerParams.beamConfig.beam.routing.r5.travelTimeError > 0) {
             val itinerariesWithoutError = routeWithError.itineraries.map { itinerary =>
               if (!itinerary.tripClassifier.isTransit) {
                 val newLegs = itinerary.legs.map { leg =>
