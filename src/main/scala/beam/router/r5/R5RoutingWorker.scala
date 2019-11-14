@@ -137,7 +137,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var workAssigner: ActorRef = context.parent
 
-  private var r5: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, isZeroIter = true)
+  private var r5: R5Wrapper = new R5Wrapper(
+    workerParams,
+    new FreeFlowTravelTime,
+    workerParams.beamConfig.beam.routing.r5.travelTimeError,
+    isZeroIter = true
+  )
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -231,7 +236,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      r5 = new R5Wrapper(workerParams, newTravelTime, isZeroIter = false)
+      r5 = new R5Wrapper(
+        workerParams,
+        newTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeError,
+        isZeroIter = false
+      )
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
@@ -239,6 +249,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       r5 = new R5Wrapper(
         workerParams,
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
+        workerParams.beamConfig.beam.routing.r5.travelTimeError,
         isZeroIter = false
       )
       log.info(
@@ -263,7 +274,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 }
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIter: Boolean) extends MetricsSupport {
+class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeError: Double, isZeroIter: Boolean)
+    extends MetricsSupport {
 
   private val WorkerParameters(
     beamConfig,
@@ -1205,8 +1217,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, isZeroIt
   private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
     ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
   }
-
-  val travelTimeError: Double = workerParams.beamConfig.beam.routing.r5.travelTimeError
 
   private val errors: Array[Double] = if (travelTimeError == 0.0) {
     Array.empty
