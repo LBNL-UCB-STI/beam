@@ -36,6 +36,7 @@ class SfLightRoutePopulationSpec
           services.tollCalculator
         ),
         new FreeFlowTravelTime,
+        travelTimeError = 0,
         isZeroIter = false
       )
       var numFailedCarRoutes = 0
