@@ -183,6 +183,21 @@ class PhysSim(
     }
   }
 
+  private def getR5UtmCoord(linkId: Int): Coord = {
+    val utmCoord = beamServices.networkHelper.getLinkUnsafe(linkId).getCoord
+    val wgsCoord = beamServices.geo.utm2Wgs(utmCoord)
+    val snappedWGSCoord = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, wgsCoord)
+    beamServices.geo.wgs2Utm(snappedWGSCoord)
+  }
+
+  def verifyResponse(leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
+    maybeRoutingResponse.fold(x => (), resp => {
+      val leg = resp.itineraries.head.legs.head
+      // leg
+      ()
+    })
+  }
+
   private def reroute(
     r5: R5Wrapper,
     person: Person,
@@ -193,13 +208,6 @@ class PhysSim(
       new Powertrain(carVehType.primaryFuelConsumptionInJoulePerMeter),
       carVehType
     )
-
-    def getR5UtmCoord(linkId: Int): Coord = {
-      val utmCoord = beamServices.networkHelper.getLinkUnsafe(linkId).getCoord
-      val wgsCoord = beamServices.geo.utm2Wgs(utmCoord)
-      val snappedWGSCoord = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, wgsCoord)
-      beamServices.geo.wgs2Utm(snappedWGSCoord)
-    }
 
     val idxToResponse = elemIdxToRoute.map {
       case ElementIndexToLeg(idx, leg) =>
@@ -231,6 +239,7 @@ class PhysSim(
           streetVehiclesUseIntermodalUse = Access
         )
         val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
+        verifyResponse(leg, maybeRoutingResponse)
         ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
     }
     person -> idxToResponse
