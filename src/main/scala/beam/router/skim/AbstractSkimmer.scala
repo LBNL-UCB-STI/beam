@@ -8,8 +8,13 @@ import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.{IterationEndsEvent, StartupEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, StartupListener}
+import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -42,7 +47,7 @@ abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyL
 
 abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.Skimmers$Elm)
     extends BasicEventHandler
-    with StartupListener
+    with IterationStartsListener
     with IterationEndsListener
     with LazyLogging {
   import beamServices._
@@ -54,8 +59,10 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
   protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
 
-  override def notifyStartup(event: StartupEvent): Unit = {
-    readOnlySkim.aggregatedSkim = readAggregatedSkims
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    if (event.getIteration == 0) {
+      readOnlySkim.aggregatedSkim = readAggregatedSkims
+    }
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -98,7 +105,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
     if (beamConfig.beam.router.skim.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
-        s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}", logger.info(_)
+        s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
+        logger.info(_)
       ) {
         val filePath =
           beamServices.matsimServices.getControlerIO

@@ -10,7 +10,6 @@ import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.immutable
 import scala.util.control.NonFatal

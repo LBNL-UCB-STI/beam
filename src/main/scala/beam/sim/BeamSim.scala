@@ -15,6 +15,7 @@ import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
+import beam.router.skim.Skims
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
@@ -171,6 +172,7 @@ class BeamSim @Inject()(
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
     FailFast.run(beamServices)
+    Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
@@ -396,6 +398,8 @@ class BeamSim @Inject()(
         process.waitFor(5, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
+
+    Skims.clear()
   }
 
   private def writeSummaryVehicleStats(summaryVehicleStatsFile: File): immutable.HashSet[String] = {

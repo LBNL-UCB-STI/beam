@@ -2,22 +2,28 @@ package beam.router.skim
 
 import beam.sim.BeamServices
 
-import scala.collection.mutable
-import beam.sim.config.BeamConfig
+import scala.collection.immutable
 
 object Skims {
-  private val skims: mutable.Map[String, AbstractSkimmer] = mutable.Map()
+  private type SkimType = String
+  private var skims: immutable.Map[SkimType, AbstractSkimmer] = immutable.Map()
 
-  def setup(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.Skimmers$Elm) = {
-    val skimmer = config.skimType match {
-      case "od-skim"    => new ODSkimmer(beamServices, config)
-      case "count-skim" => new CountSkimmer(beamServices, config)
-      case _ =>
-        throw new RuntimeException("Unknown skim type")
-    }
-    beamServices.matsimServices.addControlerListener(skimmer)
-    beamServices.matsimServices.getEvents.addHandler(skimmer)
-    skims.put(config.skimType, skimmer)
+  def setup(beamServices: BeamServices): Unit = {
+    skims = beamServices.beamConfig.beam.router.skim.skimmers.map { skimmerConfig =>
+      val skimmer = skimmerConfig.skimType match {
+        case "od-skim"    => new ODSkimmer(beamServices, skimmerConfig)
+        case "count-skim" => new CountSkimmer(beamServices, skimmerConfig)
+        case _ =>
+          throw new RuntimeException("Unknown skim type")
+      }
+      beamServices.matsimServices.addControlerListener(skimmer)
+      beamServices.matsimServices.getEvents.addHandler(skimmer)
+      skimmerConfig.skimType -> skimmer
+    }.toMap
+  }
+
+  def clear(): Unit = {
+    skims = immutable.Map()
   }
 
   def lookup(skimType: String) = {
