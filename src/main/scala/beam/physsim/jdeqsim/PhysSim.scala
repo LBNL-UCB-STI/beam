@@ -190,10 +190,26 @@ class PhysSim(
     beamServices.geo.wgs2Utm(snappedWGSCoord)
   }
 
-  def verifyResponse(leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
-    maybeRoutingResponse.fold(x => (), resp => {
-      val leg = resp.itineraries.head.legs.head
-      // leg
+  def verifyResponse(routingRequest: RoutingRequest, leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
+    maybeRoutingResponse.fold(_ => (), resp => {
+      val r5Leg = resp.itineraries.head.legs.head
+      val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
+      val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
+      val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
+      val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
+      if (startLinkId != matsimStartLinkId) {
+        logger.info(
+          s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
+             |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
+             |MATSim leg: ${leg}""".stripMargin)
+      }
+      if (endLinkId != matsimEndLinkId) {
+        logger.info(
+          s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
+             |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
+             |MATSim leg: ${leg}""".stripMargin)
+      }
+      // r5Leg
       ()
     })
   }
@@ -239,7 +255,7 @@ class PhysSim(
           streetVehiclesUseIntermodalUse = Access
         )
         val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
-        verifyResponse(leg, maybeRoutingResponse)
+        verifyResponse(routingRequest, leg, maybeRoutingResponse)
         ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
     }
     person -> idxToResponse

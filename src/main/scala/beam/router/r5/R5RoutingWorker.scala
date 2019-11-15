@@ -216,7 +216,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       leg.beamLeg.travelPath.startPoint,
                       leg.beamLeg.travelPath.endPoint.loc,
                       leg.beamLeg.mode.r5Mode.get.left.get,
-                      leg.beamLeg.travelPath.linkIds
+                      leg.beamLeg.travelPath.linkIds,
+                      request
                     )
                     leg.copy(beamLeg = updatedLeg)
                   } else leg
@@ -473,7 +474,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           if (profileResponse.options.isEmpty) {
             Some(
               EmbodiedBeamLeg(
-                createBushwackingBeamLeg(request.departureTime, from, to, geo),
+                createBushwackingBeamLeg(request.departureTime, from, to, geo, Some(request)),
                 body.id,
                 body.vehicleTypeId,
                 asDriver = true,
@@ -488,7 +489,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                 streetSegment,
                 request.departureTime,
                 body,
-                unbecomeDriverOnCompletion = false
+                unbecomeDriverOnCompletion = false,
+                request
               )
             )
           }
@@ -550,11 +552,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           streetSegment,
           time,
           vehicle,
-          unbecomeDriverOnCompletion = true
+          unbecomeDriverOnCompletion = true,
+          request
         )
       } else {
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(request.departureTime, from, to, geo),
+          createBushwackingBeamLeg(request.departureTime, from, to, geo, Some(request)),
           vehicle.id,
           vehicle.vehicleTypeId,
           asDriver = true,
@@ -853,7 +856,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
             access,
             tripStartTime,
             vehicle,
-            unbecomeDriverOnCompletion = access.mode != LegMode.WALK || option.transit == null
+            unbecomeDriverOnCompletion = access.mode != LegMode.WALK || option.transit == null,
+            request
           )
 
           arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
@@ -921,7 +925,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                   SpaceTime(fromStop.lon, fromStop.lat, startTime),
                   SpaceTime(toStop.lon, toStop.lat, endTime),
                   stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
-                )
+                ),
+                Some(request)
               )
               embodiedBeamLegs += EmbodiedBeamLeg(
                 segmentLeg,
@@ -955,7 +960,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                   transitSegment.middle,
                   arrivalTime,
                   body,
-                  unbecomeDriverOnCompletion = false
+                  unbecomeDriverOnCompletion = false,
+                  request
                 )
                 arrivalTime = arrivalTime + transitSegment.middle.duration
               }
@@ -968,7 +974,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
               egress,
               arrivalTime,
               vehicle,
-              unbecomeDriverOnCompletion = true
+              unbecomeDriverOnCompletion = true,
+              request
             )
             val body = request.streetVehicles.find(_.mode == WALK).get
             if (isRouteForPerson && egress.mode != LegMode.WALK) {
@@ -1016,7 +1023,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           new Coord(request.destinationUTM.getX, request.destinationUTM.getY),
           request.departureTime,
           maybeBody.get,
-          geo
+          geo,
+          Some(request)
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
@@ -1041,7 +1049,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     segment: StreetSegment,
     tripStartTime: Int,
     vehicle: StreetVehicle,
-    unbecomeDriverOnCompletion: Boolean
+    unbecomeDriverOnCompletion: Boolean,
+    request: RoutingRequest
   ): EmbodiedBeamLeg = {
     val startPoint = SpaceTime(
       segment.geometry.getStartPoint.getX,
@@ -1057,7 +1066,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }
-    val beamLeg: BeamLeg = createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds)
+    val beamLeg: BeamLeg = createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds, request)
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
         .map(
@@ -1087,7 +1096,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     startPoint: SpaceTime,
     endCoord: Coord,
     legMode: LegMode,
-    activeLinkIds: IndexedSeq[Int]
+    activeLinkIds: IndexedSeq[Int],
+    request: RoutingRequest
   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
@@ -1110,7 +1120,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       tripStartTime,
       mapLegMode(legMode),
       theTravelPath.duration,
-      travelPath = theTravelPath
+      travelPath = theTravelPath,
+      Some(request)
     )
     beamLeg
   }
@@ -1315,7 +1326,8 @@ object R5RoutingWorker {
     atTime: Int,
     startUTM: Location,
     endUTM: Location,
-    geo: GeoUtils
+    geo: GeoUtils,
+    request: Option[RoutingRequest]
   ): BeamLeg = {
     val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
@@ -1327,7 +1339,7 @@ object R5RoutingWorker {
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
       distanceInMeters
     )
-    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
+    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path, request)
   }
 
   def createBushwackingTrip(
@@ -1335,12 +1347,13 @@ object R5RoutingWorker {
     destUTM: Location,
     atTime: Int,
     body: StreetVehicle,
-    geo: GeoUtils
+    geo: GeoUtils,
+    request: Option[RoutingRequest] = None
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo),
+          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo, request),
           body.id,
           body.vehicleTypeId,
           asDriver = true,

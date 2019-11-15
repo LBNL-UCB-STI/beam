@@ -396,6 +396,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 Person person = jdeqsimPopulation.getPersons().get(personId);
                 Plan plan = person.getSelectedPlan();
                 Leg leg = createLeg(CAR, pte.linkIdsJava(), departureTime);
+                leg.getAttributes().putAttribute("request", pte.request());
 
                 if (leg == null) {
                     return; // dont't process leg further, if empty
@@ -417,6 +418,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             person.addPlan(plan);
             person.setSelectedPlan(plan);
             jdeqsimPopulation.addPerson(person);
+
+            // Add person attributes from original matsim population
+
         }
     }
 
