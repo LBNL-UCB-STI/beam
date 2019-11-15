@@ -29,10 +29,6 @@ plugins {
     id 'maven-publish'
 }
 
-//ext {
-//    env = "beamville"
-//}
-
 apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'maven'
@@ -246,11 +242,11 @@ dependencies {
     // CORE Akka //
     compile group: 'com.typesafe.akka', name: "akka-actor_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-slf4j_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
+    //compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
+    //compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
+    //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
@@ -260,7 +256,7 @@ dependencies {
 
     // 3rd Party Akka //
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
-//    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
+    //compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
 
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
@@ -354,141 +350,6 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     }
 }
 
-//////////////////////////////////////////////////////////////////////
-// Amazon WS task to run beam sim on Lambda
-//////////////////////////////////////////////////////////////////////
-
-apply plugin: "base"
-apply plugin: "jp.classmethod.aws.lambda"
-
-aws {
-    profileName = "gradle"
-    region = "us-east-2"
-}
-
-lambda {
-    region = "us-east-2"
-}
-
-def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
-        }
-    } catch (e) {
-    }
-    return gitBranch
-}
-
-task deploy(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('runName')) {
-            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
-        }
-
-        switch (project.findProperty('deployMode')) {
-            case 'config':
-                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
-                    throw new GradleException('beamConfigs is required to deploy config run.')
-                }
-                break
-            case 'experiment':
-                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
-                    throw new GradleException('beamExperiments is required to deploy experement.')
-                }
-                break
-            case 'execute':
-                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
-                    throw new GradleException('executeClass and executeArgs are required to deploy execute.')
-                }
-                break
-            default:
-                throw new GradleException('Please provide a valid deployMode.')
-                break
-        }
-    }
-
-    def pload = """{
-  "title": "${project.findProperty('runName')}",
-  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "${beamCommit ?: 'HEAD'}",
-  "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
-  "experiments": "${
-        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
-    }",
-  "execute_class": "${project.findProperty('executeClass')}",
-  "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '140g'}",
-  "storage_size": ${project.findProperty('storageSize')},
-  "batch": "$beamBatch",
-  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
-  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-  "region": "$region",
-  "shutdown_wait": "$shutdownWait",
-  "shutdown_behaviour": "$shutdownBehaviour",
-  "command": "deploy"
-}"""
-
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
-
-task startEC2(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
-    }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "start"
-}"""
-
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
-
-task stopEC2(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
-    }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
-}"""
-
-    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
@@ -692,3 +553,4 @@ dockerCopyDistResources {
         into('test/')
     }
 }
+
