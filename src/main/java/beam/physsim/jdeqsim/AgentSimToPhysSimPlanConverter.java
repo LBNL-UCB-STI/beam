@@ -419,6 +419,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             person.setSelectedPlan(plan);
             jdeqsimPopulation.addPerson(person);
 
+            Person person1 = agentSimScenario.getPopulation().getPersons().get(personId);
+            if (person1 != null) {
+                log.info(person1.toString());
+            }
             // Add person attributes from original matsim population
 
         }

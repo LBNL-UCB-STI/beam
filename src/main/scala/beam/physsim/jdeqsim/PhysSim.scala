@@ -130,7 +130,7 @@ class PhysSim(
 
   private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Unit = {
     val rightPeopleToReplan =
-      population.getPersons.values.asScala.filter(p => !p.getId.toString.contains("bus")).toVector
+      population.getPersons.values.asScala.filter(p => !p.getId.toString.contains("bus")).toVector.sortBy(x => x.getId.toString)
     val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
       val route = plan.getPlanElements.asScala.zipWithIndex.collect {
         case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
@@ -150,7 +150,7 @@ class PhysSim(
         x => logger.info(x)
       ) {
         // TODO: `toReroute.par` => so it will run rerouting in parallel
-        toReroute.par.map {
+        toReroute.map {
           case (person, xs) =>
             reroute(r5Wrapper, person, xs)
         }.seq
