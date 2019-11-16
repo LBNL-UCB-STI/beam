@@ -19,7 +19,7 @@
         </layout>
     </appender>
 
-    <root level="info">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </root>
@@ -42,7 +42,12 @@
     <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
     <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" />
     <Logger name="beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager" level="INFO" />
-    <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
+    <Logger name="beam.agentsim.agents.PersonAgent" level="DEBUG" />
+    <Logger name="beam.agentsim.agents.ridehail.RideHailAgent" level="DEBUG" />
+    <Logger name="beam.agentsim.agents.ridehail.RideHailManager" level="DEBUG" />
+    <Logger name="beam.agentsim.infrastructure.ZonalParkingManager" level="DEBUG" />
+    <Logger name="beam.agentsim.scheduler.BeamAgentScheduler" level="DEBUG" />
+
         <!--<appender-ref ref="STDOUT"/>-->
 
     <!--<Logger name="beam.agentsim.agents.PersonAgent" level="error" additivity="false">-->
