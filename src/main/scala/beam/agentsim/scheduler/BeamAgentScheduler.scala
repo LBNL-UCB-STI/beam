@@ -399,7 +399,7 @@ class BeamAgentScheduler(
           if (beamConfig.beam.outputs.displayPerformanceTimings) {
             log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
           }
-          log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+//          log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
 
           if (beamConfig.beam.debug.triggerMeasurer.writeStuckAgentDetectionConfig) {
             val jsonConf = triggerMeasurer.asStuckAgentDetectionConfig

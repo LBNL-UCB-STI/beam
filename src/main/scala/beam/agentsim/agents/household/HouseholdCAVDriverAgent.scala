@@ -75,10 +75,10 @@ class HouseholdCAVDriverAgent(
   }
   when(Idle) {
     case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+//      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+//      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
       val triggerToSchedule = Vector(
         ScheduleTrigger(
           StartLegTrigger(

@@ -691,7 +691,7 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, _, currentCost, _)
         ) =>
-      log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
+      //log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
         currentTripCosts = currentCost + completedLeg.cost
@@ -708,7 +708,7 @@ class PersonAgent(
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
-      log.debug("{} replanning because vehicle not available when trying to board")
+//      log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
@@ -779,10 +779,10 @@ class PersonAgent(
         )
 
         val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
+//          log.debug(
+//            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+//            legsToInclude
+//          )
           ReleasingParkingSpot
         } else {
           releaseTickAndTriggerId()
@@ -802,7 +802,7 @@ class PersonAgent(
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
-      log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+//      log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       eventsManager.processEvent(
@@ -1023,7 +1023,7 @@ class PersonAgent(
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
       val (tick, triggerId) = releaseTickAndTriggerId()
-      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
+//      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     } else {
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
@@ -1130,7 +1130,7 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
         BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
-      log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
+//      log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
