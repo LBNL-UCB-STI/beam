@@ -287,7 +287,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         case BeamTrip(legs) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
           inside(legs.loneElement) {
-            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
+            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _), _) =>
               mode should be(WALK)
               links should be('empty)
           }
