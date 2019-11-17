@@ -22,6 +22,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.events.algorithms.EventWriter
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.router.util.TravelTime
@@ -100,9 +101,9 @@ class PhysSim(
       new TravelTimeCalculator(agentSimScenario.getNetwork, agentSimScenario.getConfig.travelTimeCalculator)
     jdeqsimEvents.addHandler(travelTimeCalculator)
     jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
-    if (writeEvents) {
-      addPhysSimEventsWriter(jdeqsimEvents)
-    }
+    val maybeEventWriter = if (writeEvents) {
+      Some(addPhysSimEventsWriter(jdeqsimEvents))
+    } else None
 
     val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
       Some(
@@ -126,6 +127,7 @@ class PhysSim(
 
       travelTimeCalculator.getLinkTravelTimes
     } finally {
+      maybeEventWriter.foreach(eventWriter => Try(eventWriter.closeFile()))
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
     }
   }
@@ -298,11 +300,12 @@ class PhysSim(
     jdeqSimScenario
   }
 
-  private def addPhysSimEventsWriter(eventsManager: EventsManager): Unit = {
+  private def addPhysSimEventsWriter(eventsManager: EventsManager): EventWriter = {
     val eventsSampling = beamConfig.beam.physsim.eventsSampling
     val eventsForFullVersionOfVia = beamConfig.beam.physsim.eventsForFullVersionOfVia
     val fileName = controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz")
     val eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia, eventsSampling)
     eventsManager.addHandler(eventsWriterXML)
+    eventsWriterXML
   }
 }
