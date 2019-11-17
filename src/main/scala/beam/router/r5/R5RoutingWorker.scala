@@ -206,10 +206,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val routeWithError = r5.calcRoute(request)
-
-          if (request.departureTime == 30360 && request.streetVehicles.exists(x => x.mode == BeamMode.CAR)) {
-            println(request)
-          }
+//          if (request.departureTime == 24400 && request.streetVehicles.exists(x => x.mode == BeamMode.CAR)) {
+//            val beamLegs = routeWithError.itineraries.flatMap(x => x.legs.map(l => l.beamLeg))
+//            val msg =
+//              s"""Request: ${request}
+//                 |Resp: ${routeWithError}
+//                 |ExtResp: ${beamLegs.map(l => (l, s"linkIds: [${l.travelPath.linkIds.mkString(" ")}]", (workerParams.geo.wgs2Utm(l.travelPath.startPoint), workerParams.geo.wgs2Utm(l.travelPath.endPoint))))}
+//                 |""".stripMargin
+//            println(msg)
+//          }
 
 
           if (shouldFixError && workerParams.beamConfig.beam.routing.r5.travelTimeError > 0) {

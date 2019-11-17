@@ -47,6 +47,8 @@ class PhysSim(
   shouldWritePhysSimEvents: Boolean
 ) extends StrictLogging {
 
+  val shouldLogWhenLinksAreNotTheSame: Boolean = false
+
   val workerParams: WorkerParameters = WorkerParameters(
     beamConfig = beamConfig,
     transportNetwork = beamServices.beamScenario.transportNetwork,
@@ -150,7 +152,7 @@ class PhysSim(
         x => logger.info(x)
       ) {
         // TODO: `toReroute.par` => so it will run rerouting in parallel
-        toReroute.map {
+        toReroute.par.map {
           case (person, xs) =>
             reroute(r5Wrapper, person, xs)
         }.seq
@@ -184,10 +186,8 @@ class PhysSim(
   }
 
   private def getR5UtmCoord(linkId: Int): Coord = {
-    val utmCoord = beamServices.networkHelper.getLinkUnsafe(linkId).getCoord
-    val wgsCoord = beamServices.geo.utm2Wgs(utmCoord)
-    val snappedWGSCoord = beamServices.geo.snapToR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, wgsCoord)
-    beamServices.geo.wgs2Utm(snappedWGSCoord)
+    val r5EdgeCoord = beamServices.geo.coordOfR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, linkId)
+    beamServices.geo.wgs2Utm(r5EdgeCoord)
   }
 
   def verifyResponse(routingRequest: RoutingRequest, leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
@@ -197,13 +197,13 @@ class PhysSim(
       val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
       val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
       val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
-      if (startLinkId != matsimStartLinkId) {
+      if (startLinkId != matsimStartLinkId && shouldLogWhenLinksAreNotTheSame) {
         logger.info(
           s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
              |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
              |MATSim leg: ${leg}""".stripMargin)
       }
-      if (endLinkId != matsimEndLinkId) {
+      if (endLinkId != matsimEndLinkId && shouldLogWhenLinksAreNotTheSame) {
         logger.info(
           s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
              |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]

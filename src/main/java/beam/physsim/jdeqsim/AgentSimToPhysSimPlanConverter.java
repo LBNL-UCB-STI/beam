@@ -395,8 +395,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 // add previous activity and leg to plan
                 Person person = jdeqsimPopulation.getPersons().get(personId);
                 Plan plan = person.getSelectedPlan();
-                Leg leg = createLeg(CAR, pte.linkIdsJava(), departureTime);
-                leg.getAttributes().putAttribute("request", pte.request());
+                Leg leg = createLeg(pte);
 
                 if (leg == null) {
                     return; // dont't process leg further, if empty
@@ -428,10 +427,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Leg createLeg(String mode, List<Object> links, double departureTime) {
+    private Leg createLeg(PathTraversalEvent pte) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
-        for (Object linkObjId : links) {
+        for (Object linkObjId : pte.linkIdsJava()) {
             Id<Link> linkId = Id.createLinkId(linkObjId.toString());
             linkIds.add(linkId);
         }
@@ -449,8 +448,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // end of hack
 
         Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
-        Leg leg = jdeqsimPopulation.getFactory().createLeg(mode);
-        leg.setDepartureTime(departureTime);
+        Leg leg = jdeqsimPopulation.getFactory().createLeg(CAR);
+        leg.setDepartureTime(pte.departureTime());
         leg.setTravelTime(0);
         leg.setRoute(route);
         return leg;
