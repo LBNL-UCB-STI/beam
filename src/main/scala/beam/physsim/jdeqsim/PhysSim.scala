@@ -35,6 +35,7 @@ import scala.util.{Random, Try}
 
 private case class ElementIndexToLeg(index: Int, leg: Leg)
 private case class ElementIndexToRoutingResponse(index: Int, routingResponse: Try[RoutingResponse])
+private case class RerouteStats(nRoutes: Int, totalRouteLen: Double, totalLinkCount: Int)
 
 class PhysSim(
   beamConfig: BeamConfig,
@@ -88,12 +89,19 @@ class PhysSim(
     else {
       val travelTime = simulate(shouldWritePhysSimEvents && currentIter == nIterations - 1)
       if (reroutePerIterPct > 0) {
-        val (beforeTotalLen, beforeNumOfRoutes) = printRouteStats(s"Before rerouting at $currentIter", population)
+        val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
         reroute(travelTime, reroutePerIterPct)
-        val (afterTotalLen, afterNumOfRoutes) = printRouteStats(s"After rerouting at $currentIter", population)
-        val absTotalLenDiff = Math.abs(afterTotalLen - beforeTotalLen)
-        val absAvgLenDiff =  Math.abs(afterTotalLen/afterNumOfRoutes - beforeTotalLen/beforeNumOfRoutes)
-        logger.info(s"Abs diff in total len: $absTotalLenDiff, abs avg diff in len: $absAvgLenDiff")
+        val after = printRouteStats(s"After rerouting at $currentIter iter", population)
+        val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
+        val absAvgLenDiff =  Math.abs(before.totalRouteLen/before.nRoutes - after.totalRouteLen / after.nRoutes)
+        val absTotalCountDiff = Math.abs(before.totalLinkCount - after.totalLinkCount)
+        val absAvgCountDiff = Math.abs(before.totalLinkCount/before.nRoutes - after.totalLinkCount/ after.nRoutes)
+        logger.info(
+          s"""
+             |Abs diff in total len: $absTotalLenDiff
+             |Abs avg diff in len: $absAvgLenDiff
+             |Abs dif in total link count: $absTotalCountDiff
+             |Abs avg diff in link count: $absAvgCountDiff""".stripMargin)
       }
       run(currentIter + 1, nIterations, reroutePerIterPct, travelTime)
     }
@@ -197,24 +205,37 @@ class PhysSim(
     beamServices.geo.wgs2Utm(r5EdgeCoord)
   }
 
-  private def printRouteStats(str: String, population: Population): (Double, Int) = {
+  private def printRouteStats(str: String, population: Population): RerouteStats = {
     val routes = population.getPersons.values.asScala.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
         case leg: Leg if Option(leg.getRoute).nonEmpty && leg.getRoute.isInstanceOf[NetworkRoute]=>
           leg.getRoute.asInstanceOf[NetworkRoute]
       }
     }
-    val totalRouteLen = routes.foldLeft(0.0) { case (acc, route) =>
+    val totalRouteLen = routes.map { route =>
       // route.getLinkIds does not contain start and end links, so we should compute them separately
       val startAndEndLen = beamServices.networkHelper.getLinkUnsafe(route.getStartLinkId.toString.toInt).getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
       val linkLength = route.getLinkIds.asScala.foldLeft(0.0) { case (acc, curr) =>
         acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
       }
-      acc + startAndEndLen + linkLength
-    }
+      startAndEndLen + linkLength
+    }.sum
+
+    val totalLinkCount = routes.map { route =>
+      // route.getLinkIds does not contain start and end links, so that's why 2 +
+      2 + route.getLinkIds.size()
+    }.sum
+
     val avgRouteLen = totalRouteLen / routes.size
-    logger.info(s"$str. Total route length: ${totalRouteLen}, number of routes: ${routes.size}, avg route length: ${avgRouteLen}")
-    (totalRouteLen, routes.size)
+    val avgLinkCount = totalLinkCount / routes.size
+    logger.info(
+      s"""$str.
+         |Number of routes: ${routes.size},
+         |Total route length: $totalRouteLen
+         |Avg route length: $avgRouteLen
+         |Total link count: $totalLinkCount
+         |Avg link count: $avgLinkCount""".stripMargin)
+    RerouteStats(routes.size, totalRouteLen, totalLinkCount)
   }
 
 
