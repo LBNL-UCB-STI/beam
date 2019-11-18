@@ -24,7 +24,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.algorithms.EventWriter
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
-import org.matsim.core.population.routes.RouteUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -88,7 +88,12 @@ class PhysSim(
     else {
       val travelTime = simulate(shouldWritePhysSimEvents && currentIter == nIterations - 1)
       if (reroutePerIterPct > 0) {
+        val (beforeTotalLen, beforeNumOfRoutes) = printRouteStats(s"Before rerouting at $currentIter", population)
         reroute(travelTime, reroutePerIterPct)
+        val (afterTotalLen, afterNumOfRoutes) = printRouteStats(s"After rerouting at $currentIter", population)
+        val absTotalLenDiff = Math.abs(afterTotalLen - beforeTotalLen)
+        val absAvgLenDiff =  Math.abs(afterTotalLen/afterNumOfRoutes - beforeTotalLen/beforeNumOfRoutes)
+        logger.info(s"Abs diff in total len: $absTotalLenDiff, abs avg diff in len: $absAvgLenDiff")
       }
       run(currentIter + 1, nIterations, reroutePerIterPct, travelTime)
     }
@@ -192,7 +197,28 @@ class PhysSim(
     beamServices.geo.wgs2Utm(r5EdgeCoord)
   }
 
-  def verifyResponse(routingRequest: RoutingRequest, leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
+  private def printRouteStats(str: String, population: Population): (Double, Int) = {
+    val routes = population.getPersons.values.asScala.flatMap { person =>
+      person.getSelectedPlan.getPlanElements.asScala.collect {
+        case leg: Leg if Option(leg.getRoute).nonEmpty && leg.getRoute.isInstanceOf[NetworkRoute]=>
+          leg.getRoute.asInstanceOf[NetworkRoute]
+      }
+    }
+    val totalRouteLen = routes.foldLeft(0.0) { case (acc, route) =>
+      // route.getLinkIds does not contain start and end links, so we should compute them separately
+      val startAndEndLen = beamServices.networkHelper.getLinkUnsafe(route.getStartLinkId.toString.toInt).getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
+      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) { case (acc, curr) =>
+        acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
+      }
+      acc + startAndEndLen + linkLength
+    }
+    val avgRouteLen = totalRouteLen / routes.size
+    logger.info(s"$str. Total route length: ${totalRouteLen}, number of routes: ${routes.size}, avg route length: ${avgRouteLen}")
+    (totalRouteLen, routes.size)
+  }
+
+
+  private def verifyResponse(routingRequest: RoutingRequest, leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
     maybeRoutingResponse.fold(_ => (), resp => {
       val r5Leg = resp.itineraries.head.legs.head
       val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
