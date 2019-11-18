@@ -1,956 +1,914 @@
 {
-   "meta":{
-      "type":"db",
-      "canSave":true,
-      "canEdit":true,
-      "canAdmin":true,
-      "canStar":true,
-      "slug":"beam-simulation-iteration-view",
-      "url":"/d/5oUysNJWz/beam-simulation-iteration-view",
-      "expires":"0001-01-01T00:00:00Z",
-      "created":"2019-11-09T19:25:10Z",
-      "updated":"2019-11-09T19:30:56Z",
-      "updatedBy":"root",
-      "createdBy":"root",
-      "version":3,
-      "hasAcl":false,
-      "isFolder":false,
-      "folderId":0,
-      "folderTitle":"General",
-      "folderUrl":"",
-      "provisioned":false,
-      "provisionedExternalId":""
-   },
-   "dashboard":{
-      "annotations":{
-         "list":[
-            {
-               "builtIn":1,
-               "datasource":"-- Grafana --",
-               "enable":true,
-               "hide":true,
-               "iconColor":"rgba(0, 211, 255, 1)",
-               "name":"Annotations \u0026 Alerts",
-               "type":"dashboard"
-            }
-         ]
+  "meta": {
+    "type": "db",
+    "canSave": true,
+    "canEdit": true,
+    "canAdmin": true,
+    "canStar": true,
+    "slug": "beam-simulation-iteration-view",
+    "url": "/d/5oUysNJWz/beam-simulation-iteration-view",
+    "expires": "0001-01-01T00:00:00Z",
+    "created": "2019-11-09T19:25:10Z",
+    "updated": "2019-11-09T19:30:56Z",
+    "updatedBy": "root",
+    "createdBy": "root",
+    "version": 3,
+    "hasAcl": false,
+    "isFolder": false,
+    "folderId": 0,
+    "folderTitle": "General",
+    "folderUrl": "",
+    "provisioned": false,
+    "provisionedExternalId": ""
+  },
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations \u0026 Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "iteration": 1573327842188,
+    "links": [
+    ],
+    "panels": [
+      {
+        "aliasColors": {
+        },
+        "bars": true,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "id": 2,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": true,
+          "total": true,
+          "values": true
+        },
+        "lines": false,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": [
+          ]
+        },
+        "percentage": false,
+        "pluginVersion": "6.4.1",
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_mode",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "mode-choices",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [
+                  ],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+        ],
+        "timeFrom": null,
+        "timeRegions": [
+        ],
+        "timeShift": null,
+        "title": "Mode choices stacked per hour",
+        "tooltip": {
+          "shared": true,
+          "sort": 2,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": [
+          ]
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 2,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
       },
-      "editable":true,
-      "gnetId":null,
-      "graphTooltip":0,
-      "iteration":1573327842188,
-      "links":[
-
-      ],
-      "panels":[
-         {
-            "aliasColors":{
-
-            },
-            "bars":true,
-            "dashLength":10,
-            "dashes":false,
-            "datasource":"InfluxDB",
-            "fill":1,
-            "fillGradient":0,
-            "gridPos":{
-               "h":9,
-               "w":24,
-               "x":0,
-               "y":0
-            },
-            "id":2,
-            "legend":{
-               "alignAsTable":true,
-               "avg":true,
-               "current":false,
-               "max":false,
-               "min":false,
-               "rightSide":true,
-               "show":true,
-               "total":true,
-               "values":true
-            },
-            "lines":false,
-            "linewidth":1,
-            "nullPointMode":"null",
-            "options":{
-               "dataLinks":[
-
-               ]
-            },
-            "percentage":false,
-            "pluginVersion":"6.4.1",
-            "pointradius":2,
-            "points":false,
-            "renderer":"flot",
-            "seriesOverrides":[
-
+      {
+        "aliasColors": {
+        },
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 9
+        },
+        "id": 6,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": true,
+          "total": true,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": [
+          ]
+        },
+        "percentage": false,
+        "pluginVersion": "6.4.1",
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_mode",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              }
             ],
-            "spaceLength":10,
-            "stack":false,
-            "steppedLine":false,
-            "targets":[
-               {
-                  "alias":"$tag_mode",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     }
+            "measurement": "mode-choices",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
                   ],
-                  "measurement":"mode-choices",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"A",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
+                  "type": "field"
+                },
+                {
+                  "params": [
                   ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               }
+                  "type": "sum"
+                }
+              ]
             ],
-            "thresholds":[
-
-            ],
-            "timeFrom":null,
-            "timeRegions":[
-
-            ],
-            "timeShift":null,
-            "title":"Mode choices stacked per hour",
-            "tooltip":{
-               "shared":true,
-               "sort":2,
-               "value_type":"individual"
-            },
-            "type":"graph",
-            "xaxis":{
-               "buckets":null,
-               "mode":"time",
-               "name":null,
-               "show":true,
-               "values":[
-
-               ]
-            },
-            "yaxes":[
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":2,
-                  "max":null,
-                  "min":null,
-                  "show":true
-               },
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":1,
-                  "max":null,
-                  "min":null,
-                  "show":false
-               }
-            ],
-            "yaxis":{
-               "align":false,
-               "alignLevel":null
-            }
-         },
-         {
-            "aliasColors":{
-
-            },
-            "bars":false,
-            "dashLength":10,
-            "dashes":false,
-            "datasource":"InfluxDB",
-            "fill":1,
-            "fillGradient":0,
-            "gridPos":{
-               "h":9,
-               "w":24,
-               "x":0,
-               "y":9
-            },
-            "id":6,
-            "legend":{
-               "alignAsTable":true,
-               "avg":true,
-               "current":false,
-               "max":false,
-               "min":false,
-               "rightSide":true,
-               "show":true,
-               "total":true,
-               "values":true
-            },
-            "lines":true,
-            "linewidth":1,
-            "nullPointMode":"null",
-            "options":{
-               "dataLinks":[
-
-               ]
-            },
-            "percentage":false,
-            "pluginVersion":"6.4.1",
-            "pointradius":2,
-            "points":false,
-            "renderer":"flot",
-            "seriesOverrides":[
-
-            ],
-            "spaceLength":10,
-            "stack":false,
-            "steppedLine":false,
-            "targets":[
-               {
-                  "alias":"$tag_mode",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     }
-                  ],
-                  "measurement":"mode-choices",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"A",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
-                  ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               }
-            ],
-            "thresholds":[
-
-            ],
-            "timeFrom":null,
-            "timeRegions":[
-
-            ],
-            "timeShift":null,
-            "title":"Mode choices",
-            "tooltip":{
-               "shared":true,
-               "sort":2,
-               "value_type":"individual"
-            },
-            "type":"graph",
-            "xaxis":{
-               "buckets":null,
-               "mode":"time",
-               "name":null,
-               "show":true,
-               "values":[
-
-               ]
-            },
-            "yaxes":[
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":2,
-                  "max":null,
-                  "min":null,
-                  "show":true
-               },
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":1,
-                  "max":null,
-                  "min":null,
-                  "show":false
-               }
-            ],
-            "yaxis":{
-               "align":false,
-               "alignLevel":null
-            }
-         },
-         {
-            "aliasColors":{
-
-            },
-            "bars":true,
-            "dashLength":10,
-            "dashes":false,
-            "datasource":"InfluxDB",
-            "fill":1,
-            "fillGradient":0,
-            "gridPos":{
-               "h":9,
-               "w":24,
-               "x":0,
-               "y":18
-            },
-            "id":3,
-            "legend":{
-               "alignAsTable":true,
-               "avg":true,
-               "current":false,
-               "max":false,
-               "min":false,
-               "rightSide":true,
-               "show":true,
-               "total":true,
-               "values":true
-            },
-            "lines":false,
-            "linewidth":1,
-            "nullPointMode":"null",
-            "options":{
-               "dataLinks":[
-
-               ]
-            },
-            "percentage":false,
-            "pluginVersion":"6.4.1",
-            "pointradius":2,
-            "points":false,
-            "renderer":"flot",
-            "seriesOverrides":[
-
-            ],
-            "spaceLength":10,
-            "stack":true,
-            "steppedLine":false,
-            "targets":[
-               {
-                  "alias":"Allocation reserved",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     }
-                  ],
-                  "hide":false,
-                  "measurement":"ride-hail-allocation-reserved",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"A",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
-                  ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               },
-               {
-                  "alias":"Inquiry served",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     }
-                  ],
-                  "hide":false,
-                  "measurement":"ride-hail-inquiry-served",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"B",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
-                  ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               }
-            ],
-            "thresholds":[
-
-            ],
-            "timeFrom":null,
-            "timeRegions":[
-
-            ],
-            "timeShift":null,
-            "title":"Ride Hail",
-            "tooltip":{
-               "shared":true,
-               "sort":0,
-               "value_type":"individual"
-            },
-            "type":"graph",
-            "xaxis":{
-               "buckets":null,
-               "mode":"time",
-               "name":null,
-               "show":true,
-               "values":[
-
-               ]
-            },
-            "yaxes":[
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":2,
-                  "max":null,
-                  "min":null,
-                  "show":true
-               },
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":1,
-                  "max":null,
-                  "min":null,
-                  "show":false
-               }
-            ],
-            "yaxis":{
-               "align":false,
-               "alignLevel":null
-            }
-         },
-         {
-            "aliasColors":{
-
-            },
-            "bars":true,
-            "dashLength":10,
-            "dashes":false,
-            "datasource":"InfluxDB",
-            "fill":1,
-            "fillGradient":0,
-            "gridPos":{
-               "h":9,
-               "w":24,
-               "x":0,
-               "y":27
-            },
-            "id":5,
-            "legend":{
-               "alignAsTable":true,
-               "avg":true,
-               "current":false,
-               "max":false,
-               "min":false,
-               "rightSide":true,
-               "show":true,
-               "total":true,
-               "values":true
-            },
-            "lines":false,
-            "linewidth":1,
-            "nullPointMode":"null",
-            "options":{
-               "dataLinks":[
-
-               ]
-            },
-            "percentage":false,
-            "pluginVersion":"6.4.1",
-            "pointradius":2,
-            "points":false,
-            "renderer":"flot",
-            "seriesOverrides":[
-
-            ],
-            "spaceLength":10,
-            "stack":false,
-            "steppedLine":false,
-            "targets":[
-               {
-                  "alias":"Parking $tag_parking_type",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     },
-                     {
-                        "params":[
-                           "parking_type"
-                        ],
-                        "type":"tag"
-                     }
-                  ],
-                  "measurement":"parking",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"A",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
-                  ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               }
-            ],
-            "thresholds":[
-
-            ],
-            "timeFrom":null,
-            "timeRegions":[
-
-            ],
-            "timeShift":null,
-            "title":"Parking",
-            "tooltip":{
-               "shared":true,
-               "sort":0,
-               "value_type":"individual"
-            },
-            "type":"graph",
-            "xaxis":{
-               "buckets":null,
-               "mode":"time",
-               "name":null,
-               "show":true,
-               "values":[
-
-               ]
-            },
-            "yaxes":[
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":2,
-                  "max":null,
-                  "min":null,
-                  "show":true
-               },
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":1,
-                  "max":null,
-                  "min":null,
-                  "show":false
-               }
-            ],
-            "yaxis":{
-               "align":false,
-               "alignLevel":null
-            }
-         },
-         {
-            "aliasColors":{
-
-            },
-            "bars":false,
-            "dashLength":10,
-            "dashes":false,
-            "datasource":"InfluxDB",
-            "fill":1,
-            "fillGradient":0,
-            "gridPos":{
-               "h":9,
-               "w":24,
-               "x":0,
-               "y":36
-            },
-            "id":4,
-            "legend":{
-               "alignAsTable":true,
-               "avg":true,
-               "current":false,
-               "max":false,
-               "min":false,
-               "rightSide":true,
-               "show":true,
-               "total":true,
-               "values":true
-            },
-            "lines":true,
-            "linewidth":1,
-            "nullPointMode":"null",
-            "options":{
-               "dataLinks":[
-
-               ]
-            },
-            "percentage":false,
-            "pluginVersion":"6.4.1",
-            "pointradius":2,
-            "points":false,
-            "renderer":"flot",
-            "seriesOverrides":[
-
-            ],
-            "spaceLength":10,
-            "stack":false,
-            "steppedLine":false,
-            "targets":[
-               {
-                  "alias":"Plug in $tag_charging_point $tag_pricing_model",
-                  "groupBy":[
-                     {
-                        "params":[
-                           "1h"
-                        ],
-                        "type":"time"
-                     },
-                     {
-                        "params":[
-                           "mode"
-                        ],
-                        "type":"tag"
-                     },
-                     {
-                        "params":[
-                           "charging_point"
-                        ],
-                        "type":"tag"
-                     },
-                     {
-                        "params":[
-                           "pricing_model"
-                        ],
-                        "type":"tag"
-                     }
-                  ],
-                  "measurement":"charging-plug-in",
-                  "orderByTime":"ASC",
-                  "policy":"default",
-                  "query":"SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-                  "rawQuery":false,
-                  "refId":"A",
-                  "resultFormat":"time_series",
-                  "select":[
-                     [
-                        {
-                           "params":[
-                              "count"
-                           ],
-                           "type":"field"
-                        },
-                        {
-                           "params":[
-
-                           ],
-                           "type":"sum"
-                        }
-                     ]
-                  ],
-                  "tags":[
-                     {
-                        "key":"unique-run-name",
-                        "operator":"=~",
-                        "value":"/^$run_name$/"
-                     },
-                     {
-                        "condition":"AND",
-                        "key":"iteration-num",
-                        "operator":"=~",
-                        "value":"/^$iteration_num$/"
-                     }
-                  ]
-               }
-            ],
-            "thresholds":[
-
-            ],
-            "timeFrom":null,
-            "timeRegions":[
-
-            ],
-            "timeShift":null,
-            "title":"Charging",
-            "tooltip":{
-               "shared":true,
-               "sort":0,
-               "value_type":"individual"
-            },
-            "type":"graph",
-            "xaxis":{
-               "buckets":null,
-               "mode":"time",
-               "name":null,
-               "show":true,
-               "values":[
-
-               ]
-            },
-            "yaxes":[
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":2,
-                  "max":null,
-                  "min":null,
-                  "show":true
-               },
-               {
-                  "format":"short",
-                  "label":null,
-                  "logBase":1,
-                  "max":null,
-                  "min":null,
-                  "show":false
-               }
-            ],
-            "yaxis":{
-               "align":false,
-               "alignLevel":null
-            }
-         }
-      ],
-      "refresh":"5s",
-      "schemaVersion":20,
-      "style":"dark",
-      "tags":[
-
-      ],
-      "templating":{
-         "list":[
-            {
-               "allValue":null,
-               "current":{
-                  "text":"sf-light-25k-xml_2019-11-09_22-25-34",
-                  "value":"sf-light-25k-xml_2019-11-09_22-25-34"
-               },
-               "datasource":"InfluxDB",
-               "definition":"SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
-               "hide":0,
-               "includeAll":false,
-               "label":"run_name",
-               "multi":false,
-               "name":"run_name",
-               "options":[
-
-               ],
-               "query":"SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
-               "refresh":1,
-               "regex":"",
-               "skipUrlSync":false,
-               "sort":6,
-               "tagValuesQuery":"",
-               "tags":[
-
-               ],
-               "tagsQuery":"",
-               "type":"query",
-               "useTags":false
-            },
-            {
-               "allValue":null,
-               "current":{
-                  "text":"1",
-                  "value":"1"
-               },
-               "datasource":"InfluxDB",
-               "definition":"SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
-               "hide":0,
-               "includeAll":false,
-               "label":"iteration_num",
-               "multi":false,
-               "name":"iteration_num",
-               "options":[
-
-               ],
-               "query":"SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
-               "refresh":1,
-               "regex":"",
-               "skipUrlSync":false,
-               "sort":4,
-               "tagValuesQuery":"",
-               "tags":[
-
-               ],
-               "tagsQuery":"",
-               "type":"query",
-               "useTags":false
-            }
-         ]
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+        ],
+        "timeFrom": null,
+        "timeRegions": [
+        ],
+        "timeShift": null,
+        "title": "Mode choices",
+        "tooltip": {
+          "shared": true,
+          "sort": 2,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": [
+          ]
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 2,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
       },
-      "time":{
-         "from":"now/d",
-         "to":"now/d"
+      {
+        "aliasColors": {
+        },
+        "bars": true,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 18
+        },
+        "id": 3,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": true,
+          "total": true,
+          "values": true
+        },
+        "lines": false,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": [
+          ]
+        },
+        "percentage": false,
+        "pluginVersion": "6.4.1",
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+        ],
+        "spaceLength": 10,
+        "stack": true,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Allocation reserved",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              }
+            ],
+            "hide": false,
+            "measurement": "ride-hail-allocation-reserved",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [
+                  ],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          },
+          {
+            "alias": "Inquiry served",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              }
+            ],
+            "hide": false,
+            "measurement": "ride-hail-inquiry-served",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [
+                  ],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+        ],
+        "timeFrom": null,
+        "timeRegions": [
+        ],
+        "timeShift": null,
+        "title": "Ride Hail",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": [
+          ]
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 2,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
       },
-      "timepicker":{
-         "refresh_intervals":[
-            "5s",
-            "10s",
-            "30s",
-            "1m",
-            "5m",
-            "15m",
-            "30m",
-            "1h",
-            "2h",
-            "1d"
-         ]
+      {
+        "aliasColors": {
+        },
+        "bars": true,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 27
+        },
+        "id": 5,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": true,
+          "total": true,
+          "values": true
+        },
+        "lines": false,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": [
+          ]
+        },
+        "percentage": false,
+        "pluginVersion": "6.4.1",
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Parking $tag_parking_type",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "parking_type"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "parking",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [
+                  ],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+        ],
+        "timeFrom": null,
+        "timeRegions": [
+        ],
+        "timeShift": null,
+        "title": "Parking",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": [
+          ]
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 2,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
       },
-      "timezone":"",
-      "title":"Beam Simulation. Iteration view",
-      "uid":"5oUysNJWz",
-      "version":3
-   }
+      {
+        "aliasColors": {
+        },
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 36
+        },
+        "id": 4,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": true,
+          "total": true,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": [
+          ]
+        },
+        "percentage": false,
+        "pluginVersion": "6.4.1",
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Plug in $tag_charging_point $tag_pricing_model",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "charging_point"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "pricing_model"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "charging-plug-in",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [
+                  ],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+        ],
+        "timeFrom": null,
+        "timeRegions": [
+        ],
+        "timeShift": null,
+        "title": "Charging",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": [
+          ]
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 2,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 20,
+    "style": "dark",
+    "tags": [
+    ],
+    "templating": {
+      "list": [
+        {
+          "allValue": null,
+          "current": {
+            "text": "sf-light-25k-xml_2019-11-09_22-25-34",
+            "value": "sf-light-25k-xml_2019-11-09_22-25-34"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
+          "hide": 0,
+          "includeAll": false,
+          "label": "run_name",
+          "multi": false,
+          "name": "run_name",
+          "options": [
+          ],
+          "query": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 6,
+          "tagValuesQuery": "",
+          "tags": [
+          ],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "text": "1",
+            "value": "1"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 0,
+          "includeAll": false,
+          "label": "iteration_num",
+          "multi": false,
+          "name": "iteration_num",
+          "options": [
+          ],
+          "query": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 4,
+          "tagValuesQuery": "",
+          "tags": [
+          ],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
+    },
+    "time": {
+      "from": "now/d",
+      "to": "now/d"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ]
+    },
+    "timezone": "",
+    "title": "Beam Simulation. Iteration view",
+    "uid": "5oUysNJWz",
+    "version": 3
+  }
 }

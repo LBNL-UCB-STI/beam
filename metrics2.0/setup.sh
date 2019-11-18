@@ -18,7 +18,6 @@ grafana_api() {
   local url=$2
   local params=$3
   local bodyfile=$4
-  local response
   local cmd
 
   cmd="curl -L -s --fail -H \"Accept: application/json\" -H \"Content-Type: application/json\" -X ${verb} -k ${GRAFANA_URL}${url}"
@@ -44,7 +43,7 @@ install_datasources() {
     if [[ -f "${datasource}" ]]; then
       echo "Installing datasource ${datasource}"
       if grafana_api POST /api/datasources "" "${datasource}"; then
-        echo "installed ok"
+        echo " installed ok"
       else
         echo "install failed"
       fi
@@ -61,7 +60,7 @@ install_dashboards() {
       echo "Installing dashboard ${dashboard}"
 
       if grafana_api POST /api/dashboards/db "" "${dashboard}"; then
-        echo "installed ok"
+        echo " installed ok"
       else
         echo "install failed"
       fi
