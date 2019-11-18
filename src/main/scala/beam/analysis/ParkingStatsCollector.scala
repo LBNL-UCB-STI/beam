@@ -161,7 +161,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              store the parking time and parking cost
        */
       case parkEvent: ParkEvent =>
-        beamServices.simMetricCollector.count(
+        beamServices.simMetricCollector.writeIteration(
           "parking",
           SimulationTime(parkEvent.time.toInt),
           1,

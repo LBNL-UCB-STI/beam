@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
 import beam.analysis.IterationSummaryAnalysis;
+import beam.sim.metrics.Metrics;
+import beam.sim.metrics.SimulationMetricCollector;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -35,13 +37,15 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
+    private final SimulationMetricCollector simMetricCollector;
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation;
     private final boolean writeGraph;
 
-    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
+    public PersonTravelTimeAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
+        this.simMetricCollector = simMetricCollector;
     }
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
@@ -109,7 +113,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         Tuple<List<String>, Tuple<double[][], Double>> data = compute();
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond().getFirst();
-        averageTime.add(data.getSecond().getSecond());
+        double averageVal = data.getSecond().getSecond();
+        averageTime.add(averageVal);
+
+        HashMap<String, String> tags = new HashMap<>();
+        tags.put("mode", "all-car");
+        simMetricCollector.writeGlobalJava("AverageTravelTime", averageVal, tags);
+        for(int i = 0; i < modes.size(); i++) {
+            String metricName = modes.get(i);
+            double metricVal = dataSets[i][dataSets[i].length - 1];
+            tags.put("mode", metricName);
+            simMetricCollector.writeGlobalJava("AverageTravelTime", metricVal, tags);
+        }
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {

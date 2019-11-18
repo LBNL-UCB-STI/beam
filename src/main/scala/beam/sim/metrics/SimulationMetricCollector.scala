@@ -22,33 +22,64 @@ object SimulationMetricCollector {
 
 trait SimulationMetricCollector {
 
-  def count(
-    name: String,
-    time: SimulationTime,
-    times: Long = 1,
+  def writeGlobal(
+    metricName: String,
+    metricValue: Double,
     level: MetricLevel = ShortLevel,
     tags: Map[String, String] = Map.empty
   ): Unit
 
-  def countJava(
+  def writeGlobalJava(
+    metricName: String,
+    metricValue: Double
+  ): Unit = {
+    writeGlobal(metricName, metricValue, ShortLevel, Map.empty)
+  }
+
+  def writeGlobalJava(
+    metricName: String,
+    metricValue: Double,
+    tags: java.util.Map[String, String]
+  ): Unit = {
+    writeGlobal(metricName, metricValue, ShortLevel, tags.asScala.toMap)
+  }
+
+  def writeGlobalJava(
+    metricName: String,
+    metricValue: Double,
+    level: MetricLevel = ShortLevel,
+    tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
+  ): Unit = {
+    writeGlobal(metricName, metricValue, level, tags.asScala.toMap)
+  }
+
+  def writeIteration(
+    metricName: String,
+    time: SimulationTime,
+    metricValue: Double = 1.0,
+    level: MetricLevel = ShortLevel,
+    tags: Map[String, String] = Map.empty
+  ): Unit
+
+  def writeIterationjava(
     name: String,
     time: Int,
-    times: Long = 1,
+    times: Double = 1.0,
     level: MetricLevel,
     tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
   ): Unit = {
-    count(name, SimulationTime(time), times, level, tags.asScala.toMap)
+    writeIteration(name, SimulationTime(time), times, level, tags.asScala.toMap)
   }
 
   def increment(name: String, time: SimulationTime, level: MetricLevel): Unit = {
     if (isRightLevel(level)) {
-      count(name = name, time = time, times = 1, level = level)
+      writeIteration(name, time = time, 1.0, level = level)
     }
   }
 
   def decrement(name: String, time: SimulationTime, level: MetricLevel): Unit = {
     if (isRightLevel(level)) {
-      count(name = name, time = time, times = -1, level = level)
+      writeIteration(name, time = time, -1.0, level = level)
     }
   }
 
@@ -58,13 +89,21 @@ trait SimulationMetricCollector {
 
 // To use in tests as a mock
 object NoOpSimulationMetricCollector extends SimulationMetricCollector {
-  override def count(
+  override def writeIteration(
     name: String,
     time: SimulationTime,
-    times: Long,
+    times: Double,
     level: MetricLevel,
     tags: Map[String, String]
   ): Unit = {}
+
+  override def writeGlobal(
+    metricName: String,
+    metricValue: Double,
+    level: MetricLevel,
+    tags: Map[String, String]
+  ): Unit = {}
+
   override def clear(): Unit = {}
 
   override def close(): Unit = {}
@@ -73,8 +112,7 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
 class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     extends SimulationMetricCollector
     with LazyLogging {
-  val cfg = beamCfg.beam.sim.metric.collector.influxDbSimulationMetricCollector
-
+  private val cfg = beamCfg.beam.sim.metric.collector.influxDbSimulationMetricCollector
   private val metricToLastSeenTs: ConcurrentHashMap[String, Long] = new ConcurrentHashMap[String, Long]()
   private val step: Long = TimeUnit.MICROSECONDS.toNanos(1L)
   private val todayAsNanos: Long = {
@@ -100,10 +138,38 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     }
   }
 
-  override def count(
+  override def writeGlobal(
+    metricName: String,
+    metricValue: Double,
+    level: MetricLevel,
+    tags: Map[String, String]
+  ): Unit = {
+    if (isRightLevel(level)) {
+      val rawPoint = Point
+        .measurement(metricName)
+        .addField("count", metricValue)
+        .time(influxTime(metricName, TimeUnit.HOURS.toSeconds(Metrics.iterationNumber)), TimeUnit.NANOSECONDS)
+
+      val withDefaultTags = defaultTags.foldLeft(rawPoint) {
+        case (p, (k, v)) =>
+          p.tag(k, v)
+      }
+
+      val point = tags
+        .foldLeft(withDefaultTags) {
+          case (p, (k, v)) =>
+            p.tag(k, v)
+        }
+        .build()
+
+      maybeInfluxDB.foreach(_.write(point))
+    }
+  }
+
+  override def writeIteration(
     name: String,
     time: SimulationTime,
-    times: Long = 1,
+    times: Double = 1.0,
     level: MetricLevel = ShortLevel,
     tags: Map[String, String] = Map.empty
   ): Unit = {
@@ -133,7 +199,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     Try(maybeInfluxDB.foreach(_.close()))
   }
 
-  private def influxTime(metricName: String, simulationTimeSeconds: Int): Long = {
+  private def influxTime(metricName: String, simulationTimeSeconds: Long): Long = {
     val tsNano = todayAsNanos + TimeUnit.SECONDS.toNanos(simulationTimeSeconds)
     getNextInfluxTs(metricName, tsNano)
   }

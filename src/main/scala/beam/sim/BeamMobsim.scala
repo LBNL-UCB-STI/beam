@@ -69,7 +69,7 @@ class BeamMobsim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
     // This is needed to get all iterations in Grafana. Take a look to variable `$iteration_num` in the dashboard
-    beamServices.simMetricCollector.count(
+    beamServices.simMetricCollector.writeIteration(
       "beam-iteration",
       SimulationTime(0),
       beamServices.matsimServices.getIterationNumber.toLong,
