@@ -6,7 +6,10 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.agentsim.events.SpaceTime
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.FreeFlowTravelTime
@@ -93,11 +96,10 @@ class PhysSim(
         reroute(travelTime, reroutePerIterPct)
         val after = printRouteStats(s"After rerouting at $currentIter iter", population)
         val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
-        val absAvgLenDiff =  Math.abs(before.totalRouteLen/before.nRoutes - after.totalRouteLen / after.nRoutes)
+        val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
         val absTotalCountDiff = Math.abs(before.totalLinkCount - after.totalLinkCount)
-        val absAvgCountDiff = Math.abs(before.totalLinkCount/before.nRoutes - after.totalLinkCount/ after.nRoutes)
-        logger.info(
-          s"""
+        val absAvgCountDiff = Math.abs(before.totalLinkCount / before.nRoutes - after.totalLinkCount / after.nRoutes)
+        logger.info(s"""
              |Abs diff in total len: $absTotalLenDiff
              |Abs avg diff in len: $absAvgLenDiff
              |Abs dif in total link count: $absTotalCountDiff
@@ -147,7 +149,10 @@ class PhysSim(
 
   private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Unit = {
     val rightPeopleToReplan =
-      population.getPersons.values.asScala.filter(p => !p.getId.toString.contains("bus")).toVector.sortBy(x => x.getId.toString)
+      population.getPersons.values.asScala
+        .filter(p => !p.getId.toString.contains("bus"))
+        .toVector
+        .sortBy(x => x.getId.toString)
     val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
       val route = plan.getPlanElements.asScala.zipWithIndex.collect {
         case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
@@ -208,15 +213,18 @@ class PhysSim(
   private def printRouteStats(str: String, population: Population): RerouteStats = {
     val routes = population.getPersons.values.asScala.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
-        case leg: Leg if Option(leg.getRoute).nonEmpty && leg.getRoute.isInstanceOf[NetworkRoute]=>
+        case leg: Leg if Option(leg.getRoute).nonEmpty && leg.getRoute.isInstanceOf[NetworkRoute] =>
           leg.getRoute.asInstanceOf[NetworkRoute]
       }
     }
     val totalRouteLen = routes.map { route =>
       // route.getLinkIds does not contain start and end links, so we should compute them separately
-      val startAndEndLen = beamServices.networkHelper.getLinkUnsafe(route.getStartLinkId.toString.toInt).getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
-      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) { case (acc, curr) =>
-        acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
+      val startAndEndLen = beamServices.networkHelper
+        .getLinkUnsafe(route.getStartLinkId.toString.toInt)
+        .getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
+      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) {
+        case (acc, curr) =>
+          acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
       }
       startAndEndLen + linkLength
     }.sum
@@ -228,8 +236,7 @@ class PhysSim(
 
     val avgRouteLen = totalRouteLen / routes.size
     val avgLinkCount = totalLinkCount / routes.size
-    logger.info(
-      s"""$str.
+    logger.info(s"""$str.
          |Number of routes: ${routes.size},
          |Total route length: $totalRouteLen
          |Avg route length: $avgRouteLen
@@ -238,29 +245,33 @@ class PhysSim(
     RerouteStats(routes.size, totalRouteLen, totalLinkCount)
   }
 
-
-  private def verifyResponse(routingRequest: RoutingRequest, leg: Leg, maybeRoutingResponse: Try[RoutingResponse]): Unit = {
-    maybeRoutingResponse.fold(_ => (), resp => {
-      val r5Leg = resp.itineraries.head.legs.head
-      val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
-      val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
-      val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
-      val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
-      if (startLinkId != matsimStartLinkId && shouldLogWhenLinksAreNotTheSame) {
-        logger.info(
-          s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
+  private def verifyResponse(
+    routingRequest: RoutingRequest,
+    leg: Leg,
+    maybeRoutingResponse: Try[RoutingResponse]
+  ): Unit = {
+    maybeRoutingResponse.fold(
+      _ => (),
+      resp => {
+        val r5Leg = resp.itineraries.head.legs.head
+        val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
+        val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
+        val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
+        val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
+        if (startLinkId != matsimStartLinkId && shouldLogWhenLinksAreNotTheSame) {
+          logger.info(s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
              |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
              |MATSim leg: ${leg}""".stripMargin)
-      }
-      if (endLinkId != matsimEndLinkId && shouldLogWhenLinksAreNotTheSame) {
-        logger.info(
-          s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
+        }
+        if (endLinkId != matsimEndLinkId && shouldLogWhenLinksAreNotTheSame) {
+          logger.info(s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
              |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
              |MATSim leg: ${leg}""".stripMargin)
+        }
+        // r5Leg
+        ()
       }
-      // r5Leg
-      ()
-    })
+    )
   }
 
   private def reroute(

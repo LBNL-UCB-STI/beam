@@ -15,6 +15,9 @@ import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
+import beam.sim.population.AttributesOfIndividual;
+import beam.sim.population.PopulationAdjustment;
+import beam.sim.population.PopulationAdjustment$;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
@@ -37,6 +40,7 @@ import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
+import org.matsim.households.Household;
 import org.matsim.utils.objectattributes.attributable.Attributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -87,6 +92,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
 
+    private final Map<Id<Person>, Household> personToHouseHold;
+
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
@@ -117,6 +124,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         beamConfigChangesObservable.addObserver(this);
+
+        personToHouseHold = scenario.getHouseholds().getHouseholds().values().stream().flatMap(h -> h.getMemberIds().stream().map(m -> new AbstractMap.SimpleEntry<Id<Person>, Household>(m, h)))
+                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+
     }
 
 
@@ -423,6 +434,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     keys.forEach(key -> {
                         person.getAttributes().putAttribute(key, attributes.getAttribute(key));
                     });
+                    final Household hh = personToHouseHold.get(originalPerson.getId());
+                    final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), beamServices.matsimServices().getScenario().getPopulation(), originalPerson, hh);
+                    person.getCustomAttributes().put(PopulationAdjustment.BEAM_ATTRIBUTES(), attributesOfIndividual);
                 }
                 catch (Exception ex) {
                     log.error("Could not create attributes for person {}", driverId);

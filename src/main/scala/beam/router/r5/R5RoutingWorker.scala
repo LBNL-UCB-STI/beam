@@ -216,7 +216,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 //            println(msg)
 //          }
 
-
           if (shouldFixError && workerParams.beamConfig.beam.routing.r5.travelTimeError > 0) {
             val itinerariesWithoutError = routeWithError.itineraries.map { itinerary =>
               if (!itinerary.tripClassifier.isTransit) {
@@ -1077,7 +1076,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }
-    val beamLeg: BeamLeg = createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds, request)
+    val beamLeg: BeamLeg =
+      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds, request)
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
         .map(

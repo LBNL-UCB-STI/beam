@@ -14,7 +14,13 @@ import beam.utils.{NetworkHelper, TravelTimeUtils}
   * @param duration   period in seconds
   * @param travelPath BeamPath
   */
-case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: BeamPath, request: Option[RoutingRequest] = None) {
+case class BeamLeg(
+  startTime: Int,
+  mode: BeamMode,
+  duration: Int,
+  travelPath: BeamPath,
+  request: Option[RoutingRequest] = None
+) {
   val endTime: Int = startTime + duration
 
   def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
