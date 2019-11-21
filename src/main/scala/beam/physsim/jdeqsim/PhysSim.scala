@@ -49,6 +49,8 @@ class CarTravelTimeHandler extends BasicEventHandler with StrictLogging {
   private val events = new ArrayBuffer[ArrivalDepartureEvent]
 
   override def handleEvent(event: Event): Unit = {
+    logger.info(event.toString)
+
     event match {
       case pae: PersonArrivalEvent if !pae.getPersonId.toString.contains("bus") && !pae.getPersonId.toString.contains("rideHailVehicle-") && pae.getLegMode.equalsIgnoreCase("car")=>
         events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")

@@ -390,6 +390,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
             if (isPhyssimMode(mode)) {
+                log.info(pte.toString());
+                if (pte.vehicleType().contains("CAV")) {
+                    int i = 1 + 1;
+                }
 
                 double departureTime = pte.departureTime();
                 String vehicleId = pte.vehicleId().toString();
@@ -400,7 +404,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 caccVehiclesMap.put(vehicleId, isCaccEnabled);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
-                initializePersonAndPlanIfNeeded(personId, Id.createPersonId(pte.driverId()));
+                initializePersonAndPlanIfNeeded(personId, Id.createPersonId(pte.driverId()), "");
 
                 // add previous activity and leg to plan
                 Person person = jdeqsimPopulation.getPersons().get(personId);
@@ -419,13 +423,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private void initializePersonAndPlanIfNeeded(Id<Person> personId, Id<Person> driverId) {
+    private void initializePersonAndPlanIfNeeded(Id<Person> personId, Id<Person> driverId, String vehType) {
         if (!jdeqsimPopulation.getPersons().containsKey(personId)) {
             Person person = jdeqsimPopulation.getFactory().createPerson(personId);
             Plan plan = jdeqsimPopulation.getFactory().createPlan();
             plan.setPerson(person);
             person.addPlan(plan);
             person.setSelectedPlan(plan);
+            // person.getAttributes().putAttribute("vehicle_type", vehType);
             jdeqsimPopulation.addPerson(person);
 
             Person originalPerson = agentSimScenario.getPopulation().getPersons().get(driverId);
