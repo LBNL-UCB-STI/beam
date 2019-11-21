@@ -137,6 +137,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
+
+
         PhysSim sim = new PhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices,
                 controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber));
@@ -470,6 +472,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         leg.setDepartureTime(pte.departureTime());
         leg.setTravelTime(0);
         leg.setRoute(route);
+        leg.getAttributes().putAttribute("travel_time", pte.arrivalTime() - pte.departureTime());
+        leg.getAttributes().putAttribute("time", pte.time());
         return leg;
     }
 
