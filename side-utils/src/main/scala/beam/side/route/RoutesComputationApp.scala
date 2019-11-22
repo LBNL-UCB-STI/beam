@@ -42,4 +42,4 @@ trait AppSetup {
   }
 }
 
-object RoutesComputationApp extends App {}
+object RoutesComputationApp extends App with AppSetup {}
