@@ -18,8 +18,9 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.util.Random
@@ -364,8 +365,25 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   ) {
 
-    def totalRemainingRange = {
+    def totalRemainingRange: Double = {
       remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
+    }
+  }
+
+  object BeamVehicleState {
+
+    def haveEnoughFuel(
+      beamVehicleState: BeamVehicleState,
+      rideHailLocationUTM: Coord,
+      pickupLocationUTM: Coord,
+      travelDistance: Double,
+      distanceToDepot: Double,
+      marginFactor: Double = 2.0 // TODO Better name? Extract to config?
+    ): Boolean = {
+      require(travelDistance >= 0)
+      require(distanceToDepot >= 0)
+      val distance = marginFactor * (CoordUtils.calcProjectedEuclideanDistance(pickupLocationUTM, rideHailLocationUTM) + travelDistance + distanceToDepot)
+      distance <= beamVehicleState.remainingPrimaryRangeInM
     }
   }
 

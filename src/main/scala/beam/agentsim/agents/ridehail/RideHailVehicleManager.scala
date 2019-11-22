@@ -3,13 +3,12 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailVehicleManager._
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.Geofence
-import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -107,6 +106,10 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
   }
 
+  def isInsideGeofence(maybeGeofence: Option[Geofence], pickupLocation: Coord, dropoffLocation: Coord): Boolean = {
+    maybeGeofence.forall(g => g.contains(pickupLocation) && g.contains(dropoffLocation))
+  }
+
   def getClosestIdleVehiclesWithinRadiusByETA(
     pickupLocation: Coord,
     dropoffLocation: Coord,
@@ -115,26 +118,27 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     excludeRideHailVehicles: Set[Id[Vehicle]] = Set(),
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
   ): Option[RideHailAgentETA] = {
-    var start = System.currentTimeMillis()
+    val maybeParkingStall = rideHailManager.rideHailDepotParkingManager.findDepot(dropoffLocation, 1200)
+    // TODO: In case if parking stall is not found, what should be the distance then? Should it be defined in config as default max distance?
+    val distanceToDepot = maybeParkingStall
+      .map(ps => CoordUtils.calcProjectedEuclideanDistance(dropoffLocation, ps.locationUTM))
+      .getOrElse(999999.9) // FIXME
+    val travelDistance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, dropoffLocation)
+
     val nearbyAvailableRideHailAgents = idleRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
       .view
       .filter { x =>
         idleRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || (GeoUtils.distFormula(
-          pickupLocation,
-          new Coord(x.geofence.get.geofenceX, x.geofence.get.geofenceY)
-        ) <= x.geofence.get.geofenceRadius && GeoUtils.distFormula(
-          dropoffLocation,
-          new Coord(x.geofence.get.geofenceX, x.geofence.get.geofenceY)
-        ) <= x.geofence.get.geofenceRadius))
+        isInsideGeofence(x.geofence, pickupLocation, dropoffLocation) && BeamVehicleState.haveEnoughFuel(
+          beamVehicleState = getVehicleState(x.vehicleId),
+          rideHailLocationUTM = x.currentLocationUTM.loc,
+          pickupLocationUTM = pickupLocation,
+          travelDistance = travelDistance,
+          distanceToDepot = distanceToDepot
+        )
       }
-
-    var end = System.currentTimeMillis()
-    val diff1 = end - start
-
-    start = System.currentTimeMillis()
     val times2RideHailAgents = nearbyAvailableRideHailAgents
       .map { rideHailAgentLocation =>
         val distance =
@@ -145,18 +149,6 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
         val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
         RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
       }
-    end = System.currentTimeMillis()
-    val diff2 = end - start
-
-//    logger.whenDebugEnabled {
-//      val sortedByTime = times2RideHailAgents.toVector.sortBy(x => x.timeToCustomer)
-//      logger.info(s"At tick $customerRequestTime there were AvailableRideHailAgents: $sortedByTime")
-//    }
-
-    if (diff1 + diff2 > 100)
-      logger.debug(
-        s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
-      )
     if (times2RideHailAgents.isEmpty) None
     else {
       Some(times2RideHailAgents.min(RideHailAgentETAComparatorMinTimeToCustomer))
