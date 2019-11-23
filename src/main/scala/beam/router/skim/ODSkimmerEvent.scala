@@ -13,8 +13,10 @@ case class ODSkimmerEvent(
   generalizedCost: Double,
   energyConsumption: Double
 ) extends AbstractSkimmerEvent(eventTime, beamServices) {
-
-  override def getEventType: String = "od-skim"
+  override protected val skimType: String = beamServices.beamConfig.beam.router.skim.skimmers
+    .find(_.od_skimmer.isDefined)
+    .map(_.od_skimmer.get.skimType)
+    .getOrElse("skimTypeNA")
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 

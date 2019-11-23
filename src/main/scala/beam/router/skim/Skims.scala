@@ -1,29 +1,34 @@
 package beam.router.skim
 
 import beam.sim.BeamServices
+import com.typesafe.scalalogging.LazyLogging
 
-import scala.collection.immutable
+import scala.collection.mutable
 
-object Skims {
+object Skims extends LazyLogging {
   private type SkimType = String
-  private var skims: immutable.Map[SkimType, AbstractSkimmer] = immutable.Map()
+  private val skims: mutable.Map[SkimType, AbstractSkimmer] = mutable.Map()
 
-  def setup(beamServices: BeamServices): Unit = {
-    skims = beamServices.beamConfig.beam.router.skim.skimmers.map { skimmerConfig =>
-      val skimmer = skimmerConfig.skimType match {
-        case "od-skim"    => new ODSkimmer(beamServices, skimmerConfig)
-        case "count-skim" => new CountSkimmer(beamServices, skimmerConfig)
-        case _ =>
-          throw new RuntimeException("Unknown skim type")
+  def setup(implicit beamServices: BeamServices): Unit = {
+    beamServices.beamConfig.beam.router.skim.skimmers.foreach { skimmerConfig =>
+      if (skimmerConfig.od_skimmer.isDefined) {
+        skims.put(skimmerConfig.od_skimmer.get.skimType, addEvent(new ODSkimmer(beamServices, skimmerConfig)))
+      } else if (skimmerConfig.count_skimmer.isDefined) {
+        skims.put(skimmerConfig.count_skimmer.get.skimType, addEvent(new CountSkimmer(beamServices, skimmerConfig)))
+      } else {
+        logger.info("this Skimmer is not associated to an implementation")
       }
-      beamServices.matsimServices.addControlerListener(skimmer)
-      beamServices.matsimServices.getEvents.addHandler(skimmer)
-      skimmerConfig.skimType -> skimmer
-    }.toMap
+    }
+  }
+
+  private def addEvent(skimmer: AbstractSkimmer)(implicit beamServices: BeamServices): AbstractSkimmer = {
+    beamServices.matsimServices.addControlerListener(skimmer)
+    beamServices.matsimServices.getEvents.addHandler(skimmer)
+    skimmer
   }
 
   def clear(): Unit = {
-    skims = immutable.Map()
+    skims.clear()
   }
 
   def lookup(skimType: String) = {

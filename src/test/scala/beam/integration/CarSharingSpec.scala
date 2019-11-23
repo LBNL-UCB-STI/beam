@@ -184,12 +184,6 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
          |beam.outputs.writeSkimsInterval = 1
-         |beam.h3.resolution = 10
-         |beam.h3.lowerBoundResolution = 10
-         |beam.abstractSkimmer.keepKLatestSkims = 1
-         |beam.abstractSkimmer.aggregateFunction = "LATEST_SKIM"
-         |beam.abstractSkimmer.writeSkimsInterval = 1
-         |beam.abstractSkimmer.writeAggregatedSkimsInterval = 1
          |beam.agentsim.agents.vehicles.sharedFleets = [
          | {
          |    name = "fixed-non-reserving-fleet-by-taz"
@@ -210,6 +204,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |   }
          | }
          |]
+         |beam.h3.resolution = 10
+         |beam.h3.lowerBoundResolution = 10
          |beam.router.skim = {
          |  keepKLatestSkims = 1
          |  aggregateFunction = "LATEST_SKIM"
@@ -217,25 +213,25 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |  writeAggregatedSkimsInterval = 1
          |  skimmers = [
          |    {
-         |      name = "origin-destination-skimmer"
-         |      skimType = "od-skim"
-         |      origin-destination-skimmer {
-         |        skimType = "od-skim"
+         |      od-skimmer {
+         |        name = "origin-destination-skimmer"
+         |        skimType = "od-skimmer"
+         |        skimFileBaseName = "skimsOD"
          |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
          |        writeFullSkimsInterval = 0
          |      }
          |    },
          |    {
-         |      name = "count-skimmer"
-         |      skimType = "count-skim"
          |      count-skimmer {
-         |        skimType = "count-skim"
+         |        name = "count-skimmer",
+         |        skimType = "count-skimmer",
+         |        skimFileBaseName = "skimsCount"
          |      }
          |    }
          |  ]
          |}
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
-                   """.stripMargin)
+      """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     runRepositionTest(config)

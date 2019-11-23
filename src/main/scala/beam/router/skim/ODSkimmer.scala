@@ -21,7 +21,8 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
 
   override val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
 
-  override protected val skimFileBaseName: String = "skimsOD"
+  override protected val skimType: String = config.od_skimmer.get.skimType
+  override protected val skimFileBaseName: String = config.od_skimmer.get.skimFileBaseName
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
 
@@ -44,10 +45,10 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       ODSkimmerKey(
-        line("timeBin").toInt,
-        BeamMode.fromString("mode").get,
-        Id.create(line("idTaz"), classOf[TAZ]),
-        Id.create(line("idTaz"), classOf[TAZ])
+        line("hour").toInt,
+        BeamMode.fromString(line("mode").toLowerCase()).get,
+        Id.create(line("origTaz"), classOf[TAZ]),
+        Id.create(line("destTaz"), classOf[TAZ])
       ),
       ODSkimmerInternal(
         line("travelTimeInS").toDouble,
@@ -272,7 +273,6 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
       weightedEnergy = weightedEnergy
     )
   }
-
 }
 
 object ODSkimmer extends LazyLogging {

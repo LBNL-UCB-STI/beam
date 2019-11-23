@@ -14,7 +14,8 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
 
   override val readOnlySkim: AbstractSkimmerReadOnly = CountSkims(beamServices)
 
-  override protected val skimFileBaseName: String = "skimsCount"
+  override protected val skimType: String = config.count_skimmer.get.skimType
+  override protected val skimFileBaseName: String = config.count_skimmer.get.skimFileBaseName
   override protected val skimFileHeader: String = "timeBin,idTaz,hexIndex,idVehManager,variableName,count"
 
   override def fromCsv(

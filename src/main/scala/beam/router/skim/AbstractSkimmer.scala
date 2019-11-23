@@ -8,13 +8,8 @@ import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -35,8 +30,10 @@ trait AbstractSkimmerInternal {
 abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
     extends Event(eventTime)
     with ScalaEvent {
+  protected val skimType: String
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
+  def getEventType: String = skimType + "-event"
 }
 
 abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyLogging {
@@ -55,9 +52,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected[skim] val readOnlySkim: AbstractSkimmerReadOnly
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
+  protected val skimType: String
   protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
 
   protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
+
+  private lazy val eventType = skimType + "-event"
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (event.getIteration == 0) {
@@ -66,7 +66,6 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    writeToDisk(event)
     // keep in memory
     if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
       if (readOnlySkim.pastSkims.size == beamConfig.beam.router.skim.keepKLatestSkims) {
@@ -76,19 +75,24 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     }
     // aggregate
     beamConfig.beam.router.skim.aggregateFunction match {
-      case "LATEST_SKIM" =>
-        readOnlySkim.aggregatedSkim = readOnlySkim.pastSkims.head
       case "AVG" =>
-        readOnlySkim.aggregatedSkim = aggregateAVG(event.getIteration)
+        if (event.getIteration == 0 && readOnlySkim.aggregatedSkim.isEmpty) {
+          readOnlySkim.aggregatedSkim = currentSkim.toMap
+        } else {
+          readOnlySkim.aggregatedSkim = aggregateAVG(event.getIteration)
+        }
       case _ => // default
         logger.info("no aggregation function is chosen for the skimmers!")
     }
+    // write
+    writeToDisk(event)
+    // clear
     currentSkim.clear()
   }
 
   override def handleEvent(event: Event): Unit = {
     event match {
-      case e: AbstractSkimmerEvent if e.getEventType == config.skimType =>
+      case e: AbstractSkimmerEvent if e.getEventType == eventType =>
         currentSkim.put(e.getKey, e.getSkimmerInternal.aggregateByKey(currentSkim.get(e.getKey)))
       case _ =>
     }
@@ -121,10 +125,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   private def aggregateAVG(numIterations: Int): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     val avgSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     readOnlySkim.aggregatedSkim.foreach {
-      case (k, aggSkim) =>
-        avgSkim.put(k, aggSkim.aggregateOverIterations(numIterations, currentSkim.get(k)))
+      case (key, value) =>
+        avgSkim.put(key, value.aggregateOverIterations(numIterations, currentSkim.get(key)))
     }
-    currentSkim.foreach(skim => avgSkim.put(skim._1, skim._2.aggregateOverIterations(numIterations, None)))
+    currentSkim
+      .filter(x => !readOnlySkim.aggregatedSkim.contains(x._1))
+      .foreach(skim => avgSkim.put(skim._1, skim._2.aggregateOverIterations(numIterations, None)))
     avgSkim.toMap
   }
 
