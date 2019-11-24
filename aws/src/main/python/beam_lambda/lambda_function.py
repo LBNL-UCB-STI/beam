@@ -291,6 +291,7 @@ def deploy_handler(event):
         for arg in params:
             uid = str(uuid.uuid4())[:8]
             runName = titled
+            runName = runName + '_' + shutdown_behaviour.toUpperCase()
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
