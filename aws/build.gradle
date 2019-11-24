@@ -74,7 +74,7 @@ task deploy(type: AWSLambdaInvokeTask) {
         }
 
         def pload = """{
-  "title": "${ext.getParameterValue('runName')}",
+  "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
@@ -152,6 +152,8 @@ task deployPilates(type: AWSLambdaInvokeTask) {
             }
         }
 
+        paramMap['runName'] = paramMap['runName'] + '_' + getCurrentGitUserEmail()
+        
         println("parameters wasn't specified: " + missing.join(', '))
 
         // create a string with json object which contains all parameters
@@ -231,15 +233,24 @@ def printResult(pload, result) {
 }
 
 def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
+    return getGitResultFromWorkingDirUsing('git rev-parse --abbrev-ref HEAD', "$defaultBranch")
+}
+
+def getCurrentGitUserEmail() {
+    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
+    return rawGitUserEmail.replaceAll('@',"AT").replaceAll("\\.", "_")
+}
+
+def getGitResultFromWorkingDirUsing(command, defaultResult) {
+    def gitResult = defaultResult
     try {
         def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
+        def result = command.execute(null, workingDir)
         result.waitFor()
         if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
+            gitResult  = result.text.trim()
         }
     } catch (ignored) {
     }
-    return gitBranch
+    return gitResult 
 }
