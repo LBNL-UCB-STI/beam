@@ -115,12 +115,20 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
         if(personIdCost.containsKey(personId)){
           String actType = ase.getActType();
+          String actType2;
+          if(actType.equals("Work") || actType.equals("University"))
+            actType2 = "Commute";
+          else
+            actType2 = "Secondary";
           String statType = String.format("averageTripExpenditure_%s", actType);
+          String statType2 = String.format("averageTripExpenditure_%s", actType2);
           double cost = personIdCost.get(personId);
           double travelTimeInHours=(ase.getTime()-personDepartureTime.get(personId))/3600;
           double personGeneralizedCostByAct=(cost+travelTimeInHours*averageVot)/householdIncome;
           personCostByActivityType.merge(statType, personGeneralizedCostByAct, (d1, d2) -> d1 + d2);
+          personCostByActivityType.merge(statType2, personGeneralizedCostByAct, (d1, d2) -> d1 + d2);
           activityTypeCount.merge(statType, 1, Integer::sum);
+          activityTypeCount.merge(statType2, 1, Integer::sum);
           personIdCost.remove(personId);
         }
       }
