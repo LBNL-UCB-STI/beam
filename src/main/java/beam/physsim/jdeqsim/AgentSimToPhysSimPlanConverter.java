@@ -387,13 +387,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
             }
-
-
             if (isPhyssimMode(mode)) {
-                if (pte.vehicleType().contains("CAV") || pte.driverId().contains("19")) {
-                    int i = 1 + 1;
-                }
-
                 double departureTime = pte.departureTime();
                 String vehicleId = pte.vehicleId().toString();
 
@@ -402,11 +396,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
                 caccVehiclesMap.put(vehicleId, isCaccEnabled);
 
-                log.info("VehicleId: {}, DriverId: {}", vehicleId, pte.driverId());
-
-                final Person person  = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(pte.driverId()));
-                Plan plan = person.getSelectedPlan();
-                Leg leg = createLeg(pte);
+                // For every PathTraversalEvent which has PhysSim mode (CAR or BUS) we create
+                // - If person does not exist, we create Person from `vehicleId`. For that person we create plan, set it to selected plan and add attributes from the original person
+                // - Create leg
+                // - Create dummy activity
+                final Person person = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(pte.driverId()));
+                final Plan plan = person.getSelectedPlan();
+                final Leg leg = createLeg(pte);
 
                 if (leg == null) {
                     return; // dont't process leg further, if empty
@@ -420,19 +416,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Person initializePersonAndPlanIfNeeded(Id<Person> personId, Id<Person> driverId) {
-        final Person alreadyInitedPerson = jdeqsimPopulation.getPersons().get(driverId);
+    private Person initializePersonAndPlanIfNeeded(Id<Person> vehicleId, Id<Person> driverId) {
+        // Beam in PhysSim part (JDEQSim) simulates vehicles, not people!
+        // So, we have to create _person_ who actually is vehicle.
+        final Person alreadyInitedPerson = jdeqsimPopulation.getPersons().get(vehicleId);
         if (alreadyInitedPerson == null) {
-            Person person = jdeqsimPopulation.getFactory().createPerson(driverId);
+            Person person = jdeqsimPopulation.getFactory().createPerson(vehicleId);
             Plan plan = jdeqsimPopulation.getFactory().createPlan();
             plan.setPerson(person);
             person.addPlan(plan);
             person.setSelectedPlan(plan);
             // person.getAttributes().putAttribute("vehicle_type", vehType);
             jdeqsimPopulation.addPerson(person);
-
             final Person originalPerson = agentSimScenario.getPopulation().getPersons().get(driverId);
-            final Person personToCopyFrom = originalPerson == null ? agentSimScenario.getPopulation().getPersons().get(personId) : originalPerson;
+            final Person personToCopyFrom = originalPerson == null ? agentSimScenario.getPopulation().getPersons().get(vehicleId) : originalPerson;
+            // Try to copy person's attributes from original `agentSimScenario` to the created one. Attributes are important because they are used during R5 routing
             if (personToCopyFrom != null) {
                 try {
                     Attributes attributes = personToCopyFrom.getAttributes();
@@ -445,7 +443,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     person.getCustomAttributes().put(PopulationAdjustment.BEAM_ATTRIBUTES(), attributesOfIndividual);
                 }
                 catch (Exception ex) {
-                    log.error("Could not create attributes for person {}", driverId);
+                    log.error("Could not create attributes for person " + vehicleId, ex);
                 }
             }
             return person;

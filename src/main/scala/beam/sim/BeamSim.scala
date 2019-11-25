@@ -175,8 +175,8 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    clearRoutesIfNeeded()
-    clearModesIfNeeded()
+    clearRoutesIfNeeded(event.getIteration)
+    clearModesIfNeeded(event.getIteration)
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
@@ -200,7 +200,7 @@ class BeamSim @Inject()(
     rideHailUtilizationCollector.reset(event.getIteration)
   }
 
-  private def clearRoutesIfNeeded(): Unit = {
+  private def clearRoutesIfNeeded(iteration: Int): Unit = {
     if (beamServices.beamConfig.beam.physsim.relaxation.clearRoutesEveryIteration) {
       scenario.getPopulation.getPersons.values().asScala.foreach { p =>
         p.getPlans.asScala.foreach { plan =>
@@ -211,10 +211,11 @@ class BeamSim @Inject()(
           }
         }
       }
+      logger.info(s"Clear all routes at iteration ${iteration}")
     }
   }
 
-  private def clearModesIfNeeded(): Unit = {
+  private def clearModesIfNeeded(iteration: Int): Unit = {
     if (beamServices.beamConfig.beam.physsim.relaxation.clearModesEveryIteration) {
       scenario.getPopulation.getPersons.values().asScala.foreach { p =>
         p.getPlans.asScala.foreach { plan =>
@@ -225,6 +226,7 @@ class BeamSim @Inject()(
           }
         }
       }
+      logger.info(s"Clear all modes at iteration ${iteration}")
     }
   }
 
