@@ -390,8 +390,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
             if (isPhyssimMode(mode)) {
-                log.info(pte.toString());
-                if (pte.vehicleType().contains("CAV")) {
+                if (pte.vehicleType().contains("CAV") || pte.driverId().contains("19")) {
                     int i = 1 + 1;
                 }
 
@@ -403,11 +402,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
                 caccVehiclesMap.put(vehicleId, isCaccEnabled);
 
-                Id<Person> personId = Id.createPersonId(vehicleId);
-                initializePersonAndPlanIfNeeded(personId, Id.createPersonId(pte.driverId()), "");
+                log.info("VehicleId: {}, DriverId: {}", vehicleId, pte.driverId());
 
-                // add previous activity and leg to plan
-                Person person = jdeqsimPopulation.getPersons().get(personId);
+                final Person person  = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(pte.driverId()));
                 Plan plan = person.getSelectedPlan();
                 Leg leg = createLeg(pte);
 
@@ -423,9 +420,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private void initializePersonAndPlanIfNeeded(Id<Person> personId, Id<Person> driverId, String vehType) {
-        if (!jdeqsimPopulation.getPersons().containsKey(personId)) {
-            Person person = jdeqsimPopulation.getFactory().createPerson(personId);
+    private Person initializePersonAndPlanIfNeeded(Id<Person> personId, Id<Person> driverId) {
+        final Person alreadyInitedPerson = jdeqsimPopulation.getPersons().get(driverId);
+        if (alreadyInitedPerson == null) {
+            Person person = jdeqsimPopulation.getFactory().createPerson(driverId);
             Plan plan = jdeqsimPopulation.getFactory().createPlan();
             plan.setPerson(person);
             person.addPlan(plan);
@@ -433,22 +431,27 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             // person.getAttributes().putAttribute("vehicle_type", vehType);
             jdeqsimPopulation.addPerson(person);
 
-            Person originalPerson = agentSimScenario.getPopulation().getPersons().get(driverId);
-            if (originalPerson != null) {
+            final Person originalPerson = agentSimScenario.getPopulation().getPersons().get(driverId);
+            final Person personToCopyFrom = originalPerson == null ? agentSimScenario.getPopulation().getPersons().get(personId) : originalPerson;
+            if (personToCopyFrom != null) {
                 try {
-                    Attributes attributes = originalPerson.getAttributes();
+                    Attributes attributes = personToCopyFrom.getAttributes();
                     Stream<String> keys = Arrays.stream(attributes.toString().split("\\{ key=")).filter(x -> x.contains(";")).map(z -> z.split(";")[0]);
                     keys.forEach(key -> {
                         person.getAttributes().putAttribute(key, attributes.getAttribute(key));
                     });
-                    final Household hh = personToHouseHold.get(originalPerson.getId());
-                    final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), beamServices.matsimServices().getScenario().getPopulation(), originalPerson, hh);
+                    final Household hh = personToHouseHold.get(personToCopyFrom.getId());
+                    final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), beamServices.matsimServices().getScenario().getPopulation(), personToCopyFrom, hh);
                     person.getCustomAttributes().put(PopulationAdjustment.BEAM_ATTRIBUTES(), attributesOfIndividual);
                 }
                 catch (Exception ex) {
                     log.error("Could not create attributes for person {}", driverId);
                 }
             }
+            return person;
+        }
+        else {
+            return alreadyInitedPerson;
         }
     }
 

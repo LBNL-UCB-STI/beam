@@ -155,7 +155,7 @@ class PhysSim(
       lastResult
     }
     else {
-      val simulationResult = simulate(currentIter, shouldWritePhysSimEvents && currentIter == nIterations - 1)
+      val simulationResult = simulate(currentIter, shouldWritePhysSimEvents && currentIter == nIterations)
       if (reroutePerIterPct > 0) {
         val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
         logger.info("AverageCarTravelTime before replanning")
