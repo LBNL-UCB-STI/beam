@@ -41,17 +41,29 @@ private case class ElementIndexToLeg(index: Int, leg: Leg)
 private case class ElementIndexToRoutingResponse(index: Int, routingResponse: Try[RoutingResponse])
 private case class RerouteStats(nRoutes: Int, totalRouteLen: Double, totalLinkCount: Int)
 
-class CarTravelTimeHandler extends BasicEventHandler with StrictLogging {
+class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean]) extends BasicEventHandler with StrictLogging {
   case class ArrivalDepartureEvent(personId: String, time: Int, `type`: String)
 
   private val events = new ArrayBuffer[ArrivalDepartureEvent]
 
+  def shouldTakeThisEvent(personId: Id[Person], legMode: String): Boolean = {
+    val pid = personId.toString.toLowerCase
+    val isCacc = isCACCVehicle.getOrElse(pid, false)
+    // No buses && no ridehailes and no cacc vehicles
+    val isInvalid = pid.contains(":") || pid.contains("ridehailvehicle") || isCacc
+    !isInvalid
+  }
+
   override def handleEvent(event: Event): Unit = {
     event match {
-      case pae: PersonArrivalEvent if !pae.getPersonId.toString.contains("bus") && pae.getLegMode.equalsIgnoreCase("car")=>
-        events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
-      case pde: PersonDepartureEvent if !pde.getPersonId.toString.contains("bus") && pde.getLegMode.equalsIgnoreCase("car") =>
-        events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
+      case pae: PersonArrivalEvent =>
+        if (shouldTakeThisEvent(pae.getPersonId, pae.getLegMode)) {
+          events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
+        }
+      case pde: PersonDepartureEvent  =>
+        if (shouldTakeThisEvent(pde.getPersonId, pde.getLegMode)) {
+          events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
+        }
       case _ =>
     }
   }
@@ -220,7 +232,7 @@ class PhysSim(
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler
+    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) => k -> Boolean2boolean(v)})
     jdeqsimEvents.addHandler(carTravelTimeHandler)
 
     jdeqsimEvents.addHandler(travelTimeCalculator)
