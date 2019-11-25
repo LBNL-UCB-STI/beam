@@ -121,7 +121,7 @@ public class StatsFactory {
             case RideHailSummary:
                 return new RideHailSummary();
             case LoadOverTimeAnalysis:
-                return new LoadOverTimeAnalysis();
+                return new LoadOverTimeAnalysis(beamServices.simMetricCollector());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
             default:

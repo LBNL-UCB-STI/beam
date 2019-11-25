@@ -38,58 +38,107 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574109056920,
+    "iteration": 1574699505297,
     "links": [],
     "panels": [
       {
-        "aliasColors": {},
-        "bars": true,
-        "dashLength": 10,
-        "dashes": false,
-        "datasource": "InfluxDB",
-        "fill": 1,
-        "fillGradient": 0,
+        "datasource": null,
         "gridPos": {
-          "h": 8,
+          "h": 7,
           "w": 24,
           "x": 0,
           "y": 0
         },
-        "id": 2,
-        "legend": {
-          "alignAsTable": true,
-          "avg": false,
-          "current": false,
-          "max": true,
-          "min": true,
-          "rightSide": true,
-          "show": true,
-          "total": false,
-          "values": true
+        "id": 6,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "lasso",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "v"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "mode",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": true,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": true,
+                "markers": true
+              }
+            }
+          ]
         },
-        "lines": false,
-        "linewidth": 1,
-        "nullPointMode": "null",
-        "options": {
-          "dataLinks": []
-        },
-        "percentage": false,
-        "pointradius": 2,
-        "points": false,
-        "renderer": "flot",
-        "seriesOverrides": [],
-        "spaceLength": 10,
-        "stack": true,
-        "steppedLine": false,
         "targets": [
           {
-            "alias": "[[tag_mode]]",
             "groupBy": [
               {
                 "params": [
-                  "1h"
+                  "iteration-num"
                 ],
-                "type": "time"
+                "type": "tag"
               },
               {
                 "params": [
@@ -98,13 +147,13 @@
                 "type": "tag"
               }
             ],
-            "measurement": "AverageTravelTime",
+            "measurement": "AverageTravelTimeTEST",
             "orderByTime": "ASC",
-            "policy": "autogen",
-            "query": "SELECT sum(\"count\") FROM \"autogen\".\"AverageTravelTime\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"mode\" != 'all-car') AND $timeFilter GROUP BY time(1h), \"mode\"",
-            "rawQuery": false,
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"AverageTravelTimeTEST\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
+            "rawQuery": true,
             "refId": "A",
-            "resultFormat": "time_series",
+            "resultFormat": "table",
             "select": [
               [
                 {
@@ -128,23 +177,261 @@
             ]
           }
         ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Average travel time per iteration",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 7
+        },
+        "id": 4,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "lasso",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "v"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "sum",
+                "size": null,
+                "text": null,
+                "x": "sum",
+                "y": "sum",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": true
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "alias": "[[tag_mode]]",
+            "groupBy": [
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "AverageTravelTime",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"AverageTravelTime\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Average Car travel time per iteration",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "aliasColors": {},
+        "bars": true,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 13
+        },
+        "id": 2,
+        "legend": {
+          "alignAsTable": true,
+          "avg": false,
+          "current": false,
+          "max": false,
+          "min": false,
+          "rightSide": true,
+          "show": false,
+          "total": false,
+          "values": false
+        },
+        "lines": false,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+          {
+            "alias": "/.*/i",
+            "color": "#73BF69"
+          }
+        ],
+        "spaceLength": 10,
+        "stack": true,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "It [[tag_iteration-num]]",
+            "groupBy": [
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "AverageTravelTime",
+            "orderByTime": "ASC",
+            "policy": "autogen",
+            "query": "SELECT \"count\" FROM \"autogen\".\"AverageTravelTime\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
         "thresholds": [],
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "Average Travel Time per Iteration",
+        "title": "Average Car travel time per iteration",
         "tooltip": {
-          "shared": true,
+          "shared": false,
           "sort": 0,
           "value_type": "individual"
         },
         "type": "graph",
         "xaxis": {
           "buckets": null,
-          "mode": "time",
+          "mode": "series",
           "name": null,
-          "show": false,
-          "values": []
+          "show": true,
+          "values": [
+            "total"
+          ]
         },
         "yaxes": [
           {
@@ -179,8 +466,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-18_23-14-28",
-            "value": "sf-light-1k-xml_2019-11-18_23-14-28"
+            "text": "sf-light-1k-xml_2019-11-25_18-42-04",
+            "value": "sf-light-1k-xml_2019-11-25_18-42-04"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -213,17 +500,12 @@
         "10s",
         "30s",
         "1m",
-        "5m",
-        "15m",
-        "30m",
-        "1h",
-        "2h",
-        "1d"
+        "5m"
       ]
     },
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 4
+    "version": 13
   }
 }

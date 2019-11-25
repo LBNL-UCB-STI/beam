@@ -117,13 +117,17 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         averageTime.add(averageVal);
 
         HashMap<String, String> tags = new HashMap<>();
-        tags.put("mode", "all-car");
+        tags.put("mode", "car");
         simMetricCollector.writeGlobalJava("AverageTravelTime", averageVal, tags);
-        for(int i = 0; i < modes.size(); i++) {
-            String metricName = modes.get(i);
-            double metricVal = dataSets[i][dataSets[i].length - 1];
-            tags.put("mode", metricName);
-            simMetricCollector.writeGlobalJava("AverageTravelTime", metricVal, tags);
+
+        for (int i = 0; i < modes.size(); i++) {
+            tags.put("mode", modes.get(i));
+            double metricValue = 0.0;
+            for (int j = 0; j < dataSets[i].length; j++) {
+                metricValue += dataSets[i][j];
+            }
+            metricValue = metricValue / dataSets[i].length;
+            simMetricCollector.writeGlobalJava("AverageTravelTimeTEST", metricValue, tags);
         }
 
         if (writeGraph) {
@@ -141,7 +145,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         createRootCSVForAverageCarTravelTime(event);
     }
 
-    public void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException {
+    private void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException {
         double[][] singleCarDataSet = new double[1][event.getIteration() + 1];
         for (int i = 0; i <= event.getIteration(); i++) {
             singleCarDataSet[0][i] = averageTime.get(i);
