@@ -303,6 +303,7 @@ class PhysSim(
         }.seq
       }
       ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
+        var totalTravelTime: Long = 0
         // Update plans
         result.foreach {
           case (person, xs) =>
@@ -316,6 +317,7 @@ class PhysSim(
                       (resp: RoutingResponse) => {
                         resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
                           case Some(beamLeg) =>
+                            totalTravelTime += beamLeg.travelPath.duration
                             val javaLinkIds = beamLeg.travelPath.linkIds.map(beamServices.networkHelper.getLinkUnsafe).map(_.getId).asJava
                             val newRoute = RouteUtils.createNetworkRoute(javaLinkIds, agentSimScenario.getNetwork)
                             leg.setRoute(newRoute)
@@ -330,8 +332,10 @@ class PhysSim(
                 }
             }
         }
+        val avgPerPerson = if (result.isEmpty) 0 else totalTravelTime.toDouble / result.size
+        // We're assuming this should go down
+        logger.info(s"Total travel time for rerouted people: ${totalTravelTime}, average per person: $avgPerPerson")
       }
-
     }
   }
 
