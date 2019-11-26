@@ -11,7 +11,7 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
     extends AbstractSkimmer(beamServices, config) {
   import CountSkimmer._
 
-  override val readOnlySkim: AbstractSkimmerReadOnly = CountSkims(beamServices)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = CountSkims(beamServices)
 
   override protected val skimType: String = config.count_skimmer.get.skimType
   override protected val skimFileBaseName: String = config.count_skimmer.get.skimFileBaseName

@@ -19,7 +19,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
   import ODSkimmer._
   import beamServices._
 
-  override val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
 
   override protected val skimType: String = config.od_skimmer.get.skimType
   override protected val skimFileBaseName: String = config.od_skimmer.get.skimFileBaseName

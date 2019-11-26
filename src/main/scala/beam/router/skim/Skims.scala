@@ -9,7 +9,7 @@ import scala.collection.mutable
 
 object Skims extends LazyLogging {
   private type SkimType = String
-  private val skims: mutable.Map[SkimType, AbstractSkimmer] = mutable.Map()
+  private val skims = mutable.Map.empty[SkimType, AbstractSkimmer]
 
   object SkimType extends Enumeration {
     val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")

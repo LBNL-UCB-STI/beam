@@ -54,9 +54,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected val skimFileHeader: String
   protected val skimType: String
   protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
-
-  protected val currentSkim: mutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mutable.Map()
-
+  protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimType + "-event"
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
