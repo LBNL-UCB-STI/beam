@@ -207,8 +207,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.h3.resolution = 10
          |beam.h3.lowerBoundResolution = 10
          |beam.router.skim = {
-         |  keepKLatestSkims = 1
-         |  aggregateFunction = "LATEST_SKIM"
+         |  keepKLatestSkims = 2
+         |  aggregateFunction = "AVG"
          |  writeSkimsInterval = 1
          |  writeAggregatedSkimsInterval = 1
          |  skimmers = [
@@ -223,8 +223,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |    },
          |    {
          |      count-skimmer {
-         |        name = "count-skimmer",
-         |        skimType = "count-skimmer",
+         |        name = "count-skimmer"
+         |        skimType = "count-skimmer"
          |        skimFileBaseName = "skimsCount"
          |      }
          |    }

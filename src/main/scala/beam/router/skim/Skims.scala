@@ -1,5 +1,7 @@
 package beam.router.skim
 
+import beam.router
+import beam.router.skim
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
@@ -8,6 +10,11 @@ import scala.collection.mutable
 object Skims extends LazyLogging {
   private type SkimType = String
   private val skims: mutable.Map[SkimType, AbstractSkimmer] = mutable.Map()
+
+  object SkimType extends Enumeration {
+    val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
+    val COUNT_SKIMMER: skim.Skims.SkimType.Value = Value("count-skimmer")
+  }
 
   def setup(implicit beamServices: BeamServices): Unit = {
     beamServices.beamConfig.beam.router.skim.skimmers.foreach { skimmerConfig =>
@@ -31,7 +38,8 @@ object Skims extends LazyLogging {
     skims.clear()
   }
 
-  def lookup(skimType: String) = {
-    skims.get(skimType).map(_.readOnlySkim)
-  }
+  def lookup(skimTypeStr: String): Option[AbstractSkimmerReadOnly] = skims.get(skimTypeStr).map(_.readOnlySkim)
+
+  def lookup(skimType: SkimType.Value): Option[AbstractSkimmerReadOnly] = lookup(skimType.toString)
+
 }

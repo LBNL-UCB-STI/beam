@@ -9,35 +9,35 @@ import org.matsim.api.core.v01.Id
 case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
 
   def getLatestSkim(
-    timeBin: Int,
-    idTaz: Id[TAZ],
-    hexIndex: String,
-    idVehMng: Id[VehicleManager],
-    variableName: String
+    time: Int,
+    taz: Id[TAZ],
+    hex: String,
+    groupId: String,
+    label: String
   ): Option[CountSkimmerInternal] = {
     pastSkims.headOption
-      .flatMap(_.get(CountSkimmerKey(timeBin, idTaz, hexIndex, idVehMng, variableName)))
+      .flatMap(_.get(CountSkimmerKey(time, taz, hex, groupId, label)))
       .asInstanceOf[Option[CountSkimmerInternal]]
   }
 
   def getLatestSkim(
-    timeBin: Int,
-    hexIndex: String,
-    idVehMng: Id[VehicleManager],
-    variableName: String
+    time: Int,
+    hex: String,
+    groupId: String,
+    label: String
   ): Option[CountSkimmerInternal] = {
-    getLatestSkim(timeBin, beamServices.beamScenario.h3taz.getTAZ(hexIndex), hexIndex, idVehMng, variableName)
+    getLatestSkim(time, beamServices.beamScenario.h3taz.getTAZ(hex), hex, groupId, label)
   }
 
   def getLatestSkimByTAZ(
-    timeBin: Int,
-    idTaz: Id[TAZ],
-    idVehMng: Id[VehicleManager],
-    variableName: String
+    time: Int,
+    taz: Id[TAZ],
+    groupId: String,
+    label: String
   ): Option[CountSkimmerInternal] = {
     beamServices.beamScenario.h3taz
-      .getHRHex(idTaz)
-      .flatMap(hexIndex => getLatestSkim(timeBin, idTaz, hexIndex, idVehMng, variableName))
+      .getHRHex(taz)
+      .flatMap(hex => getLatestSkim(time, taz, hex, groupId, label))
       .foldLeft[Option[CountSkimmerInternal]](None) {
         case (acc, skimInternal) =>
           acc match {
@@ -48,14 +48,14 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
   }
 
   def getAggregatedSkim(
-    timeBin: Int,
-    idTaz: Id[TAZ],
-    hexIndex: String,
-    idVehMng: Id[VehicleManager],
-    variableName: String
+    time: Int,
+    taz: Id[TAZ],
+    hex: String,
+    groupid: String,
+    label: String
   ): Option[CountSkimmerInternal] = {
     aggregatedSkim
-      .get(CountSkimmerKey(timeBin, idTaz, hexIndex, idVehMng, variableName))
+      .get(CountSkimmerKey(time, taz, hex, groupid, label))
       .asInstanceOf[Option[CountSkimmerInternal]]
   }
 

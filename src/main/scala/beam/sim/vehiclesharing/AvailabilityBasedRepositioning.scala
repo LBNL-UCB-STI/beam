@@ -17,8 +17,8 @@ case class AvailabilityBasedRepositioning(
   beamServices: BeamServices
 ) extends RepositionAlgorithm {
 
-  val countSkims = Skims.lookup("count-skim").map(_.asInstanceOf[CountSkims]).get
-  val odSkims = Skims.lookup("od-skim").map(_.asInstanceOf[ODSkims]).get
+  val countSkims = Skims.lookup(Skims.SkimType.COUNT_SKIMMER).map(_.asInstanceOf[CountSkims]).get
+  val odSkims = Skims.lookup(Skims.SkimType.OD_SKIMMER).map(_.asInstanceOf[ODSkims]).get
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
@@ -46,7 +46,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => countSkims.getLatestSkimByTAZ(i, idTAZ, vehicleManager, label))
+      .map(i => countSkims.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }

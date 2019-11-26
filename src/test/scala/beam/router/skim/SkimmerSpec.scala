@@ -7,6 +7,7 @@ import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.CountSkimmer.{CountSkimmerInternal, CountSkimmerKey}
 import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -16,27 +17,25 @@ import beam.utils.TestConfigUtils.testConfig
 import com.google.inject.Inject
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
-import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener}
+import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent}
+import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.immutable
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.util.control.NonFatal
 
-class ODSkimmerSpec extends FlatSpec with Matchers with BeamHelper {
-  import ODSkimmerSpec._
+class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
+  import SkimmerSpec._
 
   // REPOSITION
-  "OD Skimmer Scenario" must "results at skims being written" in {
+  "OD Skimmer Scenario" must "results at skims being written on disk" in {
     val config = ConfigFactory
       .parseString("""
          |beam.outputs.events.fileOutputFormats = xml
@@ -53,9 +52,9 @@ class ODSkimmerSpec extends FlatSpec with Matchers with BeamHelper {
          |  skimmers = [
          |    {
          |      od-skimmer {
-         |        name = "origin-destination-skimmer"
-         |        skimType = "od-skimmer"
-         |        skimFileBaseName = "skimsOD"
+         |        name = "origin-destination-skimmer-test"
+         |        skimType = "od-skimmer-test"
+         |        skimFileBaseName = "skimsODTest"
          |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
          |        writeFullSkimsInterval = 0
          |      }
@@ -66,10 +65,56 @@ class ODSkimmerSpec extends FlatSpec with Matchers with BeamHelper {
       """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
-    runScenarioWithODSkimmer(config)
+    runScenarioWithSkimmer(config, classOf[ODSkimmerTester], classOf[ODSkimmerTester])
+    val skimMap = readSkim(SkimmerSpec.avgODSkimFilePath, "od-skimmer-test")
+    avgODSkim.foreach {
+      case (key, value) =>
+        assume(value == skimMap(key), "the skim on disk is different from the on memory")
+    }
   }
 
-  private def runScenarioWithODSkimmer(config: Config): Unit = {
+  // REPOSITION
+  "Count Skimmer Scenario" must "results at skims being written on disk" in {
+    val config = ConfigFactory
+      .parseString("""
+         |beam.outputs.events.fileOutputFormats = xml
+         |beam.physsim.skipPhysSim = true
+         |beam.agentsim.lastIteration = 1
+         |beam.outputs.writeSkimsInterval = 1
+         |beam.h3.resolution = 10
+         |beam.h3.lowerBoundResolution = 10
+         |beam.router.skim = {
+         |  keepKLatestSkims = 2
+         |  aggregateFunction = "AVG"
+         |  writeSkimsInterval = 1
+         |  writeAggregatedSkimsInterval = 1
+         |  skimmers = [
+         |    {
+         |      count-skimmer {
+         |        name = "count-skimmer-test"
+         |        skimType = "count-skimmer-test"
+         |        skimFileBaseName = "skimsCountTest"
+         |      }
+         |    }
+         |  ]
+         |}
+         |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
+      """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runScenarioWithSkimmer(config, classOf[CountSkimmerTester], classOf[CountSkimmerTester])
+    val skimMap = readSkim(SkimmerSpec.avgCountSkimFilePath, "count-skimmer-test")
+    avgCountSkim.foreach {
+      case (key, value) =>
+        assume(value == skimMap(key), "the skim on disk is different from the on memory")
+    }
+  }
+
+  private def runScenarioWithSkimmer(
+    config: Config,
+    eventHandlerClass: Class[_ <: BasicEventHandler],
+    listenerClass: Class[_ <: IterationStartsListener]
+  ): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -83,33 +128,74 @@ class ODSkimmerSpec extends FlatSpec with Matchers with BeamHelper {
       new AbstractModule() {
         override def install(): Unit = {
           install(module(config, beamConfig, scenario, beamScenario))
-          addEventHandlerBinding().to(classOf[ODSkimmerTester])
-          addControlerListenerBinding().to(classOf[ODSkimmerTester])
+          addEventHandlerBinding().to(eventHandlerClass)
+          addControlerListenerBinding().to(listenerClass)
         }
       }
     )
     val services = injector.getInstance(classOf[BeamServices])
     DefaultPopulationAdjustment(services).update(scenario)
     services.controler.run()
-
-    assume(avgSkimIt0 == skimIt0, "ODSkim is not collected properly")
-    assume(avgSkimAVG == skimAVG, "ODSkim is not collected properly")
-    //assume(skimIteration1, "the overall average of the ODSkim throughout iteration 0 and 1 is not correct")
   }
 }
 
-object ODSkimmerSpec extends LazyLogging {
+object SkimmerSpec extends LazyLogging {
 
-  var avgSkimIt0: ODSkimmerInternal = _
-  var avgSkimAVG: ODSkimmerInternal = _
-  var skimIt0: ODSkimmerInternal = _
-  var skimAVG: ODSkimmerInternal = _
+  var avgODSkim = immutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  var avgODSkimFilePath = ""
+  var avgCountSkim = immutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  var avgCountSkimFilePath = ""
 
-  var avgSkimCur: ODSkimmerInternal = ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0)
+  class CountSkimmerTester @Inject()(beamServices: BeamServices)
+      extends BasicEventHandler
+      with IterationStartsListener
+      with ShutdownListener {
+
+    override def handleEvent(event: Event): Unit = {
+      event match {
+        case e: PathTraversalEvent if e.mode == BeamMode.CAR =>
+          beamServices.matsimServices.getEvents.processEvent(
+            CountSkimmerEvent(
+              event.getTime,
+              beamServices,
+              (event.getTime / 3600).toInt * 3600,
+              new Coord(e.startX, e.startY),
+              "default",
+              e.mode.toString
+            )
+          )
+        case _ =>
+      }
+    }
+
+    override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+      assume(Skims.lookup("count-skimmer-test").isDefined, "count-skimmer-test is not defined")
+      val countSkims = Skims.lookup("count-skimmer-test").get.asInstanceOf[CountSkims]
+      if (event.getIteration == 1) {
+        assume(
+          countSkims.pastSkims.size == 1,
+          "at the second iteration there should be only one count-skimmer-test collected"
+        )
+        countSkims.aggregatedSkim.foreach {
+          case (key, value) =>
+            assume(
+              value == countSkims.pastSkims.head(key),
+              "the aggregated skims should be equal to the first collected count-skimmer-test"
+            )
+        }
+      }
+    }
+
+    override def notifyShutdown(event: ShutdownEvent): Unit = {
+      val countSkims = Skims.lookup("count-skimmer-test").get.asInstanceOf[CountSkims]
+      avgCountSkim = countSkims.aggregatedSkim
+      avgCountSkimFilePath = event.getServices.getControlerIO.getIterationFilename(1, "skimsCountTestAggregated.csv.gz")
+    }
+  }
 
   class ODSkimmerTester @Inject()(beamServices: BeamServices)
       extends BasicEventHandler
-      with IterationEndsListener
+      with IterationStartsListener
       with ShutdownListener {
 
     override def handleEvent(event: Event): Unit = {
@@ -117,44 +203,35 @@ object ODSkimmerSpec extends LazyLogging {
         case e: PathTraversalEvent if e.mode == BeamMode.CAR =>
           val energy = (e.endLegPrimaryFuelLevel + e.endLegSecondaryFuelLevel) - (e.primaryFuelConsumed + e.secondaryFuelConsumed)
           val tt = e.arrivalTime - e.departureTime
-          val event = ODSkimmerEvent(e.time, beamServices, getEmbodiedTrip(e), tt * 1.2, e.amountPaid * 1.2, energy)
-          val count = avgSkimCur.numObservations + 1
           beamServices.matsimServices.getEvents.processEvent(
             ODSkimmerEvent(e.time, beamServices, getEmbodiedTrip(e), tt * 1.2, e.amountPaid * 1.2, energy)
-          )
-          avgSkimCur = ODSkimmerInternal(
-            travelTimeInS = (avgSkimCur.numObservations * avgSkimCur.travelTimeInS + tt) / count,
-            generalizedTimeInS = (avgSkimCur.numObservations * avgSkimCur.generalizedTimeInS + event.generalizedTimeInHours) / count,
-            generalizedCost = (avgSkimCur.numObservations * avgSkimCur.generalizedCost + event.generalizedCost) / count,
-            distanceInM = (avgSkimCur.numObservations * avgSkimCur.distanceInM + e.legLength) / count,
-            cost = (avgSkimCur.numObservations * avgSkimCur.cost + e.amountPaid) / count,
-            numObservations = count,
-            energy = (avgSkimCur.numObservations * avgSkimCur.energy + event.energyConsumption) / count
           )
         case _ =>
       }
     }
 
-    override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-      if (event.getIteration == 0) {
-        avgSkimIt0 = avgSkimCur
-        avgSkimCur = ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0)
-      } else {
-        val count = avgSkimIt0.numObservations + avgSkimCur.numObservations
-        avgSkimAVG = ODSkimmerInternal(
-          travelTimeInS = (avgSkimIt0.numObservations * avgSkimIt0.travelTimeInS + avgSkimCur.numObservations * avgSkimCur.travelTimeInS) / count,
-          generalizedTimeInS = (avgSkimIt0.numObservations * avgSkimIt0.generalizedTimeInS + avgSkimCur.numObservations * avgSkimCur.generalizedTimeInS) / count,
-          generalizedCost = (avgSkimIt0.numObservations * avgSkimIt0.generalizedCost + avgSkimCur.numObservations * avgSkimCur.generalizedCost) / count,
-          distanceInM = (avgSkimIt0.numObservations * avgSkimIt0.distanceInM + avgSkimCur.numObservations * avgSkimCur.distanceInM) / count,
-          cost = (avgSkimIt0.numObservations * avgSkimIt0.cost + avgSkimCur.numObservations * avgSkimCur.cost) / count,
-          numObservations = count,
-          energy = (avgSkimIt0.numObservations * avgSkimIt0.energy + avgSkimCur.numObservations * avgSkimCur.energy) / count
-        )
-      }
-    }
     override def notifyShutdown(event: ShutdownEvent): Unit = {
-      skimIt0 = getAvgODSkim(event.getServices.getControlerIO.getIterationFilename(0, "skimsOD.csv.gz"))
-      skimAVG = getAvgODSkim(event.getServices.getControlerIO.getIterationFilename(1, "skimsODAggregated.csv.gz"))
+      val odSkims = Skims.lookup("od-skimmer-test").get.asInstanceOf[ODSkims]
+      avgODSkim = odSkims.aggregatedSkim
+      avgODSkimFilePath = event.getServices.getControlerIO.getIterationFilename(1, "skimsODTestAggregated.csv.gz")
+    }
+
+    override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+      assume(Skims.lookup("od-skimmer-test").isDefined, "od-skimmer-test is not defined")
+      val odSkims = Skims.lookup("od-skimmer-test").get.asInstanceOf[ODSkims]
+      if (event.getIteration == 1) {
+        assume(
+          odSkims.pastSkims.size == 1,
+          "at the second iteration there should be only one od-skimmer-test collected"
+        )
+        odSkims.aggregatedSkim.foreach {
+          case (key, value) =>
+            assume(
+              value == odSkims.pastSkims.head(key),
+              "the aggregated skims should be equal to the first collected od-skimmer-test"
+            )
+        }
+      }
     }
   }
 
@@ -237,31 +314,10 @@ object ODSkimmerSpec extends LazyLogging {
     )
   }
 
-  private def getAvgODSkim(filePath: String) = {
-    val skimMap = readSkim(filePath)
-    var avgODSkim: ODSkimmerInternal = ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0)
-    skimMap
-      .filter(_._1.isInstanceOf[ODSkimmerKey])
-      .filter(_._1.asInstanceOf[ODSkimmerKey].mode == BeamMode.CAR)
-      .values
-      .foreach {
-        case value: ODSkimmerInternal =>
-          val count = value.numObservations + avgODSkim.numObservations
-          avgODSkim = ODSkimmerInternal(
-            travelTimeInS = (value.numObservations * value.travelTimeInS + avgODSkim.numObservations * avgODSkim.travelTimeInS) / count,
-            generalizedTimeInS = (value.numObservations * value.generalizedTimeInS + avgODSkim.numObservations * avgODSkim.generalizedTimeInS) / count,
-            generalizedCost = (value.numObservations * value.generalizedCost + avgODSkim.numObservations * avgODSkim.generalizedCost) / count,
-            distanceInM = (value.numObservations * value.distanceInM + avgODSkim.numObservations * avgODSkim.distanceInM) / count,
-            cost = (value.numObservations * value.cost + avgODSkim.numObservations * avgODSkim.cost) / count,
-            numObservations = count,
-            energy = (value.numObservations * value.energy + avgODSkim.numObservations * avgODSkim.energy) / count
-          )
-        case _ =>
-      }
-    avgODSkim
-  }
-
-  private def readSkim(filePath: String): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+  private def readSkim(
+    filePath: String,
+    skimType: String
+  ): immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     var mapReader: CsvMapReader = null
     val res = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     try {
@@ -271,24 +327,12 @@ object ODSkimmerSpec extends LazyLogging {
         var line: java.util.Map[String, String] = mapReader.read(header: _*)
         while (null != line) {
           import scala.collection.JavaConverters._
-          val row = line.asScala.toMap
-          res.put(
-            ODSkimmerKey(
-              row("hour").toInt,
-              BeamMode.fromString(row("mode").toLowerCase()).get,
-              Id.create(row("origTaz"), classOf[TAZ]),
-              Id.create(row("destTaz"), classOf[TAZ])
-            ),
-            ODSkimmerInternal(
-              row("travelTimeInS").toDouble,
-              row("generalizedTimeInS").toDouble,
-              row("generalizedCost").toDouble,
-              row("distanceInM").toDouble,
-              row("cost").toDouble,
-              row("numObservations").toInt,
-              Option(row("energy")).map(_.toDouble).getOrElse(0.0)
-            )
-          )
+          val (key, value) = if (skimType == "od-skimmer-test") {
+            getODSkimPair(line.asScala.toMap)
+          } else {
+            getCountSkimPair(line.asScala.toMap)
+          }
+          res.put(key, value)
           line = mapReader.read(header: _*)
         }
       } else {
@@ -304,4 +348,36 @@ object ODSkimmerSpec extends LazyLogging {
     res.toMap
   }
 
+  private def getODSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    (
+      ODSkimmerKey(
+        hour = row("hour").toInt,
+        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
+        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+      ),
+      ODSkimmerInternal(
+        travelTimeInS = row("travelTimeInS").toDouble,
+        generalizedTimeInS = row("generalizedTimeInS").toDouble,
+        generalizedCost = row("generalizedCost").toDouble,
+        distanceInM = row("distanceInM").toDouble,
+        cost = row("cost").toDouble,
+        numObservations = row("numObservations").toInt,
+        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0)
+      )
+    )
+  }
+
+  private def getCountSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    (
+      CountSkimmerKey(
+        row("time").toInt,
+        Id.create(row("taz"), classOf[TAZ]),
+        row("hex"),
+        row("groupId"),
+        row("label")
+      ),
+      CountSkimmerInternal(row("count").toInt)
+    )
+  }
 }

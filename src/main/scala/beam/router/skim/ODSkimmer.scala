@@ -41,23 +41,23 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
   }
 
   override def fromCsv(
-    line: immutable.Map[String, String]
+    row: immutable.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       ODSkimmerKey(
-        line("hour").toInt,
-        BeamMode.fromString(line("mode").toLowerCase()).get,
-        Id.create(line("origTaz"), classOf[TAZ]),
-        Id.create(line("destTaz"), classOf[TAZ])
+        hour = row("hour").toInt,
+        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
+        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
       ),
       ODSkimmerInternal(
-        line("travelTimeInS").toDouble,
-        line("generalizedTimeInS").toDouble,
-        line("generalizedCost").toDouble,
-        line("distanceInM").toDouble,
-        line("cost").toDouble,
-        line("numObservations").toInt,
-        Option(line("energy")).map(_.toDouble).getOrElse(0.0)
+        travelTimeInS = row("travelTimeInS").toDouble,
+        generalizedTimeInS = row("generalizedTimeInS").toDouble,
+        generalizedCost = row("generalizedCost").toDouble,
+        distanceInM = row("distanceInM").toDouble,
+        cost = row("cost").toDouble,
+        numObservations = row("numObservations").toInt,
+        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0)
       )
     )
   }
@@ -277,9 +277,9 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim.
 
 object ODSkimmer extends LazyLogging {
   // cases
-  case class ODSkimmerKey(timeBin: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])
+  case class ODSkimmerKey(hour: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])
       extends AbstractSkimmerKey {
-    override def toCsv: String = timeBin + "," + mode + "," + originTaz + "," + destinationTaz
+    override def toCsv: String = hour + "," + mode + "," + originTaz + "," + destinationTaz
   }
   case class ODSkimmerInternal(
     travelTimeInS: Double,
@@ -324,7 +324,7 @@ object ODSkimmer extends LazyLogging {
     }
 
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + generalizedCost + "," + distanceInM + "," + cost + "," + numObservations + "," + energy
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + numObservations + "," + energy
 
     override def aggregateByKey(newSkim: Option[_ <: AbstractSkimmerInternal]): AbstractSkimmerInternal = {
       newSkim match {

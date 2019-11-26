@@ -79,7 +79,7 @@ trait RepositionManager extends Actor with ActorLogging {
 
   protected def collectData(time: Int, loc: Coord, varLabel: String) = {
     getServices.matsimServices.getEvents.processEvent(
-      CountSkimmerEvent(time, getServices, time / statTime, loc, getId, varLabel)
+      CountSkimmerEvent(time, getServices, time / statTime, loc, getId.toString, varLabel)
     )
   }
 }
