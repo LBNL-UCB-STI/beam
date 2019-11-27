@@ -25,8 +25,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -134,8 +134,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(services, beamScenario, services.geo),
-            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -278,8 +276,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(services, beamScenario, services.geo),
-            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -517,8 +513,6 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )

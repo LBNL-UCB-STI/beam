@@ -37,23 +37,6 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |    }
         | }
         |]
-        |beam.router.skim = {
-        |  keepKLatestSkims = 1
-        |  aggregateFunction = "LATEST_SKIM"
-        |  writeSkimsInterval = 1
-        |  writeAggregatedSkimsInterval = 1
-        |  skimmers = [
-        |    {
-        |      name = "origin-destination-skimmer"
-        |      skimType = "od-skim"
-        |      origin-destination-skimmer {
-        |        skimType = "od-skim"
-        |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
-        |        writeFullSkimsInterval = 0
-        |      }
-        |    }
-        |  ]
-        |}
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -82,23 +65,6 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |    }
         | }
         |]
-        |beam.router.skim = {
-        |  keepKLatestSkims = 1
-        |  aggregateFunction = "LATEST_SKIM"
-        |  writeSkimsInterval = 1
-        |  writeAggregatedSkimsInterval = 1
-        |  skimmers = [
-        |    {
-        |      name = "origin-destination-skimmer"
-        |      skimType = "od-skim"
-        |      origin-destination-skimmer {
-        |        skimType = "od-skim"
-        |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
-        |        writeFullSkimsInterval = 0
-        |      }
-        |    }
-        |  ]
-        |}
         |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -204,32 +170,6 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |   }
          | }
          |]
-         |beam.h3.resolution = 10
-         |beam.h3.lowerBoundResolution = 10
-         |beam.router.skim = {
-         |  keepKLatestSkims = 2
-         |  aggregateFunction = "AVG"
-         |  writeSkimsInterval = 1
-         |  writeAggregatedSkimsInterval = 1
-         |  skimmers = [
-         |    {
-         |      od-skimmer {
-         |        name = "origin-destination-skimmer"
-         |        skimType = "od-skimmer"
-         |        skimFileBaseName = "skimsOD"
-         |        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
-         |        writeFullSkimsInterval = 0
-         |      }
-         |    },
-         |    {
-         |      count-skimmer {
-         |        name = "count-skimmer"
-         |        skimType = "count-skimmer"
-         |        skimFileBaseName = "skimsCount"
-         |      }
-         |    }
-         |  ]
-         |}
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
       """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))

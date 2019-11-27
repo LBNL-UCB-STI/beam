@@ -208,8 +208,6 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
-          bind(classOf[BeamSkimmer]).asEagerSingleton()
-          bind(classOf[TravelTimeObserved]).asEagerSingleton()
           bind(classOf[FareCalculator]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 

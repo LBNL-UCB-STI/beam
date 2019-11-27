@@ -14,6 +14,7 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
@@ -40,7 +41,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
+import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
 import beam.sim.vehicles.VehiclesAdjustment
@@ -63,11 +64,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-import scala.util.{Failure, Random, Success, Try}
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
+import scala.util.Random
 
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
@@ -214,7 +211,6 @@ class RideHailManager(
   val activityQuadTreeBounds: QuadTreeBounds,
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats],
-  val beamSkimmer: BeamSkimmer,
   val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging

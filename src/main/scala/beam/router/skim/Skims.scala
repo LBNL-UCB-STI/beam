@@ -8,24 +8,27 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.mutable
 
 object Skims extends LazyLogging {
-  private type SkimType = String
-  private val skims = mutable.Map.empty[SkimType, AbstractSkimmer]
+  lazy val od_skimmer: ODSkims = lookup(SkimType.OD_SKIMMER).asInstanceOf[ODSkims]
+  lazy val count_skimmer: CountSkims = lookup(SkimType.COUNT_SKIMMER).asInstanceOf[CountSkims]
+  lazy val tt_skimmer: TravelTimeSkims = lookup(SkimType.TT_SKIMMER).asInstanceOf[TravelTimeSkims]
+
+  def setup(implicit beamServices: BeamServices): Unit = {
+    val skimConfig = beamServices.beamConfig.beam.router.skim
+    skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
+    skims.put(SkimType.COUNT_SKIMMER, addEvent(new CountSkimmer(beamServices, skimConfig)))
+    skims.put(SkimType.TT_SKIMMER, addEvent(new TravelTimeSkimmer(beamServices, skimConfig)))
+  }
+
+  def clear(): Unit = {
+    skims.clear()
+  }
+
+  private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
 
   object SkimType extends Enumeration {
     val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
     val COUNT_SKIMMER: skim.Skims.SkimType.Value = Value("count-skimmer")
-  }
-
-  def setup(implicit beamServices: BeamServices): Unit = {
-    beamServices.beamConfig.beam.router.skim.skimmers.foreach { skimmerConfig =>
-      if (skimmerConfig.od_skimmer.isDefined) {
-        skims.put(skimmerConfig.od_skimmer.get.skimType, addEvent(new ODSkimmer(beamServices, skimmerConfig)))
-      } else if (skimmerConfig.count_skimmer.isDefined) {
-        skims.put(skimmerConfig.count_skimmer.get.skimType, addEvent(new CountSkimmer(beamServices, skimmerConfig)))
-      } else {
-        logger.info("this Skimmer is not associated to an implementation")
-      }
-    }
+    val TT_SKIMMER: skim.Skims.SkimType.Value = Value("tt-skimmer")
   }
 
   private def addEvent(skimmer: AbstractSkimmer)(implicit beamServices: BeamServices): AbstractSkimmer = {
@@ -34,12 +37,7 @@ object Skims extends LazyLogging {
     skimmer
   }
 
-  def clear(): Unit = {
-    skims.clear()
+  private def lookup(skimType: SkimType.Value): AbstractSkimmerReadOnly = {
+    skims.get(skimType).map(_.readOnlySkim).getOrElse(throw new RuntimeException(s"Skims $skimType does not exist"))
   }
-
-  def lookup(skimTypeStr: String): Option[AbstractSkimmerReadOnly] = skims.get(skimTypeStr).map(_.readOnlySkim)
-
-  def lookup(skimType: SkimType.Value): Option[AbstractSkimmerReadOnly] = lookup(skimType.toString)
-
 }

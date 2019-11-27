@@ -1,9 +1,9 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.{Dropoff, EnRoute, MobilityRequest, Pickup}
+import beam.agentsim.agents.EnRoute
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
-import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
+import beam.router.skim.{ODSkims, Skims, SkimsUtils}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import org.jgrapht.graph.DefaultEdge
@@ -18,8 +18,7 @@ import scala.concurrent.Future
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  beamServices: BeamServices,
-  skimmer: BeamSkimmer
+  beamServices: BeamServices
 ) {
 
   private val solutionSpaceSizePerVehicle =
@@ -35,7 +34,7 @@ class AsyncAlonsoMoraAlgForRideHail(
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
     val requestWithCurrentVehiclePosition = v.getRequestWithCurrentVehiclePosition
     val center = requestWithCurrentVehiclePosition.activity.getCoord
-    val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+    val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
     var requests = v.geofence match {
       case Some(gf) =>
         val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
@@ -64,7 +63,7 @@ class AsyncAlonsoMoraAlgForRideHail(
           v.schedule,
           List(r.pickup, r.dropoff),
           v.vehicleRemainingRangeInMeters.toInt,
-          skimmer
+          beamServices
         ) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
@@ -90,7 +89,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             v.schedule,
             (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
             v.vehicleRemainingRangeInMeters.toInt,
-            skimmer
+            beamServices
           ) match {
             case Some(schedule) =>
               val t = RideHailTrip(t1.requests ++ t2.requests, schedule)

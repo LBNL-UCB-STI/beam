@@ -17,7 +17,7 @@ import beam.router.Modes.BeamMode.{
 }
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.router.skim.ODSkimmerUtils.{distanceAndTime, getRideHailCost, timeToBin}
+import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -88,8 +88,9 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
           generalizedCost = 0,
           distanceInM = travelDistance.toDouble,
           cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
+          energy = 0.0,
           numObservations = 0,
-          energy = 0.0
+          numIteration = beamServices.matsimServices.getIterationNumber
         )
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
@@ -102,8 +103,9 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
           generalizedCost = 0,
           distanceInM = solo.distanceInM,
           cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distanceInM, solo.travelTimeInS, beamConfig),
+          energy = 0.0,
           numObservations = 0,
-          energy = 0.0
+          numIteration = beamServices.matsimServices.getIterationNumber
         )
     }
     val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS } else { 1.0 }

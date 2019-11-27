@@ -13,10 +13,7 @@ case class ODSkimmerEvent(
   generalizedCost: Double,
   energyConsumption: Double
 ) extends AbstractSkimmerEvent(eventTime, beamServices) {
-  override protected val skimType: String = beamServices.beamConfig.beam.router.skim.skimmers
-    .find(_.od_skimmer.isDefined)
-    .map(_.od_skimmer.get.skimType)
-    .getOrElse("skimTypeNA")
+  override protected val skimName: String = beamServices.beamConfig.beam.router.skim.od_skimmer.name
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
@@ -48,18 +45,17 @@ case class ODSkimmerEvent(
     val destTaz = beamScenario.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    val timeBin = ODSkimmerUtils.timeToBin(origLeg.startTime)
+    val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val key = ODSkimmerKey(timeBin, mode, origTaz, destTaz)
     val payload =
       ODSkimmerInternal(
-        correctedTrip.totalTravelTimeInSecs.toDouble,
-        generalizedTimeInHours * 3600,
-        generalizedCost,
-        if (dist > 0.0) { dist } else { 1.0 },
-        correctedTrip.costEstimate,
-        1,
-        energyConsumption
+        travelTimeInS = correctedTrip.totalTravelTimeInSecs.toDouble,
+        generalizedTimeInS = generalizedTimeInHours * 3600,
+        generalizedCost = generalizedCost,
+        distanceInM = if (dist > 0.0) { dist } else { 1.0 },
+        cost = correctedTrip.costEstimate,
+        energy = energyConsumption
       )
     (key, payload)
   }

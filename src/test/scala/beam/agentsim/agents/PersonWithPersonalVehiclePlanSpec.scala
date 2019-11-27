@@ -14,8 +14,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -31,8 +31,8 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.Matchers._
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -123,8 +123,6 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(services, beamScenario, services.geo),
-            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -344,8 +342,6 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(services, beamScenario, services.geo),
-            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -489,8 +485,6 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -584,8 +578,6 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )

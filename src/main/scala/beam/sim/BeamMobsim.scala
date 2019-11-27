@@ -16,7 +16,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
 import beam.router.osm.TollCalculator
-import beam.router.skim.Skims
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -48,8 +47,6 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved,
   val geo: GeoUtils,
   val networkHelper: NetworkHelper
 ) extends Mobsim
@@ -76,9 +73,7 @@ class BeamMobsim @Inject()(
           beamServices,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
-          routeHistory,
-          beamSkimmer,
-          travelTimeObserved
+          routeHistory
         )
       ),
       "BeamMobsim.iteration"
@@ -119,9 +114,7 @@ class BeamMobsimIteration(
   val beamServices: BeamServices,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
-  val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
@@ -180,7 +173,6 @@ class BeamMobsimIteration(
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        beamSkimmer,
         routeHistory
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
@@ -246,8 +238,6 @@ class BeamMobsimIteration(
       sharedVehicleFleets,
       matsimServices.getEvents,
       routeHistory,
-      beamSkimmer,
-      travelTimeObserved,
       envelopeInUTM
     ),
     "population"

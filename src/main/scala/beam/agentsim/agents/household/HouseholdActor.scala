@@ -2,7 +2,6 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.Failure
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern._
@@ -27,9 +26,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.CAV
+import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -69,8 +68,6 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
     boundingBox: Envelope
   ): Props = {
     Props(
@@ -91,8 +88,6 @@ object HouseholdActor {
         homeCoord,
         sharedVehicleFleets,
         routeHistory,
-        beamSkimmer,
-        travelTimeObserved,
         boundingBox
       )
     )
@@ -133,8 +128,6 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
     boundingBox: Envelope
   ) extends Actor
       with HasTickAndTrigger
@@ -216,13 +209,7 @@ object HouseholdActor {
             }
           }
 
-          val cavScheduler = new FastHouseholdCAVScheduling(
-            household,
-            cavs,
-            beamServices = Some(beamServices),
-            skimmer = beamSkimmer
-          )(beamServices.matsimServices.getScenario.getPopulation)
-
+          val cavScheduler = new FastHouseholdCAVScheduling(household, cavs, beamServices)
           //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
           val optimalPlan = cavScheduler.getBestProductiveSchedule
           if (optimalPlan.isEmpty || !optimalPlan.exists(_.schedule.size > 1)) {
@@ -291,9 +278,7 @@ object HouseholdActor {
               self,
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets,
-              beamSkimmer,
               routeHistory,
-              travelTimeObserved,
               boundingBox
             ),
             person.getId.toString

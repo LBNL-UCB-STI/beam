@@ -41,8 +41,16 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
       .foldLeft[Option[CountSkimmerInternal]](None) {
         case (acc, skimInternal) =>
           acc match {
-            case Some(skim) => Some(CountSkimmerInternal(skim.count + skimInternal.count))
-            case _          => Some(skimInternal)
+            case Some(skim) =>
+              Some(
+                CountSkimmerInternal(
+                  sumValue = skim.sumValue + skimInternal.sumValue,
+                  meanValue = (skim.meanValue * skim.numObservations + skimInternal.meanValue + skimInternal.numObservations) / (skim.numObservations + skimInternal.numObservations),
+                  numObservations = skim.numObservations + skimInternal.numObservations,
+                  numIteration = skim.numIteration
+                )
+              )
+            case _ => Some(skimInternal)
           }
       }
   }

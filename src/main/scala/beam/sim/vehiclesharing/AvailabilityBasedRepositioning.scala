@@ -17,9 +17,6 @@ case class AvailabilityBasedRepositioning(
   beamServices: BeamServices
 ) extends RepositionAlgorithm {
 
-  val countSkims = Skims.lookup(Skims.SkimType.COUNT_SKIMMER).map(_.asInstanceOf[CountSkims]).get
-  val odSkims = Skims.lookup(Skims.SkimType.OD_SKIMMER).map(_.asInstanceOf[ODSkims]).get
-
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
   val unboardedVehicleInquiry = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
@@ -30,14 +27,15 @@ case class AvailabilityBasedRepositioning(
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
-      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.count).getOrElse(0)) { (minV, cur) =>
-        Math.min(minV, cur.count)
+      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.numObservations).getOrElse(0)) {
+        (minV, cur) =>
+          Math.min(minV, cur.numObservations)
       }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
       val inquiryVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.count).sum
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.numObservations).sum
       val boardingVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.count).sum
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.numObservations).sum
       unboardedVehicleInquiry.put((i, taz.tazId), inquiryVal - boardingVal)
     }
   }
@@ -46,7 +44,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => countSkims.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .map(i => Skims.count_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }
@@ -79,7 +77,7 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = odSkims.getTimeDistanceAndCost(
+        val skim = Skims.od_skimmer.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,
