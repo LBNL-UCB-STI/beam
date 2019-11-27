@@ -8,18 +8,14 @@ import org.http4s.client.blaze._
 import zio._
 import zio.interop.catz._
 
-class GHRequestIO(implicit val runtime: Runtime[_]) extends GHRequest[Task] {
+class GHRequestIO(httpClient: Task[Client[Task]])(implicit val runtime: Runtime[_]) extends GHRequest[Task] {
 
   import GHRequestIO._
 
-  private val httpClient: Task[Client[Task]] = Http1Client[Task]()
+  //private val httpClient: Task[Client[Task]] = Http1Client[Task]()
 
-  private[this] def responseCallback[R: Decoder](url: Url)(callback: Task[R] => Unit) = {
-    (httpClient &&& url.toUri).flatMap({ case (client, url) => client.expect[R](url)})
-  }
-
-  override def request[T: Decoder](url: Url): Task[T] =
-    Task.effectAsync[T](callback => responseCallback(url)(callback))
+  override def request[R: Decoder](url: Url): Task[R] =
+    (httpClient &&& url.toUri).flatMap({ case (client, uri) => client.expect[R](uri) })
 }
 
 object GHRequestIO {
