@@ -1,30 +1,33 @@
 package beam.side.route.processing.request
 
-import akka.actor.ActorSystem
 import beam.side.route.model.Url
 import beam.side.route.processing.GHRequest
-import cats.{effect => ce}
 import org.http4s.Uri
+import org.http4s.client.Client
 import org.http4s.client.blaze._
 import zio._
+import zio.interop.catz._
 
-class GHRequestIO(implicit system: ActorSystem) extends GHRequest[({ type T[A] = IO[Throwable, A] })#T] {
+class GHRequestIO(implicit val runtime: Runtime[_]) extends GHRequest[Task] {
 
   import GHRequestIO._
 
-  private val httpClient = Http1Client[ce.IO]().unsafeRunSync
+  private val httpClient: Task[Client[Task]] = Http1Client[Task]()
 
-  private[this] def responseCallback(url: Url, callback: IO[Throwable, String] => Unit): Unit = {
-    httpClient.expect[String](url.toUri)
+  private[this] def responseCallback[R: Decoder](url: Url)(callback: Task[R] => Unit) = {
+    (httpClient &&& url.toUri).flatMap({ case (client, url) => client.expect[R](url)})
   }
 
-  override def request(url: Url): IO[Throwable, String] =
-    IO.effectAsync[Throwable, String](callback => responseCallback(url, callback))
+  override def request[T: Decoder](url: Url): Task[T] =
+    Task.effectAsync[T](callback => responseCallback(url)(callback))
 }
 
 object GHRequestIO {
   implicit class UrlDecoded(url: Url) {
 
-    def toUri: Uri = Uri.uri(url.host).withPath(url.path) =? url.query.mapValues(s => Seq(s.toString))
+    def toUri: Task[Uri] =
+      Task
+        .fromEither[Uri](Uri.fromString(url.host))
+        .map(uri => uri.withPath(url.path) =? url.query.mapValues(s => Seq(s.toString)))
   }
 }
