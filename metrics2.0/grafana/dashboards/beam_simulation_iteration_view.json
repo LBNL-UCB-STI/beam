@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574804116607,
+    "iteration": 1574880181693,
     "links": [],
     "panels": [
       {
@@ -51,7 +51,7 @@
         "fillGradient": 0,
         "gridPos": {
           "h": 10,
-          "w": 8,
+          "w": 12,
           "x": 0,
           "y": 0
         },
@@ -183,8 +183,8 @@
         "fillGradient": 0,
         "gridPos": {
           "h": 10,
-          "w": 8,
-          "x": 8,
+          "w": 12,
+          "x": 12,
           "y": 0
         },
         "id": 9,
@@ -213,7 +213,7 @@
         "steppedLine": false,
         "targets": [
           {
-            "alias": "[[tag_chargerType]]",
+            "alias": "[[tag_typeOfCharger]]",
             "groupBy": [
               {
                 "params": [
@@ -231,7 +231,7 @@
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"averageLoad\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY time(1h), \"chargerType\"",
+            "query": "SELECT sum(\"averageLoad\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY time(1h), \"typeOfCharger\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "time_series",
@@ -314,10 +314,10 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 10,
-          "w": 8,
-          "x": 16,
-          "y": 0
+          "h": 11,
+          "w": 12,
+          "x": 0,
+          "y": 10
         },
         "id": 10,
         "legend": {
@@ -445,8 +445,8 @@
         "fillGradient": 0,
         "gridPos": {
           "h": 11,
-          "w": 8,
-          "x": 0,
+          "w": 12,
+          "x": 12,
           "y": 10
         },
         "id": 12,
@@ -1316,7 +1316,7 @@
         }
       }
     ],
-    "refresh": false,
+    "refresh": "10s",
     "schemaVersion": 20,
     "style": "dark",
     "tags": [],
@@ -1325,9 +1325,8 @@
         {
           "allValue": null,
           "current": {
-            "isNone": true,
-            "text": "None",
-            "value": ""
+            "text": "sf-light-1k-xml_2019-11-27_21-09-08",
+            "value": "sf-light-1k-xml_2019-11-27_21-09-08"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -1351,9 +1350,8 @@
         {
           "allValue": null,
           "current": {
-            "isNone": true,
-            "text": "None",
-            "value": ""
+            "text": "11",
+            "value": "11"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -1392,6 +1390,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 1
+    "version": 4
   }
 }

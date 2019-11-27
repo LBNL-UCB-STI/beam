@@ -1,14 +1,28 @@
-clearDir(){
+clear(){
 	path=${1}
 
+  # this command allows us not to remove .gitignore files
 	cmd="rm -rfv $path/*"
 	echo "running $cmd"
 	eval "$cmd"
 }
 
-clearDir "grafana/data"
-clearDir "grafana/log"
+remove(){
+	path=${1}
 
-clearDir "influxdb/data"
-clearDir "influxdb/log"
+	cmd="rm -rfv $path"
+	echo "running $cmd"
+	eval "$cmd"
+}
+
+clear "grafana/log"
+remove "grafana/data/png"
+remove "grafana/data/grafana.db"
+
+clear "influxdb/data"
+clear "influxdb/log"
+
+
+
+
 

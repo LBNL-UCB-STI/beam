@@ -86,7 +86,7 @@ class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
           ),
           Map(
             "vehicleType" -> loadVehicleType,
-            "chargerType" -> chargerType,
+            "typeOfCharger" -> chargerType,
             "parkingType" -> parkingType
           )
         )
