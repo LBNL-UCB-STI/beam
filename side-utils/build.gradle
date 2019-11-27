@@ -67,6 +67,9 @@ dependencies {
     compile "com.typesafe.akka:akka-stream_${scalaBinaryVersion}:2.6.0"
     compile "dev.zio:zio_${scalaBinaryVersion}:1.0.0-RC17"
 
+    compile "org.http4s:http4s-dsl_${scalaBinaryVersion}:0.18.23"
+    compile "org.http4s:http4s-blaze-client_${scalaBinaryVersion}:0.18.23"
+
     compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
