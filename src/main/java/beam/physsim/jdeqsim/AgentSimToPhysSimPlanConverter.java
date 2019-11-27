@@ -479,7 +479,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         leg.setTravelTime(0);
         leg.setRoute(route);
         leg.getAttributes().putAttribute("travel_time", pte.arrivalTime() - pte.departureTime());
-        leg.getAttributes().putAttribute("time", pte.time());
+        leg.getAttributes().putAttribute("departure_time", pte.departureTime());
+        leg.getAttributes().putAttribute("event_time", pte.time());
         return leg;
     }
 

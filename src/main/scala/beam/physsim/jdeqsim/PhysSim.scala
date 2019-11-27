@@ -146,13 +146,18 @@ class PhysSim(
       val fileName = controlerIO.getIterationFilename(iterationNumber, "MultiJDEQSim_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
+    val reroutedTravelTimeWriter: CsvWriter = {
+      val fileName = controlerIO.getIterationFilename(iterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
+      new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
+    }
     try {
       logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
       run(1, nIterations, reroutePerIterPct, SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)), carTravelTimeWriter).travelTime
+        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)), carTravelTimeWriter, reroutedTravelTimeWriter).travelTime
     }
     finally {
       Try(carTravelTimeWriter.close())
+      Try(reroutedTravelTimeWriter.close())
     }
   }
 
@@ -163,7 +168,8 @@ class PhysSim(
                  reroutePerIterPct: Double,
                  firstResult: SimulationResult,
                  lastResult: SimulationResult,
-                 carTravelTimeWriter: CsvWriter
+                 carTravelTimeWriter: CsvWriter,
+                 reroutedTravelTimeWriter: CsvWriter,
   ): SimulationResult = {
     if (currentIter > nIterations) {
       logger.info("Last iteration compared with first")
@@ -175,13 +181,17 @@ class PhysSim(
       carTravelTimeWriter.writeRow(Vector(currentIter, simulationResult.carTravelTimeStats.avg, simulationResult.carTravelTimeStats.median,
         simulationResult.carTravelTimeStats.p75, simulationResult.carTravelTimeStats.p95, simulationResult.carTravelTimeStats.p99,
         simulationResult.carTravelTimeStats.minValue, simulationResult.carTravelTimeStats.maxValue))
+      carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
         val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
-        // logger.info("AverageCarTravelTime before replanning")
-        // PhysSim.printAverageCarTravelTime(getCarPeople)
-        reroute(simulationResult.travelTime, reroutePerIterPct)
-        // logger.info("AverageCarTravelTime after replanning")
-        // PhysSim.printAverageCarTravelTime(getCarPeople)
+//        logger.info("AverageCarTravelTime before replanning")
+//        PhysSim.printAverageCarTravelTime(getCarPeople(population))
+        val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct)
+        reroutedTravelTimeWriter.writeRow(Vector(currentIter, reroutedTravelTimeStats.avg, reroutedTravelTimeStats.median, reroutedTravelTimeStats.p75, reroutedTravelTimeStats.p95, reroutedTravelTimeStats.p99,
+          reroutedTravelTimeStats.minValue, reroutedTravelTimeStats.maxValue))
+        reroutedTravelTimeWriter.flush()
+//        logger.info("AverageCarTravelTime after replanning")
+//        PhysSim.printAverageCarTravelTime(getCarPeople(population))
         val after = printRouteStats(s"After rerouting at $currentIter iter", population)
         val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
         val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
@@ -195,7 +205,7 @@ class PhysSim(
       }
       printStats(lastResult, simulationResult)
       val realFirstResult = if (currentIter == 1) simulationResult else firstResult
-      run(currentIter + 1, nIterations, reroutePerIterPct, realFirstResult, simulationResult, carTravelTimeWriter)
+      run(currentIter + 1, nIterations, reroutePerIterPct, realFirstResult, simulationResult, carTravelTimeWriter, reroutedTravelTimeWriter)
     }
   }
 
@@ -216,9 +226,9 @@ class PhysSim(
     logger.info(s"Car travel time stats at iteration ${currentResult.iteration}: ${currentResult.carTravelTimeStats}")
   }
 
-  private def getCarPeople: Vector[Person] = {
+  private def getCarPeople(population: Population): Vector[Person] = {
     val carPeople = population.getPersons.values.asScala
-      .filter(p => !p.getId.toString.contains("bus"))
+      .filter(p => !p.getId.toString.contains("bus") && !p.getId.toString.contains(":"))
       .toVector
       .sortBy(x => x.getId.toString)
     carPeople
@@ -272,12 +282,9 @@ class PhysSim(
       eventTypeToNumberOfMessages = eventTypeCounter.getStats, carTravelTimeStats = carTravelTimeHandler.compute)
   }
 
-  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Unit = {
-    val rightPeopleToReplan =
-      population.getPersons.values.asScala
-        .filter(p => !p.getId.toString.contains("bus"))
-        .toVector
-        .sortBy(x => x.getId.toString)
+  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Statistics = {
+    val rightPeopleToReplan = getCarPeople(population)
+    // logger.info(s"rightPeopleToReplan: ${rightPeopleToReplan.mkString(" ")}")
     val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
       val route = plan.getPlanElements.asScala.zipWithIndex.collect {
         case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
@@ -290,7 +297,7 @@ class PhysSim(
     if (takeN > 0) {
       val toReroute =
         new Random(beamConfig.matsim.modules.global.randomSeed).shuffle(personToRoutes).take(takeN).toArray
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0, isZeroIter = iterationNumber == 0)
+      val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0)
       // Get new routes
       val result = ProfilingUtils.timed(
         s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",
@@ -302,8 +309,9 @@ class PhysSim(
             reroute(r5Wrapper, person, xs)
         }.seq
       }
+      var newTravelTimes = new ArrayBuffer[Double]()
       ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
-        var totalTravelTime: Long = 0
+        var oldTravelTimes = new ArrayBuffer[Double]()
         // Update plans
         result.foreach {
           case (person, xs) =>
@@ -317,13 +325,16 @@ class PhysSim(
                       (resp: RoutingResponse) => {
                         resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
                           case Some(beamLeg) =>
-                            totalTravelTime += beamLeg.travelPath.duration
+                            oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
+                            newTravelTimes += beamLeg.duration.toDouble
+
                             val javaLinkIds = beamLeg.travelPath.linkIds.map(beamServices.networkHelper.getLinkUnsafe).map(_.getId).asJava
                             val newRoute = RouteUtils.createNetworkRoute(javaLinkIds, agentSimScenario.getNetwork)
                             leg.setRoute(newRoute)
                             leg.setDepartureTime(beamLeg.startTime)
+                            leg.setTravelTime(0)
                             leg.getAttributes.putAttribute("travel_time", beamLeg.duration);
-                            leg.getAttributes.putAttribute("time", beamLeg.startTime);
+                            leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
                           case _ =>
                         }
                       }
@@ -332,11 +343,14 @@ class PhysSim(
                 }
             }
         }
-        val avgPerPerson = if (result.isEmpty) 0 else totalTravelTime.toDouble / result.size
         // We're assuming this should go down
-        logger.info(s"Total travel time for rerouted people: ${totalTravelTime}, average per person: $avgPerPerson")
+        logger.info(s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}")
+        logger.info(s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}")
       }
+      Statistics(newTravelTimes.map(x => x / 60).toArray)
     }
+    else
+      Statistics(Array.empty[Double])
   }
 
   private def getR5UtmCoord(linkId: Int): Coord = {
@@ -508,21 +522,9 @@ object PhysSim extends LazyLogging{
       person.getSelectedPlan.getPlanElements.asScala.collect {
         case leg: Leg =>
           val travelTime = leg.getAttributes.getAttribute("travel_time").toString.toDouble.toInt
-          val time = leg.getAttributes.getAttribute("time").toString.toDouble.toInt
-          (time, travelTime)
+          travelTime
       }
     }
-    val hourToTravelTime = timeToTravelTime.map { case (time, travelTime) =>
-      time / 3600 -> travelTime
-    }
-    val hourToAvgTravelTimeInMinutes = hourToTravelTime.groupBy { case (hour, _) => hour }.map { case (hour, xs) =>
-      val travelTimesThisHour = xs.map(_._2)
-      val avgTravelTime = if (travelTimesThisHour.isEmpty) 0 else travelTimesThisHour.sum.toDouble / travelTimesThisHour.size
-      hour -> avgTravelTime / 60
-    }.toVector.sortBy { case (hour, _) => hour}
-
-    val avgTravelTime = timeToTravelTime.map(_._2).sum.toDouble / timeToTravelTime.size
-    logger.info(s"hourToAvgTravelTimeInMinutes:\n${hourToAvgTravelTimeInMinutes.mkString("\n")}")
-    logger.info(s"average travel time:\n ${avgTravelTime} seconds = ${avgTravelTime / 60 } minutes")
+    logger.info(s"Some others stats about travel time: ${Statistics(timeToTravelTime.map(_.toDouble))}")
   }
 }

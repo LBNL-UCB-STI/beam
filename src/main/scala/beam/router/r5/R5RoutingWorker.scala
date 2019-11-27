@@ -140,8 +140,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var r5: R5Wrapper = new R5Wrapper(
     workerParams,
     new FreeFlowTravelTime,
-    workerParams.beamConfig.beam.routing.r5.travelTimeError,
-    isZeroIter = true
+    workerParams.beamConfig.beam.routing.r5.travelTimeError
   )
 
   private val linksBelowMinCarSpeed =
@@ -250,8 +249,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
-        workerParams.beamConfig.beam.routing.r5.travelTimeError,
-        isZeroIter = false
+        workerParams.beamConfig.beam.routing.r5.travelTimeError
       )
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
@@ -260,8 +258,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       r5 = new R5Wrapper(
         workerParams,
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
-        workerParams.beamConfig.beam.routing.r5.travelTimeError,
-        isZeroIter = false
+        workerParams.beamConfig.beam.routing.r5.travelTimeError
       )
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
@@ -285,7 +282,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 }
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeError: Double, isZeroIter: Boolean)
+class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeError: Double)
     extends MetricsSupport {
 
   private val WorkerParameters(
