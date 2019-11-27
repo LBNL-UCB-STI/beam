@@ -117,6 +117,7 @@ class PhysSim(
   shouldWritePhysSimEvents: Boolean
 ) extends StrictLogging {
 
+  val rnd: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
   val shouldLogWhenLinksAreNotTheSame: Boolean = false
 
   val workerParams: WorkerParameters = WorkerParameters(
@@ -295,8 +296,7 @@ class PhysSim(
     val pctToNumberPersonToTake = (personToRoutes.size * reroutePerIterPct).toInt
     val takeN = if (pctToNumberPersonToTake > personToRoutes.size) personToRoutes.size else pctToNumberPersonToTake
     if (takeN > 0) {
-      val toReroute =
-        new Random(beamConfig.matsim.modules.global.randomSeed).shuffle(personToRoutes).take(takeN).toArray
+      val toReroute = rnd.shuffle(personToRoutes).take(takeN).toArray
       val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0)
       // Get new routes
       val result = ProfilingUtils.timed(
