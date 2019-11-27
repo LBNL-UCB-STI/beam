@@ -94,6 +94,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final Map<Id<Person>, Household> personToHouseHold;
 
+    private final Random rnd;
+
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
@@ -128,6 +130,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         personToHouseHold = scenario.getHouseholds().getHouseholds().values().stream().flatMap(h -> h.getMemberIds().stream().map(m -> new AbstractMap.SimpleEntry<Id<Person>, Household>(m, h)))
                 .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
 
+        rnd = new Random(beamConfig.matsim().modules().global().randomSeed());
     }
 
 
@@ -141,7 +144,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         PhysSim sim = new PhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices,
-                controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber));
+                controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
 
         TravelTime travelTimes = sim.run(beamConfig.beam().physsim().relaxation().internalNumberOfIterations(),
                 beamConfig.beam().physsim().relaxation().fractionOfPopulationToReroute(), prevTravelTime);

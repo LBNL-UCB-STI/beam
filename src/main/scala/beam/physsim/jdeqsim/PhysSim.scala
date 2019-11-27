@@ -114,10 +114,11 @@ class PhysSim(
   isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
-  shouldWritePhysSimEvents: Boolean
+  shouldWritePhysSimEvents: Boolean,
+  javaRnd: java.util.Random
 ) extends StrictLogging {
 
-  val rnd: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+  val rnd: Random = new Random(javaRnd)
   val shouldLogWhenLinksAreNotTheSame: Boolean = false
 
   val workerParams: WorkerParameters = WorkerParameters(
