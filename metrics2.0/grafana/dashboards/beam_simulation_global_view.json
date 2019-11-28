@@ -300,7 +300,7 @@
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"parkingType\", \"iteration-num\"",
+            "query": "SELECT sum(\"count\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"parkingType\", \"iteration-num\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -594,7 +594,7 @@
             "measurement": "mode-choices",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"mode\", \"iteration-num\"",
+            "query": "SELECT sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -734,6 +734,8 @@
             "measurement": "average-travel-time",
             "orderByTime": "ASC",
             "policy": "default",
+            "query": "SELECT \"count\" FROM \"average-travel-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
+            "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
             "select": [
@@ -811,6 +813,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 3
+    "version": 4
   }
 }
