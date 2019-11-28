@@ -72,7 +72,7 @@
       checked="ctrl.cfg.layout.showlegend" 
       on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
 
-    <div class="gf-form" ng-if="ctrl.cfg.layout.showlegend">
+      <div class="gf-form" ng-if="ctrl.cfg.layout.showlegend">
         <label class="gf-form-label width-7">- Orientation</label>
         <div class="gf-form-select-wrapper max-width-14">
           <select class="gf-form-input" ng-model="ctrl.cfg.layout.legend.orientation" ng-change="ctrl.onConfigChanged()">
@@ -80,8 +80,20 @@
             <option value="v">Vertical</option>
           </select>
         </div>
+    </div>
+
+    <div class="gf-form" ng-if="ctrl.cfg.layout.showlegend">
+      <label class="gf-form-label width-7">- Traceorder</label>
+      <div class="gf-form-select-wrapper max-width-14">
+        <select class="gf-form-input" ng-model="ctrl.cfg.layout.legend.traceorder" ng-change="ctrl.onConfigChanged()">
+          <option value="reversed">reversed</option>
+          <option value="grouped">grouped</option>
+          <option value="reversed+grouped">reversed+grouped</option>
+          <option value="normal">normal</option>
+        </select>
       </div>
   </div>
+</div>
 
   <div ng-repeat="axis in ctrl.editor.axis" class="section gf-form-group">
     <h5 class="section-heading">{{axis.label}}</h5>
@@ -91,6 +103,22 @@
       <input class="gf-form-input width-7" 
         placeholder="No Label"
         ng-model="axis.layout.title" 
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">tick0</label>
+      <input class="gf-form-input width-7" 
+        placeholder="No Label"
+        ng-model="axis.layout.tick0" 
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">dtick</label>
+      <input class="gf-form-input width-7" 
+        placeholder="No Label"
+        ng-model="axis.layout.dtick" 
         ng-change="ctrl.onConfigChanged();">
     </div>
 

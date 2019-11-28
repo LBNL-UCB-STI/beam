@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574879621568,
+    "iteration": 1574972604589,
     "links": [],
     "panels": [
       {
@@ -55,18 +55,21 @@
           "fixScale": "",
           "layout": {
             "barmode": "stack",
-            "dragmode": "lasso",
+            "dragmode": "zoom",
             "font": {
               "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
             },
             "hovermode": "closest",
             "legend": {
-              "orientation": "h"
+              "orientation": "h",
+              "traceorder": "normal"
             },
             "showlegend": true,
             "xaxis": {
+              "dtick": "1",
               "rangemode": "normal",
               "showgrid": true,
+              "tick0": "0",
               "title": "Iteration",
               "type": "auto",
               "zeroline": false
@@ -196,18 +199,21 @@
           "fixScale": "",
           "layout": {
             "barmode": "stack",
-            "dragmode": "lasso",
+            "dragmode": "zoom",
             "font": {
               "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
             },
             "hovermode": "closest",
             "legend": {
-              "orientation": "h"
+              "orientation": "h",
+              "traceorder": "normal"
             },
             "showlegend": true,
             "xaxis": {
+              "dtick": "1",
               "rangemode": "normal",
               "showgrid": true,
+              "tick0": "0",
               "title": "Iteration",
               "type": "auto",
               "zeroline": false
@@ -337,20 +343,23 @@
           "fixScale": "",
           "layout": {
             "barmode": "stack",
-            "dragmode": "lasso",
+            "dragmode": "zoom",
             "font": {
               "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
             },
             "hovermode": "closest",
             "legend": {
-              "orientation": "h"
+              "orientation": "h",
+              "traceorder": "normal"
             },
             "showlegend": true,
             "xaxis": {
+              "dtick": "1",
               "rangemode": "normal",
               "showgrid": true,
+              "tick0": "0",
               "title": "Iteration",
-              "type": "auto",
+              "type": "linear",
               "zeroline": false
             },
             "yaxis": {
@@ -474,8 +483,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-27_21-09-08",
-            "value": "sf-light-1k-xml_2019-11-27_21-09-08"
+            "text": "sf-light-1k-xml_2019-11-28_19-29-49",
+            "value": "sf-light-1k-xml_2019-11-28_19-29-49"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -514,6 +523,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 6
+    "version": 12
   }
 }
