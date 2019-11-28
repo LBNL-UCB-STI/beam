@@ -27,6 +27,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -219,6 +220,9 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[TeleportationArrivalEvent]
 
       events.expectMsgType[PersonArrivalEvent]
+      events.expectMsgType[ODSkimmerEvent]
+      events.expectMsgType[DriveTimeSkimmerEvent]
+      events.expectMsgType[DriveTimeSkimmerEvent]
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
@@ -387,6 +391,9 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[TeleportationArrivalEvent]
 
       events.expectMsgType[PersonArrivalEvent]
+      events.expectMsgType[ODSkimmerEvent]
+      events.expectMsgType[DriveTimeSkimmerEvent]
+      events.expectMsgType[DriveTimeSkimmerEvent]
       events.expectMsgType[ActivityStartEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
