@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.sim.common.GeoUtilsImpl
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -39,7 +40,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -91,6 +92,7 @@ class PersonAndTransitDriverSpec
       val personEvents = new TestProbe(system)
       val otherEvents = new TestProbe(system)
       val agencyEvents = new TestProbe(system)
+      val skimEvents = new TestProbe(system)
 
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -112,6 +114,8 @@ class PersonAndTransitDriverSpec
                 personEvents.ref ! event
               case agencyRevenueEvent: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
+              case _: AbstractSkimmerEvent =>
+                skimEvents.ref ! event
               case _ =>
                 otherEvents.ref ! event
             }
@@ -442,6 +446,8 @@ class PersonAndTransitDriverSpec
       tramEvents.expectMsgType[PathTraversalEvent]
 
       agencyEvents.expectMsgType[AgencyRevenueEvent]
+
+      skimEvents.expectMsgType[AbstractSkimmerEvent]
 
       otherEvents.expectNoMessage()
 

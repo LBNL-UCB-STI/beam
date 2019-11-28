@@ -26,7 +26,7 @@ object Skims extends LazyLogging {
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
 
   object SkimType extends Enumeration {
-    val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("origin-destination-skimmer")
+    val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
   }

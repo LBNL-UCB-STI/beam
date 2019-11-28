@@ -9,12 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.{
-  HouseholdActor,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle
-}
+import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
@@ -27,6 +22,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -45,7 +41,7 @@ import org.matsim.vehicles._
 import org.scalatest.FunSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -221,6 +217,8 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
 
+      events.expectMsgType[AbstractSkimmerEvent]
+
       expectMsgType[CompletionNotice]
     }
 
@@ -388,6 +386,8 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
+
+      events.expectMsgType[AbstractSkimmerEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]

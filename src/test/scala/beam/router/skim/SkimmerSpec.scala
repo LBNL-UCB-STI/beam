@@ -54,7 +54,7 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
          |    fileBaseName = "skimsTravelTimeObservedVsSimulated"
          |  }
          |  origin_destination_skimmer {
-         |    name = "origin-destination-skimmer"
+         |    name = "od-skimmer"
          |    fileBaseName = "skimsOD"
          |    writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
          |    writeFullSkimsInterval = 0
