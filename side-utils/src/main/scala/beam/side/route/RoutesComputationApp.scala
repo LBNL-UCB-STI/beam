@@ -1,6 +1,12 @@
 package beam.side.route
 import java.nio.file.Paths
 
+import beam.side.route.model.Url
+import org.http4s.client.Client
+import org.http4s.client.blaze._
+import zio._
+import zio.interop.catz._
+
 import scala.util.{Failure, Try}
 
 case class ComputeConfig(
@@ -42,4 +48,14 @@ trait AppSetup {
   }
 }
 
-object RoutesComputationApp extends App with AppSetup {}
+object RoutesComputationApp extends CatsApp with AppSetup {
+
+  override def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] = {
+    implicit val httpClient: Task[Client[Task]] = Http1Client[Task]()
+    (for {
+      config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      url = Url("http://localhost:8989", "route", Seq())
+
+    } yield config).fold(_ => -1, _ => 0)
+  }
+}
