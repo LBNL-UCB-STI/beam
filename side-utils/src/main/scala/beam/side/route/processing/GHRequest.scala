@@ -5,13 +5,9 @@ import org.http4s.EntityDecoder
 import scala.language.higherKinds
 
 trait GHRequest[F[_]] {
-  type Decoder[R] = EntityDecoder[F, R]
-
-  def request[T : Decoder](url: Url): F[T]
+  def request[R](url: Url)(implicit decoder: EntityDecoder[F, R]): F[R]
 }
 
 object GHRequest {
-  type Aux[F0[_], R0] = GHRequest[F0] { type Decoder[R] = EntityDecoder[F0, R0]}
-
-  def apply[F[_], R](implicit request: GHRequest.Aux[F, R]): GHRequest[F] = request
+  def apply[F[_]](implicit request: GHRequest[F]): GHRequest[F] = request
 }

@@ -7,7 +7,7 @@ import io.circe.generic.semiauto._
 
 import scala.language.higherKinds
 
-case class Url(host: Host, path: String, query: Seq[(String, _ <: AnyVal)])
+case class Url(host: Host, path: String, query: Seq[(String, _)])
 
 case class Instruction(distance: Double, interval: Seq[Int], time: Long)
 
@@ -28,6 +28,7 @@ object Coordinate {
 case class Way(points: Seq[Coordinate], instructions: Seq[Instruction], wayPoints: (Coordinate, Coordinate))
 
 object Way {
+
   implicit val wayDecoder: Decoder[Way] = new Decoder[Way] {
     override def apply(c: HCursor): Result[Way] = {
       val paths = c.downField("paths")
