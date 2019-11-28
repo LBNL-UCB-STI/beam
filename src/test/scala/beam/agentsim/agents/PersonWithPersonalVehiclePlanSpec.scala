@@ -35,7 +35,7 @@ import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
     extends FunSpecLike
