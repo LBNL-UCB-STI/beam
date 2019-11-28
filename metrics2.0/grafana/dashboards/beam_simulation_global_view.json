@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574977372243,
+    "iteration": 1574980086981,
     "links": [],
     "panels": [
       {
@@ -77,7 +77,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Count of events",
+              "title": "# of events",
               "type": "linear",
               "zeroline": false
             },
@@ -183,7 +183,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Count of charge events by ChargerType",
+        "title": "Charge Events by Charger Type",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -223,7 +223,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Count of events",
+              "title": "# of events",
               "type": "linear",
               "zeroline": false
             },
@@ -329,7 +329,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Count of charge events by Parking Type",
+        "title": "Charge Events by Parking Type",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -475,7 +475,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH Trip Distance [TNC]",
+        "title": "Trip Distance [Ride Hail]",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -517,7 +517,7 @@
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "",
-              "title": "# of mode choosen",
+              "title": "# of mode chosen",
               "type": "linear",
               "zeroline": false
             },
@@ -666,6 +666,12 @@
               "title": "Average travel time [min]",
               "type": "linear",
               "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
             }
           },
           "loadFromCDN": false,
@@ -759,7 +765,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Average travel time [car]",
+        "title": "Average Travel Time [Car]",
         "type": "natel-plotly-panel",
         "version": 1
       }
@@ -773,8 +779,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-29_00-40-14",
-            "value": "sf-light-1k-xml_2019-11-29_00-40-14"
+            "text": "sf-light-1k-xml_2019-11-29_01-06-55",
+            "value": "sf-light-1k-xml_2019-11-29_01-06-55"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -813,6 +819,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 4
+    "version": 2
   }
 }
