@@ -9,14 +9,14 @@ import scala.collection.mutable
 
 object Skims extends LazyLogging {
   lazy val od_skimmer: ODSkims = lookup(SkimType.OD_SKIMMER).asInstanceOf[ODSkims]
-  lazy val count_skimmer: CountSkims = lookup(SkimType.COUNT_SKIMMER).asInstanceOf[CountSkims]
-  lazy val tt_skimmer: TravelTimeSkims = lookup(SkimType.TT_SKIMMER).asInstanceOf[TravelTimeSkims]
+  lazy val taz_skimmer: TAZSkims = lookup(SkimType.TAZ_SKIMMER).asInstanceOf[TAZSkims]
+  lazy val dt_skimmer: DriveTimeSkims = lookup(SkimType.DT_SKIMMER).asInstanceOf[DriveTimeSkims]
 
   def setup(implicit beamServices: BeamServices): Unit = {
     val skimConfig = beamServices.beamConfig.beam.router.skim
     skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
-    skims.put(SkimType.COUNT_SKIMMER, addEvent(new CountSkimmer(beamServices, skimConfig)))
-    skims.put(SkimType.TT_SKIMMER, addEvent(new TravelTimeSkimmer(beamServices, skimConfig)))
+    skims.put(SkimType.TAZ_SKIMMER, addEvent(new TAZSkimmer(beamServices, skimConfig)))
+    skims.put(SkimType.DT_SKIMMER, addEvent(new DriveTimeSkimmer(beamServices, skimConfig)))
   }
 
   def clear(): Unit = {
@@ -26,9 +26,9 @@ object Skims extends LazyLogging {
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
 
   object SkimType extends Enumeration {
-    val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
-    val COUNT_SKIMMER: skim.Skims.SkimType.Value = Value("count-skimmer")
-    val TT_SKIMMER: skim.Skims.SkimType.Value = Value("tt-skimmer")
+    val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("origin-destination-skimmer")
+    val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
+    val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
   }
 
   private def addEvent(skimmer: AbstractSkimmer)(implicit beamServices: BeamServices): AbstractSkimmer = {

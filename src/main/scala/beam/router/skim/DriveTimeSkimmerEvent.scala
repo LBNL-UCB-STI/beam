@@ -2,19 +2,19 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.TravelTimeSkimmer.{TTSkimmerInternal, TTSkimmerKey}
+import beam.router.skim.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
 import beam.sim.BeamServices
 
-case class TravelTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, carLeg: EmbodiedBeamLeg)
+case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, carLeg: EmbodiedBeamLeg)
     extends AbstractSkimmerEvent(eventTime, beamServices) {
   override protected val skimName: String =
-    beamServices.beamConfig.beam.router.skim.travel_time_skimmer.name
+    beamServices.beamConfig.beam.router.skim.drive_time_skimmer.name
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
   val (key, skimInternal) = observeTrip(carLeg)
 
-  private def observeTrip(carLeg: EmbodiedBeamLeg): (TTSkimmerKey, TTSkimmerInternal) = {
+  private def observeTrip(carLeg: EmbodiedBeamLeg): (DriveTimeSkimmerKey, DriveTimeSkimmerInternal) = {
     import beamServices._
 
     // In case of `CAV` we have to override its mode to `CAR`
@@ -35,8 +35,8 @@ case class TravelTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices,
     val hour = SkimsUtils.timeToBin(carTrip.beamLegs.head.startTime)
     val timeSimulated = carTrip.totalTravelTimeInSecs.toDouble
 
-    val skimmerKey = TTSkimmerKey(origTaz, destTaz, hour)
-    val skimmerInternal = TTSkimmerInternal(timeSimulated = timeSimulated, timeObserved = 0)
+    val skimmerKey = DriveTimeSkimmerKey(origTaz, destTaz, hour)
+    val skimmerInternal = DriveTimeSkimmerInternal(timeSimulated = timeSimulated, timeObserved = 0)
     (skimmerKey, skimmerInternal)
   }
 }

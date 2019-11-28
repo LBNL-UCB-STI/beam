@@ -7,14 +7,14 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
+class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     extends AbstractSkimmer(beamServices, config) {
-  import CountSkimmer._
+  import TAZSkimmer._
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = CountSkims(beamServices)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = TAZSkims(beamServices)
 
-  override protected val skimName: String = config.count_skimmer.name
-  override protected val skimFileBaseName: String = config.count_skimmer.fileBaseName
+  override protected val skimName: String = config.taz_skimmer.name
+  override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "time,taz,hex,groupId,label,sumValue,meanValue,numObservations,numIteration"
 
@@ -22,14 +22,14 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
     line: immutable.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      CountSkimmerKey(
+      TAZSkimmerKey(
         line("time").toInt,
         Id.create(line("taz"), classOf[TAZ]),
         line("hex"),
         line("groupId"),
         line("label")
       ),
-      CountSkimmerInternal(
+      TAZSkimmerInternal(
         line("sumValue").toDouble,
         line("meanValue").toDouble,
         line("numObservations").toInt,
@@ -43,12 +43,12 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
     currIteration: Option[AbstractSkimmerInternal]
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
-      .map(_.asInstanceOf[CountSkimmerInternal])
-      .getOrElse(CountSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
+      .map(_.asInstanceOf[TAZSkimmerInternal])
+      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
     val currSkim = currIteration
-      .map(_.asInstanceOf[CountSkimmerInternal])
-      .getOrElse(CountSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
-    CountSkimmerInternal(
+      .map(_.asInstanceOf[TAZSkimmerInternal])
+      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
+    TAZSkimmerInternal(
       sumValue = (prevSkim.sumValue * prevSkim.numIteration + currSkim.sumValue * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
       meanValue = (prevSkim.meanValue * prevSkim.numIteration + currSkim.meanValue * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
       numObservations = (prevSkim.numObservations * prevSkim.numIteration + currSkim.numObservations * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
@@ -61,10 +61,10 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
-      .map(_.asInstanceOf[CountSkimmerInternal])
-      .getOrElse(CountSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
-    val currSkim = currObservation.asInstanceOf[CountSkimmerInternal]
-    CountSkimmerInternal(
+      .map(_.asInstanceOf[TAZSkimmerInternal])
+      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
+    val currSkim = currObservation.asInstanceOf[TAZSkimmerInternal]
+    TAZSkimmerInternal(
       sumValue = prevSkim.sumValue + currSkim.sumValue,
       meanValue = (prevSkim.meanValue * prevSkim.numObservations + currSkim.meanValue * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
       numObservations = prevSkim.numObservations + currSkim.numObservations,
@@ -73,8 +73,8 @@ class CountSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Sk
   }
 }
 
-object CountSkimmer extends LazyLogging {
-  case class CountSkimmerKey(
+object TAZSkimmer extends LazyLogging {
+  case class TAZSkimmerKey(
     time: Int,
     taz: Id[TAZ],
     hex: String,
@@ -83,7 +83,7 @@ object CountSkimmer extends LazyLogging {
   ) extends AbstractSkimmerKey {
     override def toCsv: String = time + "," + taz + "," + hex + "," + groupId + "," + label
   }
-  case class CountSkimmerInternal(sumValue: Double, meanValue: Double, numObservations: Int, numIteration: Int = 0)
+  case class TAZSkimmerInternal(sumValue: Double, meanValue: Double, numObservations: Int, numIteration: Int = 0)
       extends AbstractSkimmerInternal {
     override def toCsv: String = sumValue + "," + meanValue + "," + numObservations + "," + numIteration
   }

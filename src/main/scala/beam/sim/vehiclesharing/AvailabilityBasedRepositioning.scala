@@ -3,7 +3,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
-import beam.router.skim.{CountSkims, ODSkims, Skims}
+import beam.router.skim.{ODSkims, Skims, TAZSkims}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
@@ -44,7 +44,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => Skims.count_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .map(i => Skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }

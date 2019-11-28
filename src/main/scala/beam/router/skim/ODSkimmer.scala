@@ -21,19 +21,19 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
 
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
 
-  override protected val skimName: String = config.od_skimmer.name
-  override protected val skimFileBaseName: String = config.od_skimmer.fileBaseName
+  override protected val skimName: String = config.origin_destination_skimmer.name
+  override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,numObservations,numIteration"
 
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
-    if (config.od_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.od_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
+    if (config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
       ProfilingUtils.timed(s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", logger.info(_)) {
         writeAllModeSkimsForPeakNonPeakPeriods(event)
       }
     }
-    if (config.od_skimmer.writeFullSkimsInterval > 0 && event.getIteration % config.od_skimmer.writeFullSkimsInterval == 0) {
+    if (config.origin_destination_skimmer.writeFullSkimsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeFullSkimsInterval == 0) {
       ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", logger.info(_)) {
         writeFullSkims(event)
       }

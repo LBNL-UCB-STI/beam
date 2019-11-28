@@ -1,12 +1,12 @@
 package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.CountSkimmer.{CountSkimmerInternal, CountSkimmerKey}
+import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamServices
 import beam.sim.vehiclesharing.VehicleManager
 import org.matsim.api.core.v01.Id
 
-case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
+case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
 
   def getLatestSkim(
     time: Int,
@@ -14,10 +14,10 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
     hex: String,
     groupId: String,
     label: String
-  ): Option[CountSkimmerInternal] = {
+  ): Option[TAZSkimmerInternal] = {
     pastSkims.headOption
-      .flatMap(_.get(CountSkimmerKey(time, taz, hex, groupId, label)))
-      .asInstanceOf[Option[CountSkimmerInternal]]
+      .flatMap(_.get(TAZSkimmerKey(time, taz, hex, groupId, label)))
+      .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 
   def getLatestSkim(
@@ -25,7 +25,7 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
     hex: String,
     groupId: String,
     label: String
-  ): Option[CountSkimmerInternal] = {
+  ): Option[TAZSkimmerInternal] = {
     getLatestSkim(time, beamServices.beamScenario.h3taz.getTAZ(hex), hex, groupId, label)
   }
 
@@ -34,16 +34,16 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
     taz: Id[TAZ],
     groupId: String,
     label: String
-  ): Option[CountSkimmerInternal] = {
+  ): Option[TAZSkimmerInternal] = {
     beamServices.beamScenario.h3taz
       .getHRHex(taz)
       .flatMap(hex => getLatestSkim(time, taz, hex, groupId, label))
-      .foldLeft[Option[CountSkimmerInternal]](None) {
+      .foldLeft[Option[TAZSkimmerInternal]](None) {
         case (acc, skimInternal) =>
           acc match {
             case Some(skim) =>
               Some(
-                CountSkimmerInternal(
+                TAZSkimmerInternal(
                   sumValue = skim.sumValue + skimInternal.sumValue,
                   meanValue = (skim.meanValue * skim.numObservations + skimInternal.meanValue + skimInternal.numObservations) / (skim.numObservations + skimInternal.numObservations),
                   numObservations = skim.numObservations + skimInternal.numObservations,
@@ -61,10 +61,10 @@ case class CountSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnl
     hex: String,
     groupid: String,
     label: String
-  ): Option[CountSkimmerInternal] = {
+  ): Option[TAZSkimmerInternal] = {
     aggregatedSkim
-      .get(CountSkimmerKey(time, taz, hex, groupid, label))
-      .asInstanceOf[Option[CountSkimmerInternal]]
+      .get(TAZSkimmerKey(time, taz, hex, groupid, label))
+      .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 
 }

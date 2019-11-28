@@ -31,7 +31,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{ODSkimmerEvent, ODSkims, Skims, TravelTimeSkimmerEvent}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.logging.ExponentialLazyLogging
@@ -962,7 +962,7 @@ class PersonAgent(
 
           correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach {
             carLeg =>
-              eventsManager.processEvent(TravelTimeSkimmerEvent(tick, beamServices, carLeg))
+              eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
           }
 
           resetFuelConsumed()

@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.skim.CountSkimmerEvent
+import beam.router.skim.TAZSkimmerEvent
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -79,7 +79,7 @@ trait RepositionManager extends Actor with ActorLogging {
 
   protected def collectData(time: Int, loc: Coord, varLabel: String) = {
     getServices.matsimServices.getEvents.processEvent(
-      CountSkimmerEvent(time, getServices, time / statTime, loc, getId.toString, varLabel)
+      TAZSkimmerEvent(time, getServices, time / statTime, loc, getId.toString, varLabel)
     )
   }
 }

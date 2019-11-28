@@ -12,21 +12,21 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
+class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     extends AbstractSkimmer(beamServices, config) {
   import SkimsUtils._
-  import TravelTimeSkimmer._
+  import DriveTimeSkimmer._
   import beamServices._
 
   val maxDistanceFromBeamTaz: Double = 500.0 // 500 meters
   val uniqueModes: List[BeamMode.CAR.type] = List(CAR)
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
-  override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = TravelTimeSkims(beamServices)
-  override protected val skimFileBaseName: String = config.travel_time_skimmer.fileBaseName
+  override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims(beamServices)
+  override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,numIteration"
-  override protected val skimName: String = config.travel_time_skimmer.name
+  override protected val skimName: String = config.drive_time_skimmer.name
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
   private val histogramBinSize: Int = 200
@@ -44,8 +44,8 @@ class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Rout
               uniqueTimeBins.foreach { timeBin =>
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
-                  val theSkimKey = TTSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
-                  currentSkim.get(theSkimKey).map(_.asInstanceOf[TTSkimmerInternal]).foreach { theSkimInternal =>
+                  val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
+                  currentSkim.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach { theSkimInternal =>
                     series += ((theSkimInternal.numObservations, theSkimInternal.timeSimulated, timeObserved))
                     for (_ <- 1 to theSkimInternal.numObservations)
                       deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
@@ -72,12 +72,12 @@ class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Rout
 
   override protected def fromCsv(line: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      TTSkimmerKey(
+      DriveTimeSkimmerKey(
         fromTAZId = Id.create(line("fromTAZId"), classOf[TAZ]),
         toTAZId = Id.create(line("toTAZId"), classOf[TAZ]),
         hour = line("hour").toInt
       ),
-      TTSkimmerInternal(
+      DriveTimeSkimmerInternal(
         timeSimulated = line("timeSimulated").toDouble,
         timeObserved = line("timeObserved").toDouble,
         numObservations = line("counts").toInt,
@@ -91,12 +91,12 @@ class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Rout
     currIteration: Option[AbstractSkimmerInternal]
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
-      .map(_.asInstanceOf[TTSkimmerInternal])
-      .getOrElse(TTSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
+      .map(_.asInstanceOf[DriveTimeSkimmerInternal])
+      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
     val currSkim = currIteration
-      .map(_.asInstanceOf[TTSkimmerInternal])
-      .getOrElse(TTSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
-    TTSkimmerInternal(
+      .map(_.asInstanceOf[DriveTimeSkimmerInternal])
+      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
+    DriveTimeSkimmerInternal(
       timeSimulated = (prevSkim.timeSimulated * prevSkim.numIteration + currSkim.timeSimulated * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
       numObservations = (prevSkim.numObservations * prevSkim.numIteration + currSkim.numObservations * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
@@ -109,10 +109,10 @@ class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Rout
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
-      .map(_.asInstanceOf[TTSkimmerInternal])
-      .getOrElse(TTSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
-    val currSkim = currObservation.asInstanceOf[TTSkimmerInternal]
-    TTSkimmerInternal(
+      .map(_.asInstanceOf[DriveTimeSkimmerInternal])
+      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
+    val currSkim = currObservation.asInstanceOf[DriveTimeSkimmerInternal]
+    DriveTimeSkimmerInternal(
       timeSimulated = (prevSkim.timeSimulated * prevSkim.numObservations + currSkim.timeSimulated * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
       numObservations = prevSkim.numObservations + currSkim.numObservations,
@@ -121,13 +121,13 @@ class TravelTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Rout
   }
 }
 
-object TravelTimeSkimmer extends LazyLogging {
+object DriveTimeSkimmer extends LazyLogging {
 
-  case class TTSkimmerKey(fromTAZId: Id[TAZ], toTAZId: Id[TAZ], hour: Int) extends AbstractSkimmerKey {
+  case class DriveTimeSkimmerKey(fromTAZId: Id[TAZ], toTAZId: Id[TAZ], hour: Int) extends AbstractSkimmerKey {
     override def toCsv: String = fromTAZId + "," + toTAZId + "," + hour
   }
 
-  case class TTSkimmerInternal(
+  case class DriveTimeSkimmerInternal(
     timeSimulated: Double,
     timeObserved: Double,
     numObservations: Int = 1,
