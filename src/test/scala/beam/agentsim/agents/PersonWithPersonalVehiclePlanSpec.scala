@@ -16,7 +16,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -187,8 +186,6 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
-      expectMsgType[AbstractSkimmerEvent]
-
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
       lastSender ! RoutingResponse(
@@ -288,8 +285,6 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
-
-      expectMsgType[AbstractSkimmerEvent]
 
       expectMsgType[CompletionNotice]
     }
@@ -421,8 +416,6 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
-
-      expectMsgType[AbstractSkimmerEvent]
 
       expectMsgType[CompletionNotice]
     }
@@ -673,8 +666,6 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
-
-      expectMsgType[AbstractSkimmerEvent]
 
       expectMsgType[CompletionNotice]
     }

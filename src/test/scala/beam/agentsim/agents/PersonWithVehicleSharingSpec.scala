@@ -27,7 +27,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -222,8 +221,6 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
 
-      events.expectMsgType[AbstractSkimmerEvent]
-
       expectMsgType[CompletionNotice]
     }
 
@@ -391,8 +388,6 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
-
-      events.expectMsgType[AbstractSkimmerEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
