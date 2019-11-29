@@ -26,7 +26,7 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -69,6 +69,9 @@ class BeamMobsim @Inject()(
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
     eventsManager.initProcessing()
 
+    clearRoutesIfNeeded(beamServices.matsimServices.getIterationNumber)
+    clearModesIfNeeded(beamServices.matsimServices.getIterationNumber)
+
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
@@ -90,6 +93,36 @@ class BeamMobsim @Inject()(
     endSegment("agentsim-events", "agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  private def clearRoutesIfNeeded(iteration: Int): Unit = {
+    if (beamServices.beamConfig.beam.physsim.relaxation.clearRoutesEveryIteration) {
+      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+        p.getPlans.asScala.foreach { plan =>
+          plan.getPlanElements.asScala.foreach {
+            case leg: Leg =>
+              leg.setRoute(null)
+            case _ =>
+          }
+        }
+      }
+      logger.info(s"Clear all routes at iteration ${iteration}")
+    }
+  }
+
+  private def clearModesIfNeeded(iteration: Int): Unit = {
+    if (beamServices.beamConfig.beam.physsim.relaxation.clearModesEveryIteration) {
+      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+        p.getPlans.asScala.foreach { plan =>
+          plan.getPlanElements.asScala.foreach {
+            case leg: Leg =>
+              leg.setMode("")
+            case _ =>
+          }
+        }
+      }
+      logger.info(s"Clear all modes at iteration ${iteration}")
+    }
   }
 
   def validateVehicleTypes(): Unit = {

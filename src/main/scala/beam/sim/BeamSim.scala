@@ -175,9 +175,6 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    clearRoutesIfNeeded(event.getIteration)
-    clearModesIfNeeded(event.getIteration)
-
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -200,35 +197,7 @@ class BeamSim @Inject()(
     rideHailUtilizationCollector.reset(event.getIteration)
   }
 
-  private def clearRoutesIfNeeded(iteration: Int): Unit = {
-    if (beamServices.beamConfig.beam.physsim.relaxation.clearRoutesEveryIteration) {
-      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
-        p.getPlans.asScala.foreach { plan =>
-          plan.getPlanElements.asScala.foreach {
-            case leg: Leg =>
-              leg.setRoute(null)
-            case _ =>
-          }
-        }
-      }
-      logger.info(s"Clear all routes at iteration ${iteration}")
-    }
-  }
 
-  private def clearModesIfNeeded(iteration: Int): Unit = {
-    if (beamServices.beamConfig.beam.physsim.relaxation.clearModesEveryIteration) {
-      scenario.getPopulation.getPersons.values().asScala.foreach { p =>
-        p.getPlans.asScala.foreach { plan =>
-          plan.getPlanElements.asScala.foreach {
-            case leg: Leg =>
-              leg.setMode("")
-            case _ =>
-          }
-        }
-      }
-      logger.info(s"Clear all modes at iteration ${iteration}")
-    }
-  }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
