@@ -197,8 +197,6 @@ class BeamSim @Inject()(
     rideHailUtilizationCollector.reset(event.getIteration)
   }
 
-
-
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     val interval = beamConfig.beam.outputs.writePlansInterval

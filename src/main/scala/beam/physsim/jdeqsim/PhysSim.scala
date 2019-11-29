@@ -6,7 +6,10 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.agentsim.events.SpaceTime
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
@@ -41,7 +44,9 @@ private case class ElementIndexToLeg(index: Int, leg: Leg)
 private case class ElementIndexToRoutingResponse(index: Int, routingResponse: Try[RoutingResponse])
 private case class RerouteStats(nRoutes: Int, totalRouteLen: Double, totalLinkCount: Int)
 
-class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean]) extends BasicEventHandler with StrictLogging {
+class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
+    extends BasicEventHandler
+    with StrictLogging {
   case class ArrivalDepartureEvent(personId: String, time: Int, `type`: String)
 
   private val events = new ArrayBuffer[ArrivalDepartureEvent]
@@ -60,33 +65,35 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
         if (shouldTakeThisEvent(pae.getPersonId, pae.getLegMode)) {
           events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
         }
-      case pde: PersonDepartureEvent  =>
+      case pde: PersonDepartureEvent =>
         if (shouldTakeThisEvent(pde.getPersonId, pde.getLegMode)) {
           events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
         }
       case _ =>
     }
   }
+
   def compute: Statistics = {
     val groupedByPerson = events.groupBy(x => x.personId)
-    val allTravelTimes = groupedByPerson.flatMap { case (personId, xs) =>
-      val sorted = xs.sortBy(z => z.time)
-      val sliding = sorted.sliding(2, 2)
-      val travelTimes = sliding.map { curr =>
-        if (curr.size != 2) {
-          0
-        }
-        else {
-          val travelTime = (curr(1).time - curr(0).time)
-          travelTime
-        }
-      }.filter(x => x != 0)
-      travelTimes
+    val allTravelTimes = groupedByPerson.flatMap {
+      case (personId, xs) =>
+        val sorted = xs.sortBy(z => z.time)
+        val sliding = sorted.sliding(2, 2)
+        val travelTimes = sliding
+          .map { curr =>
+            if (curr.size != 2) {
+              0
+            } else {
+              val travelTime = (curr(1).time - curr(0).time)
+              travelTime
+            }
+          }
+          .filter(x => x != 0)
+        travelTimes
     }
     Statistics(allTravelTimes.map(t => t.toDouble / 60).toArray)
   }
 }
-
 
 class EventTypeCounter extends BasicEventHandler with StrictLogging {
   private val typeToNumberOfMessages = new mutable.HashMap[Class[_], Long]
@@ -99,11 +106,18 @@ class EventTypeCounter extends BasicEventHandler with StrictLogging {
   }
 
   def getStats: Seq[(String, Long)] = {
-    typeToNumberOfMessages.map{ case (clazz, cnt) => clazz.getSimpleName -> cnt }.toList.sortBy { case (clazz, _) => clazz }
+    typeToNumberOfMessages.map { case (clazz, cnt) => clazz.getSimpleName -> cnt }.toList.sortBy {
+      case (clazz, _) => clazz
+    }
   }
 }
 
-case class SimulationResult(iteration: Int, travelTime: TravelTime, eventTypeToNumberOfMessages: Seq[(String, Long)], carTravelTimeStats: Statistics)
+case class SimulationResult(
+  iteration: Int,
+  travelTime: TravelTime,
+  eventTypeToNumberOfMessages: Seq[(String, Long)],
+  carTravelTimeStats: Statistics
+)
 
 class PhysSim(
   beamConfig: BeamConfig,
@@ -154,10 +168,16 @@ class PhysSim(
     }
     try {
       logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
-      run(1, nIterations, reroutePerIterPct, SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)), carTravelTimeWriter, reroutedTravelTimeWriter).travelTime
-    }
-    finally {
+      run(
+        1,
+        nIterations,
+        reroutePerIterPct,
+        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
+        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
+        carTravelTimeWriter,
+        reroutedTravelTimeWriter
+      ).travelTime
+    } finally {
       Try(carTravelTimeWriter.close())
       Try(reroutedTravelTimeWriter.close())
     }
@@ -165,32 +185,50 @@ class PhysSim(
 
   @tailrec
   final def run(
-                 currentIter: Int,
-                 nIterations: Int,
-                 reroutePerIterPct: Double,
-                 firstResult: SimulationResult,
-                 lastResult: SimulationResult,
-                 carTravelTimeWriter: CsvWriter,
-                 reroutedTravelTimeWriter: CsvWriter,
+    currentIter: Int,
+    nIterations: Int,
+    reroutePerIterPct: Double,
+    firstResult: SimulationResult,
+    lastResult: SimulationResult,
+    carTravelTimeWriter: CsvWriter,
+    reroutedTravelTimeWriter: CsvWriter,
   ): SimulationResult = {
     if (currentIter > nIterations) {
       logger.info("Last iteration compared with first")
       printStats(firstResult, lastResult)
       lastResult
-    }
-    else {
+    } else {
       val simulationResult = simulate(currentIter, shouldWritePhysSimEvents && currentIter == nIterations)
-      carTravelTimeWriter.writeRow(Vector(currentIter, simulationResult.carTravelTimeStats.avg, simulationResult.carTravelTimeStats.median,
-        simulationResult.carTravelTimeStats.p75, simulationResult.carTravelTimeStats.p95, simulationResult.carTravelTimeStats.p99,
-        simulationResult.carTravelTimeStats.minValue, simulationResult.carTravelTimeStats.maxValue))
+      carTravelTimeWriter.writeRow(
+        Vector(
+          currentIter,
+          simulationResult.carTravelTimeStats.avg,
+          simulationResult.carTravelTimeStats.median,
+          simulationResult.carTravelTimeStats.p75,
+          simulationResult.carTravelTimeStats.p95,
+          simulationResult.carTravelTimeStats.p99,
+          simulationResult.carTravelTimeStats.minValue,
+          simulationResult.carTravelTimeStats.maxValue
+        )
+      )
       carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
         val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
         val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct)
-        reroutedTravelTimeWriter.writeRow(Vector(currentIter, reroutedTravelTimeStats.avg, reroutedTravelTimeStats.median, reroutedTravelTimeStats.p75, reroutedTravelTimeStats.p95, reroutedTravelTimeStats.p99,
-          reroutedTravelTimeStats.minValue, reroutedTravelTimeStats.maxValue))
+        reroutedTravelTimeWriter.writeRow(
+          Vector(
+            currentIter,
+            reroutedTravelTimeStats.avg,
+            reroutedTravelTimeStats.median,
+            reroutedTravelTimeStats.p75,
+            reroutedTravelTimeStats.p95,
+            reroutedTravelTimeStats.p99,
+            reroutedTravelTimeStats.minValue,
+            reroutedTravelTimeStats.maxValue
+          )
+        )
         reroutedTravelTimeWriter.flush()
 //        logger.info("AverageCarTravelTime after replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
@@ -207,21 +245,38 @@ class PhysSim(
       }
       printStats(lastResult, simulationResult)
       val realFirstResult = if (currentIter == 1) simulationResult else firstResult
-      run(currentIter + 1, nIterations, reroutePerIterPct, realFirstResult, simulationResult, carTravelTimeWriter, reroutedTravelTimeWriter)
+      run(
+        currentIter + 1,
+        nIterations,
+        reroutePerIterPct,
+        realFirstResult,
+        simulationResult,
+        carTravelTimeWriter,
+        reroutedTravelTimeWriter
+      )
     }
   }
 
-
   private def printStats(prevResult: SimulationResult, currentResult: SimulationResult): Unit = {
-    logger.info(s"eventTypeToNumberOfMessages at iteration ${prevResult.iteration}: \n${prevResult.eventTypeToNumberOfMessages.mkString("\n")}")
-    logger.info(s"eventTypeToNumberOfMessages at iteration ${currentResult.iteration}: \n${currentResult.eventTypeToNumberOfMessages.mkString("\n")}")
-    val diff = (currentResult.eventTypeToNumberOfMessages.map(_._1) ++ prevResult.eventTypeToNumberOfMessages.map(_._1)).toSet
-    val diffMap = diff.foldLeft(Map.empty[String, Long]) { case (acc, key) =>
-      val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-      val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-      val absDiff = Math.abs(currVal- prevVal)
-      acc + (key -> absDiff)
-    }.toList.sortBy { case (k, _) => k}
+    logger.info(
+      s"eventTypeToNumberOfMessages at iteration ${prevResult.iteration}: \n${prevResult.eventTypeToNumberOfMessages.mkString("\n")}"
+    )
+    logger.info(
+      s"eventTypeToNumberOfMessages at iteration ${currentResult.iteration}: \n${currentResult.eventTypeToNumberOfMessages
+        .mkString("\n")}"
+    )
+    val diff =
+      (currentResult.eventTypeToNumberOfMessages.map(_._1) ++ prevResult.eventTypeToNumberOfMessages.map(_._1)).toSet
+    val diffMap = diff
+      .foldLeft(Map.empty[String, Long]) {
+        case (acc, key) =>
+          val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+          val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+          val absDiff = Math.abs(currVal - prevVal)
+          acc + (key -> absDiff)
+      }
+      .toList
+      .sortBy { case (k, _) => k }
     logger.info(s"Diff in eventTypeToNumberOfMessages map: \n${diffMap.mkString("\n")}")
 //    PhysSim.printAverageCarTravelTime(getCarPeople)
     logger.info(s"Car travel time stats at iteration ${prevResult.iteration}: ${prevResult.carTravelTimeStats}")
@@ -244,7 +299,9 @@ class PhysSim(
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) => k -> Boolean2boolean(v)})
+    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map {
+      case (k, v) => k -> Boolean2boolean(v)
+    })
     jdeqsimEvents.addHandler(carTravelTimeHandler)
 
     jdeqsimEvents.addHandler(travelTimeCalculator)
@@ -280,8 +337,12 @@ class PhysSim(
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
     }
     jdeqsimEvents.finishProcessing()
-    SimulationResult(iteration = currentIter, travelTime = travelTimeCalculator.getLinkTravelTimes,
-      eventTypeToNumberOfMessages = eventTypeCounter.getStats, carTravelTimeStats = carTravelTimeHandler.compute)
+    SimulationResult(
+      iteration = currentIter,
+      travelTime = travelTimeCalculator.getLinkTravelTimes,
+      eventTypeToNumberOfMessages = eventTypeCounter.getStats,
+      carTravelTimeStats = carTravelTimeHandler.compute
+    )
   }
 
   private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Statistics = {
@@ -329,7 +390,10 @@ class PhysSim(
                             oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
                             newTravelTimes += beamLeg.duration.toDouble
 
-                            val javaLinkIds = beamLeg.travelPath.linkIds.map(beamServices.networkHelper.getLinkUnsafe).map(_.getId).asJava
+                            val javaLinkIds = beamLeg.travelPath.linkIds
+                              .map(beamServices.networkHelper.getLinkUnsafe)
+                              .map(_.getId)
+                              .asJava
                             val newRoute = RouteUtils.createNetworkRoute(javaLinkIds, agentSimScenario.getNetwork)
                             leg.setRoute(newRoute)
                             leg.setDepartureTime(beamLeg.startTime)
@@ -345,12 +409,15 @@ class PhysSim(
             }
         }
         // We're assuming this should go down
-        logger.info(s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}")
-        logger.info(s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}")
+        logger.info(
+          s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
+        )
+        logger.info(
+          s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}"
+        )
       }
       Statistics(newTravelTimes.map(x => x / 60).toArray)
-    }
-    else
+    } else
       Statistics(Array.empty[Double])
   }
 
@@ -517,7 +584,8 @@ class PhysSim(
   }
 }
 
-object PhysSim extends LazyLogging{
+object PhysSim extends LazyLogging {
+
   def printAverageCarTravelTime(people: Seq[Person]): Unit = {
     val timeToTravelTime = people.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
