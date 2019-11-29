@@ -1,7 +1,7 @@
 package beam.side.route
 import java.nio.file.Paths
 
-import beam.side.route.model.{Url, Way}
+import beam.side.route.model.{GHPaths, Url, Way}
 import beam.side.route.processing.GHRequest
 import beam.side.route.processing.request.GHRequestIO
 import org.http4s.EntityDecoder
@@ -53,15 +53,20 @@ trait AppSetup {
 
 object RoutesComputationApp extends CatsApp with AppSetup {
 
-  import Way._
+  import beam.side.route.model.GHPaths._
   import org.http4s.circe._
   import zio.console._
 
+  import scala.concurrent.ExecutionContext.global
+
   override def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] = {
 
-    implicit val httpClient: Task[Client[Task]] = Http1Client[Task]()
-    implicit val ghRequest: GHRequest[Task] = new GHRequestIO(httpClient)
-    implicit val wayEncoder: EntityDecoder[Task, Way] = jsonOf[Task, Way]
+    type T[+A] = RIO[zio.ZEnv, A]
+    implicit val httpClient: ZManaged[zio.ZEnv, Throwable, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]] =
+      BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](global).resource.toManagedZIO
+    implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
+    implicit val wayEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
+      jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
 
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
@@ -69,14 +74,14 @@ object RoutesComputationApp extends CatsApp with AppSetup {
         "http://localhost:8989",
         "route",
         Seq(
-          "point"          -> Seq(40.748484, -73.62882),
-          "point"          -> Seq(40.751282, -73.611691),
+          "point"          -> Seq((40.748484, -73.62882), (40.751282, -73.611691)),
           "vehicle"        -> "car",
           "points_encoded" -> false,
-          "type"           -> "json"
+          "type"           -> "json",
+          "calc_points"    -> true
         )
       )
-      forkRequest <- GHRequest[Task].request[Way](url).fork
+      forkRequest <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T].request[GHPaths](url).fork
       response    <- forkRequest.join
       _           <- putStrLn(response.toString)
     } yield config).fold(_ => -1, _ => 0)

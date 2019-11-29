@@ -31,12 +31,21 @@ object Way {
 
   implicit val wayDecoder: Decoder[Way] = new Decoder[Way] {
     override def apply(c: HCursor): Result[Way] = {
-      val paths = c.downField("paths")
       for {
-        coordinates  <- paths.downField("points").downField("coordinates").as[Seq[Coordinate]]
-        instructions <- paths.downField("instructions").as[Seq[Instruction]]
-        wayPoints    <- paths.downField("snapped_waypoints").downField("coordinates").as[Seq[Coordinate]]
+        coordinates  <- c.downField("points").downField("coordinates").as[Seq[Coordinate]]
+        instructions <- c.downField("instructions").as[Seq[Instruction]]
+        wayPoints    <- c.downField("snapped_waypoints").downField("coordinates").as[Seq[Coordinate]]
       } yield new Way(coordinates, instructions, (wayPoints.head, wayPoints.last))
     }
+  }
+}
+
+case class GHPaths(ways: Seq[Way])
+
+object GHPaths {
+  import Way._
+
+  implicit val pathsDecoder: Decoder[GHPaths] = new Decoder[GHPaths] {
+    override def apply(c: HCursor): Result[GHPaths] = c.downField("paths").as[Seq[Way]].map(GHPaths(_))
   }
 }
