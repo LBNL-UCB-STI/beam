@@ -1,9 +1,10 @@
 package beam.side.route
 import java.nio.file.Paths
 
-import beam.side.route.model.{GHPaths, Url, Way}
-import beam.side.route.processing.GHRequest
+import beam.side.route.model.{CencusTrack, GHPaths, Url}
+import beam.side.route.processing.data.DataLoaderIO
 import beam.side.route.processing.request.GHRequestIO
+import beam.side.route.processing.{DataLoader, GHRequest}
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -53,6 +54,7 @@ trait AppSetup {
 
 object RoutesComputationApp extends CatsApp with AppSetup {
 
+  import beam.side.route.model.CencusTrack._
   import beam.side.route.model.GHPaths._
   import org.http4s.circe._
   import zio.console._
@@ -67,9 +69,18 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
+    implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T] = DataLoaderIO()
 
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      tractStream <- ZManaged
+        .make(
+          DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T]
+            .loadData[CencusTrack](Paths.get(config.cencusTrackPath))
+        )(_.shutdown)
+        .use(queue => Task.effectTotal(zio.stream.Stream.fromQueue[Throwable, CencusTrack](queue)))
+      _ <- tractStream.foreach(a => IO.effectTotal(println(a))).fork
+
       url = Url(
         "http://localhost:8989",
         "route",

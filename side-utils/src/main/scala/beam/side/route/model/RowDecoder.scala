@@ -6,7 +6,7 @@ trait RowDecoder[T <: Product] {
 
 object RowDecoder {
   implicit class DecoderSyntax(data: String) {
-    def product[T <: Product](implicit decoder: RowDecoder[T]): T = decoder.apply(data)
+    def decode[T <: Product](implicit decoder: RowDecoder[T]): T = decoder.apply(data)
   }
 
   def apply[T <: Product](implicit decoder: RowDecoder[T]): RowDecoder[T] = decoder
