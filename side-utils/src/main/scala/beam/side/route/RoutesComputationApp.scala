@@ -70,16 +70,22 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
     implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T] = DataLoaderIO()
-
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
-      tractStream <- ZManaged
+      /*tractStream <- ZManaged
         .make(
           DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T]
-            .loadData[CencusTrack](Paths.get(config.cencusTrackPath))
+            .loadData[CencusTrack](Paths.get(config.cencusTrackPath), false)
         )(_.shutdown)
-        .use(queue => Task.effectTotal(zio.stream.Stream.fromQueue[Throwable, CencusTrack](queue)))
-      _ <- tractStream.foreach(a => IO.effectTotal(println(a))).fork
+        .use(queue => Task.effectTotal(zio.stream.Stream.fromQueue[Throwable, CencusTrack](queue)))*/
+      queue <- DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T]
+        .loadData[CencusTrack](Paths.get(config.cencusTrackPath), false)
+      forkLoad <- queue.take.flatMap(a => putStrLn(a.toString)).forever.fork
+      /*forkLoad <- ZManaged
+        .make(queue)(_.shutdown)
+        .use(q => zio.stream.Stream.fromQueue[Throwable, CencusTrack](q).foreach(a => putStrLn(a.toString)))
+        .onTermination(_ => putStrLn("Terminated"))
+        .fork*/
 
       url = Url(
         "http://localhost:8989",

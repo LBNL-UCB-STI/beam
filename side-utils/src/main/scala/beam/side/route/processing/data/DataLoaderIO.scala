@@ -6,6 +6,7 @@ import java.nio.file.Path
 import beam.side.route.model.RowDecoder
 import beam.side.route.processing.DataLoader
 import zio._
+import zio.console.putStrLn
 import zio.stream._
 
 import scala.collection.JavaConverters._
@@ -17,16 +18,20 @@ class DataLoaderIO extends DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#
   private[this] def openFile(filePath: Path): RIO[zio.ZEnv, BufferedReader] =
     IO(filePath.toFile).map(f => new BufferedReader(new FileReader(f)))
 
-  def loadData[A <: Product: RowDecoder](dataFile: Path): RIO[zio.ZEnv, Queue[A]] = {
-    ZManaged.fromAutoCloseable(openFile(dataFile)).use { reader =>
-      for {
-        queue <- Queue.unbounded[A]
-        _ <- Stream
-          .fromIterator(IO.effectTotal(reader.lines().iterator().asScala))
-          .map(_.decode[A])
-          .foreach(a => queue.offer(a).fork.unit)
-          .fork
-      } yield queue
+  def loadData[A <: Product: RowDecoder](dataFile: Path, headless: Boolean): RIO[zio.ZEnv, Queue[A]] = {
+    ZManaged.fromAutoCloseable(openFile(dataFile)).zip(ZManaged.effectTotal(headless)).use {
+      case (reader, hl) =>
+        for {
+          queue <- Queue.bounded[A](32)
+          lines = IO
+            .effectTotal(reader.lines().iterator().asScala)
+            .map(i => Option(hl).filter(identity).fold(i.drop(1))(_ => i))
+          _ <- Stream
+            .fromIterator(lines)
+            .map(_.decode[A])
+            .foldM(queue)((q, a) => q.offer(a).map(_ => q))
+            .fork
+        } yield queue
     }
   }
 }
