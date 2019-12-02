@@ -21,16 +21,13 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -929,6 +926,7 @@ class RideHailManager(
 
   def continueProcessingTimeoutIfReady: Unit = {
     if (modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
+      throwRideHailFleetStateEvent(modifyPassengerScheduleManager.getCurrentTick.get)
       currentlyProcessingTimeoutTrigger.map(_.trigger) match {
         case Some(BufferedRideHailRequestsTrigger(_)) =>
           findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
@@ -938,6 +936,27 @@ class RideHailManager(
           log.warning(s"Have not expected to see '$x'")
       }
     }
+  }
+
+  def throwRideHailFleetStateEvent(tick: Int): Unit = {
+    val tick =  modifyPassengerScheduleManager.getCurrentTick.get
+    val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values.toList
+    val inServiceRideHailStateEvents = calculateCavEvs(inServiceRideHailVehicles, "InService", tick)
+    eventsManager.processEvent(inServiceRideHailStateEvents)
+    val outOfServiceRideHailVehicles = vehicleManager.outOfServiceRideHailVehicles.values.toList
+    val outOfServiceRideHailStateEvents = calculateCavEvs(outOfServiceRideHailVehicles, "offline", tick)
+    eventsManager.processEvent(outOfServiceRideHailStateEvents)
+    val idleRideHailEvents = vehicleManager.idleRideHailVehicles.values.toList
+    val idleRideHailStateEvents = calculateCavEvs(idleRideHailEvents, "idle", tick)
+    eventsManager.processEvent(idleRideHailStateEvents)
+  }
+
+  def calculateCavEvs(rideHailAgentLocations: List[RideHailAgentLocation], vehicleType: String, tick: Int): RideHailFleetStateEvent ={
+    val cavNonEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel > 3)
+    val nonCavNonEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel <= 3)
+    val cavEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel > 3)
+    val nonCavEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel <= 3)
+    new RideHailFleetStateEvent(tick, cavEvs, nonCavEvs, cavNonEvs, nonCavNonEvs, vehicleType)
   }
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {

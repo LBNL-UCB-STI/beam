@@ -36,7 +36,8 @@ public class StatsFactory {
         VehicleChargingAnalysis,
         RideHailSummary,
         LoadOverTimeAnalysis,
-        ChargingAnalysis
+        ChargingAnalysis,
+        EVFleetAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -124,6 +125,8 @@ public class StatsFactory {
                 return new LoadOverTimeAnalysis(beamServices.simMetricCollector());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
+            case EVFleetAnalysis:
+                return new RideHailFleetAnalysis(beamServices);
             default:
                 return null;
         }
