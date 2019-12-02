@@ -1,11 +1,14 @@
 package beam.side.route.processing.data
 
 import beam.side.route.model.{CencusTrack, Coordinate, GHPaths, Multiline, Trip, TripPath, Url}
-import beam.side.route.processing.GHRequest
+import beam.side.route.processing.{GHRequest, PathCompute}
 import org.http4s.EntityDecoder
 import zio._
 
-class PathComputeIO(host: String) {
+import scala.util.Try
+
+class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
+    extends PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
   def compute(
     trip: Trip,
@@ -15,10 +18,9 @@ class PathComputeIO(host: String) {
     request: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
   ): RIO[zio.ZEnv, TripPath] =
     for {
-      trp    <- IO.effectTotal(trip)
-      trc    <- tracts.await
-      origin <- IO.fromOption(trc.get(trp.origin))
-      dest   <- IO.fromOption(trc.get(trp.dest))
+      trp            <- IO.effectTotal(trip)
+      trc            <- tracts.await
+      (origin, dest) <- ZIO.fromTry(Try(trc(trp.origin))) &&& ZIO.fromTry(Try(trc(trp.dest)))
       url = Url(
         host,
         "route",
@@ -31,7 +33,7 @@ class PathComputeIO(host: String) {
         )
       )
       originReq <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T].request[GHPaths](url)
-      ways      <- IO.fromOption(originReq.ways.headOption)
+      ways      <- Task.effectTotal(originReq.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
     } yield
       TripPath(
         Coordinate(origin.longitude, origin.latitude),

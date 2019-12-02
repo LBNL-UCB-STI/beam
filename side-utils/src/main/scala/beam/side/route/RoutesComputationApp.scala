@@ -16,6 +16,7 @@ import scala.util.{Failure, Try}
 case class ComputeConfig(
   cencusTrackPath: String = "",
   odPairsPath: Option[String] = None,
+  ghHost: String = "http://localhost:8989",
   output: String = "",
   cArgs: Map[String, String] = Map()
 )
@@ -46,6 +47,19 @@ trait AppSetup {
           Try(Paths.get(s).toFile).filter(_.exists()) match {
             case Failure(e) => failure(e.getMessage)
             case _          => success
+        }
+      )
+      .text("O/D pairs path")
+
+    opt[String]('h', "host")
+      .valueName("<gh_host>")
+      .action((s, c) => c.copy(ghHost = s))
+      .validate(
+        s =>
+          if (s.isEmpty) {
+            failure("Empty host name")
+          } else {
+            success
         }
       )
       .text("O/D pairs path")
