@@ -1,3 +1,5 @@
+#!/bin/bash
+
 clear(){
 	path=${1}
 
@@ -21,6 +23,8 @@ remove "grafana/data/grafana.db"
 
 clear "influxdb/data"
 clear "influxdb/log"
+
+clear "output"
 
 
 
