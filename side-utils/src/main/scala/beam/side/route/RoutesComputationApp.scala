@@ -1,7 +1,7 @@
 package beam.side.route
 import java.nio.file.Paths
 
-import beam.side.route.model.{CencusTrack, GHPaths, Url}
+import beam.side.route.model.{CencusTrack, GHPaths, Trip, Url}
 import beam.side.route.processing.data.DataLoaderIO
 import beam.side.route.processing.request.GHRequestIO
 import beam.side.route.processing.{DataLoader, GHRequest}
@@ -69,38 +69,44 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
-    implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T] = DataLoaderIO()
+    implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue] = DataLoaderIO()
+
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
-      /*tractStream <- ZManaged
-        .make(
-          DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T]
-            .loadData[CencusTrack](Paths.get(config.cencusTrackPath), false)
-        )(_.shutdown)
-        .use(queue => Task.effectTotal(zio.stream.Stream.fromQueue[Throwable, CencusTrack](queue)))*/
-      queue <- DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T]
-        .loadData[CencusTrack](Paths.get(config.cencusTrackPath), false)
-      forkLoad <- queue.take.flatMap(a => putStrLn(a.toString)).forever.fork
-      /*forkLoad <- ZManaged
-        .make(queue)(_.shutdown)
-        .use(q => zio.stream.Stream.fromQueue[Throwable, CencusTrack](q).foreach(a => putStrLn(a.toString)))
-        .onTermination(_ => putStrLn("Terminated"))
-        .fork*/
 
-      url = Url(
-        "http://localhost:8989",
-        "route",
-        Seq(
-          "point"          -> Seq((40.748484, -73.62882), (40.751282, -73.611691)),
-          "vehicle"        -> "car",
-          "points_encoded" -> false,
-          "type"           -> "json",
-          "calc_points"    -> true
+      cencusQueue <- Queue.bounded[CencusTrack](256)
+      promise     <- Promise.make[Exception, Map[String, CencusTrack]]
+      _ <- zio.stream.Stream
+        .fromQueue[Throwable, CencusTrack](cencusQueue)
+        .foldM(Map[String, CencusTrack]())((acc, ct) => IO.effectTotal(acc + (ct.id -> ct)))
+        .flatMap(promise.succeed)
+        .fork
+      loadCencus <- ZManaged
+        .make(IO.effectTotal(cencusQueue))(q => q.shutdown)
+        .use(
+          queue =>
+            DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue]
+              .loadData[CencusTrack](Paths.get(config.cencusTrackPath), queue, false)
         )
-      )
-      forkRequest <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T].request[GHPaths](url).fork
-      response    <- forkRequest.join
-      _           <- putStrLn(response.toString)
+        .fork
+      _ <- loadCencus.join
+
+      tripQueue <- Queue.bounded[Trip](256)
+      _ <- zio.stream.Stream
+        .fromQueue[Throwable, Trip](tripQueue)
+        .foreach(a => putStrLn(a.toString))
+        .fork
+      loadTrip <- ZManaged
+        .make(IO.effectTotal(tripQueue))(q => q.shutdown)
+        .zip(ZManaged.fromEffect(IO.fromOption(config.odPairsPath)))
+        .use {
+          case (queue, path) =>
+            DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue]
+              .loadData[Trip](Paths.get(path), queue, false)
+        }
+        .fork
+
+      _ <- loadTrip.join
     } yield config).fold(_ => -1, _ => 0)
   }
 }

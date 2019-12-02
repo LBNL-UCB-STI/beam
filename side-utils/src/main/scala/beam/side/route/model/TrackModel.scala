@@ -1,13 +1,22 @@
 package beam.side.route.model
 
-case class CencusTrack(state: Int, country: String, tract: String, population: Int, latitude: Double, longitude: Double)
+case class CencusTrack(
+  state: Int,
+  country: String,
+  tract: String,
+  population: Int,
+  latitude: Double,
+  longitude: Double
+) {
+  val id: String = s"$state$country$tract"
+}
 
 object CencusTrack {
   implicit object censusRowDecoder extends RowDecoder[CencusTrack] {
-      override def apply(row: String): CencusTrack = {
-        val split = row.split(",").toSeq
-        CencusTrack(split.head.toInt, split(1), split(2), split(3).toInt, split(4).toDouble, split(5).toDouble)
-      }
+    override def apply(row: String): CencusTrack = {
+      val split = row.split(",").toSeq
+      CencusTrack(split.head.toInt, split(1), split(2), split(3).toInt, split(4).toDouble, split(5).toDouble)
+    }
   }
 }
 
@@ -21,3 +30,5 @@ object Trip {
     }
   }
 }
+
+case class TripPath(origin: Coordinate, dest: Coordinate, path: Multiline)
