@@ -20,6 +20,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -77,7 +78,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -132,7 +136,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -279,7 +286,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -512,7 +522,10 @@ class PersonAgentSpec
       val events = new TestProbe(system)
       eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
-          events.ref ! event
+          event match {
+            case _: AbstractSkimmerEvent => // ignore
+            case _                       => events.ref ! event
+          }
         }
       })
       val transitDriverProps = Props(new ForwardActor(self))

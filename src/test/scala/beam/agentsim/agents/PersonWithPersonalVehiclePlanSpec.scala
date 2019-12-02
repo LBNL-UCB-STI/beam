@@ -16,6 +16,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -74,7 +75,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -294,7 +298,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -427,11 +434,11 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            if (event.isInstanceOf[ModeChoiceEvent]) {
-              modeChoiceEvents.ref ! event
-            }
-            if (event.isInstanceOf[PersonEntersVehicleEvent]) {
-              personEntersVehicleEvents.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent     => // ignore
+              case _: ModeChoiceEvent          => modeChoiceEvents.ref ! event
+              case _: PersonEntersVehicleEvent => personEntersVehicleEvents.ref ! event
+              case _                           => // ignore
             }
           }
         }
@@ -532,7 +539,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
