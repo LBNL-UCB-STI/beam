@@ -2,9 +2,9 @@ package beam.side.route
 import java.nio.file.Paths
 
 import beam.side.route.model.{CencusTrack, GHPaths, Trip, Url}
-import beam.side.route.processing.data.DataLoaderIO
+import beam.side.route.processing.data.{DataLoaderIO, PathComputeIO}
 import beam.side.route.processing.request.GHRequestIO
-import beam.side.route.processing.{DataLoader, GHRequest}
+import beam.side.route.processing.{DataLoader, GHRequest, PathCompute}
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -87,7 +87,7 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
-
+      pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)
       cencusQueue <- Queue.bounded[CencusTrack](256)
       promise     <- Promise.make[Exception, Map[String, CencusTrack]]
       _ <- zio.stream.Stream
@@ -106,9 +106,10 @@ object RoutesComputationApp extends CatsApp with AppSetup {
       _ <- loadCencus.join
 
       tripQueue <- Queue.bounded[Trip](256)
-      _ <- zio.stream.Stream
-        .fromQueue[Throwable, Trip](tripQueue)
-        .foreach(a => putStrLn(a.toString))
+      _ <- tripQueue.take
+        .flatMap(trip => pathCompute.compute(trip, promise))
+        .flatMap(tp => putStrLn(tp.toString))
+        .forever
         .fork
       loadTrip <- ZManaged
         .make(IO.effectTotal(tripQueue))(q => q.shutdown)

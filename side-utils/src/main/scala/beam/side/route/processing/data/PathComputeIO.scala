@@ -10,9 +10,11 @@ import scala.util.Try
 class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
     extends PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
+  import zio.console._
+
   def compute(
     trip: Trip,
-    tracts: Promise[Throwable, Map[String, CencusTrack]]
+    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]]
   )(
     implicit decoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
     request: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
@@ -32,12 +34,18 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
           "calc_points"    -> true
         )
       )
-      originReq <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T].request[GHPaths](url)
-      ways      <- Task.effectTotal(originReq.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
+      originReq <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
+        .request[GHPaths](url)
+        .tapError(e => putStrLn(e.getMessage))
+      ways <- Task.effectTotal(originReq.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
     } yield
       TripPath(
         Coordinate(origin.longitude, origin.latitude),
         Coordinate(dest.longitude, dest.latitude),
         Multiline(ways.points.toList)
       )
+}
+
+object PathComputeIO {
+  def apply(host: String)(implicit runtime: Runtime[_]): PathComputeIO = new PathComputeIO(host)(runtime)
 }

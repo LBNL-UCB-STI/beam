@@ -10,7 +10,7 @@ trait PathCompute[F[_]] {
 
   def compute(
     trip: Trip,
-    tracts: Promise[Throwable, Map[String, CencusTrack]]
+    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]]
   )(
     implicit decoder: EntityDecoder[F, GHPaths],
     request: GHRequest[F]
