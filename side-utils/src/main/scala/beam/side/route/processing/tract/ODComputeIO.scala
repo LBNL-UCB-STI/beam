@@ -7,11 +7,9 @@ import beam.side.route.processing.{DataLoader, GHRequest, ODCompute, PathCompute
 import org.http4s.EntityDecoder
 import zio._
 
-class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]{
+class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
-  def pairTrip(odPairsPath: Option[String],
-    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]]
-  )(
+  def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, Map[String, CencusTrack]])(
     implicit pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T],
     pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
     ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T],
@@ -29,9 +27,10 @@ class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]{
         .fork
       _ <- ZManaged
         .make(IO.effectTotal(tripQueue))(q => q.shutdown)
+        .zipPar(ZManaged.make(IO.effectTotal(pathQueue))(q => q.shutdown))
         .zip(ZManaged.fromEffect(IO.fromOption(odPairsPath)))
         .use {
-          case (queue, path) =>
+          case ((queue, _), path) =>
             DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
               .loadData[Trip](Paths.get(path), queue, false)
         }
