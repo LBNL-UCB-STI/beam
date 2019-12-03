@@ -2,7 +2,7 @@ package beam.side.route
 import java.nio.file.Paths
 
 import beam.side.route.model.{GHPaths, Trip, TripPath}
-import beam.side.route.processing.data.{DataLoaderIO, PathComputeIO}
+import beam.side.route.processing.data.{DataLoaderIO, DataWriterIO, PathComputeIO}
 import beam.side.route.processing.request.GHRequestIO
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
 import beam.side.route.processing._
@@ -18,7 +18,7 @@ case class ComputeConfig(
   cencusTrackPath: String = "",
   odPairsPath: Option[String] = None,
   ghHost: String = "http://localhost:8989",
-  output: String = "",
+  output: String = "output.csv",
   cArgs: Map[String, String] = Map()
 )
 
@@ -64,6 +64,19 @@ trait AppSetup {
         }
       )
       .text("O/D pairs path")
+
+    opt[String]('o', "output")
+      .valueName("<output_file>")
+      .action((s, c) => c.copy(output = s))
+      .validate(
+        s =>
+          if (s.isEmpty) {
+            failure("Empty output file")
+          } else {
+            success
+        }
+      )
+      .text("Output file")
   }
 }
 
@@ -89,6 +102,7 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val cencusDictionary: CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] =
       CencusTractDictionaryIO()
     implicit val odCompute: ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = ODComputeIO()
+    implicit val dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO()
 
     (for {
       config  <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
@@ -99,9 +113,8 @@ object RoutesComputationApp extends CatsApp with AppSetup {
       pathQueue <- ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
         .pairTrip(config.odPairsPath, promise)(pathCompute, pathEncoder, ghRequest, dataLoader)
 
-      linesFork <- zio.stream.Stream
-        .fromQueue[Throwable, TripPath](pathQueue)
-        .foreach(trip => putStrLn(trip.row))
+      linesFork <- DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
+        .writeFile(Paths.get(config.output), pathQueue)
         .fork
 
       _ <- linesFork.join

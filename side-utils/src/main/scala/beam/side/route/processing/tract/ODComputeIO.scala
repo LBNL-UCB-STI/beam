@@ -27,7 +27,7 @@ class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
         .fork
       _ <- ZManaged
         .make(IO.effectTotal(tripQueue))(q => q.shutdown)
-        .zipPar(ZManaged.make(IO.effectTotal(pathQueue))(q => q.shutdown))
+        .zip(ZManaged.make(IO.effectTotal(pathQueue))(q => q.shutdown))
         .zip(ZManaged.fromEffect(IO.fromOption(odPairsPath)))
         .use {
           case ((queue, _), path) =>
