@@ -307,7 +307,8 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
             })
           } else {
             val firstIndex = afterEventStart.indexOf(true)
-            distanceUtilization(firstIndex)(keys(eventCharacteristics.eventType)) += event.legLength / 1609.34
+            if(firstIndex > 0)
+              distanceUtilization(firstIndex)(keys(eventCharacteristics.eventType)) += event.legLength / 1609.34
           }
         case _ =>
       }
