@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -939,7 +943,7 @@ class RideHailManager(
   }
 
   def throwRideHailFleetStateEvent(tick: Int): Unit = {
-    val tick =  modifyPassengerScheduleManager.getCurrentTick.get
+    val tick = modifyPassengerScheduleManager.getCurrentTick.get
     val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values.toList
     val inServiceRideHailStateEvents = calculateCavEvs(inServiceRideHailVehicles, "InService", tick)
     eventsManager.processEvent(inServiceRideHailStateEvents)
@@ -951,11 +955,23 @@ class RideHailManager(
     eventsManager.processEvent(idleRideHailStateEvents)
   }
 
-  def calculateCavEvs(rideHailAgentLocations: List[RideHailAgentLocation], vehicleType: String, tick: Int): RideHailFleetStateEvent ={
-    val cavNonEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel > 3)
-    val nonCavNonEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel <= 3)
-    val cavEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel > 3)
-    val nonCavEvs = rideHailAgentLocations.count(rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel <= 3)
+  def calculateCavEvs(
+    rideHailAgentLocations: List[RideHailAgentLocation],
+    vehicleType: String,
+    tick: Int
+  ): RideHailFleetStateEvent = {
+    val cavNonEvs = rideHailAgentLocations.count(
+      rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel > 3
+    )
+    val nonCavNonEvs = rideHailAgentLocations.count(
+      rideHail => rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.automationLevel <= 3
+    )
+    val cavEvs = rideHailAgentLocations.count(
+      rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel > 3
+    )
+    val nonCavEvs = rideHailAgentLocations.count(
+      rideHail => rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.automationLevel <= 3
+    )
     new RideHailFleetStateEvent(tick, cavEvs, nonCavEvs, cavNonEvs, nonCavNonEvs, vehicleType)
   }
 

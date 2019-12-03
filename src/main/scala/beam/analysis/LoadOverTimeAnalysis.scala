@@ -85,9 +85,9 @@ class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
             "averageLoad"                                    -> currentEventAverageLoad
           ),
           Map(
-            "vehicleType" -> loadVehicleType,
+            "vehicleType"   -> loadVehicleType,
             "typeOfCharger" -> chargerType,
-            "parkingType" -> parkingType
+            "parkingType"   -> parkingType
           )
         )
 

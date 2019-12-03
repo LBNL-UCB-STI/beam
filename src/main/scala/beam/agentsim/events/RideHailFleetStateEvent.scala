@@ -5,14 +5,14 @@ import java.util
 import org.matsim.api.core.v01.events.Event
 
 class RideHailFleetStateEvent(
-                               tick: Double,
-                               evCavCount: Int,
-                               evNonCavCount: Int,
-                               nonEvCavCount: Int,
-                               nonEvNonCavCount:Int,
-                               vehicleType: String
-                             ) extends Event(tick)
-  with ScalaEvent{
+  tick: Double,
+  evCavCount: Int,
+  evNonCavCount: Int,
+  nonEvCavCount: Int,
+  nonEvNonCavCount: Int,
+  vehicleType: String
+) extends Event(tick)
+    with ScalaEvent {
   import RideHailFleetStateEvent._
 
   override def getEventType: String = EVENT_TYPE
