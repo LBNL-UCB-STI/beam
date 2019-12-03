@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import beam.utils.EventReader;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -34,6 +35,7 @@ class GraphTestUtil {
 
     static {
         when(services.beamConfig()).thenReturn(beamconfig);
+        when(services.simMetricCollector()).thenReturn(NoOpSimulationMetricCollector$.MODULE$);
         events = EventsUtils.createEventsManager();
     }
 

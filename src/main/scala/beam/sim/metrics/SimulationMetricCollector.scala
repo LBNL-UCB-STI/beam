@@ -18,8 +18,7 @@ import scala.util.control.NonFatal
 
 object SimulationMetricCollector {
   val defaultMetricValueName: String = "count"
-
-  case class SimulationTime(time: Int) extends AnyVal
+  case class SimulationTime(seconds: Int) extends AnyVal
 }
 
 trait SimulationMetricCollector {
@@ -72,12 +71,12 @@ trait SimulationMetricCollector {
 
   def writeIterationjava(
     metricName: String,
-    time: Int,
+    seconds: Int,
     metricValue: Double = 1.0,
     level: MetricLevel,
     tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
   ): Unit = {
-    write(metricName, SimulationTime(time), Map(defaultMetricValueName -> metricValue), tags.asScala.toMap, level)
+    write(metricName, SimulationTime(seconds), Map(defaultMetricValueName -> metricValue), tags.asScala.toMap, level)
   }
 
   def increment(name: String, time: SimulationTime, level: MetricLevel): Unit = {
@@ -128,15 +127,18 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
   }
 
   val maybeInfluxDB: Option[InfluxDB] = {
-    logger.info(s"Trying to create connection with ${cfg.connectionString}, database: ${cfg.database}")
     try {
       val db = InfluxDBFactory.connect(cfg.connectionString)
       db.setDatabase(cfg.database)
       db.enableBatch(BatchOptions.DEFAULTS)
+      logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
       Some(db)
     } catch {
       case NonFatal(t: Throwable) =>
-        logger.error(s"Could not connect to InfluxDB at ${cfg.connectionString}: ${t.getMessage}", t)
+        logger.error(
+          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}: ${t.getMessage}",
+          t
+        )
         None
     }
   }
@@ -151,7 +153,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     if (isRightLevel(level)) {
       val rawPoint = Point
         .measurement(metricName)
-        .time(influxTime(metricName, time.time), TimeUnit.NANOSECONDS)
+        .time(influxTime(metricName, time.seconds), TimeUnit.NANOSECONDS)
 
       val withFields = values.foldLeft(rawPoint) {
         case (p, (n, v)) => p.addField(n, v)

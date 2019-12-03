@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574701100774,
+    "iteration": 1574980271915,
     "links": [],
     "panels": [
       {
@@ -50,8 +50,8 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 12,
-          "w": 8,
+          "h": 10,
+          "w": 12,
           "x": 0,
           "y": 0
         },
@@ -99,6 +99,8 @@
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
+            "query": "SELECT sum(\"averageLoad\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY time(1h), \"parkingType\"",
+            "rawQuery": true,
             "refId": "A",
             "resultFormat": "time_series",
             "select": [
@@ -134,7 +136,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "charging power average load by parking type",
+        "title": "Charging Power Average Load by Parking Type",
         "tooltip": {
           "shared": true,
           "sort": 0,
@@ -180,9 +182,9 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 12,
-          "w": 8,
-          "x": 8,
+          "h": 10,
+          "w": 12,
+          "x": 12,
           "y": 0
         },
         "id": 9,
@@ -211,7 +213,7 @@
         "steppedLine": false,
         "targets": [
           {
-            "alias": "[[tag_chargerType]]",
+            "alias": "[[tag_typeOfCharger]]",
             "groupBy": [
               {
                 "params": [
@@ -229,6 +231,8 @@
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
+            "query": "SELECT sum(\"averageLoad\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY time(1h), \"typeOfCharger\"",
+            "rawQuery": true,
             "refId": "A",
             "resultFormat": "time_series",
             "select": [
@@ -264,7 +268,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "charging power average load by charger type",
+        "title": "Charging Power Average Load by Charger Type",
         "tooltip": {
           "shared": true,
           "sort": 0,
@@ -310,10 +314,10 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 12,
-          "w": 8,
-          "x": 16,
-          "y": 0
+          "h": 11,
+          "w": 12,
+          "x": 0,
+          "y": 10
         },
         "id": 10,
         "legend": {
@@ -394,7 +398,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "charging power average load by user type",
+        "title": "Charging Power Average Load by User Type",
         "tooltip": {
           "shared": true,
           "sort": 0,
@@ -436,26 +440,160 @@
         "bars": true,
         "dashLength": 10,
         "dashes": false,
+        "datasource": null,
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 11,
+          "w": 12,
+          "x": 12,
+          "y": 10
+        },
+        "id": 12,
+        "legend": {
+          "alignAsTable": false,
+          "avg": false,
+          "current": false,
+          "hideEmpty": false,
+          "hideZero": false,
+          "max": false,
+          "min": false,
+          "rightSide": false,
+          "show": true,
+          "total": false,
+          "values": false
+        },
+        "lines": false,
+        "linewidth": 1,
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 2,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": true,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "[[tag_trip-type]]",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "trip-type"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "ride-hail-trip-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Trip Distance [Ride Hail]",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Distance in kilometers",
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      },
+      {
+        "aliasColors": {},
+        "bars": true,
+        "dashLength": 10,
+        "dashes": false,
         "datasource": "InfluxDB",
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 9,
-          "w": 24,
+          "h": 12,
+          "w": 12,
           "x": 0,
-          "y": 12
+          "y": 21
         },
         "id": 2,
         "legend": {
-          "alignAsTable": true,
-          "avg": true,
+          "alignAsTable": false,
+          "avg": false,
           "current": false,
           "max": false,
           "min": false,
-          "rightSide": true,
+          "rightSide": false,
           "show": true,
-          "total": true,
-          "values": true
+          "total": false,
+          "values": false
         },
         "lines": false,
         "linewidth": 1,
@@ -529,7 +667,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "Mode choices stacked per hour",
+        "title": "Mode Choice",
         "tooltip": {
           "shared": true,
           "sort": 2,
@@ -546,142 +684,7 @@
         "yaxes": [
           {
             "format": "short",
-            "label": null,
-            "logBase": 2,
-            "max": null,
-            "min": null,
-            "show": true
-          },
-          {
-            "format": "short",
-            "label": null,
-            "logBase": 1,
-            "max": null,
-            "min": null,
-            "show": false
-          }
-        ],
-        "yaxis": {
-          "align": false,
-          "alignLevel": null
-        }
-      },
-      {
-        "aliasColors": {},
-        "bars": false,
-        "dashLength": 10,
-        "dashes": false,
-        "datasource": "InfluxDB",
-        "fill": 1,
-        "fillGradient": 0,
-        "gridPos": {
-          "h": 9,
-          "w": 24,
-          "x": 0,
-          "y": 21
-        },
-        "id": 6,
-        "legend": {
-          "alignAsTable": true,
-          "avg": true,
-          "current": false,
-          "max": false,
-          "min": false,
-          "rightSide": true,
-          "show": true,
-          "total": true,
-          "values": true
-        },
-        "lines": true,
-        "linewidth": 1,
-        "nullPointMode": "null",
-        "options": {
-          "dataLinks": []
-        },
-        "percentage": false,
-        "pluginVersion": "6.4.1",
-        "pointradius": 2,
-        "points": false,
-        "renderer": "flot",
-        "seriesOverrides": [],
-        "spaceLength": 10,
-        "stack": false,
-        "steppedLine": false,
-        "targets": [
-          {
-            "alias": "$tag_mode",
-            "groupBy": [
-              {
-                "params": [
-                  "1h"
-                ],
-                "type": "time"
-              },
-              {
-                "params": [
-                  "mode"
-                ],
-                "type": "tag"
-              }
-            ],
-            "measurement": "mode-choices",
-            "orderByTime": "ASC",
-            "policy": "default",
-            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-            "rawQuery": false,
-            "refId": "A",
-            "resultFormat": "time_series",
-            "select": [
-              [
-                {
-                  "params": [
-                    "count"
-                  ],
-                  "type": "field"
-                },
-                {
-                  "params": [],
-                  "type": "sum"
-                }
-              ]
-            ],
-            "tags": [
-              {
-                "key": "unique-run-name",
-                "operator": "=~",
-                "value": "/^$run_name$/"
-              },
-              {
-                "condition": "AND",
-                "key": "iteration-num",
-                "operator": "=~",
-                "value": "/^$iteration_num$/"
-              }
-            ]
-          }
-        ],
-        "thresholds": [],
-        "timeFrom": null,
-        "timeRegions": [],
-        "timeShift": null,
-        "title": "Mode choices",
-        "tooltip": {
-          "shared": true,
-          "sort": 2,
-          "value_type": "individual"
-        },
-        "type": "graph",
-        "xaxis": {
-          "buckets": null,
-          "mode": "time",
-          "name": null,
-          "show": true,
-          "values": []
-        },
-        "yaxes": [
-          {
-            "format": "short",
-            "label": null,
+            "label": "# of mode chosen",
             "logBase": 2,
             "max": null,
             "min": null,
@@ -710,22 +713,22 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 9,
-          "w": 24,
-          "x": 0,
-          "y": 30
+          "h": 12,
+          "w": 12,
+          "x": 12,
+          "y": 21
         },
         "id": 3,
         "legend": {
-          "alignAsTable": true,
-          "avg": true,
+          "alignAsTable": false,
+          "avg": false,
           "current": false,
           "max": false,
           "min": false,
-          "rightSide": true,
+          "rightSide": false,
           "show": true,
-          "total": true,
-          "values": true
+          "total": false,
+          "values": false
         },
         "lines": false,
         "linewidth": 1,
@@ -898,10 +901,10 @@
         "fill": 1,
         "fillGradient": 0,
         "gridPos": {
-          "h": 9,
+          "h": 12,
           "w": 24,
           "x": 0,
-          "y": 39
+          "y": 33
         },
         "id": 5,
         "legend": {
@@ -1029,156 +1032,9 @@
           "align": false,
           "alignLevel": null
         }
-      },
-      {
-        "aliasColors": {},
-        "bars": false,
-        "dashLength": 10,
-        "dashes": false,
-        "datasource": "InfluxDB",
-        "fill": 1,
-        "fillGradient": 0,
-        "gridPos": {
-          "h": 9,
-          "w": 24,
-          "x": 0,
-          "y": 48
-        },
-        "id": 4,
-        "legend": {
-          "alignAsTable": true,
-          "avg": true,
-          "current": false,
-          "max": false,
-          "min": false,
-          "rightSide": true,
-          "show": true,
-          "total": true,
-          "values": true
-        },
-        "lines": true,
-        "linewidth": 1,
-        "nullPointMode": "null",
-        "options": {
-          "dataLinks": []
-        },
-        "percentage": false,
-        "pluginVersion": "6.4.1",
-        "pointradius": 2,
-        "points": false,
-        "renderer": "flot",
-        "seriesOverrides": [],
-        "spaceLength": 10,
-        "stack": false,
-        "steppedLine": false,
-        "targets": [
-          {
-            "alias": "Plug in $tag_charging_point $tag_pricing_model",
-            "groupBy": [
-              {
-                "params": [
-                  "1h"
-                ],
-                "type": "time"
-              },
-              {
-                "params": [
-                  "mode"
-                ],
-                "type": "tag"
-              },
-              {
-                "params": [
-                  "charging_point"
-                ],
-                "type": "tag"
-              },
-              {
-                "params": [
-                  "pricing_model"
-                ],
-                "type": "tag"
-              }
-            ],
-            "measurement": "charging-plug-in",
-            "orderByTime": "ASC",
-            "policy": "default",
-            "query": "SELECT cumulative_sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) AND $timeFilter GROUP BY \"mode\"",
-            "rawQuery": false,
-            "refId": "A",
-            "resultFormat": "time_series",
-            "select": [
-              [
-                {
-                  "params": [
-                    "count"
-                  ],
-                  "type": "field"
-                },
-                {
-                  "params": [],
-                  "type": "sum"
-                }
-              ]
-            ],
-            "tags": [
-              {
-                "key": "unique-run-name",
-                "operator": "=~",
-                "value": "/^$run_name$/"
-              },
-              {
-                "condition": "AND",
-                "key": "iteration-num",
-                "operator": "=~",
-                "value": "/^$iteration_num$/"
-              }
-            ]
-          }
-        ],
-        "thresholds": [],
-        "timeFrom": null,
-        "timeRegions": [],
-        "timeShift": null,
-        "title": "Charging",
-        "tooltip": {
-          "shared": true,
-          "sort": 0,
-          "value_type": "individual"
-        },
-        "type": "graph",
-        "xaxis": {
-          "buckets": null,
-          "mode": "time",
-          "name": null,
-          "show": true,
-          "values": []
-        },
-        "yaxes": [
-          {
-            "format": "short",
-            "label": null,
-            "logBase": 2,
-            "max": null,
-            "min": null,
-            "show": true
-          },
-          {
-            "format": "short",
-            "label": null,
-            "logBase": 1,
-            "max": null,
-            "min": null,
-            "show": false
-          }
-        ],
-        "yaxis": {
-          "align": false,
-          "alignLevel": null
-        }
       }
     ],
-    "refresh": "5s",
+    "refresh": "10s",
     "schemaVersion": 20,
     "style": "dark",
     "tags": [],
@@ -1187,8 +1043,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-25_19-40-19",
-            "value": "sf-light-1k-xml_2019-11-25_19-40-19"
+            "text": "sf-light-1k-xml_2019-11-29_01-06-55",
+            "value": "sf-light-1k-xml_2019-11-29_01-06-55"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -1212,7 +1068,6 @@
         {
           "allValue": null,
           "current": {
-            "tags": [],
             "text": "4",
             "value": "4"
           },
@@ -1253,6 +1108,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 4
+    "version": 8
   }
 }

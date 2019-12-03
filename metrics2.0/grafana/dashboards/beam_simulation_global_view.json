@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574699505297,
+    "iteration": 1574980086981,
     "links": [],
     "panels": [
       {
@@ -49,30 +49,35 @@
           "x": 0,
           "y": 0
         },
-        "id": 6,
+        "id": 10,
         "options": {},
         "pconfig": {
           "fixScale": "",
           "layout": {
             "barmode": "stack",
-            "dragmode": "lasso",
+            "dragmode": "zoom",
             "font": {
               "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
             },
             "hovermode": "closest",
             "legend": {
-              "orientation": "v"
+              "orientation": "h",
+              "traceorder": "normal"
             },
             "showlegend": true,
             "xaxis": {
+              "dtick": "1",
               "rangemode": "normal",
               "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
               "type": "auto",
               "zeroline": false
             },
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
+              "title": "# of events",
               "type": "linear",
               "zeroline": false
             },
@@ -96,149 +101,7 @@
                 "size": null,
                 "text": null,
                 "x": "Time",
-                "y": "mode",
-                "z": null
-              },
-              "name": "Trace 1",
-              "settings": {
-                "color_option": "ramp",
-                "line": {
-                  "color": "#005f81",
-                  "dash": "solid",
-                  "shape": "linear",
-                  "width": 6
-                },
-                "marker": {
-                  "color": "#33B5E5",
-                  "colorscale": "YlOrRd",
-                  "line": {
-                    "color": "#DDD",
-                    "width": 0
-                  },
-                  "showscale": true,
-                  "size": 15,
-                  "sizemin": 3,
-                  "sizemode": "diameter",
-                  "sizeref": 0.2,
-                  "symbol": "circle"
-                }
-              },
-              "show": {
-                "line": true,
-                "lines": true,
-                "markers": true
-              }
-            }
-          ]
-        },
-        "targets": [
-          {
-            "groupBy": [
-              {
-                "params": [
-                  "iteration-num"
-                ],
-                "type": "tag"
-              },
-              {
-                "params": [
-                  "mode"
-                ],
-                "type": "tag"
-              }
-            ],
-            "measurement": "AverageTravelTimeTEST",
-            "orderByTime": "ASC",
-            "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"AverageTravelTimeTEST\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
-            "rawQuery": true,
-            "refId": "A",
-            "resultFormat": "table",
-            "select": [
-              [
-                {
-                  "params": [
-                    "count"
-                  ],
-                  "type": "field"
-                },
-                {
-                  "params": [],
-                  "type": "sum"
-                }
-              ]
-            ],
-            "tags": [
-              {
-                "key": "unique-run-name",
-                "operator": "=~",
-                "value": "/^$run_name$/"
-              }
-            ]
-          }
-        ],
-        "timeFrom": null,
-        "timeShift": null,
-        "title": "Average travel time per iteration",
-        "type": "natel-plotly-panel",
-        "version": 1
-      },
-      {
-        "datasource": null,
-        "gridPos": {
-          "h": 6,
-          "w": 24,
-          "x": 0,
-          "y": 7
-        },
-        "id": 4,
-        "options": {},
-        "pconfig": {
-          "fixScale": "",
-          "layout": {
-            "barmode": "stack",
-            "dragmode": "lasso",
-            "font": {
-              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
-            },
-            "hovermode": "closest",
-            "legend": {
-              "orientation": "v"
-            },
-            "showlegend": true,
-            "xaxis": {
-              "rangemode": "normal",
-              "showgrid": true,
-              "type": "auto",
-              "zeroline": false
-            },
-            "yaxis": {
-              "rangemode": "normal",
-              "showgrid": true,
-              "type": "linear",
-              "zeroline": false
-            },
-            "zaxis": {
-              "rangemode": "normal",
-              "showgrid": true,
-              "type": "linear",
-              "zeroline": false
-            }
-          },
-          "loadFromCDN": false,
-          "settings": {
-            "displayModeBar": false,
-            "type": "bar"
-          },
-          "showAnnotations": true,
-          "traces": [
-            {
-              "mapping": {
-                "color": "sum",
-                "size": null,
-                "text": null,
-                "x": "sum",
-                "y": "sum",
+                "y": "Time",
                 "z": null
               },
               "name": "Trace 1",
@@ -274,11 +137,10 @@
         },
         "targets": [
           {
-            "alias": "[[tag_mode]]",
             "groupBy": [
               {
                 "params": [
-                  "mode"
+                  "typeOfCharger"
                 ],
                 "type": "tag"
               },
@@ -289,10 +151,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "AverageTravelTime",
+            "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"AverageTravelTime\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
+            "query": "SELECT sum(\"count\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"typeOfCharger\", \"iteration-num\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -321,58 +183,400 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Average Car travel time per iteration",
+        "title": "Charge Events by Charger Type",
         "type": "natel-plotly-panel",
         "version": 1
       },
       {
-        "aliasColors": {},
-        "bars": true,
-        "dashLength": 10,
-        "dashes": false,
-        "datasource": "InfluxDB",
-        "fill": 1,
-        "fillGradient": 0,
+        "datasource": null,
         "gridPos": {
           "h": 7,
           "w": 24,
           "x": 0,
-          "y": 13
+          "y": 7
         },
-        "id": 2,
-        "legend": {
-          "alignAsTable": true,
-          "avg": false,
-          "current": false,
-          "max": false,
-          "min": false,
-          "rightSide": true,
-          "show": false,
-          "total": false,
-          "values": false
+        "id": 11,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "# of events",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": true
+              }
+            }
+          ]
         },
-        "lines": false,
-        "linewidth": 1,
-        "nullPointMode": "null",
-        "options": {
-          "dataLinks": []
-        },
-        "percentage": false,
-        "pointradius": 2,
-        "points": false,
-        "renderer": "flot",
-        "seriesOverrides": [
-          {
-            "alias": "/.*/i",
-            "color": "#73BF69"
-          }
-        ],
-        "spaceLength": 10,
-        "stack": true,
-        "steppedLine": false,
         "targets": [
           {
-            "alias": "It [[tag_iteration-num]]",
+            "groupBy": [
+              {
+                "params": [
+                  "parkingType"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "chargingPower",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"parkingType\", \"iteration-num\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Charge Events by Parking Type",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 14
+        },
+        "id": 8,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "linear",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance in kilometers",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": true
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "trip-type"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "ride-hail-trip-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"ride-hail-trip-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"trip-type\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Trip Distance [Ride Hail]",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 21
+        },
+        "id": 13,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "linear",
+              "zeroline": false
+            },
+            "yaxis": {
+              "dtick": "",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "",
+              "title": "# of mode chosen",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": true
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
             "groupBy": [
               {
                 "params": [
@@ -387,13 +591,159 @@
                 "type": "tag"
               }
             ],
-            "measurement": "AverageTravelTime",
+            "measurement": "mode-choices",
             "orderByTime": "ASC",
-            "policy": "autogen",
-            "query": "SELECT \"count\" FROM \"autogen\".\"AverageTravelTime\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"mode-choices\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"mode\", \"iteration-num\"",
             "rawQuery": true,
             "refId": "A",
-            "resultFormat": "time_series",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Mode Choice",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 29
+        },
+        "id": 15,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Average travel time [min]",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": true
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "mode"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "average-travel-time",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"average-travel-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
             "select": [
               [
                 {
@@ -413,48 +763,11 @@
             ]
           }
         ],
-        "thresholds": [],
         "timeFrom": null,
-        "timeRegions": [],
         "timeShift": null,
-        "title": "Average Car travel time per iteration",
-        "tooltip": {
-          "shared": false,
-          "sort": 0,
-          "value_type": "individual"
-        },
-        "type": "graph",
-        "xaxis": {
-          "buckets": null,
-          "mode": "series",
-          "name": null,
-          "show": true,
-          "values": [
-            "total"
-          ]
-        },
-        "yaxes": [
-          {
-            "format": "short",
-            "label": null,
-            "logBase": 1,
-            "max": null,
-            "min": null,
-            "show": true
-          },
-          {
-            "format": "short",
-            "label": null,
-            "logBase": 1,
-            "max": null,
-            "min": null,
-            "show": true
-          }
-        ],
-        "yaxis": {
-          "align": false,
-          "alignLevel": null
-        }
+        "title": "Average Travel Time [Car]",
+        "type": "natel-plotly-panel",
+        "version": 1
       }
     ],
     "refresh": "30s",
@@ -466,8 +779,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-25_18-42-04",
-            "value": "sf-light-1k-xml_2019-11-25_18-42-04"
+            "text": "sf-light-1k-xml_2019-11-29_01-06-55",
+            "value": "sf-light-1k-xml_2019-11-29_01-06-55"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -506,6 +819,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 13
+    "version": 2
   }
 }
