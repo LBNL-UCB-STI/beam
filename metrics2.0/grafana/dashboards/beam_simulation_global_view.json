@@ -38,16 +38,308 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1574980086981,
+    "iteration": 1575406556572,
     "links": [],
     "panels": [
       {
         "datasource": null,
         "gridPos": {
-          "h": 7,
+          "h": 8,
           "w": 24,
           "x": 0,
           "y": 0
+        },
+        "id": 17,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "linear",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "BEV_NO_CAV_DISTANCE.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "BEV_NO_CAV_DISTANCE",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"BEV_NO_CAV_DISTANCE\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV non CAV Distance",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        },
+        "id": 18,
+        "options": {},
+        "pconfig": {
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Iteration",
+              "type": "linear",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Time",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "BEV_NO_CAV_DISTANCE.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "iteration-num"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "BEV_NO_CAV_DISTANCE",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"BEV_NO_CAV_TIME\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV non CAV Time",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
         },
         "id": 10,
         "options": {},
@@ -190,10 +482,10 @@
       {
         "datasource": null,
         "gridPos": {
-          "h": 7,
+          "h": 8,
           "w": 24,
           "x": 0,
-          "y": 7
+          "y": 24
         },
         "id": 11,
         "options": {},
@@ -336,10 +628,10 @@
       {
         "datasource": null,
         "gridPos": {
-          "h": 7,
+          "h": 8,
           "w": 24,
           "x": 0,
-          "y": 14
+          "y": 32
         },
         "id": 8,
         "options": {},
@@ -485,7 +777,7 @@
           "h": 8,
           "w": 24,
           "x": 0,
-          "y": 21
+          "y": 40
         },
         "id": 13,
         "options": {},
@@ -630,10 +922,10 @@
       {
         "datasource": null,
         "gridPos": {
-          "h": 7,
+          "h": 8,
           "w": 24,
           "x": 0,
-          "y": 29
+          "y": 48
         },
         "id": 15,
         "options": {},
@@ -770,7 +1062,7 @@
         "version": 1
       }
     ],
-    "refresh": "30s",
+    "refresh": "10s",
     "schemaVersion": 20,
     "style": "dark",
     "tags": [],
@@ -779,8 +1071,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "sf-light-1k-xml_2019-11-29_01-06-55",
-            "value": "sf-light-1k-xml_2019-11-29_01-06-55"
+            "text": "beamville_2019-12-03_23-54-24",
+            "value": "beamville_2019-12-03_23-54-24"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -819,6 +1111,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 2
+    "version": 5
   }
 }

@@ -215,8 +215,8 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
       distanceUtilizationPV_noCAV.reduce((xSeries1, xSeries2) => xSeries1.zip(xSeries2).map { case (x, y) => x + y })
 
     keys.foreach {
-      case (key, idx) => {
-        val tags = Map("VehicleState" -> key)
+      case (key, idx) =>
+        val tags = Map("vehicle-state" -> key)
         beamServices.simMetricCollector.writeGlobal(
           "BEV_NO_CAV_TIME",
           timeUtilizationPV_noCAVsum(idx),
@@ -229,7 +229,6 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           Metrics.ShortLevel,
           tags
         )
-      }
     }
 
   }
@@ -307,7 +306,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
             })
           } else {
             val firstIndex = afterEventStart.indexOf(true)
-            if(firstIndex > 0)
+            if (firstIndex > 0)
               distanceUtilization(firstIndex)(keys(eventCharacteristics.eventType)) += event.legLength / 1609.34
           }
         case _ =>
