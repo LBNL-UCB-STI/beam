@@ -10,7 +10,7 @@ import zio.stream._
 
 import scala.collection.JavaConverters._
 
-class DataLoaderIO extends DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue] {
+class DataLoaderIO extends DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] {
 
   import RowDecoder._
 

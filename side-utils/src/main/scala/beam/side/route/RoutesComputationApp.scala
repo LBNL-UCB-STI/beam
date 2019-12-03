@@ -1,10 +1,11 @@
 package beam.side.route
 import java.nio.file.Paths
 
-import beam.side.route.model.{CencusTrack, GHPaths, Trip, Url}
+import beam.side.route.model.{GHPaths, Trip, TripPath}
 import beam.side.route.processing.data.{DataLoaderIO, PathComputeIO}
 import beam.side.route.processing.request.GHRequestIO
-import beam.side.route.processing.{DataLoader, GHRequest, PathCompute}
+import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
+import beam.side.route.processing._
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -68,7 +69,8 @@ trait AppSetup {
 
 object RoutesComputationApp extends CatsApp with AppSetup {
 
-  import beam.side.route.model.CencusTrack._
+  import TripPath._
+  import beam.side.route.model.Encoder._
   import beam.side.route.model.GHPaths._
   import org.http4s.circe._
   import zio.console._
@@ -83,45 +85,26 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
-    implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue] = DataLoaderIO()
+    implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataLoaderIO()
+    implicit val cencusDictionary: CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] =
+      CencusTractDictionaryIO()
+    implicit val odCompute: ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = ODComputeIO()
 
     (for {
-      config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      config  <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      promise <- CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue].compose(config.cencusTrackPath)
+
       pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)
-      cencusQueue <- Queue.bounded[CencusTrack](256)
-      promise     <- Promise.make[Exception, Map[String, CencusTrack]]
-      _ <- zio.stream.Stream
-        .fromQueue[Throwable, CencusTrack](cencusQueue)
-        .foldM(Map[String, CencusTrack]())((acc, ct) => IO.effectTotal(acc + (ct.id -> ct)))
-        .flatMap(promise.succeed)
-        .fork
-      loadCencus <- ZManaged
-        .make(IO.effectTotal(cencusQueue))(q => q.shutdown)
-        .use(
-          queue =>
-            DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue]
-              .loadData[CencusTrack](Paths.get(config.cencusTrackPath), queue, false)
-        )
-        .fork
-      _ <- loadCencus.join
 
-      tripQueue <- Queue.bounded[Trip](256)
-      _ <- tripQueue.take
-        .flatMap(trip => pathCompute.compute(trip, promise))
-        .flatMap(tp => putStrLn(tp.toString))
-        .forever
-        .fork
-      loadTrip <- ZManaged
-        .make(IO.effectTotal(tripQueue))(q => q.shutdown)
-        .zip(ZManaged.fromEffect(IO.fromOption(config.odPairsPath)))
-        .use {
-          case (queue, path) =>
-            DataLoader[({ type T[A] = RIO[zio.ZEnv, Queue[A]] })#T, Queue]
-              .loadData[Trip](Paths.get(path), queue, false)
-        }
+      pathQueue <- ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
+        .pairTrip(config.odPairsPath, promise)(pathCompute, pathEncoder, ghRequest, dataLoader)
+
+      linesFork <- zio.stream.Stream
+        .fromQueue[Throwable, TripPath](pathQueue)
+        .foreach(trip => putStrLn(trip.row))
         .fork
 
-      _ <- loadTrip.join
+      _ <- linesFork.join
     } yield config).fold(_ => -1, _ => 0)
   }
 }

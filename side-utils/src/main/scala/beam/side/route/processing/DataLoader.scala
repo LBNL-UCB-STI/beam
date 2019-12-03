@@ -6,7 +6,7 @@ import beam.side.route.model.RowDecoder
 import scala.language.higherKinds
 
 trait DataLoader[F[_], BUF[_]] {
-  def loadData[A <: Product: RowDecoder](dataFile: Path, buffer: BUF[A], headless: Boolean): F[A]
+  def loadData[A <: Product: RowDecoder](dataFile: Path, buffer: BUF[A], headless: Boolean): F[BUF[A]]
 }
 
 object DataLoader {

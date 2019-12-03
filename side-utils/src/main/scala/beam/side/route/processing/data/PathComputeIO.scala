@@ -1,6 +1,6 @@
 package beam.side.route.processing.data
 
-import beam.side.route.model.{CencusTrack, Coordinate, GHPaths, Multiline, Trip, TripPath, Url}
+import beam.side.route.model._
 import beam.side.route.processing.{GHRequest, PathCompute}
 import org.http4s.EntityDecoder
 import zio._
@@ -14,11 +14,12 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
 
   def compute(
     trip: Trip,
-    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]]
+    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]],
+    pathQueue: Queue[TripPath]
   )(
     implicit decoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
     request: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
-  ): RIO[zio.ZEnv, TripPath] =
+  ): RIO[zio.ZEnv, Option[TripPath]] =
     for {
       trp            <- IO.effectTotal(trip)
       trc            <- tracts.await
@@ -36,14 +37,14 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
       )
       originReq <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
         .request[GHPaths](url)
-        .tapError(e => putStrLn(e.getMessage))
-      ways <- Task.effectTotal(originReq.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
-    } yield
-      TripPath(
-        Coordinate(origin.longitude, origin.latitude),
-        Coordinate(dest.longitude, dest.latitude),
-        Multiline(ways.points.toList)
-      )
+        .foldM(
+          e => Task.effectTotal(e).flatMap(ex => putStrLn(ex.getMessage)).flatMap(_ => Task.effectTotal(Option.empty)),
+          path => Task.effectTotal(Option(path))
+        )
+      ways <- Task.effectTotal(originReq.map(p => p.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b)))
+      path <- Task.effectTotal(ways.map(p => TripPath(origin, dest, Multiline(p.points.toList))))
+      _    <- RIO.effectAsync[zio.ZEnv, Unit](c => c(path.fold(ZIO.unit)(r => pathQueue.offer(r).unit)))
+    } yield path
 }
 
 object PathComputeIO {

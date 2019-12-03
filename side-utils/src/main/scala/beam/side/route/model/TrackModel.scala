@@ -31,4 +31,14 @@ object Trip {
   }
 }
 
-case class TripPath(origin: Coordinate, dest: Coordinate, path: Multiline)
+case class TripPath(origin: CencusTrack, dest: CencusTrack, path: Multiline)
+
+object TripPath {
+
+  import Multiline._
+  import Encoder._
+
+  implicit val tripPathEncoder: Encoder[TripPath] = new Encoder[TripPath] {
+    override def apply(row: TripPath): String = s"${row.origin.id}, ${row.dest.id}, LINESTRING(${row.path.row})"
+  }
+}

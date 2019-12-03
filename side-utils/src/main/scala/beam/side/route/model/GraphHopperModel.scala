@@ -23,6 +23,10 @@ object Coordinate {
   implicit val coordinateDecoder: Decoder[Coordinate] = Decoder.decodeArray[Double].emap {
     case Array(lon, lat) => Either.catchNonFatal(new Coordinate(lon, lat)).leftMap(_ => "Invalid coordinates")
   }
+
+  implicit val coordinateEncoder: Encoder[Coordinate] = new Encoder[Coordinate] {
+    override def apply(row: Coordinate): String = s"${row.lon} ${row.lat}"
+  }
 }
 
 case class Way(points: Seq[Coordinate], instructions: Seq[Instruction], wayPoints: (Coordinate, Coordinate))
