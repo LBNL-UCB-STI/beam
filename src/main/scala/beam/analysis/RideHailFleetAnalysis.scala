@@ -217,18 +217,22 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     keys.foreach {
       case (key, idx) =>
         val tags = Map("vehicle-state" -> key)
-        beamServices.simMetricCollector.writeGlobal(
-          "BEV_NO_CAV_TIME",
-          timeUtilizationPV_noCAVsum(idx),
-          Metrics.ShortLevel,
-          tags
-        )
-        beamServices.simMetricCollector.writeGlobal(
-          "BEV_NO_CAV_DISTANCE",
-          distanceUtilizationPV_noCAVsum(idx),
-          Metrics.ShortLevel,
-          tags
-        )
+        def write(metric: String, value: Double): Unit = {
+          beamServices.simMetricCollector.writeGlobal(
+            metric,
+            value,
+            Metrics.ShortLevel,
+            tags
+          )
+        }
+        write("bev-no-cav-time", timeUtilizationPV_noCAVsum(idx))
+        write("bev-no-cav-distance", distanceUtilizationPV_noCAVsum(idx))
+        write("bev-cav-time", timeUtilizationPV_CAVsum(idx))
+        write("bev-cav-distance", distanceUtilizationPV_CAVsum(idx))
+        write("rh-no-cav-time", timeUtilizationRH_noCAVsum(idx))
+        write("rh-no-cav-distance", distanceUtilizationRH_noCAVsum(idx))
+        write("rh-cav-time", timeUtilizationRH_CAVsum(idx))
+        write("rh-cav-distance", distanceUtilizationRH_CAVsum(idx))
     }
 
   }
