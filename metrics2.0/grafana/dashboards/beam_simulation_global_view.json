@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1575464955088,
+    "iteration": 1575472432774,
     "links": [],
     "panels": [
       {
@@ -62,7 +62,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -208,7 +210,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -354,7 +358,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -500,7 +506,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -646,7 +654,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -792,7 +802,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -938,7 +950,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1084,7 +1098,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1230,7 +1246,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1376,7 +1394,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1522,7 +1542,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1668,7 +1690,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1816,7 +1840,9 @@
             "hovermode": "closest",
             "legend": {
               "orientation": "h",
-              "traceorder": "normal"
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.4"
             },
             "showlegend": true,
             "xaxis": {
@@ -1947,9 +1973,8 @@
         {
           "allValue": null,
           "current": {
-            "tags": [],
-            "text": "beamville_2019-12-04_16-07-27",
-            "value": "beamville_2019-12-04_16-07-27"
+            "text": "beamville_2019-12-04_18-13-10",
+            "value": "beamville_2019-12-04_18-13-10"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
