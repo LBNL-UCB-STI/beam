@@ -12,11 +12,11 @@ class CencusTractDictionaryIO extends CencusTractDictionary[({ type T[A] = RIO[z
     implicit dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
   ): RIO[ZEnv, Promise[Throwable, Map[String, CencusTrack]]] =
     for {
-      cencusQueue <- Queue.bounded[CencusTrack](256)
+      cencusQueue <- Queue.bounded[CencusTrack](16)
       promise     <- Promise.make[Throwable, Map[String, CencusTrack]]
       _ <- zio.stream.Stream
         .fromQueue[Throwable, CencusTrack](cencusQueue)
-        .foldM(Map[String, CencusTrack]())((acc, ct) => IO.effectTotal(acc + (ct.id -> ct)))
+        .fold(Map[String, CencusTrack]())((acc, ct) => acc + (ct.id -> ct))
         .flatMap(promise.succeed)
         .fork
       _ <- ZManaged

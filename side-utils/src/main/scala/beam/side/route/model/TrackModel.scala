@@ -39,6 +39,6 @@ object TripPath {
   import Encoder._
 
   implicit val tripPathEncoder: Encoder[TripPath] = new Encoder[TripPath] {
-    override def apply(row: TripPath): String = s"${row.origin.id}, ${row.dest.id}, LINESTRING(${row.path.row})"
+    override def apply(row: TripPath): String = s"${row.origin.id}, ${row.dest.id}, ${row.path.row}"
   }
 }

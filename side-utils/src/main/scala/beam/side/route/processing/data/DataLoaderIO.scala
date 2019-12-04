@@ -9,6 +9,7 @@ import zio._
 import zio.stream._
 
 import scala.collection.JavaConverters._
+import scala.util.{Success, Try}
 
 class DataLoaderIO extends DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] {
 
@@ -31,7 +32,8 @@ class DataLoaderIO extends DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queu
             .map(i => Option(hl).filter(identity).fold(i.drop(1))(_ => i))
           _ <- Stream
             .fromIterator(lines)
-            .map(_.decode[A])
+            .map(l => Try(l.decode[A]))
+            .collect{ case Success(a) => a }
             .foldM(queue)((q, a) => q.offer(a).map(_ => q))
         } yield queue
     }

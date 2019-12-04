@@ -38,11 +38,18 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
       originReq <- GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
         .request[GHPaths](url)
         .foldM(
-          e => Task.effectTotal(e).flatMap(ex => putStrLn(ex.getMessage)).flatMap(_ => Task.effectTotal(Option.empty)),
+          e =>
+            Task
+              .effectTotal(e)
+              .flatMap(ex => putStrLn(s"Request error ${ex.getMessage}"))
+              .flatMap(_ => Task.effectTotal(Option.empty)),
           path => Task.effectTotal(Option(path))
         )
-      ways <- Task.effectTotal(originReq.map(p => p.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b)))
-      path <- Task.effectTotal(ways.map(p => TripPath(origin, dest, Multiline(p.points.toList))))
+      path <- Task.effectTotal(
+        originReq
+          .map(p => p.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
+          .map(p => TripPath(origin, dest, Multiline(p.points.toList)))
+      )
       _    <- RIO.effectAsync[zio.ZEnv, Unit](c => c(path.fold(ZIO.unit)(r => pathQueue.offer(r).unit)))
     } yield path
 }

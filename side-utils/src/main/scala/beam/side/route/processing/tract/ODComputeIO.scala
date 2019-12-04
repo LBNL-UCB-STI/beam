@@ -9,6 +9,8 @@ import zio._
 
 class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
+  import zio.console._
+
   def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, Map[String, CencusTrack]])(
     implicit pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T],
     pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
@@ -16,12 +18,12 @@ class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
     dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
   ): RIO[ZEnv, Queue[TripPath]] =
     for {
-      tripQueue <- Queue.bounded[Trip](256)
-      pathQueue <- Queue.bounded[TripPath](256)
+      tripQueue <- Queue.bounded[Trip](16)
+      pathQueue <- Queue.bounded[TripPath](16)
       _ <- zio.stream.Stream
         .fromQueue[Throwable, Trip](tripQueue)
-        .mapMParUnordered(32)(
-          trip => PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T].compute(trip, tracts, pathQueue)
+        .mapMParUnordered(2)(
+          trip => putStrLn(trip.toString) &> PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T].compute(trip, tracts, pathQueue)
         )
         .runDrain
         .fork

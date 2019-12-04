@@ -1,17 +1,19 @@
 package beam.side.route
 import java.nio.file.Paths
+import java.util.concurrent.Executors
 
-import beam.side.route.model.{GHPaths, Trip, TripPath}
+import beam.side.route.model.{GHPaths, TripPath}
+import beam.side.route.processing._
 import beam.side.route.processing.data.{DataLoaderIO, DataWriterIO, PathComputeIO}
 import beam.side.route.processing.request.GHRequestIO
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
-import beam.side.route.processing._
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
 import zio._
 import zio.interop.catz._
 
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Try}
 
 case class ComputeConfig(
@@ -83,18 +85,17 @@ trait AppSetup {
 object RoutesComputationApp extends CatsApp with AppSetup {
 
   import TripPath._
-  import beam.side.route.model.Encoder._
   import beam.side.route.model.GHPaths._
   import org.http4s.circe._
-  import zio.console._
-
-  import scala.concurrent.ExecutionContext.global
+  import implicits._
 
   override def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] = {
 
     type T[+A] = RIO[zio.ZEnv, A]
-    implicit val httpClient: ZManaged[zio.ZEnv, Throwable, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]] =
-      BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](global).resource.toManagedZIO
+    implicit val httpClient: RIO[zio.ZEnv, (Client[({type T[A] = RIO[zio.ZEnv, A]})#T], RIO[zio.ZEnv, Unit])] =
+      BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](
+        ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+      ).allocated
     implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
