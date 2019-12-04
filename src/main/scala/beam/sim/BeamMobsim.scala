@@ -75,6 +75,26 @@ class BeamMobsim @Inject()(
       beamServices.matsimServices.getIterationNumber.toLong,
       Metrics.ShortLevel
     )
+
+    // to have zero values for graphs even if there are no values calculated during iteration
+    def writeZero(metricName: String, tags: Map[String, String]): Unit = {
+      beamServices.simMetricCollector.writeGlobal(metricName, 0, Metrics.ShortLevel, tags)
+    }
+
+    val tags = Map("vehicle-state" -> "idle")
+    writeZero("bev-no-cav-time", tags)
+    writeZero("bev-no-cav-distance", tags)
+    writeZero("bev-cav-time", tags)
+    writeZero("bev-cav-distance", tags)
+    writeZero("rh-no-cav-time", tags)
+    writeZero("rh-no-cav-distance", tags)
+    writeZero("rh-cav-time", tags)
+    writeZero("rh-cav-distance", tags)
+
+    writeZero("ride-hail-trip-distance", Map("trip-type" -> "1"))
+    writeZero("average-travel-time", Map("mode"          -> "car"))
+    writeZero("chargingPower", Map("typeOfCharger"       -> "None", "parkingType" -> "Public"))
+
     eventsManager.initProcessing()
 
     val iteration = actorSystem.actorOf(

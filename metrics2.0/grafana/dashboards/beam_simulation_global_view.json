@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1575472432774,
+    "iteration": 1575475826310,
     "links": [],
     "panels": [
       {
@@ -1229,7 +1229,7 @@
         "datasource": null,
         "gridPos": {
           "h": 8,
-          "w": 24,
+          "w": 12,
           "x": 0,
           "y": 32
         },
@@ -1377,9 +1377,9 @@
         "datasource": null,
         "gridPos": {
           "h": 8,
-          "w": 24,
-          "x": 0,
-          "y": 40
+          "w": 12,
+          "x": 12,
+          "y": 32
         },
         "id": 11,
         "options": {},
@@ -1525,9 +1525,9 @@
         "datasource": null,
         "gridPos": {
           "h": 8,
-          "w": 24,
+          "w": 12,
           "x": 0,
-          "y": 48
+          "y": 40
         },
         "id": 8,
         "options": {},
@@ -1673,9 +1673,9 @@
         "datasource": null,
         "gridPos": {
           "h": 8,
-          "w": 24,
-          "x": 0,
-          "y": 56
+          "w": 12,
+          "x": 12,
+          "y": 40
         },
         "id": 13,
         "options": {},
@@ -1825,7 +1825,7 @@
           "h": 8,
           "w": 24,
           "x": 0,
-          "y": 64
+          "y": 48
         },
         "id": 15,
         "options": {},
@@ -1964,7 +1964,7 @@
         "version": 1
       }
     ],
-    "refresh": "10s",
+    "refresh": "30s",
     "schemaVersion": 20,
     "style": "dark",
     "tags": [],
@@ -1973,8 +1973,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "beamville_2019-12-04_18-13-10",
-            "value": "beamville_2019-12-04_18-13-10"
+            "text": "2019-12-04_19-10-00_beamville",
+            "value": "2019-12-04_19-10-00_beamville"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2003,16 +2003,18 @@
     },
     "timepicker": {
       "refresh_intervals": [
-        "5s",
-        "10s",
+        "15s",
         "30s",
+        "45s",
         "1m",
-        "5m"
+        "3m",
+        "10m",
+        "15m"
       ]
     },
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 1
+    "version": 2
   }
 }
