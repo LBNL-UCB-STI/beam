@@ -4,6 +4,7 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdj
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
+import org.matsim.core.mobsim.jdeqsim.DeadlockPreventionMessage;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
 import java.util.HashMap;
@@ -113,8 +114,41 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     @Override
     public void processIfInterestedInEnteringRoadTrue(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
-        super.processIfInterestedInEnteringRoadTrue(vehicle, simTime);
+        org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = getInterestedInEnteringRoad().removeFirst();
+        DeadlockPreventionMessage m = getDeadlockPreventionMessages().removeFirst();
+        assert (m.vehicle == nextVehicle);
+        this.scheduler.unschedule(m);
+
+        double nextAvailableTimeForEnteringStreet = Math.max(this.getTimeOfLastEnteringVehicle()
+                + getInverseCapacity(vehicle,simTime), simTime + this.getGapTravelTime());
+
+        this.noOfCarsPromisedToEnterRoad++;
+
+        nextVehicle.scheduleEnterRoadMessage(nextAvailableTimeForEnteringStreet, this);
         latestTimeToLeaveRoad.remove(vehicle);
+    }
+
+    public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
+        assert (this.carsOnTheRoad.getFirst() == vehicle);
+        assert (this.getInterestedInEnteringRoad().size()==this.getInterestedInEnteringRoad().size());
+
+        this.carsOnTheRoad.removeFirst();
+        this.earliestDepartureTimeOfCar.removeFirst();
+        this.timeOfLastLeavingVehicle = simTime;
+
+        if (this.getInterestedInEnteringRoad().size() > 0) {
+            processIfInterestedInEnteringRoadTrue(vehicle, simTime);
+        } else {
+            processIfInterestedInEnteringRoadFalse(vehicle, simTime);
+        }
+
+        if (this.carsOnTheRoad.size() > 0) {
+            org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.carsOnTheRoad.getFirst();
+            double nextAvailableTimeForLeavingStreet = Math.max(this.earliestDepartureTimeOfCar.getFirst(),
+                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle,simTime));
+
+            nextVehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
+        }
     }
 
     @Override
