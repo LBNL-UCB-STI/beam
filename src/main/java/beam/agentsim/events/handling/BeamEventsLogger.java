@@ -13,7 +13,7 @@ import java.util.*;
 /**
  * Logger class for BEAM events
  */
-class BeamEventsLogger {
+public class BeamEventsLogger {
 
     private final EventsManager eventsManager;
     private final MatsimServices matsimServices;
@@ -22,13 +22,19 @@ class BeamEventsLogger {
     private final Set<Class<?>> eventsToLog = new HashSet<>();
     private final List<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
-    BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
         this.beamServices = beamServices;
         this.matsimServices = matsimServices;
         this.eventsManager = eventsManager;
-        setEventsFileFormats();
         overrideDefaultLoggerSetup();
-        createEventsWriters();
+    }
+
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, Boolean init) {
+        this(beamServices, matsimServices, eventsManager);
+        if (init) {
+            setEventsFileFormats();
+            createEventsWriters();
+        }
     }
 
     void iterationEnds() {
@@ -39,7 +45,7 @@ class BeamEventsLogger {
         writers.clear();
     }
 
-    private void createEventsWriters() {
+    protected void createEventsWriters() {
         int iterationNumber = matsimServices.getIterationNumber();
         final int writeEventsInterval = beamServices.beamConfig().beam().outputs().writeEventsInterval();
         final boolean writeThisIteration = (writeEventsInterval > 0) && (iterationNumber % writeEventsInterval == 0);
@@ -82,7 +88,7 @@ class BeamEventsLogger {
     /**
      * Sets the event file formats
      */
-    private void setEventsFileFormats() {
+    protected void setEventsFileFormats() {
         eventsFileFormatsArray.clear();
         String eventsFileFormats = beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
         for (String format : eventsFileFormats.split(",")) {

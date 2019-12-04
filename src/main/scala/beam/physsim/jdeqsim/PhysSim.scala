@@ -4,12 +4,10 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.handling.{BeamEventsLogger, BeamEventsWriterCSV}
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
@@ -198,7 +196,7 @@ class PhysSim(
       printStats(firstResult, lastResult)
       lastResult
     } else {
-      val simulationResult = simulate(currentIter, shouldWritePhysSimEvents && currentIter == nIterations)
+      val simulationResult = simulate(currentIter, writeEvents = true)
       carTravelTimeWriter.writeRow(
         Vector(
           currentIter,
@@ -291,7 +289,7 @@ class PhysSim(
     carPeople
   }
 
-  private def simulate(currentIter: Int, writeEvents: Boolean): SimulationResult = {
+  private def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
     val jdeqSimScenario = initScenario
     val jdeqsimEvents = new EventsManagerImpl
     val travelTimeCalculator =
@@ -307,7 +305,12 @@ class PhysSim(
     jdeqsimEvents.addHandler(travelTimeCalculator)
     jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
     val maybeEventWriter = if (writeEvents) {
-      Some(addPhysSimEventsWriter(jdeqsimEvents))
+      val viaXmlEventWriter = createViaXmlEventsWriter(currentPhysSimIter)
+      jdeqsimEvents.addHandler(viaXmlEventWriter)
+
+      val csvEventsWriter: BeamEventsWriterCSV = createCsvWriter(currentPhysSimIter, jdeqsimEvents)
+      jdeqsimEvents.addHandler(csvEventsWriter)
+      Some((viaXmlEventWriter, csvEventsWriter))
     } else None
 
     val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
@@ -322,23 +325,26 @@ class PhysSim(
     } else None
 
     try {
-      ProfilingUtils.timed(s"JDEQSim iteration $currentIter", x => logger.info(x)) {
+      ProfilingUtils.timed(s"JDEQSim iteration $currentPhysSimIter", x => logger.info(x)) {
         val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
-        logger.info(s"JDEQSim iteration $currentIter start");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter start");
         if (beamConfig.beam.debug.debugEnabled) {
           logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
         }
         jdeqSimulation.run()
-        logger.info(s"JDEQSim iteration $currentIter finished");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter finished");
       }
 
     } finally {
-      maybeEventWriter.foreach(eventWriter => Try(eventWriter.closeFile()))
+      maybeEventWriter.foreach { case (w1, w2) =>
+        Try(w1.closeFile())
+        Try(w2.closeFile())
+      }
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
     }
     jdeqsimEvents.finishProcessing()
     SimulationResult(
-      iteration = currentIter,
+      iteration = currentPhysSimIter,
       travelTime = travelTimeCalculator.getLinkTravelTimes,
       eventTypeToNumberOfMessages = eventTypeCounter.getStats,
       carTravelTimeStats = carTravelTimeHandler.compute
@@ -574,13 +580,19 @@ class PhysSim(
     jdeqSimScenario
   }
 
-  private def addPhysSimEventsWriter(eventsManager: EventsManager): EventWriter = {
+  private def createViaXmlEventsWriter(currentPhysSimIter: Int): EventWriter = {
     val eventsSampling = beamConfig.beam.physsim.eventsSampling
     val eventsForFullVersionOfVia = beamConfig.beam.physsim.eventsForFullVersionOfVia
-    val fileName = controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz")
+    val fileName = controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.xml.gz")
     val eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia, eventsSampling)
-    eventsManager.addHandler(eventsWriterXML)
     eventsWriterXML
+  }
+
+  private def createCsvWriter(currentPhysSimIter: Int, jdeqsimEvents: EventsManagerImpl): BeamEventsWriterCSV = {
+    val fileName = controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.csv.gz")
+    val beamEventLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices, jdeqsimEvents)
+    val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
+    csvEventsWriter
   }
 }
 
