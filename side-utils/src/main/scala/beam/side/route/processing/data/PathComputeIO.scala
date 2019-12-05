@@ -21,9 +21,10 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
     request: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T]
   ): RIO[zio.ZEnv, Option[TripPath]] =
     for {
-      trp            <- IO.effectTotal(trip)
-      trc            <- tracts.await
-      (origin, dest) <- ZIO.fromTry(Try(trc(trp.origin))) &&& ZIO.fromTry(Try(trc(trp.dest)))
+      trp    <- IO.effectTotal(trip)
+      trc    <- tracts.await
+      origin <- ZIO.fromTry(Try(trc(trp.origin)))
+      dest   <- ZIO.fromTry(Try(trc(trp.dest)))
       url = Url(
         host,
         "route",
@@ -50,7 +51,7 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
           .map(p => p.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
           .map(p => TripPath(origin, dest, Multiline(p.points.toList)))
       )
-      _    <- RIO.effectAsync[zio.ZEnv, Unit](c => c(path.fold(ZIO.unit)(r => pathQueue.offer(r).unit)))
+      _ <- RIO.effectAsync[zio.ZEnv, Unit](c => c(path.fold(ZIO.unit)(r => pathQueue.offer(r).unit)))
     } yield path
 }
 

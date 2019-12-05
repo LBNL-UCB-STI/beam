@@ -7,6 +7,7 @@ import beam.side.route.processing._
 import beam.side.route.processing.data.{DataLoaderIO, DataWriterIO, PathComputeIO}
 import beam.side.route.processing.request.GHRequestIO
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
+import cats.effect.Resource
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -87,15 +88,16 @@ object RoutesComputationApp extends CatsApp with AppSetup {
   import TripPath._
   import beam.side.route.model.GHPaths._
   import org.http4s.circe._
-  import implicits._
+  import runtime._
 
   override def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] = {
 
     type T[+A] = RIO[zio.ZEnv, A]
-    implicit val httpClient: RIO[zio.ZEnv, (Client[({type T[A] = RIO[zio.ZEnv, A]})#T], RIO[zio.ZEnv, Unit])] =
+    implicit val httpClient
+      : Resource[({ type T[A] = RIO[zio.ZEnv, A] })#T, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]] =
       BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](
-        ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
-      ).allocated
+        ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(8))
+      ).resource
     implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]

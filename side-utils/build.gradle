@@ -65,13 +65,13 @@ dependencies {
     compile "org.apache.commons:commons-compress:1.18"
 
     compile "com.typesafe.akka:akka-stream_${scalaBinaryVersion}:2.6.0"
-    compile "dev.zio:zio_${scalaBinaryVersion}:1.0.0-RC17"
+    compile "dev.zio:zio_${scalaBinaryVersion}:1.0.0-RC16"
 
-    compile "org.http4s:http4s-dsl_${scalaBinaryVersion}:0.20.13"
-    compile "org.http4s:http4s-blaze-client_${scalaBinaryVersion}:0.20.13"
-    compile "dev.zio:zio-interop-cats_${scalaBinaryVersion}:2.0.0.0-RC9"
+    compile "org.http4s:http4s-dsl_${scalaBinaryVersion}:0.21.0-M5"
+    compile "org.http4s:http4s-blaze-client_${scalaBinaryVersion}:0.21.0-M5"
+    compile "dev.zio:zio-interop-cats_${scalaBinaryVersion}:2.0.0.0-RC7"
     compile "org.typelevel:cats-effect_${scalaBinaryVersion}:2.0.0"
-    compile "org.http4s:http4s-circe_${scalaBinaryVersion}:0.20.13"
+    compile "org.http4s:http4s-circe_${scalaBinaryVersion}:0.21.0-M5"
 
     compile "io.circe:circe-core_${scalaBinaryVersion}:0.11.1"
     compile "io.circe:circe-generic_${scalaBinaryVersion}:0.11.1"

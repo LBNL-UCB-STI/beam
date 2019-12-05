@@ -2,11 +2,15 @@ package beam.side.route.processing.request
 
 import beam.side.route.model.Url
 import beam.side.route.processing.GHRequest
+import cats.effect.Resource
 import org.http4s.client.Client
 import org.http4s.{EntityDecoder, Uri}
 import zio._
+import zio.interop.catz._
 
-class GHRequestIO(httpClient: RIO[zio.ZEnv, (Client[({type T[A] = RIO[zio.ZEnv, A]})#T], RIO[zio.ZEnv, Unit])])(
+class GHRequestIO(
+  httpClient: Resource[({ type T[A] = RIO[zio.ZEnv, A] })#T, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]]
+)(
   implicit val runtime: Runtime[_]
 ) extends GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
@@ -15,8 +19,10 @@ class GHRequestIO(httpClient: RIO[zio.ZEnv, (Client[({type T[A] = RIO[zio.ZEnv, 
   override def request[R](
     url: Url
   )(implicit decoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, R]): RIO[zio.ZEnv, R] =
-    (httpClient &&& url.toUri).flatMap {
-      case ((client, _), uri) => client.expect[R](uri)
+    httpClient.use { clientRes =>
+      (Task.succeed(clientRes) &&& url.toUri).flatMap {
+        case (client, uri) => client.expect[R](uri)
+      }
     }
 }
 
@@ -24,7 +30,7 @@ object GHRequestIO {
 
   def apply(
     implicit runtime: Runtime[_],
-    httpClient: RIO[zio.ZEnv, (Client[({type T[A] = RIO[zio.ZEnv, A]})#T], RIO[zio.ZEnv, Unit])]
+    httpClient: Resource[({ type T[A] = RIO[zio.ZEnv, A] })#T, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]]
   ): GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] =
     new GHRequestIO(httpClient)
 
