@@ -130,7 +130,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
         assert (this.carsOnTheRoad.getFirst() == vehicle);
-        assert (this.getInterestedInEnteringRoad().size()==this.getInterestedInEnteringRoad().size());
+        assert (this.getInterestedInEnteringRoad().size()==this.getDeadlockPreventionMessages().size());
 
         this.carsOnTheRoad.removeFirst();
         this.earliestDepartureTimeOfCar.removeFirst();
@@ -204,8 +204,6 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
             Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
-        } else {
-            System.out.print("");
         }
 
         double minTimeForNextDeadlockPreventionMessageTime=0;
