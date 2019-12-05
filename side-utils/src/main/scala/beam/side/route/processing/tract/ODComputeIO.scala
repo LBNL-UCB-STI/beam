@@ -22,11 +22,12 @@ class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
       pathQueue <- Queue.bounded[TripPath](64)
       _ <- zio.stream.Stream
         .fromQueue[Throwable, Trip](tripQueue)
-        .mapMParUnordered(8)(
-          trip =>
-            putStrLn(trip.toString) &> PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
+        .zipWithIndex
+        .mapMParUnordered(8) {
+          case (trip, idx) =>
+            putStrLn((idx -> trip).toString) &> PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
               .compute(trip, tracts, pathQueue)
-        )
+        }
         .runDrain
         .fork
       _ <- ZManaged
