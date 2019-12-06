@@ -378,7 +378,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
-      handleEndRefuel(energyInJoules, tick, sessionStart.toInt, geofence)
+      handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       goto(Idle)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
       log.warning(
@@ -624,7 +624,7 @@ class RideHailAgent(
 
   override def logPrefix(): String = s"RideHailAgent $id: "
 
-  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int, geofence: Option[Geofence]): Unit = {
+  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
       new RefuelSessionEvent(
