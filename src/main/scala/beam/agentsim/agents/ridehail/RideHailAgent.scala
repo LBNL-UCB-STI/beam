@@ -24,7 +24,7 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.Range
-import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence, RideHailFleetInitializer}
 import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -662,13 +662,16 @@ class RideHailAgent(
         currentLocation
     }
     vehicle.spaceTime = SpaceTime(newLocation, tick)
+    val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
+    val fleetData =
+      RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).find(_.id.equalsIgnoreCase(vehicle.id.toString))
     nextNotifyVehicleResourceIdle = Some(
       NotifyVehicleIdle(
         vehicle.id,
         geo.wgs2Utm(vehicle.spaceTime),
         PassengerSchedule(),
         vehicle.getState,
-        None,
+        fleetData.flatMap(_.toGeofence),
         _currentTriggerId
       )
     )
