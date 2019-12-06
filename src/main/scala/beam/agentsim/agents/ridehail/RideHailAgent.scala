@@ -378,7 +378,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
-      handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      handleEndRefuel(energyInJoules, tick, sessionStart.toInt, geofence)
       goto(Idle)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
       log.warning(
@@ -624,7 +624,7 @@ class RideHailAgent(
 
   override def logPrefix(): String = s"RideHailAgent $id: "
 
-  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
+  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int, geofence: Option[Geofence]): Unit = {
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
       new RefuelSessionEvent(
@@ -662,16 +662,13 @@ class RideHailAgent(
         currentLocation
     }
     vehicle.spaceTime = SpaceTime(newLocation, tick)
-    val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
-    val fleetData =
-      RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).find(_.id.equalsIgnoreCase(vehicle.id.toString))
     nextNotifyVehicleResourceIdle = Some(
       NotifyVehicleIdle(
         vehicle.id,
         geo.wgs2Utm(vehicle.spaceTime),
         PassengerSchedule(),
         vehicle.getState,
-        fleetData.flatMap(_.toGeofence),
+        geofence,
         _currentTriggerId
       )
     )
