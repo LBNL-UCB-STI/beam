@@ -84,7 +84,7 @@ Drive_range = 35.0 # in mile
 Fleet_size = 10.0 # in k
 Battery_capacity = Drive_range*0.3 # in kWh, fuel efficiency is 0.3 kWh/mi
 Time_charge = 5.0/60.0+Battery_capacity/Power_rated # in hour, assume each charge event costs extra 5 minutes for waiting & paying etc.
-Demand_station_distance_meangap=0.5
+Demand_station_distance_meangap=0.25
 
 #%%
 def Geod_local_coor(Location_1, Location_2):
@@ -97,7 +97,7 @@ charging_xy = np.transpose(np.vstack([refuelSession['locationX'].values,refuelSe
 means = []
 maxs = []
 
-for n_clusters in range(5,1600,5):
+for n_clusters in range(5,1600,2):
     Charge_kmeans = KMeans(n_clusters).fit(charging_xy)
     Station_location = Charge_kmeans.cluster_centers_
     Charge_demand_label = Charge_kmeans.labels_
@@ -129,3 +129,10 @@ clusters = refuelSession.groupby(['chargingStationLabel','hour']).agg(
                          'kwh':'max',
                          'distanceFromStation':'max',
                          'vehicle':'max'})
+#%%
+import contextily as ctx
+charger_gdf = gpd.GeoDataFrame(clusters, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
+
+ax = gdf.plot(markersize=6)
+charger_gdf.plot(ax=ax, markersize=12)
+ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
