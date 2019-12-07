@@ -5,6 +5,7 @@ input="$(pwd)/input"
 output="$(pwd)/output"
 
 docker run \
+  --name BEAM --rm \
 	--mount source=$input,destination=/input,type=bind \
 	--mount source=$output,destination=/output,type=bind \
 	--link docker-influxdb-grafana:metrics \
