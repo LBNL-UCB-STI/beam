@@ -97,7 +97,14 @@ charging_xy = np.transpose(np.vstack([refuelSession['locationX'].values,refuelSe
 means = []
 maxs = []
 
-for n_clusters in range(5,1600,2):
+nstations = np.unique(np.linspace(1,len(refuelSession.index)/2,num=25,dtype=int))
+mean_dists = np.zeros(np.size(nstations),dtype=float)
+max_dists = np.zeros(np.size(nstations),dtype=float)
+n_plugs = np.zeros(np.size(nstations),dtype=float)
+
+keepGoing = True
+
+for ind, n_clusters in enumerate(nstations):
     Charge_kmeans = KMeans(n_clusters).fit(charging_xy)
     Station_location = Charge_kmeans.cluster_centers_
     Charge_demand_label = Charge_kmeans.labels_
@@ -108,27 +115,34 @@ for n_clusters in range(5,1600,2):
         Charge_demand_distance[temp_station_index]= np.linalg.norm(dataInCluster - Station_location[i], axis=1)/1609.34
     print("Number of charging station", n_clusters)
     print("maximum of distance", np.percentile(Charge_demand_distance,75), "mean of distance", np.mean(Charge_demand_distance))
-    if np.mean(Charge_demand_distance)<=Demand_station_distance_meangap:
-        break
+    mean_dists[ind] = np.mean(Charge_demand_distance)
+    max_dists[ind] = np.percentile(Charge_demand_distance,95)
+    if (np.mean(Charge_demand_distance)<=Demand_station_distance_meangap) & keepGoing:
+        Charge_demand_distance_opt = Charge_demand_distance
+        Charge_demand_label_opt = Charge_demand_label
+        Station_location_opt = Station_location
+        n_clusters_opt = n_clusters
+        keepGoing = False
 
-refuelSession['distanceFromStation'] = Charge_demand_distance
-refuelSession['chargingStationLabel'] = Charge_demand_label
-refuelSession['chargingStationLocationX'] = Station_location[Charge_demand_label][:,0]
-refuelSession['chargingStationLocationY'] = Station_location[Charge_demand_label][:,1]
-
-clusters = refuelSession.groupby(['chargingStationLabel','hour']).agg(
-        {'chargingStationLocationX':'first',
-         'chargingStationLocationY':'first', 
-         'kwh':'sum',
-         'vehicle':'count',
-         'distanceFromStation':'max'
-         }).groupby(
-                ['chargingStationLabel']).agg(
-                        {'chargingStationLocationX':'first',
-                         'chargingStationLocationY':'first', 
-                         'kwh':'max',
-                         'distanceFromStation':'max',
-                         'vehicle':'max'})
+    refuelSession['distanceFromStation'] = Charge_demand_distance
+    refuelSession['chargingStationLabel'] = Charge_demand_label
+    refuelSession['chargingStationLocationX'] = Station_location[Charge_demand_label][:,0]
+    refuelSession['chargingStationLocationY'] = Station_location[Charge_demand_label][:,1]
+    
+    clusters = refuelSession.groupby(['chargingStationLabel','hour']).agg(
+            {'chargingStationLocationX':'first',
+             'chargingStationLocationY':'first', 
+             'kwh':'sum',
+             'vehicle':'count',
+             'distanceFromStation':'max'
+             }).groupby(
+                    ['chargingStationLabel']).agg(
+                            {'chargingStationLocationX':'first',
+                             'chargingStationLocationY':'first', 
+                             'kwh':'max',
+                             'distanceFromStation':'max',
+                             'vehicle':'max'})
+    n_plugs[ind] = clusters['vehicle'].sum()
 #%%
 import contextily as ctx
 charger_gdf = gpd.GeoDataFrame(clusters, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
