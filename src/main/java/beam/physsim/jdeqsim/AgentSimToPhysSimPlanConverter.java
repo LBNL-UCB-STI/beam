@@ -142,7 +142,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void setupActorsAndRunPhysSim(int iterationNumber) {
 
 
-        PhysSim sim = new PhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
+        ApproxPhysSim sim = new ApproxPhysSim(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices,
                 controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
 

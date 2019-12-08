@@ -21,24 +21,27 @@ import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.csv.CsvWriter
 import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.matsim.api.core.v01.population.{Leg, Person, Population}
+import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.algorithms.EventWriter
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Try}
 
-class PhysSim(
+class ApproxPhysSim(
   beamConfig: BeamConfig,
   agentSimScenario: Scenario,
   population: Population,
@@ -50,6 +53,24 @@ class PhysSim(
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends StrictLogging {
+  val finalPopulation: Population = initPopulation(population)
+
+  val peopleWhichCanBeTaken: mutable.Set[Person] = {
+    val buses = getBuses(population).toSet
+    val canTake = population.getPersons.values().asScala.filter(p => !buses.contains(p))
+    mutable.HashSet[Person](canTake.toSeq: _*)
+  }
+
+  val numToSimulate: Array[Int] = {
+    val percentToSimulate: Array[Double] = Array(10, 10, 10, 10, 10, 10, 10, 10, 10, 10).map(_.toDouble / 100)
+    val xs = percentToSimulate.map(p => (peopleWhichCanBeTaken.size * p).toInt)
+    if (xs.sum != peopleWhichCanBeTaken.size) {
+      val leftDueToRounding = peopleWhichCanBeTaken.size - xs.sum
+      logger.info(s"leftDueToRounding: $leftDueToRounding")
+      xs(xs.length - 1) = xs(xs.length - 1) + leftDueToRounding
+    }
+    xs
+  }
 
   val rnd: Random = new Random(javaRnd)
   val shouldLogWhenLinksAreNotTheSame: Boolean = false
@@ -89,7 +110,8 @@ class PhysSim(
       logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
       run(
         1,
-        nIterations,
+        numToSimulate.length,
+        numToSimulate.head,
         reroutePerIterPct,
         SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
         SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
@@ -106,6 +128,7 @@ class PhysSim(
   final def run(
     currentIter: Int,
     nIterations: Int,
+    numberOfPeopleToTake: Int,
     reroutePerIterPct: Double,
     firstResult: SimulationResult,
     lastResult: SimulationResult,
@@ -117,6 +140,21 @@ class PhysSim(
       printStats(firstResult, lastResult)
       lastResult
     } else {
+      logger.info(s"finalPopulation size before: ${finalPopulation.getPersons.size}")
+      // Get next set of people
+      val nextSetOfPeople = getNextSetOfPeople(peopleWhichCanBeTaken, rnd, numberOfPeopleToTake)
+      logger.info(s"nextSetOfPeople size is ${nextSetOfPeople.size}. numberOfPeopleToTake: $numberOfPeopleToTake")
+      // Remove them from original set
+      nextSetOfPeople.foreach(peopleWhichCanBeTaken.remove)
+      // Add them to population
+      nextSetOfPeople.foreach { person =>
+        val copiedPerson: Person = createCopyOfPerson(person, finalPopulation.getFactory)
+        finalPopulation.addPerson(copiedPerson)
+      }
+      logger.info(
+        s"finalPopulation size after: ${finalPopulation.getPersons.size}. Original population size: ${population.getPersons.size}"
+      )
+
       val simulationResult = simulate(currentIter, writeEvents = true)
       carTravelTimeWriter.writeRow(
         Vector(
@@ -132,7 +170,7 @@ class PhysSim(
       )
       carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
-        val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
+        val before = printRouteStats(s"Before rerouting at $currentIter iter", finalPopulation)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
         val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct)
@@ -151,7 +189,7 @@ class PhysSim(
         reroutedTravelTimeWriter.flush()
 //        logger.info("AverageCarTravelTime after replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
-        val after = printRouteStats(s"After rerouting at $currentIter iter", population)
+        val after = printRouteStats(s"After rerouting at $currentIter iter", finalPopulation)
         val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
         val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
         val absTotalCountDiff = Math.abs(before.totalLinkCount - after.totalLinkCount)
@@ -164,9 +202,11 @@ class PhysSim(
       }
       printStats(lastResult, simulationResult)
       val realFirstResult = if (currentIter == 1) simulationResult else firstResult
+      val nextNumberOfPeopleToTake = numToSimulate.lift(currentIter).getOrElse(-1)
       run(
         currentIter + 1,
         nIterations,
+        nextNumberOfPeopleToTake,
         reroutePerIterPct,
         realFirstResult,
         simulationResult,
@@ -246,7 +286,10 @@ class PhysSim(
     } else None
 
     try {
-      ProfilingUtils.timed(s"JDEQSim iteration $currentPhysSimIter", x => logger.info(x)) {
+      ProfilingUtils.timed(
+        s"JDEQSim iteration $currentPhysSimIter for ${finalPopulation.getPersons.size()} people",
+        x => logger.info(x)
+      ) {
         val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
         logger.info(s"JDEQSim iteration $currentPhysSimIter start");
         if (beamConfig.beam.debug.debugEnabled) {
@@ -273,8 +316,18 @@ class PhysSim(
     )
   }
 
+  private def getNextSetOfPeople(
+    xs: collection.Set[Person],
+    rnd: Random,
+    numberOfPeopleToTake: Int
+  ): collection.Set[Person] = {
+    val takeN = if (numberOfPeopleToTake > xs.size) xs.size else numberOfPeopleToTake
+    val next = rnd.shuffle(xs).take(takeN)
+    next
+  }
+
   private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Statistics = {
-    val rightPeopleToReplan = getCarPeople(population)
+    val rightPeopleToReplan = getCarPeople(finalPopulation)
     // logger.info(s"rightPeopleToReplan: ${rightPeopleToReplan.mkString(" ")}")
     val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
       val route = plan.getPlanElements.asScala.zipWithIndex.collect {
@@ -498,7 +551,7 @@ class PhysSim(
   private def initScenario = {
     val jdeqSimScenario = ScenarioUtils.createScenario(agentSimScenario.getConfig).asInstanceOf[MutableScenario]
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
-    jdeqSimScenario.setPopulation(population)
+    jdeqSimScenario.setPopulation(finalPopulation)
     jdeqSimScenario
   }
 
@@ -518,9 +571,33 @@ class PhysSim(
     val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
     csvEventsWriter
   }
+
+  def getBuses(population: Population): Iterable[Person] = {
+    population.getPersons.values().asScala.filter(p => p.getId.toString.contains(":"))
+  }
+
+  def initPopulation(population: Population): Population = {
+    val buses = getBuses(population)
+    val newPop = PopulationUtils.createPopulation(agentSimScenario.getConfig)
+    buses.foreach { bus =>
+      val person: Person = createCopyOfPerson(bus, newPop.getFactory)
+      newPop.addPerson(person)
+    }
+    newPop
+  }
+
+  private def createCopyOfPerson(srcPerson: Person, factory: PopulationFactory) = {
+    val person = factory.createPerson(srcPerson.getId)
+    val plan = factory.createPlan
+    PopulationUtils.copyFromTo(srcPerson.getSelectedPlan, plan)
+    person.addPlan(plan)
+    person.setSelectedPlan(plan)
+    AttributesUtils.copyAttributesFromTo(srcPerson, person)
+    person
+  }
 }
 
-object PhysSim extends LazyLogging {
+object ApproxPhysSim extends LazyLogging {
 
   def printAverageCarTravelTime(people: Seq[Person]): Unit = {
     val timeToTravelTime = people.flatMap { person =>
