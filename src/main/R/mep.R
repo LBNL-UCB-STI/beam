@@ -6,7 +6,7 @@ source('./src/main/R/beam-utilities.R')
 mep.mode.colors <- data.table(rbind(mode.colors,data.frame(key='Bike',color='peach',color.hex='#f2b272')))
 mep.mode.colors[,name:=c('tnc','drive','walk','transit','','bike')]
 
-scen.codes <- c('Base1'='2010_base',
+scen.codes <- c('Base0'='2010_base',
                 'Base2'='2025_base_short_bau',
                 'Base3'='2025_base_short_vto',
                 'Base5'='2040_base_long_bau',
@@ -38,7 +38,10 @@ mep[,col:=mep.mode.colors$color.hex[match(type,mep.mode.colors$name)]]
 mep[,type.polished:=mep.mode.colors$key[match(type,mep.mode.colors$name)]]
 mep[,scen:=factor(scen,names(scen.codes))]
 
-ggplot(mep[type!='mep'],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
+ggplot(mep[type!='mep' & !scen %in% c('Base2','Base3','Base4','Base5')],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
+  scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
+
+ggplot(mep[type!='mep' & !scen %in% c('Base2','Base3','Base6','Base5')],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
   scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
   
 
