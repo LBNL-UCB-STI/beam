@@ -19,7 +19,7 @@ import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
@@ -77,23 +77,43 @@ class BeamMobsim @Inject()(
     )
 
     // to have zero values for graphs even if there are no values calculated during iteration
-    def writeZero(metricName: String, tags: Map[String, String]): Unit = {
-      beamServices.simMetricCollector.writeGlobal(metricName, 0, Metrics.ShortLevel, tags)
+    def writeZeros(
+      metricName: String,
+      values: Map[String, Double] = Map(SimulationMetricCollector.defaultMetricValueName -> 0.0),
+      tags: Map[String, String] = Map()
+    ): Unit = {
+      for (hour <- 0 to 24) {
+        beamServices.simMetricCollector.write(
+          metricName,
+          SimulationTime(60 * 60 * hour),
+          values,
+          tags,
+          Metrics.ShortLevel
+        )
+      }
     }
 
     val tags = Map("vehicle-state" -> "idle")
-    writeZero("bev-no-cav-time", tags)
-    writeZero("bev-no-cav-distance", tags)
-    writeZero("bev-cav-time", tags)
-    writeZero("bev-cav-distance", tags)
-    writeZero("rh-no-cav-time", tags)
-    writeZero("rh-no-cav-distance", tags)
-    writeZero("rh-cav-time", tags)
-    writeZero("rh-cav-distance", tags)
+    writeZeros("bev-no-cav-time", tags = tags)
+    writeZeros("bev-no-cav-distance", tags = tags)
+    writeZeros("bev-cav-time", tags = tags)
+    writeZeros("bev-cav-distance", tags = tags)
+    writeZeros("rh-no-cav-time", tags = tags)
+    writeZeros("rh-no-cav-distance", tags = tags)
+    writeZeros("rh-cav-time", tags = tags)
+    writeZeros("rh-cav-distance", tags = tags)
 
-    writeZero("ride-hail-trip-distance", Map("trip-type" -> "1"))
-    writeZero("average-travel-time", Map("mode"          -> "car"))
-    writeZero("chargingPower", Map("typeOfCharger"       -> "None", "parkingType" -> "Public"))
+    writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
+    writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
+    writeZeros("mode-choices", tags = Map("mode"                 -> "car"))
+    writeZeros("parking", tags = Map("parking-type"              -> "Public"))
+    writeZeros("ride-hail-allocation-reserved")
+    writeZeros("ride-hail-inquiry-served")
+    writeZeros(
+      "chargingPower",
+      Map(SimulationMetricCollector.defaultMetricValueName -> 0.0, "averageLoad"        -> 0.0),
+      Map("vehicleType"                                    -> "Personal", "parkingType" -> "Public", "typeOfCharger" -> "None")
+    )
 
     eventsManager.initProcessing()
 

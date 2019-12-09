@@ -6,34 +6,30 @@
       <div class="gf-form-select-wrapper max-width-14">
         <select class="gf-form-input" ng-model="ctrl.cfg.settings.type" ng-change="ctrl.editor.onConfigChanged()">
           <option value="scatter">Scatter</option>
-          <option value="scatter3d">Scatter (3d)</option>
-          <!--
           <option value="bar">Bar</option>
           <option value="histogram">Histogram</option>
-          -->
         </select>
       </div>
     </div>
 
     <div class="gf-form">
-      <label class="gf-form-label width-7">Drag</label>
+      <label class="gf-form-label width-7">Fill</label>
       <div class="gf-form-select-wrapper max-width-14">
-        <select class="gf-form-input" ng-model="ctrl.cfg.layout.dragmode" ng-change="ctrl.editor.onConfigChanged()">
-          <option value="zoom">zoom</option>
-          <option value="pan">pan</option>
-          <option value="lasso">lasso</option>
-          <option value="select">select</option>
+        <select class="gf-form-input" ng-model="ctrl.cfg.settings.fill" ng-change="ctrl.editor.onConfigChanged()">
+          <option value="None">none</option>
+          <option value="tonexty">to next y</option>
+          <option value="tonextx">to next x</option>
+          <option value="tozeroy">to zero y</option>
         </select>
       </div>
     </div>
 
     <div class="gf-form">
-      <label class="gf-form-label width-7">Fix Scale</label>
+      <label class="gf-form-label width-7">Mode</label>
       <div class="gf-form-select-wrapper max-width-14">
-        <select class="gf-form-input" ng-model="ctrl.cfg.fixScale" ng-change="ctrl.editor.onConfigChanged()">
-          <option value="">independent</option>
-          <option value="x">X Axis (1:1)</option>
-          <option value="y">Y Axis (1:1)</option>
+        <select class="gf-form-input" ng-model="ctrl.cfg.settings.mode" ng-change="ctrl.editor.onConfigChanged()">
+          <option value="None">none</option>
+          <option value="lines">lines</option>
         </select>
       </div>
     </div>
@@ -41,11 +37,32 @@
     <gf-form-switch class="gf-form" label="Annotations" label-class="gf-form-label width-7"
       checked="ctrl.cfg.showAnnotations" on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
 
-    <gf-form-switch class="gf-form" label="Use CDN" label-class="gf-form-label width-7" checked="ctrl.cfg.loadFromCDN"
-      on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
-
     <gf-form-switch class="gf-form" label="Toolbar" label-class="gf-form-label width-7"
       checked="ctrl.cfg.settings.displayModeBar" on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">all columns</label>
+      <input class="gf-form-input" readonly ng-model="ctrl.cfg.dataColumnNames.all">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">group column</label>
+      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.dataColumn"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">X column</label>
+      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.xColumn"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">Y column</label>
+      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.yColumn"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
   </div>
 
   <div class="section gf-form-group">

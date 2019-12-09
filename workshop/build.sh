@@ -14,6 +14,10 @@ chown -R $USER:$USER beam
 cd beam
 ./clear-data.sh
 
-cd ..
-zip -r beam.zip beam/
-chmod 777 beam.zip
+
+if [[ $1 == 'pack' ]]
+then
+  cd ..
+  zip -r beam.zip beam/
+  chmod 777 beam.zip
+fi
