@@ -337,6 +337,18 @@ metric.extract <- function(ll){
 util[,':='(metric.type=unlist(lapply(str_split(variable,"\\."),function(ll){ ll[1] })),veh.type=unlist(lapply(str_split(variable,"\\."),veh.type.extract)),metric=unlist(lapply(str_split(variable,"\\."),metric.extract )))]
 ggplot(util[metric.type=='time'],aes(x=veh.type,y=value,fill=metric))+geom_bar(stat='identity')+facet_wrap(~key)
 
+# Plots back on data extracted from older plots, for use in an abatement potential curve
+dat <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/smart-mobility/afi/final-results/plots-capstone-2019-09-27/pmt-and-cost.csv',stringsAsFactors=F))
+setkey(dat,power,range,cost.per.pmt)
+dat[,pmt.low:=c(0,head(pmt,-1)),by=c('power','range')]
+dat[,range:=factor(range,c('100','200','300'))]
+dat[,range.str:=pp(range,' mi range')]
+dat[,kw:=factor(power,c('50','100','150'))]
+dat[,power.str:=factor(pp(kw,' kW'),c('50 kW','100 kW','150 kW'))]
+dat[,tot.cost:=cost.per.pmt*pmt]
+ggplot(dat,aes(xmin=pmt.low/1e3,xmax=pmt/1e3,ymax=cost.per.pmt))+geom_rect(ymin=0)+facet_grid(power.str~range.str)+theme_bw()+labs(x='Daily Passenger-Miles Served x 1e3',y='Cost ($/passenger-mile)',colour='Fast Charger Power (kW)',shape='Vehicle Type',size='Energy Delivered (MWh)')
+
+ggplot(dat,aes(x=pmt/1e3,y=tot.cost/1e3,shape=infra,colour=power.str,group=power.str))+geom_point()+geom_line()+facet_grid(.~range.str)+theme_bw()+labs(x='Daily Passenger-Miles Served x 1e3',y='Amortized Daily Cost (1000$)',colour='Fast Charger Power (kW)',shape='Vehicle Type',size='Energy Delivered (MWh)')
 
 
 evs[,row:=1:nrow(evs)]
