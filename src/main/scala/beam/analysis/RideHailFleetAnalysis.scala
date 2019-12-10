@@ -39,8 +39,15 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   val ridehailHumanDriven = mutable.Map[String, ListBuffer[Event]]()
   val personalCav = mutable.Map[String, ListBuffer[Event]]()
   val personalHumanDriven = mutable.Map[String, ListBuffer[Event]]()
-  val cavSet = mutable.Set[String]()
-  val ridehailVehicleSet = mutable.Set[String]()
+
+  var timeUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var distanceUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var timeUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var distanceUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var timeUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var distanceUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var timeUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+  var distanceUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
 
   override def processStats(event: Event): Unit = {
     event match {
@@ -71,30 +78,30 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           val rideHail = vehicle.contains("rideHail")
           val cav = vehicleType.contains("L5")
           if (rideHail && cav) {
-            appendEvent(
-              rideHailCav,
-              refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5),
-              vehicle
-            )
+            val updatedEvent = refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5)
+            val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_CAV, distanceUtilizationRH_CAV, updatedEvent, vehicle, true, true)
+            timeUtilizationRH_CAV = timesDistancesUtilization._1
+            distanceUtilizationRH_CAV = timesDistancesUtilization._2
+
           } else if (rideHail && !cav) {
-            appendEvent(
-              ridehailHumanDriven,
-              refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5),
-              vehicle
-            )
+            val updatedEvent = refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5)
+            val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_noCAV, distanceUtilizationRH_noCAV, updatedEvent, vehicle, true, false)
+            timeUtilizationRH_noCAV = timesDistancesUtilization._1
+            distanceUtilizationRH_noCAV = timesDistancesUtilization._2
+
           } else if (!rideHail && cav) {
-            appendEvent(
-              personalCav,
-              refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5),
-              vehicle
-            )
+            val updatedEvent = refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5)
+            val timesDistancesUtilization = processEvents(personalCav, timeUtilizationPV_CAV, distanceUtilizationPV_CAV, updatedEvent, vehicle, false, true)
+            timeUtilizationPV_CAV = timesDistancesUtilization._1
+            distanceUtilizationPV_CAV = timesDistancesUtilization._2
+
           } else if (!rideHail && !cav) {
-            appendEvent(
-              personalHumanDriven,
-              refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5),
-              vehicle
-            )
+            val updatedEvent = refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5)
+            val timesDistancesUtilization = processEvents(personalHumanDriven, timeUtilizationPV_noCAV, distanceUtilizationPV_noCAV, updatedEvent, vehicle, false, false)
+            timeUtilizationPV_noCAV = timesDistancesUtilization._1
+            distanceUtilizationPV_noCAV = timesDistancesUtilization._2
           }
+          processVehicleStats()
         }
 
       case pathTraversalEvent: PathTraversalEvent =>
@@ -104,99 +111,83 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           val cav = pathTraversalEvent.vehicleType.contains("L5")
 
           if (rideHail && cav) {
-            appendEvent(
-              rideHailCav,
-              pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-              vehicle
-            )
+            val updatedEvent = pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5)
+            val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_CAV, distanceUtilizationRH_CAV, updatedEvent, vehicle, true, true)
+            timeUtilizationRH_CAV = timesDistancesUtilization._1
+            distanceUtilizationRH_CAV = timesDistancesUtilization._2
+
           } else if (rideHail && !cav) {
-            appendEvent(
-              ridehailHumanDriven,
-              pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-              vehicle
-            )
+            val updatedEvent = pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5)
+            val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_noCAV, distanceUtilizationRH_noCAV, updatedEvent, vehicle, true, false)
+            timeUtilizationRH_noCAV = timesDistancesUtilization._1
+            distanceUtilizationRH_noCAV = timesDistancesUtilization._2
+
           } else if (!rideHail && cav) {
-            appendEvent(
-              personalCav,
-              pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-              vehicle
-            )
+            val updatedEvent = pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5)
+            val timesDistancesUtilization = processEvents(personalCav, timeUtilizationPV_CAV, distanceUtilizationPV_CAV, updatedEvent, vehicle, false, true)
+            timeUtilizationPV_CAV = timesDistancesUtilization._1
+            distanceUtilizationPV_CAV = timesDistancesUtilization._2
+
           } else if (!rideHail && !cav) {
-            appendEvent(
-              personalHumanDriven,
-              pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-              vehicle
-            )
+
+            val updatedEvent = pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5)
+            val timesDistancesUtilization = processEvents(personalHumanDriven, timeUtilizationPV_noCAV, distanceUtilizationPV_noCAV, updatedEvent, vehicle, false, false)
+            timeUtilizationPV_noCAV = timesDistancesUtilization._1
+            distanceUtilizationPV_noCAV = timesDistancesUtilization._2
           }
+          processVehicleStats()
         }
 
       case parkEvent: ParkEvent =>
         val vehicle = parkEvent.vehicleId.toString
         if (rideHailCav.contains(vehicle)) {
-          appendEvent(rideHailCav, parkEvent, vehicle)
+          val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_CAV, distanceUtilizationRH_CAV, parkEvent, vehicle, true, true)
+          timeUtilizationRH_CAV = timesDistancesUtilization._1
+          distanceUtilizationRH_CAV = timesDistancesUtilization._2
+
         } else if (ridehailHumanDriven.contains(vehicle)) {
-          appendEvent(ridehailHumanDriven, parkEvent, vehicle)
+          val timesDistancesUtilization = processEvents(ridehailHumanDriven, timeUtilizationRH_noCAV, distanceUtilizationRH_noCAV,  parkEvent, vehicle, true, false)
+          timeUtilizationRH_noCAV = timesDistancesUtilization._1
+          distanceUtilizationRH_noCAV = timesDistancesUtilization._2
+
         } else if (personalCav.contains(vehicle)) {
-          appendEvent(personalCav, parkEvent, vehicle)
+          val timesDistancesUtilization = processEvents(personalCav, timeUtilizationPV_CAV, distanceUtilizationPV_CAV, parkEvent, vehicle, false, true)
+          timeUtilizationPV_CAV = timesDistancesUtilization._1
+          distanceUtilizationPV_CAV = timesDistancesUtilization._2
+
         } else if (personalHumanDriven.contains(vehicle)) {
-          appendEvent(personalHumanDriven, parkEvent, vehicle)
+          val timesDistancesUtilization = processEvents(personalHumanDriven, timeUtilizationPV_noCAV, distanceUtilizationPV_noCAV, parkEvent, vehicle, false, false)
+          timeUtilizationPV_noCAV = timesDistancesUtilization._1
+          distanceUtilizationPV_noCAV = timesDistancesUtilization._2
         }
+        processVehicleStats()
       case _ =>
     }
   }
 
-  def appendEvent(vehicleEventTypeMap: mutable.Map[String, ListBuffer[Event]], event: Event, vehicle: String) {
+  def processEvents(vehicleStats: mutable.Map[String, ListBuffer[Event]],
+                    times: Array[Array[Double]],
+                    distance: Array[Array[Double]],
+                    event: Event,
+                    vehicle: String,
+                    isRH: Boolean,
+                    isCAV: Boolean
+                   ): (Array[Array[Double]], Array[Array[Double]]) ={
+    val now = getUpadatedEvent(vehicleStats, event, vehicle)
+    val timesDistances = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
+    val timesUtilization = timesDistances._1.zip(times).map(time => time._1.zip(time._2).map(t => t._1 + t._2))
+    val distanceUtilization = timesDistances._2.zip(distance).map(distance => distance._1.zip(distance._2).map(d => d._1 + d._2))
+    (timesUtilization, distanceUtilization)
+  }
+
+  def getUpadatedEvent(vehicleEventTypeMap: mutable.Map[String, ListBuffer[Event]], event: Event, vehicle: String): ListBuffer[Event] = {
     val events: ListBuffer[Event] = vehicleEventTypeMap.getOrElse(vehicle, new ListBuffer[Event]())
     events += event
     vehicleEventTypeMap(vehicle) = events
+    events
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
-    var timeUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    var distanceUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    rideHailCav.values.foreach(now => {
-      val timesDistances = assignVehicleDayToLocationMatrix(now, true, true)
-      timeUtilizationRH_CAV =
-        timesDistances._1.zip(timeUtilizationRH_CAV).map(time => time._1.zip(time._2).map(t => t._1 + t._2))
-      distanceUtilizationRH_CAV = timesDistances._2
-        .zip(distanceUtilizationRH_CAV)
-        .map(distance => distance._1.zip(distance._2).map(d => d._1 + d._2))
-    })
-
-    var timeUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    var distanceUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    ridehailHumanDriven.values.foreach(now => {
-      val timesDistances = assignVehicleDayToLocationMatrix(now, true, false)
-      timeUtilizationRH_noCAV =
-        timesDistances._1.zip(timeUtilizationRH_noCAV).map(time => time._1.zip(time._2).map(t => t._1 + t._2))
-      distanceUtilizationRH_noCAV = timesDistances._2
-        .zip(distanceUtilizationRH_noCAV)
-        .map(distance => distance._1.zip(distance._2).map(d => d._1 + d._2))
-    })
-
-    var timeUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    var distanceUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-
-    personalCav.values.foreach(now => {
-      val timesDistances = assignVehicleDayToLocationMatrix(now, false, true)
-      timeUtilizationPV_CAV =
-        timesDistances._1.zip(timeUtilizationPV_CAV).map(time => time._1.zip(time._2).map(t => t._1 + t._2))
-      distanceUtilizationPV_CAV = timesDistances._2
-        .zip(distanceUtilizationPV_CAV)
-        .map(distance => distance._1.zip(distance._2).map(d => d._1 + d._2))
-    })
-
-    var timeUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    var distanceUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    personalHumanDriven.values.foreach(now => {
-      val timesDistances = assignVehicleDayToLocationMatrix(now, false, false)
-      timeUtilizationPV_noCAV =
-        timesDistances._1.zip(timeUtilizationPV_noCAV).map(time => time._1.zip(time._2).map(t => t._1 + t._2))
-      distanceUtilizationPV_noCAV = timesDistances._2
-        .zip(distanceUtilizationPV_noCAV)
-        .map(distance => distance._1.zip(distance._2).map(d => d._1 + d._2))
-    })
-
+  def processVehicleStats(): Unit ={
     val timeUtilizationRH_CAVsum =
       timeUtilizationRH_CAV.reduce((xSeries1, xSeries2) => xSeries1.zip(xSeries2).map { case (x, y) => x + y })
     val distanceUtilizationRH_CAVsum =
@@ -234,6 +225,9 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         write("rh-cav-time", timeUtilizationRH_CAVsum(idx))
         write("rh-cav-distance", distanceUtilizationRH_CAVsum(idx))
     }
+  }
+
+  override def createGraph(event: IterationEndsEvent): Unit = {
 
   }
 
@@ -242,6 +236,16 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     ridehailHumanDriven.clear()
     personalCav.clear()
     personalHumanDriven.clear()
+
+    timeUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    distanceUtilizationRH_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    timeUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    distanceUtilizationRH_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    timeUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    distanceUtilizationPV_CAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    timeUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+    distanceUtilizationPV_noCAV = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
+
   }
 
   def assignVehicleDayToLocationMatrix(
@@ -297,6 +301,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           timeUtilization(indexValue._2)(keys(eventCharacteristics.eventType)) += 1.0
         }
       })
+
 
       event match {
         case event: PathTraversalEvent =>
