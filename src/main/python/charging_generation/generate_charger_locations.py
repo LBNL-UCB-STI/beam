@@ -26,8 +26,8 @@ from shapely.geometry import Point
 
 #
 # folder_path = "/home/ubuntu/git/beam/output/"
-scenario_name = "../../../../output/sf-light/urbansim-1k__2019-12-06_16-23-33/ITERS/it.0/"
-scenario_path = scenario_name + "0.events.csv.gz"
+scenario_name = "../../../../output/sf-light/urbansim-1k__2019-12-09_15-41-24/ITERS/it.1/"
+scenario_path = scenario_name + "1.events.csv.gz"
 
 
 
@@ -75,6 +75,9 @@ refuelSession['locationY'] = gdf.geometry.y
 # reposition, any movement without a passenger that is not a "deadhead"
 Time_interval_day=24*60*60
 
+refuelSession_rhcav = refuelSession.loc[refuelSession['vehicleType'].str.contains('CAV') & refuelSession['vehicle'].str.startswith('rideHailVehicle')]
+refuelSession_rhhuman = refuelSession.loc[~(refuelSession['vehicleType'].str.contains('CAV')) & refuelSession['vehicle'].str.startswith('rideHailVehicle')]
+refuelSession_personal = refuelSession.loc[~refuelSession['vehicle'].str.startswith('rideHailVehicle')]
 
 #%%
 
@@ -91,21 +94,47 @@ def Geod_local_coor(Location_1, Location_2):
     # calculate geographical distance between two location with local coordinates 
     # inputs are in m, outputs are in miles
     return ((Location_1[0]-Location_2[0])**2+(Location_1[1]-Location_2[1])**2)**0.5/1000/1.60934
+
+#%%
+from math import factorial
+def ErlangB (E, m):
+    InvB = 1.0
+    for j in range(1, m+1):
+        InvB = 1.0 + InvB * (j/E)
+    return (1.0 / InvB)
+
+def ErlangC(A, N):
+    L = (A**N / factorial(N)) * (N / (N - A))
+    sum_ = 0
+    for i in range(N):
+        sum_ += (A**i) / factorial(i)
+    return (L / (sum_ + L))
+
+def getMinimumNumberOfChargers(rate, p_acceptable):
+    n_chargers = 0
+    p_full = 1
+    while p_full > p_acceptable:
+        n_chargers += 1
+        p_full = ErlangC(rate,n_chargers)
+    return n_chargers
 #%%
 
 charging_xy = np.transpose(np.vstack([refuelSession['locationX'].values,refuelSession['locationY'].values]))
 means = []
 maxs = []
 
-nstations = np.unique(np.linspace(1,len(refuelSession.index)/2,num=25,dtype=int))
+nstations = np.unique(np.logspace(np.log10(1),np.log10(len(refuelSession.index)/25),num=20,dtype=int))
 mean_dists = np.zeros(np.size(nstations),dtype=float)
 max_dists = np.zeros(np.size(nstations),dtype=float)
 n_plugs = np.zeros(np.size(nstations),dtype=float)
 
 keepGoing = True
 
+output = dict()
+
 for ind, n_clusters in enumerate(nstations):
-    Charge_kmeans = KMeans(n_clusters).fit(charging_xy)
+    iter_out = dict()
+    Charge_kmeans = MiniBatchKMeans(n_clusters).fit(charging_xy)
     Station_location = Charge_kmeans.cluster_centers_
     Charge_demand_label = Charge_kmeans.labels_
     Charge_demand_distance = np.zeros(np.size(Charge_demand_label))
@@ -115,8 +144,10 @@ for ind, n_clusters in enumerate(nstations):
         Charge_demand_distance[temp_station_index]= np.linalg.norm(dataInCluster - Station_location[i], axis=1)/1609.34
     print("Number of charging station", n_clusters)
     print("maximum of distance", np.percentile(Charge_demand_distance,75), "mean of distance", np.mean(Charge_demand_distance))
-    mean_dists[ind] = np.mean(Charge_demand_distance)
-    max_dists[ind] = np.percentile(Charge_demand_distance,95)
+    iter_out['mean_dists'] = np.mean(Charge_demand_distance)
+    iter_out['max_dists'] = np.percentile(Charge_demand_distance,95)
+    iter_out['station_location'] = Station_location
+    iter_out['charge_demand_label'] = Charge_demand_label
     if (np.mean(Charge_demand_distance)<=Demand_station_distance_meangap) & keepGoing:
         Charge_demand_distance_opt = Charge_demand_distance
         Charge_demand_label_opt = Charge_demand_label
@@ -132,17 +163,19 @@ for ind, n_clusters in enumerate(nstations):
     clusters = refuelSession.groupby(['chargingStationLabel','hour']).agg(
             {'chargingStationLocationX':'first',
              'chargingStationLocationY':'first', 
-             'kwh':'sum',
+             'kwh': (lambda kwh: getMinimumNumberOfChargers(np.sum(kwh) / Power_rated, 0.1)),
              'vehicle':'count',
-             'distanceFromStation':'max'
-             }).groupby(
-                    ['chargingStationLabel']).agg(
+             'distanceFromStation':'max',
+             'chargingStationLabel':'first'
+             }).rename(columns={'chargingStationLabel':'chargingStationLabel2', 'kwh':'numPlugsRequired'}).groupby(
+                    ['chargingStationLabel2']).agg(
                             {'chargingStationLocationX':'first',
                              'chargingStationLocationY':'first', 
-                             'kwh':'max',
+                             'numPlugsRequired': 'max',
                              'distanceFromStation':'max',
                              'vehicle':'max'})
-    n_plugs[ind] = clusters['vehicle'].sum()
+    iter_out['n_plugs'] = clusters['numPlugsRequired'].sum()
+    output[n_clusters] = iter_out
 #%%
 import contextily as ctx
 charger_gdf = gpd.GeoDataFrame(clusters, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
