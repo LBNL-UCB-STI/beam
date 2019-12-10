@@ -10,6 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
+import beam.sim.BeamServices
 import beam.sim.vehiclesharing.VehicleManager
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -62,7 +63,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
   override def allocateVehiclesToCustomers(
     tick: Int,
-    vehicleAllocationRequest: AllocationRequests
+    vehicleAllocationRequest: AllocationRequests,
+    beamServices: BeamServices
   ): AllocationResponse = {
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toAllocate: Set[RideHailRequest] = Set()
@@ -276,7 +278,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val nonAllocated = pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId))
       var s = System.currentTimeMillis()
       nonAllocated.foreach { unsatisfiedReq =>
-        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager) match {
+        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager, beamServices) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
@@ -291,7 +293,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       // Now satisfy the solo customers
       val soloCustomer = toAllocate.filterNot(_.asPooled)
       toAllocate.filterNot(_.asPooled).foreach { req =>
-        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager) match {
+        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager, beamServices) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
