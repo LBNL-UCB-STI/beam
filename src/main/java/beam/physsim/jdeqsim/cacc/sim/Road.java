@@ -12,16 +12,17 @@ import java.util.LinkedList;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
-    public double CACC;
+    private final double INCREASE_TIMESTAMP = 0.0000000001;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
     private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
     private double speedAdjustmentFactor;
-    private double minimumRoadSpeedInMetersPerSecond=1.3;
+    private double minimumRoadSpeedInMetersPerSecond;
 
-    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor) {
+    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond) {
 
         super(scheduler, link);
         this.speedAdjustmentFactor = speedAdjustmentFactor;
+        this.minimumRoadSpeedInMetersPerSecond = minimumRoadSpeedInMetersPerSecond;
     }
 
     public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
@@ -209,7 +210,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         double minTimeForNextDeadlockPreventionMessageTime=0;
 
         if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
-                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+0.0000000001; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
+                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+INCREASE_TIMESTAMP; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
 
         double timeToLeaveRoad=Math.max(Math.min(Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
 
