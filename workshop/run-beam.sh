@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# for Mac, to have current directory as working directory
+cd -- "$(dirname "$0")"
+
 config=$1
 input="$(pwd)/input"
 output="$(pwd)/output"
