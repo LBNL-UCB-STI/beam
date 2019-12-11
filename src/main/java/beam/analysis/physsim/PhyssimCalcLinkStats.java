@@ -132,7 +132,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
 
-                double relativeSpeed = Math.max((Math.round(averageSpeedToFreeSpeedRatio * 50.0) / 10.0),minSpeed);
+                double relativeSpeed = Math.max((Math.round(averageSpeedToFreeSpeedRatio * 50.0) / 10),minSpeed);
 
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
