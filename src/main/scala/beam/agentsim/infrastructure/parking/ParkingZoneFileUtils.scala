@@ -200,7 +200,6 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None =>
             accumulator.countFailedRow
           case Some(row: ParkingLoadingDataRow) =>
-            addStallToSearch(row, accumulator)
             overrideChargerTypeOption match {
               case Some(overrideChargerType) =>
                 parseParkingZoneFromRow(
@@ -212,10 +211,10 @@ object ParkingZoneFileUtils extends LazyLogging {
                   Some(overrideChargerType)
                 ) match {
                   case Some(secondRow: ParkingLoadingDataRow) =>
-                    addStallToSearch(secondRow, accumulator)
-                  case None => accumulator
+                    addStallToSearch(secondRow, addStallToSearch(row, accumulator))
+                  case None => addStallToSearch(row, accumulator)
                 }
-              case None => accumulator
+              case None => addStallToSearch(row, accumulator)
             }
         }
         _read(updatedAccumulator)
