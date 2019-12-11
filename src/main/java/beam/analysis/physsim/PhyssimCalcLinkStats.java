@@ -58,7 +58,6 @@ public class PhyssimCalcLinkStats implements Observer {
     private OutputDirectoryHierarchy controllerIO;
     private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
-    private Double minSpeed;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
                                 TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable) {
