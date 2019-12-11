@@ -9,7 +9,9 @@ import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
-import de.lmu.ifi.dbs.elki.data.NumberVector
+import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
+import de.lmu.ifi.dbs.elki.data.{DoubleVector, NumberVector}
+import de.lmu.ifi.dbs.elki.database.ids.DBIDIter
 import de.lmu.ifi.dbs.elki.database.{Database, StaticArrayDatabase}
 import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
@@ -22,9 +24,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-case class ClusterInfo(size: Int, coord: Coord)
+case class ClusterInfo(size: Int, coord: Coord, activitiesLocation: IndexedSeq[Coord])
 
 // To start using it you should set `beam.agentsim.agents.rideHail.repositioningManager.name="DEMAND_FOLLOWING_REPOSITIONING_MANAGER"` in configuration
 // Check `beam-template.conf` to see the configurable parameters
@@ -75,7 +78,10 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
   }
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
-  val sortedTimeBinToActivitiesWeight = timeBinToActivitiesWeight.toVector.sortBy { case (timeBin, weight) => timeBin }
+
+  val sortedTimeBinToActivitiesWeight: Vector[(Int, Double)] = timeBinToActivitiesWeight.toVector.sortBy {
+    case (timeBin, weight) => timeBin
+  }
   logger.info(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
@@ -164,10 +170,12 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
+        // Randomly pick the coordinate of one of activities
+        val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
         logger.debug(
-          s"tick $tick, currentTimeBin: $currentTimeBin, nextTimeBin: $nextTimeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled"
+          s"tick $tick, currentTimeBin: $currentTimeBin, nextTimeBin: $nextTimeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled, drawn coord: $drawnCoord"
         )
-        Some(sampled.coord)
+        Some(drawnCoord)
       }
     }
   }
@@ -197,7 +205,16 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
                   logger.debug(s"Model: ${clu.getModel}")
                   logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
                   logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
-                  ClusterInfo(clu.size, new Coord(clu.getModel.getMean))
+                  val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+                  val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
+                  var iter: DBIDIter = clu.getIDs.iter()
+                  while (iter.valid()) {
+                    val o: DoubleVector = rel.get(iter)
+                    val arr = o.toArray
+                    coords += new Coord(arr(0), arr(1))
+                    iter.advance()
+                  }
+                  ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
               }.toArray
             } catch {
               case ex: Exception =>
