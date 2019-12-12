@@ -165,7 +165,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           "parking",
           SimulationTime(parkEvent.time.toInt),
           1,
-          tags = Map("parking_type" -> parkEvent.parkingType.toString)
+          tags = Map("parking-type" -> parkEvent.parkingType.toString)
         )
 
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {

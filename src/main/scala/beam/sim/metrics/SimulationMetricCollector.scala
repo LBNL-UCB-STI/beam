@@ -18,7 +18,11 @@ import scala.util.control.NonFatal
 
 object SimulationMetricCollector {
   val defaultMetricValueName: String = "count"
-  case class SimulationTime(seconds: Int) extends AnyVal
+  case class SimulationTime(seconds: Int) extends AnyVal {
+
+    def hours: Long =
+      TimeUnit.SECONDS.toHours(seconds)
+  }
 }
 
 trait SimulationMetricCollector {
@@ -154,6 +158,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       val rawPoint = Point
         .measurement(metricName)
         .time(influxTime(metricName, time.seconds), TimeUnit.NANOSECONDS)
+        .tag("simulation-hour", time.hours.toString)
 
       val withFields = values.foldLeft(rawPoint) {
         case (p, (n, v)) => p.addField(n, v)

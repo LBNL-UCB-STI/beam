@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1575475826310,
+    "iteration": 1575843523802,
     "links": [],
     "panels": [
       {
@@ -52,6 +52,12 @@
         "id": 17,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -93,6 +99,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -156,7 +164,7 @@
             "measurement": "BEV_NO_CAV_DISTANCE",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/) AND $timeFilter GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -200,6 +208,12 @@
         "id": 19,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -241,6 +255,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -304,7 +320,7 @@
             "measurement": "BEV_NO_CAV_DISTANCE",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/) AND $timeFilter GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -348,6 +364,12 @@
         "id": 20,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -389,6 +411,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -452,7 +476,7 @@
             "measurement": "BEV_NO_CAV_DISTANCE",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/) AND $timeFilter GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"bev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -496,6 +520,12 @@
         "id": 18,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -537,6 +567,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -644,6 +676,12 @@
         "id": 21,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -685,6 +723,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -748,7 +788,7 @@
             "measurement": "BEV_NO_CAV_DISTANCE",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/) AND $timeFilter GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -792,6 +832,12 @@
         "id": 22,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -833,6 +879,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -940,6 +988,12 @@
         "id": 23,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -981,6 +1035,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1044,7 +1100,7 @@
             "measurement": "BEV_NO_CAV_DISTANCE",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/) AND $timeFilter GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1088,6 +1144,12 @@
         "id": 24,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num vehicle-state sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1129,6 +1191,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1236,6 +1300,12 @@
         "id": 10,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num typeOfCharger sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1277,6 +1347,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1384,6 +1456,12 @@
         "id": 11,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num parkingType sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1425,6 +1503,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1532,6 +1612,12 @@
         "id": 8,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num trip-type sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1573,6 +1659,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1680,6 +1768,12 @@
         "id": 13,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num mode sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1723,6 +1817,8 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
@@ -1830,6 +1926,12 @@
         "id": 15,
         "options": {},
         "pconfig": {
+          "dataColumnNames": {
+            "all": "Time iteration-num mode sum",
+            "dataColumn": "?",
+            "xColumn": "?",
+            "yColumn": "?"
+          },
           "fixScale": "",
           "layout": {
             "barmode": "stack",
@@ -1871,17 +1973,19 @@
           "loadFromCDN": false,
           "settings": {
             "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
             "type": "bar"
           },
           "showAnnotations": true,
           "traces": [
             {
               "mapping": {
-                "color": "Time",
+                "color": "mode",
                 "size": null,
                 "text": null,
-                "x": "Time",
-                "y": "Time",
+                "x": "mode",
+                "y": "mode",
                 "z": null
               },
               "name": "Trace 1",
@@ -1934,7 +2038,7 @@
             "measurement": "average-travel-time",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT \"count\" FROM \"average-travel-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
+            "query": "SELECT sum(\"count\") FROM \"average-travel-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/) GROUP BY \"iteration-num\", \"mode\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1973,8 +2077,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-04_19-10-00_beamville",
-            "value": "2019-12-04_19-10-00_beamville"
+            "text": "2019-12-08_23-25-34_sf-light-1k-xml",
+            "value": "2019-12-08_23-25-34_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -1998,8 +2102,8 @@
       ]
     },
     "time": {
-      "from": "now/d",
-      "to": "now/d"
+      "from": "now-7d",
+      "to": "now"
     },
     "timepicker": {
       "refresh_intervals": [
