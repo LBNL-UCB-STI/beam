@@ -38,7 +38,12 @@ object PhysSimEventWriter extends LazyLogging {
         defaultFmt
       }
     }
-    val beamEventLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices, eventsManager, beamServices.beamConfig.beam.physsim.events.eventsToWrite)
+    val beamEventLogger = new BeamEventsLogger(
+      beamServices,
+      beamServices.matsimServices,
+      eventsManager,
+      beamServices.beamConfig.beam.physsim.events.eventsToWrite
+    )
     val writers = formats.map(createWriter(beamServices, beamEventLogger, _))
     new PhysSimEventWriter(writers)
   }

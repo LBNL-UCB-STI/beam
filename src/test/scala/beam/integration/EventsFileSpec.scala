@@ -22,12 +22,15 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+    .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+    .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
     .resolve()
 
   private var scenario: MutableScenario = _
@@ -72,7 +75,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def tripsFromEvents(vehicleType: String) = {
     val trips = for {
-      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getAttributes.get("vehicleType") == vehicleType
       vehicleTag <- event.getAttributes.asScala.get("vehicle")
     } yield vehicleTag.split(":")(1).split("-").take(3).mkString("-")
@@ -97,7 +100,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
     val pathTraversals = for {
-      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
@@ -114,12 +117,12 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   }
 
   it should "also be available as csv file" in {
-    assert(getEventsFilePath(scenario.getConfig, "csv").exists())
+    assert(getEventsFilePath(scenario.getConfig, "events", "csv").exists())
   }
 
   it should "contain at least one paid toll" in {
     val tollEvents = for {
-      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+      event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
@@ -128,7 +131,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "yield positive toll revenue according to TollRevenueAnalysis" in {
     val analysis = new TollRevenueAnalysis
-    fromXmlFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
+    fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       .foreach(analysis.processStats)
     val tollRevenue = analysis.getSummaryStats.get(TollRevenueAnalysis.ATTRIBUTE_TOLL_REVENUE)
     tollRevenue should not equal 0.0
@@ -174,6 +177,18 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     }
     assert(nCarTrips != 0, "At least some people must go by car")
     assert(nBikeTrips != 0, "At least some people must go by bike")
+  }
+
+  it should "contain PhysSim events" in {
+    val xmlEvents = fromXmlFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "xml").getAbsolutePath)
+    assert(xmlEvents.nonEmpty)
+    val (csvEventsIter, toClose) =
+      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, x => true)
+    try {
+      assert(csvEventsIter.toArray.nonEmpty)
+    } finally {
+      Try(toClose.close())
+    }
   }
 
 }
