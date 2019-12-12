@@ -10,16 +10,17 @@ res.dir <- '/Users/critter/Dropbox/ucb/vto/smart-mobility/final-results/'
 runs <- data.table(read.csv(pp(res.dir,'runs.csv'),stringsAsFactors=F))
 make.dir(pp(res.dir,'runs'))
 runs[,local.file:=pp(res.dir,'runs/',scen,'-events.csv.gz')]
+runs[,local.stats:=pp(res.dir,'runs/',scen,'-linkstats.csv.gz')]
 runs[,url.corrected:=as.character(url)]
 runs[grepl('html\\#',url),url.corrected:=unlist(lapply(str_split(runs[grepl('html\\#',url)]$url,'s3.us-east-2.amazonaws.com/beam-outputs/index.html#'),function(ll){ pp('https://beam-outputs.s3.amazonaws.com/',ll[2]) }))]
 
 evs <- list()
-#for(i in 1:nrow(runs)){
-for(i in c(1,16)){
+for(i in 1:nrow(runs)){
   my.cat(pp(names(runs),":",runs[i],collapse=' , '))
   if(!file.exists(runs$local.file[i])){
     for(it in 15:0){
       tryCatch(download.file(pp(runs$url.corrected[i],'ITERS/it.',it,'/',it,'.events.csv.gz'),runs$local.file[i]),error=function(e){})
+      tryCatch(download.file(pp(runs$url.corrected[i],'ITERS/it.',it,'/',it,'.linkstats.csv.gz'),runs$local.stats[i]),error=function(e){})
       if(file.exists(runs$local.file[i]))break
     }
   }
