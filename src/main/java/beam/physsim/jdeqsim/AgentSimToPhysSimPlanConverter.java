@@ -143,6 +143,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
             jdeqsimEvents.addHandler(eventWriter);
         }
+        else {
+            if (beamConfig.beam().physsim().writeEventsInterval() < 1)
+                log.info("There will be no PhysSim events written because `beam.physsim.writeEventsInterval` is set to 0");
+            else
+                log.info("Skipping writing PhysSim events for iteration {}. beam.physsim.writeEventsInterval = {}", iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
+        }
 
 
         RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = null;
