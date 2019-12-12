@@ -20,7 +20,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
     private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
-    BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);
 
         if (eventTypeToLog == null) {

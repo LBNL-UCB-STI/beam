@@ -138,14 +138,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             createNetworkFile(jdeqSimScenario.getNetwork());
         }
 
-        EventWriterXML_viaCompatible eventsWriterXML = null;
+        PhysSimEventWriter eventWriter = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
-
-            double eventsSampling = beamConfig.beam().physsim().eventsSampling();
-            boolean eventsForFullVersionOfVia = beamConfig.beam().physsim().eventsForFullVersionOfVia();
-            String fileName = controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz");
-            eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia , eventsSampling);
-            jdeqsimEvents.addHandler(eventsWriterXML);
+            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
+            jdeqsimEvents.addHandler(eventWriter);
         }
 
 
@@ -256,8 +252,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
-            assert eventsWriterXML != null;
-            eventsWriterXML.closeFile();
+            assert eventWriter != null;
+            eventWriter.closeFile();
         }
 
         Road.setAllRoads(null);
