@@ -7,10 +7,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.handling.{BeamEventsLogger, BeamEventsWriterCSV}
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
@@ -21,7 +18,7 @@ import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.csv.CsvWriter
 import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population, PopulationFactory}
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -61,7 +58,7 @@ class ApproxPhysSim(
     mutable.HashSet[Person](canTake.toSeq: _*)
   }
 
-  val numToSimulate: Array[Int] = {
+  val numberOfPeopleToSimulateEveryIter: Array[Int] = {
     val percentToSimulate: Array[Double] = Array(10, 10, 10, 10, 10, 10, 10, 10, 10, 10).map(_.toDouble / 100)
     val xs = percentToSimulate.map(p => (peopleWhichCanBeTaken.size * p).toInt)
     if (xs.sum != peopleWhichCanBeTaken.size) {
@@ -110,8 +107,8 @@ class ApproxPhysSim(
       logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
       run(
         1,
-        numToSimulate.length,
-        numToSimulate.head,
+        numberOfPeopleToSimulateEveryIter.length,
+        numberOfPeopleToSimulateEveryIter.head,
         reroutePerIterPct,
         SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
         SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
@@ -142,14 +139,16 @@ class ApproxPhysSim(
     } else {
       logger.info(s"finalPopulation size before: ${finalPopulation.getPersons.size}")
       // Get next set of people
-      val nextSetOfPeople = getNextSetOfPeople(peopleWhichCanBeTaken, rnd, numberOfPeopleToTake)
-      logger.info(s"nextSetOfPeople size is ${nextSetOfPeople.size}. numberOfPeopleToTake: $numberOfPeopleToTake")
-      // Remove them from original set
-      nextSetOfPeople.foreach(peopleWhichCanBeTaken.remove)
-      // Add them to population
-      nextSetOfPeople.foreach { person =>
-        val copiedPerson: Person = createCopyOfPerson(person, finalPopulation.getFactory)
-        finalPopulation.addPerson(copiedPerson)
+      val nextSetOfPeople = {
+        val setOfPeople = getNextSetOfPeople(peopleWhichCanBeTaken, rnd, numberOfPeopleToTake)
+        logger.info(s"setOfPeople size is ${setOfPeople.size}. numberOfPeopleToTake: $numberOfPeopleToTake")
+        // Remove them from original set
+        setOfPeople.foreach(peopleWhichCanBeTaken.remove)
+        val asCopy = setOfPeople.map { person =>
+          createCopyOfPerson(person, finalPopulation.getFactory)
+        }
+        asCopy.foreach(finalPopulation.addPerson)
+        asCopy
       }
       logger.info(
         s"finalPopulation size after: ${finalPopulation.getPersons.size}. Original population size: ${population.getPersons.size}"
@@ -173,7 +172,7 @@ class ApproxPhysSim(
         val before = printRouteStats(s"Before rerouting at $currentIter iter", finalPopulation)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
-        val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct)
+        val reroutedTravelTimeStats = reroutePeople(simulationResult.travelTime, nextSetOfPeople.toVector)
         reroutedTravelTimeWriter.writeRow(
           Vector(
             currentIter,
@@ -202,7 +201,7 @@ class ApproxPhysSim(
       }
       printStats(lastResult, simulationResult)
       val realFirstResult = if (currentIter == 1) simulationResult else firstResult
-      val nextNumberOfPeopleToTake = numToSimulate.lift(currentIter).getOrElse(-1)
+      val nextNumberOfPeopleToTake = numberOfPeopleToSimulateEveryIter.lift(currentIter).getOrElse(-1)
       run(
         currentIter + 1,
         nIterations,
@@ -329,31 +328,44 @@ class ApproxPhysSim(
   private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Statistics = {
     val rightPeopleToReplan = getCarPeople(finalPopulation)
     // logger.info(s"rightPeopleToReplan: ${rightPeopleToReplan.mkString(" ")}")
-    val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
-      val route = plan.getPlanElements.asScala.zipWithIndex.collect {
-        case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
-          ElementIndexToLeg(idx, leg)
-      }.toVector
-      plan.getPerson -> route
+
+    val peopleWithCarLegs = rightPeopleToReplan.filter { person =>
+      assert(person.getPlans.size() == 1)
+      val hasCarLeg = person.getSelectedPlan.getPlanElements.asScala.exists {
+        case activity: Activity => false
+        case leg: Leg => leg.getMode.equalsIgnoreCase("car")
+      }
+      hasCarLeg
     }
-    val pctToNumberPersonToTake = (personToRoutes.size * reroutePerIterPct).toInt
-    val takeN = if (pctToNumberPersonToTake > personToRoutes.size) personToRoutes.size else pctToNumberPersonToTake
-    if (takeN > 0) {
-      val toReroute = rnd.shuffle(personToRoutes).take(takeN).toArray
+
+    val pctToNumberPersonToTake = (peopleWithCarLegs.size * reroutePerIterPct).toInt
+    val takeN = if (pctToNumberPersonToTake > peopleWithCarLegs.size) peopleWithCarLegs.size else pctToNumberPersonToTake
+    val sampledPeople = rnd.shuffle(peopleWithCarLegs).take(takeN)
+
+    reroutePeople(travelTime, sampledPeople)
+  }
+
+  private def reroutePeople(travelTime: TravelTime, toReroute: Vector[Person]): Statistics = {
+    if (toReroute.nonEmpty) {
+      val personToRoutes = toReroute.flatMap(_.getPlans.asScala.toVector).map { plan =>
+        val route = plan.getPlanElements.asScala.zipWithIndex.collect {
+          case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
+            ElementIndexToLeg(idx, leg)
+        }.toVector
+        plan.getPerson -> route
+      }
+
       val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0)
       // Get new routes
-      val result = ProfilingUtils.timed(
-        s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",
-        x => logger.info(x)
-      ) {
-        // TODO: `toReroute.par` => so it will run rerouting in parallel
-        toReroute.par.map {
+      val result = ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
+        // TODO: `sampledPeople.par` => so it will run rerouting in parallel
+        personToRoutes.par.map {
           case (person, xs) =>
             reroute(r5Wrapper, person, xs)
         }.seq
       }
       var newTravelTimes = new ArrayBuffer[Double]()
-      ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
+      ProfilingUtils.timed(s"Update routes for ${toReroute.size} people", x => logger.info(x)) {
         var oldTravelTimes = new ArrayBuffer[Double]()
         // Update plans
         result.foreach {
