@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans, MiniBatchKMeans
 import warnings
 warnings.filterwarnings("ignore")
-
+from matplotlib.lines import Line2D
 import geopandas as gpd
 from shapely.geometry import Point
 
@@ -66,7 +66,7 @@ refuelSession["hour"] = np.floor(refuelSession["time"]/3600).astype("int")
 
 locations = [Point(xy) for xy in zip(refuelSession['locationX'], refuelSession['locationY'])]
 
-gdf = gpd.GeoDataFrame(refuelSession.loc[:,['time']], crs = {'init': 'epsg:4326'}, geometry = locations).to_crs(epsg=3857)
+gdf = gpd.GeoDataFrame(refuelSession.loc[:,['time','kwh']], crs = {'init': 'epsg:4326'}, geometry = locations).to_crs(epsg=3857)
 
 refuelSession['locationLon'] = refuelSession['locationX']
 refuelSession['locationLat'] = refuelSession['locationY']
@@ -122,13 +122,21 @@ taz = gpd.read_file('../../../../../sf-parking/data/BEAM/taz/sf-light-tazs.shp')
 taz['taz_id'] = taz['taz']
 taz = taz.set_index('taz', drop=True).to_crs(epsg=3857)
 parking_input = pd.read_csv('../../../../../sf-parking/output/sf-taz-parking-base-slow.csv')
-
+taz_with_cluster = gpd.GeoDataFrame(gpd.sjoin(taz,gdf,how='inner',op='intersects').groupby('taz_id').agg({'kwh':'sum','geometry':'first'}))
+taz_with_cluster['kwh_per_km2'] = taz_with_cluster['kwh'] / taz_with_cluster.geometry.area * 1e6
+#%%
+fmap = plt.figure(figsize=(7,8))
+ax = plt.gca()
+taz_with_cluster.plot(column='kwh_per_km2',legend=True, ax=ax, alpha=0.85, cmap = 'Reds', k=7, scheme='fisher_jenks')
+ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+plt.savefig(outfolder+'/plots/chargind_demand_map.pdf')
 #%%
 def assignStallsToTaz(stalls, taz, parkingType, chargingType, feeInCents, inputParking = None):
+    chargingString = 'Custom(' + str(chargingType) + '|DC)'
     output = []
     taz_with_cluster = gpd.sjoin(taz,stalls,how='inner',op='intersects').groupby('taz_id').agg({'numPlugsRequired':'sum','geometry':'first'})
     for row in taz_with_cluster.iterrows():
-        newrow = {'taz':row[0],'parkingType':parkingType,'pricingModel':'Block','chargingType':chargingType,'numStalls':np.ceil(row[1].numPlugsRequired),'feeInCents':feeInCents,'ReservedFor':'Any'}
+        newrow = {'taz':row[0],'parkingType':parkingType,'pricingModel':'Block','chargingType':chargingString,'numStalls':np.ceil(row[1].numPlugsRequired),'feeInCents':feeInCents,'ReservedFor':'Any'}
         output.append(newrow)
     output = pd.DataFrame(output, columns = ['taz','parkingType','pricingModel','chargingType','numStalls','feeInCents','ReservedFor'])
     if ~(inputParking is None):
@@ -136,7 +144,7 @@ def assignStallsToTaz(stalls, taz, parkingType, chargingType, feeInCents, inputP
     return output
 #%%
 
-def assignChargingLocations(refuelSessions, n_clusters, queuing_probability):
+def assignChargingLocations(refuelSessions, n_clusters, powers, probs):
     charging_xy = np.transpose(np.vstack([refuelSessions['locationX'].values,refuelSessions['locationY'].values]))
     iter_out_val = dict()
     iter_out_array = dict()
@@ -150,33 +158,40 @@ def assignChargingLocations(refuelSessions, n_clusters, queuing_probability):
         Charge_demand_distance[temp_station_index]= np.linalg.norm(dataInCluster - Station_location[i], axis=1)/1609.34
     print("Number of charging station", n_clusters)
     print("maximum of distance", np.percentile(Charge_demand_distance,75), "mean of distance", np.mean(Charge_demand_distance))
-    iter_out_val['mean_dists'] = np.mean(Charge_demand_distance)
-    iter_out_val['max_dists'] = np.percentile(Charge_demand_distance,95)
-    iter_out_array['station_location'] = Station_location
-    iter_out_array['charge_demand_label'] = Charge_demand_label
+
 
     refuelSessions['distanceFromStation'] = Charge_demand_distance
     refuelSessions['chargingStationLabel'] = Charge_demand_label
     refuelSessions['chargingStationLocationX'] = Station_location[Charge_demand_label][:,0]
     refuelSessions['chargingStationLocationY'] = Station_location[Charge_demand_label][:,1]
     
-    clusters = refuelSessions.groupby(['chargingStationLabel','hour']).agg(
-            {'chargingStationLocationX':'first',
-             'chargingStationLocationY':'first', 
-             'kwh': (lambda kwh: getMinimumNumberOfChargers(np.sum(kwh) / Power_rated, queuing_probability)),
-             'vehicle':'count',
-             'distanceFromStation':'max',
-             'chargingStationLabel':'first'
-             }).rename(columns={'chargingStationLabel':'chargingStationLabel2', 'kwh':'numPlugsRequired'}).groupby(
-                    ['chargingStationLabel2']).agg(
-                            {'chargingStationLocationX':'first',
-                             'chargingStationLocationY':'first', 
-                             'numPlugsRequired': 'max',
-                             'distanceFromStation':'max',
-                             'vehicle':'max'})
-    iter_out_val['n_plugs'] = clusters['numPlugsRequired'].sum()    
-    clusters = gpd.GeoDataFrame(clusters, crs = {'init': 'epsg:3857'}, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
-    iter_out_array['gdf'] = clusters
+    for power in powers:
+        iter_out_val[power] = dict()
+        iter_out_array[power] = dict()
+        for prob in probs:
+            iter_out_val[power][prob] = dict()
+            iter_out_array[power][prob] = dict()
+            iter_out_val[power][prob]['mean_dists'] = np.mean(Charge_demand_distance)
+            iter_out_val[power][prob]['max_dists'] = np.percentile(Charge_demand_distance,95)
+            iter_out_array[power][prob]['station_location'] = Station_location
+            iter_out_array[power][prob]['charge_demand_label'] = Charge_demand_label
+            clusters = refuelSessions.groupby(['chargingStationLabel','hour']).agg(
+                    {'chargingStationLocationX':'first',
+                     'chargingStationLocationY':'first', 
+                     'kwh': (lambda kwh: getMinimumNumberOfChargers(np.sum(kwh) / power, prob)),
+                     'vehicle':'count',
+                     'distanceFromStation':'max',
+                     'chargingStationLabel':'first'
+                     }).rename(columns={'chargingStationLabel':'chargingStationLabel2', 'kwh':'numPlugsRequired'}).groupby(
+                            ['chargingStationLabel2']).agg(
+                                    {'chargingStationLocationX':'first',
+                                     'chargingStationLocationY':'first', 
+                                     'numPlugsRequired': 'max',
+                                     'distanceFromStation':'max',
+                                     'vehicle':'max'})
+            iter_out_val[power][prob]['n_plugs'] = clusters['numPlugsRequired'].sum()    
+            clusters = gpd.GeoDataFrame(clusters, crs = {'init': 'epsg:3857'}, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
+            iter_out_array[power][prob]['gdf'] = clusters
     return iter_out_val, iter_out_array
 
 
@@ -184,8 +199,8 @@ def assignChargingLocations(refuelSessions, n_clusters, queuing_probability):
 
 
 
-Power_rated = 50.0 # in kW
-Max_queuing_probability = 0.25 # Chance that someone would find their nearest charger full
+Power_rated = [50.0, 150.0] # in kW
+Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find their nearest charger full
 
 
 nstations_human = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhhuman.index)/10),num=20,dtype=int))
@@ -197,43 +212,82 @@ output_array_human = dict()
 
 output_val_cav = dict()
 output_array_cav = dict()
+for power in Power_rated:
+    output_val_human[power] = dict()
+    output_array_human[power] = dict()
+    output_val_cav[power] = dict()
+    output_array_cav[power] = dict()
+    
+for power in Power_rated:
+    for prob in Max_queuing_probability:
+        output_val_human[power][prob] = dict()
+        output_array_human[power][prob] = dict()
+        output_val_cav[power][prob] = dict()
+        output_array_cav[power][prob] = dict()
 
 for ind, n_clusters in enumerate(nstations_human):
-    iter_out_val, iter_out_array = assignChargingLocations(refuelSession_rhhuman, n_clusters, Max_queuing_probability)
-    output_val_human[n_clusters] = iter_out_val
-    output_array_human[n_clusters] = iter_out_array
-    new_parking = assignStallsToTaz(iter_out_array['gdf'], taz, 'Public', 'Custom(150.0|DC)', 2.*Power_rated, parking_input)
-    new_parking['numStalls'] = new_parking['numStalls'].astype('int')
-    new_parking.to_csv(outfolder + 'sf-taz-parking-'+str(n_clusters)+'-clusters.csv', index=False)
+    
+    iter_out_val, iter_out_array = assignChargingLocations(refuelSession_rhhuman, n_clusters, Power_rated, Max_queuing_probability)
+    for power in Power_rated:
+        for prob in Max_queuing_probability:
+            output_val_human[power][prob][n_clusters] = iter_out_val[power][prob]
+            output_array_human[power][prob][n_clusters] = iter_out_array[power][prob]
+            new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 2.*power, parking_input)
+            new_parking['numStalls'] = new_parking['numStalls'].astype('int')
+            new_parking.to_csv(outfolder + 'sf-taz-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
 
 for ind, n_clusters in enumerate(nstations_cav):
-    iter_out_val, iter_out_array = assignChargingLocations(refuelSession_rhcav, n_clusters, Max_queuing_probability)
-    output_val_cav[n_clusters] = iter_out_val
-    output_array_cav[n_clusters] = iter_out_array
-    new_parking = assignStallsToTaz(iter_out_array['gdf'], taz, 'Public', 'Custom(150.0|DC)', 2.*Power_rated)
-    new_parking['numStalls'] = new_parking['numStalls'].astype('int')
-    new_parking.to_csv(outfolder + 'sf-depot-parking-'+str(n_clusters)+'-clusters.csv', index=False)
+    iter_out_val, iter_out_array = assignChargingLocations(refuelSession_rhcav, n_clusters, Power_rated, Max_queuing_probability)
+    for power in Power_rated:
+        for prob in Max_queuing_probability:
+            output_val_cav[power][prob][n_clusters] = iter_out_val[power][prob]
+            output_array_cav[power][prob][n_clusters] = iter_out_array[power][prob]
+            new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 2.*power)
+            new_parking['numStalls'] = new_parking['numStalls'].astype('int')
+            new_parking.to_csv(outfolder + 'sf-depot-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
 
-f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(8,8))
-collected = pd.DataFrame(output_val_human).transpose()
+#%%
+            
+colors = [(0.894117, 0.101960, 0.10980),(0.215686, 0.494117, 0.7215686),(0.30196078, 0.68627450, 0.29019607)]
+lines = ['-','--',':']
+
+f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,8))
+for ind_power, power in enumerate(Power_rated):
+    for ind_prob, prob in enumerate(Max_queuing_probability):
+        collected = pd.DataFrame(output_val_human[power][prob]).transpose()
+        ax3.plot(collected.index, collected.n_plugs, color = colors[ind_power], linestyle = lines[ind_prob])
 ax1.plot(collected.index, collected.mean_dists)
-ax3.plot(collected.index, collected.n_plugs)
 ax3.set_xlabel('Number of Charging Stations')
 ax3.set_ylabel('Number of Plugs')
 ax1.set_ylabel('Mean Distance To Charge (mi)')
-ax3.set_xscale('log')
-ax1.set_xscale('log')
+#ax3.set_xscale('log')
+#ax1.set_xscale('log')
 ax1.set_title('Human Ride Hail')
 
-collected = pd.DataFrame(output_val_cav).transpose()
+custom_lines_color = [Line2D([0], [0], color=colors[0]),
+                Line2D([0], [0], color=colors[1]),
+                Line2D([0], [0], color=colors[2])]
+
+ax3.legend(custom_lines_color, ['50 kW', '150 kW'])
+
+for ind_power, power in enumerate(Power_rated):
+    for ind_prob, prob in enumerate(Max_queuing_probability):
+        collected = pd.DataFrame(output_val_cav[power][prob]).transpose()
+        ax4.plot(collected.index, collected.n_plugs, color = colors[ind_power], linestyle = lines[ind_prob])
 ax2.plot(collected.index, collected.mean_dists)
-ax4.plot(collected.index, collected.n_plugs)
 ax4.set_xlabel('Number of Charging Stations')
 ax4.set_ylabel('Number of Plugs')
 ax2.set_ylabel('Mean Distance To Charge (mi)')
-ax2.set_xscale('log')
-ax4.set_xscale('log')
+#ax2.set_xscale('log')
+#ax4.set_xscale('log')
 ax2.set_title('Automated Ride Hail')
+
+custom_lines_style = [Line2D([0], [0], color='k', linestyle = lines[0]),
+                Line2D([0], [0], color='k', linestyle = lines[1]),
+                Line2D([0], [0], color='k', linestyle = lines[2])]
+ax4.legend(custom_lines_style, ['0.1 Occupied', '0.25 Occupied', '0.5 Occupied'])
+
+plt.savefig(outfolder+'/plots/tradeoffs.pdf')
 #%%
 import contextily as ctx
 charger_gdf = gpd.GeoDataFrame(clusters, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
