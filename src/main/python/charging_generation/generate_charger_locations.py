@@ -129,7 +129,7 @@ fmap = plt.figure(figsize=(7,8))
 ax = plt.gca()
 taz_with_cluster.plot(column='kwh_per_km2',legend=True, ax=ax, alpha=0.85, cmap = 'Reds', k=7, scheme='fisher_jenks')
 ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
-plt.savefig(outfolder+'/plots/chargind_demand_map.pdf')
+plt.savefig(outfolder+'/plots/chargind_demand_map.png')
 #%%
 def assignStallsToTaz(stalls, taz, parkingType, chargingType, feeInCents, inputParking = None):
     chargingString = 'Custom(' + str(chargingType) + '|DC)'
@@ -204,7 +204,7 @@ Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find thei
 
 
 nstations_human = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhhuman.index)/10),num=20,dtype=int))
-nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhcav.index)/150),num=20,dtype=int))
+nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhcav.index)/400),num=20,dtype=int))
 
 
 output_val_human = dict()
@@ -287,11 +287,4 @@ custom_lines_style = [Line2D([0], [0], color='k', linestyle = lines[0]),
                 Line2D([0], [0], color='k', linestyle = lines[2])]
 ax4.legend(custom_lines_style, ['0.1 Occupied', '0.25 Occupied', '0.5 Occupied'])
 
-plt.savefig(outfolder+'/plots/tradeoffs.pdf')
-#%%
-import contextily as ctx
-charger_gdf = gpd.GeoDataFrame(clusters, geometry = [Point(xy) for xy in zip(clusters['chargingStationLocationX'], clusters['chargingStationLocationY'])])
-
-ax = gdf.plot(markersize=6)
-charger_gdf.plot(ax=ax, markersize=12)
-ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+plt.savefig(outfolder+'/plots/tradeoffs.png')
