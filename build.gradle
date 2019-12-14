@@ -114,7 +114,7 @@ dependencies {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
-    
+
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -207,8 +207,12 @@ dependencies {
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
+        exclude group: 'com.typesafe', module: 'config'
     }
-    // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
+    compile group: 'com.typesafe', name: 'config', version: '1.4.0'
+
+
+        // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
     compile group: 'io.circe', name: "circe-generic_${scalaBinaryVersion}", version: circeBinaryVersion
@@ -509,7 +513,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
 }
 
-task fmt(dependsOn: scalafmtAll) 
+task fmt(dependsOn: scalafmtAll)
 task checkScalaFmt() {
     doLast {
         try {
