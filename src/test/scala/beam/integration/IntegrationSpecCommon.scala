@@ -4,8 +4,6 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 trait IntegrationSpecCommon {
-  private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
-
   protected var totalIterations: Int = 1
 
   val configFileName = "test/input/beamville/beam.conf"
@@ -15,7 +13,8 @@ trait IntegrationSpecCommon {
   lazy val baseConfig: Config = testConfig(configFileName)
     .resolve()
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-    .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .withFallback(configLocation)
     .resolve
 

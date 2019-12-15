@@ -1,5 +1,6 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import com.bmuschko.gradle.docker.tasks.image.*
 
 import java.time.Instant
 import java.time.ZoneOffset
@@ -17,6 +18,7 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
     }
 }
 
@@ -27,10 +29,6 @@ plugins {
     id 'maven-publish'
 }
 
-//ext {
-//    env = "beamville"
-//}
-
 apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'maven'
@@ -39,9 +37,10 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
+apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.6.0'
+version = '0.8.0'
 
 description = """"""
 
@@ -111,8 +110,9 @@ allprojects {
 
 dependencies {
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.3') {
-        exclude group: 'com.github.michaz', module: 'r5'
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.4') {
+        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
+        exclude group: 'org.matsim', module: 'matsim'
     }
     
     ////////////////////////////
@@ -159,7 +159,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-6') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-11') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -184,14 +184,14 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:2.12.7"
+    compile "org.scala-lang:scala-library:2.12.10"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:2.12.7"
+    compile "org.scala-lang:scala-compiler:2.12.10"
 
     // TEST Scala //
-    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
+    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.8'
     testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
@@ -242,11 +242,11 @@ dependencies {
     // CORE Akka //
     compile group: 'com.typesafe.akka', name: "akka-actor_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-slf4j_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
+    //compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
+    //compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
+    //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
@@ -256,12 +256,16 @@ dependencies {
 
     // 3rd Party Akka //
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
-//    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
+    //compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
 
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
+
+    compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version:'0.7.5'
+
+    compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
@@ -346,141 +350,6 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     }
 }
 
-//////////////////////////////////////////////////////////////////////
-// Amazon WS task to run beam sim on Lambda
-//////////////////////////////////////////////////////////////////////
-
-apply plugin: "base"
-apply plugin: "jp.classmethod.aws.lambda"
-
-aws {
-    profileName = "gradle"
-    region = "us-east-2"
-}
-
-lambda {
-    region = "us-east-2"
-}
-
-def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
-        }
-    } catch (e) {
-    }
-    return gitBranch
-}
-
-task deploy(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('runName')) {
-            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
-        }
-
-        switch (project.findProperty('deployMode')) {
-            case 'config':
-                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
-                    throw new GradleException('beamConfigs is required to deploy config run.')
-                }
-                break
-            case 'experiment':
-                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
-                    throw new GradleException('beamExperiments is required to deploy experement.')
-                }
-                break
-            case 'execute':
-                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
-                    throw new GradleException('executeClass and executeArgs are required to deploy execute.')
-                }
-                break
-            default:
-                throw new GradleException('Please provide a valid deployMode.')
-                break
-        }
-    }
-
-    def pload = """{
-  "title": "${project.findProperty('runName')}",
-  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "${beamCommit ?: 'HEAD'}",
-  "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
-  "experiments": "${
-        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
-    }",
-  "execute_class": "${project.findProperty('executeClass')}",
-  "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '140g'}",
-  "storage_size": ${project.findProperty('storageSize')},
-  "batch": "$beamBatch",
-  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
-  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-  "region": "$region",
-  "shutdown_wait": "$shutdownWait",
-  "shutdown_behaviour": "$shutdownBehaviour",
-  "command": "deploy"
-}"""
-
-    functionName = "simulateBeam"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
-
-task startEC2(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
-    }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "start"
-}"""
-
-    functionName = "ec2StartStop"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
-
-task stopEC2(type: AWSLambdaInvokeTask) {
-    doFirst {
-        if (!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
-    }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
-}"""
-
-    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
-    invocationType = InvocationType.RequestResponse
-    payload = pload
-
-    doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
-    }
-}
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
@@ -663,3 +532,30 @@ And that would only happen if the committed code is not formatted as expected.""
         }
     }
 }
+
+docker{
+
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = System.getenv("DOCKER_USER")
+        password = System.getenv("DOCKER_PASSWORD")
+    }
+
+    javaApplication {
+        baseImage = 'continuumio/miniconda3'
+        maintainer = 'LBNL Beam Team'
+        tag = "beammodel/beam:$version"
+    }
+}
+
+dockerDistTar {
+    instruction 'RUN apt-get update && apt-get -y install openjdk-8-jdk && rm -rf /var/lib/apt/lists/*'
+    addFile 'test/', 'test/'
+}
+
+dockerCopyDistResources {
+    from('test/') {
+        into('test/')
+    }
+}
+

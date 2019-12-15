@@ -22,7 +22,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.io.Source
-import scala.util.Try
+import scala.util.{Random, Try}
 
 class TransitSystem(
   val beamScenario: BeamScenario,
@@ -72,14 +72,16 @@ class TransitSystem(
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
     val transitSchedule = new TransitInitializer(
       beamScenario.beamConfig,
+      geo,
       beamScenario.dates,
       beamScenario.vehicleTypes,
       beamScenario.transportNetwork,
       BeamRouter.oneSecondTravelTime
     ).initMap
+    val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
     transitSchedule.foreach {
       case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
+        initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -110,7 +112,8 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
   def createTransitVehicle(
     transitVehId: Id[Vehicle],
     route: RouteInfo,
-    legs: Seq[BeamLeg]
+    legs: Seq[BeamLeg],
+    randomSeed: Int
   ): Option[BeamVehicle] = {
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleType = getVehicleType(route, mode)
@@ -125,7 +128,8 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,
           powertrain,
-          vehicleType
+          vehicleType,
+          randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>

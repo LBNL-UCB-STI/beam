@@ -11,7 +11,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.FlatSpec
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
@@ -34,7 +34,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, beamScenario))
+          install(module(config, beamConfig, scenario, beamScenario))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

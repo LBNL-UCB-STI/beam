@@ -21,7 +21,6 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
   }
   override def readPlansFile(path: String): Array[PlanElement] = {
     readAs[PlanElement](path, "readPlansFile", toPlanInfo)
-
   }
   override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
     val householdToNumberOfCars = vehicles.groupBy(_.householdId).map {
@@ -62,18 +61,31 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
 
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     val personId = getIfNotNull(rec, "personId")
+    val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
+    val linkIds = Option(rec.get("legRouteLinks")).map(_.split("\\|").map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
       personId = PersonId(personId),
+      planIndex = planIndex,
+      planScore = getIfNotNull(rec, "planScore", "0").toDouble,
+      planSelected = getIfNotNull(rec, "planSelected", "false").toBoolean,
       planElementType = planElementType,
       planElementIndex = planElementIndex,
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-      legMode = Option(rec.get("legMode")).map(_.toString)
+      legMode = Option(rec.get("legMode")).map(_.toString),
+      legDepartureTime = Option(rec.get("legDepartureTime")).map(_.toString),
+      legTravelTime = Option(rec.get("legTravelTime")).map(_.toString),
+      legRouteType = Option(rec.get("legRouteType")).map(_.toString),
+      legRouteStartLink = Option(rec.get("legRouteStartLink")).map(_.toString),
+      legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
+      legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
+      legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
+      legRouteLinks = linkIds
     )
   }
 

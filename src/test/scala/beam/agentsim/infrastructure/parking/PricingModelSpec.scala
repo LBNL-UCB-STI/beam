@@ -14,10 +14,9 @@ class PricingModelSpec extends WordSpec with Matchers {
         val inputCost = 100 // $1.00
         val duration = 7200 // 2 hours
         PricingModel("flatfee", inputCost.toString) match {
-          case Some(PricingModel.FlatFee(cost, intervalInSeconds)) =>
+          case Some(PricingModel.FlatFee(cost)) =>
             cost should equal(inputCost)
-            intervalInSeconds should equal(PricingModel.DefaultPricingInterval)
-            PricingModel.evaluateParkingTicket(PricingModel.FlatFee(cost, intervalInSeconds), duration) should equal(
+            PricingModel.evaluateParkingTicket(PricingModel.FlatFee(cost), duration) should equal(
               inputCost
             )
           case _ => fail()

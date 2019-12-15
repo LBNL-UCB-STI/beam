@@ -121,16 +121,6 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  // TODO FIX ME
-  val travelTimeAndCost: TravelTimeAndCost = new TravelTimeAndCost {
-    override def overrideTravelTimeAndCostFor(
-      origin: Location,
-      destination: Location,
-      departureTime: Int,
-      mode: BeamMode
-    ): TimeAndCost = TimeAndCost(None, None)
-  }
-
   if (beamScenario.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
@@ -141,8 +131,7 @@ class BeamRouter(
         scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles,
-        travelTimeAndCost
+        transitVehicles
       ),
       "router-worker"
     )
@@ -546,13 +535,14 @@ object BeamRouter {
     beamServices: BeamServices,
     origin: Coord,
     destination: Coord
-  ) = {
+  ): EmbodyWithCurrentTravelTime = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
     route.getLinkIds.asScala.foreach { id =>
       linkIds += id.toString.toInt
     }
     linkIds += route.getEndLinkId.toString.toInt
+    // TODO Why don't we send `route.getTravelTime.toInt` as a travel time??
     val leg = BeamLeg(
       departTime,
       mode,
@@ -602,5 +592,5 @@ object BeamRouter {
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
 
-  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
+  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 }

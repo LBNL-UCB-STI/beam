@@ -34,7 +34,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -115,9 +115,9 @@ class PersonAgentSpec
           parkingManager,
           services.tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamScenario, services.geo),
+          beamSkimmer = new BeamSkimmer(services, beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo),
+          travelTimeObserved = new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox = boundingBox
         )
       )
@@ -125,7 +125,6 @@ class PersonAgentSpec
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
-      expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
     }
 
@@ -181,8 +180,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -221,7 +220,7 @@ class PersonAgentSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    endPoint = SpaceTime(1.0, 1.0, 28850),
                     distanceInM = 1000D
                   )
                 ),
@@ -380,8 +379,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -658,8 +657,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )

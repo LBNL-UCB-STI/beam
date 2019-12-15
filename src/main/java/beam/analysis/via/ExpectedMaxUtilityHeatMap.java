@@ -1,6 +1,8 @@
 package beam.analysis.via;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import beam.utils.NetworkHelper;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
@@ -15,18 +17,24 @@ import java.util.Map;
 public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
     private final String SEPERATOR = ",";
-    private final NetworkHelper networkHelper;
     private final OutputDirectoryHierarchy controlerIO;
-    private final int writeEventsInterval;
     private CSVWriter csvWriter;
     static final String fileBaseName = "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
+    private BeamServices beamServices;
 
-    public ExpectedMaxUtilityHeatMap(EventsManager eventsManager, NetworkHelper networkHelper, OutputDirectoryHierarchy controlerIO, int writeEventsInterval) {
-        this.networkHelper = networkHelper;
+    private NetworkHelper networkHelper() {
+        return beamServices.networkHelper();
+    }
+
+    private int writeEventsInterval() {
+        return beamServices.beamConfig().beam().outputs().writeEventsInterval();
+    }
+
+    public ExpectedMaxUtilityHeatMap(EventsManager eventsManager, BeamServices beamServices, OutputDirectoryHierarchy controlerIO) {
         this.controlerIO = controlerIO;
-        this.writeEventsInterval = writeEventsInterval;
+        this.beamServices = beamServices;
         eventsManager.addHandler(this);
     }
 
@@ -35,7 +43,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
         if (writeDataInThisIteration && event instanceof ModeChoiceEvent) {
             ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
             int linkId = Integer.parseInt(modeChoiceEvent.location);
-            Link link = networkHelper.getLinkUnsafe(linkId);
+            Link link = networkHelper().getLinkUnsafe(linkId);
 
             if (link != null) { // TODO: fix this, so that location of mode choice event is always initialized
                 try {
@@ -61,6 +69,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
             this.csvWriter.closeFile();
         }
 
+        int writeEventsInterval = writeEventsInterval();
         writeDataInThisIteration = writeEventsInterval > 0 && iteration % writeEventsInterval == 0;
 
         if (writeDataInThisIteration) {

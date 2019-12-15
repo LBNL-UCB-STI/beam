@@ -5,13 +5,18 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with MockitoSugar with BeamHelper {
+class RideHailSurgePricingManagerSpec
+    extends WordSpecLike
+    with Matchers
+    with MockitoSugar
+    with BeamHelper
+    with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
@@ -19,8 +24,13 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
   lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(config, scenario, beamScenario)
+  lazy val injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val beamServices = buildBeamServices(injector, scenario)
+
+  override def afterAll(): Unit = {
+    injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()
+    super.afterAll()
+  }
 
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
