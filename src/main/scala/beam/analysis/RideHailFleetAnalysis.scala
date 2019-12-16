@@ -178,6 +178,8 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     isCAV: Boolean,
     graphName: String
   ) {
+    return
+
     val events: ListBuffer[Event] = vehicleEventTypeMap.getOrElse(vehicle, new ListBuffer[Event]())
     events += event
     vehicleEventTypeMap(vehicle) = events
