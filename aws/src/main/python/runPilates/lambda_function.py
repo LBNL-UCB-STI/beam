@@ -312,7 +312,8 @@ def lambda_handler(event, context):
             missing_parameters.append(param_name)
         return param_value
 
-    run_name = get_param('runName')
+    shutdown_behaviour = get_param('shutdownBehaviour')
+    run_name = get_param('runName') + '_' + shutdown_behaviour.toUpperCase()
     initial_urbansim_input = get_param('initialS3UrbansimInput')
     branch = get_param('beamBranch')
     commit_id = get_param('beamCommit')
@@ -336,7 +337,6 @@ def lambda_handler(event, context):
     instance_type = get_param('instanceType')
     volume_size = get_param('storageSize')
     region = get_param('region')
-    shutdown_behaviour = get_param('shutdownBehaviour')
 
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)

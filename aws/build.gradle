@@ -92,7 +92,6 @@ task deploy(type: AWSLambdaInvokeTask) {
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
   "command": "deploy"
 }"""
-
         functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
         payload = pload
@@ -153,7 +152,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         }
 
         paramMap['runName'] = paramMap['runName'] + '_' + getCurrentGitUserEmail()
-        
+
         println("parameters wasn't specified: " + missing.join(', '))
 
         // create a string with json object which contains all parameters
@@ -248,9 +247,9 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
         def result = command.execute(null, workingDir)
         result.waitFor()
         if (result.exitValue() == 0) {
-            gitResult  = result.text.trim()
+            gitResult = result.text.trim()
         }
     } catch (ignored) {
     }
-    return gitResult 
+    return gitResult
 }
