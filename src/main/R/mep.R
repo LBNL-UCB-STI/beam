@@ -1,3 +1,8 @@
+# bash commands to dump and tar tabular data from shapefiles into csv in batch:
+# ls /Users/critter/Dropbox/ucb/vto/smart-mobility/final-results/mep/*/*/mep.shp | sed 's/\.shp//g' | xargs -I % /Users/critter/Dropbox/abc/ternPOP/ternpop/bin/shp2csv.R -s %
+# cd /Users/critter/Dropbox/ucb/vto/smart-mobility/final-results/mep/
+# find ./ -name "mep.csv" -not -path "*/old/*" | tar -czf mep-dec13.tgz -T -
+
 library(stringr)
 
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging

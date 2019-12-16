@@ -70,6 +70,8 @@ write.csv(stats,pp(iter.dir,iter,'/',iter.i,'.linkstats-corrected.csv'),row.name
 
 # The less generic version of this, process smart results
 if(F){
+  i<-10
+
   library(colinmisc)
   setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
   source('./src/main/R/beam-utilities.R')
@@ -81,9 +83,8 @@ if(F){
   runs[,local.stats:=pp(res.dir,'runs/',scen,'-linkstats.csv.gz')]
   runs[,url.corrected:=as.character(url)]
   runs[grepl('html\\#',url),url.corrected:=unlist(lapply(str_split(runs[grepl('html\\#',url)]$url,'s3.us-east-2.amazonaws.com/beam-outputs/index.html#'),function(ll){ pp('https://beam-outputs.s3.amazonaws.com/',ll[2]) }))]
-  net <- csv2rdata('/Users/critter/Dropbox/ucb/vto/beam-colin/sf-bay-area/bay_area_simplified_tertiary_strongly_2_way_network/bay_area_simplified_tertiary_strongly_2_way_network-links.csv')
+  #load('/Users/critter/Dropbox/ucb/vto/beam-colin/sf-bay-area/bay_area_simplified_tertiary_strongly_2_way_network/physsim-network.Rdata')
 
-  i<-10
   all.stats <- list()
   all.ev <- list()
   for(i in 1:nrow(runs)){
@@ -134,9 +135,20 @@ if(F){
     all.stats[[length(all.stats)+1]] <- stats
     ev[,scenario:=runs$scen[i]]
     all.ev[[length(all.ev)+1]] <- ev
+    rm(list=c('ev','stats'))
   }
-  all.stats <- rbindlist(all.stats)
-  all.ev <- rbindlist(all.ev)
+  all.stats <- rbindlist(all.stats,use.names=T,fill=T)
+  all.ev <- rbindlist(all.ev,use.names=T,fill=T)
+  all.ev[,length:=as.numeric(as.character(length))]
+  all.ev[,arrivalTime:=as.numeric(as.character(arrivalTime))]
+  all.ev[,departureTime:=as.numeric(as.character(departureTime))]
+
+  # compare them
+  both <- join.on(all.stats[,.(vmt=sum(volume*length)/1609,vht=sum(volume*traveltime)/3600),by='scenario'],
+                  all.ev[,.(vmt=sum(length,na.rm=T)/1609,vht=sum(arrivalTime-departureTime,na.rm=T)/3600),by='scenario'],'scenario','scenario',c('vmt','vht'),'ev.')
+  both[,':='(diff.vmt=(ev.vmt-vmt)/ev.vmt,diff.vht=(ev.vht-vht)/ev.vht,sp=vmt/vht,ev.sp=ev.vmt/ev.vht)]
+  both[,':='(diff.sp=(ev.sp-sp)/ev.sp)]
+
 
   # code used once to correct TTs
   #all.stats.new <- list()

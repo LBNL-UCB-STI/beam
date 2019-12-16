@@ -27,67 +27,38 @@ make.dir(local.dir)
 all.plans <- list()
 all.skims <- list()
 plans <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/activity/plans.csv',stringsAsFactors=F))
+plans[grepl('html\\#',url),url.corrected:=unlist(lapply(str_split(plans[grepl('html\\#',url)]$url,'s3.us-east-2.amazonaws.com/beam-outputs/index.html#'),function(ll){ pp('https://beam-outputs.s3.amazonaws.com/',ll[2]) }))]
+plans[,url.corrected:=url]
 plans[,plan.localfile:=tempfile()]
 plans[,skim.localfile:=tempfile()]
 for(i in 1:nrow(plans)){
   print(plans[i,.(year,config)])
-  local.subdir <-  pp(local.dir,head(tail(str_split(plans$url[i],"\\/")[[1]],ifelse(substrRight(plans$url[1],1)=="/",2,1)),1),"/")
+  local.subdir <-  pp(local.dir,head(tail(str_split(plans$url.corrected[i],"\\/")[[1]],ifelse(substrRight(plans$url.corrected[1],1)=="/",2,1)),1),"/")
   make.dir(local.subdir)
-  local.path <- pp(local.subdir,"plans.csv.gz")
-  plans[i,plan.localfile:=local.path]
-  #if(!file.exists(plans$plan.localfile[i])){
-    #if(grepl("s3.us-east-2",plans$url[i])){
-      #if(substr(plans$url[i],0,5)=='https'){
-        #http.str <- 'https'
-      #}else{
-        #http.str <- 'http'
-      #}
-      #bucket.name <- str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"\\/")[[1]][2]
-      #object.path <- pp(str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"amazonaws.com/")[[1]][2],"plans.csv.gz")
-      #df <- NULL
-      #tryCatch(df <- data.table(s3read_using(read.csv,object=object.path,bucket=bucket.name)),error=function(e){})
-      #if(!is.null(df)){
-        #write.csv(df,file=plans$plan.localfile[i])
-        #save(df,file=pp(str_split(plans$plan.localfile[i],".csv.gz")[[1]][1],".Rdata"))
-      #}
-    #}else{
-      #tryCatch(download.file(pp(plans$url[i],'plans.csv.gz'),plans[i]$plan.localfile),error=function(e){})
-    #}
-  #}
-  #if(file.exists(plans$plan.localfile[i])){
-    #df <- csv2rdata(plans[i]$plan.localfile)
-    #ds <- df[activityType%in%c('Home','Work'),.(x=c(activityLocationX[activityType=='Home'][1], activityLocationX[activityType=='Work'][1]),y=c(activityLocationY[activityType=='Home'][1], activityLocationY[activityType=='Work'][1])),by='personId'][,.(d=sqrt(diff(x)^2+diff(y)^2)/1609),by='personId']
-    #print(summary(ds$d))
-    #plans[i,min.dist:=min(ds$d)]
-    #plans[i,max.dist:=max(ds$d)]
-    #plans[i,mean.dist:=mean(ds$d)]
-    #plans[i,median.dist:=median(ds$d)]
-    #df[,year:=plans$year[i]]
-    #df[,config:=plans$config[i]]
-    #df[,frequency:=plans$frequency[i]]
-    #all.plans[[length(all.plans)+1]] <- df
-  #}
+  plans[i,plan.localfile:=pp(local.subdir,"plans.csv.gz")]
+  if(!file.exists(plans$plan.localfile[i])){
+    tryCatch(download.file(pp(plans$url.corrected[i],'plans.csv.gz'),plans[i]$plan.localfile),error=function(e){})
+  }
+  if(file.exists(plans$plan.localfile[i])){
+    df <- csv2rdata(plans[i]$plan.localfile)
+    ds <- df[activityType%in%c('Home','Work'),.(x=c(activityLocationX[activityType=='Home'][1], activityLocationX[activityType=='Work'][1]),y=c(activityLocationY[activityType=='Home'][1], activityLocationY[activityType=='Work'][1])),by='personId'][,.(d=sqrt(diff(x)^2+diff(y)^2)/1609),by='personId']
+    print(summary(ds$d))
+    plans[i,min.dist:=min(ds$d)]
+    plans[i,max.dist:=max(ds$d)]
+    plans[i,mean.dist:=mean(ds$d)]
+    plans[i,median.dist:=median(ds$d)]
+    df[,year:=plans$year[i]]
+    df[,config:=plans$config[i]]
+    df[,frequency:=plans$frequency[i]]
+    all.plans[[length(all.plans)+1]] <- df
+  }
   it <- as.numeric(substr(plans$config[i],4,4))
   if(is.na(it))it <- 15
-  local.path <- pp(local.subdir,"skims.csv.gz")
-  plans[i,skim.localfile:=local.path]
+  plans[i,skim.localfile:=pp(local.subdir,"skims.csv.gz")]
   if(!file.exists(plans$skim.localfile[i])){
-    if(grepl("s3.us-east-2",plans$url[i])){
-      if(substr(plans$url[i],0,5)=='https'){
-        http.str <- 'https'
-      }else{
-        http.str <- 'http'
-      }
-      bucket.name <- str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],".s3.")[[1]][1]
-      object.path <- pp(str_split(str_split(plans$url[i],pp(http.str,"://"))[[1]][2],"amazonaws.com/")[[1]][2],'ITERS/it.',it,'/',it,'.skims.csv.gz')
-      df <- NULL
-      tryCatch(df <- data.table(s3read_using(read.csv,object=object.path,bucket=bucket.name)),error=function(e){})
-      if(!is.null(df)){
-        write.csv(df,file=plans$skim.localfile[i])
-        save(df,file=pp(str_split(plans$skim.localfile[i],".csv.gz")[[1]][1],".Rdata"))
-      }
-    }else{
-      tryCatch(download.file(pp(plans$url[i],'ITERS/it.',it,'/',it,'.skims.csv.gz'),plans$skim.localfile[i]),error=function(e){})
+    for(it in 15:0){
+      tryCatch(download.file(pp(plans$url.corrected[i],'ITERS/it.',it,'/',it,'.skims.csv.gz'),plans[i]$skim.localfile),error=function(e){})
+      if(file.exists(plans[i]$skim.localfile))break
     }
   }
   if(file.exists(plans$skim.localfile[i])){
@@ -110,7 +81,19 @@ ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU'
 #ggplot(melt(plans[,-3,with=F],id.vars=c('year','config')),aes(x=year,y=value,colour=variable))+geom_line()+facet_wrap(~config)
 
 # Skims
-ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU','Base-Long-VTO'),.(year,config,frequency,generalizedTimeMinutes,generalizedCost,travelTimeMinutes,milesTraveled)],id.vars=c('year','config','frequency')),aes(x=year,y=value,colour=config,shape=config))+geom_line()+geom_point()+labs(x='Year',y='Value',colour='Scenario',shape='Scenario')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
+all.skims[,scen:=config]
+all.skims[,scen:=pp(config,'-',year)]
+toplot <- all.skims[mode%in%c('CAR','CAV','RIDE_HAIL','RIDE_HAIL_POOLED'),.(generalizedTimeInMinutes=weighted.mean(generalizedTimeInS,numObservations)/60,generalizedCost=weighted.mean(generalizedCost,numObservations),travelTimeInMinutes=weighted.mean(travelTimeInS,numObservations)/60,personMilesTraveled=weighted.mean(distanceInM,numObservations)/1609),by='scen']
+#toplot <- all.skims[mode%in%c('CAR'),.(generalizedTimeInMinutes=weighted.mean(generalizedTimeInS,numObservations)/60,generalizedCost=weighted.mean(generalizedCost,numObservations),travelTimeInMinutes=weighted.mean(travelTimeInS,numObservations)/60,personMilesTraveled=weighted.mean(distanceInM,numObservations)/1609),by='scen']
+ggplot(melt(toplot[!scen%in%pp('base',1:6),.(scen,generalizedTimeInMinutes,generalizedCost,travelTimeInMinutes,personMilesTraveled)],id.vars=c('scen')),aes(x=scen,y=value))+geom_bar(stat='identity')+labs(x='Scenario',y='Value',title='With Ride Hail')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
+ggplot(melt(toplot[scen%in%c('Base-2010','A-BAU-2025','A-VTO-2025','B-BAU-2040','B-VTO-2040','C-BAU-2040','C-VTO-2040'),.(scen,generalizedTimeInMinutes,generalizedCost,travelTimeInMinutes,personMilesTraveled)],id.vars=c('scen')),aes(x=scen,y=value))+geom_bar(stat='identity')+labs(x='Scenario',y='Value',title='With Ride Hail')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
+
+# custom data from old plot consistent with UrbanSim result in the capstone report
+toplot[,generalizedTimeInMinutesCustom:=c(rep(38,7),31,30.5,27.5,28,40,41)]
+toplot[,scen.cap:=factor(c(pp('Base',0:6),'A2','A3','B5','B6','C5','C6'),levels=c(pp('Base',0:6),'A2','A3','B5','B6','C5','C6'))]
+ggplot(toplot[!scen%in%pp('base',1:6)],aes(x=scen.cap,y=generalizedTimeInMinutesCustom))+geom_bar(stat='identity')+labs(x='Scenario',y='Generalized Trave Time (minutes)',title='')
+toplot[,commute.dists:=c(rep(14.02,7),14.03,14.028,13.865,13.88,13.92,13.88)]
+ggplot(toplot[!scen%in%pp('base',1:6)],aes(x=scen.cap,y=commute.dists))+geom_bar(stat='identity')+labs(x='Scenario',y='Avg. Euclidean Commute Distance (mi)',title='')
 
 # Tabular analysis of skims
 all.skims[year==2040 & mode%in%c('CAR','CAV'),.(cost=weighted.mean(cost, numObservations), generalizedCost =weighted.mean(generalizedCost, numObservations),medianGenCost=median(generalizedCost),numObs=sum(numObservations),genTT= weighted.mean(generalizedTimeInS/60, numObservations),tt= weighted.mean(travelTimeInS/60, numObservations)),by='config']
