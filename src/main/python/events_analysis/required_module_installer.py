@@ -13,6 +13,8 @@ def npm_install(package, package2):
 
 def installAll():
     install("pandas")
+    install("geopandas")
+    install("contextily")
     install("plotly")
     install("numpy")
     install("matplotlib")
