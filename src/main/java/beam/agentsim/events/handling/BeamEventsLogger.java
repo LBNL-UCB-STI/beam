@@ -22,16 +22,16 @@ public class BeamEventsLogger {
     private final Set<Class<?>> eventsToLog = new HashSet<>();
     private final List<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
-    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, String eventsToWrite) {
         this.beamServices = beamServices;
         this.matsimServices = matsimServices;
         this.eventsManager = eventsManager;
-        overrideDefaultLoggerSetup();
+        overrideDefaultLoggerSetup(eventsToWrite);
     }
 
-    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, Boolean init) {
-        this(beamServices, matsimServices, eventsManager);
-        if (init) {
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, String eventsToWrite, Boolean shouldInitialize) {
+        this(beamServices, matsimServices, eventsManager, eventsToWrite);
+        if (shouldInitialize) {
             setEventsFileFormats();
             createEventsWriters();
         }
@@ -103,12 +103,11 @@ public class BeamEventsLogger {
     /**
      * Overrides the default logger setup
      */
-    private void overrideDefaultLoggerSetup() {
+    private void overrideDefaultLoggerSetup(String eventsToWrite) {
         Class<?> eventClass = null;
         // Generate the required event class reference based on the class name
-        String eventsToWrite = beamServices.beamConfig().beam().outputs().events().eventsToWrite();
         if (!eventsToWrite.isEmpty()) {
-            for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite().split(",")) {
+            for (String className : eventsToWrite.split(",")) {
                 switch (className) {
                     case "ActivityStartEvent":
                         eventClass = ActivityStartEvent.class;
@@ -178,8 +177,7 @@ public class BeamEventsLogger {
                                 "Logging class name: Unidentified event type class " + className);
                 }
                 //add the matched event class to the list of events to log
-                if (eventClass != null)
-                    eventsToLog.add(eventClass);
+                eventsToLog.add(eventClass);
             }
         }
     }

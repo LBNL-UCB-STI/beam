@@ -487,7 +487,15 @@ class PhysSim(
         )
         val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
         val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-        new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor)
+        val minimumRoadSpeedInMetersPerSecond = beamConfig.beam.physsim.jdeqsim.cacc.minimumRoadSpeedInMetersPerSecond
+        new JDEQSimulation(
+          config,
+          jdeqSimScenario,
+          jdeqsimEvents,
+          caccSettings,
+          speedAdjustmentFactor,
+          minimumRoadSpeedInMetersPerSecond
+        )
 
       case None =>
         logger.info("CACC disabled")
@@ -514,7 +522,12 @@ class PhysSim(
   private def createCsvWriter(currentPhysSimIter: Int, jdeqsimEvents: EventsManagerImpl): BeamEventsWriterCSV = {
     val fileName =
       controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.csv.gz")
-    val beamEventLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices, jdeqsimEvents)
+    val beamEventLogger = new BeamEventsLogger(
+      beamServices,
+      beamServices.matsimServices,
+      jdeqsimEvents,
+      beamServices.beamConfig.beam.physsim.events.eventsToWrite
+    )
     val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
     csvEventsWriter
   }

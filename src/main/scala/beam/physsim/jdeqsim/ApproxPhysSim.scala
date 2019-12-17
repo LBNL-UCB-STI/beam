@@ -262,12 +262,9 @@ class ApproxPhysSim(
     jdeqsimEvents.addHandler(travelTimeCalculator)
     jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
     val maybeEventWriter = if (writeEvents) {
-      val viaXmlEventWriter = createViaXmlEventsWriter(currentPhysSimIter)
-      jdeqsimEvents.addHandler(viaXmlEventWriter)
-
-      val csvEventsWriter: BeamEventsWriterCSV = createCsvWriter(currentPhysSimIter, jdeqsimEvents)
-      jdeqsimEvents.addHandler(csvEventsWriter)
-      Some((viaXmlEventWriter, csvEventsWriter))
+      val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
+      jdeqsimEvents.addHandler(writer)
+      Some(writer)
     } else None
 
     val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
@@ -296,10 +293,8 @@ class ApproxPhysSim(
       }
 
     } finally {
-      maybeEventWriter.foreach {
-        case (w1, w2) =>
-          Try(w1.closeFile())
-          Try(w2.closeFile())
+      maybeEventWriter.foreach { wrt =>
+        Try(wrt.closeFile())
       }
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
     }
@@ -550,7 +545,15 @@ class ApproxPhysSim(
         )
         val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
         val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-        new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor)
+        val minimumRoadSpeedInMetersPerSecond = beamConfig.beam.physsim.jdeqsim.cacc.minimumRoadSpeedInMetersPerSecond
+        new JDEQSimulation(
+          config,
+          jdeqSimScenario,
+          jdeqsimEvents,
+          caccSettings,
+          speedAdjustmentFactor,
+          minimumRoadSpeedInMetersPerSecond
+        )
 
       case None =>
         logger.info("CACC disabled")
@@ -577,7 +580,12 @@ class ApproxPhysSim(
   private def createCsvWriter(currentPhysSimIter: Int, jdeqsimEvents: EventsManagerImpl): BeamEventsWriterCSV = {
     val fileName =
       controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.csv.gz")
-    val beamEventLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices, jdeqsimEvents)
+    val beamEventLogger = new BeamEventsLogger(
+      beamServices,
+      beamServices.matsimServices,
+      jdeqsimEvents,
+      beamServices.beamConfig.beam.physsim.events.eventsToWrite
+    )
     val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
     csvEventsWriter
   }
