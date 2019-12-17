@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1575843168230,
+    "iteration": 1576610823696,
     "links": [],
     "panels": [
       {
@@ -49,11 +49,1315 @@
           "x": 0,
           "y": 0
         },
+        "id": 24,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance per hour (1000 mi)",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "bev-no-cav-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV non CAV Distance",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "id": 25,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Time",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "bev-no-cav-time",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV non CAV Time",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 9
+        },
+        "id": 26,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance per hour (1000 mi)",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "bev-cav-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV CAV Distance",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 9
+        },
+        "id": 27,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Time",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "bev-cav-time",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "BEV CAV Time",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 18
+        },
+        "id": 20,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance per hour (1000 mi)",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "rh-no-cav-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH non CAV Distance",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 18
+        },
+        "id": 21,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Time",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "rh-no-cav-time",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH non CAV Time",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 27
+        },
+        "id": 22,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Distance per hour (1000 mi)",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "rh-cav-distance",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH CAV Distance",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 27
+        },
+        "id": 23,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour vehicle-state sum",
+            "dataColumn": "vehicle-state",
+            "xColumn": "simulation-hour",
+            "yColumn": "count"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "Time",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "rh-cav-distance.mean",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "vehicle-state"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "rh-cav-time",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"vehicle-state\", \"simulation-hour\"",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH CAV Time",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 36
+        },
         "id": 13,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time parkingType sum",
+            "all": "Time parkingType simulation-hour sum",
             "dataColumn": "parkingType",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -211,13 +1515,13 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 0
+          "y": 36
         },
         "id": 9,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time typeOfCharger sum",
+            "all": "Time simulation-hour typeOfCharger sum",
             "dataColumn": "typeOfCharger",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -375,13 +1679,13 @@
           "h": 9,
           "w": 12,
           "x": 0,
-          "y": 9
+          "y": 45
         },
         "id": 10,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time vehicleType sum",
+            "all": "Time simulation-hour vehicleType sum",
             "dataColumn": "vehicleType",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -539,13 +1843,13 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 9
+          "y": 45
         },
         "id": 12,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time trip-type sum",
+            "all": "Time simulation-hour trip-type sum",
             "dataColumn": "trip-type",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -703,13 +2007,13 @@
           "h": 9,
           "w": 12,
           "x": 0,
-          "y": 18
+          "y": 54
         },
         "id": 2,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time mode sum",
+            "all": "Time mode simulation-hour sum",
             "dataColumn": "mode",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -868,13 +2172,13 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 18
+          "y": 54
         },
         "id": 18,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time parking-type sum",
+            "all": "Time parking-type simulation-hour sum",
             "dataColumn": "parking-type",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -1033,13 +2337,13 @@
           "h": 9,
           "w": 12,
           "x": 0,
-          "y": 27
+          "y": 63
         },
         "id": 15,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time mode sum",
+            "all": "Time mode simulation-hour sum",
             "dataColumn": "mode",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -1196,13 +2500,13 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 27
+          "y": 63
         },
         "id": 3,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time iteration-num sum",
+            "all": "Time iteration-num simulation-hour sum",
             "dataColumn": "iteration-num",
             "xColumn": "simulation-hour",
             "yColumn": "sum"
@@ -1363,8 +2667,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-08_23-25-34_sf-light-1k-xml",
-            "value": "2019-12-08_23-25-34_sf-light-1k-xml"
+            "text": "2019-12-17_20-36-35_sf-light-1k-xml",
+            "value": "2019-12-17_20-36-35_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -1388,8 +2692,9 @@
         {
           "allValue": null,
           "current": {
-            "text": "4",
-            "value": "4"
+            "tags": [],
+            "text": "0",
+            "value": "0"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -1429,6 +2734,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 25
+    "version": 10
   }
 }
