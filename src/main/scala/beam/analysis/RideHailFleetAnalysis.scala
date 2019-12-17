@@ -179,7 +179,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           val tags = Map("vehicle-state" -> key)
           beamServices.simMetricCollector.write(
             metric,
-            SimulationTime(processedHour * 60 * 60),
+            SimulationTime((processedHour + 1) * 60 * 60),
             Map(SimulationMetricCollector.defaultMetricValueName -> value),
             tags
           )
@@ -194,6 +194,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     ridehailHumanDriven.clear()
     personalCav.clear()
     personalHumanDriven.clear()
+    processedHour = 0
   }
 
   def assignVehicleDayToLocationMatrix(
