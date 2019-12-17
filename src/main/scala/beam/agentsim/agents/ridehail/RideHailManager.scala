@@ -1216,20 +1216,7 @@ class RideHailManager(
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
     requestedRideHail += 1
-    val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
-      beamServices.geo.snapToR5Edge(
-        beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(inquiry.pickUpLocationUTM)
-      )
-    )
-    val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
-      beamServices.geo.snapToR5Edge(
-        beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(inquiry.destinationUTM)
-      )
-    )
-    val inquiryWithUpdatedLoc =
-      inquiry.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)
+    val inquiryWithUpdatedLoc = RideHailRequest.handleImpression(inquiry, beamServices)
     rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
         beamServices.simMetricCollector.increment(
@@ -1580,7 +1567,7 @@ class RideHailManager(
     var allRoutesRequired: Vector[RoutingRequest] = Vector()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
-    rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
+    rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick, beamServices) match {
       case VehicleAllocations(allocations) =>
         allocations.foreach { allocation =>
           allocation match {
@@ -1784,6 +1771,9 @@ class RideHailManager(
     vehiclesHeadedToRefuelingDepot.foreach {
       case (vehicleId, _) =>
         doNotUseInAllocation.add(vehicleId)
+        // We have to remove this vehicle from `idleVehicles` before passing it to `rideHailResourceAllocationManager.repositionVehicles`
+        // Too much side-effects, sorry :(
+        idleVehicles.remove(vehicleId)
     }
 
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =

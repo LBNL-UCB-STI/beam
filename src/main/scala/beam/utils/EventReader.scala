@@ -63,9 +63,9 @@ object EventReader {
     new MatsimEventsReader(tempEventManager).readFile(filePath)
   }
 
-  def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
+  def getEventsFilePath(matsimConfig: Config, name: String, extension: String, iteration: Int = 0): File = {
     new File(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
+      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.$name.$extension"
     )
   }
 

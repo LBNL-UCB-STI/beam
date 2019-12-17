@@ -152,21 +152,38 @@ Automated Cloud Deployment
 
     This functionality is available for core BEAM development team with Amazon Web Services access privileges. Please contact Colin_ for access to capability.
 
+BEAM run on EC2
+~~~~~~~~~~~~~~~
+
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
   gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
 
+* **propsFile**: to specify file with default values
+* **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **deployMode**: to specify what type of deploy it will be: config | experiment | execute
 * **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
+* **executeClass** and **executeArgs**: to specify class and args to execute if `execute` was chosen as deploy mode
+* **maxRAM**: to specify MAXRAM environment variable for simulation.
+* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
 * **beamBatch**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
+* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
+* **instanceType**: to specify s2 instance type.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 
-If any of the above parameter is not specified at the command line, then default values are assumed for optional parameters. These default values are specified in gradle.properties_ file.
+There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
+
+The order which will be used to look for parameter values is follow:
+ #. command line arguments
+ #. gradle.properties_ file
+ #. gradle.deploy.properties_ file or custom file specified in `propsFile`
 
 To run a batch simulation, you can specify multiple configuration files separated by commas::
 
@@ -178,29 +195,98 @@ Similarly for experiment batch, you can specify comma-separated experiment files
 
 For demo and presentation material, please follow the link_ on google drive.
 
-AWS EC2 Start
-~~~~~~~~~~~~~
 
-To maintain ec2 instances, there are some utility tasks that reduce operation cost tremendously. You can start already available instances using a simple `start` gradle task under aws module. You can specify one or more instance ids by a comma saturated list as `instanceIds` argument. Below is syntax to use the command::
+PILATES run on EC2
+~~~~~~~~~~~~~~~~~~
 
-  cd aws
-  gradle start -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+It is possible to start PILATES simulation on AWS instance from gradle task  ::
+
+  gradle deployPilates [-Pparam1name=param1value [... -PparamNname=paramNvalue]]
+
+This command will start PILATES simulation on ec2 instance with specified parameters.
+
+* **propsFile**: to specify file with default values
+* **runName**: to specify instance name.
+* **startYear**: to specify start year of simulation.
+* **countOfYears**: to specify count of years.
+* **beamItLen**: to specify simulations year step.
+* **urbansimItLen**: to specify urbansim simulation length.
+* **inYearOutput**: to allow urbansim to write in year output, default is 'off'.
+* **beamConfig**: to specify BEAM config file for all runs during simulation.
+* **initialS3UrbansimInput**: to specify initial data for first urbansim run.
+* **initialS3UrbansimOutput**: to specify initial urbansim data for first BEAM run if it is not skipped.
+* **initialSkimPath**: to specify initial skim file for first urbansim run if first BEAM run is skipped. Setting this parameter to any value will lead to skipping first BEAM run.
+* **s3OutputBucket**: to specify s3 output bucket name, default is `//pilates-outputs`.
+* **s3OutputBasePath**: to specify s3 output path from bucket to output folder. Setting this parameter empty will lead to putting output folder in root of s3 output bucket. By default is empty.
+* **pilatesScenarioName**: name of output folder. Full name will contain this parameter value and datetime of start of run. By default is `pilates`.
+* **beamBranch**: to specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: the commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **maxRAM**: to specify MAXRAM environment variable for simulation.
+* **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **region**: to specify region to deploy ec2 instance. May be different from s3 bucket instance.
+* **dataRegion**: to specify region of s3 buckets. All operations with s3 buckets will be use this region. By default equal to `region`.
+* **instanceType**: to specify s2 instance type.
+* **pilatesImageVersion**: to specify pilates image version, default is `latest`.
+* **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
+
+There is a default file to specify parameters for task: gradle.deployPILATES.properties_ and it is advised to use it (or custom) file to specify all default values for `deployPilates` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
+
+The order which will be used to look for parameter values is follow:
+ #. command line arguments
+ #. gradle.properties_ file
+ #. gradle.deployPILATES.properties_ file or custom file specified in `propsFile`
+
+If none of sources contains parameter, then parameter will be omitted. This will ends with output message: "`parameters wasn't specified: <omitted parameters list>`"
+
+Running this function will leads to:
+ #. creating new ec2 instance
+ #. pulling from github selected branch/commit
+ #. pulling from docker hub PILATES image
+ #. running PILATES image with specified parameters
+ #. writing output from every iteration to s3 bucket
+
+All run parameters will be stored in `run-params` file in root of PILATES output.
+
+Also during simulation for every BEAM run will be created a new config file with specified paths to output folder and to urbansim data.
+Those config files will be created near original config file (from `beamConfig` variable) with year added to the name.
+So it will be possible to rerun BEAM for selected year.
+
+
+AWS EC2 start stop and terminate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To maintain ec2 instances, there are some utility tasks that reduce operation cost tremendously.
+You can start already available instances using a simple `startEC2` gradle task under aws module.
+You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
+Below is syntax to use the command::
+
+  gradle startEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 As a result of task, instance DNS would be printed on the console.
 
 
-AWS EC2 Stop
-~~~~~~~~~~~~
+Just like starting instance, you can also stop already running instances using a simple `stopEC2` gradle task.
+You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
+Below is syntax to use the command::
 
-Just like starting instance, you can also stop already running instances using a simple `stop` gradle task under aws module. You can specify one or more instance ids by a comma saturated list as `instanceIds` argument. Below is syntax to use the command::
+  gradle stopEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
-  cd aws
-  gradle stop -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+It is possible not just stop instance but terminate it using `terminateEC2` gradle task.
+Terminated instances are not available to start and will be completely removed along with all data they contain.
+You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
+Below is syntax to use the command::
+
+  gradle terminateEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 .. _Colin: mailto:colin.sheppard@lbl.gov
 .. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
 .. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
+.. _gradle.deploy.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deploy.properties
+.. _gradle.deployPILATES.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deployPILATES.properties
 .. _link: https://goo.gl/Db37yM
+
 
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -487,6 +573,8 @@ Use ``mutable`` buffer instead of ``immutable var``:
    buffer += 2
    
 **Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
+
+::
 
    val mutableList = scala.collection.mutable.MutableList(1,2)
    mutableList += 3
