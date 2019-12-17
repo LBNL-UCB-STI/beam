@@ -4,7 +4,7 @@ import beam.agentsim.events.{ParkEvent, PathTraversalEvent, RefuelSessionEvent, 
 import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.sim.metrics.Metrics
+import beam.sim.metrics.{Metrics, SimulationMetricCollector}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -32,7 +32,6 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     "parked"             -> 8
   )
 
-  import RideHailFleetStateEvent._
   import RefuelSessionEvent._
 
   val rideHailCav = mutable.Map[String, ArrayBuffer[Event]]()
@@ -44,26 +43,6 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   override def processStats(event: Event): Unit = {
     event match {
-      case rideHailFleetStateEvents: RideHailFleetStateEvent =>
-        beamServices.simMetricCollector.write(
-          "VehiclesStates",
-          SimulationTime(rideHailFleetStateEvents.getTime.toInt),
-          Map(
-            ATTRIBUTE_EV_CAV_COUNT -> rideHailFleetStateEvents.getAttributes.get(ATTRIBUTE_EV_CAV_COUNT).toDouble,
-            ATTRIBUTE_NON_EV_CAV_COUNT -> rideHailFleetStateEvents.getAttributes
-              .get(ATTRIBUTE_NON_EV_CAV_COUNT)
-              .toDouble,
-            ATTRIBUTE_EV_NON_CAV_COUNT -> rideHailFleetStateEvents.getAttributes
-              .get(ATTRIBUTE_EV_NON_CAV_COUNT)
-              .toDouble,
-            ATTRIBUTE_NON_EV_NON_CAV_COUNT -> rideHailFleetStateEvents.getAttributes
-              .get(ATTRIBUTE_NON_EV_NON_CAV_COUNT)
-              .toDouble
-          ),
-          tags = Map(
-            "VehicleType" -> rideHailFleetStateEvents.getAttributes.get(RideHailFleetStateEvent.ATTRIBUTE_VEHICLE_TYPE)
-          )
-        )
       case refuelSessionEvent: RefuelSessionEvent =>
         if (refuelSessionEvent.getAttributes.get(ATTRIBUTE_ENERGY_DELIVERED).toDouble > 0.0) {
           val vehicle = refuelSessionEvent.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
@@ -160,7 +139,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     val hour = eventHour(event.getTime)
     if (hour > processedHour) {
       processVehicleStates()
-      processedHour += 1
+      processedHour = hour
     }
   }
 
@@ -171,7 +150,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     processEvents(personalHumanDriven, false, false, "bev-no-cav")
   }
 
-  def eventHour(time: Double): Double = time / 3600
+  def eventHour(time: Double): Int = (time / 3600).toInt
 
   def processEvents(
     vehicleEventTypeMap: mutable.Map[String, ArrayBuffer[Event]],
@@ -194,16 +173,14 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     val distanceUtilizationSum =
       distanceUtilization.reduce((xSeries1, xSeries2) => (xSeries1, xSeries2).zipped.map(_ + _))
 
-    println(s"timeUtilizationSum $graphName" + timeUtilizationSum.mkString(", "))
     keys.foreach {
       case (key, idx) =>
         def write(metric: String, value: Double): Unit = {
-
           val tags = Map("vehicle-state" -> key)
-          beamServices.simMetricCollector.writeGlobal(
+          beamServices.simMetricCollector.write(
             metric,
-            value,
-            Metrics.ShortLevel,
+            SimulationTime(processedHour * 60 * 60),
+            Map(SimulationMetricCollector.defaultMetricValueName -> value),
             tags
           )
         }
