@@ -459,7 +459,12 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
-    val (beamExecutionConfig: BeamExecutionConfig, scenario: MutableScenario, beamScenario: BeamScenario, services: BeamServices) = prepareBeamService(config)
+    val (
+      beamExecutionConfig: BeamExecutionConfig,
+      scenario: MutableScenario,
+      beamScenario: BeamScenario,
+      services: BeamServices
+    ) = prepareBeamService(config)
 
     runBeam(
       services,
