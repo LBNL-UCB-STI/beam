@@ -423,7 +423,7 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 
-.. _already configured: http://www.python.org/
+.. _already configured: http://logback.qos.ch/manual/jmxConfig.html
 .. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
