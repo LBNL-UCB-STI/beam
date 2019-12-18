@@ -10,7 +10,7 @@ import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.influxdb.{BatchOptions, InfluxDB, InfluxDBFactory}
-import org.influxdb.dto.Point
+import org.influxdb.dto.{Point, Query}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -34,7 +34,8 @@ trait SimulationMetricCollector {
     time: SimulationTime,
     values: Map[String, Double] = Map.empty,
     tags: Map[String, String] = Map.empty,
-    level: MetricLevel = ShortLevel
+    level: MetricLevel = ShortLevel,
+    overwriteIfExist: Boolean = false
   ): Unit
 
   def writeGlobal(
@@ -111,7 +112,8 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
     time: SimulationTime,
     values: Map[String, Double],
     tags: Map[String, String],
-    level: MetricLevel
+    level: MetricLevel,
+    overwriteIfExist: Boolean = false
   ): Unit = {}
 }
 
@@ -152,12 +154,13 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     time: SimulationTime,
     values: Map[String, Double],
     tags: Map[String, String],
-    level: MetricLevel
+    level: MetricLevel,
+    overwriteIfExist: Boolean
   ): Unit = {
     if (isRightLevel(level)) {
       val rawPoint = Point
         .measurement(metricName)
-        .time(influxTime(metricName, time.seconds), TimeUnit.NANOSECONDS)
+        .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
         .tag("simulation-hour", time.hours.toString)
 
       val withFields = values.foldLeft(rawPoint) {
@@ -185,9 +188,15 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     Try(maybeInfluxDB.foreach(_.close()))
   }
 
-  private def influxTime(metricName: String, simulationTimeSeconds: Long): Long = {
+  private def influxTime(metricName: String, simulationTimeSeconds: Long, overwriteIfExist: Boolean): Long = {
     val tsNano = todayAsNanos + TimeUnit.SECONDS.toNanos(simulationTimeSeconds)
-    getNextInfluxTs(metricName, tsNano)
+    // influxDB overrides values when they have the same timestamp.
+    // sometimes that behaviour is handy
+    if (overwriteIfExist) {
+      tsNano
+    } else {
+      getNextInfluxTs(metricName, tsNano)
+    }
   }
 
   private def getNextInfluxTs(metricName: String, tsNano: Long): Long = {
