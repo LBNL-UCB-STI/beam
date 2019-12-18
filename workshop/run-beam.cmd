@@ -7,8 +7,8 @@ set "config=%config:\=/%"
 set input=%cd%\input
 set output=%cd%\output
 
-rem because in Windows Ctrl+C does not allow docker to remove container
-docker container stop BEAM
+rem because in Windows, using Ctrl+C to interrupt script does not allow docker to remove container
+docker container stop BEAM >nul 2>nul
 
 docker run --name BEAM --rm --mount source=%input%,destination=/input,type=bind --mount source=%output%,destination=/output,type=bind --link docker-influxdb-grafana:metrics --net beam_default --env JAVA_OPTS="-Xmx8g -Xms4g -Dlogback.configurationFile=logback.xml" beammodel/beam:workshop --config=%config%
 goto :eof
