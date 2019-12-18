@@ -283,7 +283,7 @@ if __name__ == '__main__':
     nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhcav.index)/400),num=20,dtype=int))
     
     output_val_human, ouput_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
-    output_val_cav, ouput_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, parking_out_folder, taz)
+    output_val_cav, ouput_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
     
     makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, parking_out_folder)
     
