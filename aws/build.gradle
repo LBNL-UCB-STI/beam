@@ -103,6 +103,78 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 }
 
+task deployWithGrafana(type: AWSLambdaInvokeTask) {
+    doFirst {
+        def propsFileName = "../gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            } else {
+                return propsFile.getProperty(paramName)
+            }
+        }
+
+        if (!ext.getParameterValue('runName')) {
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
+        }
+
+        switch (ext.getParameterValue('deployMode')) {
+            case 'config':
+                if (!ext.getParameterValue('beamConfigs') && !ext.getParameterValue(getCurrentGitBranch() + '.configs')) {
+                    throw new GradleException('beamConfigs is required to deploy config run.')
+                }
+                break
+            case 'experiment':
+                if (!ext.getParameterValue('beamExperiments') && !ext.getParameterValue(getCurrentGitBranch() + '.experiments')) {
+                    throw new GradleException('beamExperiments is required to deploy experement.')
+                }
+                break
+            case 'execute':
+                if (!ext.getParameterValue('executeClass') || !ext.getParameterValue('executeArgs')) {
+                    throw new GradleException('executeClass and executeArgs are required to deploy execute.')
+                }
+                break
+            default:
+                throw new GradleException('Please provide a valid deployMode.')
+                break
+        }
+
+        def pload = """{
+  "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+  "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+  "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
+  "deploy_mode": "${ext.getParameterValue('deployMode')}",
+  "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${ext.getParameterValue('beamExperiments') ?: ext.getParameterValue(getCurrentGitBranch() + '.experiments')}",
+  "execute_class": "${ext.getParameterValue('executeClass')}",
+  "execute_args": "${ext.getParameterValue('executeArgs')}",
+  "max_ram": "${ext.getParameterValue('maxRAM') ?: '140g'}",
+  "storage_size": ${ext.getParameterValue('storageSize')},
+  "batch": "${ext.getParameterValue('beamBatch')}",
+  "s3_publish": "${ext.getParameterValue('s3Backup') ?: true}",
+  "instance_type": "${ext.getParameterValue('instanceType') ?: defaultInstanceType}",
+  "region": "${ext.getParameterValue('region') ?: defaultRegion}",
+  "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
+  "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
+  "command": "deploy"
+}"""
+        functionName = "runBeamWithGrafana-TEST"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
+    }
+
+    doLast {
+        println payload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
 task deployPilates(type: AWSLambdaInvokeTask) {
     doFirst {
         def propsFileName = "../gradle.deployPILATES.properties"
