@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1576610823696,
+    "iteration": 1576706976158,
     "links": [],
     "panels": [
       {
@@ -248,7 +248,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Time",
+              "title": "# of vehicles",
               "type": "linear",
               "zeroline": false
             },
@@ -363,7 +363,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV non CAV Time",
+        "title": "BEV non CAV Vehicles",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -574,7 +574,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Time",
+              "title": "# of vehicles",
               "type": "linear",
               "zeroline": false
             },
@@ -689,7 +689,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV CAV Time",
+        "title": "BEV CAV Vehicles",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -900,7 +900,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Time",
+              "title": "# of vehicles",
               "type": "linear",
               "zeroline": false
             },
@@ -1015,7 +1015,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH non CAV Time",
+        "title": "RH non CAV Vehicles",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1226,7 +1226,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Time",
+              "title": "# of vehicles",
               "type": "linear",
               "zeroline": false
             },
@@ -1341,7 +1341,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH CAV Time",
+        "title": "RH CAV Vehicles",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2667,8 +2667,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-17_20-36-35_sf-light-1k-xml",
-            "value": "2019-12-17_20-36-35_sf-light-1k-xml"
+            "text": "2019-12-19_00-58-38_sf-light-1k-xml",
+            "value": "2019-12-19_00-58-38_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2693,8 +2693,8 @@
           "allValue": null,
           "current": {
             "tags": [],
-            "text": "0",
-            "value": "0"
+            "text": "5",
+            "value": "5"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -2734,6 +2734,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 10
+    "version": 2
   }
 }
