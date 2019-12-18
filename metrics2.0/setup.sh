@@ -73,6 +73,8 @@ configure_grafana() {
   wait_for_api
   install_datasources
   install_dashboards
+
+  echo "Grafana is ready"
 }
 
 wait_for_influx_db() {
@@ -81,14 +83,16 @@ wait_for_influx_db() {
     influx -execute "SHOW DATABASES"
   done
 }
+
 create_beam_database() {
   influx -execute "CREATE DATABASE beam"
 }
 
 configure_influx_db() {
   wait_for_influx_db
-  echo "InfluxDB is ready"
   create_beam_database
+
+  echo "InfluxDB is ready"
 }
 
 echo "Running configure_grafana in the background..."
