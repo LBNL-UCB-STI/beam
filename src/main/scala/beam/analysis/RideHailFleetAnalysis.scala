@@ -168,24 +168,33 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         .map(distance => (distance._1, distance._2).zipped.map(_ + _))
     })
 
-    val timeUtilizationSum =
-      timeUtilization.reduce((xSeries1, xSeries2) => (xSeries1, xSeries2).zipped.map(_ + _))
-    val distanceUtilizationSum =
-      distanceUtilization.reduce((xSeries1, xSeries2) => (xSeries1, xSeries2).zipped.map(_ + _))
+    if (processedHour < timeBins.length / 60) {
+      (0 until processedHour).foreach(hour => {
 
-    keys.foreach {
-      case (key, idx) =>
-        def write(metric: String, value: Double): Unit = {
-          val tags = Map("vehicle-state" -> key)
-          beamServices.simMetricCollector.write(
-            metric,
-            SimulationTime((processedHour + 1) * 60 * 60),
-            Map(SimulationMetricCollector.defaultMetricValueName -> value),
-            tags
-          )
+        val timeUtilizationSum =
+          timeUtilization
+            .slice(hour * 60, (hour + 1) * 60)
+            .reduce((xSeries1, xSeries2) => (xSeries1, xSeries2).zipped.map(_ + _))
+        val distanceUtilizationSum =
+          distanceUtilization
+            .slice(hour * 60, (hour + 1) * 60)
+            .reduce((xSeries1, xSeries2) => (xSeries1, xSeries2).zipped.map(_ + _))
+
+        keys.foreach {
+          case (key, idx) =>
+            def write(metric: String, value: Double): Unit = {
+              val tags = Map("vehicle-state" -> key)
+              beamServices.simMetricCollector.write(
+                metric,
+                SimulationTime((hour + 1) * 60 * 60),
+                Map(SimulationMetricCollector.defaultMetricValueName -> value),
+                tags
+              )
+            }
+            write(s"$graphName-time", timeUtilizationSum(idx))
+            write(s"$graphName-distance", distanceUtilizationSum(idx))
         }
-        write(s"$graphName-time", timeUtilizationSum(idx))
-        write(s"$graphName-distance", distanceUtilizationSum(idx))
+      })
     }
   }
 
