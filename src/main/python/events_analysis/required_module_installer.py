@@ -13,6 +13,9 @@ def npm_install(package, package2):
 
 def installAll():
     install("pandas")
+    install("rtree")
+    install("mapclassify")
+    install("descartes")
     install("geopandas")
     install("contextily")
     install("plotly")

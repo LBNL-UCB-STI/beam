@@ -326,6 +326,13 @@ class BeamSim @Inject()(
           if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
         )
         runningPythonScripts += pythonProcess
+        if (event.getIteration == beamServices.beamConfig.beam.agentsim.lastIteration) {
+          val secondPythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
+            "src/main/python/events_analysis/generate_charger_locations.py",
+            if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+          )
+          runningPythonScripts += secondPythonProcess
+        }
       }
     }
   }

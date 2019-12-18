@@ -379,7 +379,7 @@ object ZonalParkingManager extends LazyLogging {
     val mnlParamsFromConfig = beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
     val overrideChargerTypeOption = beamConfig.beam.agentsim.taz.parkingStallChargerInitMethod match {
       case "UNLIMITED" => Some(beamConfig.beam.agentsim.taz.parkingStallChargerDefaultType)
-      case _ => None
+      case _           => None
     }
     // distance to walk to the destination
 
@@ -407,7 +407,13 @@ object ZonalParkingManager extends LazyLogging {
       ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath, random)
     } else {
       Try {
-        ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor, parkingCostScalingFactor, overrideChargerTypeOption)
+        ParkingZoneFileUtils.fromFile(
+          parkingFilePath,
+          random,
+          parkingStallCountScalingFactor,
+          parkingCostScalingFactor,
+          overrideChargerTypeOption
+        )
       } match {
         case Success((s, t)) => (s, t)
         case Failure(e) =>

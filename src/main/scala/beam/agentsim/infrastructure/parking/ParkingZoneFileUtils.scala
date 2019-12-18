@@ -157,7 +157,13 @@ object ParkingZoneFileUtils extends LazyLogging {
     } match {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
-          fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor, overrideChargerTypeOption)
+          fromBufferedReader(
+            reader,
+            rand,
+            parkingStallCountScalingFactor,
+            parkingCostScalingFactor,
+            overrideChargerTypeOption
+          )
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
         )
@@ -304,7 +310,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
           val chargingPoint = overrideChargerTypeOption match {
             case Some(overrideChargerType) => ChargingPointType(overrideChargerType)
-            case None => ChargingPointType(chargingTypeString)
+            case None                      => ChargingPointType(chargingTypeString)
           }
           val numStalls = numberOfStallsToCreate
           val parkingZone = ParkingZone(nextParkingZoneId, taz, parkingType, numStalls, chargingPoint, pricingModel)
