@@ -201,7 +201,7 @@ def generateParking(refuelSessions, tag, Power_rated, n_stations, Max_queuing_pr
                 output_array[power][prob][n_clusters] = iter_out_array[power][prob]
                 new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 2.*power, parking_input)
                 new_parking['numStalls'] = new_parking['numStalls'].astype('int')
-                new_parking.to_csv(outfolder + 'parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
+                new_parking.to_csv(outfolder + '/parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
     return output_val, output_array
 
 
