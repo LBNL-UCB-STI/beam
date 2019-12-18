@@ -251,7 +251,7 @@ def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probabi
                     Line2D([0], [0], color='k', linestyle = lines[2])]
     ax4.legend(custom_lines_style, ['0.1 Occupied', '0.25 Occupied', '0.5 Occupied'])
     
-    plt.savefig(outfolder+'plots/tradeoffs.png')
+    plt.savefig(outfolder+'/plots/tradeoffs.png')
 
 
 if __name__ == '__main__':
