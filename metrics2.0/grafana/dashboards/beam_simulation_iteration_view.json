@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1576706976158,
+    "iteration": 1576791663027,
     "links": [],
     "panels": [
       {
@@ -1997,7 +1997,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Trip Distance [Ride Hail]",
+        "title": "Trip Distance for Ride Hail",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2667,8 +2667,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-19_00-58-38_sf-light-1k-xml",
-            "value": "2019-12-19_00-58-38_sf-light-1k-xml"
+            "text": "2019-12-19_21-50-16_beamville",
+            "value": "2019-12-19_21-50-16_beamville"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2692,7 +2692,6 @@
         {
           "allValue": null,
           "current": {
-            "tags": [],
             "text": "5",
             "value": "5"
           },
