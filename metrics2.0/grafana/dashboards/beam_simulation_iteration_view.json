@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1576791663027,
+    "iteration": 1576793204268,
     "links": [],
     "panels": [
       {
@@ -2667,14 +2667,15 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-19_21-50-16_beamville",
-            "value": "2019-12-19_21-50-16_beamville"
+            "isNone": true,
+            "text": "None",
+            "value": ""
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
           "hide": 0,
           "includeAll": false,
-          "label": "run_name",
+          "label": "run name",
           "multi": false,
           "name": "run_name",
           "options": [],
@@ -2692,14 +2693,15 @@
         {
           "allValue": null,
           "current": {
-            "text": "5",
-            "value": "5"
+            "isNone": true,
+            "text": "None",
+            "value": ""
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
           "hide": 0,
           "includeAll": false,
-          "label": "iteration_num",
+          "label": "iteration num",
           "multi": false,
           "name": "iteration_num",
           "options": [],
@@ -2733,6 +2735,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 2
+    "version": 3
   }
 }

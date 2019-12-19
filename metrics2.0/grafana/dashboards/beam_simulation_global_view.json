@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1576790608505,
+    "iteration": 1576793283148,
     "links": [],
     "panels": [
       {
@@ -2077,14 +2077,15 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-19_21-50-16_beamville",
-            "value": "2019-12-19_21-50-16_beamville"
+            "isNone": true,
+            "text": "None",
+            "value": ""
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
           "hide": 0,
           "includeAll": false,
-          "label": "run_name",
+          "label": "run name",
           "multi": false,
           "name": "run_name",
           "options": [],
