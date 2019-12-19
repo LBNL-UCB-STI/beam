@@ -83,10 +83,10 @@ ggplot(melt(plans[!config%in%c('Base-Short-BAU','Base-Short-VTO','Base-Long-BAU'
 # Skims
 all.skims[,scen:=config]
 all.skims[,scen:=pp(config,'-',year)]
-toplot <- all.skims[mode%in%c('CAR','CAV','RIDE_HAIL','RIDE_HAIL_POOLED'),.(generalizedTimeInMinutes=weighted.mean(generalizedTimeInS,numObservations)/60,generalizedCost=weighted.mean(generalizedCost,numObservations),travelTimeInMinutes=weighted.mean(travelTimeInS,numObservations)/60,personMilesTraveled=weighted.mean(distanceInM,numObservations)/1609),by='scen']
+toplot <- all.skims[hour%in%7:9 & mode%in%c('CAR','CAV','RIDE_HAIL','RIDE_HAIL_POOLED'),.(generalizedTimeInMinutes=weighted.mean(generalizedTimeInS,numObservations)/60,generalizedCost=weighted.mean(generalizedCost,numObservations),travelTimeInMinutes=weighted.mean(travelTimeInS,numObservations)/60,personMilesTraveled=weighted.mean(distanceInM,numObservations)/1609),by='scen']
 #toplot <- all.skims[mode%in%c('CAR'),.(generalizedTimeInMinutes=weighted.mean(generalizedTimeInS,numObservations)/60,generalizedCost=weighted.mean(generalizedCost,numObservations),travelTimeInMinutes=weighted.mean(travelTimeInS,numObservations)/60,personMilesTraveled=weighted.mean(distanceInM,numObservations)/1609),by='scen']
 ggplot(melt(toplot[!scen%in%pp('base',1:6),.(scen,generalizedTimeInMinutes,generalizedCost,travelTimeInMinutes,personMilesTraveled)],id.vars=c('scen')),aes(x=scen,y=value))+geom_bar(stat='identity')+labs(x='Scenario',y='Value',title='With Ride Hail')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
-ggplot(melt(toplot[scen%in%c('Base-2010','A-BAU-2025','A-VTO-2025','B-BAU-2040','B-VTO-2040','C-BAU-2040','C-VTO-2040'),.(scen,generalizedTimeInMinutes,generalizedCost,travelTimeInMinutes,personMilesTraveled)],id.vars=c('scen')),aes(x=scen,y=value))+geom_bar(stat='identity')+labs(x='Scenario',y='Value',title='With Ride Hail')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
+ggplot(melt(toplot[scen%in%c('Base-2010','A-BAU-2025','A-VTO-2025','B-BAU-2040','B-VTO-2040','C-BAU-2040','C-VTO-2040'),.(scen,generalizedTimeInMinutes,generalizedCost,travelTimeInMinutes,personMilesTraveled)],id.vars=c('scen')),aes(x=scen,y=value))+geom_bar(stat='identity')+labs(x='Scenario',y='Value',title='')+facet_wrap(~variable,scales='free_y')+scale_shape_manual(values=seq(0,15))
 
 # custom data from old plot consistent with UrbanSim result in the capstone report
 toplot[,generalizedTimeInMinutesCustom:=c(rep(38,7),31,30.5,27.5,28,40,41)]

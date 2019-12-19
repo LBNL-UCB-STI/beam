@@ -348,7 +348,11 @@ dat[,power.str:=factor(pp(kw,' kW'),c('50 kW','100 kW','150 kW'))]
 dat[,tot.cost:=cost.per.pmt*pmt]
 ggplot(dat,aes(xmin=pmt.low/1e3,xmax=pmt/1e3,ymax=cost.per.pmt))+geom_rect(ymin=0)+facet_grid(power.str~range.str)+theme_bw()+labs(x='Daily Passenger-Miles Served x 1e3',y='Cost ($/passenger-mile)',colour='Fast Charger Power (kW)',shape='Vehicle Type',size='Energy Delivered (MWh)')
 
-ggplot(dat,aes(x=pmt/1e3,y=tot.cost/1e3,shape=infra,colour=power.str,group=power.str))+geom_point()+geom_line()+facet_grid(.~range.str)+theme_bw()+labs(x='Daily Passenger-Miles Served x 1e3',y='Amortized Daily Cost (1000$)',colour='Fast Charger Power (kW)',shape='Vehicle Type',size='Energy Delivered (MWh)')
+source("/Users/critter/Dropbox/ucb/vto/beam-all/gem/src/colors.R") 
+
+dat[,scen:=factor(pp(power.str,', ',range.str),c(pp('50 kW, ',1:3*100,' mi range'),pp('100 kW, ',1:3*100,' mi range')))]
+dat[,infra:=factor(infra,c('Sparse','Rich-10%','Rich-20%','Rich-100%'))]
+ggplot(dat,aes(x=pmt/1e3,y=tot.cost/1e3,shape=infra,colour=scen,group=scen))+geom_point()+geom_line()+theme_bw()+labs(x='Daily Passenger-Miles Served (mi x 1000)',y='Amortized Daily Cost (1000$)',colour='Fast Charger Power & Vehicle Range',shape='Vehicle Type',size='Energy Delivered (MWh)')+scale_colour_manual(values=palette())
 
 
 evs[,row:=1:nrow(evs)]

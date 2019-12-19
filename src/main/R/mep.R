@@ -25,14 +25,14 @@ scen.codes <- c('Base0'='2010_base',
 
 mep.dir <- '/Users/critter/Dropbox/ucb/vto/smart-mobility/final-results/mep/'
 
-mep.subs <- grep('old',list.dirs(mep.dir,recursive=F,full.names=F),value=T,invert=T)
+mep.subs <- grep('old|heatmap',list.dirs(mep.dir,recursive=F,full.names=F),value=T,invert=T)
 
 mep.sub<-mep.subs[1]
 
 mep <- list()
 for(mep.sub in mep.subs){
   the.file <- grep('overall_mep.csv',list.files(pp(mep.dir,mep.sub)),value=T)
-  the.scen <- str_split(mep.sub,'beam_nov2_')[[1]][2]
+  the.scen <- str_split(mep.sub,'beam_dec13_')[[1]][2]
 
   tmp <- data.table(read.csv(pp(mep.dir,mep.sub,'/',the.file)))
   tmp[,scen:=names(scen.codes)[scen.codes == the.scen]]
@@ -41,12 +41,12 @@ for(mep.sub in mep.subs){
 mep <- na.omit(rbindlist(mep))
 mep[,col:=mep.mode.colors$color.hex[match(type,mep.mode.colors$name)]]
 mep[,type.polished:=mep.mode.colors$key[match(type,mep.mode.colors$name)]]
-mep[,scen:=factor(scen,names(scen.codes))]
+mep[,scen:=factor(scen,c('Base0','Base2','Base3','A2','A3','Base5','Base6','B5','B6','C5','C6'))]
 
 ggplot(mep[type!='mep' & !scen %in% c('Base2','Base3','Base4','Base5')],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
   scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
 
-ggplot(mep[type!='mep' & !scen %in% c('Base2','Base3','Base6','Base5')],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
+ggplot(mep[type!='mep'],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
   scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
   
 
