@@ -210,7 +210,7 @@ object ParkingZoneFileUtils extends LazyLogging {
               case Some(overrideChargerType) =>
                 parseParkingZoneFromRow(
                   csvRow,
-                  accumulator.nextParkingZoneId+1,
+                  accumulator.nextParkingZoneId + 1,
                   rand,
                   parkingStallCountScalingFactor,
                   parkingCostScalingFactor,
