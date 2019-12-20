@@ -210,14 +210,15 @@ object ParkingZoneFileUtils extends LazyLogging {
               case Some(overrideChargerType) =>
                 parseParkingZoneFromRow(
                   csvRow,
-                  accumulator.nextParkingZoneId,
+                  accumulator.nextParkingZoneId+1,
                   rand,
                   parkingStallCountScalingFactor,
                   parkingCostScalingFactor,
                   Some(overrideChargerType)
                 ) match {
                   case Some(secondRow: ParkingLoadingDataRow) =>
-                    addStallToSearch(secondRow, addStallToSearch(row, accumulator))
+                    val temp = addStallToSearch(row, accumulator)
+                    addStallToSearch(secondRow, temp)
                   case None => addStallToSearch(row, accumulator)
                 }
               case None => addStallToSearch(row, accumulator)
