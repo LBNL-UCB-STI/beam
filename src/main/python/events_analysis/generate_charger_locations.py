@@ -24,6 +24,10 @@ import required_module_installer as required
 #import contextily as ctx
 import shutil
 from matplotlib.colors import LinearSegmentedColormap
+try:
+    import contextily as ctx
+except:
+    print("Couldn't load Contextily -- no basemaps :(")
 # # Extract data for paper TRP:D
 
 # In[ ]:
@@ -46,12 +50,20 @@ def loadEvents(path, taz_path, outfolder):
     
     locations = [Point(xy) for xy in zip(refuelSession['locationX'], refuelSession['locationY'])]
     
-    gdf = gpd.GeoDataFrame(refuelSession.loc[:,['time','kwh']], crs = {'init': 'epsg:4326'}, geometry = locations).to_crs(epsg=3857)
+    refuelSession['kwh_rhcav'] = 0.0
+    refuelSession['kwh_noncav'] = 0.0
+    rhcav = refuelSession['vehicleType'].str.contains('CAV') & refuelSession['vehicle'].str.startswith('rideHailVehicle')
+    refuelSession.loc[rhcav, 'kwh_rhcav'] = refuelSession.loc[rhcav, 'kwh']
+    noncav = ~(refuelSession['vehicleType'].str.contains('CAV'))
+    refuelSession.loc[noncav, 'kwh_noncav'] = refuelSession.loc[noncav, 'kwh']
+    
+    gdf = gpd.GeoDataFrame(refuelSession.loc[:,['time','kwh','kwh_rhcav','kwh_noncav']], crs = {'init': 'epsg:4326'}, geometry = locations).to_crs(epsg=3857)
     
     refuelSession['locationLon'] = refuelSession['locationX']
     refuelSession['locationLat'] = refuelSession['locationY']
     refuelSession['locationX'] = gdf.geometry.x
     refuelSession['locationY'] = gdf.geometry.y
+    refuelSession['geometry'] = gdf.geometry
     
     
     # the information in this table include index, depature time, in s (since midnight) ; trip duration, in s, vehicle 
@@ -64,25 +76,68 @@ def loadEvents(path, taz_path, outfolder):
     
     taz = gpd.read_file(taz_path)
     taz['taz_id'] = taz['taz']
+    #taz['simp'] = taz.index.astype(str).str[:-1]
+    #taz = taz.dissolve(by='simp')
+    #taz = taz.set_index('simp', drop=False).to_crs(epsg=3857)
     taz = taz.set_index('taz', drop=True).to_crs(epsg=3857)
     
-    taz_with_cluster = gpd.GeoDataFrame(gpd.sjoin(taz,gdf,how='inner',op='intersects').groupby('taz_id').agg({'kwh':'sum','geometry':'first','taz_id':'first'}))
-    taz_with_cluster['kwh_per_km2'] = np.sqrt(taz_with_cluster['kwh'] / taz_with_cluster.geometry.area * 1e6)
-    
+    taz_with_cluster = gpd.GeoDataFrame(gpd.sjoin(taz,gdf,how='inner',op='intersects').groupby('taz_id').agg({'kwh':'sum','kwh_rhcav':'sum','kwh_noncav':'sum','geometry':'first','taz_id':'first'}))
+
+    taz_with_cluster['simp_id'] = taz_with_cluster.index.astype(str).str[:-1]
+    taz_with_cluster_simplified = taz_with_cluster.dissolve(by='simp_id',aggfunc='sum')
+    taz_with_cluster_simplified['kwh_per_km2'] = taz_with_cluster_simplified['kwh'] / taz_with_cluster_simplified.geometry.area * 1e6
+    taz_with_cluster_simplified['kwh_rhcav_per_km2'] = taz_with_cluster_simplified['kwh_rhcav'] / taz_with_cluster_simplified.geometry.area * 1e6
+    taz_with_cluster_simplified['kwh_noncav_per_km2'] = taz_with_cluster_simplified['kwh_noncav'] / taz_with_cluster_simplified.geometry.area * 1e6
+
     
     ncolors = 256
     color_array = plt.get_cmap('Reds')(range(ncolors))
     color_array[:,-1] = np.linspace(0.0,1.0,ncolors)
     map_object = LinearSegmentedColormap.from_list(name='rainbow_alpha',colors=color_array)
 
+    print(taz_with_cluster_simplified['kwh_noncav_per_km2'].sum())
     
     fmap = plt.figure(figsize=(7,8))
     ax = plt.gca()
-    taz_with_cluster.plot(column='kwh_per_km2',legend=True, ax=ax, cmap = map_object, k=7, scheme='fisher_jenks')
-#    ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
-    plt.savefig(outfolder+'/plots/chargind_demand_map.png')
-    return refuelSession_rhcav, refuelSession_noncav, taz_with_cluster
+    taz_with_cluster_simplified.plot(column='kwh_rhcav_per_km2',legend=True, ax=ax, cmap = map_object, k=7, scheme='fisher_jenks')
+    try:
+        ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+    except:
+        print(' -- ')
+    ax.set_title('Ride-hail CAV demand (kWh/km^2)')
+    plt.savefig(outfolder+'/plots/chargind_demand_map_depot.png')
+    
+    fmap = plt.figure(figsize=(7,8))
+    ax = plt.gca()
+    taz_with_cluster_simplified.plot(column='kwh_noncav_per_km2',legend=True, ax=ax, cmap = map_object, k=7, scheme='fisher_jenks')
+    try:
+        ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+    except:
+        print(' -- ')
+    ax.set_title('Public Charging demand (kWh/km^2)')
+    plt.savefig(outfolder+'/plots/chargind_demand_map_public.png')
+    
+    
+    
+    taz_with_cluster['centroid'] = taz_with_cluster.geometry.centroid
+    fmap = plt.figure(figsize=(7,8))
+    ax = plt.gca()
+    taz_with_cluster.plot(legend=False, ax=ax, alpha = 0.1)
+    taz_with_cluster2 = taz_with_cluster.set_geometry('centroid')
 
+    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_rhcav'], color='b', alpha=0.5, label = 'Depot')
+    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_noncav'], color='r', alpha=0.5, label = 'Public')
+    plt.legend()
+    try:
+        ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+    except:
+        print(' -- ')
+    plt.savefig(outfolder+'/plots/chargind_demand_map2.png')
+    
+    
+    
+    return refuelSession_rhcav, refuelSession_noncav, taz_with_cluster
+#%%
 
 def Geod_local_coor(Location_1, Location_2):
     # calculate geographical distance between two location with local coordinates 
@@ -256,35 +311,37 @@ def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probabi
 
 if __name__ == '__main__':
     required.installAll()
-    #inputfile = '../../../../output/sf-light/sf-1k-unconstrained__2019-12-17_11-45-43/ITERS/it.1/1.events.csv.gz'
+
     inputfile = sys.argv[1]
+    try:
+        run_purpose = sys.argv[2].lower()
+    except:
+        run_purpose = "evaluate"
     basefolder = inputfile.rsplit('/', 3)[0]
     parking_out_folder = basefolder + '/parking_output'
     try:
         shutil.rmtree(parking_out_folder)
     except:
         print('No folder exists--creating one')
+        
     os.mkdir(parking_out_folder)
     os.mkdir(parking_out_folder+'/plots')
     os.mkdir(parking_out_folder+'/parking_input_files')
-    #base_file = "../../../../output/sf-light/sf-1k-unconstrained__2019-12-17_11-45-43/"
     taz_path= inputfile.rsplit('/', 6)[0]+'/test/input/sf-light-demo/shape/sf-light-tazs.shp'
     parking_input = pd.read_csv(inputfile.rsplit('/', 6)[0]+'/test/input/sf-light-demo/sf-taz-parking-base-slow.csv')
     
-    #scenario_name = base_file + "ITERS/it.1/"
-    #scenario_path = scenario_name + "1.events.csv.gz"
-    #outfolder = base_file + "parking_output/"
     print('Loading events file: ' + inputfile)
     print('Loading taz file: ' + taz_path)
     refuelSession_rhcav, refuelSession_noncav, taz = loadEvents(inputfile, taz_path, parking_out_folder)
-    Power_rated = [50.0, 150.0] # in kW
-    Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find their nearest charger full
-    nstations_human = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_noncav.index)/10),num=20,dtype=int))
-    nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhcav.index)/400),num=20,dtype=int))
-    
-    output_val_human, ouput_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
-    output_val_cav, ouput_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
-    
-    makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, parking_out_folder)
+    if run_purpose == "generate":
+        Power_rated = [50.0, 150.0] # in kW
+        Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find their nearest charger full
+        nstations_human = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_noncav.index)/10),num=20,dtype=int))
+        nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(len(refuelSession_rhcav.index)/400),num=20,dtype=int))
+        
+        output_val_human, ouput_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
+        output_val_cav, ouput_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
+        
+        makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, parking_out_folder)
     
     print("done")
