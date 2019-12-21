@@ -97,9 +97,11 @@ def loadEvents(path, taz_path, outfolder):
 
     print(taz_with_cluster_simplified['kwh_noncav_per_km2'].sum())
     
+    n_bins_rhcav = np.min([np.sum(taz_with_cluster_simplified['kwh_rhcav'] > 0), 7])
+    
     fmap = plt.figure(figsize=(7,8))
     ax = plt.gca()
-    taz_with_cluster_simplified.plot(column='kwh_rhcav_per_km2',legend=True, ax=ax, cmap = map_object, k=7, scheme='fisher_jenks')
+    taz_with_cluster_simplified.plot(column='kwh_rhcav_per_km2',legend=True, ax=ax, cmap = map_object, k=n_bins_rhcav, scheme='fisher_jenks')
     try:
         ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
     except:
@@ -107,9 +109,11 @@ def loadEvents(path, taz_path, outfolder):
     ax.set_title('Ride-hail CAV demand (kWh/km^2)')
     plt.savefig(outfolder+'/plots/chargind_demand_map_depot.png')
     
+    n_bins_noncav = np.min([np.sum(taz_with_cluster_simplified['kwh_noncav'] > 0), 7])
+    
     fmap = plt.figure(figsize=(7,8))
     ax = plt.gca()
-    taz_with_cluster_simplified.plot(column='kwh_noncav_per_km2',legend=True, ax=ax, cmap = map_object, k=7, scheme='fisher_jenks')
+    taz_with_cluster_simplified.plot(column='kwh_noncav_per_km2',legend=True, ax=ax, cmap = map_object, k=n_bins_noncav, scheme='fisher_jenks')
     try:
         ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
     except:
