@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -208,6 +210,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         TravelTime travelTimes = travelTimeCalculator.getLinkTravelTimes();
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
                 travelTimes, maxHour);
+
+        // We write travel time map on 0-th iteration or iterationNumber + 1 % writeEventsInterval because this travel time will be used in the next iteration
+        // It's needed to be in sync with `RouteDumper` and allow us to reproduce routes calculation
+        if (iterationNumber == 0 || iterationNumber + 1 % beamConfig.beam().outputs().writeEventsInterval() == 0) {
+            String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
+            try {
+                try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
+                    oos.writeObject(map);
+                }
+            }
+            catch (Exception ex) {
+                log.error("Can't write travel time map", ex);
+            }
+        }
 
         TravelTime freeFlow = new FreeFlowTravelTime();
         int nBins = 0;
