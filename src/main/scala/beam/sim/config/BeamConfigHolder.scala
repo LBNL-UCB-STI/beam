@@ -4,8 +4,10 @@ import java.util.{Observable, Observer}
 import beam.sim.BeamConfigChangesObservable
 import javax.inject.Inject
 
-class BeamConfigHolder @Inject()(beamConfigChangesObservable: BeamConfigChangesObservable, config: BeamConfig)
-    extends Observer {
+class BeamConfigHolder @Inject()(
+  beamConfigChangesObservable: BeamConfigChangesObservable,
+  config: BeamConfig
+) extends Observer {
 
   var beamConfig: BeamConfig = config
   beamConfigChangesObservable.addObserver(this)

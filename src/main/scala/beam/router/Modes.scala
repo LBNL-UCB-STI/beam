@@ -107,13 +107,6 @@ object Modes {
           TransportMode.pt
         )
 
-    case object BIKE_TRANSIT
-        extends BeamMode(
-          value = "bike_transit",
-          Some(Right(TransitModes.TRANSIT)),
-          TransportMode.other
-        )
-
     val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
@@ -132,8 +125,7 @@ object Modes {
         RIDE_HAIL_POOLED,
         RIDE_HAIL_TRANSIT,
         DRIVE_TRANSIT,
-        WALK_TRANSIT,
-        BIKE_TRANSIT
+        WALK_TRANSIT
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {

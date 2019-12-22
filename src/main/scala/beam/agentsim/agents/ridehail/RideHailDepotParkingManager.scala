@@ -43,11 +43,12 @@ class RideHailDepotParkingManager(
     ParkingZoneFileUtils
       .generateDefaultParkingFromTazfile(
         tazFilePath,
+        random,
         Seq(ParkingType.Workplace)
       )
   } else {
     Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath, parkingStallCountScalingFactor)
+      ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -58,6 +59,7 @@ class RideHailDepotParkingManager(
         ParkingZoneFileUtils
           .generateDefaultParkingFromTazfile(
             tazFilePath,
+            random,
             Seq(ParkingType.Workplace)
           )
     }

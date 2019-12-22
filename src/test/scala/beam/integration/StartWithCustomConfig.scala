@@ -11,8 +11,9 @@ class StartWithCustomConfig(val config: Config) extends IntegrationSpecCommon wi
   )
 
   lazy val groupedCount =
-    fromXmlFile(getEventsFilePath(matsimConfig, BeamConfig(config).beam.outputs.events.fileOutputFormats).getPath)
-      .filter(_.getEventType == "ModeChoice")
+    fromXmlFile(
+      getEventsFilePath(matsimConfig, "events", BeamConfig(config).beam.outputs.events.fileOutputFormats).getPath
+    ).filter(_.getEventType == "ModeChoice")
       .groupBy(_.getAttributes.get("mode"))
       .map { case (k, v) => (k, v.size) }
 

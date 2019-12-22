@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import http.client
+import boto3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -17,6 +18,10 @@ def lambda_handler(event, context):
     logger.info('instance_and_region: ' + str(instance_and_region))
     instance = safe_index_with_default(instance_and_region, 0, 'NA')
     region = safe_index_with_default(instance_and_region, 1, 'NA')
+    if region != 'NA':
+        instance_name = get_instance_name_using(instance, region)
+    else:
+        instance_name = "NA"
     subject = get_subject_from(event)
     logger.info('instance: ' + instance + '; region: ' + region + '; subject:' + subject)
     payload = {
@@ -25,7 +30,7 @@ def lambda_handler(event, context):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*EC2 Idle Alarm Triggered*\n> *Alarm Name*\n> {alarm_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
+                    "text": f"*EC2 Idle Alarm Triggered*\n> *Alarm Name*\n> {alarm_name}\n> *Instance Name*\n> {instance_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
                 }
             }
         ]
@@ -52,6 +57,35 @@ def get_subject_from(event):
     first_record = safe_index(records, 0)
     sns = safe_get(first_record, 'Sns')
     return safe_get_with_default(sns, 'Subject', 'NA')
+    
+def get_instance_name_using(instance_id, region):
+    ec2 = boto3.client('ec2', region_name=region)
+    instance_name_response = ec2.describe_tags(
+        Filters=[
+			{
+				'Name': 'resource-id',
+				'Values': [
+					instance_id
+				]
+			},
+			{
+				'Name': 'key',
+				'Values': [
+					'Name'
+				]
+			}
+		]
+	)
+    if len(safe_get(instance_name_response, 'Tags')) > 0:
+        tags = safe_get(instance_name_response, 'Tags')
+        name_list = []
+        for tag in tags:
+            name = safe_get(tag, 'Value')
+            name_list += [name]
+        return ' : '.join(name_list)
+    else:
+        logger.info('Instance "' + instance_id + '" is unnamed')
+        return "Unnamed Instance"
 
 def safe_get(dict_obj, key):
     if dict_obj is not None:
