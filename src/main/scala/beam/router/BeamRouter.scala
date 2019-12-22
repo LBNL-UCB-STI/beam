@@ -23,13 +23,12 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.analysis.RoutingResponseEvent
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker
+import beam.router.r5.{EmbodyWithCurrentTravelTimeEvent, R5RoutingWorker, RoutingRequestEvent, RoutingResponseEvent}
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -225,6 +224,7 @@ class BeamRouter(
       removeOutstandingWorkBy(workIdToClear)
 
     case work =>
+      processByEventsManagerIfNeeded(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -238,6 +238,16 @@ class BeamRouter(
         if (!isWorkerAvailable) notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
         availableWorkWithOriginalSender.enqueue((work, originalSender))
       }
+  }
+
+  private def processByEventsManagerIfNeeded(work: Any): Unit = {
+    work match {
+      case e: EmbodyWithCurrentTravelTime =>
+        eventsManager.processEvent(EmbodyWithCurrentTravelTimeEvent(e))
+      case req: RoutingRequest =>
+        eventsManager.processEvent(RoutingRequestEvent(req))
+      case _ =>
+    }
   }
 
   private def isWorkAvailable: Boolean = availableWorkWithOriginalSender.nonEmpty
@@ -456,13 +466,17 @@ object BeamRouter {
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
-    request: Option[RoutingRequest]
+    request: Option[RoutingRequest],
+    isEmbodyWithCurrentTravelTime: Boolean
   )
 
   case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
-    val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId, None))
+
+    val dummyRoutingResponse = Some(
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
+    )
   }
 
   def props(

@@ -1,7 +1,7 @@
 package beam.analysis
 
-import beam.router.BeamRouter.RoutingResponse
 import beam.router.model.EmbodiedBeamLeg
+import beam.router.r5.RoutingResponseEvent
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence, RideHailFleetInitializer}
 import beam.utils.Statistics
@@ -15,10 +15,6 @@ import org.matsim.core.events.handler.BasicEventHandler
 import io.circe.syntax._
 
 import scala.collection.mutable.ArrayBuffer
-
-case class RoutingResponseEvent(routingResponse: RoutingResponse) extends Event(-1) {
-  override def getEventType: String = "RoutingResponseEvent"
-}
 
 class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with IterationEndsListener with LazyLogging {
   import beam.utils.json.AllNeededFormats._

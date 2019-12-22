@@ -15,6 +15,7 @@ import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, GeofenceAnalyzer, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
+import beam.router.r5.RouteDumper
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
@@ -93,8 +94,13 @@ class BeamSim @Inject()(
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
   val geofenceAnalyzer: GeofenceAnalyzer = new GeofenceAnalyzer(beamServices)
 
+  val routerDumper: RouteDumper = new RouteDumper(beamServices)
+
   val ehWithIterationEndsListener: List[BasicEventHandler with IterationEndsListener] =
     List[BasicEventHandler with IterationEndsListener](rideHailUtilizationCollector, geofenceAnalyzer)
+
+  val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
+    List(routerDumper)
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
@@ -102,6 +108,7 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("histogram", "**")
 
     ehWithIterationEndsListener.foreach(eventsManager.addHandler)
+    startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -201,6 +208,8 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     ehWithIterationEndsListener.foreach(_.reset(event.getIteration))
+    startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
+
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -227,6 +236,7 @@ class BeamSim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     ehWithIterationEndsListener.foreach(_.notifyIterationEnds(event))
+    startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {

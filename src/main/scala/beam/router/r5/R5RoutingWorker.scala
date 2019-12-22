@@ -261,7 +261,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
     embodyRequestId: Int
-  ) = {
+  ): RoutingResponse = {
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -303,7 +303,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         )
       ),
       embodyRequestId,
-      None
+      None,
+      isEmbodyWithCurrentTravelTime = true
     )
     response
   }
@@ -948,17 +949,19 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
           request.requestId,
-          Some(request)
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
-          Some(request)
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request))
+      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
     }
   }
 

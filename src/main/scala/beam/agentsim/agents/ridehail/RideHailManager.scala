@@ -1802,7 +1802,12 @@ class RideHailManager(
         val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
           itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
         val rideHailAgent2CustomerResponseMod =
-          RoutingResponse(modRHA2Cust, rideHailAgent2CustomerResponse.requestId, None)
+          RoutingResponse(
+            modRHA2Cust,
+            rideHailAgent2CustomerResponse.requestId,
+            None,
+            isEmbodyWithCurrentTravelTime = false
+          )
 
         val passengerSchedule = PassengerSchedule().addLegs(
           rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
