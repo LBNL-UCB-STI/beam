@@ -293,7 +293,10 @@ def makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_
                 ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
         except:
             clusters.plot(legend=False, ax=ax, alpha = 0.1)
-        plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        try:
+            plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        except:
+            print("Couldn't make fancy legend--right version of matplotlib not installed")
         plt.savefig(outfolder+'/plots/public-'+str(n_clusters)+'-stations.png')
         keep_bg = True
     plt.close()
@@ -321,7 +324,10 @@ def makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_
                 ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
         except:
             clusters.plot(legend=False, ax=ax, alpha = 0.1)
-        plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        try:
+            plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        except:
+            print("Couldn't make fancy legend--right version of matplotlib not installed")
         plt.savefig(outfolder+'/plots/depot-'+str(n_clusters)+'-stations.png')
         keep_bg = True
     plt.close()
@@ -374,7 +380,7 @@ def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probabi
 
 
 if __name__ == '__main__':
-    required.installAll()
+    #required.installAll()
 
     inputfile = sys.argv[1]
     try:
