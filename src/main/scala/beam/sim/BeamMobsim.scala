@@ -93,15 +93,7 @@ class BeamMobsim @Inject()(
       }
     }
 
-    val tags = Map("vehicle-state" -> "idle")
-    writeZeros("bev-no-cav-time", tags = tags)
-    writeZeros("bev-no-cav-distance", tags = tags)
-    writeZeros("bev-cav-time", tags = tags)
-    writeZeros("bev-cav-distance", tags = tags)
-    writeZeros("rh-no-cav-time", tags = tags)
-    writeZeros("rh-no-cav-distance", tags = tags)
-    writeZeros("rh-cav-time", tags = tags)
-    writeZeros("rh-cav-distance", tags = tags)
+    val defaultName = SimulationMetricCollector.defaultMetricValueName
 
     writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
     writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
@@ -111,8 +103,8 @@ class BeamMobsim @Inject()(
     writeZeros("ride-hail-inquiry-served")
     writeZeros(
       "chargingPower",
-      Map(SimulationMetricCollector.defaultMetricValueName -> 0.0, "averageLoad"        -> 0.0),
-      Map("vehicleType"                                    -> "Personal", "parkingType" -> "Public", "typeOfCharger" -> "None")
+      Map(defaultName   -> 0.0, "averageLoad"        -> 0.0),
+      Map("vehicleType" -> "Personal", "parkingType" -> "Public", "typeOfCharger" -> "None")
     )
 
     eventsManager.initProcessing()
