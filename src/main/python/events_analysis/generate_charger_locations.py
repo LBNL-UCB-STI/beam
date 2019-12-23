@@ -106,7 +106,7 @@ def loadEvents(path, taz_path, outfolder):
     except:
         print(' -- ')
     ax.set_title('Ride-hail CAV demand (kWh/km^2)')
-    plt.savefig(outfolder+'/plots/chargind_demand_map_depot.png')
+    plt.savefig(outfolder+'/plots/charging_demand_map_depot.png')
     
     n_bins_noncav = np.min([np.sum(taz_with_cluster_simplified['kwh_noncav'] > 0), 7])
     
@@ -118,7 +118,7 @@ def loadEvents(path, taz_path, outfolder):
     except:
         print(' -- ')
     ax.set_title('Public Charging demand (kWh/km^2)')
-    plt.savefig(outfolder+'/plots/chargind_demand_map_public.png')
+    plt.savefig(outfolder+'/plots/charging_demand_map_public.png')
     
     
     maxsize=500
