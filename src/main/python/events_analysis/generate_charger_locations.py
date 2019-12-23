@@ -380,7 +380,7 @@ def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probabi
 
 
 if __name__ == '__main__':
-    #required.installAll()
+    required.installAll()
 
     inputfile = sys.argv[1]
     try:
