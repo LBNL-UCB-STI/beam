@@ -190,7 +190,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         val key = keys.keys.toList(index)
         row.grouped(60).zipWithIndex.foreach {
           case (result, hour) =>
-            write(s"$graphName-time", result.sum, hour, key)
+            write(s"$graphName-count", result.sum, hour, key)
           case _ =>
         }
     }
