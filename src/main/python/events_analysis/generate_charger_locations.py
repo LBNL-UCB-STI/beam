@@ -28,7 +28,6 @@ try:
     import contextily as ctx
 except:
     print("Couldn't load Contextily -- no basemaps :(")
-# # Extract data for paper TRP:D
 
 # In[ ]:
 
@@ -46,7 +45,7 @@ def loadEvents(path, taz_path, outfolder):
 
     refuelSession["kwh"] = refuelSession["fuel"]/3.6e6
     refuelSession["hour"] = np.floor(refuelSession["time"]/3600).astype("int")
-    
+    refuelSession = refuelSession.loc[refuelSession['kwh'] > 0,:]
     
     locations = [Point(xy) for xy in zip(refuelSession['locationX'], refuelSession['locationY'])]
     
@@ -122,6 +121,10 @@ def loadEvents(path, taz_path, outfolder):
     plt.savefig(outfolder+'/plots/chargind_demand_map_public.png')
     
     
+    maxsize=500
+    maxval = maxsize / np.max([taz_with_cluster['kwh_rhcav'].max(), taz_with_cluster['kwh_noncav'].max()])
+    
+    
     
     taz_with_cluster['centroid'] = taz_with_cluster.geometry.centroid
     fmap = plt.figure(figsize=(7,8))
@@ -129,14 +132,14 @@ def loadEvents(path, taz_path, outfolder):
     taz_with_cluster.plot(legend=False, ax=ax, alpha = 0.1)
     taz_with_cluster2 = taz_with_cluster.set_geometry('centroid')
 
-    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_rhcav'], color='b', alpha=0.5, label = 'Depot')
-    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_noncav'], color='r', alpha=0.5, label = 'Public')
+    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_rhcav']*maxval, color='b', alpha=0.5, label = 'Depot')
+    taz_with_cluster2.plot(legend=True, ax=ax, markersize = taz_with_cluster2['kwh_noncav']*maxval, color='r', alpha=0.7, label = 'Public')
     plt.legend()
     try:
         ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
     except:
         print(' -- ')
-    plt.savefig(outfolder+'/plots/chargind_demand_map2.png')
+    plt.savefig(outfolder+'/plots/charging_demand_map_both.png')
     
     
     
@@ -263,12 +266,69 @@ def generateParking(refuelSessions, tag, Power_rated, n_stations, Max_queuing_pr
                 new_parking.to_csv(outfolder + '/parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
     return output_val, output_array
 
-
-
-
-
-
-
+#%%
+def makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_probability, outfolder):
+    dict_human = output_array_human[Power_rated[0]][Max_queuing_probability[0]]
+    dict_cav = output_array_cav[Power_rated[0]][Max_queuing_probability[0]]
+    human_keys = list(dict_human.keys())
+    maxsize=500
+    maxval = maxsize / dict_human[human_keys[0]]['gdf']['vehicle'].max()
+    fmap = plt.figure(figsize=(7,8))
+    ax = plt.gca()
+    ax.set_xlim((-1.3640e7,-1.362e7))
+    ax.set_ylim((4537500,4560000))
+    keep_bg = False
+    circles = [0]
+    ax.set_title('Peak Hour Human Charging Events')
+    for n_clusters in human_keys:
+        clusters = dict_human[n_clusters]['gdf']
+        #clusters['centroid'] = clusters.geometry.centroid
+        
+        if keep_bg:
+            circles.get_children().pop(0).remove()
+        circles = clusters.plot(legend=True, ax=ax, markersize = clusters['vehicle']*maxval, color='r', alpha=0.75, label = 'Human')
+        try:
+            if keep_bg == False:
+                print('getting bg')
+                ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+        except:
+            clusters.plot(legend=False, ax=ax, alpha = 0.1)
+        plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        plt.savefig(outfolder+'/plots/public-'+str(n_clusters)+'-stations.png')
+        keep_bg = True
+    plt.close()
+    
+    cav_keys = list(dict_cav.keys())
+    maxsize=500
+    maxval = maxsize / dict_cav[cav_keys[0]]['gdf']['vehicle'].max()
+    fmap = plt.figure(figsize=(7,8))
+    ax = plt.gca()
+    ax.set_xlim((-1.3640e7,-1.362e7))
+    ax.set_ylim((4537500,4560000))
+    keep_bg = False
+    circles = [0]
+    ax.set_title('Peak Hour CAV Charging Events')
+    for n_clusters in cav_keys:
+        clusters = dict_cav[n_clusters]['gdf']
+        #clusters['centroid'] = clusters.geometry.centroid
+        
+        if keep_bg:
+            circles.get_children().pop(0).remove()
+        circles = clusters.plot(legend=True, ax=ax, markersize = clusters['vehicle']*maxval, color='b', alpha=0.75, label = 'Depot')
+        try:
+            if keep_bg == False:
+                print('getting bg')
+                ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
+        except:
+            clusters.plot(legend=False, ax=ax, alpha = 0.1)
+        plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
+        plt.savefig(outfolder+'/plots/depot-'+str(n_clusters)+'-stations.png')
+        keep_bg = True
+    plt.close()
+    
+    
+    
+#%%
   
 def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, outfolder):
     colors = [(0.894117, 0.101960, 0.10980),(0.215686, 0.494117, 0.7215686),(0.30196078, 0.68627450, 0.29019607)]
@@ -340,12 +400,12 @@ if __name__ == '__main__':
     if run_purpose == "generate":
         Power_rated = [50.0, 150.0] # in kW
         Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find their nearest charger full
-        nstations_human = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/3),num=20,dtype=int))
-        nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/3),num=20,dtype=int))
+        nstations_human = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/6),num=20,dtype=int))
+        nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/6),num=20,dtype=int))
         
-        output_val_human, ouput_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
-        output_val_cav, ouput_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
+        output_val_human, output_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
+        output_val_cav, output_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
         
         makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, parking_out_folder)
-    
+        makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_probability, parking_out_folder)
     print("done")
