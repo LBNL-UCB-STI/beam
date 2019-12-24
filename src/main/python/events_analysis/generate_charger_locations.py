@@ -80,7 +80,7 @@ def loadEvents(path, taz_path, outfolder):
     #taz = taz.set_index('simp', drop=False).to_crs(epsg=3857)
     taz = taz.set_index('taz', drop=True).to_crs(epsg=3857)
     
-    taz_with_cluster = gpd.GeoDataFrame(gpd.sjoin(taz,gdf,how='inner',op='intersects').groupby('taz_id').agg({'kwh':'sum','kwh_rhcav':'sum','kwh_noncav':'sum','geometry':'first','taz_id':'first'}))
+    taz_with_cluster = gpd.GeoDataFrame(gpd.sjoin(taz,gdf,how='left',op='intersects').groupby('taz_id').agg({'kwh':'sum','kwh_rhcav':'sum','kwh_noncav':'sum','geometry':'first','taz_id':'first'}))
 
     taz_with_cluster['simp_id'] = taz_with_cluster.index.astype(str).str[:-1]
     taz_with_cluster_simplified = taz_with_cluster.dissolve(by='simp_id',aggfunc='sum')
