@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1576790467859,
+    "iteration": 1577190083831,
     "links": [],
     "panels": [
       {
@@ -161,10 +161,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-nocav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-nocav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -193,7 +193,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV non CAV Distance per Iteration \"$left_run_name\"",
+        "title": "EV non CAV Ridehail Distance per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -317,10 +317,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-nocav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-nocav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -342,14 +342,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV non CAV Distance per Iteration \"$right_run_name\"",
+        "title": "EV non CAV Ridehail Distance per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -473,10 +473,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-nocav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-nocav-count\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -505,7 +505,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV non CAV Vehicles per Iteration \"$left_run_name\"",
+        "title": "EV non CAV Ridehail Count per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -629,10 +629,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-nocav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-nocav-count\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -654,14 +654,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV non CAV Vehicles per Iteration \"$right_run_name\"",
+        "title": "EV non CAV Ridehail Count per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -785,10 +785,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-cav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -817,7 +817,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV CAV Distance per Iteration \"$left_run_name\"",
+        "title": "EV CAV Ridehail Distance per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -941,10 +941,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-cav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -966,14 +966,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV CAV Distance per Iteration \"$right_run_name\"",
+        "title": "EV CAV Ridehail Distance per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1097,10 +1097,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-cav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-cav-time\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-cav-count\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1129,7 +1129,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV CAV Vehicles per Iteration \"$left_run_name\"",
+        "title": "EV CAV Ridehail Count per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1253,10 +1253,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-ev-cav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"bev-cav-time\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-ev-cav-count\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1278,14 +1278,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "BEV CAV Vehicles per Iteration \"$right_run_name\"",
+        "title": "EV CAV Ridehail Count per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1409,10 +1409,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-nocav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-nocav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1441,7 +1441,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH non CAV Distance per Iteration \"$left_run_name\"",
+        "title": "Non EV non CAV Ridehail Distance per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1565,10 +1565,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-nocav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-nocav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1590,14 +1590,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH non CAV Distance per Iteration \"$right_run_name\"",
+        "title": "Non EV non CAV Ridehail Distance per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1721,10 +1721,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-nocav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-nocav-count\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1753,7 +1753,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH non CAV Vehicles per Iteration \"$left_run_name\"",
+        "title": "Non EV non CAV Ridehail Count per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -1877,10 +1877,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-nocav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-no-cav-time\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-nocav-count\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -1902,14 +1902,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH non CAV Vehicles per Iteration \"$right_run_name\"",
+        "title": "Non EV non CAV Ridehail Count per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2033,10 +2033,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-cav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -2065,7 +2065,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH CAV Distance per Iteration \"$left_run_name\"",
+        "title": "Non EV CAV Ridehail Distance per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2189,10 +2189,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-cav-distance",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/)  GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-cav-distance\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -2214,14 +2214,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH CAV Distance per Iteration \"$right_run_name\"",
+        "title": "Non EV CAV Ridehail Distance per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2345,10 +2345,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-cav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-cav-time\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-cav-count\" WHERE (\"unique-run-name\" =~ /^$left_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -2377,7 +2377,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH CAV Vehicles per Iteration \"$left_run_name\"",
+        "title": "Non EV CAV Ridehail Count per Iteration \"$left_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2501,10 +2501,10 @@
                 "type": "tag"
               }
             ],
-            "measurement": "BEV_NO_CAV_DISTANCE",
+            "measurement": "rh-noev-cav-count",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"rh-cav-time\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
+            "query": "SELECT sum(\"count\") FROM \"rh-noev-cav-count\" WHERE (\"unique-run-name\" =~ /^$right_run_name$/) GROUP BY \"iteration-num\", \"vehicle-state\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -2526,14 +2526,14 @@
               {
                 "key": "unique-run-name",
                 "operator": "=~",
-                "value": "/^$left_run_name$/"
+                "value": "/^$right_run_name$/"
               }
             ]
           }
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "RH CAV Vehicles per Iteration \"$right_run_name\"",
+        "title": "Non EV CAV Ridehail Count per Iteration \"$right_run_name\"",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -4103,9 +4103,9 @@
         {
           "allValue": null,
           "current": {
-            "selected": false,
-            "text": "2019-12-19_21-33-10_sf-light-1k-xml",
-            "value": "2019-12-19_21-33-10_sf-light-1k-xml"
+            "tags": [],
+            "text": "2019-12-23_23-41-53_sf-light-1k-xml",
+            "value": "2019-12-23_23-41-53_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -4129,9 +4129,9 @@
         {
           "allValue": null,
           "current": {
-            "selected": true,
-            "text": "2019-12-19_21-50-16_beamville",
-            "value": "2019-12-19_21-50-16_beamville"
+            "tags": [],
+            "text": "2019-12-23_23-41-53_sf-light-1k-xml",
+            "value": "2019-12-23_23-41-53_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -4172,6 +4172,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view comparison",
     "uid": "KuiPBbBWz",
-    "version": 11
+    "version": 9
   }
 }
