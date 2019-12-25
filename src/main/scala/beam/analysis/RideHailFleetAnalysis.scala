@@ -10,7 +10,6 @@ import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.vehicles.VehicleType
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -24,27 +23,26 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
   var processedHour = 0
 
-  val keys = Map(
-    "driving-full"       -> 0,
-    "driving-reposition" -> 1,
-    "driving-topickup"   -> 2,
-    "driving-tocharger"  -> 3,
-    "queuing"            -> 4,
-    "charging"           -> 5,
-    "idle"               -> 6,
-    "offline"            -> 7,
-    "parked"             -> 8
+  val states = List(
+    "driving-full",
+    "driving-reposition",
+    "driving-topickup",
+    "driving-tocharger",
+    "queuing",
+    "charging",
+    "idle",
+    "offline",
+    "parked"
   )
+
+  val keys = states.zipWithIndex.toMap
 
   import RefuelSessionEvent._
 
   val rideHailEvCav = mutable.Map[String, ArrayBuffer[Event]]()
-  val ridehailEVNonCav = mutable.Map[String, ArrayBuffer[Event]]()
+  val ridehailEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
   val rideHailNonEvCav = mutable.Map[String, ArrayBuffer[Event]]()
   val rideHailNonEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
-
-  val cavSet = mutable.Set[String]()
-  val ridehailVehicleSet = mutable.Set[String]()
 
   override def processStats(event: Event): Unit = {
     event match {
@@ -52,7 +50,6 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         if (refuelSessionEvent.getAttributes.get(ATTRIBUTE_ENERGY_DELIVERED).toDouble > 0.0) {
           val vehicle = refuelSessionEvent.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
           if (vehicle.contains("rideHail")) {
-
             if (rideHailEvCav.contains(vehicle)) {
               collectEvent(
                 rideHailEvCav,
@@ -60,9 +57,9 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
                 vehicle,
                 refuelSessionEvent.getTime
               )
-            } else if (ridehailEVNonCav.contains(vehicle)) {
+            } else if (ridehailEvNonCav.contains(vehicle)) {
               collectEvent(
-                ridehailEVNonCav,
+                ridehailEvNonCav,
                 refuelSessionEvent.copy(tick = refuelSessionEvent.getTime - refuelSessionEvent.sessionDuration + 0.5),
                 vehicle,
                 refuelSessionEvent.getTime
@@ -88,51 +85,50 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
       case pathTraversalEvent: PathTraversalEvent =>
         if (pathTraversalEvent.mode == BeamMode.CAR) {
           val vehicleTypeId = Id.create(pathTraversalEvent.vehicleType, classOf[BeamVehicleType])
-          beamServices.beamScenario.vehicleTypes.get(vehicleTypeId).foreach { vehicleType =>
-            val vehicle = pathTraversalEvent.vehicleId.toString
-            val rideHail = vehicle.contains("rideHail")
-            val ev = pathTraversalEvent.primaryFuelType == "Electricity"
-            val cav = vehicleType.automationLevel > 3
-            if (rideHail) {
-              if (ev && cav) {
-                collectEvent(
-                  rideHailEvCav,
-                  pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-                  vehicle,
-                  pathTraversalEvent.time
-                )
-              } else if (ev && !cav) {
-                collectEvent(
-                  ridehailEVNonCav,
-                  pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-                  vehicle,
-                  pathTraversalEvent.time
-                )
-              } else if (!ev && cav) {
-                collectEvent(
-                  rideHailNonEvCav,
-                  pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-                  vehicle,
-                  pathTraversalEvent.time
-                )
-              } else if (!ev && !cav) {
-                collectEvent(
-                  rideHailNonEvNonCav,
-                  pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
-                  vehicle,
-                  pathTraversalEvent.time
-                )
-              }
+          val isCAV = beamServices.beamScenario.vehicleTypes(vehicleTypeId).automationLevel > 3
+          val vehicle = pathTraversalEvent.vehicleId.toString
+          val rideHail = vehicle.contains("rideHail")
+          val ev = pathTraversalEvent.primaryFuelType == "Electricity"
+          if (rideHail) {
+            if (ev && isCAV) {
+              collectEvent(
+                rideHailEvCav,
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                vehicle,
+                pathTraversalEvent.time
+              )
+            } else if (ev && !isCAV) {
+              collectEvent(
+                ridehailEvNonCav,
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                vehicle,
+                pathTraversalEvent.time
+              )
+            } else if (!ev && isCAV) {
+              collectEvent(
+                rideHailNonEvCav,
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                vehicle,
+                pathTraversalEvent.time
+              )
+            } else if (!ev && !isCAV) {
+              collectEvent(
+                rideHailNonEvNonCav,
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                vehicle,
+                pathTraversalEvent.time
+              )
             }
           }
         }
 
       case parkEvent: ParkEvent =>
         val vehicle = parkEvent.vehicleId.toString
+
         if (rideHailEvCav.contains(vehicle)) {
           collectEvent(rideHailEvCav, parkEvent, vehicle, parkEvent.time)
-        } else if (ridehailEVNonCav.contains(vehicle)) {
-          collectEvent(ridehailEVNonCav, parkEvent, vehicle, parkEvent.time)
+        } else if (ridehailEvNonCav.contains(vehicle)) {
+          collectEvent(ridehailEvNonCav, parkEvent, vehicle, parkEvent.time)
         } else if (rideHailNonEvCav.contains(vehicle)) {
           collectEvent(rideHailNonEvCav, parkEvent, vehicle, parkEvent.time)
         } else if (rideHailNonEvNonCav.contains(vehicle)) {
@@ -143,6 +139,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   }
 
   override def createGraph(event: IterationEndsEvent): Unit = {
+    processedHour = lastHour
     processVehicleStates()
   }
 
@@ -164,7 +161,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   def processVehicleStates() {
     processEvents(rideHailEvCav, true, true, "rh-ev-cav")
-    processEvents(ridehailEVNonCav, true, false, "rh-ev-nocav")
+    processEvents(ridehailEvNonCav, true, false, "rh-ev-nocav")
     processEvents(rideHailNonEvCav, true, true, "rh-noev-cav")
     processEvents(rideHailNonEvNonCav, true, false, "rh-noev-nocav")
   }
@@ -187,19 +184,26 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
     timeUtilization.transpose.zipWithIndex.foreach {
       case (row, index) =>
-        val key = keys.keys.toList(index)
-        row.grouped(60).zipWithIndex.foreach {
+        val key = states(index)
+        row.grouped(resolutionInSeconds).zipWithIndex.foreach {
           case (result, hour) =>
-            write(s"$graphName-count", result.sum, hour, key)
+            if (hour < processedHour)
+              write(s"$graphName-count", result.sum / resolutionInSeconds, hour + 1, key)
+            else
+              write(s"$graphName-count", 0, hour + 1, key)
           case _ =>
         }
     }
+
     distanceUtilization.transpose.zipWithIndex.foreach {
       case (row, index) =>
-        val key = keys.keys.toList(index)
-        row.grouped(60).zipWithIndex.foreach {
+        val key = states(index)
+        row.grouped(resolutionInSeconds).zipWithIndex.foreach {
           case (result, hour) =>
-            write(s"$graphName-distance", result.sum, hour, key)
+            if (hour < processedHour)
+              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12 / 1000, hour + 1, key)
+            else
+              write(s"$graphName-distance", 0, hour + 1, key)
           case _ =>
         }
     }
@@ -218,7 +222,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   override def resetStats(): Unit = {
     rideHailEvCav.clear()
-    ridehailEVNonCav.clear()
+    ridehailEvNonCav.clear()
     rideHailNonEvCav.clear()
     rideHailNonEvNonCav.clear()
     processedHour = 0
