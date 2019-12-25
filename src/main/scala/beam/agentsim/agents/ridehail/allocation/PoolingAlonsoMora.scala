@@ -144,7 +144,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         (
           vehiclePoolToUse.map { veh =>
             val vehState = rideHailManager.vehicleManager.getVehicleState(veh.vehicleId)
-            val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
+            val vehAndSched = MatchmakingUtils.createVehicleAndScheduleFromRideHailAgentLocation(
               veh,
               Math.max(tick, veh.latestTickExperienced),
               rideHailManager.beamServices,
@@ -161,7 +161,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           }.toList,
           pooledAllocationReqs.map(
             rhr =>
-              createPersonRequest(
+              MatchmakingUtils.createPersonRequest(
                 rhr.customer,
                 rhr.pickUpLocationUTM,
                 tick,
