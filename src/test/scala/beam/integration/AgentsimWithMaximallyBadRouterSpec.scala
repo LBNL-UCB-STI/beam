@@ -56,8 +56,8 @@ class AgentsimWithMaximallyBadRouterSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(beamScenario, services.geo),
-        new TravelTimeObserved(beamScenario, services.geo),
+        new BeamSkimmer(services, beamScenario, services.geo),
+        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )

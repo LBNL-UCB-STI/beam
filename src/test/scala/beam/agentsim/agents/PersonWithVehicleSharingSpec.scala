@@ -43,7 +43,7 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
@@ -134,8 +134,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
+            new BeamSkimmer(services, beamScenario, services.geo),
+            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -278,8 +278,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
+            new BeamSkimmer(services, beamScenario, services.geo),
+            new TravelTimeObserved(services, beamScenario, services.geo),
             boundingBox
           )
         )
@@ -517,8 +517,8 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
+          new BeamSkimmer(services, beamScenario, services.geo),
+          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )

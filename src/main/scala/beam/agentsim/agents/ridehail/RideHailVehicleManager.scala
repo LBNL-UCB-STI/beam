@@ -122,13 +122,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       .view
       .filter { x =>
         idleRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || (GeoUtils.distFormula(
-          pickupLocation,
-          new Coord(x.geofence.get.geofenceX, x.geofence.get.geofenceY)
-        ) <= x.geofence.get.geofenceRadius && GeoUtils.distFormula(
-          dropoffLocation,
-          new Coord(x.geofence.get.geofenceX, x.geofence.get.geofenceY)
-        ) <= x.geofence.get.geofenceRadius))
+        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
+        (x.geofence.isDefined && x.geofence.get
+          .contains(dropoffLocation))))
       }
 
     var end = System.currentTimeMillis()
@@ -173,7 +169,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getIdleVehiclesAndFilterOutExluded: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {
-    idleRideHailVehicles.filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
+    idleRideHailVehicles.filter(elem => !rideHailManager.doNotUseInAllocation.contains(elem._1))
   }
 
   def getIdleAndInServiceVehicles: Map[Id[Vehicle], RideHailAgentLocation] = {

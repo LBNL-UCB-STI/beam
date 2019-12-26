@@ -79,4 +79,16 @@ class RideHailFleetInitializerSpec extends WordSpecLike with Matchers with Befor
     }
 
   }
+
+  "Geofence" can {
+    "check is point inside it" in {
+      Geofence(0, 0, 5).contains(1, 1) shouldBe (true)
+      Geofence(0, 0, 5).contains(0, 0) shouldBe (true)
+      Geofence(0, 0, 5).contains(2, 2) shouldBe (true)
+      Geofence(0, 0, 5).contains(5, 0) shouldBe (true)
+      Geofence(0, 0, 5).contains(0, 5) shouldBe (true)
+      Geofence(0, 0, 5).contains(1, 5) shouldBe (false)
+      Geofence(0, 0, 5).contains(5, 1) shouldBe (false)
+    }
+  }
 }

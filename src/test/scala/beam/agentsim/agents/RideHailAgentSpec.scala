@@ -29,7 +29,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailAgentSpec
     extends FunSpecLike

@@ -20,7 +20,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.language.postfixOps

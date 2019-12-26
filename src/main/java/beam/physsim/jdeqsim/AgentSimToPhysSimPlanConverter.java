@@ -138,14 +138,16 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             createNetworkFile(jdeqSimScenario.getNetwork());
         }
 
-        EventWriterXML_viaCompatible eventsWriterXML = null;
+        PhysSimEventWriter eventWriter = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
-
-            double eventsSampling = beamConfig.beam().physsim().eventsSampling();
-            boolean eventsForFullVersionOfVia = beamConfig.beam().physsim().eventsForFullVersionOfVia();
-            String fileName = controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz");
-            eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia , eventsSampling);
-            jdeqsimEvents.addHandler(eventsWriterXML);
+            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
+            jdeqsimEvents.addHandler(eventWriter);
+        }
+        else {
+            if (beamConfig.beam().physsim().writeEventsInterval() < 1)
+                log.info("There will be no PhysSim events written because `beam.physsim.writeEventsInterval` is set to 0");
+            else
+                log.info("Skipping writing PhysSim events for iteration {}. beam.physsim.writeEventsInterval = {}", iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
         }
 
 
@@ -256,8 +258,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
-            assert eventsWriterXML != null;
-            eventsWriterXML.closeFile();
+            assert eventWriter != null;
+            eventWriter.closeFile();
         }
 
         Road.setAllRoads(null);
@@ -304,8 +306,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     caccVehiclesMap, roadCapacityAdjustmentFunction
             );
             double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
-
-            jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
+            double minimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().jdeqsim().cacc().minimumRoadSpeedInMetersPerSecond();
+            jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor, minimumRoadSpeedInMetersPerSecond);
         } else {
             log.info("CACC disabled");
             jdeqSimulation = new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
