@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1577138076089,
+    "iteration": 1577376152722,
     "links": [],
     "panels": [
       {
@@ -85,7 +85,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance",
+              "title": "Distance (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
@@ -397,7 +397,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance",
+              "title": "Distance (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
@@ -709,7 +709,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance",
+              "title": "Distance (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
@@ -1021,7 +1021,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance",
+              "title": "Distance (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
@@ -2077,8 +2077,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-23_23-41-53_sf-light-1k-xml",
-            "value": "2019-12-23_23-41-53_sf-light-1k-xml"
+            "text": "2019-12-26_15-57-47_beamville",
+            "value": "2019-12-26_15-57-47_beamville"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2119,6 +2119,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 4
+    "version": 2
   }
 }
