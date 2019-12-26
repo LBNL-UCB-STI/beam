@@ -1,8 +1,10 @@
 #!/bin/bash
 
 rm -rf beam*
-mkdir beam
-cp -r ../test/input beam/input
+mkdir -p beam/input
+cp -r ../test/input/common beam/input/common
+cp -r ../test/input/beamville beam/input/beamville
+cp -r ../test/input/sf-light* beam/input
 cp -r ../metrics2.0/* beam/
 cp run-beam.* beam/
 cp docker-pull.* beam/
