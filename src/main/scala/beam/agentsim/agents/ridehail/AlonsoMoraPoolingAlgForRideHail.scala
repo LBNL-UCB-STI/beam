@@ -44,7 +44,7 @@ class AlonsoMoraPoolingAlgForRideHail(
               Integer.MAX_VALUE,
               skimmer
             )
-            .map { schedule =>
+            .foreach { schedule =>
               rvG.addVertex(r2)
               rvG.addVertex(r1)
               rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
@@ -82,7 +82,7 @@ class AlonsoMoraPoolingAlgForRideHail(
                 v.vehicleRemainingRangeInMeters.toInt,
                 skimmer
               )
-              .map { schedule =>
+              .foreach { schedule =>
                 rvG.addVertex(v)
                 rvG.addVertex(r)
                 rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
@@ -115,19 +115,21 @@ class AlonsoMoraPoolingAlgForRideHail(
           for (t2 <- individualRequestsList
                  .drop(individualRequestsList.indexOf(t1))
                  .filter(x => rvG.containsEdge(t1.requests.head, x.requests.head))) {
-            MatchmakingUtils.getRidehailSchedule(
-              v.schedule,
-              (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
-              v.vehicleRemainingRangeInMeters.toInt,
-              skimmer
-            ) map { schedule =>
-              val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
-              pairRequestsList append t
-              rTvG.addVertex(t)
-              rTvG.addEdge(t1.requests.head, t)
-              rTvG.addEdge(t2.requests.head, t)
-              rTvG.addEdge(t, v)
-            }
+            MatchmakingUtils
+              .getRidehailSchedule(
+                v.schedule,
+                (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+                v.vehicleRemainingRangeInMeters.toInt,
+                skimmer
+              )
+              .foreach { schedule =>
+                val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+                pairRequestsList append t
+                rTvG.addVertex(t)
+                rTvG.addEdge(t1.requests.head, t)
+                rTvG.addEdge(t2.requests.head, t)
+                rTvG.addEdge(t, v)
+              }
           }
         }
         finalRequestsList.appendAll(pairRequestsList)
@@ -148,7 +150,7 @@ class AlonsoMoraPoolingAlgForRideHail(
                   v.vehicleRemainingRangeInMeters.toInt,
                   skimmer
                 )
-                .map { schedule =>
+                .foreach { schedule =>
                   val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
                   kRequestsList.append(t)
                   rTvG.addVertex(t)

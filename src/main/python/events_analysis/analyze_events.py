@@ -169,7 +169,7 @@ def get_pooling_metrics(filename):
         distance = row.length
         if event == "ModeChoice":
             if str(person).startswith("rideHailAgent"):
-                print("ummm")
+                print("ride hail driver with mode choice, does it ever occur !?")
             elif mode.startswith("ride_hail"):
                 mode_choice_attempt[person] = mode
                 startWT[person] = row.time
@@ -204,10 +204,12 @@ def get_pooling_metrics(filename):
                 if person not in sumWT:
                     sumWT[person] = 0
                 sumWT[person] = sumWT[person] + (row.time - startWT[person])
+                del startWT[person]
                 countWT = countWT + 1
                 startTT[person] = row.time
         elif event == "PersonLeavesVehicle":
             if person not in mode_choice_attempt:
+                print("agent cannot leave a vehicle if it did not go through a mode choice in the first place")
                 continue
             chosen_mode = mode_choice_attempt[person]
             if not vehicle.startswith("rideHailVehicle"):
@@ -228,6 +230,7 @@ def get_pooling_metrics(filename):
                 if person not in sumTT:
                     sumTT[person] = 0
                 sumTT[person] = sumTT[person] + (row.time - startTT[person])
+                del startTT[person]
                 countTT = countTT + 1
             del mode_choice_attempt[person]
         elif event == "PathTraversal":

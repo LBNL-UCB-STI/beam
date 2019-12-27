@@ -53,20 +53,20 @@ class AsyncAlonsoMoraAlgForRideHail(
 
     customers.foreach(
       r =>
-        MatchmakingUtils.getRidehailSchedule(
-          v.schedule,
-          List(r.pickup, r.dropoff),
-          v.vehicleRemainingRangeInMeters.toInt,
-          skimmer
-        ) match {
-          case Some(schedule) =>
+        MatchmakingUtils
+          .getRidehailSchedule(
+            v.schedule,
+            List(r.pickup, r.dropoff),
+            v.vehicleRemainingRangeInMeters.toInt,
+            skimmer
+          )
+          .foreach { schedule =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t
             if (!vertices.contains(v)) vertices append v
             vertices append (r, t)
             edges append ((r, t), (t, v))
-          case _ =>
-      }
+        }
     )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 to v.getFreeSeats) {
@@ -84,7 +84,7 @@ class AsyncAlonsoMoraAlgForRideHail(
                 v.vehicleRemainingRangeInMeters.toInt,
                 skimmer
               )
-              .map { schedule =>
+              .foreach { schedule =>
                 val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
                 kRequestsList append t
                 vertices append t

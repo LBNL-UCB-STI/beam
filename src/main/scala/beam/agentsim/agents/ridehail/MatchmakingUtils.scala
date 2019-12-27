@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWith
 import beam.agentsim.agents._
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamModecomputeAlonsoMoraCost
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.sim.{BeamServices, Geofence}
@@ -27,7 +27,7 @@ object MatchmakingUtils {
   def computeAlonsoMoraCost(trip: RideHailTrip, vehicle: VehicleAndSchedule): Double = {
     val empty = vehicle.getSeatingCapacity - trip.requests.size - vehicle.getNoPassengers
     val largeConstant = trip.upperBoundDelays
-    val cost = trip.sumOfDelays + empty * largeConstant
+    val cost = trip.sumOfDelays + (empty * largeConstant)
     cost
   }
 
@@ -35,7 +35,7 @@ object MatchmakingUtils {
     val passengers = trip.requests.size + vehicle.getNoPassengers
     val delay = trip.sumOfDelays
     val maximum_delay = trip.upperBoundDelays
-    val cost = passengers + (1 - delay / maximum_delay.toDouble)
+    val cost = passengers + (1 - (delay / maximum_delay.toDouble))
     -1 * cost
   }
 
@@ -61,11 +61,7 @@ object MatchmakingUtils {
   }
 
   def checkDistance(r: MobilityRequest, schedule: List[MobilityRequest], searchRadius: Double): Boolean = {
-    schedule.foreach { s =>
-      if (GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
-        return true
-    }
-    false
+    schedule.exists(s => GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
   }
 
   def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]) = {
@@ -92,20 +88,16 @@ object MatchmakingUtils {
       // if vehicle is EnRoute, then filter list of customer based on the destination of the passengers
       val i = v.schedule.indexWhere(_.tag == EnRoute)
       val mainTasks = v.schedule.slice(0, i)
-      demand
-        .filter(
-          r =>
-            mainTasks.foldLeft(false) { (acc, t) =>
-              acc || (t.pickupRequest match {
-                case Some(pickup) =>
-                  MatchmakingUtils
-                    .checkAngle(pickup.activity.getCoord, t.activity.getCoord, r.dropoff.activity.getCoord)
-                case _ =>
-                  false
-              })
-          }
-        )
-      //.sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
+      demand.filter(
+        r =>
+          mainTasks
+            .filter(_.pickupRequest.isDefined)
+            .exists(
+              m =>
+                MatchmakingUtils
+                  .checkAngle(m.pickupRequest.get.activity.getCoord, m.activity.getCoord, r.dropoff.activity.getCoord)
+          )
+      )
     } else {
       // if vehicle is empty, prioritize the destination of the current closest customers
       val customers = demand.sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
@@ -114,10 +106,11 @@ object MatchmakingUtils {
         .drop(mainRequests.size)
         .filter(
           r =>
-            mainRequests.foldLeft(false) { (acc, t) =>
-              acc || MatchmakingUtils
-                .checkAngle(t.pickup.activity.getCoord, t.dropoff.activity.getCoord, r.dropoff.activity.getCoord)
-          }
+            mainRequests.exists(
+              m =>
+                MatchmakingUtils
+                  .checkAngle(m.pickup.activity.getCoord, m.dropoff.activity.getCoord, r.dropoff.activity.getCoord)
+          )
         )
     }
   }
@@ -154,7 +147,7 @@ object MatchmakingUtils {
         newPoolingList.append(temp.head)
         temp.drop(1)
     }
-    sortedRequests.foreach { curReq =>
+    val isValid = sortedRequests.forall { curReq =>
       val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
       val tdc = skimmer.getTimeDistanceAndCost(
         prevReq.activity.getCoord,
@@ -170,11 +163,12 @@ object MatchmakingUtils {
       val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
       if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
         newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
+        true
       } else {
-        return None
+        false
       }
     }
-    Some(newPoolingList.toList)
+    if (isValid) Some(newPoolingList.toList) else None
   }
 
   def createPersonRequest(
