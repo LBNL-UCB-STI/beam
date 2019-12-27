@@ -23,7 +23,8 @@ class AlonsoMoraPoolingAlgForRideHail(
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
   //private def solutionSpaceSizePerVehicle: Int = Integer.MAX_VALUE
-  private def waitingTimeInSec: Int = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
+  private def waitingTimeInSec: Int =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
   private implicit val implicitServices = beamServices
 
   // Request Vehicle Graph
@@ -35,16 +36,18 @@ class AlonsoMoraPoolingAlgForRideHail(
       val center = r1.pickup.activity.getCoord
       spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.foreach {
         case r2 if r1 != r2 && !rvG.containsEdge(r1, r2) =>
-          MatchmakingUtils.getRidehailSchedule(
-            List.empty[MobilityRequest],
-            List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
-            Integer.MAX_VALUE,
-            skimmer
-          ).map { schedule =>
-            rvG.addVertex(r2)
-            rvG.addVertex(r1)
-            rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
-          }
+          MatchmakingUtils
+            .getRidehailSchedule(
+              List.empty[MobilityRequest],
+              List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
+              Integer.MAX_VALUE,
+              skimmer
+            )
+            .map { schedule =>
+              rvG.addVertex(r2)
+              rvG.addVertex(r1)
+              rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
+            }
         case _ => // nothing
       }
     }
@@ -54,14 +57,23 @@ class AlonsoMoraPoolingAlgForRideHail(
       val center = requestWithCurrentVehiclePosition.activity.getCoord
 
       // get all customer requests located at a proximity to the vehicle
-      var customers = MatchmakingUtils.getRequestsWithinGeofence(v, spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList)
+      var customers = MatchmakingUtils.getRequestsWithinGeofence(
+        v,
+        spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
+      )
       // heading same direction
       customers = MatchmakingUtils.getNearbyRequestsHeadingSameDirection(v, customers)
 
       customers
         .foreach(
           r =>
-            MatchmakingUtils.getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer)
+            MatchmakingUtils
+              .getRidehailSchedule(
+                v.schedule,
+                List(r.pickup, r.dropoff),
+                v.vehicleRemainingRangeInMeters.toInt,
+                skimmer
+              )
               .map { schedule =>
                 rvG.addVertex(v)
                 rvG.addVertex(r)
@@ -121,18 +133,20 @@ class AlonsoMoraPoolingAlgForRideHail(
                      x =>
                        !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
                    )) {
-              MatchmakingUtils.getRidehailSchedule(
-                v.schedule,
-                (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
-                v.vehicleRemainingRangeInMeters.toInt,
-                skimmer
-              ).map { schedule =>
-                val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
-                kRequestsList.append(t)
-                rTvG.addVertex(t)
-                t.requests.foreach(rTvG.addEdge(_, t))
-                rTvG.addEdge(t, v)
-              }
+              MatchmakingUtils
+                .getRidehailSchedule(
+                  v.schedule,
+                  (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+                  v.vehicleRemainingRangeInMeters.toInt,
+                  skimmer
+                )
+                .map { schedule =>
+                  val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+                  kRequestsList.append(t)
+                  rTvG.addVertex(t)
+                  t.requests.foreach(rTvG.addEdge(_, t))
+                  rTvG.addEdge(t, v)
+                }
             }
           }
           finalRequestsList.appendAll(kRequestsList)
@@ -160,9 +174,9 @@ object AlonsoMoraPoolingAlgForRideHail {
 
   // ************ Helper functions ************
   def greedyAssignment(
-                        rTvG: RTVGraph,
-                        maximumVehCapacity: Int
-                      ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
+    rTvG: RTVGraph,
+    maximumVehCapacity: Int
+  ): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     val Rok = collection.mutable.HashSet.empty[CustomerRequest]
     val Vok = collection.mutable.HashSet.empty[VehicleAndSchedule]
     val greedyAssignmentList = ListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
@@ -199,9 +213,6 @@ object AlonsoMoraPoolingAlgForRideHail {
 
     greedyAssignmentList.toList
   }
-
-
-
 
   // ***** Graph Structure *****
   sealed trait RTVGraphNode {
