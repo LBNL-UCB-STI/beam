@@ -1,0 +1,1 @@
+docker load --input workshop-images.tar.gz
