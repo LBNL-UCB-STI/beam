@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWith
 import beam.agentsim.agents._
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamModecomputeAlonsoMoraCost
+import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.sim.{BeamServices, Geofence}
