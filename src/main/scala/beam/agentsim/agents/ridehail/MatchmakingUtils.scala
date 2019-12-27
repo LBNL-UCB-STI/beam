@@ -18,6 +18,7 @@ import org.geotools.referencing.crs.DefaultGeographicCRS
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
+import scala.util.control.Breaks._
 
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
@@ -147,25 +148,29 @@ object MatchmakingUtils {
         newPoolingList.append(temp.head)
         temp.drop(1)
     }
-    val isValid = sortedRequests.forall { curReq =>
-      val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
-      val tdc = skimmer.getTimeDistanceAndCost(
-        prevReq.activity.getCoord,
-        curReq.activity.getCoord,
-        prevReq.baselineNonPooledTime,
-        BeamMode.CAR,
-        Id.create(
-          skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-          classOf[BeamVehicleType]
+
+    var isValid = true
+    breakable {
+      for (curReq <- sortedRequests) {
+        val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
+        val tdc = skimmer.getTimeDistanceAndCost(
+          prevReq.activity.getCoord,
+          curReq.activity.getCoord,
+          prevReq.baselineNonPooledTime,
+          BeamMode.CAR,
+          Id.create(
+            skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
         )
-      )
-      val serviceTime = prevReq.serviceTime + tdc.time
-      val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
-      if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
-        newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
-        true
-      } else {
-        false
+        val serviceTime = prevReq.serviceTime + tdc.time
+        val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
+        if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
+          newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
+        } else {
+          isValid = false
+          break
+        }
       }
     }
     if (isValid) Some(newPoolingList.toList) else None
