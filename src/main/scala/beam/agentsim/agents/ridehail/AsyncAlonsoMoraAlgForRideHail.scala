@@ -47,7 +47,9 @@ class AsyncAlonsoMoraAlgForRideHail(
     // solution size resizing
     customers = customers
       .sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
-      .take(beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle)
+      .take(
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+      )
 
     customers.foreach(
       r =>
