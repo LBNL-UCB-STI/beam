@@ -28,7 +28,7 @@ class AlonsoMoraPoolingAlgForRideHail(
   private implicit val implicitServices = beamServices
 
   // Request Vehicle Graph
-  private def pairwiseRVGraph: RVGraph = {
+  def pairwiseRVGraph: RVGraph = {
     val rvG = RVGraph(classOf[RideHailTrip])
     val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
 
@@ -85,7 +85,7 @@ class AlonsoMoraPoolingAlgForRideHail(
   }
 
   // Request Trip Vehicle Graph
-  private def rTVGraph(rvG: RVGraph): RTVGraph = {
+  def rTVGraph(rvG: RVGraph): RTVGraph = {
     val rTvG = RTVGraph(classOf[DefaultEdge])
 
     for (v <- supply.filter(rvG.containsVertex)) {
