@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
+import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.core.utils.collections.QuadTree
@@ -63,6 +64,12 @@ class AlonsoMoraPoolingAlgForRideHail(
       )
       // heading same direction
       customers = MatchmakingUtils.getNearbyRequestsHeadingSameDirection(v, customers)
+
+      // solution size resizing
+      customers = customers
+        .sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
+        .take(beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle)
+
 
       customers
         .foreach(

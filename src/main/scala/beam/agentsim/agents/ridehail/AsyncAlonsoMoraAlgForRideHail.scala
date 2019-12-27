@@ -4,6 +4,7 @@ import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -42,6 +43,11 @@ class AsyncAlonsoMoraAlgForRideHail(
 
     // heading same direction
     customers = MatchmakingUtils.getNearbyRequestsHeadingSameDirection(v, customers)
+
+    // solution size resizing
+    customers = customers
+      .sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
+      .take(beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle)
 
     customers.foreach(
       r =>
