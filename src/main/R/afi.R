@@ -488,3 +488,22 @@ df[parkChoiceX== -Inf,parkChoiceX:=NA]
 df[parkChoiceY== -Inf,parkChoiceY:=NA]
 
 df[,distToStall:=apply(cbind(locationX,locationY,parkChoiceX,parkChoiceY),1,function(x){ distm(x[1:2],x[3:4], fun = distHaversine) })]
+
+
+# Count # chargers
+all.ch <-list()
+for(infra in c('sparse','rich5','rich10','rich')){
+ for(pow in c(50,100)){
+    ch <- data.table(read.csv(pp('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/sfbay/parking/depot-parking-',infra,'-',pow,'-b-lowtech.csv')))
+    ch[,type:='depot']
+    ch[,kw:=pow]
+    ch[,inf:=infra]
+    all.ch[[length(all.ch)+1]] <- ch
+    ch <- data.table(read.csv(pp('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/sfbay/parking/afi-parking-',infra,'-',pow,'-b-lowtech.csv')))
+    ch[,type:='public']
+    ch[,kw:=pow]
+    ch[,inf:=infra]
+    all.ch[[length(all.ch)+1]] <- ch
+ }
+}
+all.ch <- rbindlist(all.ch)
