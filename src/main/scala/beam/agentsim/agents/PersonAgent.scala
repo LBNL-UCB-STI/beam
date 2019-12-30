@@ -662,11 +662,25 @@ class PersonAgent(
             netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
           )
         )
+      val dataForNextLegOrActivity = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
+          currentTripCosts = 0.0
+        )
+      } else {
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          currentVehicle = Vector(body.id),
+          currentTripCosts = 0.0
+        )
+      }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+        val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
+          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
         if (currentBeamVehicle != body) {
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
@@ -679,11 +693,8 @@ class PersonAgent(
           }
         }
       }
-      goto(ProcessingNextLegOrStartActivity) using data.copy(
-        restOfCurrentTrip = data.restOfCurrentTrip.tail,
-        currentVehicle = Vector(body.id),
-        currentTripCosts = 0.0
-      )
+      goto(ProcessingNextLegOrStartActivity) using dataForNextLegOrActivity
+
   }
 
   when(ReadyToChooseParking, stateTimeout = Duration.Zero) {
