@@ -1,7 +1,6 @@
 package beam.agentsim.agents
 
 import scala.annotation.tailrec
-
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
@@ -42,9 +41,10 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.utils.logging.ExponentialLazyLogging
 
 /**
   */
@@ -252,7 +252,8 @@ class PersonAgent(
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
-    with Stash {
+    with Stash
+    with ExponentialLazyLogging {
   val networkHelper = beamServices.networkHelper
   val geo = beamServices.geo
 
@@ -435,7 +436,7 @@ class PersonAgent(
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
-          logDebug(s"didn't get nextActivity")
+          logger.warn(s"didn't get nextActivity, PersonAgent:438")
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
@@ -448,7 +449,7 @@ class PersonAgent(
                 }
               })
           })
-          stop replying CompletionNotice(triggerId)
+          stay replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
@@ -661,13 +662,30 @@ class PersonAgent(
             netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
           )
         )
+      val dataForNextLegOrActivity = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
+          currentTripCosts = 0.0
+        )
+      } else {
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          currentVehicle = Vector(body.id),
+          currentTripCosts = 0.0
+        )
+      }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+        val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
+          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
         if (currentBeamVehicle != body) {
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
+          }
           if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
@@ -675,11 +693,8 @@ class PersonAgent(
           }
         }
       }
-      goto(ProcessingNextLegOrStartActivity) using data.copy(
-        restOfCurrentTrip = data.restOfCurrentTrip.tail,
-        currentVehicle = Vector(body.id),
-        currentTripCosts = 0.0
-      )
+      goto(ProcessingNextLegOrStartActivity) using dataForNextLegOrActivity
+
   }
 
   when(ReadyToChooseParking, stateTimeout = Duration.Zero) {
@@ -911,7 +926,7 @@ class PersonAgent(
             } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
               tick
             } else {
-              //            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
+              //           logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
               // minutes.")
               //TODO consider ending the day here to match MATSim convention for start/end activity
               tick + 60 * 10
@@ -1062,6 +1077,10 @@ class PersonAgent(
       if (stateName == Moving) {
         log.warning("Still travelling at end of simulation.")
         log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      } else if (stateName == PerformingActivity) {
+        logger.warn(s"Performing Activity at end of simulation")
+      } else {
+        logger.warn(s"Received Finish while in state: ${stateName}")
       }
       stop
     case Event(

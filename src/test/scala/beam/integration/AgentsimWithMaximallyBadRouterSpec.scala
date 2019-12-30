@@ -38,7 +38,7 @@ class AgentsimWithMaximallyBadRouterSpec
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
 
-  lazy implicit val system: ActorSystem = ActorSystem("AgentSimWithBadRouterSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("AgentsimWithMaximallyBadRouterSpec", config)
 
   "The agentsim" must {
     "not get stuck even if the router only throws exceptions" in {
@@ -56,8 +56,8 @@ class AgentsimWithMaximallyBadRouterSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(beamScenario, services.geo),
-        new TravelTimeObserved(beamScenario, services.geo),
+        new BeamSkimmer(services, beamScenario, services.geo),
+        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )

@@ -24,7 +24,9 @@ S3_PUBLISH_SCRIPT = '''
   -    done;
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
-  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
+  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"
+  -    sudo aws --region "$S3_REGION" s3 ls s3://beam-outputs/$finalPath | wc -l
+  -    s3_output_count = $?'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
@@ -74,36 +76,14 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
-  - echo "git checkout ..."
+  - 'echo "git checkout: $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  - echo "preparing for python analysis"
-  - sudo dpkg --configure -a
-  - sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
-  - sudo apt-get install unattended-upgrades
-  - sudo dpkg --configure -a
-  - sudo apt update
-  - sudo apt install npm -y
-  - sudo apt install nodejs-legacy -y
-  - sudo apt install python-pip -y
-  - pip install --upgrade pip
-  - sudo pip install pandas
-  - sudo pip install plotly
-  - sudo pip install psutil requests
-  - sudo npm cache clean -f
-  - sudo npm install -g n
-  - sudo n stable
-  - sudo npm install -g npm
-  - sudo apt-get install curl
-  - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-  - sudo apt-get install nodejs -y
-  - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
-  - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
-  - sudo apt-get install xvfb -y
-  - echo "gradlew assemble ..."
+
+  - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
@@ -113,6 +93,7 @@ runcmd:
   - /tmp/slack.sh "$hello_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
   - s3p=""
+  - s3_output_count=0
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
@@ -122,6 +103,10 @@ runcmd:
   - if [ "$S3_PUBLISH" = "true" ]
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
+  - fi
+  - if [ $s3_output_count > 0 ]
+  - then
+  -   sudo aws ec2 create-tags --region $REGION --resources $(ec2metadata --instance-id) --tags Key=BackedUp,Value=$s3p
   - fi
   - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
   - echo "$bye_msg"
@@ -192,30 +177,30 @@ def validate(name):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[ {
+            'ResourceType': 'instance',
+            'Tags': [ {
+                'Key': 'Name',
+                'Value': instance_name
+            } ]
+        } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -313,6 +298,7 @@ def deploy_handler(event):
         for arg in params:
             uid = str(uuid.uuid4())[:8]
             runName = titled
+            runName = runName + '_' + shutdown_behaviour.toUpperCase()
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \

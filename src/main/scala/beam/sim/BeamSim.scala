@@ -145,9 +145,8 @@ class BeamSim @Inject()(
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(
       eventsManager,
-      beamServices.networkHelper,
-      event.getServices.getControlerIO,
-      beamServices.beamConfig.beam.outputs.writeEventsInterval
+      beamServices,
+      event.getServices.getControlerIO
     )
 
     tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
@@ -219,7 +218,7 @@ class BeamSim @Inject()(
     }
 
     if (beamConfig.beam.debug.debugEnabled)
-      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
+      logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
 
@@ -273,7 +272,7 @@ class BeamSim @Inject()(
     }
 
     if (beamConfig.beam.debug.debugEnabled)
-      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+      logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 
     val persons = scenario.getPopulation.getPersons.values().asScala

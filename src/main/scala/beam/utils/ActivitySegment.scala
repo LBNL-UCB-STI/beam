@@ -1,40 +1,41 @@
 package beam.utils
 
-import beam.router.BeamRouter.Location
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Scenario}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Activity
 
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends LazyLogging {
+class ActivitySegment(private val activities: Array[Activity], val binSize: Int) extends LazyLogging {
   import ActivitySegment._
 
-  val sorted = activities.sortBy(x => x.getEndTime)
+  val sorted: Array[Activity] = activities.sortBy(x => x.getEndTime)
 
-  private val emptyArr: Array[Coord] = Array.empty
+  def minTime: Int = sorted.head.getEndTime.toInt
+  def maxTime: Int = sorted.last.getEndTime.toInt
+
+  private val emptyArr: Array[Activity] = Array.empty
   private val maxIdx: Int = sorted.last.getEndTime.toInt / binSize
-  private val arr: Array[Array[Coord]] = build(sorted, binSize)
+  private val arr: Array[Array[Activity]] = build(sorted, binSize)
 
-  def getCoords(time: Double): IndexedSeq[Coord] = {
+  def getActivities(time: Double): IndexedSeq[Activity] = {
     val idx = time.toInt / binSize
     if (idx > maxIdx) {
-      logger.warn(s"Cant find bucket at time: $time, idx: $idx, maxIdx: $maxIdx")
+      // logger.warn(s"Cant find bucket at time: $time, idx: $idx, maxIdx: $maxIdx")
       emptyArr
     } else {
-      val r: Array[Location] = Option(arr(idx)).getOrElse(emptyArr)
+      val r: Array[Activity] = Option(arr(idx)).getOrElse(emptyArr)
       r
     }
   }
 
-  def getCoords(startTime: Double, endTime: Double): scala.collection.Set[Coord] = {
+  def getActivities(startTime: Double, endTime: Double): scala.collection.Set[Activity] = {
     require(startTime <= endTime)
-    val res = new mutable.HashSet[Coord]()
+    val res = new mutable.HashSet[Activity]()
     var t: Double = startTime
     while (t <= endTime) {
-      getCoords(t).foreach(res += _)
+      getActivities(t).foreach(res += _)
       t += binSize
     }
     res
@@ -53,28 +54,20 @@ object ActivitySegment {
     new ActivitySegment(activities, binSize)
   }
 
-  def build(sorted: Array[Activity], binSize: Int): Array[Array[Coord]] = {
-    val minTime = sorted.head.getEndTime
-    val maxTime = sorted.last.getEndTime
+  def build(activities: Array[Activity], binSize: Int): Array[Array[Activity]] = {
+    val maxTime = activities.maxBy(x => x.getEndTime).getEndTime
     val maxIdx: Int = maxTime.toInt / binSize
-    val arr: Array[Array[Coord]] = Array.ofDim(maxIdx + 1)
-
-    val buf = new ArrayBuffer[Coord]
-    var i: Int = 0
-    var j: Int = minTime.toInt / binSize
-    var s = minTime
-    while (i < sorted.length) {
-      val act = sorted(i)
-      val time = act.getEndTime
-      if (time - s > binSize) {
-        arr.update(j, buf.toArray)
-        buf.clear()
-        j += 1
-        s = time
-      } else {
-        buf += act.getCoord
+    val arr: Array[Array[Activity]] = Array.ofDim(maxIdx + 1)
+    val binToActivities: Map[Int, Array[Activity]] = activities
+      .map { act =>
+        val binIdx = (act.getEndTime / binSize).toInt
+        binIdx -> act
       }
-      i += 1
+      .groupBy { case (binIdx, act) => binIdx }
+      .map { case (binIdx, xs) => binIdx -> xs.map(_._2) }
+    binToActivities.foreach {
+      case (bin, acts) =>
+        arr.update(bin, acts)
     }
     arr
   }

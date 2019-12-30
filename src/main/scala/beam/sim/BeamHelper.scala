@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream, FileWriter}
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -12,6 +12,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
+import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
@@ -44,7 +45,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -153,7 +154,14 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[BeamConfigHolder])
           val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
 
+          bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
+
+          bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
+
           bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
+
+          bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
+
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
@@ -577,18 +585,13 @@ trait BeamHelper extends LazyLogging {
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
-        val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
-        if (externalFolderExists) {
-          val beamScenario = loadScenario(beamConfig)
-          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
-          val scenario = {
-            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
-          }.asInstanceOf[MutableScenario]
-          (scenario, beamScenario)
-        } else {
-          throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
-        }
+        val beamScenario = loadScenario(beamConfig)
+        val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+        val scenario = {
+          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+        }.asInstanceOf[MutableScenario]
+        (scenario, beamScenario)
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
