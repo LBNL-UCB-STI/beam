@@ -44,12 +44,12 @@ final class CarRideStatsFromPathTraversal(pathToNetwork: String) {
     }
     try {
       val drivingWithParkingPtes = ptes.toVector
-        .groupBy(x => x.vehicleId)
+        .groupBy(x => (x.vehicleId, x.driverId))
         .map {
-          case (vehId, xs) =>
+          case ((vehId, driverId), xs) =>
             val sorted = xs.sortBy(x => x.departureTime)
             if (sorted.length % 2 == 1) {
-              println(s"$vehId has ${sorted.length} events")
+              println(s"Vehicle $vehId with driver $driverId has ${sorted.length} events")
             }
             sorted.sliding(2, 2).flatMap { ptes =>
               val maybeDriving = ptes.lift(0)
@@ -65,9 +65,8 @@ final class CarRideStatsFromPathTraversal(pathToNetwork: String) {
       val stats = drivingWithParkingPtes.foldLeft(List.empty[RideStat]) {
         case (acc, (driving, parking)) =>
           if (driving.arrivalTime != parking.departureTime) {
-            println(s"""
-                       |$driving
-                       |$parking""".stripMargin)
+            val msg = s"File: $eventsFilePath. arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
+            println(msg)
           }
           val travelTime =
             ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble

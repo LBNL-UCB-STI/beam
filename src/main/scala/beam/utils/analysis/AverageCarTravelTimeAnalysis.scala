@@ -38,7 +38,9 @@ object AverageCarTravelTimeAnalysis {
     val isNeededEvent = event.getEventType == "PathTraversal"
     isNeededEvent
   }
-  val vehileTypeFile = "D:/Work/beam/MultipleJDEQSim/baseline/vehicletypes-baseline.csv"
+
+  val vehileTypeFile =
+    "D:/Work/beam/MultipleJDEQSim/baseline_art_smart-baseline-network-relax-baseline-without-noise-injection/vehicletypes-baseline.csv"
   val vehicleTypeIdToVehicleType: Map[Id[BeamVehicleType], BeamVehicleType] = readBeamVehicleTypeFile(vehileTypeFile)
 
   val transportNetwork: TransportNetwork =
@@ -82,9 +84,8 @@ object AverageCarTravelTimeAnalysis {
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)
       .readFile(pathToNetwork)
-    val eventsFile0 =
-      "https://beam-outputs.s3.amazonaws.com/output/sfbay/sfbay-smart-base__2019-12-05_19-48-26/ITERS/it.0/0.events.csv.gz"
-    val eventsFile40 = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/40.events.csv.gz"
+    val eventsFile0 = "C:/temp/15.events.csvh.gz"
+    val eventsFile40 = "C:/temp/15.events.csvh.gz"
 
     val statsF0 = Future {
       val rideStats = ProfilingUtils.timed(s"$eventsFile0: computeStatsConsiderParking", x => println(x)) {
