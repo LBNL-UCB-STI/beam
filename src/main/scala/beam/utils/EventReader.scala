@@ -33,14 +33,12 @@ object EventReader {
         val s = new URL(filePath).openStream()
         if (filePath.endsWith(".gz")) {
           new GZIPInputStream(s)
-        }
-        else {
+        } else {
           s
         }
       }
       new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
-    }
-    else {
+    } else {
       FileUtils.readerFromFile(filePath)
     }
     fromCsvReader(rdr, filterPredicate)

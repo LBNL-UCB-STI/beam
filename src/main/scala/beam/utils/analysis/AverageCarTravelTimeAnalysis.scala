@@ -1,16 +1,16 @@
 package beam.utils.analysis
 
 import java.io.Closeable
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.router.Modes.{BeamMode, toR5StreetMode}
+import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.model.RoutingModel
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import beam.utils.csv.CsvWriter
-import beam.utils.{EventReader, Statistics}
+import beam.utils.{EventReader, ProfilingUtils, Statistics}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
@@ -21,10 +21,8 @@ import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.router.util.TravelTime
-import org.matsim.api.core.v01.population.{Person => MatsimPerson}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -33,6 +31,7 @@ import scala.concurrent.{Await, Future}
 case class TravelTimeHolder(original: Double, freeflow: Double, r5FreeFlow: Double, r5LinkStat: Option[Double])
 
 object AverageCarTravelTimeAnalysis {
+
   def eventsFilter(event: Event): Boolean = {
     val attribs = event.getAttributes
     // We need only PathTraversal
@@ -42,13 +41,14 @@ object AverageCarTravelTimeAnalysis {
   val vehileTypeFile = "D:/Work/beam/MultipleJDEQSim/baseline/vehicletypes-baseline.csv"
   val vehicleTypeIdToVehicleType: Map[Id[BeamVehicleType], BeamVehicleType] = readBeamVehicleTypeFile(vehileTypeFile)
 
-  val transportNetwork: TransportNetwork = KryoNetworkSerializer.read(Paths.get("c:/temp/production/sfbay/r5-simple-no-local", "network.dat").toFile)
+  val transportNetwork: TransportNetwork =
+    KryoNetworkSerializer.read(Paths.get("c:/temp/production/sfbay/r5-simple-no-local", "network.dat").toFile)
 
   def showStats(eventsFile: String, nPtes: Int, travelTimes: List[TravelTimeHolder]): Unit = {
     val originalStats = Statistics(travelTimes.map(_.original))
-    val freeflowStats  = Statistics(travelTimes.map(_.freeflow))
-    val r5FreeFlowStats  = Statistics(travelTimes.map(_.r5FreeFlow))
-    val r5LinkStats  = Statistics(travelTimes.flatMap(_.r5LinkStat))
+    val freeflowStats = Statistics(travelTimes.map(_.freeflow))
+    val r5FreeFlowStats = Statistics(travelTimes.map(_.r5FreeFlow))
+    val r5LinkStats = Statistics(travelTimes.flatMap(_.r5LinkStat))
     val msg = s"""File: $eventsFile
        |nPTEs: $nPtes
        |originalStats: $originalStats
@@ -58,18 +58,39 @@ object AverageCarTravelTimeAnalysis {
     println(msg)
   }
 
+  def showStats(eventsFile: String, rideStats: List[RideStat]): Unit = {
+    val travelTimeStats = Statistics(rideStats.map(_.travelTime))
+    val freeFlowTravelTimeStats = Statistics(rideStats.map(_.freeFlowTravelTime))
+    val length = Statistics(rideStats.map(_.length))
+    val speedStats = Statistics(rideStats.map(_.speed))
+    val freeFlowSpeedStats = Statistics(rideStats.map(_.freeFlowSpeed))
+    val msg = s"""File: $eventsFile
+                 |number of data points: ${rideStats.size}
+                 |travelTimeStats: $travelTimeStats
+                 |freeFlowTravelTimeStats: $freeFlowTravelTimeStats
+                 |length: $length
+                 |speedStats: $speedStats
+                 |freeFlowSpeedStats: $freeFlowSpeedStats""".stripMargin
+    println(msg)
+  }
+
   def main(args: Array[String]): Unit = {
     val pathToNetwork = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/outputNetwork.xml.gz"
+
+    val carRideStatsFromPathTraversal = new CarRideStatsFromPathTraversal(pathToNetwork)
 
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)
       .readFile(pathToNetwork)
-    val eventsFile0 = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/0.events.csv.gz"
+    val eventsFile0 =
+      "https://beam-outputs.s3.amazonaws.com/output/sfbay/sfbay-smart-base__2019-12-05_19-48-26/ITERS/it.0/0.events.csv.gz"
     val eventsFile40 = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/40.events.csv.gz"
 
     val statsF0 = Future {
-      val (nPtes, travelTimes) = computeStatsConsiderParking(network, eventsFile0, None)
-      showStats(eventsFile0, nPtes, travelTimes)
+      val rideStats = ProfilingUtils.timed(s"$eventsFile0: computeStatsConsiderParking", x => println(x)) {
+        carRideStatsFromPathTraversal.computeStatsConsiderParking(eventsFile0)
+      }
+      showStats(eventsFile0, rideStats)
     }
 //    val beamCarTravelTimeF0 = Future {
 //      getBeamCarTravelTime(eventsFile0)
@@ -79,14 +100,17 @@ object AverageCarTravelTimeAnalysis {
 //    }
     val statsF40 = Future {
       val linkStatsFile = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/40.linkstats.csv.gz"
-      val (nPtes, travelTimes) = computeStatsConsiderParking(network, eventsFile40, Some(linkStatsFile))
-      showStats(eventsFile40, nPtes, travelTimes)
+      val rideStats = ProfilingUtils.timed(s"$eventsFile40: computeStatsConsiderParking", x => println(x)) {
+        carRideStatsFromPathTraversal.computeStatsConsiderParking(eventsFile40)
+      }
+      showStats(eventsFile40, rideStats)
     }
     val fList = Future.sequence(List(statsF0, statsF40))
 //    val fList = Future.sequence(List(beamCarTravelTimeF0, beamCarTravelTimeF40, statsF0, statsF40))
 //    val fList = Future.sequence(List(Future { computeSpeed(eventsFile40)}))
     Await.result(fList, 1500.seconds)
   }
+
   def getBeamCarTravelTime(eventsFilePath: String): Unit = {
     def eventsFilter(event: Event): Boolean = {
       val attribs = event.getAttributes
@@ -104,8 +128,7 @@ object AverageCarTravelTimeAnalysis {
       val legMode = attribs.get(PersonArrivalEvent.ATTRIBUTE_LEGMODE)
       if (event.getEventType == PersonArrivalEvent.EVENT_TYPE) {
         new PersonArrivalEvent(event.getTime, personId, maybeLinkId.orNull, legMode)
-      }
-      else {
+      } else {
         new PersonDepartureEvent(event.getTime, personId, maybeLinkId.orNull, legMode)
       }
     }
@@ -116,9 +139,12 @@ object AverageCarTravelTimeAnalysis {
     }
     val carTravelTimeHandler = new TravelTimeHandler(Map.empty)
     events.foreach(carTravelTimeHandler.handleEvent)
-    val x = carTravelTimeHandler.compute.map { case (mode, stat) =>
-      s"$mode: $stat"
-    }.mkString("\n")
+    val x = carTravelTimeHandler.compute
+      .map {
+        case (mode, stat) =>
+          s"$mode: $stat"
+      }
+      .mkString("\n")
     println(s"BeamCarTravelTime. File: $eventsFilePath\n$x")
   }
 
@@ -150,18 +176,24 @@ object AverageCarTravelTimeAnalysis {
           ModeChoiceEvent.apply(event)
       }
     }
-    val eventPriority: Map[String, Int] = Map[String, Int](ModeChoiceEvent.EVENT_TYPE -> 1, PersonDepartureEvent.EVENT_TYPE -> 2, PersonArrivalEvent.EVENT_TYPE -> 3)
+    val eventPriority: Map[String, Int] = Map[String, Int](
+      ModeChoiceEvent.EVENT_TYPE      -> 1,
+      PersonDepartureEvent.EVENT_TYPE -> 2,
+      PersonArrivalEvent.EVENT_TYPE   -> 3
+    )
 
     val (personToEvents, closable: Closeable) = {
       val (e, c) = EventReader.fromCsvFile(eventsFilePath, eventsFilter)
       val unsortedEvents = e.map(mapEvent).toVector
-      val sortedEvents = unsortedEvents.groupBy(x => x.getAttributes.get("person"))
-        .map { case (personId, xs) =>
-          val sortedPersonEvents = xs.sortBy { x =>
-            val z = (x.getTime, eventPriority(x.getEventType))
-            z
-          }
-          personId -> sortedPersonEvents
+      val sortedEvents = unsortedEvents
+        .groupBy(x => x.getAttributes.get("person"))
+        .map {
+          case (personId, xs) =>
+            val sortedPersonEvents = xs.sortBy { x =>
+              val z = (x.getTime, eventPriority(x.getEventType))
+              z
+            }
+            personId -> sortedPersonEvents
         }
       (sortedEvents, c)
     }
@@ -170,7 +202,8 @@ object AverageCarTravelTimeAnalysis {
       val velocities = ArrayBuffer[Double]()
 
       implicit object ModeChoiceEventOrdering extends Ordering[ModeChoiceEvent] {
-        override def compare(x: ModeChoiceEvent, y: ModeChoiceEvent): Int = java.lang.Double.compare(x.getTime, y.getTime)
+        override def compare(x: ModeChoiceEvent, y: ModeChoiceEvent): Int =
+          java.lang.Double.compare(x.getTime, y.getTime)
       }
 //      personToEvents.foreach { case (personId, events) =>
 //        val queue = new mutable.PriorityQueue[ModeChoiceEvent]()
@@ -207,17 +240,21 @@ object AverageCarTravelTimeAnalysis {
       val top100 = velocities.sortBy(x => -x).take(100).toVector
       println(s"top100: ${top100}")
       println(s"velocities: ${Statistics(velocities)}")
-    }
-    finally {
+    } finally {
       closable.close()
     }
   }
 
-  private def computeStats(network: Network, eventsFilePath: String, maybeLinkStatsFile: Option[String]): (Int, List[TravelTimeHolder]) = {
+  private def computeStats(
+    network: Network,
+    eventsFilePath: String,
+    maybeLinkStatsFile: Option[String]
+  ): (Int, List[TravelTimeHolder]) = {
     val allowedDiffPct = 10.0
     val freeFlowTravelTime = new FreeFlowTravelTime
     val linkMap: Map[Id[Link], Link] = network.getLinks.asScala.toMap
-    val maybeLinkTravelTimeContainer: Option[LinkTravelTimeContainer] = maybeLinkStatsFile.map(new LinkTravelTimeContainer(_, 3600, 30 ))
+    val maybeLinkTravelTimeContainer: Option[LinkTravelTimeContainer] =
+      maybeLinkStatsFile.map(new LinkTravelTimeContainer(_, 3600, 30))
     val (ptes: Iterator[PathTraversalEvent], closable: Closeable) = {
       val (e, c) = EventReader.fromCsvFile(eventsFilePath, eventsFilter)
       (e.map(PathTraversalEvent.apply).filter(pte => pte.mode.matsimMode == "car"), c)
@@ -227,93 +264,35 @@ object AverageCarTravelTimeAnalysis {
     val convertedDataFilePath = FilenameUtils.getBaseName(eventsFilePath) + "_more_data.csv"
     val csvWriter = new CsvWriter(convertedDataFilePath, Vector("row", "length", "duration", "speed"))
 
-    val travelTimes = ptes.foldLeft(List.empty[TravelTimeHolder]) { case (acc, pte) =>
-      val vehicleType = vehicleTypeIdToVehicleType(Id.create(pte.vehicleType, classOf[BeamVehicleType]))
-      val duration = (pte.arrivalTime - pte.departureTime).toDouble
-      val avgSpeed = if (duration == 0) 0 else pte.legLength / duration
-      speeds += avgSpeed
+    val travelTimes = ptes.foldLeft(List.empty[TravelTimeHolder]) {
+      case (acc, pte) =>
+        val vehicleType = vehicleTypeIdToVehicleType(Id.create(pte.vehicleType, classOf[BeamVehicleType]))
+        val duration = (pte.arrivalTime - pte.departureTime).toDouble
+        val avgSpeed = if (duration == 0) 0 else pte.legLength / duration
+        speeds += avgSpeed
 
-      csvWriter.write(nPTEs, pte.legLength, duration, avgSpeed)
+        csvWriter.write(nPTEs, pte.legLength, duration, avgSpeed)
 
-      val linkIds = pte.linkIds.map(lid => linkMap(Id.createLinkId(lid)))
-      val freeflowDuration: Double = calcFreeflowDuration(freeFlowTravelTime, linkIds)
-      val r5FreeFlowDuration = calcR5Duration_attempt2(linkMap, freeFlowTravelTime, pte.mode, pte.departureTime.toDouble, vehicleType, linkIds)
-      val r5LinkStatDuration = maybeLinkTravelTimeContainer.map(calcR5Duration_attempt2(linkMap, _, pte.mode, pte.departureTime.toDouble, vehicleType, linkIds))
-      val (a, b) = (duration - duration * allowedDiffPct / 100, duration + duration * allowedDiffPct / 100)
-      val isInside = freeflowDuration >= a && freeflowDuration <= b
-      if (!isInside) {
-        //println(s"duration: ${duration}, freeflowDuration: $freeflowDuration. ratio: ${duration / freeflowDuration}")
-      }
-      nPTEs += 1
-      TravelTimeHolder(duration, freeflowDuration, r5FreeFlowDuration, r5LinkStatDuration) :: acc
-    }
-
-    csvWriter.close()
-
-    val top100Speeds = speeds.sortBy(x => -x).take(100)
-    println(s"top100Speeds: $top100Speeds")
-    println(s"Speed stats: ${Statistics(speeds)}")
-    (nPTEs, travelTimes)
-  }
-
-  private def computeStatsConsiderParking(network: Network, eventsFilePath: String, maybeLinkStatsFile: Option[String]): (Int, List[TravelTimeHolder]) = {
-    val allowedDiffPct = 10.0
-    val freeFlowTravelTime = new FreeFlowTravelTime
-    val linkMap: Map[Id[Link], Link] = network.getLinks.asScala.toMap
-    val maybeLinkTravelTimeContainer: Option[LinkTravelTimeContainer] = maybeLinkStatsFile.map(new LinkTravelTimeContainer(_, 3600, 30 ))
-    val (ptes: Iterator[PathTraversalEvent], closable: Closeable) = {
-      val (e, c) = EventReader.fromCsvFile(eventsFilePath, eventsFilter)
-      (e.map(PathTraversalEvent.apply).filter(pte => pte.mode == BeamMode.CAR && !pte.vehicleId.toString.startsWith("rideHailVehicle")), c)
-    }
-    var nPTEs: Int = 0
-    val speeds = ArrayBuffer[Double]()
-    val convertedDataFilePath = FilenameUtils.getBaseName(eventsFilePath) + "_more_data.csv"
-    val csvWriter = new CsvWriter(convertedDataFilePath, Vector("row", "length", "duration", "speed"))
-
-    // csvWriter.write(nPTEs, pte.legLength, duration, avgSpeed)
-
-    val drivingWithParkingPtes = ptes.toVector.groupBy(x => x.vehicleId)
-      .map { case (vehId, xs) =>
-        val sorted = xs.sortBy(x => x.departureTime)
-        if (sorted.length % 2 == 1) {
-          println(s"$vehId has ${sorted.length} events")
+        val linkIds = pte.linkIds.map(lid => linkMap(Id.createLinkId(lid)))
+        val freeflowDuration: Double = calcFreeflowDuration(freeFlowTravelTime, linkIds)
+        val r5FreeFlowDuration = calcR5Duration_attempt2(
+          linkMap,
+          freeFlowTravelTime,
+          pte.mode,
+          pte.departureTime.toDouble,
+          vehicleType,
+          linkIds
+        )
+        val r5LinkStatDuration = maybeLinkTravelTimeContainer.map(
+          calcR5Duration_attempt2(linkMap, _, pte.mode, pte.departureTime.toDouble, vehicleType, linkIds)
+        )
+        val (a, b) = (duration - duration * allowedDiffPct / 100, duration + duration * allowedDiffPct / 100)
+        val isInside = freeflowDuration >= a && freeflowDuration <= b
+        if (!isInside) {
+          //println(s"duration: ${duration}, freeflowDuration: $freeflowDuration. ratio: ${duration / freeflowDuration}")
         }
-        sorted.sliding(2, 2).flatMap { ptes =>
-          val maybeDriving = ptes.lift(0)
-          val maybeParking = ptes.lift(1)
-          for {
-            driving <- maybeDriving
-            parking <- maybeParking
-          } yield (driving, parking)
-        }
-      }.flatten
-
-    val travelTimes = drivingWithParkingPtes.foldLeft(List.empty[TravelTimeHolder]) { case (acc, (driving, parking)) =>
-      if (driving.arrivalTime != parking.departureTime) {
-        println(
-          s"""
-             |$driving
-             |$parking""".stripMargin)
-      }
-      val vehicleType = vehicleTypeIdToVehicleType(Id.create(driving.vehicleType, classOf[BeamVehicleType]))
-      val duration = ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
-      val length = driving.legLength + parking.legLength
-      val avgSpeed = if (duration == 0) 0 else length / duration
-      speeds += avgSpeed
-
-      csvWriter.write(nPTEs, length, duration, avgSpeed)
-
-      val linkIds = (driving.linkIds ++ parking.linkIds).map(lid => linkMap(Id.createLinkId(lid)))
-      val freeflowDuration: Double = calcFreeflowDuration(freeFlowTravelTime, linkIds)
-      val r5FreeFlowDuration = calcR5Duration_attempt2(linkMap, freeFlowTravelTime, driving.mode, driving.departureTime.toDouble, vehicleType, linkIds)
-      val r5LinkStatDuration = maybeLinkTravelTimeContainer.map(calcR5Duration_attempt2(linkMap, _, driving.mode, driving.departureTime.toDouble, vehicleType, linkIds))
-      val (a, b) = (duration - duration * allowedDiffPct / 100, duration + duration * allowedDiffPct / 100)
-      val isInside = freeflowDuration >= a && freeflowDuration <= b
-      if (!isInside) {
-        //println(s"duration: ${duration}, freeflowDuration: $freeflowDuration. ratio: ${duration / freeflowDuration}")
-      }
-      nPTEs += 1
-      TravelTimeHolder(duration, freeflowDuration, r5FreeFlowDuration, r5LinkStatDuration) :: acc
+        nPTEs += 1
+        TravelTimeHolder(duration, freeflowDuration, r5FreeFlowDuration, r5LinkStatDuration) :: acc
     }
 
     csvWriter.close()
@@ -325,29 +304,45 @@ object AverageCarTravelTimeAnalysis {
   }
 
   private def calcFreeflowDuration(freeFlowTravelTime: FreeFlowTravelTime, linkIds: IndexedSeq[Link]): Double = {
-    linkIds.foldLeft(0.0) { case (acc, link) =>
-      val t = freeFlowTravelTime.getLinkTravelTime(link, 0.0, null, null)
-      acc + t
+    linkIds.foldLeft(0.0) {
+      case (acc, link) =>
+        val t = freeFlowTravelTime.getLinkTravelTime(link, 0.0, null, null)
+        acc + t
     }
   }
 
-  private def calcR5Duration(travelTime: TravelTime, departureTime: Double, vehicleType: BeamVehicleType, linkIds: IndexedSeq[Link]): Double = {
+  private def calcR5Duration(
+    travelTime: TravelTime,
+    departureTime: Double,
+    vehicleType: BeamVehicleType,
+    linkIds: IndexedSeq[Link]
+  ): Double = {
     val minSpeed = 1.3
-    linkIds.foldLeft((0.0, departureTime)) { case ((acc, currentTime), link) =>
-      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(2.22) // From R5 constant
-      val minTravelTime = (link.getLength / maxSpeed).ceil.toInt
-      val maxTravelTime = (link.getLength / minSpeed).ceil.toInt
-      val physSimTravelTime = travelTime.getLinkTravelTime(link, currentTime, null, null).ceil.toInt
-      val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
-      val t = Math.min(linkTravelTime, maxTravelTime)
-      val newDuration = acc + t
-      (newDuration, currentTime + newDuration)
-    }._1
+    linkIds
+      .foldLeft((0.0, departureTime)) {
+        case ((acc, currentTime), link) =>
+          val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(2.22) // From R5 constant
+          val minTravelTime = (link.getLength / maxSpeed).ceil.toInt
+          val maxTravelTime = (link.getLength / minSpeed).ceil.toInt
+          val physSimTravelTime = travelTime.getLinkTravelTime(link, currentTime, null, null).ceil.toInt
+          val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
+          val t = Math.min(linkTravelTime, maxTravelTime)
+          val newDuration = acc + t
+          (newDuration, currentTime + newDuration)
+      }
+      ._1
   }
 
-  private def calcR5Duration_attempt2(linkMap: Map[Id[Link], Link], travelTime: TravelTime, beamMode: BeamMode, departureTime: Double, vehicleType: BeamVehicleType, linkIds: IndexedSeq[Link]): Double = {
+  private def calcR5Duration_attempt2(
+    linkMap: Map[Id[Link], Link],
+    travelTime: TravelTime,
+    beamMode: BeamMode,
+    departureTime: Double,
+    vehicleType: BeamVehicleType,
+    linkIds: IndexedSeq[Link]
+  ): Double = {
     val minSpeed = 1.3
-    val travelTimeByLinkCalculator =  (time: Double, linkId: Int, streetMode: StreetMode) => {
+    val travelTimeByLinkCalculator = (time: Double, linkId: Int, streetMode: StreetMode) => {
       val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(2.22) // From R5 constant
       val link = linkMap(Id.create(linkId, classOf[Link]))
       val minTravelTime = (link.getLength / maxSpeed).ceil.toInt

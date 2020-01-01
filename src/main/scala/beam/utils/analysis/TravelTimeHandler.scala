@@ -10,7 +10,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
-  extends BasicEventHandler
+    extends BasicEventHandler
     with StrictLogging {
   case class ArrivalDepartureEvent(personId: String, time: Int, `type`: String)
 
@@ -76,8 +76,9 @@ class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
 //      mode -> Statistics(events)
 //    }.mkString("\n")
 //    println(s"New way of computing: \n$msg\n\n")
-    modeToEvents.map { case (mode, events) =>
-      mode -> compute(events)
+    modeToEvents.map {
+      case (mode, events) =>
+        mode -> compute(events)
     }.toMap
   }
 
