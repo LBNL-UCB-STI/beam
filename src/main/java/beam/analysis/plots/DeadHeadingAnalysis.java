@@ -288,7 +288,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         int seconds = hour * 60 * 60;
-        simMetricCollector.writeIterationjava("ride-hail-trip-distance", seconds, distance, Metrics.ShortLevel(), tags);
+        simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distance, Metrics.ShortLevel(), tags);
     }
 
 

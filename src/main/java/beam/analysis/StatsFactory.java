@@ -79,7 +79,7 @@ public class StatsFactory {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
         switch (statsType) {
             case RideHailWaiting:
-                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
+                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector());
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:

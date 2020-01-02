@@ -139,7 +139,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         HashMap<String, String> tags = new HashMap<>();
         tags.put("mode", mode);
         int time = (int) event.getTime();
-        simMetricCollector.writeIterationjava("mode-choices", time, 1, Metrics.ShortLevel(), tags);
+        simMetricCollector.writeIterationJava("mode-choices", time, 1, Metrics.ShortLevel(), tags);
 
         modesChosen.add(mode);
         cumulativeModeChosenForModeChoice.add(mode);

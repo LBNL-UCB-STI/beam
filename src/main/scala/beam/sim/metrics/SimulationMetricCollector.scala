@@ -74,14 +74,38 @@ trait SimulationMetricCollector {
     write(metricName, time, Map(defaultMetricValueName -> metricValue), tags, level)
   }
 
-  def writeIterationjava(
+  def writeIterationJava(
     metricName: String,
     seconds: Int,
     metricValue: Double = 1.0,
     level: MetricLevel,
     tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
   ): Unit = {
-    write(metricName, SimulationTime(seconds), Map(defaultMetricValueName -> metricValue), tags.asScala.toMap, level)
+    write(
+      metricName,
+      SimulationTime(seconds),
+      Map(defaultMetricValueName -> metricValue),
+      tags.asScala.toMap,
+      level
+    )
+  }
+
+  def writeIterationJava(
+    metricName: String,
+    seconds: Int,
+    metricValue: Double,
+    level: MetricLevel,
+    tags: java.util.Map[String, String],
+    overwriteIfExist: Boolean
+  ): Unit = {
+    write(
+      metricName,
+      SimulationTime(seconds),
+      Map(defaultMetricValueName -> metricValue),
+      tags.asScala.toMap,
+      level,
+      overwriteIfExist
+    )
   }
 
   def increment(name: String, time: SimulationTime, level: MetricLevel): Unit = {
