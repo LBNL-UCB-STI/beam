@@ -19,7 +19,7 @@ case class EventStatus(start: Double, end: Double, eventType: String, nextType: 
 class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   val resolutionInSeconds = 60
-  val lastHour = 24
+  val lastHour = 25
   val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
   var processedHour = 0
 
@@ -187,10 +187,10 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         val key = states(index)
         row.grouped(resolutionInSeconds).zipWithIndex.foreach {
           case (result, hour) =>
-            if (hour < processedHour)
-              write(s"$graphName-count", result.sum / resolutionInSeconds, hour + 1, key)
+            if (hour <= processedHour)
+              write(s"$graphName-count", result.sum / resolutionInSeconds, hour, key)
             else
-              write(s"$graphName-count", 0, hour + 1, key)
+              write(s"$graphName-count", 0, hour, key)
           case _ =>
         }
     }
@@ -200,10 +200,10 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         val key = states(index)
         row.grouped(resolutionInSeconds).zipWithIndex.foreach {
           case (result, hour) =>
-            if (hour < processedHour)
-              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12 / 1000, hour + 1, key)
+            if (hour <= processedHour)
+              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12 / 1000, hour, key)
             else
-              write(s"$graphName-distance", 0, hour + 1, key)
+              write(s"$graphName-distance", 0, hour, key)
           case _ =>
         }
     }
