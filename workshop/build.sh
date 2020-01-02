@@ -16,9 +16,14 @@ cd beam
 ./clear-data.sh
 cd ..
 
-docker save beammodel/beam:workshop philhawthorne/docker-influxdb-grafana:latest | gzip > beam/workshop-images.tar.gz
-
 if [[ $1 == 'pack' ]]
+then
+  docker save beammodel/beam:workshop philhawthorne/docker-influxdb-grafana:latest | gzip > beam/workshop-images.tar.gz
+  chmod 777 beam/workshop-images.tar.gz
+fi
+
+
+if [[ $2 == 'zip' ]]
 then
   zip -r beam.zip beam/
   chmod 777 beam.zip
