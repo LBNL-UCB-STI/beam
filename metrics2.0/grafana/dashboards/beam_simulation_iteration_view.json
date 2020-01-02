@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1577134423963,
+    "iteration": 1577991934374,
     "links": [],
     "panels": [
       {
@@ -2167,21 +2167,21 @@
         "version": 1
       },
       {
-        "datasource": "InfluxDB",
+        "datasource": null,
         "gridPos": {
           "h": 9,
           "w": 12,
           "x": 12,
           "y": 54
         },
-        "id": 18,
+        "id": 28,
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time parking-type simulation-hour sum",
-            "dataColumn": "parking-type",
+            "all": "Time category simulation-hour count",
+            "dataColumn": "category",
             "xColumn": "simulation-hour",
-            "yColumn": "sum"
+            "yColumn": "count"
           },
           "fixScale": "",
           "layout": {
@@ -2204,13 +2204,13 @@
               "showgrid": true,
               "tick0": "0",
               "title": "Hour",
-              "type": "auto",
+              "type": "linear",
               "zeroline": false
             },
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "# of Parking Events",
+              "title": "Freq. binned by Waiting Time",
               "type": "linear",
               "zeroline": false
             },
@@ -2232,7 +2232,7 @@
           "traces": [
             {
               "mapping": {
-                "color": "Time",
+                "color": "  repositioning",
                 "size": null,
                 "text": null,
                 "x": "Time",
@@ -2271,28 +2271,28 @@
             }
           ]
         },
-        "pluginVersion": "6.4.1",
         "targets": [
           {
-            "alias": "Parking $tag_parking-type",
+            "alias": "[[tag_trip-type]]",
+            "datasource": "InfluxDB",
             "groupBy": [
               {
                 "params": [
-                  "1h"
+                  "simulation-hour"
                 ],
-                "type": "time"
+                "type": "tag"
               },
               {
                 "params": [
-                  "parking-type"
+                  "category"
                 ],
                 "type": "tag"
               }
             ],
-            "measurement": "parking",
+            "measurement": "ride-hail-waiting-time",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"count\") FROM \"parking\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\", \"parking-type\"",
+            "query": "SELECT \"count\" FROM \"ride-hail-waiting-time\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\", \"category\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -2303,10 +2303,6 @@
                     "count"
                   ],
                   "type": "field"
-                },
-                {
-                  "params": [],
-                  "type": "sum"
                 }
               ]
             ],
@@ -2327,7 +2323,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "Parking",
+        "title": "Ride Hail Waiting Histogram",
         "type": "natel-plotly-panel",
         "version": 1
       },
@@ -2502,6 +2498,171 @@
           "x": 12,
           "y": 63
         },
+        "id": 18,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time parking-type simulation-hour sum",
+            "dataColumn": "parking-type",
+            "xColumn": "simulation-hour",
+            "yColumn": "sum"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "h",
+              "traceorder": "normal",
+              "x": "0",
+              "y": "-0.3"
+            },
+            "showlegend": true,
+            "xaxis": {
+              "dtick": "1",
+              "rangemode": "normal",
+              "showgrid": true,
+              "tick0": "0",
+              "title": "Hour",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "title": "# of Parking Events",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "settings": {
+            "displayModeBar": false,
+            "fill": "None",
+            "mode": "None",
+            "type": "bar"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "pluginVersion": "6.4.1",
+        "targets": [
+          {
+            "alias": "Parking $tag_parking-type",
+            "groupBy": [
+              {
+                "params": [
+                  "1h"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "parking-type"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "parking",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT sum(\"count\") FROM \"parking\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\", \"parking-type\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Parking",
+        "type": "natel-plotly-panel",
+        "version": 1
+      },
+      {
+        "datasource": "InfluxDB",
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 72
+        },
         "id": 3,
         "options": {},
         "pconfig": {
@@ -2667,8 +2828,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-23_23-41-53_sf-light-1k-xml",
-            "value": "2019-12-23_23-41-53_sf-light-1k-xml"
+            "text": "2020-01-02_20-05-07_sf-light-1k-xml",
+            "value": "2020-01-02_20-05-07_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2692,9 +2853,8 @@
         {
           "allValue": null,
           "current": {
-            "tags": [],
-            "text": "6",
-            "value": "6"
+            "text": "5",
+            "value": "5"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -2734,6 +2894,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration view",
     "uid": "5oUysNJWz",
-    "version": 2
+    "version": 6
   }
 }
