@@ -14,16 +14,16 @@ chown -R $USER:$USER beam
 
 cd beam
 ./clear-data.sh
-cd ..
+cd -
 
-if [[ $1 == 'pack' ]]
+if [[ $1 == 'pack' ||  $2 == 'pack' ]]
 then
   docker save beammodel/beam:workshop philhawthorne/docker-influxdb-grafana:latest | gzip > beam/workshop-images.tar.gz
   chmod 777 beam/workshop-images.tar.gz
 fi
 
 
-if [[ $2 == 'zip' ]]
+if [[ $1 == 'zip' || $2 == 'zip' ]]
 then
   zip -r beam.zip beam/
   chmod 777 beam.zip
