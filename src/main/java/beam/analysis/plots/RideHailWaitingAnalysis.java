@@ -358,8 +358,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
         }
 
-        System.out.println(">>>>>>>>>>>>>");
-
         DecimalFormat df = new DecimalFormat("##");
         df.setRoundingMode(RoundingMode.FLOOR);
 
@@ -372,7 +370,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                     categoryName = df.format(category);
                 }
 
-                // to have proper order in legend
+                // to have proper order in legend in graph
                 if (categoryName.length() < 2) {
                     categoryName = " " + categoryName;
                 }
@@ -380,7 +378,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 HashMap<String, String> tags = new HashMap<>(1);
                 tags.put("category", categoryName);
                 simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, Metrics.ShortLevel(), tags, true);
-                System.out.println("\t\t\t\t h: " + hour + "\t c: " + categoryName + "\t count: " + count);
             });
         });
     }
