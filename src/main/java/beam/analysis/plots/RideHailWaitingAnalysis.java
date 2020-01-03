@@ -60,6 +60,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
             Map<Integer, Map<Double, Integer>> hourModeFrequency = new HashMap<>();
 
+            // to have proper borders in graph
+            Map<Double, Integer> zeroValues = new HashMap<>();
+            for (double cat : categories) {
+                zeroValues.put(cat, 0);
+            }
+            hourModeFrequency.put(0, zeroValues);
+            hourModeFrequency.put(24, zeroValues);
+
             Set<Integer> hours = hoursTimesMap.keySet();
 
             for (Integer hour : hours) {
@@ -347,16 +355,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     private void writeWaitingTimeToStats(Map<Integer, List<Double>> hourToWaitings, List<Double> categories) {
         Map<Integer, Map<Double, Integer>> hourToCategories = WaitingStatsComputation.calculateHourlyData(hourToWaitings, categories);
-        if (!hourToCategories.containsKey(0)) {
-            Map<Double, Integer> zeroValues = new HashMap<>();
-            for (double category : categories) {
-                zeroValues.put(category, 0);
-            }
-            hourToCategories.put(0, zeroValues);
-            if (!hourToCategories.containsKey(24)) {
-                hourToCategories.put(24, zeroValues);
-            }
-        }
 
         DecimalFormat df = new DecimalFormat("##");
         df.setRoundingMode(RoundingMode.FLOOR);
@@ -368,11 +366,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                     categoryName = df.format(categoryValueBeforeMax) + "+";
                 } else {
                     categoryName = df.format(category);
-                }
-
-                // to have proper order in legend in graph
-                if (categoryName.length() < 2) {
-                    categoryName = " " + categoryName;
                 }
 
                 HashMap<String, String> tags = new HashMap<>(1);
