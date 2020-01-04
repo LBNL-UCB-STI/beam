@@ -1,6 +1,7 @@
 package beam.utils.analysis.geotype_spatial_sequencing
 
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.utils.ProfilingUtils
@@ -86,8 +87,8 @@ object ComputeRoutesApp extends LazyLogging {
               val processed = totalProcessed.get()
               if (processed % onePctNumber == 0) {
                 val pct = 100 * processed.toDouble / numberOfRequest
-                val tookMs = System.currentTimeMillis() - s
-                val msg = s"Processed $processed out of $numberOfRequest => $pct % in $tookMs ms"
+                val tookSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - s)
+                val msg = s"Processed $processed out of $numberOfRequest => $pct % in $tookSeconds seconds"
                 println(msg)
                 logger.info(msg)
               }
