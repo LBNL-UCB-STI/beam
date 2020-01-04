@@ -55,7 +55,7 @@ object ComputeRoutesApp extends LazyLogging {
     logger.info(s"Read ${censusTrack.length} census tracks")
     logger.info(s"routeResolver: ${routeResolver}")
 
-    val toProcess = trips.take(2000000)
+    val toProcess = trips
     val numberOfRequest: Int = toProcess.length
     val totalProcessed: AtomicInteger = new AtomicInteger(0)
 
