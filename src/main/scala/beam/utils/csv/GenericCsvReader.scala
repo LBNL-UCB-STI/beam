@@ -25,7 +25,7 @@ trait GenericCsvReader {
 
   def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
-    assert(v != null, s"Value in column '$column' is null")
+    assert(v != null, s"Value in column '$column' is null. Map is ${rec}")
     v
   }
 }
