@@ -15,6 +15,7 @@ import zio._
 import zio.interop.catz._
 
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 case class ComputeConfig(
@@ -108,7 +109,9 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO()
 
     (for {
-      config  <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
+      _ = println(s"App config: $config")
+
       promise <- CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue].compose(config.cencusTrackPath)
 
       pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)
@@ -121,6 +124,12 @@ object RoutesComputationApp extends CatsApp with AppSetup {
         .fork
 
       _ <- linesFork.join
-    } yield config).fold(_ => -1, _ => 0)
+    } yield config).fold(ex => {
+      println(s"Got an exception: ${ex}")
+      -1
+    }, x => {
+      println(s"Got $x")
+      0
+    })
   }
 }
