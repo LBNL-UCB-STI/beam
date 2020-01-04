@@ -13,6 +13,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
 
+import scala.collection.JavaConverters._
+
 object ComputeRoutesApp extends LazyLogging {
   implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
