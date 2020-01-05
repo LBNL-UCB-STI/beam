@@ -524,7 +524,7 @@ class ApproxPhysSim(
   }
 
   def getJDEQSimulation(
-    jdeqSimScenario: MutableScenario,
+    jdeqSimScenario: Scenario,
     jdeqsimEvents: EventsManager,
     maybeRoadCapacityAdjustmentFunction: Option[RoadCapacityAdjustmentFunction]
   ): org.matsim.core.mobsim.jdeqsim.JDEQSimulation = {
@@ -566,28 +566,6 @@ class ApproxPhysSim(
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(finalPopulation)
     jdeqSimScenario
-  }
-
-  private def createViaXmlEventsWriter(currentPhysSimIter: Int): EventWriter = {
-    val eventsSampling = beamConfig.beam.physsim.eventsSampling
-    val eventsForFullVersionOfVia = beamConfig.beam.physsim.eventsForFullVersionOfVia
-    val fileName =
-      controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.xml.gz")
-    val eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia, eventsSampling)
-    eventsWriterXML
-  }
-
-  private def createCsvWriter(currentPhysSimIter: Int, jdeqsimEvents: EventsManagerImpl): BeamEventsWriterCSV = {
-    val fileName =
-      controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.csv.gz")
-    val beamEventLogger = new BeamEventsLogger(
-      beamServices,
-      beamServices.matsimServices,
-      jdeqsimEvents,
-      beamServices.beamConfig.beam.physsim.events.eventsToWrite
-    )
-    val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
-    csvEventsWriter
   }
 
   def getBuses(population: Population): Iterable[Person] = {
