@@ -87,7 +87,7 @@ object ComputeRoutesApp extends LazyLogging {
 
     val hasDone: AtomicBoolean = new AtomicBoolean(false)
     // We want to have 8 writing threads
-    val forWritingGrouped = stateToResultQueue.grouped(stateToResultQueue.length / 8).toArray
+    val forWritingGrouped = stateToResultQueue.grouped(stateToResultQueue.length / 4).toArray
 
     val writeFutures = forWritingGrouped.map { group =>
       blocking {
@@ -107,7 +107,7 @@ object ComputeRoutesApp extends LazyLogging {
       }
     }.toList
 
-    val nThreads = Runtime.getRuntime.availableProcessors
+    val nThreads = 7
     val perThreadPortion = toProcess.length / nThreads
     logger.info(s"nThreads: $nThreads, perThreadPortion: $perThreadPortion")
     val groupedPerThread = toProcess.grouped(perThreadPortion).zipWithIndex
