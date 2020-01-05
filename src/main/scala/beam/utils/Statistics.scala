@@ -34,7 +34,6 @@ object Statistics {
       val p99 = percentile.evaluate(99)
       val `p99.95` = percentile.evaluate(99.95)
       val `p99.99` = percentile.evaluate(99.99)
-      val stop = System.currentTimeMillis()
       val sum = pq.sum
       Statistics(
         numOfValues = pq.size,

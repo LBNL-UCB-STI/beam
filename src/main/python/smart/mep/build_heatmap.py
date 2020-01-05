@@ -201,7 +201,7 @@ def downloadOSMMap(west, south, east, north, zoom, mapType=None):
     return surface_to_npim(map_image_clipped)
 
 
-def drawHeatMap(background, cellSize, colormap, sourceFile, dataColumnName, minX, maxX, minY, maxY):
+def drawHeatMap(background, cellSize, colormap, sourceFile, dataColumnName, minX, maxX, minY, maxY, scaleMin, scaleMax):
     """
     Save to a file a heat map with given background and parameters for selected area.
 
@@ -242,7 +242,7 @@ def drawHeatMap(background, cellSize, colormap, sourceFile, dataColumnName, minX
         zorder=1,
         alpha=0.85,
         #interpolation="hermite",
-        norm=colors.DivergingNorm(vmin=-120, vmax=120, vcenter=0.0), #
+        norm=colors.DivergingNorm(vmin = scaleMin, vmax = scaleMax, vcenter = 0.0), #
     )
 
     # specifying colorbar on the left
@@ -259,7 +259,9 @@ def drawHeatMap(background, cellSize, colormap, sourceFile, dataColumnName, minX
 
     ax.set_title(sourceFile + "\n\n")
     fig.tight_layout()
-    plt.savefig(sourceFile + ".png", dpi=pngImageDPI)
+    plt.savefig(sourceFile + ".scale:" + str(scaleMax) + ":" + str(scaleMin) + ".png", dpi=pngImageDPI)
+
+    plt.close(fig)
 
 
 print("was started at", datetime.datetime.now())
@@ -297,8 +299,12 @@ import os
 dataFiles = []
 for root, dirs, files in os.walk('.'):
     for file in files:
-        if file.endswith('.csv') and file.startswith('diff'):
+        if file.endswith('.csv'):
             dataFiles.append(file)
+            print(file)
+
+print('there are ', len(dataFiles))
+print('')
 
 # it is possible to generate colormap by hands
 # available color maps https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html
@@ -308,8 +314,11 @@ colorMap = "RdBu"
 # for last used data the number of 93 fits best because of coordinate values distribution
 cellSize = abs(minX - maxX) / 93
 
+scaleMin = -120
+scaleMax = 120
+
 for sourceFile in dataFiles:
-    drawHeatMap(sfbaymap, cellSize, colorMap, sourceFile, "mep", minX, maxX, minY, maxY)
+    drawHeatMap(sfbaymap, cellSize, colorMap, sourceFile, "mep", minX, maxX, minY, maxY, scaleMin, scaleMax)
     print(sourceFile, "finished")
 
 end = time.time()

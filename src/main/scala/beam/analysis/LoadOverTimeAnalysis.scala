@@ -33,20 +33,18 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
                 .contains("ridehail")) {
             if (vehicleType.isCaccEnabled) "CAV RideHail" else "Human RideHail"
           } else "Personal"
-        val energyInJoules = refuelSessionEvent.energyInJoules
-        val sessionDuration = refuelSessionEvent.sessionDuration
-        val currentEventAverageLoad = if (sessionDuration != 0) energyInJoules / sessionDuration / 1000 else 0
+        val energyInkWh = refuelSessionEvent.energyInJoules / 3.6e6
 
         vehicleTypeToHourlyLoad.get(loadVehicleType) match {
           case Some(hourlyLoadMap) =>
             hourlyLoadMap.get(hourOfEvent) match {
               case Some((currentLoadTotal, currentCount)) =>
                 val newCount = currentCount + 1
-                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
-              case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + energyInkWh, newCount))
+              case None => hourlyLoadMap.put(hourOfEvent, (energyInkWh, 1))
             }
           case None =>
-            vehicleTypeToHourlyLoad.put(loadVehicleType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
+            vehicleTypeToHourlyLoad.put(loadVehicleType, mutable.Map(hourOfEvent -> (energyInkWh, 1)))
         }
 
         val chargerType = refuelSessionEvent.chargingPointString
@@ -55,11 +53,11 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
             hourlyLoadMap.get(hourOfEvent) match {
               case Some((currentLoadTotal, currentCount)) =>
                 val newCount = currentCount + 1
-                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
-              case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + energyInkWh, newCount))
+              case None => hourlyLoadMap.put(hourOfEvent, (energyInkWh, 1))
             }
           case None =>
-            chargerTypeToHourlyLoad.put(chargerType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
+            chargerTypeToHourlyLoad.put(chargerType, mutable.Map(hourOfEvent -> (energyInkWh, 1)))
         }
 
         val parkingType: String = refuelSessionEvent.parkingType
@@ -68,11 +66,11 @@ class LoadOverTimeAnalysis extends GraphAnalysis with ExponentialLazyLogging {
             hourlyLoadMap.get(hourOfEvent) match {
               case Some((currentLoadTotal, currentCount)) =>
                 val newCount = currentCount + 1
-                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + currentEventAverageLoad, newCount))
-              case None => hourlyLoadMap.put(hourOfEvent, (currentEventAverageLoad, 1))
+                hourlyLoadMap.put(hourOfEvent, (currentLoadTotal + energyInkWh, newCount))
+              case None => hourlyLoadMap.put(hourOfEvent, (energyInkWh, 1))
             }
           case None =>
-            parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
+            parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (energyInkWh, 1)))
         }
       case _ =>
     }

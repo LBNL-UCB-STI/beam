@@ -71,10 +71,15 @@ class CarRideStatsFromPathTraversalEventHandler(
 
   override def handleEvent(event: Event): Unit = {
     event match {
-      case pte: PathTraversalEvent =>
+
+      case pte: PathTraversalEvent if isCarAndNotRideHail(pte) =>
         carPtes += pte
       case _ =>
     }
+  }
+
+  private def isCarAndNotRideHail(pte: PathTraversalEvent): Boolean = {
+    pte.mode == BeamMode.CAR && !pte.vehicleId.toString.startsWith("rideHailVehicle")
   }
 
   def calcRideStats(iterationNumber: Int): Seq[SingleRideStat] = {
@@ -125,9 +130,13 @@ class CarRideStatsFromPathTraversalEventHandler(
     // Write car travel speed stats to CSV
     maybeTravelSpeedStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.speed.stats))
     // Write free flow car travel time stats to CSV
-    maybeFreeFlowTravelTimeStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.freeFlowTravelTime.stats))
+    maybeFreeFlowTravelTimeStatsWriter.foreach(
+      writeStats(_, event.getIteration, carRideStatistics.freeFlowTravelTime.stats)
+    )
     // Write free flow car speed stats to CSV
-    maybeFreeFlowTravelSpeedStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.freeFlowSpeed.stats))
+    maybeFreeFlowTravelSpeedStatsWriter.foreach(
+      writeStats(_, event.getIteration, carRideStatistics.freeFlowSpeed.stats)
+    )
   }
 
   private def writeStats(csvWriter: CsvWriter, iteration: Int, statistics: Statistics): Unit = {
@@ -143,7 +152,6 @@ class CarRideStatsFromPathTraversalEventHandler(
         statistics.maxValue,
         statistics.sum
       )
-      csvWriter.writeNewLine()
       csvWriter.flush()
     } catch {
       case NonFatal(ex) =>
@@ -215,7 +223,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val drivingWithParkingPtes = buildDrivingParking(carPtes)
     val stats = buildRideStats(networkHelper, freeFlowTravelTime, drivingWithParkingPtes)
     logger.info(
-      s"For the iteration ${iterationNumber} created ${stats.length} ride stats from ${drivingWithParkingPtes.size} PathTraversalEvents"
+      s"For the iteration ${iterationNumber} created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
     )
     stats
   }
