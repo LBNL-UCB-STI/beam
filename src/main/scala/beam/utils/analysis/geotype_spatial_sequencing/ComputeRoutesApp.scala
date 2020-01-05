@@ -65,7 +65,7 @@ object ComputeRoutesApp extends LazyLogging {
     val outputPath = prepareOutputPath(tempOutputPath, uniqueValidStates)
     logger.info(s"outputPath: ${outputPath}")
 
-    val toProcess = trips.take(20000)
+    val toProcess = trips
     val numberOfRequest: Int = toProcess.length
     val totalComputedRoutes: AtomicInteger = new AtomicInteger(0)
     val totalFailedRoutes: AtomicInteger = new AtomicInteger(0)
