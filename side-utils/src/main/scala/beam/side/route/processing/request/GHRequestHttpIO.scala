@@ -8,13 +8,13 @@ import org.http4s.{EntityDecoder, Uri}
 import zio._
 import zio.interop.catz._
 
-class GHRequestIO(
+class GHRequestHttpIO(
   httpClient: Resource[({ type T[A] = RIO[zio.ZEnv, A] })#T, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]]
 )(
   implicit val runtime: Runtime[_]
 ) extends GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
 
-  import GHRequestIO._
+  import GHRequestHttpIO._
 
   override def request[R](
     url: Url
@@ -26,13 +26,13 @@ class GHRequestIO(
     }
 }
 
-object GHRequestIO {
+object GHRequestHttpIO {
 
   def apply(
     implicit runtime: Runtime[_],
     httpClient: Resource[({ type T[A] = RIO[zio.ZEnv, A] })#T, Client[({ type T[A] = RIO[zio.ZEnv, A] })#T]]
   ): GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] =
-    new GHRequestIO(httpClient)
+    new GHRequestHttpIO(httpClient)
 
   implicit class UrlDecoded(url: Url) {
 

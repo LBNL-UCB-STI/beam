@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import beam.side.route.model.{GHPaths, TripPath}
 import beam.side.route.processing._
 import beam.side.route.processing.data.{DataLoaderIO, DataWriterIO, PathComputeIO}
-import beam.side.route.processing.request.GHRequestIO
+import beam.side.route.processing.request.GHRequestHttpIO
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
 import cats.effect.Resource
 import org.http4s.EntityDecoder
@@ -99,7 +99,7 @@ object RoutesComputationApp extends CatsApp with AppSetup {
       BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](
         ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(8))
       ).resource
-    implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestIO(httpClient)
+    implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestHttpIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
     implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataLoaderIO()
@@ -110,7 +110,6 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
-      _ = println(s"App config: $config")
 
       promise <- CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue].compose(config.cencusTrackPath)
 
@@ -124,12 +123,6 @@ object RoutesComputationApp extends CatsApp with AppSetup {
         .fork
 
       _ <- linesFork.join
-    } yield config).fold(ex => {
-      println(s"Got an exception: ${ex}")
-      -1
-    }, x => {
-      println(s"Got $x")
-      0
-    })
+    } yield config).fold(_ => -1, _ => 0)
   }
 }

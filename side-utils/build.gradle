@@ -66,6 +66,11 @@ dependencies {
 
     compile "com.typesafe.akka:akka-stream_${scalaBinaryVersion}:2.6.0"
     compile "dev.zio:zio_${scalaBinaryVersion}:1.0.0-RC16"
+    compile group: 'com.graphhopper', name: 'graphhopper-core', version: '0.13.0'
+
+
+
+    compile "com.beachape:enumeratum_${scalaBinaryVersion}:1.5.15"
 
     compile "org.http4s:http4s-dsl_${scalaBinaryVersion}:0.21.0-M5"
     compile "org.http4s:http4s-blaze-client_${scalaBinaryVersion}:0.21.0-M5"
