@@ -16,6 +16,24 @@ import scala.collection.JavaConverters._
 object ComputeRoutesApp extends LazyLogging {
   implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
+  val totalNumberOfThrottling: AtomicInteger = new AtomicInteger(0)
+
+  def throttleIfWritingIsSlower(computed: Int, written: Int, sleepTimeMs: Int = 20): Unit = {
+    // Number of computed can be X percent higher than number of written
+    val allowedPct = 3.toDouble
+    val lowerBound = written
+    val upperBound = written + written * (allowedPct / 100)
+    val isInSafeRange = computed >= lowerBound && computed <= upperBound
+    if (!isInSafeRange) {
+        val tCnt = totalNumberOfThrottling.getAndIncrement()
+        if (tCnt % 5000 == 0) {
+          logger.warn(s"Number of computed routes: $computed, number of written routes: $written, allowed % is $allowedPct [$lowerBound, $upperBound]. Total number of throttles: $tCnt")
+        }
+        // Need to throttle
+        Thread.sleep(sleepTimeMs)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     assert(args.size == 4)
     val pathToCencusTrack = args(0)
@@ -86,8 +104,9 @@ object ComputeRoutesApp extends LazyLogging {
     val stateToQueueMap = stateToResultQueue.toMap
 
     val hasDone: AtomicBoolean = new AtomicBoolean(false)
-    // We want to have 8 writing threads
-    val forWritingGrouped = stateToResultQueue.grouped(stateToResultQueue.length / 4).toArray
+    val nWritingThreads: Int = 6
+    val forWritingGrouped = stateToResultQueue.grouped(stateToResultQueue.length / nWritingThreads).toArray
+    logger.info(s"Number of writing threads: $nWritingThreads")
 
     val writeFutures = forWritingGrouped.map { group =>
       blocking {
@@ -117,6 +136,8 @@ object ComputeRoutesApp extends LazyLogging {
       case (trips, groupIndex) =>
         Future {
             trips.foreach { trip =>
+              throttleIfWritingIsSlower(totalComputedRoutes.get(), totalWrittenResults.get())
+
               val maybeRoute = calcRoute(routeResolver, censusTrackMap, trip)
               maybeRoute match {
                 case Some(route) =>
