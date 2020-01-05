@@ -18,7 +18,6 @@ class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
 
   private val modeToEvents = new mutable.HashMap[String, ArrayBuffer[ArrivalDepartureEvent]]
   private val modeToPersonMap = new mutable.HashMap[String, PersonToDepartureTimeMap]
-  private val modeToTravelTime = new mutable.HashMap[String, ArrayBuffer[Double]]
 
   def shouldTakeThisEvent(personId: Id[Person], legMode: String): Boolean = {
     val pid = personId.toString.toLowerCase
@@ -38,16 +37,6 @@ class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
         })
         events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
 
-//        val map: PersonToDepartureTimeMap = getOrInitMap(pae.getLegMode)
-//        val departureTime = map.get(pae.getPersonId).getOrElse { println(s"mode: ${pae.getLegMode}. $event"); throw new Exception("WTF") }
-//        val travelTime = pae.getTime - departureTime
-//        val travelTimes = modeToTravelTime.getOrElse(pae.getLegMode, {
-//          val buf = new ArrayBuffer[Double]()
-//          modeToTravelTime.put(pae.getLegMode, buf)
-//          buf
-//        })
-//        travelTimes += travelTime
-
       case pde: PersonDepartureEvent =>
         val events = modeToEvents.getOrElse(pde.getLegMode, {
           val buf = new ArrayBuffer[ArrivalDepartureEvent]()
@@ -55,9 +44,6 @@ class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
           buf
         })
         events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
-
-//        val map: PersonToDepartureTimeMap = getOrInitMap(pde.getLegMode)
-//        map.put(pde.getPersonId, event.getTime)
       case _ =>
     }
   }
@@ -72,10 +58,6 @@ class TravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
   }
 
   def compute: Map[String, Statistics] = {
-//    val msg = modeToTravelTime.map { case (mode, events) =>
-//      mode -> Statistics(events)
-//    }.mkString("\n")
-//    println(s"New way of computing: \n$msg\n\n")
     modeToEvents.map {
       case (mode, events) =>
         mode -> compute(events)

@@ -5,7 +5,8 @@ import java.nio.file.Paths
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.router.Modes.{toR5StreetMode, BeamMode}
+import beam.analysis.cartraveltime.{CarRideStatsFromPathTraversalEventHandler, SingleRideStat}
+import beam.router.Modes.{BeamMode, toR5StreetMode}
 import beam.router.model.RoutingModel
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
@@ -60,10 +61,10 @@ object AverageCarTravelTimeAnalysis {
     println(msg)
   }
 
-  def showStats(eventsFile: String, rideStats: List[RideStat]): Unit = {
+  def showStats(eventsFile: String, rideStats: Seq[SingleRideStat]): Unit = {
     val travelTimeStats = Statistics(rideStats.map(_.travelTime))
     val freeFlowTravelTimeStats = Statistics(rideStats.map(_.freeFlowTravelTime))
-    val length = Statistics(rideStats.map(_.length))
+    val length = Statistics(rideStats.map(_.distance))
     val speedStats = Statistics(rideStats.map(_.speed))
     val freeFlowSpeedStats = Statistics(rideStats.map(_.freeFlowSpeed))
     val msg = s"""File: $eventsFile
@@ -78,37 +79,23 @@ object AverageCarTravelTimeAnalysis {
 
   def main(args: Array[String]): Unit = {
     val pathToNetwork = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/outputNetwork.xml.gz"
+    val eventsFile0 = "C:/temp/15.events.csvh.gz"
 
-    val carRideStatsFromPathTraversal = new CarRideStatsFromPathTraversal(pathToNetwork)
+    val carRideStatsFromPathTraversal = CarRideStatsFromPathTraversalEventHandler(pathToNetwork, eventsFile0)
 
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)
       .readFile(pathToNetwork)
-    val eventsFile0 = "C:/temp/15.events.csvh.gz"
     val eventsFile40 = "C:/temp/15.events.csvh.gz"
 
     val statsF0 = Future {
       val rideStats = ProfilingUtils.timed(s"$eventsFile0: computeStatsConsiderParking", x => println(x)) {
-        carRideStatsFromPathTraversal.computeStatsConsiderParking(eventsFile0)
+        carRideStatsFromPathTraversal.calcRideStats(15)
       }
       showStats(eventsFile0, rideStats)
     }
-//    val beamCarTravelTimeF0 = Future {
-//      getBeamCarTravelTime(eventsFile0)
-//    }
-//    val beamCarTravelTimeF40 = Future {
-//      getBeamCarTravelTime(eventsFile40)
-//    }
-    val statsF40 = Future {
-      val linkStatsFile = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/40.linkstats.csv.gz"
-      val rideStats = ProfilingUtils.timed(s"$eventsFile40: computeStatsConsiderParking", x => println(x)) {
-        carRideStatsFromPathTraversal.computeStatsConsiderParking(eventsFile40)
-      }
-      showStats(eventsFile40, rideStats)
-    }
-    val fList = Future.sequence(List(statsF0, statsF40))
-//    val fList = Future.sequence(List(beamCarTravelTimeF0, beamCarTravelTimeF40, statsF0, statsF40))
-//    val fList = Future.sequence(List(Future { computeSpeed(eventsFile40)}))
+
+    val fList = Future.sequence(List(statsF0))
     Await.result(fList, 1500.seconds)
   }
 
