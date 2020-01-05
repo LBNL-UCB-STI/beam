@@ -561,7 +561,7 @@ class ApproxPhysSim(
     }
   }
 
-  private def initScenario = {
+  private def initScenario: Scenario = {
     val jdeqSimScenario = ScenarioUtils.createScenario(agentSimScenario.getConfig).asInstanceOf[MutableScenario]
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(finalPopulation)

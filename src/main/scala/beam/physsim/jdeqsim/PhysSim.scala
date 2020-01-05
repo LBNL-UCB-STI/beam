@@ -117,7 +117,7 @@ class PhysSim(
       printStats(firstResult, lastResult)
       lastResult
     } else {
-      val simulationResult = simulate(currentIter, writeEvents = true)
+      val simulationResult = simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
       carTravelTimeWriter.writeRow(
         Vector(
           currentIter,
@@ -226,12 +226,9 @@ class PhysSim(
     jdeqsimEvents.addHandler(travelTimeCalculator)
     jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
     val maybeEventWriter = if (writeEvents) {
-      val viaXmlEventWriter = createViaXmlEventsWriter(currentPhysSimIter)
-      jdeqsimEvents.addHandler(viaXmlEventWriter)
-
-      val csvEventsWriter: BeamEventsWriterCSV = createCsvWriter(currentPhysSimIter, jdeqsimEvents)
-      jdeqsimEvents.addHandler(csvEventsWriter)
-      Some((viaXmlEventWriter, csvEventsWriter))
+      val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
+      jdeqsimEvents.addHandler(writer)
+      Some(writer)
     } else None
 
     val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
@@ -257,10 +254,8 @@ class PhysSim(
       }
 
     } finally {
-      maybeEventWriter.foreach {
-        case (w1, w2) =>
-          Try(w1.closeFile())
-          Try(w2.closeFile())
+      maybeEventWriter.foreach { wrt =>
+        Try(wrt.closeFile())
       }
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
     }
