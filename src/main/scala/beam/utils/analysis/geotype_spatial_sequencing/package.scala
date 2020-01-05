@@ -16,5 +16,5 @@ package object geotype_spatial_sequencing {
     val id: String = s"$state$country$tract"
   }
 
-  case class OutputResult(origin: CencusTrack, dest: CencusTrack, lineString: LineString)
+  case class OutputResult(origin: CencusTrack, dest: CencusTrack, distance: Double, ascend: Double, descend: Double, lineString: LineString)
 }

@@ -1,18 +1,16 @@
 package beam.utils.analysis.geotype_spatial_sequencing
 
 import java.io.File
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
-import com.google.common.io.Files
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, blocking}
 import scala.util.Try
-
 import scala.collection.JavaConverters._
 
 object ComputeRoutesApp extends LazyLogging {
@@ -23,7 +21,9 @@ object ComputeRoutesApp extends LazyLogging {
     val pathToCencusTrack = args(0)
     val pathToOd = args(1)
     val pathToGh = args(2)
-    val outputPath = args(3)
+    val tempOutputPath = args(3)
+
+
 
     val tripsFuture = Future {
       ProfilingUtils.timed("Read the trips", x => logger.info(x)) {
@@ -58,48 +58,123 @@ object ComputeRoutesApp extends LazyLogging {
     logger.info(s"Read ${censusTrack.length} census tracks")
     logger.info(s"routeResolver: ${routeResolver}")
 
-    val toProcess = trips
+    val uniqueValidStates = censusTrack.map(_.state).distinct
+      .flatMap(s => Try(s.toInt).toOption).sorted
+        .map("%02d".format(_))
+    logger.info(s"Sorted unique valid states: ${uniqueValidStates.toVector}")
+    val outputPath = prepareOutputPath(tempOutputPath, uniqueValidStates)
+    logger.info(s"outputPath: ${outputPath}")
+
+    val toProcess = trips.take(20000)
     val numberOfRequest: Int = toProcess.length
-    val totalProcessed: AtomicInteger = new AtomicInteger(0)
+    val totalComputedRoutes: AtomicInteger = new AtomicInteger(0)
+    val totalFailedRoutes: AtomicInteger = new AtomicInteger(0)
+    val totalWrittenResults: AtomicInteger = new AtomicInteger(0)
+
+    val perState: Map[String, Array[Trip]] = toProcess.groupBy { x =>
+      val originState = x.origin.substring(0, 2)
+      originState
+    }.map { case (state, xs) =>
+      state -> xs
+    }
+    logger.info(s"Source state to the number of trips: ")
+    perState.toSeq.sortBy(x => -x._2.length).foreach { case (k, v) => logger.info(s"$k => ${v.size}")}
+
+    val stateToResultQueue = uniqueValidStates.map { state =>
+      (state,  new ConcurrentLinkedQueue[OutputResult]())
+    }
+    val stateToQueueMap = stateToResultQueue.toMap
+
+    val hasDone: AtomicBoolean = new AtomicBoolean(false)
+    // We want to have 8 writing threads
+    val forWritingGrouped = stateToResultQueue.grouped(stateToResultQueue.length / 8).toArray
+
+    val writeFutures = forWritingGrouped.map { group =>
+      blocking {
+        Future {
+          val stateToWriter: Map[String, CsvWriter] = group.map(_._1).map { state =>
+            val stateOutputPath = s"$outputPath/$state/result.csv.gz"
+            state -> new CsvWriter(stateOutputPath, Vector("source", "destination", "distance", "ascend", "descend", "linestring"))
+          }.toMap
+          while (!hasDone.get()) {
+            writeResults(totalWrittenResults, numberOfRequest, group, stateToWriter)
+          }
+          // Need to try to write what is left
+          writeResults(totalWrittenResults, numberOfRequest, group, stateToWriter)
+
+          stateToWriter.foreach { case (_, wrt) => Try(wrt.close())}
+        }
+      }
+    }.toList
 
     val nThreads = Runtime.getRuntime.availableProcessors
     val perThreadPortion = toProcess.length / nThreads
     logger.info(s"nThreads: $nThreads, perThreadPortion: $perThreadPortion")
     val groupedPerThread = toProcess.grouped(perThreadPortion).zipWithIndex
 
-    val onePctNumber = (numberOfRequest * 0.01).toInt
     val s = System.currentTimeMillis()
     val futures = groupedPerThread.map {
       case (trips, groupIndex) =>
         Future {
-          val fileName = Files.getNameWithoutExtension(outputPath)
-          val fileExt = Files.getFileExtension(outputPath)
-          val folder = new File(outputPath).toPath.getParent.toString
-          val fullOutputPathWithPartitionId = s"$folder/${fileName}_${groupIndex}.$fileExt"
-          logger.info(s"For the partition $groupIndex the output file path is $fullOutputPathWithPartitionId")
-          val csvWriter = new CsvWriter(fullOutputPathWithPartitionId, Vector("source", "destination", "linestring"))
-          try {
             trips.foreach { trip =>
               val maybeRoute = calcRoute(routeResolver, censusTrackMap, trip)
-              maybeRoute.foreach { route =>
-                val escapedLineString = "\"" + route.lineString.toString + "\""
-                csvWriter.write(route.origin.id, route.dest.id, escapedLineString)
-                totalProcessed.getAndIncrement()
+              maybeRoute match {
+                case Some(route) =>
+                  val state = route.origin.state
+                  stateToQueueMap(state).add(route)
+                  totalComputedRoutes.getAndIncrement()
+                case None =>
+                  totalFailedRoutes.incrementAndGet()
               }
-              val processed = totalProcessed.get()
-              if (processed % onePctNumber == 0) {
+              val processed = totalComputedRoutes.get()
+              if (processed % onePctNumber(numberOfRequest) == 0) {
                 val pct = 100 * processed.toDouble / numberOfRequest
                 val tookSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - s)
-                val msg = s"Processed $processed out of $numberOfRequest => $pct % in $tookSeconds seconds"
+                val msg = s"Processed $processed out of $numberOfRequest => $pct % in $tookSeconds seconds. Number of failed routes: $totalFailedRoutes"
                 println(msg)
                 logger.info(msg)
               }
             }
-          } finally { Try(csvWriter.close()) }
         }
     }.toList
     Await.result(Future.sequence(futures), Duration.Inf)
+    hasDone.set(true)
+    logger.info("Done with computing the routes")
+
+    logger.info("Waiting for the writers...")
+    // Now wait when writer will finish
+    Await.result(Future.sequence(writeFutures), Duration.Inf)
+
+    logger.info(s"totalFailedRoutes: $totalFailedRoutes")
+    logger.info(s"totalComputedRoutes: $totalComputedRoutes")
+    logger.info(s"totalWrittenResults: $totalWrittenResults")
     logger.info("Done")
+  }
+
+  def onePctNumber(n: Int): Int = (n * 0.01).toInt
+
+
+  def writeResults(written: AtomicInteger, numberOfRequest: Int, group: Array[(String, ConcurrentLinkedQueue[OutputResult])],
+                   stateToWriter: Map[String, CsvWriter]): Unit = {
+    group.foreach { case (state, queue) =>
+      val csvWriter = stateToWriter(state)
+      var route: OutputResult = null
+      do {
+        route = queue.poll()
+        if (route != null) {
+          val escapedLineString = "\"" + route.lineString.toString + "\""
+          csvWriter.write(route.origin.id, route.dest.id, route.distance, route.ascend, route.descend, escapedLineString)
+          val totalWritten = written.incrementAndGet()
+          if (totalWritten % onePctNumber(numberOfRequest) == 0) {
+            val pct = 100 * totalWritten.toDouble / numberOfRequest
+            val msg = s"Written $totalWritten out of $numberOfRequest => $pct %"
+            println(msg)
+            logger.info(msg)
+          }
+        }
+      }
+      while (route != null)
+    }
   }
 
   def calcRoute(
@@ -122,8 +197,28 @@ object ComputeRoutesApp extends LazyLogging {
       } else {
         val finalPoint = resp.getAll.asScala.reduce((p1, p2) => if (p1.getPoints.size > p2.getPoints.size()) p1 else p2)
         val pointAsLineString = finalPoint.getPoints.toLineString(false)
-        Some(OutputResult(originCensusTrack.get, destCensusTrack.get, pointAsLineString))
+        Some(OutputResult(origin = originCensusTrack.get, dest = destCensusTrack.get, distance = finalPoint.getDistance,
+          ascend = finalPoint.getAscend, descend = finalPoint.getDescend, lineString = pointAsLineString))
       }
     } else None
+  }
+
+  def prepareOutputPath(outputPath: String, uniqueValidStates: Array[String]): String = {
+    val resultPath = s"${outputPath}/result"
+    if (new File(resultPath).exists()) {
+      throw new IllegalStateException(s"Result path '${resultPath}' already exists! Please, remove it and re-run again!")
+    } else {
+      new File(resultPath).mkdir()
+    }
+    uniqueValidStates.foreach { state =>
+      val fullPath = s"$resultPath/${state}"
+      val file = new File(fullPath)
+      if (file.exists()) {
+        throw new IllegalStateException(s"Result path for the state '${fullPath}' already exists! Please, remove it and re-run again!")
+      }
+      file.mkdir()
+      logger.debug(s"Created $fullPath")
+    }
+    resultPath
   }
 }
