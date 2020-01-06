@@ -26,12 +26,15 @@ class GHRequestCoreIO(graphHopper: gh.GraphHopper)(
       req <- RIO.fromEither(url.toGH.toRight(new IllegalArgumentException))
       resp <- RIO
         .effectAsync[zio.ZEnv, gh.GHResponse](cb => cb(RIO.succeed(graphHopper.route(req))))
-        .filterOrDie(_.hasErrors)(new IllegalArgumentException("Route not found"))
-      path = resp.getBest
-      wayPoints = path.getWaypoints.asScala.map(p => Coordinate(p.lon, p.lat))
-      instructions = path.getInstructions.asScala.map(inst => Instruction(inst.getDistance, Seq(inst.getLength), inst.getTime)).toSeq
-      points = path.getPoints.asScala.map(p => Coordinate(p.lon, p.lat)).toSeq
-    } yield GHPaths(Seq(Way(points, instructions, (wayPoints.head, wayPoints.last)))).asInstanceOf[R]
+        .filterOrFail(r => !r.hasErrors || !r.getAll.isEmpty)(new IllegalArgumentException("Route not found"))
+    } yield {
+      val path = resp.getBest
+      val wayPoints = path.getWaypoints.asScala.map(p => Coordinate(p.lon, p.lat))
+      val instructions = path.getInstructions.asScala
+        .map(inst => Instruction(inst.getDistance, Seq(inst.getLength), inst.getTime))
+      val points = path.getPoints.asScala.map(p => Coordinate(p.lon, p.lat)).toSeq
+      GHPaths(Seq(Way(points, instructions, (wayPoints.head, wayPoints.last)))).asInstanceOf[R]
+    }
 }
 
 object GHRequestCoreIO {
@@ -40,7 +43,7 @@ object GHRequestCoreIO {
 
     def toGH: Option[gh.GHRequest] =
       for {
-        queryMap <- Some(url.query.toMap[String, _])
+        queryMap <- Some(url.query.toMap[String, Any])
         points <- queryMap
           .get("point")
           .map(_.asInstanceOf[Seq[(Double, Double)]].map { case (lat, lon) => new GHPoint(lat, lon) }.toList)
@@ -55,5 +58,6 @@ object GHRequestCoreIO {
       }
   }
 
-  def apply(graphHopper: GraphHopper)(implicit runtime: Runtime[_]): GHRequestCoreIO = new GHRequestCoreIO(graphHopper)(runtime)
+  def apply(graphHopper: GraphHopper)(implicit runtime: Runtime[_]): GHRequestCoreIO =
+    new GHRequestCoreIO(graphHopper)(runtime)
 }

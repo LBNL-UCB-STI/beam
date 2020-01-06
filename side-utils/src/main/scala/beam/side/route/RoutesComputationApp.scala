@@ -22,7 +22,7 @@ import scala.util.{Failure, Try}
 case class ComputeConfig(
   cencusTrackPath: String = "",
   odPairsPath: Option[String] = None,
-  ghHost: String = "http://localhost:8989",
+  ghHost: String = "",
   output: String = "output.csv",
   osmPath: String = "",
   ghLocation: String = "",
@@ -110,7 +110,7 @@ trait AppSetup {
       .text("Output file")
 
     checkConfig { conf =>
-      if (conf.ghHost.isEmpty || conf.osmPath.isEmpty) failure("host or osm should be passed")
+      if (conf.ghHost.isEmpty && conf.osmPath.isEmpty) failure("host or osm should be passed")
       else success
     }
   }
@@ -144,7 +144,11 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
       promise <- CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue].compose(config.cencusTrackPath)
 
-      graphHopper = new GraphHopper().forServer().setGraphHopperLocation(config.ghLocation).setDataReaderFile(config.osmPath)
+      graphHopper = new GraphHopper()
+        .forServer()
+        .setGraphHopperLocation(config.ghLocation)
+        .setDataReaderFile(config.osmPath)
+        .importOrLoad()
       ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = GHRequestCoreIO(graphHopper)
 
       pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)

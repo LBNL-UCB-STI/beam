@@ -18,12 +18,12 @@ class ODComputeIO extends ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] {
     dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
   ): RIO[ZEnv, Queue[TripPath]] =
     for {
-      tripQueue <- Queue.bounded[Trip](32)
-      pathQueue <- Queue.bounded[TripPath](64)
+      tripQueue <- Queue.bounded[Trip](64)
+      pathQueue <- Queue.bounded[TripPath](256)
       _ <- zio.stream.Stream
         .fromQueue[Throwable, Trip](tripQueue)
         .zipWithIndex
-        .mapMParUnordered(8) {
+        .mapMParUnordered(32) {
           case (trip, idx) =>
             putStrLn((idx -> trip).toString) &> PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
               .compute(trip, tracts, pathQueue)
