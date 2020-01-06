@@ -261,7 +261,7 @@ def generateParking(refuelSessions, tag, Power_rated, n_stations, Max_queuing_pr
             for prob in Max_queuing_probability:
                 output_val[power][prob][n_clusters] = iter_out_val[power][prob]
                 output_array[power][prob][n_clusters] = iter_out_array[power][prob]
-                new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 2.*power, parking_input)
+                new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 200.*power, parking_input)
                 new_parking['numStalls'] = new_parking['numStalls'].astype('int')
                 new_parking.to_csv(outfolder + '/parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
     return output_val, output_array
@@ -381,12 +381,16 @@ def makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probabi
 
 if __name__ == '__main__':
     required.installAll()
-
+    print(sys.argv)
     inputfile = sys.argv[1]
     try:
         run_purpose = sys.argv[2].lower()
     except:
         run_purpose = "evaluate"
+    try:
+        parking_input_file = sys.argv[3]
+    except:
+        parking_input_file = inputfile.rsplit('/', 6)[0]+'/test/input/sf-light-demo/sf-taz-parking-base-slow.csv'
     basefolder = inputfile.rsplit('/', 3)[0]
     parking_out_folder = basefolder + '/parking_output'
     try:
@@ -398,7 +402,7 @@ if __name__ == '__main__':
     os.mkdir(parking_out_folder+'/plots')
     os.mkdir(parking_out_folder+'/parking_input_files')
     taz_path= inputfile.rsplit('/', 6)[0]+'/test/input/sf-light-demo/shape/sf-light-tazs.shp'
-    parking_input = pd.read_csv(inputfile.rsplit('/', 6)[0]+'/test/input/sf-light-demo/sf-taz-parking-base-slow.csv')
+    parking_input = pd.read_csv(parking_input_file)
     
     print('Loading events file: ' + inputfile)
     print('Loading taz file: ' + taz_path)

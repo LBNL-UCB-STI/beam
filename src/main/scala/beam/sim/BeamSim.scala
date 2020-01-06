@@ -329,10 +329,14 @@ class BeamSim @Inject()(
         val arg1 =
           if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
         val arg2 = if (beamServices.beamConfig.beam.agentsim.taz.parkingStallChargerInitMethod == "UNLIMITED") {
-          " generate"
+          println(beamServices.beamConfig.beam.agentsim.taz.parkingFilePath)
+          " generate " + beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
         } else {
           " analyze"
         }
+
+
+
         val secondPythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
           "src/main/python/events_analysis/generate_charger_locations.py",
           arg1 + arg2
