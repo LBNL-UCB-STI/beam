@@ -771,14 +771,20 @@ trait BeamHelper extends LazyLogging {
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
       val numOfPersons = scenario.getPopulation.getPersons.size()
+      val vehiclesStr = getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)
 
       logger.info(s"""After sampling:
            |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)}. Removed: ${getVehicleGroupingStringUsing(
+           |Number of vehicles: $vehiclesStr. Removed: ${getVehicleGroupingStringUsing(
                        notSelectedVehicleIds.toIndexedSeq,
                        beamScenario
                      )}
            |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
+
+
+      beamServices.simMetricCollector.writeGlobal("beam-run-population-size", numOfPersons)
+      beamServices.simMetricCollector.writeGlobal("beam-run-households", numOfHouseholds)
+      //beamServices.simMetricCollector.writeGlobal("beam-run-fleet", vehiclesStr)
 
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)

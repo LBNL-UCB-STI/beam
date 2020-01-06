@@ -31,7 +31,7 @@ object Metrics {
   def defaultTags: Map[String, String] =
     Map(
       "run-name"        -> runName,
-      "unique-run-name" -> s"${FileUtils.runStartTime}_${runName}",
+      "unique-run-name" -> s"${FileUtils.runStartTime}_$runName",
       "iteration-num"   -> s"$iterationNumber"
     )
 

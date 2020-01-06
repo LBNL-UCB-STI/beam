@@ -60,6 +60,7 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
+  private val beamScenario: BeamScenario,
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
@@ -173,7 +174,7 @@ class BeamSim @Inject()(
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
     // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.increment("beam-run", SimulationTime(0), Metrics.ShortLevel)
+    beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
 
     FailFast.run(beamServices)
   }
