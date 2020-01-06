@@ -2,29 +2,28 @@ package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.utils.DebugLib;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.DeadlockPreventionMessage;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedList;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
-    public double CACC;
+    private final double INCREASE_TIMESTAMP = 0.0000000001;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
     private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
     private double speedAdjustmentFactor;
+    private double minimumRoadSpeedInMetersPerSecond;
 
-
-    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor) {
+    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond) {
 
         super(scheduler, link);
         this.speedAdjustmentFactor = speedAdjustmentFactor;
+        this.minimumRoadSpeedInMetersPerSecond = minimumRoadSpeedInMetersPerSecond;
     }
-
-
 
     public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
         Road.roadCapacityAdjustmentFunction = roadCapacityAdjustmentFunction;
@@ -60,30 +59,17 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         if (caccShare>0 && caccShare<1.0){
             DebugLib.emptyFunctionForSettingBreakPoint();
-            //System.out.println("updateCACCShareEncounteredByVehicle - linkId:" + getLink().getId() + ";vehicle:" + vehicle.getOwnerPerson().getId() + ";carsOnTheRoad.size():" + carsOnTheRoad.size() + "numCACC:" + numCACC + ";caccShare:" + caccShare);
 
         }
-
-        //System.out.println("linkId:" + getLink().getId() + ";vehicle:" + vehicle.getOwnerPerson().getId() + ";carsOnTheRoad.size():" + carsOnTheRoad.size() + "numCACC:" + numCACC + ";caccShare:" + caccShare);
-        //System.out.print("carsOnTheRoad: " );
-
-
-        for (org.matsim.core.mobsim.jdeqsim.Vehicle v: carsOnTheRoad){
-            //System.out.print(v.getOwnerPerson().getId() + ", ");
-        }
-
-
-        //System.out.println();
-        //System.out.println();
-
         caccShareEncounteredByVehicle.put(vehicle,caccShare);
 
     }
 
-
     public double getInitialCACCShare(Vehicle vehicle){
         return vehicle.isCACCVehicle()?1.0:0.0;
     }
+
+    public HashMap<org.matsim.core.mobsim.jdeqsim.Vehicle,Double> latestTimeToLeaveRoad = new HashMap<>();
 
     @Override
     public void enterRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
@@ -94,6 +80,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         updateCACCShareEncounteredByVehicle((Vehicle) vehicle);
 
         updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
+
+        //System.out.println("enterRoad:" + link.getId() + "; vehicle:" + vehicle.getOwnerPerson().getId());
+        latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
 
         if (onlyOneCarRoad()) {
             double lastTimeLEavingPlusInverseCapacity = timeOfLastLeavingVehicle + getInverseCapacity(vehicle, simTime);
@@ -114,88 +103,54 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         return (1 / capacityWithCACCPerSecond * flowCapacityFactor);
     }
 
-    private LinkedList<Double> gap_;
-    private LinkedList<org.matsim.core.mobsim.jdeqsim.Vehicle> interestedInEnteringRoad_;
-    LinkedList<DeadlockPreventionMessage> deadlockPreventionMessages_;
-    private double timeOfLastEnteringVehicle_ = Double.MIN_VALUE;
-    private double gapTravelTime_ = 0;
-    private double inverseInFlowCapacity_ = 0;
+    @Override
+    public void processIfInterestedInEnteringRoadTrue(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
+        org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = getInterestedInEnteringRoad().removeFirst();
+        DeadlockPreventionMessage m = getDeadlockPreventionMessages().removeFirst();
+        assert (m.vehicle == nextVehicle);
+        this.scheduler.unschedule(m);
 
+        double nextAvailableTimeForEnteringStreet = Math.max(this.getTimeOfLastEnteringVehicle()
+                + getInverseCapacity(vehicle,simTime), simTime + this.getGapTravelTime());
 
-    private Object getField(Object obj, String fieldName){
-        Field field= null;
-        try {
-            field = org.matsim.core.mobsim.jdeqsim.Road.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            return field.get(obj);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        this.noOfCarsPromisedToEnterRoad++;
 
-        return null;
-
+        nextVehicle.scheduleEnterRoadMessage(nextAvailableTimeForEnteringStreet, this);
+        latestTimeToLeaveRoad.remove(vehicle);
     }
 
-
-    private void preLeaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
-        gap_= (LinkedList<Double>) getField(this , "gap");
-        interestedInEnteringRoad_=(LinkedList<org.matsim.core.mobsim.jdeqsim.Vehicle>) getField(this,"interestedInEnteringRoad");
-        deadlockPreventionMessages_=(LinkedList<DeadlockPreventionMessage>) getField(this,"deadlockPreventionMessages");
-        timeOfLastEnteringVehicle_ =(Double) getField(this,"timeOfLastEnteringVehicle");
-        gapTravelTime_ =(Double)getField(this,"gapTravelTime");
-        inverseInFlowCapacity_ =(Double)getField(this,"inverseInFlowCapacity");
-
+    public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
         assert (this.carsOnTheRoad.getFirst() == vehicle);
-        assert (this.interestedInEnteringRoad_.size()==this.deadlockPreventionMessages_.size());
+        assert (this.getInterestedInEnteringRoad().size()==this.getDeadlockPreventionMessages().size());
 
         this.carsOnTheRoad.removeFirst();
         this.earliestDepartureTimeOfCar.removeFirst();
         this.timeOfLastLeavingVehicle = simTime;
 
-        if (this.interestedInEnteringRoad_.size() > 0) {
-            org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.interestedInEnteringRoad_.removeFirst();
-            DeadlockPreventionMessage m = this.deadlockPreventionMessages_.removeFirst();
-            assert (m.vehicle == nextVehicle);
-            this.scheduler.unschedule(m);
-
-            double nextAvailableTimeForEnteringStreet = Math.max(this.timeOfLastEnteringVehicle_
-                    + getInverseCapacity(vehicle,simTime), simTime + this.gapTravelTime_);
-
-            this.noOfCarsPromisedToEnterRoad++;
-
-            nextVehicle.scheduleEnterRoadMessage(nextAvailableTimeForEnteringStreet, this);
+        if (this.getInterestedInEnteringRoad().size() > 0) {
+            processIfInterestedInEnteringRoadTrue(vehicle, simTime);
         } else {
-            if (this.gap_ != null) {
-
-                this.gap_.add(simTime + this.gapTravelTime_);
-
-                if (this.carsOnTheRoad.size() == 0) {
-                    this.gap_ = null;
-                }
-            }
+            processIfInterestedInEnteringRoadFalse(vehicle, simTime);
         }
-    }
-
-
-    @Override
-    public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
-        preLeaveRoad(vehicle,simTime);
 
         if (this.carsOnTheRoad.size() > 0) {
             org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.carsOnTheRoad.getFirst();
             double nextAvailableTimeForLeavingStreet = Math.max(this.earliestDepartureTimeOfCar.getFirst(),
                     this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle,simTime));
+
             nextVehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
-
     }
 
-
+    @Override
+    public void processIfInterestedInEnteringRoadFalse(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
+        super.processIfInterestedInEnteringRoadFalse(vehicle, simTime);
+        latestTimeToLeaveRoad.remove(vehicle);
+    }
 
     private boolean onlyOneCarRoad() {
         return this.carsOnTheRoad.size() == 1;
     }
-
 
     private void updateEarliestDepartureTimeOfCar(double nextAvailableTimeForLeavingStreet){
         this.earliestDepartureTimeOfCar.add(nextAvailableTimeForLeavingStreet);
@@ -213,4 +168,48 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
                 / (this.link.getFreespeed(simTime)*speedAdjustmentFactor);
     }
 
+    @Override
+    public void procsessFilledRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
+        LinkedList<Double> gap = getGap();
+        if (gap == null) {
+            gap = new LinkedList<>();
+        } else {
+            gap.clear();
+        }
+
+        getInterestedInEnteringRoad().add(vehicle);
+
+        /*
+         * the first car interested in entering a road has to wait
+         * 'stuckTime' the car behind has to wait an additional stuckTime
+         * (this logic was adapted to adhere to the C++ implementation)
+         */
+        double nextStuckTime=0;
+
+        if (getDeadlockPreventionMessages().size() > 0) {
+            nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
+
+        } else {
+            nextStuckTime=simTime + config.getSqueezeTime();
+        }
+
+        if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
+            Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
+        }
+
+        double minTimeForNextDeadlockPreventionMessageTime=0;
+
+        if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
+                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+INCREASE_TIMESTAMP; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
+
+        double timeToLeaveRoad=Math.max(Math.min(Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
+
+        getDeadlockPreventionMessages().add(vehicle.scheduleDeadlockPreventionMessage(timeToLeaveRoad, this));
+
+        assert (getInterestedInEnteringRoad().size()== getDeadlockPreventionMessages().size()) :getInterestedInEnteringRoad().size() + " - " + getDeadlockPreventionMessages().size();
+    }
+
+    public static Road getRoad(Id<Link> linkId) {
+        return (Road) getAllRoads().get(linkId);
+    }
 }
