@@ -1,4 +1,5 @@
 import subprocess
+
 import sys
 
 # pip and npm still required
@@ -13,9 +14,17 @@ def npm_install(package, package2):
 
 def installAll():
     install("pandas")
+    install("rtree")
+#    install("cython")
+#    install("cartopy")
+    install("mapclassify")
+    install("descartes")
+    install("geopandas")
+    install("contextily")
     install("plotly")
     install("numpy")
     install("matplotlib")
+#    install("matplotlib==3.1.1")
     install("collections")
     npm_install("electron@1.8.4", "orca")
     install("psutil","requests")

@@ -1,6 +1,6 @@
 import sys
 import json
-import plotly.graph_objects as go
+#import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import required_module_installer as required
@@ -444,6 +444,6 @@ if __name__ == '__main__':
     with open('{}/pooling-metrics.json'.format(name), 'w') as f:
         json.dump(pooling_metrics, f)
     unit = sys.argv[2] if len(sys.argv) == 3 else 1000.0
-    get_pooling_sankey_diagram(pooling_metrics, name, unit)
+#    get_pooling_sankey_diagram(pooling_metrics, name, unit)
     print(json.dumps(pooling_metrics, indent=4))
     print("done")
