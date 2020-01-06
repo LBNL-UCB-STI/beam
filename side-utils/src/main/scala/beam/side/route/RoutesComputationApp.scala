@@ -5,9 +5,10 @@ import java.util.concurrent.Executors
 import beam.side.route.model.{GHPaths, TripPath}
 import beam.side.route.processing._
 import beam.side.route.processing.data.{DataLoaderIO, DataWriterIO, PathComputeIO}
-import beam.side.route.processing.request.GHRequestHttpIO
+import beam.side.route.processing.request.{GHRequestCoreIO, GHRequestHttpIO}
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
 import cats.effect.Resource
+import com.graphhopper.GraphHopper
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -23,6 +24,8 @@ case class ComputeConfig(
   odPairsPath: Option[String] = None,
   ghHost: String = "http://localhost:8989",
   output: String = "output.csv",
+  osmPath: String = "",
+  ghLocation: String = "",
   cArgs: Map[String, String] = Map()
 )
 
@@ -67,7 +70,31 @@ trait AppSetup {
             success
         }
       )
-      .text("O/D pairs path")
+      .text("GH host")
+
+    opt[String]("osm")
+      .valueName("<osm_file>")
+      .action((s, c) => c.copy(osmPath = s))
+      .validate(
+        s =>
+          Try(Paths.get(s).toFile).filter(_.exists()) match {
+            case Failure(e) => failure(e.getMessage)
+            case _          => success
+        }
+      )
+      .text("OSM path")
+
+    opt[String]('l', "loc")
+      .valueName("<location_directory>")
+      .action((s, c) => c.copy(ghLocation = s))
+      .validate(
+        s =>
+          Try(Paths.get(s).toFile.getParentFile).filter(f => f.exists() && f.isDirectory) match {
+            case Failure(e) => failure(e.getMessage)
+            case _          => success
+        }
+      )
+      .text("Location directory path")
 
     opt[String]('o', "output")
       .valueName("<output_file>")
@@ -81,6 +108,11 @@ trait AppSetup {
         }
       )
       .text("Output file")
+
+    checkConfig { conf =>
+      if (conf.ghHost.isEmpty || conf.osmPath.isEmpty) failure("host or osm should be passed")
+      else success
+    }
   }
 }
 
@@ -99,7 +131,6 @@ object RoutesComputationApp extends CatsApp with AppSetup {
       BlazeClientBuilder[({ type T[A] = RIO[zio.ZEnv, A] })#T](
         ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(8))
       ).resource
-    implicit val ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = new GHRequestHttpIO(httpClient)
     implicit val pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths] =
       jsonOf[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths]
     implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataLoaderIO()
@@ -112,6 +143,9 @@ object RoutesComputationApp extends CatsApp with AppSetup {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
 
       promise <- CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue].compose(config.cencusTrackPath)
+
+      graphHopper = new GraphHopper().forServer().setGraphHopperLocation(config.ghLocation).setDataReaderFile(config.osmPath)
+      ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = GHRequestCoreIO(graphHopper)
 
       pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)
 
