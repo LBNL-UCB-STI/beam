@@ -61,12 +61,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             Map<Integer, Map<Double, Integer>> hourModeFrequency = new HashMap<>();
 
             // to have proper borders in graph
-            Map<Double, Integer> zeroValues = new HashMap<>();
+            Map<Double, Integer> zeroValues0 = new HashMap<>();
+            Map<Double, Integer> zeroValues24 = new HashMap<>();
             for (double cat : categories) {
-                zeroValues.put(cat, 0);
+                zeroValues0.put(cat, 0);
+                zeroValues24.put(cat, 0);
             }
-            hourModeFrequency.put(0, zeroValues);
-            hourModeFrequency.put(24, zeroValues);
+            hourModeFrequency.put(0, zeroValues0);
+            hourModeFrequency.put(24, zeroValues24);
 
             Set<Integer> hours = hoursTimesMap.keySet();
 
