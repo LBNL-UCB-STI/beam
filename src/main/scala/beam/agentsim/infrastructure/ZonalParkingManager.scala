@@ -381,6 +381,7 @@ object ZonalParkingManager extends LazyLogging {
       case "UNLIMITED" => Some(beamConfig.beam.agentsim.taz.parkingStallChargerDefaultType)
       case _           => None
     }
+    val defaultChargerCostPerHourInCents = beamConfig.beam.agentsim.taz.defaultChargerCostPerHourInDollars * 100
     // distance to walk to the destination
 
     val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
@@ -412,7 +413,8 @@ object ZonalParkingManager extends LazyLogging {
           random,
           parkingStallCountScalingFactor,
           parkingCostScalingFactor,
-          overrideChargerTypeOption
+          overrideChargerTypeOption,
+          defaultChargerCostPerHourInCents
         )
       } match {
         case Success((s, t)) => (s, t)
