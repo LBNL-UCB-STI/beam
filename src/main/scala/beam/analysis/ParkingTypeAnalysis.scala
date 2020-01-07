@@ -1,7 +1,7 @@
 package beam.analysis
 import java.util.concurrent.TimeUnit
 
-import beam.agentsim.events.{LeavingParkingEvent, ParkEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent}
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.utils.logging.ExponentialLazyLogging
 import org.jfree.chart.ChartFactory
@@ -24,7 +24,7 @@ class ParkingTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLa
   override def processStats(event: Event): Unit = {
     val hourOfEvent = (event.getTime / 3600).toInt
     event match {
-      case parkEvent: ParkEvent =>
+      case parkEvent: ParkingEvent =>
         val vehicleId = parkEvent.vehicleId.toString
         vehicleParkingInHour.update(VehicleParking(vehicleId, parkEvent.parkingType.toString), hourOfEvent)
 

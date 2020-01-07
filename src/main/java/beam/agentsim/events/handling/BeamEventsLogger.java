@@ -127,8 +127,8 @@ public class BeamEventsLogger {
                     case "ModeChoiceEvent":
                         eventClass = ModeChoiceEvent.class;
                         break;
-                    case "ParkEvent":
-                        eventClass = ParkEvent.class;
+                    case "ParkingEvent":
+                        eventClass = ParkingEvent.class;
                         break;
                     case "PathTraversalEvent":
                         eventClass = PathTraversalEvent.class;

@@ -274,7 +274,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      val parkEvent = expectMsgType[ParkEvent]
+      val parkEvent = expectMsgType[ParkingEvent]
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -662,7 +662,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkEvent]
+      expectMsgType[ParkingEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
