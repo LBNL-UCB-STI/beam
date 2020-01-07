@@ -15,7 +15,7 @@ import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 
 /**HasPersonId is added as Matsim ScoringFunction for population requires it**/
-case class ParkEvent(
+case class ParkingEvent(
   time: Double,
   driverId: String,
   vehicleId: Id[Vehicle],
@@ -28,7 +28,7 @@ case class ParkEvent(
     with ScalaEvent
     with LazyLogging {
 
-  import ParkEvent._
+  import ParkingEvent._
 
   if (GeoUtils.isInvalidWgsCoordinate(locationWGS)) {
     logger.warn(s"ParkEvent should always receive WGS coordinates. [$locationWGS] looks like invalid")
@@ -60,8 +60,8 @@ case class ParkEvent(
   }
 }
 
-object ParkEvent {
-  val EVENT_TYPE: String = "ParkEvent"
+object ParkingEvent {
+  val EVENT_TYPE: String = "ParkingEvent"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   //    String ATTRIBUTE_PARKING_ID = "parkingId";
@@ -79,8 +79,8 @@ object ParkEvent {
     locationWGS: Coord,
     vehicleId: Id[Vehicle],
     driverId: String
-  ): ParkEvent = {
-    new ParkEvent(
+  ): ParkingEvent = {
+    new ParkingEvent(
       time = time,
       driverId = driverId,
       vehicleId = vehicleId,
@@ -92,7 +92,7 @@ object ParkEvent {
     )
   }
 
-  def apply(genericEvent: GenericEvent): ParkEvent = {
+  def apply(genericEvent: GenericEvent): ParkingEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
 
@@ -105,6 +105,6 @@ object ParkEvent {
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
     val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), cost)
     val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
-    new ParkEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingType)
+    new ParkingEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingType)
   }
 }
