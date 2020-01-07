@@ -11,18 +11,19 @@ case class BeamConfig(
 object BeamConfig {
   case class Beam(
     agentsim: BeamConfig.Beam.Agentsim,
-    beamskimmer: BeamConfig.Beam.Beamskimmer,
     calibration: BeamConfig.Beam.Calibration,
     cluster: BeamConfig.Beam.Cluster,
     debug: BeamConfig.Beam.Debug,
     exchange: BeamConfig.Beam.Exchange,
     experimental: BeamConfig.Beam.Experimental,
+    h3: BeamConfig.Beam.H3,
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
     outputs: BeamConfig.Beam.Outputs,
     physsim: BeamConfig.Beam.Physsim,
     replanning: BeamConfig.Beam.Replanning,
+    router: BeamConfig.Beam.Router,
     routing: BeamConfig.Beam.Routing,
     spatial: BeamConfig.Beam.Spatial,
     useLocalWorker: scala.Boolean,
@@ -730,8 +731,8 @@ object BeamConfig {
 
           object AllocationManager {
             case class AlonsoMora(
-              solutionSpaceSizePerVehicle: scala.Int,
-              travelTimeDelayAsFraction: scala.Double,
+              excessRideTimeAsFraction: scala.Double,
+              numRequestsPerVehicle: scala.Int,
               waitingTimeInSec: scala.Int
             )
 
@@ -741,10 +742,10 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora(
-                  solutionSpaceSizePerVehicle =
-                    if (c.hasPathOrNull("solutionSpaceSizePerVehicle")) c.getInt("solutionSpaceSizePerVehicle") else 5,
-                  travelTimeDelayAsFraction =
-                    if (c.hasPathOrNull("travelTimeDelayAsFraction")) c.getDouble("travelTimeDelayAsFraction") else 0.2,
+                  excessRideTimeAsFraction =
+                    if (c.hasPathOrNull("excessRideTimeAsFraction")) c.getDouble("excessRideTimeAsFraction") else 0.2,
+                  numRequestsPerVehicle =
+                    if (c.hasPathOrNull("numRequestsPerVehicle")) c.getInt("numRequestsPerVehicle") else 5,
                   waitingTimeInSec = if (c.hasPathOrNull("waitingTimeInSec")) c.getInt("waitingTimeInSec") else 360
                 )
               }
@@ -1543,31 +1544,6 @@ object BeamConfig {
       }
     }
 
-    case class Beamskimmer(
-      writeAllModeSkimsForPeakNonPeakPeriodsInterval: scala.Int,
-      writeFullSkimsInterval: scala.Int,
-      writeObservedSkimsInterval: scala.Int,
-      writeObservedSkimsPlusInterval: scala.Int
-    )
-
-    object Beamskimmer {
-
-      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Beamskimmer = {
-        BeamConfig.Beam.Beamskimmer(
-          writeAllModeSkimsForPeakNonPeakPeriodsInterval =
-            if (c.hasPathOrNull("writeAllModeSkimsForPeakNonPeakPeriodsInterval"))
-              c.getInt("writeAllModeSkimsForPeakNonPeakPeriodsInterval")
-            else 0,
-          writeFullSkimsInterval =
-            if (c.hasPathOrNull("writeFullSkimsInterval")) c.getInt("writeFullSkimsInterval") else 0,
-          writeObservedSkimsInterval =
-            if (c.hasPathOrNull("writeObservedSkimsInterval")) c.getInt("writeObservedSkimsInterval") else 0,
-          writeObservedSkimsPlusInterval =
-            if (c.hasPathOrNull("writeObservedSkimsPlusInterval")) c.getInt("writeObservedSkimsPlusInterval") else 0
-        )
-      }
-    }
-
     case class Calibration(
       counts: BeamConfig.Beam.Calibration.Counts,
       meanToCountsWeightRatio: scala.Double,
@@ -1913,6 +1889,21 @@ object BeamConfig {
       }
     }
 
+    case class H3(
+      lowerBoundResolution: scala.Int,
+      resolution: scala.Int
+    )
+
+    object H3 {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.H3 = {
+        BeamConfig.Beam.H3(
+          lowerBoundResolution = if (c.hasPathOrNull("lowerBoundResolution")) c.getInt("lowerBoundResolution") else 10,
+          resolution = if (c.hasPathOrNull("resolution")) c.getInt("resolution") else 10
+        )
+      }
+    }
+
     case class Logger(
       keepConsoleAppenderOn: scala.Boolean
     )
@@ -2220,6 +2211,108 @@ object BeamConfig {
       }
     }
 
+    case class Router(
+      skim: BeamConfig.Beam.Router.Skim
+    )
+
+    object Router {
+      case class Skim(
+        drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
+        keepKLatestSkims: scala.Int,
+        origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
+        taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
+        writeAggregatedSkimsInterval: scala.Int,
+        writeSkimsInterval: scala.Int
+      )
+
+      object Skim {
+        case class DriveTimeSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object DriveTimeSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.DriveTimeSkimmer = {
+            BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
+              fileBaseName =
+                if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName")
+                else "skimsTravelTimeObservedVsSimulated",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "drive-time-skimmer"
+            )
+          }
+        }
+
+        case class OriginDestinationSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String,
+          writeAllModeSkimsForPeakNonPeakPeriodsInterval: scala.Int,
+          writeFullSkimsInterval: scala.Int
+        )
+
+        object OriginDestinationSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer = {
+            BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsOD",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "od-skimmer",
+              writeAllModeSkimsForPeakNonPeakPeriodsInterval =
+                if (c.hasPathOrNull("writeAllModeSkimsForPeakNonPeakPeriodsInterval"))
+                  c.getInt("writeAllModeSkimsForPeakNonPeakPeriodsInterval")
+                else 0,
+              writeFullSkimsInterval =
+                if (c.hasPathOrNull("writeFullSkimsInterval")) c.getInt("writeFullSkimsInterval") else 0
+            )
+          }
+        }
+
+        case class TazSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object TazSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
+            BeamConfig.Beam.Router.Skim.TazSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
+          BeamConfig.Beam.Router.Skim(
+            drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
+              if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
+            ),
+            keepKLatestSkims = if (c.hasPathOrNull("keepKLatestSkims")) c.getInt("keepKLatestSkims") else 1,
+            origin_destination_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
+              if (c.hasPathOrNull("origin-destination-skimmer")) c.getConfig("origin-destination-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("origin-destination-skimmer{}")
+            ),
+            taz_skimmer = BeamConfig.Beam.Router.Skim.TazSkimmer(
+              if (c.hasPathOrNull("taz-skimmer")) c.getConfig("taz-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("taz-skimmer{}")
+            ),
+            writeAggregatedSkimsInterval =
+              if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else 0,
+            writeSkimsInterval = if (c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else 0
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router = {
+        BeamConfig.Beam.Router(
+          skim = BeamConfig.Beam.Router.Skim(
+            if (c.hasPathOrNull("skim")) c.getConfig("skim")
+            else com.typesafe.config.ConfigFactory.parseString("skim{}")
+          )
+        )
+      }
+    }
+
     case class Routing(
       baseDate: java.lang.String,
       r5: BeamConfig.Beam.Routing.R5,
@@ -2335,10 +2428,6 @@ object BeamConfig {
           if (c.hasPathOrNull("agentsim")) c.getConfig("agentsim")
           else com.typesafe.config.ConfigFactory.parseString("agentsim{}")
         ),
-        beamskimmer = BeamConfig.Beam.Beamskimmer(
-          if (c.hasPathOrNull("beamskimmer")) c.getConfig("beamskimmer")
-          else com.typesafe.config.ConfigFactory.parseString("beamskimmer{}")
-        ),
         calibration = BeamConfig.Beam.Calibration(
           if (c.hasPathOrNull("calibration")) c.getConfig("calibration")
           else com.typesafe.config.ConfigFactory.parseString("calibration{}")
@@ -2359,6 +2448,8 @@ object BeamConfig {
           if (c.hasPathOrNull("experimental")) c.getConfig("experimental")
           else com.typesafe.config.ConfigFactory.parseString("experimental{}")
         ),
+        h3 = BeamConfig.Beam
+          .H3(if (c.hasPathOrNull("h3")) c.getConfig("h3") else com.typesafe.config.ConfigFactory.parseString("h3{}")),
         inputDirectory =
           if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory") else "/test/input/beamville",
         logger = BeamConfig.Beam.Logger(
@@ -2380,6 +2471,10 @@ object BeamConfig {
         replanning = BeamConfig.Beam.Replanning(
           if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
           else com.typesafe.config.ConfigFactory.parseString("replanning{}")
+        ),
+        router = BeamConfig.Beam.Router(
+          if (c.hasPathOrNull("router")) c.getConfig("router")
+          else com.typesafe.config.ConfigFactory.parseString("router{}")
         ),
         routing = BeamConfig.Beam.Routing(
           if (c.hasPathOrNull("routing")) c.getConfig("routing")

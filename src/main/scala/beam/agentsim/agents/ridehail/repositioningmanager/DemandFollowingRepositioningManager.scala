@@ -4,6 +4,7 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
+import beam.router.skim.{ODSkims, Skims}
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -115,13 +116,14 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       // Filter out vehicles that don't have enough range
       newPositions
         .filter { vehAndNewLoc =>
-          rideHailManager.beamSkimmer
+          Skims.od_skimmer
             .getTimeDistanceAndCost(
               vehAndNewLoc._1.currentLocationUTM.loc,
               vehAndNewLoc._2,
               tick,
               CAR,
-              vehAndNewLoc._1.vehicleType.id
+              vehAndNewLoc._1.vehicleType.id,
+              beamServices
             )
             .distance <= rideHailManager.vehicleManager
             .getVehicleState(vehAndNewLoc._1.vehicleId)
