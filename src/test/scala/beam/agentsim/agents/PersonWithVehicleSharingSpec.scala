@@ -211,7 +211,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
@@ -380,7 +380,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[NotifyVehicleIdle]
