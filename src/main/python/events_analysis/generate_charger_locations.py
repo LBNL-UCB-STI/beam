@@ -257,14 +257,20 @@ def generateParking(refuelSessions, tag, Power_rated, n_stations, Max_queuing_pr
             output_array[power][prob] = dict()
     
     for ind, n_clusters in enumerate(n_stations):
-        iter_out_val, iter_out_array = assignChargingLocations(refuelSessions, n_clusters, Power_rated, Max_queuing_probability)
-        for power in Power_rated:
-            for prob in Max_queuing_probability:
-                output_val[power][prob][n_clusters] = iter_out_val[power][prob]
-                output_array[power][prob][n_clusters] = iter_out_array[power][prob]
-                new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 200.*power, parking_input)
-                new_parking['numStalls'] = new_parking['numStalls'].astype('int')
-                new_parking.to_csv(outfolder + '/parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
+        try:
+            iter_out_val, iter_out_array = assignChargingLocations(refuelSessions, n_clusters, Power_rated, Max_queuing_probability)
+            for power in Power_rated:
+                for prob in Max_queuing_probability:
+                    output_val[power][prob][n_clusters] = iter_out_val[power][prob]
+                    output_array[power][prob][n_clusters] = iter_out_array[power][prob]
+                    new_parking = assignStallsToTaz(iter_out_array[power][prob]['gdf'], taz, 'Public', power, 200.*power, parking_input)
+                    new_parking['numStalls'] = new_parking['numStalls'].astype('int')
+                    new_parking.to_csv(outfolder + '/parking_input_files/sf-'+ tag +'-parking-'+str(n_clusters)+'-clusters-'+str(power)[:-2]+'-kW-'+str(prob)+'-prob.csv', index=False)
+            
+        except:
+            print('Failed on ' + str(n_stations) + ' stations')
+            output_val[power][prob][n_clusters] = None
+            output_array[power][prob][n_clusters] = None
     return output_val, output_array
 
 #%%
