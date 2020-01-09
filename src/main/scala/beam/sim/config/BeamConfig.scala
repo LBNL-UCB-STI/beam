@@ -888,7 +888,7 @@ object BeamConfig {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
                   filePath =
                     if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                    else "/test/input/beamville/ride-hail-parking.csv"
+                    else ""
                 )
               }
             }

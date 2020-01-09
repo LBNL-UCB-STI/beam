@@ -21,18 +21,14 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -373,6 +369,13 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
+  val stalls = rideHailDepotParkingManager.rideHailParkingStalls
+
+  private var cntEVCAV  = 0
+  private var cntEVnCAV = 0
+  private var cntnEVCAV = 0
+  private var cntnEVnCAV = 0
+
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
       val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
@@ -469,6 +472,15 @@ class RideHailManager(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization
       )
   }
+
+  def writeMetric(metric: String, value: Int): Unit = {
+    beamServices.simMetricCollector.writeGlobal(metric, value)
+  }
+
+  writeMetric("beam-run-RH-ev-cav", cntEVCAV)
+  writeMetric("beam-run-RH-ev-non-cav", cntEVnCAV)
+  writeMetric("beam-run-RH-non-ev-cav", cntnEVCAV)
+  writeMetric("beam-run-RH-non-ev-non-cav", cntnEVnCAV)
 
   if (beamServices.matsimServices != null &&
       new File(
@@ -1477,6 +1489,13 @@ class RideHailManager(
     shifts: Option[String],
     geofence: Option[Geofence]
   ): RideHailAgentInputData = {
+    (rideHailBeamVehicleType.isEV, rideHailBeamVehicleType.isCaccEnabled) match {
+      case (true, true)  => cntEVCAV += 1
+      case (true, false) => cntEVnCAV += 1
+      case (false, true) => cntnEVCAV += 1
+      case _             => cntnEVnCAV += 1
+    }
+
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
     val ridehailBeamVehicleTypeId =
