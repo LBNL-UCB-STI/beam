@@ -38,16 +38,1193 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1577376152722,
+    "iteration": 1578602264565,
     "links": [],
     "panels": [
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 4,
+          "x": 0,
+          "y": 0
+        },
+        "id": 30,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-households",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-households\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Households",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 4,
+          "x": 4,
+          "y": 0
+        },
+        "id": 31,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-population-size",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-population-size\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Population",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 4,
+          "x": 8,
+          "y": 0
+        },
+        "id": 32,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-private-fleet-size",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-private-fleet-size\" WHERE (\"unique-run-name\" =~ /^$run_name$/) ",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Private Fleet",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "id": 37,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-charging-depots-cnt",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-charging-depots-cnt\" WHERE (\"unique-run-name\" =~ /^$run_name$/) ",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Charging Depots",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "id": 43,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-public-fast-charge-cnt",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-public-fast-charge-cnt\" WHERE (\"unique-run-name\" =~ /^$run_name$/) ",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Public Fast Charge",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 3,
+          "x": 0,
+          "y": 2
+        },
+        "id": 34,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-RH-ev-non-cav",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-RH-ev-non-cav\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH EV non CAV",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 3,
+          "x": 3,
+          "y": 2
+        },
+        "id": 33,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-RH-ev-cav",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-RH-ev-cav\" WHERE (\"unique-run-name\" =~ /^$run_name$/) ",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH EV CAV",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 3,
+          "x": 6,
+          "y": 2
+        },
+        "id": 36,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-RH-non-ev-non-cav",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-RH-non-ev-non-cav\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH non EV non CAV",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 3,
+          "x": 9,
+          "y": 2
+        },
+        "id": 35,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-RH-non-ev-cav",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-RH-non-ev-cav\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "RH non EV CAV",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 6,
+          "x": 12,
+          "y": 2
+        },
+        "id": 38,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-charging-depots-stalls-cnt",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-charging-depots-stalls-cnt\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Charging Depots Stalls",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
+      {
+        "cacheTimeout": null,
+        "colorBackground": false,
+        "colorValue": false,
+        "colors": [
+          "#299c46",
+          "rgba(237, 129, 40, 0.89)",
+          "#d44a3a"
+        ],
+        "datasource": null,
+        "format": "none",
+        "gauge": {
+          "maxValue": 100,
+          "minValue": 0,
+          "show": false,
+          "thresholdLabels": false,
+          "thresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 2,
+          "w": 6,
+          "x": 18,
+          "y": 2
+        },
+        "id": 44,
+        "interval": null,
+        "links": [],
+        "mappingType": 1,
+        "mappingTypes": [
+          {
+            "name": "value to text",
+            "value": 1
+          },
+          {
+            "name": "range to text",
+            "value": 2
+          }
+        ],
+        "maxDataPoints": 100,
+        "nullPointMode": "connected",
+        "nullText": null,
+        "options": {},
+        "pluginVersion": "6.4.1",
+        "postfix": "",
+        "postfixFontSize": "50%",
+        "prefix": "",
+        "prefixFontSize": "50%",
+        "rangeMaps": [
+          {
+            "from": "null",
+            "text": "N/A",
+            "to": "null"
+          }
+        ],
+        "sparkline": {
+          "fillColor": "rgba(31, 118, 189, 0.18)",
+          "full": false,
+          "lineColor": "rgb(31, 120, 193)",
+          "show": false,
+          "ymax": null,
+          "ymin": null
+        },
+        "tableColumn": "",
+        "targets": [
+          {
+            "groupBy": [],
+            "measurement": "beam-run-public-fast-charge-stalls-cnt",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\" FROM \"beam-run-public-fast-charge-stalls-cnt\" WHERE (\"unique-run-name\" =~ /^$run_name$/)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": "",
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Public Fast Charge Stalls",
+        "type": "singlestat",
+        "valueFontSize": "80%",
+        "valueMaps": [
+          {
+            "op": "=",
+            "text": "N/A",
+            "value": "null"
+          }
+        ],
+        "valueName": "avg"
+      },
       {
         "datasource": null,
         "gridPos": {
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 0
+          "y": 4
         },
         "id": 17,
         "options": {},
@@ -203,7 +1380,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 0
+          "y": 4
         },
         "id": 19,
         "options": {},
@@ -359,7 +1536,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 8
+          "y": 12
         },
         "id": 20,
         "options": {},
@@ -515,7 +1692,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 8
+          "y": 12
         },
         "id": 18,
         "options": {},
@@ -671,7 +1848,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 16
+          "y": 20
         },
         "id": 21,
         "options": {},
@@ -827,7 +2004,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 16
+          "y": 20
         },
         "id": 22,
         "options": {},
@@ -983,7 +2160,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 24
+          "y": 28
         },
         "id": 23,
         "options": {},
@@ -1139,7 +2316,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 24
+          "y": 28
         },
         "id": 24,
         "options": {},
@@ -1295,7 +2472,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 32
+          "y": 36
         },
         "id": 10,
         "options": {},
@@ -1451,7 +2628,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 32
+          "y": 36
         },
         "id": 11,
         "options": {},
@@ -1607,7 +2784,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 40
+          "y": 44
         },
         "id": 8,
         "options": {},
@@ -1763,7 +2940,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 40
+          "y": 44
         },
         "id": 13,
         "options": {},
@@ -1921,7 +3098,7 @@
           "h": 8,
           "w": 24,
           "x": 0,
-          "y": 48
+          "y": 52
         },
         "id": 15,
         "options": {},
@@ -2077,8 +3254,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2019-12-26_15-57-47_beamville",
-            "value": "2019-12-26_15-57-47_beamville"
+            "text": "2020-01-09_20-34-45_beamville",
+            "value": "2020-01-09_20-34-45_beamville"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -2119,6 +3296,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view",
     "uid": "dvib8mbWz",
-    "version": 2
+    "version": 3
   }
 }
