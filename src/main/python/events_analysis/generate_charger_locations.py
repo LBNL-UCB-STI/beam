@@ -417,8 +417,8 @@ if __name__ == '__main__':
     if run_purpose == "generate":
         Power_rated = [150.0, 50.0, 20.0] # in kW
         Max_queuing_probability = [0.1, 0.25, 0.5] # Chance that someone would find their nearest charger full
-        nstations_human = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/8),num=15,dtype=int))
-        nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/8),num=15,dtype=int))
+        nstations_human = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/10),num=15,dtype=int))
+        nstations_cav = np.unique(np.logspace(np.log10(2),np.log10(taz.shape[0]/10),num=15,dtype=int))
         
         output_val_human, output_array_human = generateParking(refuelSession_noncav, 'taz', Power_rated, nstations_human, Max_queuing_probability, taz, parking_out_folder, parking_input)
         output_val_cav, output_array_cav = generateParking(refuelSession_rhcav, 'depot', Power_rated, nstations_cav, Max_queuing_probability, taz, parking_out_folder)
