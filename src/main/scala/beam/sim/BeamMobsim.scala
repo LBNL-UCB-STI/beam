@@ -93,12 +93,24 @@ class BeamMobsim @Inject()(
       }
     }
 
-    val defaultName = SimulationMetricCollector.defaultMetricValueName
+    Seq(
+      "car",
+      "walk",
+      "ride_hail",
+      "ride_hail_pooled",
+      "ride_hail_transit",
+      "bike",
+      "walk_transit",
+      "drive_transit"
+    ).foreach(mode => {
+      writeZeros("mode-choices", tags = Map("mode" -> mode))
+    })
 
+    val defaultName = SimulationMetricCollector.defaultMetricValueName
     writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
     writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
-    writeZeros("mode-choices", tags = Map("mode"                 -> "car"))
-    writeZeros("parking", tags = Map("parking-type"              -> "Public"))
+
+    writeZeros("parking", tags = Map("parking-type" -> "Public"))
     writeZeros("ride-hail-allocation-reserved")
     writeZeros("ride-hail-inquiry-served")
     writeZeros(
