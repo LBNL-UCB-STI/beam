@@ -2,8 +2,8 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.EnRoute
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
-import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
+import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.Coord
@@ -18,14 +18,13 @@ import scala.concurrent.Future
 class VehicleCentricMatchingForRideHail(
   demand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  services: BeamServices,
-  skimmer: BeamSkimmer
+  services: BeamServices
 ) {
   private val solutionSpaceSizePerVehicle =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
   private val waitingTimeInSec =
     services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-  private val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+  private val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
 
   type AssignmentKey = (RideHailTrip, VehicleAndSchedule, Double)
 
@@ -93,7 +92,7 @@ class VehicleCentricMatchingForRideHail(
       .take(solutionSpaceSizePerVehicle)
       .flatten(
         c =>
-          getRidehailSchedule(v.schedule, List(c.pickup, c.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer)
+          getRidehailSchedule(v.schedule, List(c.pickup, c.dropoff), v.vehicleRemainingRangeInMeters.toInt, services)
             .map(schedule => (c, schedule))
       )
       .foreach {
@@ -124,7 +123,7 @@ class VehicleCentricMatchingForRideHail(
                   v.schedule,
                   (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
                   v.vehicleRemainingRangeInMeters.toInt,
-                  skimmer
+                  services
                 ) match {
                   case Some(schedule) =>
                     val t = RideHailTrip(t1.requests ++ t2.requests, schedule)

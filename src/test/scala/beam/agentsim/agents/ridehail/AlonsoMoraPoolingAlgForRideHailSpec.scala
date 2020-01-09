@@ -3,7 +3,6 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.router.BeamSkimmer
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, Geofence}
 import beam.utils.FileUtils
@@ -53,15 +52,13 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
       }
     )
     implicit val services = injector.getInstance(classOf[BeamServices])
-    implicit val skimmer = injector.getInstance(classOf[BeamSkimmer])
     implicit val actorRef = ActorRef.noSender
     val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
     val alg: AlonsoMoraPoolingAlgForRideHail =
       new AlonsoMoraPoolingAlgForRideHail(
         AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
-        services,
-        skimmer
+        services
       )
 
     val assignment = alg.matchAndAssign(0)
@@ -159,7 +156,6 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
 
   def scenario1()(
     implicit
-    skimmer: BeamSkimmer,
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -207,7 +203,6 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
 
   def scenarioGeoFence()(
     implicit
-    skimmer: BeamSkimmer,
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef

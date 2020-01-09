@@ -4,16 +4,14 @@ import java.io.{BufferedWriter, Closeable}
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz._
-import beam.router.TravelTimeObserved
-import beam.router.TravelTimeObserved.PathCache
-import beam.sim.BeamServices
+import beam.router.skim.SkimsUtils
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.map.R5NetworkPlayground.prepareConfig
 import beam.utils.{EventReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.io.IOUtils
 
 case class Taz2TazWithTrip(
@@ -51,6 +49,8 @@ object Trip {
 }
 
 object TazTravelTimeAnalyzer extends LazyLogging {
+
+  import SkimsUtils._
 
   def filter(event: Event): Boolean = {
     val attribs = event.getAttributes
@@ -204,19 +204,22 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     tazTreeMap: TAZTreeMap
-  ): Map[PathCache, Float] = {
+  ): Map[SkimsUtils.PathCache, Float] = {
+
+    val maxDistanceFromBeamTaz: Double = 500.0 // 500 meters
 
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
     val zoneODTravelTimesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath
 
     if (zoneBoundariesFilePath.nonEmpty && zoneODTravelTimesFilePath.nonEmpty) {
-      val tazToMovId: Map[TAZ, Int] = TravelTimeObserved.buildTAZ2MovementId(
+      val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
         zoneBoundariesFilePath,
         geoUtils,
-        tazTreeMap
+        tazTreeMap,
+        maxDistanceFromBeamTaz
       )
       val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
-      TravelTimeObserved.buildPathCache2TravelTime(zoneODTravelTimesFilePath, movId2Taz)
+      buildPathCache2TravelTime(zoneODTravelTimesFilePath, movId2Taz)
     } else throw new RuntimeException("check file exists")
 
   }

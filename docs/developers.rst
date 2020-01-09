@@ -293,6 +293,8 @@ Performance Monitoring
 
 Beam uses `Kamon`_ as a performance monitoring framework. It comes with a nice API to instrument your application code for metric recoding. Kamon also provide many different pingable recorders like Log Reporter, StatsD, InfluxDB etc. You can configure your desired recorder with project configurations under Kamon/metrics section. When you start the application it will measure the instrumented components and recorder would publish either to console or specified backend where you can monitor/analyse the metrics.
 
+If you would like to review basic JVM metrics then it is `already configured`_ so that you can use `jconsole`_.
+
 Beam Metrics Utility (`MetricsSupport`)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -421,6 +423,8 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 
+.. _already configured: http://logback.qos.ch/manual/jmxConfig.html
+.. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
 .. _Graphite: http://graphite.wikidot.com/

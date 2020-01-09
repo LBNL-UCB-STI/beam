@@ -22,7 +22,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
@@ -41,7 +40,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val vehicleType: BeamVehicleType,
   val mainScheduler: ActorRef,
   val beamServices: BeamServices,
-  val beamSkimmer: BeamSkimmer,
   val maxWalkingDistance: Int,
   val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
 ) extends Actor
@@ -67,7 +65,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       vehicle.id -> vehicle
   }).toMap
 
-  private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
   override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
@@ -129,7 +127,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getServices: BeamServices = beamServices
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
-  override def getSkimmer: BeamSkimmer = beamSkimmer
+  override def getAvailableVehicles: Iterable[BeamVehicle] = availableVehicles.values
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)
