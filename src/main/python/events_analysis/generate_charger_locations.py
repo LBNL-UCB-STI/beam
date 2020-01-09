@@ -34,7 +34,7 @@ except:
 #
 # folder_path = "/home/ubuntu/git/beam/output/"
 
-
+binLengthInHours = 3.0
 
 def loadEvents(path, taz_path, outfolder):
     all_events = pd.read_csv(path)#, low_memory=False)
@@ -44,7 +44,7 @@ def loadEvents(path, taz_path, outfolder):
     del all_events
 
     refuelSession["kwh"] = refuelSession["fuel"]/3.6e6
-    refuelSession["hour"] = np.floor(refuelSession["time"]/3600).astype("int")
+    refuelSession["hour"] = np.floor(refuelSession["time"]/3600 / binLengthInHours).astype("int")
     refuelSession = refuelSession.loc[refuelSession['kwh'] > 0,:]
     
     locations = [Point(xy) for xy in zip(refuelSession['locationX'], refuelSession['locationY'])]
@@ -222,7 +222,7 @@ def assignChargingLocations(refuelSessions, n_clusters, powers, probs):
             clusters = refuelSessions.groupby(['chargingStationLabel','hour']).agg(
                     {'chargingStationLocationX':'first',
                      'chargingStationLocationY':'first', 
-                     'kwh': (lambda kwh: getMinimumNumberOfChargers(np.sum(kwh) / power, prob)),
+                     'kwh': (lambda kwh: getMinimumNumberOfChargers(np.sum(kwh) / power / binLengthInHours, prob)),
                      'vehicle':'count',
                      'distanceFromStation':'max',
                      'chargingStationLabel':'first'
