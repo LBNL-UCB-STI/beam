@@ -3,11 +3,15 @@ package beam.analysis.cartraveltime
 import java.io.Closeable
 
 import beam.agentsim.events.PathTraversalEvent
+import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
 import beam.utils.csv.CsvWriter
 import beam.utils.{EventReader, NetworkHelper, NetworkHelperImpl, Statistics}
 import com.typesafe.scalalogging.LazyLogging
+import org.jfree.chart.JFreeChart
+import org.jfree.chart.plot.CategoryPlot
+import org.jfree.data.general.DatasetUtilities
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -31,6 +35,8 @@ class CarRideStatsFromPathTraversalEventHandler(
   import CarRideStatsFromPathTraversalEventHandler._
 
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
+  private val averageTravelTimePerIteration: collection.mutable.MutableList[Double] =
+    collection.mutable.MutableList.empty[Double]
 
   val statsHeader: Array[String] = Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
 
@@ -91,13 +97,41 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val rideStats = calcRideStats(event.getIteration)
+    val rideStats: Seq[SingleRideStat] = calcRideStats(event.getIteration)
     writeRideStats(event.getIteration, rideStats)
 
-    val carRideStatistics = getIterationCarRideStats(event.getIteration, rideStats)
+    val carRideStatistics: IterationCarRideStats = getIterationCarRideStats(event.getIteration, rideStats)
+    //save average travel time for the current iteration
+    averageTravelTimePerIteration += carRideStatistics.travelTime.stats.avg / 60.0
+    // generate graph at root level for all iterations ran so far
+    createRootGraphForAverageCarTravelTime(event)
     writeIterationCarRideStats(event, carRideStatistics)
 
     carPtes.clear()
+  }
+
+  private def createRootGraphForAverageCarTravelTime(event: IterationEndsEvent): Unit = {
+    val graphData: Array[Array[Double]] = Array(averageTravelTimePerIteration.toArray)
+    val categoryDataset = DatasetUtilities.createCategoryDataset("car", "", graphData)
+    val outputDirectoryHierarchy = event.getServices.getControlerIO
+    val fileName = outputDirectoryHierarchy.getOutputFilename("averageCarTravelTime1" + ".png")
+    val graphTitle = "Average Travel Time [" + "car" + "]"
+    val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
+      categoryDataset,
+      graphTitle,
+      "Iteration",
+      "Average Travel Time [min]",
+      fileName,
+      false
+    )
+    val plot = chart.getCategoryPlot
+    GraphUtils.plotLegendItems(plot, categoryDataset.getRowCount)
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      fileName,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
   }
 
   private def writeRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): Unit = {

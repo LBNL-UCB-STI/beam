@@ -51,46 +51,70 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
 
+        /**
+         * Computes the required stats from the given input.
+         * @param stat A mapping that maps travel mode -> ( mapping from hour of the day -> list of travel times recorded during that hour)
+         * @return tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
+         */
         @Override
         public Tuple<List<String>, Tuple<double[][], Double>> compute(Map<String, Map<Integer, List<Double>>> stat) {
-            List<String> modeKeys = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
+            // Extract the travel modes recorded and sort them in ascending order
+            List<String> travelModes = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
+            // Extract the hours of the day recorded and sort them in order
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
+            // Get the maximum hour value
             int maxHour = hoursList.get(hoursList.size() - 1);
-            double[][] data = new double[modeKeys.size()][maxHour + 1];
-            for (int i = 0; i < modeKeys.size(); i++) {
-                data[i] = buildAverageTimesDataset(stat.get(modeKeys.get(i)));
+            // A 2D matrix to store average travel times by mode and hour (rows = travel mode ; columns = hour of the day)
+            double[][] averageTravelTimesByModeAndHour = new double[travelModes.size()][maxHour + 1];
+            for (int i = 0; i < travelModes.size(); i++) {
+                // compute the average travel times for each hour with the travel mode and save it to the respective row in data
+                averageTravelTimesByModeAndHour[i] = buildAverageTimesDataset(stat.get(travelModes.get(i)));
             }
+            // Calculate the average travel time for the entire day when the travel mode is CAR
             double dayAverageData = 0.0;
             if (stat.get(carMode) != null) {
                 dayAverageData = buildDayAverageDataset(stat.get(carMode));
             }
-            return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageData));
+            return new Tuple<>(travelModes, new Tuple<>(averageTravelTimesByModeAndHour, dayAverageData));
         }
 
-        private double[] buildAverageTimesDataset(Map<Integer, List<Double>> times) {
-            List<Integer> hoursList = new ArrayList<>(times.keySet());
+        /**
+         * Builds array data set with average travel time computed for each hour.
+         * @param travelTimesByHour A mapping from hour of the day -> list of travel times recorded during that hour
+         * @return array representing average times for each hour (array index = hour of the day)
+         */
+        private double[] buildAverageTimesDataset(Map<Integer, List<Double>> travelTimesByHour) {
+            // Extract and sort available hours in numeric order
+            List<Integer> hoursList = new ArrayList<>(travelTimesByHour.keySet());
             Collections.sort(hoursList);
-
+            // Get the maximum hour value
             int maxHour = hoursList.get(hoursList.size() - 1);
-            double[] travelTimes = new double[maxHour + 1];
+            // Declare an array to store the average travel times computed for each hour (where index = hour).
+            double[] averageTravelTimesWithHourIndex = new double[maxHour + 1];
+            // For each hour , now compute the average of all travel times available within that hour and
+            // save the average value to the array
             for (int i = 0; i <= maxHour; i++) {
-
-                List<Double> hourData = times.get(i);
+                List<Double> hourData = travelTimesByHour.get(i);
                 Double average = 0d;
                 if (hourData != null) {
                     average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
                 }
-                travelTimes[i] = average;
+                averageTravelTimesWithHourIndex[i] = average;
             }
-            return travelTimes;
+            return averageTravelTimesWithHourIndex;
         }
 
-        private double buildDayAverageDataset(Map<Integer, List<Double>> times) {
-            Set<Integer> hourSet = times.keySet();
+        /**
+         * Calculates the average of travel times during the day
+         * @param travelTimesByHour Map that maps from hour of the day -> travel times during that hour
+         * @return average travel time
+         */
+        private double buildDayAverageDataset(Map<Integer, List<Double>> travelTimesByHour) {
+            Set<Integer> hourSet = travelTimesByHour.keySet();
             int count = 0;
             double time = 0d;
             for (Integer i : hourSet) {
-                List<Double> hourData = times.get(i);
+                List<Double> hourData = travelTimesByHour.get(i);
                 if (hourData != null) {
                     time += hourData.stream().mapToDouble(val -> val).sum();
                     count += hourData.size();
@@ -111,16 +135,19 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
+        // tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
         Tuple<List<String>, Tuple<double[][], Double>> data = compute();
         List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond().getFirst();
-        averageTime.add(data.getSecond().getSecond());
+        double[][] averageTravelTimesByModeAndHour = data.getSecond().getFirst();
+        double averageTravelTimeInADayForCarMode = data.getSecond().getSecond();
+        averageTime.add(averageTravelTimeInADayForCarMode);
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {
-                double[][] singleDataSet = new double[1][dataSets[i].length];
-                singleDataSet[0] = dataSets[i];
-                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
+                // A single row matrix to store the averageTravelTimesByHour array in the column
+                double[][] dataSetMatrix = new double[1][averageTravelTimesByModeAndHour[i].length];
+                dataSetMatrix[0] = averageTravelTimesByModeAndHour[i];
+                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), dataSetMatrix);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
             createRootGraphForAverageCarTravelTime(event);
