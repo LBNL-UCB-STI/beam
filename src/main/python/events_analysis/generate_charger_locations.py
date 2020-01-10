@@ -330,7 +330,8 @@ def makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_
                 print('getting bg')
                 ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
         except:
-            clusters.plot(legend=False, ax=ax, alpha = 0.1)
+            print("Can't get background")
+            #clusters.plot(legend=False, ax=ax, alpha = 0.1)
         try:
             plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
         except:
@@ -426,3 +427,19 @@ if __name__ == '__main__':
         makePlots(output_val_human, output_val_cav, Power_rated, Max_queuing_probability, parking_out_folder)
         makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_probability, parking_out_folder)
     print("done")
+#%%
+# n_chargers_10 = []
+# n_chargers_25 = []
+# n_chargers_50 = []
+# demand = np.linspace(1,2000,100)
+# for d in demand:
+#     n_chargers_10.append(getMinimumNumberOfChargers(d/150,0.1))
+#     n_chargers_25.append(getMinimumNumberOfChargers(d/150,0.25))
+#     n_chargers_50.append(getMinimumNumberOfChargers(d/150,0.5))
+
+# plt.plot(demand,demand / n_chargers_10 / 150.0, label='10% queuing probability')
+# plt.plot(demand,demand / n_chargers_25 / 150.0, label='25% queuing probability')
+# plt.plot(demand,demand / n_chargers_50 / 150.0, label='50% queuing probability')
+# plt.legend()
+# plt.xlabel('Average load demanded (kW)')
+# plt.ylabel('Charger load factor')
