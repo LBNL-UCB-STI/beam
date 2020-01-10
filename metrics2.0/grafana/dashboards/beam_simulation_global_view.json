@@ -2822,7 +2822,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance in kilometers",
+              "title": "Distance (1000 mi)",
               "type": "linear",
               "zeroline": false
             },

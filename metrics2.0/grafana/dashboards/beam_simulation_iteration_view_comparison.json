@@ -6010,7 +6010,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "DIstance in Kilometers",
+              "title": "Distance per hour (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
@@ -6174,7 +6174,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "DIstance in Kilometers",
+              "title": "Distance per hour (1000 mi)",
               "type": "linear",
               "zeroline": false
             },
