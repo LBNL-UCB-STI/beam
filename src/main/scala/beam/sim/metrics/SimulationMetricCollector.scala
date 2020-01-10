@@ -38,6 +38,15 @@ trait SimulationMetricCollector {
     overwriteIfExist: Boolean = false
   ): Unit
 
+  def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String] = Map.empty,
+    tags: Map[String, String] = Map.empty,
+    level: MetricLevel = ShortLevel,
+    overwriteIfExist: Boolean = false
+  ): Unit
+
   def writeGlobal(
     metricName: String,
     metricValue: Double,
@@ -139,6 +148,15 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
     level: MetricLevel,
     overwriteIfExist: Boolean = false
   ): Unit = {}
+
+  override def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String],
+    tags: Map[String, String],
+    level: MetricLevel,
+    overwriteIfExist: Boolean
+  ): Unit = ???
 }
 
 class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
@@ -177,6 +195,36 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     metricName: String,
     time: SimulationTime,
     values: Map[String, Double],
+    tags: Map[String, String],
+    level: MetricLevel,
+    overwriteIfExist: Boolean
+  ): Unit = {
+    if (isRightLevel(level)) {
+      val rawPoint = Point
+        .measurement(metricName)
+        .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
+        .tag("simulation-hour", time.hours.toString)
+
+      val withFields = values.foldLeft(rawPoint) {
+        case (p, (n, v)) => p.addField(n, v)
+      }
+
+      val withDefaultTags = defaultTags.foldLeft(withFields) {
+        case (p, (k, v)) => p.tag(k, v)
+      }
+
+      val withOtherTags = tags.foldLeft(withDefaultTags) {
+        case (p, (k, v)) => p.tag(k, v)
+      }
+
+      maybeInfluxDB.foreach(_.write(withOtherTags.build()))
+    }
+  }
+
+  override def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String],
     tags: Map[String, String],
     level: MetricLevel,
     overwriteIfExist: Boolean
