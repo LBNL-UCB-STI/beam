@@ -146,7 +146,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -253,7 +253,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -360,7 +360,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -467,7 +467,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -574,7 +574,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -681,7 +681,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -788,7 +788,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -895,7 +895,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -1002,7 +1002,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -1109,7 +1109,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "cacheTimeout": null,
@@ -1216,7 +1216,7 @@
             "value": "null"
           }
         ],
-        "valueName": "avg"
+        "valueName": "first"
       },
       {
         "datasource": null,
