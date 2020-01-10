@@ -5,6 +5,7 @@
 
 """
 Teng ZENG @ UC Berkeley for BEAM project and Transportation Research Part D paper.
+Zach Needell @ LBNL for TRB demo
 """
 # from ggplot import *
 # from pyproj import Proj, transform
@@ -164,7 +165,7 @@ def ErlangC(A, N):
     sum_ = 0
     for i in range(N):
         sum_ += (A**i) / factorial(i)
-    return (L / (sum_ + L))
+    return np.clip(L / (sum_ + L),0,1)
 
 def getMinimumNumberOfChargers(rate, p_acceptable):
     n_chargers = 0
@@ -299,7 +300,7 @@ def makeMapPlots(output_array_human, output_array_cav, Power_rated, Max_queuing_
                 print('getting bg')
                 ctx.add_basemap(ax, url=ctx.providers.Stamen.TonerBackground)
         except:
-            clusters.plot(legend=False, ax=ax, alpha = 0.1)
+            print("Can't get background")
         try:
             plt.legend(*circles.get_children()[0].legend_elements("sizes", num=6))
         except:
@@ -443,3 +444,28 @@ if __name__ == '__main__':
 # plt.legend()
 # plt.xlabel('Average load demanded (kW)')
 # plt.ylabel('Charger load factor')
+
+# #%%
+# demand = np.linspace(1,150,100)
+# p_full_1 = ErlangC(demand/150,1)
+# p_full_2 = ErlangC(demand/150*2,2)
+# p_full_5 = ErlangC(demand/150*5,5)
+# p_full_10 = ErlangC(demand/150*10,10)
+
+# plt.plot(demand, p_full_1, label = '1 charger')
+# plt.plot(demand, p_full_2, label = '2 chargers')
+# plt.plot(demand, p_full_5, label = '5 chargers')
+# plt.plot(demand, p_full_10, label = '10 chargers')
+# plt.xlabel('Demand per 150 kW Charger')
+# plt.ylabel('Likelihood of being full')
+# plt.legend()
+
+# #%%
+# demand = np.linspace(30,150,100)
+# plt.plot(150/demand, p_full_1, label = '1 charger')
+# plt.plot(150/demand, p_full_2, label = '2 chargers')
+# plt.plot(150/demand, p_full_5, label = '5 chargers')
+# plt.plot(150/demand, p_full_10, label = '10 chargers')
+# plt.ylabel('Likelihood of being full')
+# plt.xlabel('Charger capacity / Average load')
+# plt.legend()
