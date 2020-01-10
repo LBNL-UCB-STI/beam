@@ -26,13 +26,13 @@ class GHRequestCoreIO(graphHopper: gh.GraphHopper)(
       req <- RIO.fromEither(url.toGH.toRight(new IllegalArgumentException))
       resp <- RIO
         .effectAsync[zio.ZEnv, gh.GHResponse](cb => cb(RIO.succeed(graphHopper.route(req))))
-        .filterOrFail(r => !r.hasErrors || !r.getAll.isEmpty)(new IllegalArgumentException("Route not found"))
+        .filterOrFail(r => !r.hasErrors && !r.getAll.isEmpty)(new IllegalArgumentException("Route not found"))
     } yield {
       val path = resp.getBest
-      val wayPoints = path.getWaypoints.asScala.map(p => Coordinate(p.lon, p.lat))
-      val instructions = path.getInstructions.asScala
-        .map(inst => Instruction(inst.getDistance, Seq(inst.getLength), inst.getTime))
-      val points = path.getPoints.asScala.map(p => Coordinate(p.lon, p.lat)).toSeq
+      val wayPoints = path.getWaypoints.asScala.view.map(p => Coordinate(p.lon, p.lat))
+      val instructions =
+        path.getInstructions.asScala.view.map(inst => Instruction(inst.getDistance, Seq(inst.getLength), inst.getTime))
+      val points = path.getPoints.asScala.toSeq.view.map(p => Coordinate(p.lon, p.lat))
       GHPaths(Seq(Way(points, instructions, (wayPoints.head, wayPoints.last)))).asInstanceOf[R]
     }
 }

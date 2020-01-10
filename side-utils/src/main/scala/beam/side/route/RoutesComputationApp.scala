@@ -26,6 +26,8 @@ case class ComputeConfig(
   output: String = "output.csv",
   osmPath: String = "",
   ghLocation: String = "",
+  parallel: Int = 4,
+  factor: Int = 16,
   cArgs: Map[String, String] = Map()
 )
 
@@ -109,6 +111,16 @@ trait AppSetup {
       )
       .text("Output file")
 
+    opt[Int]('n', "pn")
+      .valueName("<parallel_exec>")
+      .action((s, c) => c.copy(parallel = s))
+      .validate(p => if (p > 0) success else failure("Parallel is negative"))
+
+    opt[Int]('f', "factor")
+      .valueName("<factor_exec>")
+      .action((s, c) => c.copy(factor = s))
+      .validate(p => if (p > 0) success else failure("Factor is negative"))
+
     checkConfig { conf =>
       if (conf.ghHost.isEmpty && conf.osmPath.isEmpty) failure("host or osm should be passed")
       else success
@@ -136,8 +148,6 @@ object RoutesComputationApp extends CatsApp with AppSetup {
     implicit val dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataLoaderIO()
     implicit val cencusDictionary: CencusTractDictionary[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] =
       CencusTractDictionaryIO()
-    implicit val odCompute: ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = ODComputeIO()
-    implicit val dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO()
 
     (for {
       config <- ZIO.fromOption(parser.parse(args, ComputeConfig()))
@@ -153,10 +163,14 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
       pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = PathComputeIO(config.ghHost)
 
-      pathQueue <- ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
+      odCompute: ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = ODComputeIO(config.parallel, config.factor)
+
+      pathQueue <- ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T](odCompute)
         .pairTrip(config.odPairsPath, promise)(pathCompute, pathEncoder, ghRequest, dataLoader)
 
-      linesFork <- DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
+      dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO(config.parallel, config.factor)
+
+      linesFork <- DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue](dataWriter)
         .writeFile(Paths.get(config.output), pathQueue)
         .fork
 
