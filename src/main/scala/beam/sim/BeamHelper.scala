@@ -814,39 +814,60 @@ trait BeamHelper extends LazyLogging {
       f.exists && !f.isDirectory
     }
 
-    val parkingChargingFilePath: String = {
+    /*
+    If both files are given we want to read parking stalls from both of them.
+    beamConfig.beam.agentsim.taz.parkingFilePath
+          provides public fast charge stalls and
+    beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+          provides charging depot stalls
+     */
+
+    val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
       if (exist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath)) {
-        beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+        (
+          beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
+          beamConfig.beam.agentsim.taz.parkingFilePath
+        )
       } else if (exist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-        beamConfig.beam.agentsim.taz.parkingFilePath
+        (beamConfig.beam.agentsim.taz.parkingFilePath, "")
       } else {
-        ""
+        ("", "")
       }
     }
 
-    if (parkingChargingFilePath.nonEmpty) {
+    if (chargingDepotsFilePath.nonEmpty) {
       val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
       val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-      val (parkingZones, _) =
-        ParkingZoneFileUtils.fromFile(parkingChargingFilePath, rand, parkingStallCountScalingFactor)
+      val (chargingDepots, _) =
+        ParkingZoneFileUtils.fromFile(chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
 
       var cntChargingDepots = 0
       var cntChargingDepotsStalls = 0
-      var cntPublicFastCharge = 0
-      var cntPublicFastChargeStalls = 0
-
-      parkingZones.foreach(
+      chargingDepots.foreach(
         parkingZone =>
           if (parkingZone.chargingPointType.nonEmpty) {
             cntChargingDepots += 1
             cntChargingDepotsStalls += parkingZone.stallsAvailable
-
-            if (ChargingPointType.getChargingPointCurrent(parkingZone.chargingPointType.get) == DC) {
-              cntPublicFastCharge += 1
-              cntPublicFastChargeStalls += parkingZone.stallsAvailable
-            }
-        }
+          }
       )
+
+      var cntPublicFastCharge = 0
+      var cntPublicFastChargeStalls = 0
+      if(publicFastChargerFilePath.nonEmpty){
+        val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+        val (publicChargers, _) =
+          ParkingZoneFileUtils.fromFile(publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
+
+        publicChargers.foreach(
+          publicCharger =>
+            if (publicCharger.chargingPointType.nonEmpty) {
+              if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
+                cntPublicFastCharge += 1
+                cntPublicFastChargeStalls += publicCharger.stallsAvailable
+              }
+            }
+        )
+      }
 
       writeMetric("beam-run-charging-depots-cnt", cntChargingDepots)
 
