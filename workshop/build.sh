@@ -9,6 +9,7 @@ cp run-beam.* beam/
 cp docker-* beam/
 cp clear-data.cmd beam/
 cp metrics-for-docker-container.conf beam/input/common/metrics.conf
+cp *.pdf beam/
 chmod -R 777 beam
 chown -R $USER:$USER beam
 
