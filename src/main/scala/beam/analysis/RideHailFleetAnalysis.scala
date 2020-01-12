@@ -201,7 +201,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         row.grouped(resolutionInSeconds).zipWithIndex.foreach {
           case (result, hour) =>
             if (hour <= processedHour)
-              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12 / 1000, hour, key)
+              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12, hour, key)
             else
               write(s"$graphName-distance", 0, hour, key)
           case _ =>

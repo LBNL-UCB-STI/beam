@@ -288,8 +288,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         int seconds = hour * 60 * 60;
-        double distanceInThousandsMiles = distanceInKilometers * 0.62137119 / 1000;
-        simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInThousandsMiles, Metrics.ShortLevel(), tags);
+        double distanceInMiles = distanceInKilometers * 0.62137119;
+        simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, Metrics.ShortLevel(), tags);
     }
 
 
