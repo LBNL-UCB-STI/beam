@@ -1262,7 +1262,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance (1000 mi)",
+              "title": "Distance [miles]",
               "type": "linear",
               "zeroline": false
             },
@@ -1574,7 +1574,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance (1000 mi)",
+              "title": "Distance [miles]",
               "type": "linear",
               "zeroline": false
             },
@@ -1886,7 +1886,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance (1000 mi)",
+              "title": "Distance [miles]",
               "type": "linear",
               "zeroline": false
             },
@@ -2198,7 +2198,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance (1000 mi)",
+              "title": "Distance [miles]",
               "type": "linear",
               "zeroline": false
             },
@@ -2822,7 +2822,7 @@
             "yaxis": {
               "rangemode": "normal",
               "showgrid": true,
-              "title": "Distance (1000 mi)",
+              "title": "Distance [miles]",
               "type": "linear",
               "zeroline": false
             },
