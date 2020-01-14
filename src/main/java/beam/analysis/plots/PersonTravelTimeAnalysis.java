@@ -239,23 +239,32 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     }
 
     private void processPersonArrivalEvent(Event event) {
+        // Get person id and travel mode from the PersonArrivalEvent
         PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent) event;
         Id<Person> personId = personArrivalEvent.getPersonId();
         String mode = personArrivalEvent.getLegMode();
-
+        // personLastDepartureEvents(map) : travel mode -> (person -> previous departure event)
+        // Get the list of previous departures for the current arrival mode
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+        // case : if previous departure events are available
         if (departureEvents != null) {
+            // Get the departure event corresponding to the current person
             PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
             if (personDepartureEvent != null) {
+                // Get the hour of the departure event
                 int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                // Compute the travel travel time = current arrival time - previous departure time
                 Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
                 Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                 if (hourlyPersonTravelTimesPerMode == null) {
+                    // if this is the first event , initiate and add the current travel time to the list of travel times
                     hourlyPersonTravelTimesPerMode = new HashMap<>();
                     List<Double> travelTimes = new ArrayList<>();
                     travelTimes.add(travelTime);
                     hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                 } else {
+                    // if not the first event , fetch the previously tracked travel times and add the current travel time to the list
                     List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                     if (travelTimes == null) {
                         travelTimes = new ArrayList<>();
@@ -266,11 +275,14 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                     hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                 }
                 hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
+                // remove the previous departure event tracked from the current person and update the map
                 departureEvents.remove(personId);
                 personLastDepartureEvents.put(mode, departureEvents);
             } else {
+                // case : if no previous departures available for this person (or probably this is the first departure)
                 Set<String> modeSet = personLastDepartureEvents.keySet();
                 String selectedMode = null;
+                // For each possible modes , check the last departure event tracked for the current person and select the mode as well
                 //Modeset is very small list hence we can iterate them
                 for (String mayBeMode : modeSet) {
                     Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
@@ -308,15 +320,23 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         }
     }
 
+    /**
+     * Processes the current person departure event and tracks the departure details for further processing.
+     * @param event Person Departure Event
+     */
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
+        // Extract the mode of the departure event
         String mode = personDepartureEvent.getLegMode();
+        // Get the list of previous departures tracked for this mode
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+        // Add/update the entry : current person -> current departure event
         if (departureEvents == null) {
             departureEvents = new HashMap<>();
         }
         departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
+        // Add/update the entry : mode -> (person -> previous departure event)
         personLastDepartureEvents.put(mode, departureEvents);
     }
 
