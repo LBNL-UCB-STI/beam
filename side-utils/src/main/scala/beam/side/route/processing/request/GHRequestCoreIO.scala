@@ -32,8 +32,9 @@ class GHRequestCoreIO(graphHopper: gh.GraphHopper)(
       val wayPoints = path.getWaypoints.asScala.view.map(p => Coordinate(p.lon, p.lat))
       val instructions =
         path.getInstructions.asScala.view.map(inst => Instruction(inst.getDistance, Seq(inst.getLength), inst.getTime))
-      val points = path.getPoints.asScala.toSeq.view.map(p => Coordinate(p.lon, p.lat))
-      GHPaths(Seq(Way(points, instructions, (wayPoints.head, wayPoints.last)))).asInstanceOf[R]
+      val (ele, points) = path.getPoints.asScala.view
+        .foldLeft((0D, Seq[Coordinate]()))((acc, p) => (acc._1 + p.ele, acc._2 :+ Coordinate(p.lon, p.lat)))
+      GHPaths(Seq(Way(path.getDistance, ele, points, instructions, (wayPoints.head, wayPoints.last)))).asInstanceOf[R]
     }
 }
 

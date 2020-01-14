@@ -1,5 +1,9 @@
 package beam.side.route.model
 
+sealed trait ID {
+  def id: String
+}
+
 case class CencusTrack(
   state: Int,
   country: String,
@@ -31,7 +35,10 @@ object Trip {
   }
 }
 
-case class TripPath(origin: CencusTrack, dest: CencusTrack, path: Multiline)
+case class TripPath(origin: CencusTrack, dest: CencusTrack, distance: Double, elevation: Double, path: Multiline)
+    extends ID {
+  override val id: String = origin.state.toString
+}
 
 object TripPath {
 
@@ -39,6 +46,7 @@ object TripPath {
   import Encoder._
 
   implicit val tripPathEncoder: Encoder[TripPath] = new Encoder[TripPath] {
-    override def apply(row: TripPath): String = s"${row.origin.id}, ${row.dest.id}, ${row.path.row}"
+    override def apply(row: TripPath): String =
+      s"${row.origin.id}, ${row.dest.id}, ${row.distance}, ${row.elevation}, ${row.path.row}"
   }
 }

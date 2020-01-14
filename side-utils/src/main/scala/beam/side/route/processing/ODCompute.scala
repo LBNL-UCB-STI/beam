@@ -8,14 +8,12 @@ import zio._
 
 trait ODCompute[F[_]] {
 
-  def pairTrip(odPairsPath: Option[String],
-               tracts: Promise[_ <: Throwable, Map[String, CencusTrack]]
-              )(
-                implicit pathCompute: PathCompute[F],
-                pathEncoder: EntityDecoder[F, GHPaths],
-                ghRequest: GHRequest[F],
-                dataLoader: DataLoader[F, Queue]
-              ): F[Queue[TripPath]]
+  def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, (_, Map[String, CencusTrack])])(
+    implicit pathCompute: PathCompute[F],
+    pathEncoder: EntityDecoder[F, GHPaths],
+    ghRequest: GHRequest[F],
+    dataLoader: DataLoader[F, Queue]
+  ): F[Queue[TripPath]]
 }
 
 object ODCompute {

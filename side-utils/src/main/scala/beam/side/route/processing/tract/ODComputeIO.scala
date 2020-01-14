@@ -11,7 +11,7 @@ class ODComputeIO(parallel: Int, factor: Int) extends ODCompute[({ type T[A] = R
 
   import zio.console._
 
-  def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, Map[String, CencusTrack]])(
+  def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, (_, Map[String, CencusTrack])])(
     implicit pathCompute: PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T],
     pathEncoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
     ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T],
@@ -19,14 +19,15 @@ class ODComputeIO(parallel: Int, factor: Int) extends ODCompute[({ type T[A] = R
   ): RIO[ZEnv, Queue[TripPath]] =
     for {
       tripQueue <- Queue.bounded[Trip](parallel * factor)
-      pathQueue <- Queue.bounded[TripPath](parallel * parallel * factor/2)
+      pathQueue <- Queue.bounded[TripPath](parallel * parallel * factor / 2)
+      trcs      <- tracts.await.map(_._2)
       _ <- zio.stream.Stream
         .fromQueue[Throwable, Trip](tripQueue)
         .zipWithIndex
         .mapMParUnordered(parallel) {
           case (trip, idx) =>
             putStrLn((idx -> trip).toString) &> PathCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T]
-              .compute(trip, tracts, pathQueue)
+              .compute(trip, trcs, pathQueue)
         }
         .runDrain
         .fork

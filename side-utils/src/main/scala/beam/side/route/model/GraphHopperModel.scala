@@ -29,7 +29,13 @@ object Coordinate {
   }
 }
 
-case class Way(points: Seq[Coordinate], instructions: Seq[Instruction], wayPoints: (Coordinate, Coordinate))
+case class Way(
+  distance: Double,
+  elevation: Double,
+  points: Seq[Coordinate],
+  instructions: Seq[Instruction],
+  wayPoints: (Coordinate, Coordinate)
+)
 
 object Way {
 

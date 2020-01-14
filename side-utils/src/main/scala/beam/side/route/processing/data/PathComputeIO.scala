@@ -14,7 +14,7 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
 
   def compute(
     trip: Trip,
-    tracts: Promise[_ <: Throwable, Map[String, CencusTrack]],
+    tracts: Map[String, CencusTrack],
     pathQueue: Queue[TripPath]
   )(
     implicit decoder: EntityDecoder[({ type T[A] = RIO[zio.ZEnv, A] })#T, GHPaths],
@@ -22,9 +22,8 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
   ): RIO[zio.ZEnv, Option[TripPath]] =
     for {
       trp    <- IO.effectTotal(trip)
-      trc    <- tracts.await
-      origin <- ZIO.fromTry(Try(trc(trp.origin)))
-      dest   <- ZIO.fromTry(Try(trc(trp.dest)))
+      origin <- ZIO.fromTry(Try(tracts(trp.origin)))
+      dest   <- ZIO.fromTry(Try(tracts(trp.dest)))
       url = Url(
         host,
         "route",
@@ -49,7 +48,7 @@ class PathComputeIO(host: String)(implicit val runtime: Runtime[_])
       path <- Task.effectTotal(
         originReq
           .map(p => p.ways.reduce((a, b) => if (a.points.size > b.points.size) a else b))
-          .map(p => TripPath(origin, dest, Multiline(p.points.toList)))
+          .map(p => TripPath(origin, dest, p.distance, p.elevation, Multiline(p.points)))
       )
       _ <- RIO.effectAsync[zio.ZEnv, Unit](c => c(path.fold(ZIO.unit)(r => pathQueue.offer(r).unit)))
     } yield path

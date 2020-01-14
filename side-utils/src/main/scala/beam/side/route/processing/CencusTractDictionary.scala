@@ -6,9 +6,14 @@ import zio.Promise
 import scala.language.higherKinds
 
 trait CencusTractDictionary[F[_], BUF[_]] {
-  def compose(cencusTrackPath: String)(implicit dataLoader: DataLoader[F, BUF]): F[Promise[Throwable, Map[String, CencusTrack]]]
+
+  def compose(cencusTrackPath: String)(
+    implicit dataLoader: DataLoader[F, BUF]
+  ): F[Promise[Throwable, (Set[String], Map[String, CencusTrack])]]
 }
 
 object CencusTractDictionary {
-  def apply[F[_], BUF[_]](implicit dictionary: CencusTractDictionary[F, BUF]): CencusTractDictionary[F, BUF] = dictionary
+
+  def apply[F[_], BUF[_]](implicit dictionary: CencusTractDictionary[F, BUF]): CencusTractDictionary[F, BUF] =
+    dictionary
 }

@@ -10,13 +10,15 @@ class CencusTractDictionaryIO extends CencusTractDictionary[({ type T[A] = RIO[z
 
   override def compose(cencusTrackPath: String)(
     implicit dataLoader: DataLoader[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue]
-  ): RIO[ZEnv, Promise[Throwable, Map[String, CencusTrack]]] =
+  ): RIO[ZEnv, Promise[Throwable, (Set[String], Map[String, CencusTrack])]] =
     for {
       cencusQueue <- Queue.bounded[CencusTrack](16)
-      promise     <- Promise.make[Throwable, Map[String, CencusTrack]]
+      promise     <- Promise.make[Throwable, (Set[String], Map[String, CencusTrack])]
       _ <- zio.stream.Stream
         .fromQueue[Throwable, CencusTrack](cencusQueue)
-        .fold(Map[String, CencusTrack]())((acc, ct) => acc + (ct.id -> ct))
+        .fold((Set[String](), Map[String, CencusTrack]()))(
+          (acc, ct) => (acc._1 + ct.state.toString, acc._2 + (ct.id -> ct))
+        )
         .flatMap(promise.succeed)
         .fork
       _ <- ZManaged

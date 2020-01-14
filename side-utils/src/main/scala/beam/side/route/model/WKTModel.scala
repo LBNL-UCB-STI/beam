@@ -15,5 +15,5 @@ object Multiline {
 }
 
 object WKT {
-  type Path[+A] = List[A]
+  type Path[+A] = Seq[A]
 }

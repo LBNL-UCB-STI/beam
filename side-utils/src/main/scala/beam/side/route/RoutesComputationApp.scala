@@ -170,8 +170,9 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
       dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO(config.parallel, config.factor)
 
+      groups <- promise.await.map(_._1)
       linesFork <- DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue](dataWriter)
-        .writeFile(Paths.get(config.output), pathQueue)
+        .writeFile(Paths.get(config.output), pathQueue, groups)
         .fork
 
       _ <- linesFork.join
