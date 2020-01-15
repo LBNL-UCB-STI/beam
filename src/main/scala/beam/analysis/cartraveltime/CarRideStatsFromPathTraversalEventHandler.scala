@@ -76,22 +76,11 @@ class CarRideStatsFromPathTraversalEventHandler(
   ).flatten
 
   private val carPtes: ArrayBuffer[PathTraversalEvent] = ArrayBuffer.empty
-  // Tracks the departure for each person for car mode legs
-  val previousDeparturesByCarMode = scala.collection.mutable.Map.empty[String, PersonDepartureEvent]
-  // Computes and stores the travel times of car mode legs per hour
-  val travelTimesByHourByCarMode = scala.collection.mutable.Map.empty[Long, List[Double]]
-  // Computes and stores the travel times of car mode legs per hour
-  //TODO : keep or remove this after confirmation from Art
-  val travelTimesByHourByCarMode1 = scala.collection.mutable.Map.empty[Long, List[Double]]
 
   override def handleEvent(event: Event): Unit = {
     event match {
       case pte: PathTraversalEvent if isCarAndNotRideHail(pte) =>
         carPtes += pte
-      case pde: PersonDepartureEvent if (pde.getLegMode.equalsIgnoreCase("car")) =>
-        processDepartureEvent(pde)
-      case pae: PersonArrivalEvent if (pae.getLegMode.equalsIgnoreCase("car")) =>
-        processArrivalEvent(pae)
       case _ =>
     }
   }
@@ -101,7 +90,7 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 
   def calcRideStats(iterationNumber: Int): Seq[SingleRideStat] = {
-    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carPtes, travelTimesByHourByCarMode1)
+    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carPtes)
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): IterationCarRideStats = {
@@ -113,47 +102,28 @@ class CarRideStatsFromPathTraversalEventHandler(
     writeRideStats(event.getIteration, rideStats)
 
     val carRideStatistics: IterationCarRideStats = getIterationCarRideStats(event.getIteration, rideStats)
+
     //save average travel time for the current iteration
     averageTravelTimePerIteration += java.util.concurrent.TimeUnit.SECONDS
       .toMinutes(carRideStatistics.travelTime.stats.avg.toLong)
     // generate average travel times graph at root level
     createRootGraphForAverageCarTravelTime(event)
-    // generate average travel times graph at iteration level
-    val iterationGraphData = generateGraphDataForAverageTravelTimes(travelTimesByHourByCarMode1)
+
+    // group single ride stats by departure time ( in hours)
+    val rideStatsGroupByDepartureTime = rideStats
+      .map(r => (r.travelTime, java.util.concurrent.TimeUnit.SECONDS.toHours(r.departureTime.toLong)))
+      .groupBy(_._2)
+    // extract travel time from grouped stats
+    val travelTimesByHourByCarMode: Map[Long, Seq[Double]] =
+      rideStatsGroupByDepartureTime.map(entry => entry._1 -> entry._2.map(_._1))
+    // Generate data set from travel times data above to plot graph
+    val iterationGraphData = generateGraphDataForAverageTravelTimes(travelTimesByHourByCarMode)
+    // Plot and save the graph for each iteration
     createIterationGraphForAverageCarTravelTime(iterationGraphData, event.getIteration)
+
     // write the iteration level car ride stats to output file
     writeIterationCarRideStats(event, carRideStatistics)
     carPtes.clear()
-  }
-
-  /**
-    * Processes departure events to compute the travel times.
-    * @param event PersonDepartureEvent
-    */
-  private def processDepartureEvent(event: PersonDepartureEvent): Unit = {
-    // Track the departure event by person
-    previousDeparturesByCarMode += event.getPersonId.toString -> event
-  }
-
-  /**
-    * Processes arrival events to compute the travel time from previous departure
-    * @param event PersonArrivalEvent
-    */
-  private def processArrivalEvent(event: PersonArrivalEvent): Unit = {
-    // Check for previous departure by car for the person
-    previousDeparturesByCarMode.get(event.getPersonId.toString) match {
-      case Some(departureEvent: PersonDepartureEvent) =>
-        // compute the travel time
-        val travelTime = event.getTime - departureEvent.getTime
-        // get the hour of departure
-        val hour = java.util.concurrent.TimeUnit.SECONDS.toHours(departureEvent.getTime.toLong)
-        // add the computed travel time to the list of travel times tracked during the hour
-        val travelTimes = travelTimesByHourByCarMode.getOrElse(hour, List.empty[Double]) :+ travelTime
-        travelTimesByHourByCarMode += hour -> travelTimes
-        // discard the departure event
-        previousDeparturesByCarMode -= event.getPersonId.toString
-      case None =>
-    }
   }
 
   /**
@@ -161,12 +131,12 @@ class CarRideStatsFromPathTraversalEventHandler(
     * @return dataset for average travel times graph at iteration level
     */
   private def generateGraphDataForAverageTravelTimes(
-    travelTimesByHourByCarMode: scala.collection.mutable.Map[Long, List[Double]]
+    travelTimesByHour: Map[Long, Seq[Double]]
   ): CategoryDataset = {
     // For each hour in a day
     val averageTravelTimes = for (i <- 0 until 24) yield {
       // Compute the average of the travel times recorded for that hour
-      val travelTimes = travelTimesByHourByCarMode.getOrElse(i, List.empty[Double])
+      val travelTimes = travelTimesByHour.getOrElse(i, List.empty[Double])
       // if no travel time recorded set average travel time to 0
       if (travelTimes.isEmpty)
         0D
@@ -208,20 +178,13 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
-  override def reset(iteration: Int): Unit = {
-    // Clear state of maps after each iteration
-    previousDeparturesByCarMode.clear()
-    travelTimesByHourByCarMode.clear()
-    travelTimesByHourByCarMode1.clear()
-  }
-
   /**
     * Plots graph for average travel times per hour at iteration level
     * @param dataset category dataset for graph genration
     * @param iterationNumber iteration number
     */
   private def createIterationGraphForAverageCarTravelTime(dataset: CategoryDataset, iterationNumber: Int): Unit = {
-    val fileName = "averageCarTravelTime1.png"
+    val fileName = "averageTravelTimeCar1.png"
     val graphTitle = "Average Travel Time [ car ]"
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
@@ -360,11 +323,10 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     networkHelper: NetworkHelper,
     freeFlowTravelTime: FreeFlowTravelTime,
     iterationNumber: Int,
-    carPtes: Seq[PathTraversalEvent],
-    travelTimesByHourByCarMode: scala.collection.mutable.Map[Long, List[Double]]
+    carPtes: Seq[PathTraversalEvent]
   ): Seq[SingleRideStat] = {
     val drivingWithParkingPtes = buildDrivingParking(carPtes)
-    val stats = buildRideStats(networkHelper, freeFlowTravelTime, drivingWithParkingPtes, travelTimesByHourByCarMode)
+    val stats = buildRideStats(networkHelper, freeFlowTravelTime, drivingWithParkingPtes)
     logger.info(
       s"For the iteration ${iterationNumber} created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
     )
@@ -382,8 +344,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
   def buildRideStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
-    drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)],
-    travelTimesByHourByCarMode: scala.collection.mutable.Map[Long, List[Double]]
+    drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)]
   ): Seq[SingleRideStat] = {
     val stats = drivingWithParkingPtes.foldLeft(List.empty[SingleRideStat]) {
       case (acc, (driving, parking)) =>
@@ -396,12 +357,10 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
         // get the hour of event
         val hour = java.util.concurrent.TimeUnit.SECONDS.toHours(driving.getTime.toLong)
         // add the computed travel time to the list of travel times tracked during the hour
-        val travelTimes = travelTimesByHourByCarMode.getOrElse(hour, List.empty[Double]) :+ travelTime
-        travelTimesByHourByCarMode += hour -> travelTimes
         val length = driving.legLength + parking.legLength
         val linkIds = (driving.linkIds ++ parking.linkIds).map(lid => networkHelper.getLinkUnsafe(lid))
         val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
-        SingleRideStat(driving.vehicleId.toString, travelTime, length, freeFlowTravelTime) :: acc
+        SingleRideStat(driving.vehicleId.toString, travelTime, length, freeFlowTravelTime, driving.departureTime) :: acc
     }
     stats
   }

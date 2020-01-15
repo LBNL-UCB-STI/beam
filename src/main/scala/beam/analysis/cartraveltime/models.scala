@@ -2,7 +2,13 @@ package beam.analysis.cartraveltime
 
 import beam.utils.Statistics
 
-case class SingleRideStat(vehicleId: String, travelTime: Double, distance: Double, freeFlowTravelTime: Double) {
+case class SingleRideStat(
+  vehicleId: String,
+  travelTime: Double,
+  distance: Double,
+  freeFlowTravelTime: Double,
+  departureTime: Double
+) {
   def speed: Double = if (travelTime == 0.0) Double.NaN else distance / travelTime
 
   def freeFlowSpeed: Double = if (freeFlowTravelTime == 0.0) Double.NaN else distance / freeFlowTravelTime
