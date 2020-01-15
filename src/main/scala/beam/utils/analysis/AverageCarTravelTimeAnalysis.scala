@@ -6,7 +6,7 @@ import java.nio.file.Paths
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.analysis.cartraveltime.{CarRideStatsFromPathTraversalEventHandler, SingleRideStat}
-import beam.router.Modes.{BeamMode, toR5StreetMode}
+import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.model.RoutingModel
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
