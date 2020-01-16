@@ -89,7 +89,6 @@ allprojects {
         maven { url 'https://download.osgeo.org/webdav/geotools/' }
        // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://download.osgeo.org/webdav/geotools" }
         maven { url "https://dl.bintray.com/matsim/matsim" }
@@ -345,7 +344,7 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
-                src 'https://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                src 'https://repo1.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
                 dest buildDir
             }
         }
@@ -484,7 +483,7 @@ task execute(type: JavaExec) {
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
-                src 'https://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                src 'https://repo1.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
                 dest buildDir
             }
         }
