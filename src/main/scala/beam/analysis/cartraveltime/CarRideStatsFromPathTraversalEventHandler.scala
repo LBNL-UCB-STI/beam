@@ -67,13 +67,13 @@ class CarRideStatsFromPathTraversalEventHandler(
     maybeFreeFlowTravelSpeedStatsWriter
   ).flatten
 
-  private val carPtes: ArrayBuffer[PathTraversalEvent] = ArrayBuffer.empty
+  private val carPathTraversals: ArrayBuffer[PathTraversalEvent] = ArrayBuffer.empty
 
   override def handleEvent(event: Event): Unit = {
     event match {
 
       case pte: PathTraversalEvent if isCarAndNotRideHail(pte) =>
-        carPtes += pte
+        carPathTraversals += pte
       case _ =>
     }
   }
@@ -83,7 +83,7 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 
   def calcRideStats(iterationNumber: Int): Seq[SingleRideStat] = {
-    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carPtes)
+    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carPathTraversals)
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): IterationCarRideStats = {
@@ -97,7 +97,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     val carRideStatistics = getIterationCarRideStats(event.getIteration, rideStats)
     writeIterationCarRideStats(event, carRideStatistics)
 
-    carPtes.clear()
+    carPathTraversals.clear()
   }
 
   private def writeRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): Unit = {
@@ -163,9 +163,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
 
   def eventsFilterWhenReadFromCsv(event: Event): Boolean = {
-    // We need only PathTraversal
-    val isNeededEvent = event.getEventType == "PathTraversal"
-    isNeededEvent
+    event.getEventType == "PathTraversal"
   }
 
   def apply(pathToNetwork: String, eventsFilePath: String): CarRideStatsFromPathTraversalEventHandler = {
@@ -264,7 +262,9 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
         case ((vehId, driverId), xs) =>
           val sorted = xs.sortBy(x => x.departureTime)
           if (sorted.length % 2 == 1) {
-            logger.warn(s"Vehicle $vehId with driver $driverId has ${sorted.length} events")
+            logger.warn(
+              s"Vehicle $vehId with driver $driverId has ${sorted.length} events, but expected to have odd number of events (1 driving PathTraversalEvent and 1 parking PathTraversalEvent)"
+            )
           }
           sorted.sliding(2, 2).flatMap { ptes =>
             val maybeDriving = ptes.lift(0)
