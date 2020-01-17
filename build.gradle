@@ -226,6 +226,8 @@ dependencies {
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
+    compile group: 'io.github.oliviercailloux', name: 'google-or-tools', version: '6.7.2'
+
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
