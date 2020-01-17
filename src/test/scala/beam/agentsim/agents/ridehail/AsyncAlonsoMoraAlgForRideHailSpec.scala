@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.router.BeamSkimmer
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
@@ -70,7 +69,6 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
       }
     )
     implicit val services = injector.getInstance(classOf[BeamServices])
-    implicit val skimmer = injector.getInstance(classOf[BeamSkimmer])
     implicit val actorRef = ActorRef.noSender
     val sc = scenarioName match {
       case "scenarioGeofence" => AlonsoMoraPoolingAlgForRideHailSpec.scenarioGeoFence()
@@ -80,8 +78,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
       new AsyncAlonsoMoraAlgForRideHail(
         AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
-        services,
-        skimmer
+        services
       )
     import scala.concurrent.duration._
     Await.result(alg.matchAndAssign(0), atMost = 10.minutes).toArray
@@ -124,7 +121,6 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
       }
     )
     implicit val services = injector.getInstance(classOf[BeamServices])
-    implicit val skimmer = injector.getInstance(classOf[BeamSkimmer])
     implicit val actorRef = ActorRef.noSender
 //    val t0 = System.nanoTime()
 //    services.controler.run()

@@ -7,8 +7,8 @@ import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -32,8 +32,6 @@ class Population(
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved,
   boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
@@ -119,8 +117,6 @@ class Population(
           homeCoord,
           sharedVehicleFleets,
           routeHistory,
-          beamSkimmer,
-          travelTimeObserved,
           boundingBox
         ),
         household.getId.toString
@@ -165,8 +161,6 @@ object Population {
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
     boundingBox: Envelope
   ): Props = {
     Props(
@@ -183,8 +177,6 @@ object Population {
         sharedVehicleFleets,
         eventsManager,
         routeHistory,
-        beamSkimmer,
-        travelTimeObserved,
         boundingBox
       )
     )
