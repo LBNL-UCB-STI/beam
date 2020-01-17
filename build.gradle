@@ -87,20 +87,19 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
-        maven { url 'http://download.osgeo.org/webdav/geotools/' }
-       // maven { url "http://maven.geotoolkit.org/" }
+        maven { url 'https://download.osgeo.org/webdav/geotools/' }
+       // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-        maven { url "http://central.maven.org/maven2" }
-        maven { url "http://repo.maven.apache.org/maven2" }
-        maven { url "http://download.osgeo.org/webdav/geotools" }
-        maven { url "http://dl.bintray.com/matsim/matsim" }
-        maven { url "http://maven.conveyal.com/" }
-        maven { url "http://repo1.maven.org/maven2" }
-        maven { url "http://download.java.net/maven/2/" }
-        maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
-        maven { url "http://dl.bintray.com/andimarek/graphql-java" }
-        maven { url "http://maven.geo-solutions.it" }
-        maven { url "http://dl.bintray.com/scalaz/releases" }
+        maven { url "https://repo.maven.apache.org/maven2" }
+        maven { url "https://download.osgeo.org/webdav/geotools" }
+        maven { url "https://dl.bintray.com/matsim/matsim" }
+        maven { url "https://maven.conveyal.com/" }
+        maven { url "https://repo1.maven.org/maven2" }
+        maven { url "https://download.java.net/maven/2/" }
+        maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
+        maven { url "https://dl.bintray.com/andimarek/graphql-java" }
+        maven { url "https://maven.geo-solutions.it" }
+        maven { url "https://dl.bintray.com/scalaz/releases" }
         mavenLocal()
         mavenCentral()
         jcenter()
@@ -175,6 +174,8 @@ dependencies {
     }
 
     compile "com.sigopt:sigopt-java:4.9.0"
+
+    compile("com.uber:h3:3.4.1")
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
@@ -348,7 +349,7 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
-                src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                src 'https://repo1.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
                 dest buildDir
             }
         }
@@ -459,7 +460,7 @@ run {
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
-                src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                src 'https://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
                 dest buildDir
             }
         }
@@ -487,7 +488,7 @@ task execute(type: JavaExec) {
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
-                src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                src 'https://repo1.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
                 dest buildDir
             }
         }

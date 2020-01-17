@@ -95,8 +95,8 @@ object EventReader {
         PathTraversalEvent(event)
       case LeavingParkingEvent.EVENT_TYPE =>
         LeavingParkingEvent(event)
-      case ParkEvent.EVENT_TYPE =>
-        ParkEvent(event)
+      case ParkingEvent.EVENT_TYPE =>
+        ParkingEvent(event)
       case ModeChoiceEvent.EVENT_TYPE =>
         ModeChoiceEvent.apply(event)
       case PersonCostEvent.EVENT_TYPE =>

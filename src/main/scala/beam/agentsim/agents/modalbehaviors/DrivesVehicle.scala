@@ -346,7 +346,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
             currentBeamVehicle.useParkingStall(stall)
-            val parkEvent = ParkEvent(
+            val parkEvent = ParkingEvent(
               time = tick,
               stall = stall,
               locationWGS = geo.utm2Wgs(stall.locationUTM),

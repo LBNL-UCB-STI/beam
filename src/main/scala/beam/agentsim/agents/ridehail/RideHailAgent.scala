@@ -677,7 +677,7 @@ class RideHailAgent(
   def parkAndStartRefueling(stall: ParkingStall) = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     eventsManager.processEvent(
-      ParkEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
+      ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
     )
     log.debug("Refuel started at {}, triggerId: {}", tick, triggerId)
     startRefueling(tick, triggerId)

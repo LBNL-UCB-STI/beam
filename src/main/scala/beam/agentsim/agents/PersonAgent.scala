@@ -1,6 +1,5 @@
 package beam.agentsim.agents
 
-import scala.annotation.tailrec
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
@@ -22,17 +21,20 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -42,9 +44,8 @@ import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArri
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
-import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.utils.logging.ExponentialLazyLogging
 
 /**
   */
@@ -67,9 +68,7 @@ object PersonAgent {
     householdRef: ActorRef,
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef],
-    beamSkimmer: BeamSkimmer,
     routeHistory: RouteHistory,
-    travelTimeObserved: TravelTimeObserved,
     boundingBox: Envelope
   ): Props = {
     Props(
@@ -88,9 +87,7 @@ object PersonAgent {
         tollCalculator,
         householdRef,
         sharedVehicleFleets,
-        beamSkimmer,
         routeHistory,
-        travelTimeObserved,
         boundingBox
       )
     )
@@ -245,9 +242,7 @@ class PersonAgent(
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
-  val beamSkimmer: BeamSkimmer,
   val routeHistory: RouteHistory,
-  val travelTimeObserved: TravelTimeObserved,
   val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
@@ -344,13 +339,14 @@ class PersonAgent(
             .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
-                  beamSkimmer
+                  Skims.od_skimmer
                     .getTimeDistanceAndCost(
                       pair.head.activity.getCoord,
                       pair.last.activity.getCoord,
                       0,
                       CAR,
-                      currentBeamVehicle.beamVehicleType.id
+                      currentBeamVehicle.beamVehicleType.id,
+                      beamServices
                     )
                     .distance
                 )
@@ -964,18 +960,22 @@ class PersonAgent(
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-          beamSkimmer.observeTrip(
-            correctedTrip,
-            generalizedTime,
-            generalizedCost,
-            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
+          eventsManager.processEvent(
+            ODSkimmerEvent(
+              tick,
+              beamServices,
+              correctedTrip,
+              generalizedTime,
+              generalizedCost,
+              curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
+            )
           )
-          travelTimeObserved.observeTrip(
-            correctedTrip,
-            generalizedTime,
-            generalizedCost,
-            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
-          )
+
+          correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach {
+            carLeg =>
+              eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
+          }
+
           resetFuelConsumed()
 
           eventsManager.processEvent(
