@@ -158,7 +158,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     val graphData: Array[Array[Double]] = Array(averageTravelTimePerIteration.toArray.map(_.toDouble))
     val categoryDataset = DatasetUtilities.createCategoryDataset("car", "", graphData)
     val outputDirectoryHierarchy = event.getServices.getControlerIO
-    val fileName = outputDirectoryHierarchy.getOutputFilename("averageCarTravelTime1" + ".png")
+    val fileName = outputDirectoryHierarchy.getOutputFilename("averageCarTravelTimes" + ".png")
     val graphTitle = "Average Travel Time [" + "car" + "]"
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       categoryDataset,
@@ -184,7 +184,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     * @param iterationNumber iteration number
     */
   private def createIterationGraphForAverageCarTravelTime(dataset: CategoryDataset, iterationNumber: Int): Unit = {
-    val fileName = "averageTravelTimeCar1.png"
+    val fileName = "averageTravelTimesCar.png"
     val graphTitle = "Average Travel Time [ car ]"
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,

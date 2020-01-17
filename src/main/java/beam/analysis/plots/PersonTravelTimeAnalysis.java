@@ -31,12 +31,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
-    private static final String xAxisRootTitle = "Iteration";
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "mixed_mode";
     private static final String carMode = "car";
     public static String fileBaseName = "averageTravelTimes";
-    private final String fileNameForRoot = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
@@ -150,49 +148,15 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), dataSetMatrix);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
-            createRootGraphForAverageCarTravelTime(event);
             createNonArrivalAgentAtTheEndOfSimulationGraph(event.getIteration());
         }
 
         createNonArrivalAgentAtTheEndOfSimulationCSV(event.getIteration());
         createCSV(data, event.getIteration());
-        createRootCSVForAverageCarTravelTime(event);
-    }
-
-    public void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException {
-        double[][] singleCarDataSet = new double[1][event.getIteration() + 1];
-        for (int i = 0; i <= event.getIteration(); i++) {
-            singleCarDataSet[0][i] = averageTime.get(i);
-        }
-        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode, singleCarDataSet);
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename(fileNameForRoot + ".png");
-        createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration, carMode, fileName);
     }
 
     Tuple<List<String>, Tuple<double[][], Double>> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
-    }
-
-    private void createRootCSVForAverageCarTravelTime(IterationEndsEvent event) {
-        int currentIteration = event.getIteration();
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String csvFileName = outputDirectoryHierarchy.getOutputFilename(fileNameForRoot + ".csv");
-
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            out.write("iteration,averageCarTravelTime");
-            out.newLine();
-
-            for (int i = 0; i <= currentIteration; i++) {
-                double averageCarTravelTime = averageTime.get(i);
-                out.write(i + "," + averageCarTravelTime);
-                out.newLine();
-            }
-
-            out.flush();
-        } catch (IOException e) {
-            log.error("Error in Average Travel Time CSV generation", e);
-        }
     }
 
     private void createCSV(Tuple<List<String>, Tuple<double[][], Double>> data, int iteration) {
@@ -243,65 +207,29 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent) event;
         Id<Person> personId = personArrivalEvent.getPersonId();
         String mode = personArrivalEvent.getLegMode();
-        // personLastDepartureEvents(map) : travel mode -> (person -> previous departure event)
-        // Get the list of previous departures for the current arrival mode
-        Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
-        // case : if previous departure events are available
-        if (departureEvents != null) {
-            // Get the departure event corresponding to the current person
-            PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
-            if (personDepartureEvent != null) {
-                // Get the hour of the departure event
-                int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                // Compute the travel travel time = current arrival time - previous departure time
-                Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
-                Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
-                if (hourlyPersonTravelTimesPerMode == null) {
-                    // if this is the first event , initiate and add the current travel time to the list of travel times
-                    hourlyPersonTravelTimesPerMode = new HashMap<>();
-                    List<Double> travelTimes = new ArrayList<>();
-                    travelTimes.add(travelTime);
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                } else {
-                    // if not the first event , fetch the previously tracked travel times and add the current travel time to the list
-                    List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
-                    if (travelTimes == null) {
-                        travelTimes = new ArrayList<>();
-                        travelTimes.add(travelTime);
-                    } else {
-                        travelTimes.add(travelTime);
-                    }
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                }
-                hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
-                // remove the previous departure event tracked from the current person and update the map
-                departureEvents.remove(personId);
-                personLastDepartureEvents.put(mode, departureEvents);
-            } else {
-                // case : if no previous departures available for this person (or probably this is the first departure)
-                Set<String> modeSet = personLastDepartureEvents.keySet();
-                String selectedMode = null;
-                // For each possible modes , check the last departure event tracked for the current person and select the mode as well
-                //Modeset is very small list hence we can iterate them
-                for (String mayBeMode : modeSet) {
-                    Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
-                    if (lastDepartureEvents.get(personId) != null) {
-                        personDepartureEvent = lastDepartureEvents.get(personId);
-                        selectedMode = mayBeMode;
-                        break;
-                    }
-                }
+        if (!mode.equalsIgnoreCase("car")) {
+            // personLastDepartureEvents(map) : travel mode -> (person -> previous departure event)
+            // Get the list of previous departures for the current arrival mode
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            // case : if previous departure events are available
+            if (departureEvents != null) {
+                // Get the departure event corresponding to the current person
+                PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
                 if (personDepartureEvent != null) {
+                    // Get the hour of the departure event
                     int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                    // Compute the travel travel time = current arrival time - previous departure time
                     Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
+                    // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
+                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                     if (hourlyPersonTravelTimesPerMode == null) {
+                        // if this is the first event , initiate and add the current travel time to the list of travel times
                         hourlyPersonTravelTimesPerMode = new HashMap<>();
                         List<Double> travelTimes = new ArrayList<>();
                         travelTimes.add(travelTime);
                         hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                     } else {
+                        // if not the first event , fetch the previously tracked travel times and add the current travel time to the list
                         List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                         if (travelTimes == null) {
                             travelTimes = new ArrayList<>();
@@ -311,10 +239,48 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                         }
                         hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                     }
-                    hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
-                    Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
-                    departureEventsList.remove(personId);
-                    personLastDepartureEvents.put(selectedMode, departureEventsList);
+                    hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
+                    // remove the previous departure event tracked from the current person and update the map
+                    departureEvents.remove(personId);
+                    personLastDepartureEvents.put(mode, departureEvents);
+                } else {
+                    // case : if no previous departures available for this person (or probably this is the first departure)
+                    Set<String> modeSet = personLastDepartureEvents.keySet();
+                    String selectedMode = null;
+                    // For each possible modes , check the last departure event tracked for the current person and select the mode as well
+                    //Modeset is very small list hence we can iterate them
+                    for (String mayBeMode : modeSet) {
+                        Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
+                        if (lastDepartureEvents.get(personId) != null) {
+                            personDepartureEvent = lastDepartureEvents.get(personId);
+                            selectedMode = mayBeMode;
+                            break;
+                        }
+                    }
+                    if (personDepartureEvent != null) {
+                        int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                        Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                        Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
+                        if (hourlyPersonTravelTimesPerMode == null) {
+                            hourlyPersonTravelTimesPerMode = new HashMap<>();
+                            List<Double> travelTimes = new ArrayList<>();
+                            travelTimes.add(travelTime);
+                            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                        } else {
+                            List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
+                            if (travelTimes == null) {
+                                travelTimes = new ArrayList<>();
+                                travelTimes.add(travelTime);
+                            } else {
+                                travelTimes.add(travelTime);
+                            }
+                            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                        }
+                        hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
+                        Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
+                        departureEventsList.remove(personId);
+                        personLastDepartureEvents.put(selectedMode, departureEventsList);
+                    }
                 }
             }
         }
@@ -326,18 +292,19 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
      */
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
-
-        // Extract the mode of the departure event
-        String mode = personDepartureEvent.getLegMode();
-        // Get the list of previous departures tracked for this mode
-        Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
-        // Add/update the entry : current person -> current departure event
-        if (departureEvents == null) {
-            departureEvents = new HashMap<>();
+        if(!personDepartureEvent.getLegMode().equalsIgnoreCase("car")){
+            // Extract the mode of the departure event
+            String mode = personDepartureEvent.getLegMode();
+            // Get the list of previous departures tracked for this mode
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            // Add/update the entry : current person -> current departure event
+            if (departureEvents == null) {
+                departureEvents = new HashMap<>();
+            }
+            departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
+            // Add/update the entry : mode -> (person -> previous departure event)
+            personLastDepartureEvents.put(mode, departureEvents);
         }
-        departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
-        // Add/update the entry : mode -> (person -> previous departure event)
-        personLastDepartureEvents.put(mode, departureEvents);
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
@@ -382,33 +349,9 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     }
 
-    private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
-        String graphTitle = "Average Travel Time [" + mode + "]";
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisRootTitle, yAxisTitle, fileName, false);
-        CategoryPlot plot = chart.getCategoryPlot();
-        GraphUtils.plotLegendItems(plot, dataset.getRowCount());
-        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-    }
-
-
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }
 
-    private CategoryDataset buildAverageTimeDatasetGraphForRoot(String mode, double[][] dataset) {
-        return createCategoryRootDataset(mode, "", dataset);
-    }
-
-    private static CategoryDataset createCategoryRootDataset(String rowKeyPrefix, String columnKeyPrefix, double[][] data) {
-        DefaultCategoryDataset result = new DefaultCategoryDataset();
-        for (int r = 0; r < data.length; r++) {
-            String rowKey = rowKeyPrefix + (r + 1);
-            for (int c = 0; c < data[r].length; c++) {
-                String columnKey = columnKeyPrefix + (c);
-                result.addValue(new Double(data[r][c]), rowKey, columnKey);
-            }
-        }
-        return result;
-    }
 }
