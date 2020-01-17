@@ -48,13 +48,13 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
 object BeamWarmStartRunSpec {
 
   def avgCarModeFromCsv(filePath: String): Double = {
-    val (rdr, toClose) = GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, x => true)
+    val (rdr, toClose) =
+      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, x => true)
     try {
       val travelTimes = rdr.toArray
       val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
       TimeUnit.SECONDS.toMinutes(avg.toLong)
-    }
-    finally {
+    } finally {
       toClose.close()
     }
   }
