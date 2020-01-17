@@ -2,7 +2,7 @@ package beam.integration
 
 import java.io.File
 
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkingEvent, PathTraversalEvent}
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
@@ -122,17 +122,17 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   "Parking system " must {
     "guarantee at least some parking used " in {
       val parkingEvents =
-        defaultEvents.head.filter(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
+        defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
     "departure and arrival should be from same parking 4 tuple" in {
 
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
+          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
           val array = c.getOrElse(vehId, ArrayBuffer[Event]())
           array.append(ev)
           c.updated(vehId, array)
@@ -141,7 +141,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val res = groupedByVehicle.map {
         case (id, x) =>
           val (parkEvents, leavingEvents) =
-            x.partition(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
+            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
 
           //First and last park events won't match
           val parkEventsWithoutLast = parkEvents.dropRight(1)
@@ -156,10 +156,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           array.foreach {
             case (evA, evB) =>
               List(
-                ParkEvent.ATTRIBUTE_PARKING_TAZ,
-                ParkEvent.ATTRIBUTE_PARKING_TYPE,
-                ParkEvent.ATTRIBUTE_PRICING_MODEL,
-                ParkEvent.ATTRIBUTE_CHARGING_TYPE
+                ParkingEvent.ATTRIBUTE_PARKING_TAZ,
+                ParkingEvent.ATTRIBUTE_PARKING_TYPE,
+                ParkingEvent.ATTRIBUTE_PRICING_MODEL,
+                ParkingEvent.ATTRIBUTE_CHARGING_TYPE
               ).foreach { k =>
                 evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
               }
@@ -172,11 +172,11 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     "Park event should be thrown after last path traversal" in {
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
+          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
           val array = c.getOrElse(vehId, ArrayBuffer[Event]())
           array.append(ev)
           c.updated(vehId, array)
@@ -185,7 +185,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val vehToParkLeavingEvents = groupedByVehicle.map {
         case (id, x) =>
           val (parkEvents, leavingEvents) =
-            x.partition(e => ParkEvent.EVENT_TYPE.equals(e.getEventType))
+            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
           (id, leavingEvents zip parkEvents)
       }
 
@@ -197,7 +197,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           events.foreach {
             case (leavingParkEvent, parkEvent) =>
               val pathTraversalEventsInRange = pathTraversalEvents.filter { event =>
-                val vehId = event.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
+                val vehId = event.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
                 currVehId.equals(vehId) &&
                 event.getTime >= leavingParkEvent.getTime &&
                 event.getTime <= parkEvent.getTime
