@@ -31,12 +31,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
-    private static final String xAxisRootTitle = "Iteration";
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "mixed_mode";
     private static final String carMode = "car";
     public static String fileBaseName = "averageTravelTimes";
-    private final String fileNameForRoot = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
@@ -51,46 +49,70 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
 
+        /**
+         * Computes the required stats from the given input.
+         * @param stat A mapping that maps travel mode -> ( mapping from hour of the day -> list of travel times recorded during that hour)
+         * @return tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
+         */
         @Override
         public Tuple<List<String>, Tuple<double[][], Double>> compute(Map<String, Map<Integer, List<Double>>> stat) {
-            List<String> modeKeys = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
+            // Extract the travel modes recorded and sort them in ascending order
+            List<String> travelModes = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
+            // Extract the hours of the day recorded and sort them in order
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
+            // Get the maximum hour value
             int maxHour = hoursList.get(hoursList.size() - 1);
-            double[][] data = new double[modeKeys.size()][maxHour + 1];
-            for (int i = 0; i < modeKeys.size(); i++) {
-                data[i] = buildAverageTimesDataset(stat.get(modeKeys.get(i)));
+            // A 2D matrix to store average travel times by mode and hour (rows = travel mode ; columns = hour of the day)
+            double[][] averageTravelTimesByModeAndHour = new double[travelModes.size()][maxHour + 1];
+            for (int i = 0; i < travelModes.size(); i++) {
+                // compute the average travel times for each hour with the travel mode and save it to the respective row in data
+                averageTravelTimesByModeAndHour[i] = buildAverageTimesDataset(stat.get(travelModes.get(i)));
             }
+            // Calculate the average travel time for the entire day when the travel mode is CAR
             double dayAverageData = 0.0;
             if (stat.get(carMode) != null) {
                 dayAverageData = buildDayAverageDataset(stat.get(carMode));
             }
-            return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageData));
+            return new Tuple<>(travelModes, new Tuple<>(averageTravelTimesByModeAndHour, dayAverageData));
         }
 
-        private double[] buildAverageTimesDataset(Map<Integer, List<Double>> times) {
-            List<Integer> hoursList = new ArrayList<>(times.keySet());
+        /**
+         * Builds array data set with average travel time computed for each hour.
+         * @param travelTimesByHour A mapping from hour of the day -> list of travel times recorded during that hour
+         * @return array representing average times for each hour (array index = hour of the day)
+         */
+        private double[] buildAverageTimesDataset(Map<Integer, List<Double>> travelTimesByHour) {
+            // Extract and sort available hours in numeric order
+            List<Integer> hoursList = new ArrayList<>(travelTimesByHour.keySet());
             Collections.sort(hoursList);
-
+            // Get the maximum hour value
             int maxHour = hoursList.get(hoursList.size() - 1);
-            double[] travelTimes = new double[maxHour + 1];
+            // Declare an array to store the average travel times computed for each hour (where index = hour).
+            double[] averageTravelTimesWithHourIndex = new double[maxHour + 1];
+            // For each hour , now compute the average of all travel times available within that hour and
+            // save the average value to the array
             for (int i = 0; i <= maxHour; i++) {
-
-                List<Double> hourData = times.get(i);
+                List<Double> hourData = travelTimesByHour.get(i);
                 Double average = 0d;
                 if (hourData != null) {
                     average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
                 }
-                travelTimes[i] = average;
+                averageTravelTimesWithHourIndex[i] = average;
             }
-            return travelTimes;
+            return averageTravelTimesWithHourIndex;
         }
 
-        private double buildDayAverageDataset(Map<Integer, List<Double>> times) {
-            Set<Integer> hourSet = times.keySet();
+        /**
+         * Calculates the average of travel times during the day
+         * @param travelTimesByHour Map that maps from hour of the day -> travel times during that hour
+         * @return average travel time
+         */
+        private double buildDayAverageDataset(Map<Integer, List<Double>> travelTimesByHour) {
+            Set<Integer> hourSet = travelTimesByHour.keySet();
             int count = 0;
             double time = 0d;
             for (Integer i : hourSet) {
-                List<Double> hourData = times.get(i);
+                List<Double> hourData = travelTimesByHour.get(i);
                 if (hourData != null) {
                     time += hourData.stream().mapToDouble(val -> val).sum();
                     count += hourData.size();
@@ -111,61 +133,30 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
+        // tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
         Tuple<List<String>, Tuple<double[][], Double>> data = compute();
         List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond().getFirst();
-        averageTime.add(data.getSecond().getSecond());
+        double[][] averageTravelTimesByModeAndHour = data.getSecond().getFirst();
+        double averageTravelTimeInADayForCarMode = data.getSecond().getSecond();
+        averageTime.add(averageTravelTimeInADayForCarMode);
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {
-                double[][] singleDataSet = new double[1][dataSets[i].length];
-                singleDataSet[0] = dataSets[i];
-                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
+                // A single row matrix to store the averageTravelTimesByHour array in the column
+                double[][] dataSetMatrix = new double[1][averageTravelTimesByModeAndHour[i].length];
+                dataSetMatrix[0] = averageTravelTimesByModeAndHour[i];
+                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), dataSetMatrix);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
-            createRootGraphForAverageCarTravelTime(event);
             createNonArrivalAgentAtTheEndOfSimulationGraph(event.getIteration());
         }
 
         createNonArrivalAgentAtTheEndOfSimulationCSV(event.getIteration());
         createCSV(data, event.getIteration());
-        createRootCSVForAverageCarTravelTime(event);
-    }
-
-    public void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException {
-        double[][] singleCarDataSet = new double[1][event.getIteration() + 1];
-        for (int i = 0; i <= event.getIteration(); i++) {
-            singleCarDataSet[0][i] = averageTime.get(i);
-        }
-        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode, singleCarDataSet);
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename(fileNameForRoot + ".png");
-        createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration, carMode, fileName);
     }
 
     Tuple<List<String>, Tuple<double[][], Double>> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
-    }
-
-    private void createRootCSVForAverageCarTravelTime(IterationEndsEvent event) {
-        int currentIteration = event.getIteration();
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String csvFileName = outputDirectoryHierarchy.getOutputFilename(fileNameForRoot + ".csv");
-
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            out.write("iteration,averageCarTravelTime");
-            out.newLine();
-
-            for (int i = 0; i <= currentIteration; i++) {
-                double averageCarTravelTime = averageTime.get(i);
-                out.write(i + "," + averageCarTravelTime);
-                out.newLine();
-            }
-
-            out.flush();
-        } catch (IOException e) {
-            log.error("Error in Average Travel Time CSV generation", e);
-        }
     }
 
     private void createCSV(Tuple<List<String>, Tuple<double[][], Double>> data, int iteration) {
@@ -212,57 +203,33 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     }
 
     private void processPersonArrivalEvent(Event event) {
+        // Get person id and travel mode from the PersonArrivalEvent
         PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent) event;
         Id<Person> personId = personArrivalEvent.getPersonId();
         String mode = personArrivalEvent.getLegMode();
-
-        Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
-        if (departureEvents != null) {
-            PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
-            if (personDepartureEvent != null) {
-                int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
-                if (hourlyPersonTravelTimesPerMode == null) {
-                    hourlyPersonTravelTimesPerMode = new HashMap<>();
-                    List<Double> travelTimes = new ArrayList<>();
-                    travelTimes.add(travelTime);
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                } else {
-                    List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
-                    if (travelTimes == null) {
-                        travelTimes = new ArrayList<>();
-                        travelTimes.add(travelTime);
-                    } else {
-                        travelTimes.add(travelTime);
-                    }
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                }
-                hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
-                departureEvents.remove(personId);
-                personLastDepartureEvents.put(mode, departureEvents);
-            } else {
-                Set<String> modeSet = personLastDepartureEvents.keySet();
-                String selectedMode = null;
-                //Modeset is very small list hence we can iterate them
-                for (String mayBeMode : modeSet) {
-                    Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
-                    if (lastDepartureEvents.get(personId) != null) {
-                        personDepartureEvent = lastDepartureEvents.get(personId);
-                        selectedMode = mayBeMode;
-                        break;
-                    }
-                }
+        if (!mode.equalsIgnoreCase("car")) {
+            // personLastDepartureEvents(map) : travel mode -> (person -> previous departure event)
+            // Get the list of previous departures for the current arrival mode
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            // case : if previous departure events are available
+            if (departureEvents != null) {
+                // Get the departure event corresponding to the current person
+                PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
                 if (personDepartureEvent != null) {
+                    // Get the hour of the departure event
                     int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                    // Compute the travel travel time = current arrival time - previous departure time
                     Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
+                    // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
+                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                     if (hourlyPersonTravelTimesPerMode == null) {
+                        // if this is the first event , initiate and add the current travel time to the list of travel times
                         hourlyPersonTravelTimesPerMode = new HashMap<>();
                         List<Double> travelTimes = new ArrayList<>();
                         travelTimes.add(travelTime);
                         hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                     } else {
+                        // if not the first event , fetch the previously tracked travel times and add the current travel time to the list
                         List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                         if (travelTimes == null) {
                             travelTimes = new ArrayList<>();
@@ -272,25 +239,72 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                         }
                         hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                     }
-                    hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
-                    Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
-                    departureEventsList.remove(personId);
-                    personLastDepartureEvents.put(selectedMode, departureEventsList);
+                    hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
+                    // remove the previous departure event tracked from the current person and update the map
+                    departureEvents.remove(personId);
+                    personLastDepartureEvents.put(mode, departureEvents);
+                } else {
+                    // case : if no previous departures available for this person (or probably this is the first departure)
+                    Set<String> modeSet = personLastDepartureEvents.keySet();
+                    String selectedMode = null;
+                    // For each possible modes , check the last departure event tracked for the current person and select the mode as well
+                    //Modeset is very small list hence we can iterate them
+                    for (String mayBeMode : modeSet) {
+                        Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
+                        if (lastDepartureEvents.get(personId) != null) {
+                            personDepartureEvent = lastDepartureEvents.get(personId);
+                            selectedMode = mayBeMode;
+                            break;
+                        }
+                    }
+                    if (personDepartureEvent != null) {
+                        int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                        Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                        Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
+                        if (hourlyPersonTravelTimesPerMode == null) {
+                            hourlyPersonTravelTimesPerMode = new HashMap<>();
+                            List<Double> travelTimes = new ArrayList<>();
+                            travelTimes.add(travelTime);
+                            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                        } else {
+                            List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
+                            if (travelTimes == null) {
+                                travelTimes = new ArrayList<>();
+                                travelTimes.add(travelTime);
+                            } else {
+                                travelTimes.add(travelTime);
+                            }
+                            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                        }
+                        hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
+                        Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
+                        departureEventsList.remove(personId);
+                        personLastDepartureEvents.put(selectedMode, departureEventsList);
+                    }
                 }
             }
         }
     }
 
+    /**
+     * Processes the current person departure event and tracks the departure details for further processing.
+     * @param event Person Departure Event
+     */
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
-
-        String mode = personDepartureEvent.getLegMode();
-        Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
-        if (departureEvents == null) {
-            departureEvents = new HashMap<>();
+        if(!personDepartureEvent.getLegMode().equalsIgnoreCase("car")){
+            // Extract the mode of the departure event
+            String mode = personDepartureEvent.getLegMode();
+            // Get the list of previous departures tracked for this mode
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            // Add/update the entry : current person -> current departure event
+            if (departureEvents == null) {
+                departureEvents = new HashMap<>();
+            }
+            departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
+            // Add/update the entry : mode -> (person -> previous departure event)
+            personLastDepartureEvents.put(mode, departureEvents);
         }
-        departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
-        personLastDepartureEvents.put(mode, departureEvents);
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
@@ -335,33 +349,9 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     }
 
-    private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
-        String graphTitle = "Average Travel Time [" + mode + "]";
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisRootTitle, yAxisTitle, fileName, false);
-        CategoryPlot plot = chart.getCategoryPlot();
-        GraphUtils.plotLegendItems(plot, dataset.getRowCount());
-        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-    }
-
-
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }
 
-    private CategoryDataset buildAverageTimeDatasetGraphForRoot(String mode, double[][] dataset) {
-        return createCategoryRootDataset(mode, "", dataset);
-    }
-
-    private static CategoryDataset createCategoryRootDataset(String rowKeyPrefix, String columnKeyPrefix, double[][] data) {
-        DefaultCategoryDataset result = new DefaultCategoryDataset();
-        for (int r = 0; r < data.length; r++) {
-            String rowKey = rowKeyPrefix + (r + 1);
-            for (int c = 0; c < data[r].length; c++) {
-                String columnKey = columnKeyPrefix + (c);
-                result.addValue(new Double(data[r][c]), rowKey, columnKey);
-            }
-        }
-        return result;
-    }
 }
