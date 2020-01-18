@@ -174,7 +174,7 @@ class AlonsoMoraPoolingAlgForRideHail(
     rTvG
   }
 
-  private def optimalAssignment(rTvG: RTVGraph): List[RideHailTrip] = {
+  def optimalAssignment(rTvG: RTVGraph): List[RideHailTrip] = {
     val optimalAssignment = mutable.ListBuffer.empty[RideHailTrip]
     val combinations = rTvG
       .vertexSet()
