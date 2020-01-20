@@ -848,12 +848,12 @@ trait BeamHelper extends LazyLogging {
           if (parkingZone.chargingPointType.nonEmpty) {
             cntChargingDepots += 1
             cntChargingDepotsStalls += parkingZone.stallsAvailable
-          }
+        }
       )
 
       var cntPublicFastCharge = 0
       var cntPublicFastChargeStalls = 0
-      if(publicFastChargerFilePath.nonEmpty){
+      if (publicFastChargerFilePath.nonEmpty) {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
         val (publicChargers, _) =
           ParkingZoneFileUtils.fromFile(publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
@@ -865,21 +865,15 @@ trait BeamHelper extends LazyLogging {
                 cntPublicFastCharge += 1
                 cntPublicFastChargeStalls += publicCharger.stallsAvailable
               }
-            }
+          }
         )
       }
 
       writeMetric("beam-run-charging-depots-cnt", cntChargingDepots)
 
-      if (beamConfig.beam.agentsim.taz.parkingStallChargerInitMethod == "UNLIMITED") {
-        writeStrMetric("beam-run-public-fast-charge-cnt", "UNLIMITED")
-        writeStrMetric("beam-run-public-fast-charge-stalls-cnt", "UNLIMITED")
-        writeStrMetric("beam-run-charging-depots-stalls-cnt", "UNLIMITED")
-      } else {
-        writeMetric("beam-run-public-fast-charge-cnt", cntPublicFastCharge)
-        writeMetric("beam-run-public-fast-charge-stalls-cnt", cntPublicFastChargeStalls)
-        writeMetric("beam-run-charging-depots-stalls-cnt", cntChargingDepotsStalls)
-      }
+      writeMetric("beam-run-public-fast-charge-cnt", cntPublicFastCharge)
+      writeMetric("beam-run-public-fast-charge-stalls-cnt", cntPublicFastChargeStalls)
+      writeMetric("beam-run-charging-depots-stalls-cnt", cntChargingDepotsStalls)
     } else {
       logger.error(
         s"Can't read charging information not from 'beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath' nor from 'beamConfig.beam.agentsim.taz.parkingFilePath'. Metrics will get 0 values."
