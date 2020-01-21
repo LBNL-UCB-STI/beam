@@ -179,8 +179,20 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rideHailManager.log
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       }
+//      val alg =
+//        new VehicleCentricMatchingForRideHail(
+//          spatialPoolCustomerReqs,
+//          availVehicles,
+//          rideHailManager.beamServices
+//        )
+//      val alg =
+//        new AsyncAlonsoMoraAlgForRideHail(
+//          spatialPoolCustomerReqs,
+//          availVehicles,
+//          rideHailManager.beamServices
+//        )
       val alg =
-        new VehicleCentricMatchingForRideHail(
+        new AlonsoMoraPoolingAlgForRideHail(
           spatialPoolCustomerReqs,
           availVehicles,
           rideHailManager.beamServices
