@@ -1,7 +1,14 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RHMatchingAlgorithm, RTVGraph, RVGraph, RideHailTrip, VehicleAndSchedule}
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
+  CustomerRequest,
+  RHMatchingAlgorithm,
+  RTVGraph,
+  RVGraph,
+  RideHailTrip,
+  VehicleAndSchedule
+}
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
@@ -17,9 +24,9 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
 class AlonsoMoraPoolingAlgForRideHail(
-                                       spatialDemand: QuadTree[CustomerRequest],
-                                       supply: List[VehicleAndSchedule],
-                                       beamServices: BeamServices
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices
 ) extends RHMatchingAlgorithm {
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
@@ -181,7 +188,6 @@ class AlonsoMoraPoolingAlgForRideHail(
       .asScala
       .filter(t => t.isInstanceOf[RideHailTrip])
       .map(_.asInstanceOf[RideHailTrip])
-      //.map(t => (t.asInstanceOf[RideHailTrip], t.asInstanceOf[RideHailTrip].getId.split(":")(1)))
       .toList
     if (combinations.nonEmpty) {
       val trips = combinations.map(_.getId.split(":")(1)).distinct.toArray
@@ -196,15 +202,14 @@ class AlonsoMoraPoolingAlgForRideHail(
           val j = vehicles.indexOf(vehicle.get)
           // + constraint 1
           val ct1_j = solver.makeConstraint(0.0, 1.0, s"ct1_$j")
-          alternatives.foreach {
-            trip =>
-              val tripId = trip.getId.split(":")(1)
-              val i = trips.indexOf(tripId)
-              val c_ij = trip.sumOfDelays
-              val (epsilon_ij, _) = epsilonCostMap
-                .getOrElseUpdate(i, mutable.Map.empty[Integer, (MPVariable, Double)])
-                .getOrElseUpdate(j, (solver.makeBoolVar(s"epsilon($i,$j)"), c_ij))
-              ct1_j.setCoefficient(epsilon_ij, 1)
+          alternatives.foreach { trip =>
+            val tripId = trip.getId.split(":")(1)
+            val i = trips.indexOf(tripId)
+            val c_ij = trip.sumOfDelays
+            val (epsilon_ij, _) = epsilonCostMap
+              .getOrElseUpdate(i, mutable.Map.empty[Integer, (MPVariable, Double)])
+              .getOrElseUpdate(j, (solver.makeBoolVar(s"epsilon($i,$j)"), c_ij))
+            ct1_j.setCoefficient(epsilon_ij, 1)
           }
       }
       spatialDemand
@@ -218,12 +223,11 @@ class AlonsoMoraPoolingAlgForRideHail(
             val c_k0 = 24 * 3600
             val chiVar = solver.makeBoolVar(s"chi($k)")
             val ct2_k = solver.makeConstraint(1.0, 1.0, s"ct2_$k")
-            alternatives.foreach {
-              trip =>
-                val tripId = trip.getId.split(":")(1)
-                val i = trips.indexOf(tripId)
-                val j = vehicles.indexOf(trip.vehicle.get)
-                ct2_k.setCoefficient(epsilonCostMap(i)(j)._1, 1)
+            alternatives.foreach { trip =>
+              val tripId = trip.getId.split(":")(1)
+              val i = trips.indexOf(tripId)
+              val j = vehicles.indexOf(trip.vehicle.get)
+              ct2_k.setCoefficient(epsilonCostMap(i)(j)._1, 1)
             }
             ct2_k.setCoefficient(chiVar, 1)
             // Ck0 * Chi
