@@ -1,6 +1,13 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RHMatchingAlgorithm, RTVGraph, RTVGraphNode, RideHailTrip, VehicleAndSchedule}
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
+  CustomerRequest,
+  RHMatchingAlgorithm,
+  RTVGraph,
+  RTVGraphNode,
+  RideHailTrip,
+  VehicleAndSchedule
+}
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
@@ -14,9 +21,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class AsyncAlonsoMoraAlgForRideHail(
-                                     spatialDemand: QuadTree[CustomerRequest],
-                                     supply: List[VehicleAndSchedule],
-                                     beamServices: BeamServices
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices
 ) extends RHMatchingAlgorithm {
 
   private val solutionSpaceSizePerVehicle =
