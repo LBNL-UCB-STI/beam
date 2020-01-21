@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents._
-import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.CustomerRequest
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -9,9 +9,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.{ODSkims, Skims}
+import beam.router.skim.Skims
 import beam.sim.BeamServices
-import beam.sim.vehiclesharing.VehicleManager
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -144,7 +143,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         (
           vehiclePoolToUse.map { veh =>
             val vehState = rideHailManager.vehicleManager.getVehicleState(veh.vehicleId)
-            val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
+            val vehAndSched = RHMatchingToolkit.createVehicleAndScheduleFromRideHailAgentLocation(
               veh,
               Math.max(tick, veh.latestTickExperienced),
               rideHailManager.beamServices,
@@ -161,7 +160,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           }.toList,
           pooledAllocationReqs.map(
             rhr =>
-              createPersonRequest(
+              RHMatchingToolkit.createPersonRequest(
                 rhr.customer,
                 rhr.pickUpLocationUTM,
                 tick,
@@ -196,7 +195,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
 
       assignment.foreach {
-        case (theTrip, vehicleAndOldSchedule, cost) =>
+        theTrip =>
+          val vehicleAndOldSchedule = theTrip.vehicle.get
           // Pooling alg can return a schedule identical to one that is already in progress, for these we ignore
           if (theTrip.schedule != vehicleAndOldSchedule.schedule) {
             rideHailManager.log.debug(

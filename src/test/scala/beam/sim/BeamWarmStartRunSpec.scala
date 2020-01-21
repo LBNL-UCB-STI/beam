@@ -1,8 +1,11 @@
 package beam.sim
 
+import java.util.concurrent.TimeUnit
+
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
@@ -27,8 +30,8 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
       val (_, output) = runBeamWithConfig(baseConf)
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 1))
-      averageCarSpeedIt0 should equal(5.9 +- 1.6)
-      averageCarSpeedIt1 should equal(5.9 +- 1.6)
+      averageCarSpeedIt0 should equal(4.0 +- 1.6)
+      averageCarSpeedIt1 should equal(6.0 +- 1.6)
 
     }
   }
@@ -37,7 +40,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(iterationNumber, PersonTravelTimeAnalysis.fileBaseName + ".csv")
+    outputDirectoryHierarchy.getIterationFilename(iterationNumber, "CarRideStats.csv.gz")
   }
 
 }
@@ -45,16 +48,14 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
 object BeamWarmStartRunSpec {
 
   def avgCarModeFromCsv(filePath: String): Double = {
-    val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
-      source.getLines().find(_.startsWith("car"))
+    val (rdr, toClose) =
+      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, x => true)
+    try {
+      val travelTimes = rdr.toArray
+      val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
+      TimeUnit.SECONDS.toMinutes(avg.toLong)
+    } finally {
+      toClose.close()
     }
-    val allHourAvg = carLine
-      .getOrElse(throw new IllegalStateException("The line does not contain 'car' as TravelTimeMode"))
-      .split(",")
-      .tail
-      .map(_.toDouble)
-
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
-    relevantTimes.sum / relevantTimes.length
   }
 }
