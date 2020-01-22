@@ -8,13 +8,12 @@ import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
 import beam.utils.csv.CsvWriter
 import beam.utils.{EventReader, NetworkHelper, NetworkHelperImpl, Statistics}
-import com.google.common.base.CaseFormat
 import com.typesafe.scalalogging.LazyLogging
-import org.jfree.chart.JFreeChart
-import org.jfree.chart.plot.CategoryPlot
-import org.jfree.data.category.CategoryDataset
+import org.jfree.chart.ChartFactory
+import org.jfree.chart.plot.PlotOrientation
+import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.jfree.data.general.DatasetUtilities
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent}
@@ -23,6 +22,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -38,7 +38,10 @@ class CarRideStatsFromPathTraversalEventHandler(
 
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
   private val averageTravelTimePerIteration: collection.mutable.MutableList[Long] =
-    collection.mutable.MutableList.empty[Long]
+    collection.mutable.MutableList.empty
+
+  private val averageCarSpeedPerIterationByType: collection.mutable.MutableList[Map[CarType, Double]] =
+    collection.mutable.MutableList.empty
 
   val statsHeader: Array[String] = Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
 
@@ -75,22 +78,33 @@ class CarRideStatsFromPathTraversalEventHandler(
     maybeFreeFlowTravelSpeedStatsWriter
   ).flatten
 
-  private val carPathTraversals: ArrayBuffer[PathTraversalEvent] = ArrayBuffer.empty
+  private val carType2PathTraversals: mutable.Map[CarType, ArrayBuffer[PathTraversalEvent]] =
+    mutable.HashMap().withDefault(_ => ArrayBuffer.empty)
 
   override def handleEvent(event: Event): Unit = {
     event match {
-      case pte: PathTraversalEvent if isCarAndNotRideHail(pte) =>
-        carPathTraversals += pte
+      case pte: PathTraversalEvent if pte.mode == BeamMode.CAR =>
+        if (isCav(pte))
+          carType2PathTraversals(CAV) = carType2PathTraversals(CAV) += pte
+        else if (isRideHail(pte))
+          carType2PathTraversals(RideHail) = carType2PathTraversals(RideHail) += pte
+        else
+          carType2PathTraversals(Personal) = carType2PathTraversals(Personal) += pte
+
       case _ =>
     }
   }
 
-  private def isCarAndNotRideHail(pte: PathTraversalEvent): Boolean = {
-    pte.mode == BeamMode.CAR && !pte.vehicleId.toString.startsWith("rideHailVehicle")
+  private def isRideHail(pte: PathTraversalEvent): Boolean = {
+    pte.vehicleId.toString.startsWith("rideHailVehicle")
   }
 
-  def calcRideStats(iterationNumber: Int): Seq[SingleRideStat] = {
-    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carPathTraversals)
+  private def isCav(pte: PathTraversalEvent): Boolean = {
+    pte.vehicleType == "CAV"
+  }
+
+  def calcRideStats(iterationNumber: Int, carType: CarType): Seq[SingleRideStat] = {
+    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carType2PathTraversals(carType))
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): IterationCarRideStats = {
@@ -98,16 +112,28 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val rideStats: Seq[SingleRideStat] = calcRideStats(event.getIteration)
-    writeRideStats(event.getIteration, rideStats)
+    val type2RideStats: Map[CarType, Seq[SingleRideStat]] = carType2PathTraversals.keys.map { carType =>
+      carType -> calcRideStats(event.getIteration, carType)
+    }.toMap
 
-    val carRideStatistics: IterationCarRideStats = getIterationCarRideStats(event.getIteration, rideStats)
+    writePersonalCarRideStats(event.getIteration, type2RideStats(Personal))
 
-    //save average travel time for the current iteration
+    val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
+      getIterationCarRideStats(event.getIteration, singleRideStats)
+    }
+
+    //save average personal car travel time for the current iteration
     averageTravelTimePerIteration += java.util.concurrent.TimeUnit.SECONDS
-      .toMinutes(carRideStatistics.travelTime.stats.avg.toLong)
+      .toMinutes(type2Statistics(Personal).travelTime.stats.avg.toLong)
+
     // generate average travel times graph at root level
     createRootGraphForAverageCarTravelTime(event)
+
+    averageCarSpeedPerIterationByType += type2Statistics.mapValues(_.speed.stats.avg)
+
+    createRootGraphForAverageCarSpeedByType(event)
+
+    val rideStats = type2RideStats(Personal)
 
     // group single ride stats by departure time ( in hours)
     val rideStatsGroupByDepartureTime = rideStats
@@ -122,13 +148,54 @@ class CarRideStatsFromPathTraversalEventHandler(
     createIterationGraphForAverageCarTravelTime(iterationGraphData, event.getIteration)
 
     // write the iteration level car ride stats to output file
-    writeIterationCarRideStats(event, carRideStatistics)
+    writeIterationCarRideStats(event, type2Statistics(Personal))
 
-    carPathTraversals.clear()
+    carType2PathTraversals.clear()
   }
 
   /**
+    * Create graph for average car speed for every type + average of all in root folder
+    *
+    * @param event IterationEndsEvent
+    */
+  private def createRootGraphForAverageCarSpeedByType(event: IterationEndsEvent): Unit = {
+    val dataset = new DefaultCategoryDataset
+
+    averageCarSpeedPerIterationByType.zipWithIndex
+      .foreach {
+        case (type2Speed, iteration) =>
+          val average = if (type2Speed.values.isEmpty) 0.0 else type2Speed.values.sum / type2Speed.values.size
+          dataset.addValue(average, "Average", iteration + 1)
+
+          type2Speed.foreach {
+            case (carType, speed) =>
+              dataset.addValue(speed, carType.getClass.getSimpleName.replace("$", ""), iteration + 1)
+          }
+      }
+
+    val chart = ChartFactory.createLineChart(
+      "Average car speed",
+      "Iteration",
+      "m / s",
+      dataset,
+      PlotOrientation.VERTICAL,
+      true,
+      true,
+      false
+    )
+
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      event.getServices.getControlerIO.getOutputFilename("averageCarSpeed.png"),
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
+  }
+
+
+  /**
     * Generates category dataset used to generate graph at iteration level.
+    *
     * @return dataset for average travel times graph at iteration level
     */
   private def generateGraphDataForAverageTravelTimes(
@@ -153,6 +220,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 
   /**
     * Plots graph for average travel times at root level
+    *
     * @param event IterationEndsEvent
     */
   private def createRootGraphForAverageCarTravelTime(event: IterationEndsEvent): Unit = {
@@ -181,6 +249,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 
   /**
     * Plots graph for average travel times per hour at iteration level
+    *
     * @param dataset category dataset for graph genration
     * @param iterationNumber iteration number
     */
@@ -206,7 +275,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
-  private def writeRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): Unit = {
+  private def writePersonalCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): Unit = {
     val maybeOutputPath = maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, "CarRideStats.csv.gz"))
     maybeOutputPath.foreach { outputPath =>
       val csvWriter =
@@ -398,7 +467,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val iterationNumber = Try(args(2).toInt).toOption.getOrElse(-1)
 
     val c = CarRideStatsFromPathTraversalEventHandler(pathToNetwork, eventsFilePath)
-    val rideStats = c.calcRideStats(iterationNumber)
+    val rideStats = c.calcRideStats(iterationNumber, Personal)
     val iterationCarRideStats = c.getIterationCarRideStats(iterationNumber, rideStats)
     logger.info("IterationCarRideStats:")
     logger.info(s"travelTime: ${iterationCarRideStats.travelTime}")
