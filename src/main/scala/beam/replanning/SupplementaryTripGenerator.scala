@@ -18,16 +18,25 @@ class SupplementaryTripGenerator(
 ) {
 
   def generateSubtour(currentActivity: Activity): List[Activity] = {
-    val (startTime, endTime) = generateSubtourStartAndEndTime(currentActivity)
-    val newActivity = PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", currentActivity.getCoord)
-    val activityBeforeNewActivity = PopulationUtils.createActivityFromCoord("Work2", currentActivity.getCoord)
+    if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)){
+      val (startTime, endTime) = generateSubtourStartAndEndTime(currentActivity)
+      val newActivity = PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", currentActivity.getCoord)
+      val activityBeforeNewActivity = PopulationUtils.createActivityFromCoord("Work_Before", currentActivity.getCoord)
+      val activityAfterNewActivity = PopulationUtils.createActivityFromCoord("Work_After", currentActivity.getCoord)
 
-    activityBeforeNewActivity.setEndTime(startTime)
-    activityBeforeNewActivity.setStartTime(currentActivity.getStartTime)
+      activityBeforeNewActivity.setStartTime(currentActivity.getStartTime)
+      activityBeforeNewActivity.setEndTime(startTime)
 
-    currentActivity.setStartTime(endTime)
+      newActivity.setStartTime(startTime)
+      newActivity.setEndTime(endTime)
 
-    List(activityBeforeNewActivity, newActivity, currentActivity)
+      activityAfterNewActivity.setStartTime(endTime)
+      activityAfterNewActivity.setEndTime(currentActivity.getEndTime)
+
+      List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
+    } else {
+      List(currentActivity)
+    }
 
   }
 
@@ -43,7 +52,7 @@ class SupplementaryTripGenerator(
   }
 
   def generateSubtourStartAndEndTime(currentActivity: Activity): (Double, Double) = {
-    val maxDuration = currentActivity.getMaximumDuration
+    val maxDuration = currentActivity.getMaximumDuration.max(currentActivity.getEndTime - currentActivity.getStartTime).min(300)
     (currentActivity.getStartTime + maxDuration / 3, currentActivity.getEndTime - maxDuration / 3)
   }
 
