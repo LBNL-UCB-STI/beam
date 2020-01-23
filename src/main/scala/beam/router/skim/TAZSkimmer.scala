@@ -3,7 +3,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
@@ -70,6 +70,10 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
       numObservations = prevSkim.numObservations + currSkim.numObservations,
       numIteration = beamServices.matsimServices.getIterationNumber + 1
     )
+  }
+
+  def assignCoordToTazId(coord: Coord): Id[TAZ] = {
+    beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
   }
 }
 

@@ -345,8 +345,7 @@ class PersonAgent(
                       pair.last.activity.getCoord,
                       0,
                       CAR,
-                      currentBeamVehicle.beamVehicleType.id,
-                      beamServices
+                      currentBeamVehicle.beamVehicleType.id
                     )
                     .distance
                 )
