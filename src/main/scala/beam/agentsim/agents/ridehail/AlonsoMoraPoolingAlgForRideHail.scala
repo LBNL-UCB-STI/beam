@@ -220,8 +220,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       Id.create(
         beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
-      ),
-      beamServices
+      )
     )
   }
 
@@ -295,8 +294,7 @@ object AlonsoMoraPoolingAlgForRideHail {
         Id.create(
           beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
-        ),
-        beamServices
+        )
       )
     CustomerRequest(
       vehiclePersonId,

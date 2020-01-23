@@ -218,8 +218,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             origin.coord,
                             newDestCoord,
                             timeBin * 3600,
-                            dummyId,
-                            beamServices
+                            dummyId
                           )
                       } else {
                         readOnlySkim
@@ -229,8 +228,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             origin.coord,
                             destination.coord,
                             timeBin * 3600,
-                            dummyId,
-                            beamServices
+                            dummyId
                           )
                       }
                     }
@@ -280,8 +278,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
               origin.coord,
               adjustedDestCoord,
               timeBin * 3600,
-              dummyId,
-              beamServices
+              dummyId
             )
         }
     }
@@ -315,6 +312,10 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       sumWeights = sumWeights,
       weightedEnergy = weightedEnergy
     )
+  }
+
+  def assignCoordToTazId(coord: Coord): Id[TAZ] = {
+    beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
   }
 }
 
