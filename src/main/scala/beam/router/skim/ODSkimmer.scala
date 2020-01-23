@@ -314,9 +314,6 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     )
   }
 
-  def assignCoordToTazId(coord: Coord): Id[TAZ] = {
-    beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
-  }
 }
 
 object ODSkimmer extends LazyLogging {
