@@ -30,6 +30,7 @@ plugins {
 }
 
 apply plugin: 'java'
+apply plugin: 'java-library'
 apply plugin: 'scala'
 apply plugin: 'maven'
 apply plugin: 'idea'
@@ -225,7 +226,7 @@ dependencies {
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
-    compile (group: 'io.github.oliviercailloux', name: 'google-or-tools', version: '6.7.2') {
+    api ('io.github.oliviercailloux:google-or-tools:6.7.2') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 

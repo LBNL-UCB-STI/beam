@@ -3,25 +3,24 @@ package beam.sim
 import java.io.{BufferedWriter, FileWriter}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, AsyncAlonsoMoraAlgForRideHail, RHMatchingToolkit, VehicleCentricMatchingForRideHail}
 import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
+import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, AsyncAlonsoMoraAlgForRideHail, RHMatchingToolkit, VehicleCentricMatchingForRideHail}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{BeamConfigUtils, FileUtils}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.immutable.List
-import scala.util.Random
 import scala.collection.JavaConverters._
+import scala.collection.immutable.List
 import scala.concurrent.duration._
 import scala.concurrent.{Await, TimeoutException}
+import scala.util.Random
 
 object MatchingPerformance extends BeamHelper {
 
