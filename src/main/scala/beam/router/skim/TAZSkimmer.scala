@@ -71,10 +71,6 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
       numIteration = beamServices.matsimServices.getIterationNumber + 1
     )
   }
-
-  def assignCoordToTazId(coord: Coord): Id[TAZ] = {
-    beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
-  }
 }
 
 object TAZSkimmer extends LazyLogging {

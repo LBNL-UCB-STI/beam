@@ -313,7 +313,6 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       weightedEnergy = weightedEnergy
     )
   }
-
 }
 
 object ODSkimmer extends LazyLogging {
