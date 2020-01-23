@@ -225,9 +225,13 @@ dependencies {
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
-    compile (group: 'io.github.oliviercailloux', name: 'google-or-tools', version: '6.7.2') {
-        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    if (!project.file('build/google-or-tools-6.7.2.jar').exists()) {
+        download {
+            src 'https://repo1.maven.org/maven2/io/github/oliviercailloux/google-or-tools/6.7.2/google-or-tools-6.7.2.jar'
+            dest buildDir
+        }
     }
+    compile files('build/google-or-tools-6.7.2.jar')
 
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
