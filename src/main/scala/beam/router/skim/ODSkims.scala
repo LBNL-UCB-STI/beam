@@ -116,7 +116,10 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
     destinationUTM: Location,
     departureTime: Int,
     mode: BeamMode,
-    vehicleTypeId: Id[BeamVehicleType]
+    vehicleTypeId: Id[BeamVehicleType] = Id.create(
+      beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      classOf[BeamVehicleType]
+    )
   ): Skim = {
     val origTaz = beamServices.beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
     val destTaz = beamServices.beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId

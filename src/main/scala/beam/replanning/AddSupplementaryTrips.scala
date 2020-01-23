@@ -1,5 +1,6 @@
 package beam.replanning
 
+import beam.sim.population.AttributesOfIndividual
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Leg, Person, Plan}
 import org.matsim.core.config.Config
@@ -18,10 +19,12 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)
 
-    config.subtourModeChoice()
+    val supplementaryTripGenerator = new SupplementaryTripGenerator(
+      person.getSelectedPlan.getPerson.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+    )
 
     val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
-      addSecondaryActivities(person.getSelectedPlan, person.getSelectedPlan.getPerson)
+      addSecondaryActivities(person.getSelectedPlan, person.getSelectedPlan.getPerson, supplementaryTripGenerator)
     )
 
     newPlan.getPlanElements.forEach {
@@ -37,23 +40,15 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
     log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
   }
 
-  private def possiblyAddSubtour(activity: Activity, person: Person): List[Activity] = {
-    val maxdur = activity.getMaximumDuration
+  private def possiblyAddSubtour(activity: Activity, person: Person, generator: SupplementaryTripGenerator): List[Activity] = {
     activity.getType match {
       case "Home" => List[Activity](activity)
-      case "Work" =>
-        val newActivity = PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", activity.getCoord)
-        newActivity.setEndTime(activity.getEndTime - maxdur / 3)
-        val activityBeforeNewActivity = PopulationUtils.createActivityFromCoord("Work2", activity.getCoord)
-        activityBeforeNewActivity.setEndTime(activity.getEndTime - 2 * maxdur / 3)
-        activityBeforeNewActivity.setStartTime(activity.getStartTime)
-        activity.setStartTime(Double.NegativeInfinity)
-        List(activityBeforeNewActivity, newActivity, activity)
+      case "Work" => generator.generateSubtour(activity)
       case _ => List[Activity](activity)
     }
   }
 
-  private def addSecondaryActivities(plan: Plan, person: Person): Plan = {
+  private def addSecondaryActivities(plan: Plan, person: Person, generator: SupplementaryTripGenerator): Plan = {
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
     val newActivitiesToAdd = elements.zipWithIndex.map {
@@ -64,7 +59,7 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
           0
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        possiblyAddSubtour(planElement, person)
+        possiblyAddSubtour(planElement, person, generator)
     }
     newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)
