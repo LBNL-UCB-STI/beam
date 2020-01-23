@@ -176,6 +176,7 @@ class BeamSim @Inject()(
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)
+    MatchingPerformance.runTest(8 * 3600, 4, 4, 100, "fast")
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
