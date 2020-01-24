@@ -38,11 +38,15 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
     log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
   }
 
-  private def possiblyAddSubtour(activity: Activity, person: Person, generator: SupplementaryTripGenerator): List[Activity] = {
+  private def possiblyAddSubtour(
+    activity: Activity,
+    person: Person,
+    generator: SupplementaryTripGenerator
+  ): List[Activity] = {
     activity.getType match {
       case "Home" => List[Activity](activity)
       case "Work" => generator.generateSubtour(activity)
-      case _ => List[Activity](activity)
+      case _      => List[Activity](activity)
     }
   }
 
