@@ -17,28 +17,31 @@ class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual
 ) {
   val tazChoiceSet = generateTazChoiceSet(20)
+  val travelTimeBufferInSec = 30 * 60
+  val r = scala.util.Random
 
   def generateSubtour(currentActivity: Activity): List[Activity] = {
     if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)) {
-      val (startTime, endTime) = generateSubtourStartAndEndTime(currentActivity)
+      val newActivityDuration = 10 * 60
+      val (startTime, endTime) = generateSubtourStartAndEndTime(currentActivity, newActivityDuration)
 
       val tazCosts = gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime)
 
-      val chozenTazAndCost = tazCosts.toSeq.minBy(_._2.cost)
+      val chozenTazAndCost = tazCosts.toSeq.sortBy(_._2.cost).apply(3)
 
       val newActivity =
         PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", TAZTreeMap.randomLocationInTAZ(chozenTazAndCost._1))
-      if ((chozenTazAndCost._2.departureTime > currentActivity.getStartTime) & (chozenTazAndCost._2.returnTime < currentActivity.getEndTime)) {
+      if ((chozenTazAndCost._2.accessTime + chozenTazAndCost._2.returnTime + newActivityDuration + 2 * travelTimeBufferInSec) < (currentActivity.getEndTime - currentActivity.getStartTime)) {
         val activityBeforeNewActivity = PopulationUtils.createActivityFromCoord("Work_Before", currentActivity.getCoord)
         val activityAfterNewActivity = PopulationUtils.createActivityFromCoord("Work_After", currentActivity.getCoord)
 
         activityBeforeNewActivity.setStartTime(currentActivity.getStartTime)
-        activityBeforeNewActivity.setEndTime(startTime)
+        activityBeforeNewActivity.setEndTime(startTime - chozenTazAndCost._2.accessTime)
 
         newActivity.setStartTime(startTime)
         newActivity.setEndTime(endTime)
 
-        activityAfterNewActivity.setStartTime(endTime)
+        activityAfterNewActivity.setStartTime(endTime + chozenTazAndCost._2.returnTime)
         activityAfterNewActivity.setEndTime(currentActivity.getEndTime)
 
         List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
@@ -89,21 +92,25 @@ class SupplementaryTripGenerator(
         desiredReturnTimeBin,
         mode
       )
-    val combinedSkim = accessTripSkim + Skim(
-      activityDurationInSeconds.toInt,
-      -activityDurationInSeconds
-    ) + egressTripSkim
+    val combinedSkim = accessTripSkim + Skim(activityDurationInSeconds.toInt) + egressTripSkim
     TimesAndCost(
-      newActivityStartTime - accessTripSkim.time,
-      newActivityEndTime + egressTripSkim.time,
+      accessTripSkim.time,
+      egressTripSkim.time,
       attributesOfIndividual.getVOT(combinedSkim.generalizedTime / 3600) + combinedSkim.cost
     )
   }
 
-  private def generateSubtourStartAndEndTime(currentActivity: Activity): (Double, Double) = {
-    val maxDuration =
-      currentActivity.getMaximumDuration.max(currentActivity.getEndTime - currentActivity.getStartTime).min(300)
-    (currentActivity.getStartTime + maxDuration / 3, currentActivity.getEndTime - maxDuration / 3)
+  private def generateSubtourStartAndEndTime(
+    currentActivity: Activity,
+    newActivityDuration: Double
+  ): (Double, Double) = {
+    val currentActivityDuration = currentActivity.getEndTime - currentActivity.getStartTime
+    val feasibleWindowDuration = currentActivityDuration - newActivityDuration - 2 * travelTimeBufferInSec
+    val startTimeBuffer = r.nextDouble() * feasibleWindowDuration + travelTimeBufferInSec
+    (
+      currentActivity.getStartTime + startTimeBuffer,
+      currentActivity.getStartTime + startTimeBuffer + newActivityDuration
+    )
   }
 
   private def generateTazChoiceSet(n: Int): List[TAZ] = {
@@ -114,5 +121,5 @@ class SupplementaryTripGenerator(
     (time / 3600).toInt
   }
 
-  case class TimesAndCost(departureTime: Double = 0, returnTime: Double = 0, cost: Double = 0)
+  case class TimesAndCost(accessTime: Double = 0, returnTime: Double = 0, cost: Double = 0)
 }
