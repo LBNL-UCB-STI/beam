@@ -24,7 +24,7 @@ class SupplementaryTripGenerator(
 
       val tazCosts = gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime)
 
-      val chozenTazAndCost = tazCosts.toSeq.minBy(_._2)
+      val chozenTazAndCost = tazCosts.toSeq.minBy(_._2.cost)
 
       val newActivity =
         PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", TAZTreeMap.randomLocationInTAZ(chozenTazAndCost._1))
