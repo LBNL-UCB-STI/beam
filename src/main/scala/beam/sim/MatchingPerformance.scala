@@ -4,7 +4,12 @@ import java.io.{BufferedWriter, FileWriter}
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
-import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, AsyncAlonsoMoraAlgForRideHail, RHMatchingToolkit, VehicleCentricMatchingForRideHail}
+import beam.agentsim.agents.ridehail.{
+  AlonsoMoraPoolingAlgForRideHail,
+  AsyncAlonsoMoraAlgForRideHail,
+  RHMatchingToolkit,
+  VehicleCentricMatchingForRideHail
+}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{BeamConfigUtils, FileUtils}
@@ -114,10 +119,10 @@ object MatchingPerformance extends BeamHelper {
   }
 
   private def vehicleCentricMatchingForRideHail(
-                                                 demand: QuadTree[CustomerRequest],
-                                                 supply: List[VehicleAndSchedule],
-                                                 services: BeamServices
-                                               ): List[RideHailTrip] = {
+    demand: QuadTree[CustomerRequest],
+    supply: List[VehicleAndSchedule],
+    services: BeamServices
+  ): List[RideHailTrip] = {
     val alg1 = new VehicleCentricMatchingForRideHail(demand, supply, services)
     var assignments = List.empty[RideHailTrip]
     var elapsed = -1.0
@@ -143,10 +148,10 @@ object MatchingPerformance extends BeamHelper {
   }
 
   private def alonsoMoraPoolingAlgForRideHail(
-                                               demand: QuadTree[CustomerRequest],
-                                               supply: List[VehicleAndSchedule],
-                                               services: BeamServices
-                                             ): List[RideHailTrip] = {
+    demand: QuadTree[CustomerRequest],
+    supply: List[VehicleAndSchedule],
+    services: BeamServices
+  ): List[RideHailTrip] = {
     val alg3 = new AlonsoMoraPoolingAlgForRideHail(demand, supply, services)
     var assignments = List.empty[RideHailTrip]
     var elapsed = -1.0
@@ -172,10 +177,10 @@ object MatchingPerformance extends BeamHelper {
   }
 
   private def asyncAlonsoMoraAlgForRideHail(
-                                             demand: QuadTree[CustomerRequest],
-                                             supply: List[VehicleAndSchedule],
-                                             services: BeamServices
-                                           ): List[RideHailTrip] = {
+    demand: QuadTree[CustomerRequest],
+    supply: List[VehicleAndSchedule],
+    services: BeamServices
+  ): List[RideHailTrip] = {
     val alg2 = new AsyncAlonsoMoraAlgForRideHail(demand, supply, services)
     var assignments = List.empty[RideHailTrip]
     var elapsed = -1.0
@@ -201,12 +206,12 @@ object MatchingPerformance extends BeamHelper {
   }
 
   private def buildSpatialPoolCustomerReqs(
-                                            starTime: Int,
-                                            durInMin: Int,
-                                            nbVehicles: Int,
-                                            services: BeamServices,
-                                            actorRef: ActorRef
-                                          ): (QuadTree[CustomerRequest], List[VehicleAndSchedule]) = {
+    starTime: Int,
+    durInMin: Int,
+    nbVehicles: Int,
+    services: BeamServices,
+    actorRef: ActorRef
+  ): (QuadTree[CustomerRequest], List[VehicleAndSchedule]) = {
     val heading1 = "person,pickup.x,pickup.y,time,dropoff.x,dropoff.y"
     val heading2 = "vehicle,type,x,y,time"
     val suffix = s"${durInMin}min${nbVehicles}veh"
@@ -293,8 +298,8 @@ object MatchingPerformance extends BeamHelper {
         )
         spatialPoolCustomerReqs.put(pickup.getCoord.getX, dropoff.getCoord.getY, req)
         val line = "\n" + p.getId + "," +
-          pickup.getCoord.getX + "," + pickup.getCoord.getY + "," +
-          pickup.getEndTime.toInt + "," + dropoff.getCoord.getX + "," + dropoff.getCoord.getY
+        pickup.getCoord.getX + "," + pickup.getCoord.getY + "," +
+        pickup.getEndTime.toInt + "," + dropoff.getCoord.getX + "," + dropoff.getCoord.getY
         out1.write(line)
       }
       out1.close()
