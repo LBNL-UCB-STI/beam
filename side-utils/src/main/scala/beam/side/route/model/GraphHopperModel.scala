@@ -45,7 +45,7 @@ object Way {
         coordinates  <- c.downField("points").downField("coordinates").as[Seq[Coordinate]]
         instructions <- c.downField("instructions").as[Seq[Instruction]]
         wayPoints    <- c.downField("snapped_waypoints").downField("coordinates").as[Seq[Coordinate]]
-      } yield new Way(coordinates, instructions, (wayPoints.head, wayPoints.last))
+      } yield new Way(0, 0, coordinates, instructions, (wayPoints.head, wayPoints.last))
     }
   }
 }

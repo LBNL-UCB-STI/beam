@@ -16,14 +16,15 @@ class DataWriterIO(parallel: Int, factor: Int) extends DataWriter[({ type T[A] =
   import Encoder._
   import zio.console._
 
-  private[this] def openFiles(fileRootPath: Path, ids: Set[String]): RIO[zio.ZEnv, Map[String, BufferedWriter]] =
-    IO(ids.map(id => id -> fileRootPath.resolve(s"$id.txt").toFile).toMap)
+  private[this] def openFiles(fileRootPath: Path, ids: Set[Int]): RIO[zio.ZEnv, Map[Int, BufferedWriter]] =
+    IO(fileRootPath.toFile.mkdir())
+      .andThen(IO(ids.map(id => id -> fileRootPath.resolve(s"$id.txt").toFile).toMap))
       .map(files => files.mapValues(f => new BufferedWriter(new FileWriter(f))))
 
   override def writeFile[A <: Product with ID: Encoder: ClassTag](
     dataFile: Path,
     buffer: Queue[A],
-    ids: Set[String]
+    ids: Set[Int]
   ): RIO[ZEnv, Unit] =
     ZManaged
       .make(openFiles(dataFile, ids))(
@@ -48,7 +49,7 @@ class DataWriterIO(parallel: Int, factor: Int) extends DataWriter[({ type T[A] =
               .mapM { as =>
                 val chunkSize = parallel * factor
                 Ref.make[Option[Option[Throwable]]](None).flatMap { stateRef =>
-                  def loop(acc: Array[String], i: Int, id: String): Pull[ZEnv, Throwable, Chunk[String]] =
+                  def loop(acc: Array[String], i: Int, id: Int): Pull[ZEnv, Throwable, Chunk[String]] =
                     as.filterOrFail[Option[Throwable]](e => e.id == id)(Some(new IllegalArgumentException))
                       .foldM(
                         e => {
@@ -61,7 +62,7 @@ class DataWriterIO(parallel: Int, factor: Int) extends DataWriter[({ type T[A] =
                         }
                       )
 
-                  def first: Pull[ZEnv, Throwable, (String, Chunk[String])] =
+                  def first: Pull[ZEnv, Throwable, (Int, Chunk[String])] =
                     as.foldM(e => {
                       stateRef.set(Some(e)) *> ZIO.fail(e)
                     }, a => {

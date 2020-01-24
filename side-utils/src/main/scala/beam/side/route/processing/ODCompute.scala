@@ -8,7 +8,7 @@ import zio._
 
 trait ODCompute[F[_]] {
 
-  def pairTrip(odPairsPath: Option[String], tracts: Promise[_ <: Throwable, (_, Map[String, CencusTrack])])(
+  def pairTrip(odPairsPath: Option[String], tracts: Map[String, CencusTrack])(
     implicit pathCompute: PathCompute[F],
     pathEncoder: EntityDecoder[F, GHPaths],
     ghRequest: GHRequest[F],

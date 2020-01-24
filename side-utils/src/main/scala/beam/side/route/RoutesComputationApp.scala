@@ -23,7 +23,7 @@ case class ComputeConfig(
   cencusTrackPath: String = "",
   odPairsPath: Option[String] = None,
   ghHost: String = "",
-  output: String = "output.csv",
+  output: String = "output",
   osmPath: String = "",
   ghLocation: String = "",
   parallel: Int = 4,
@@ -165,14 +165,15 @@ object RoutesComputationApp extends CatsApp with AppSetup {
 
       odCompute: ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T] = ODComputeIO(config.parallel, config.factor)
 
+      tracts <- promise.await
+
       pathQueue <- ODCompute[({ type T[A] = RIO[zio.ZEnv, A] })#T](odCompute)
-        .pairTrip(config.odPairsPath, promise)(pathCompute, pathEncoder, ghRequest, dataLoader)
+        .pairTrip(config.odPairsPath, tracts._2)(pathCompute, pathEncoder, ghRequest, dataLoader)
 
       dataWriter: DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue] = DataWriterIO(config.parallel, config.factor)
 
-      groups <- promise.await.map(_._1)
       linesFork <- DataWriter[({ type T[A] = RIO[zio.ZEnv, A] })#T, Queue](dataWriter)
-        .writeFile(Paths.get(config.output), pathQueue, groups)
+        .writeFile(Paths.get(config.output), pathQueue, tracts._1)
         .fork
 
       _ <- linesFork.join

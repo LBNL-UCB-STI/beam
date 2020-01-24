@@ -1,7 +1,7 @@
 package beam.side.route.model
 
 sealed trait ID {
-  def id: String
+  def id: Int
 }
 
 case class CencusTrack(
@@ -37,7 +37,7 @@ object Trip {
 
 case class TripPath(origin: CencusTrack, dest: CencusTrack, distance: Double, elevation: Double, path: Multiline)
     extends ID {
-  override val id: String = origin.state.toString
+  override val id: Int = origin.state
 }
 
 object TripPath {

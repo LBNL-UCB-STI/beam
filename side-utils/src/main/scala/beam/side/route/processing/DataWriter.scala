@@ -2,13 +2,13 @@ package beam.side.route.processing
 
 import java.nio.file.Path
 
-import beam.side.route.model.Encoder
+import beam.side.route.model.{Encoder, ID}
 
 import scala.language.higherKinds
 import scala.reflect.ClassTag
 
 trait DataWriter[F[_], BUF[_]] {
-  def writeFile[A <: Product: Encoder: ClassTag](dataFile: Path, buffer: BUF[A], ids: Set[String]): F[Unit]
+  def writeFile[A <: Product with ID: Encoder: ClassTag](dataFile: Path, buffer: BUF[A], ids: Set[Int]): F[Unit]
 }
 
 object DataWriter {

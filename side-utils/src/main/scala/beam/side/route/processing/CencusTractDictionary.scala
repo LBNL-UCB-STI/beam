@@ -9,7 +9,7 @@ trait CencusTractDictionary[F[_], BUF[_]] {
 
   def compose(cencusTrackPath: String)(
     implicit dataLoader: DataLoader[F, BUF]
-  ): F[Promise[Throwable, (Set[String], Map[String, CencusTrack])]]
+  ): F[Promise[Throwable, (Set[Int], Map[String, CencusTrack])]]
 }
 
 object CencusTractDictionary {
