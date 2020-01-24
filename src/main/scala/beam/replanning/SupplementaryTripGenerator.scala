@@ -4,13 +4,12 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.Skims
 import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
-import beam.router.skim.ODSkimmer.Skim
+import beam.agentsim.agents.choice.logit.{DestinationMNL, MultinomialLogit}
+import beam.router.Modes.BeamMode.CAR
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 
 import scala.collection.immutable.List
-import scala.collection.mutable
 import scala.util.Random
 
 class SupplementaryTripGenerator(
@@ -20,34 +19,37 @@ class SupplementaryTripGenerator(
   val travelTimeBufferInSec = 30 * 60
   val r = scala.util.Random
 
-  def generateSubtour(currentActivity: Activity): List[Activity] = {
+  def generateSubtour(
+    currentActivity: Activity,
+    mnl: MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.Parameters]
+  ): List[Activity] = {
     if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)) {
       val newActivityDuration = 10 * 60
       val (startTime, endTime) = generateSubtourStartAndEndTime(currentActivity, newActivityDuration)
 
-      val tazCosts = gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime)
+      val tazCosts: Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.Parameters, Double]] =
+        gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime)
 
-      val chozenTazAndCost = tazCosts.toSeq.sortBy(_._2.cost).apply(3)
+      val chosenAlternativeOption = mnl.sampleAlternative(tazCosts, r)
+      val chosenAlternative = chosenAlternativeOption.get.alternativeType
 
       val newActivity =
-        PopulationUtils.createActivityFromCoord("IJUSTMADETHIS", TAZTreeMap.randomLocationInTAZ(chozenTazAndCost._1))
-      if ((chozenTazAndCost._2.accessTime + chozenTazAndCost._2.returnTime + newActivityDuration + 2 * travelTimeBufferInSec) < (currentActivity.getEndTime - currentActivity.getStartTime)) {
-        val activityBeforeNewActivity = PopulationUtils.createActivityFromCoord("Work_Before", currentActivity.getCoord)
-        val activityAfterNewActivity = PopulationUtils.createActivityFromCoord("Work_After", currentActivity.getCoord)
+        PopulationUtils.createActivityFromCoord(chosenAlternative.activityType, TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz))
+      val activityBeforeNewActivity =
+        PopulationUtils.createActivityFromCoord("Work_Before", currentActivity.getCoord)
+      val activityAfterNewActivity =
+        PopulationUtils.createActivityFromCoord("Work_After", currentActivity.getCoord)
 
-        activityBeforeNewActivity.setStartTime(currentActivity.getStartTime)
-        activityBeforeNewActivity.setEndTime(startTime - chozenTazAndCost._2.accessTime)
+      activityBeforeNewActivity.setStartTime(currentActivity.getStartTime)
+      activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
 
-        newActivity.setStartTime(startTime)
-        newActivity.setEndTime(endTime)
+      newActivity.setStartTime(startTime)
+      newActivity.setEndTime(endTime)
 
-        activityAfterNewActivity.setStartTime(endTime + chozenTazAndCost._2.returnTime)
-        activityAfterNewActivity.setEndTime(currentActivity.getEndTime)
+      activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
+      activityAfterNewActivity.setEndTime(currentActivity.getEndTime)
 
-        List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
-      } else {
-        List(currentActivity)
-      }
+      List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
     } else {
       List(currentActivity)
     }
@@ -56,15 +58,16 @@ class SupplementaryTripGenerator(
   private def gatherTazCosts(
     currentActivity: Activity,
     TAZs: List[TAZ],
-    startTime: Double,
-    endTime: Double
-  ): mutable.Map[TAZ, TimesAndCost] = {
-    val tazToCost = mutable.Map.empty[TAZ, TimesAndCost]
-    TAZs.foreach { taz =>
-      val cost =
-        getTazCost(currentActivity, taz, BeamMode.CAR, startTime, endTime)
-      tazToCost.put(taz, cost)
-    }
+    startTime: Int,
+    endTime: Int
+  ): Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.Parameters, Double]] = {
+    val tazToCost: Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.Parameters, Double]] =
+      TAZs.map { taz =>
+        val cost =
+          getTazCost(currentActivity, taz, BeamMode.CAR, startTime, endTime)
+        val alternative = DestinationMNL.SupplementaryTripAlternative(taz, "BLAH", CAR, endTime - startTime, startTime)
+        alternative -> DestinationMNL.toUtilityParameters(cost)
+      }.toMap
     tazToCost
   }
 
@@ -74,7 +77,7 @@ class SupplementaryTripGenerator(
     mode: BeamMode,
     newActivityStartTime: Double,
     newActivityEndTime: Double
-  ): TimesAndCost = {
+  ): DestinationMNL.TimesAndCost = {
     val activityDurationInSeconds = (newActivityEndTime - newActivityStartTime)
     val desiredDepartTimeBin = secondsToIndex(newActivityStartTime)
     val desiredReturnTimeBin = secondsToIndex(newActivityEndTime)
@@ -92,24 +95,31 @@ class SupplementaryTripGenerator(
         desiredReturnTimeBin,
         mode
       )
-    val combinedSkim = accessTripSkim + Skim(activityDurationInSeconds.toInt) + egressTripSkim
-    TimesAndCost(
+    val startingOverlap =
+      (currentActivity.getStartTime - (newActivityStartTime - accessTripSkim.time - travelTimeBufferInSec)).max(0)
+    val endingOverlap =
+      ((newActivityEndTime + egressTripSkim.time + travelTimeBufferInSec) - currentActivity.getEndTime).max(0)
+    val schedulePenalty = math.pow(startingOverlap, 2) + math.pow(endingOverlap, 2)
+    DestinationMNL.TimesAndCost(
       accessTripSkim.time,
       egressTripSkim.time,
-      attributesOfIndividual.getVOT(combinedSkim.generalizedTime / 3600) + combinedSkim.cost
+      attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
+      attributesOfIndividual.getVOT(egressTripSkim.generalizedTime / 3600) + egressTripSkim.cost,
+      schedulePenalty,
+      attributesOfIndividual.getVOT(activityDurationInSeconds / 3600)
     )
   }
 
   private def generateSubtourStartAndEndTime(
     currentActivity: Activity,
     newActivityDuration: Double
-  ): (Double, Double) = {
+  ): (Int, Int) = {
     val currentActivityDuration = currentActivity.getEndTime - currentActivity.getStartTime
     val feasibleWindowDuration = currentActivityDuration - newActivityDuration - 2 * travelTimeBufferInSec
     val startTimeBuffer = r.nextDouble() * feasibleWindowDuration + travelTimeBufferInSec
     (
-      currentActivity.getStartTime + startTimeBuffer,
-      currentActivity.getStartTime + startTimeBuffer + newActivityDuration
+      (currentActivity.getStartTime + startTimeBuffer).toInt,
+      (currentActivity.getStartTime + startTimeBuffer + newActivityDuration).toInt
     )
   }
 
@@ -121,5 +131,4 @@ class SupplementaryTripGenerator(
     (time / 3600).toInt
   }
 
-  case class TimesAndCost(accessTime: Double = 0, returnTime: Double = 0, cost: Double = 0)
 }
