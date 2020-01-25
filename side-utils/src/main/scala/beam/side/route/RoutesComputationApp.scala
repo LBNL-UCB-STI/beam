@@ -9,6 +9,7 @@ import beam.side.route.processing.request.{GHRequestCoreIO, GHRequestHttpIO}
 import beam.side.route.processing.tract.{CencusTractDictionaryIO, ODComputeIO}
 import cats.effect.Resource
 import com.graphhopper.GraphHopper
+import com.graphhopper.reader.dem.{ElevationProvider, MultiSourceElevationProvider}
 import org.http4s.EntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.blaze._
@@ -158,6 +159,8 @@ object RoutesComputationApp extends CatsApp with AppSetup {
         .forServer()
         .setGraphHopperLocation(config.ghLocation)
         .setDataReaderFile(config.osmPath)
+        .setElevation(true)
+        .setElevationProvider(new MultiSourceElevationProvider())
         .importOrLoad()
       ghRequest: GHRequest[({ type T[A] = RIO[zio.ZEnv, A] })#T] = GHRequestCoreIO(graphHopper)
 
