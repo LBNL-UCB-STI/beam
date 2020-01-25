@@ -42,17 +42,24 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Try}
 
 class ApproxPhysSim(
-  beamConfig: BeamConfig,
-  agentSimScenario: Scenario,
-  population: Population,
-  beamServices: BeamServices,
-  controlerIO: OutputDirectoryHierarchy,
-  isCACCVehicle: java.util.Map[String, java.lang.Boolean],
-  beamConfigChangesObservable: BeamConfigChangesObservable,
-  iterationNumber: Int,
-  shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  val beamConfig: BeamConfig,
+  val agentSimScenario: Scenario,
+  val population: Population,
+  val beamServices: BeamServices,
+  val controlerIO: OutputDirectoryHierarchy,
+  val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
+  val beamConfigChangesObservable: BeamConfigChangesObservable,
+  val iterationNumber: Int,
+  val shouldWritePhysSimEvents: Boolean,
+  val javaRnd: java.util.Random,
+  val percentToSimulate: Array[Double]
 ) extends StrictLogging {
+  val totalSum: Double = percentToSimulate.sum
+  if (Math.abs(totalSum - 100) >= 0.01)
+    throw new IllegalStateException(
+      s"The sum of $percentToSimulate [${percentToSimulate.mkString(" ")}] is $totalSum, but it should be 100"
+    )
+
   val finalPopulation: Population = initPopulation(population)
 
   val peopleWhichCanBeTaken: mutable.Set[Person] = {
@@ -62,8 +69,7 @@ class ApproxPhysSim(
   }
 
   val numberOfPeopleToSimulateEveryIter: Array[Int] = {
-    val percentToSimulate: Array[Double] = Array(10, 10, 10, 10, 10, 10, 10, 10, 10, 10).map(_.toDouble / 100)
-    val xs = percentToSimulate.map(p => (peopleWhichCanBeTaken.size * p).toInt)
+    val xs = percentToSimulate.map(p => (peopleWhichCanBeTaken.size * p / 100).toInt)
     if (xs.sum != peopleWhichCanBeTaken.size) {
       val leftDueToRounding = peopleWhichCanBeTaken.size - xs.sum
       logger.info(s"leftDueToRounding: $leftDueToRounding")
@@ -71,6 +77,15 @@ class ApproxPhysSim(
     }
     xs
   }
+  logger.info(s"% to simulate per iteration: ${percentToSimulate.mkString(" ")}")
+  logger.info(s"Number of people to simulate per iteration: ${numberOfPeopleToSimulateEveryIter.mkString(" ")}")
+
+  logger.info(
+    s"Cumulative % to simulate per iteration: ${percentToSimulate.scanLeft(0.0)(_ + _).drop(1).mkString(" ")}"
+  )
+  logger.info(
+    s"Cumulative number of people to simulate per iteration: ${numberOfPeopleToSimulateEveryIter.scanLeft(0)(_ + _).drop(1).mkString(" ")}"
+  )
 
   val rnd: Random = new Random(javaRnd)
   val shouldLogWhenLinksAreNotTheSame: Boolean = false

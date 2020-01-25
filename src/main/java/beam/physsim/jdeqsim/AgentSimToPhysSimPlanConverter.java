@@ -167,6 +167,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         beamServices,
                         controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
                 break;
+            case "experiment_5.0":
+                sim = new Experiment_5_0(beamConfig, agentSimScenario, jdeqsimPopulation,
+                        beamServices,
+                        controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
+                break;
+            case "experiment_5.1":
+                sim = new Experiment_5_1(beamConfig, agentSimScenario, jdeqsimPopulation,
+                        beamServices,
+                        controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
+                break;
+            case "experiment_5.2":
+                sim = new Experiment_5_2(beamConfig, agentSimScenario, jdeqsimPopulation,
+                        beamServices,
+                        controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
+                break;
         }
         log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
         TravelTime travelTimes = sim.run(prevTravelTime);

@@ -105,6 +105,15 @@ class BeamMobsim @Inject()(
     } else if (experimentType == "experiment_4.0" && iteration <= 1) {
       clearRoutes()
       logger.info(s"Experiment_4.0: Clear all routes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.0: Clear all routes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.1" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.1: Clear all routes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.2" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.2: Clear all routes at iteration ${iteration}")
     }
   }
 
@@ -122,6 +131,15 @@ class BeamMobsim @Inject()(
     } else if (experimentType == "experiment_4.0" && iteration <= 1) {
       clearModes()
       logger.info(s"Experiment_4.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.0" && iteration <= 1) {
+      clearModes()
+      logger.info(s"Experiment_5.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.1" && iteration <= 1) {
+      clearModes()
+      logger.info(s"Experiment_5.1: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.2" && iteration <= 1) {
+      clearModes()
+      logger.info(s"Experiment_5.2: Clear all modes at iteration ${iteration}")
     }
   }
 
