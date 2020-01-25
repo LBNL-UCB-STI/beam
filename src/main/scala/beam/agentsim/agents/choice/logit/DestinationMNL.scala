@@ -5,13 +5,23 @@ import beam.router.Modes.BeamMode
 
 object DestinationMNL {
 
-  type DestinationMNLConfig = Map[DestinationMNL.Parameters, UtilityFunctionOperation]
+  type DestinationMNLConfig = Map[DestinationMNL.DestinationParameters, UtilityFunctionOperation]
+
+  type TripMNLConfig = Map[DestinationMNL.TripParameters, UtilityFunctionOperation]
 
   val DefaultMNLParameters: DestinationMNLConfig = Map(
-    Parameters.AccessCost      -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.EgressCost      -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.SchedulePenalty -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.ActivityBenefit -> UtilityFunctionOperation.Multiplier(1.0)
+    DestinationParameters.AccessCost      -> UtilityFunctionOperation.Multiplier(-1.0),
+    DestinationParameters.EgressCost      -> UtilityFunctionOperation.Multiplier(-1.0),
+    DestinationParameters.SchedulePenalty -> UtilityFunctionOperation.Multiplier(-1.0),
+    DestinationParameters.ActivityBenefit -> UtilityFunctionOperation.Multiplier(1.0)
+  )
+
+  val TripMNLParameters: TripMNLConfig = Map(
+    TripParameters.ExpMaxUtility -> UtilityFunctionOperation.Multiplier(1.0)
+  )
+
+  val NoTripMNLParameters: TripMNLConfig = Map(
+    TripParameters.ASC -> UtilityFunctionOperation.Intercept(1.0)
   )
 
   /**
@@ -29,30 +39,43 @@ object DestinationMNL {
     rangeAnxietyBuffer: Double = 20000.0
   ) {}
 
-  def prettyPrintAlternatives(params: Map[DestinationMNL.Parameters, Double]): String = {
+  def prettyPrintAlternatives(params: Map[DestinationMNL.DestinationParameters, Double]): String = {
     params
       .map {
         case (param, value) =>
-          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+          f"${DestinationParameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
       .mkString(s"", " ", ": ")
   }
 
-  sealed trait Parameters
+  sealed trait DestinationParameters
 
-  object Parameters {
-    final case object AccessCost extends Parameters with Serializable
-    final case object EgressCost extends Parameters with Serializable
-    final case object SchedulePenalty extends Parameters with Serializable
-    final case object ActivityBenefit extends Parameters with Serializable
+  object DestinationParameters {
+    final case object AccessCost extends DestinationParameters with Serializable
+    final case object EgressCost extends DestinationParameters with Serializable
+    final case object SchedulePenalty extends DestinationParameters with Serializable
+    final case object ActivityBenefit extends DestinationParameters with Serializable
 
-    def shortName(parameter: Parameters): String = parameter match {
+    def shortName(parameter: DestinationParameters): String = parameter match {
       case AccessCost      => "acc"
       case EgressCost      => "eg"
       case SchedulePenalty => "pen"
       case ActivityBenefit => "act"
     }
   }
+
+  sealed trait TripParameters
+
+  object TripParameters {
+    final case object ASC extends TripParameters with Serializable
+    final case object ExpMaxUtility extends TripParameters with Serializable
+
+    def shortName(parameter: TripParameters): String = parameter match {
+      case ASC           => "asc"
+      case ExpMaxUtility => "util"
+    }
+  }
+
   case class SupplementaryTripAlternative(
     taz: TAZ,
     activityType: String,
@@ -70,12 +93,12 @@ object DestinationMNL {
     activityBenefit: Double = 0
   )
 
-  def toUtilityParameters(timesAndCost: TimesAndCost): Map[DestinationMNL.Parameters, Double] = {
+  def toUtilityParameters(timesAndCost: TimesAndCost): Map[DestinationMNL.DestinationParameters, Double] = {
     Map(
-      Parameters.AccessCost      -> timesAndCost.accessGeneralizedCost,
-      Parameters.EgressCost      -> timesAndCost.returnGeneralizedCost,
-      Parameters.SchedulePenalty -> timesAndCost.schedulePenalty,
-      Parameters.ActivityBenefit -> timesAndCost.activityBenefit
+      DestinationParameters.AccessCost      -> timesAndCost.accessGeneralizedCost,
+      DestinationParameters.EgressCost      -> timesAndCost.returnGeneralizedCost,
+      DestinationParameters.SchedulePenalty -> timesAndCost.schedulePenalty,
+      DestinationParameters.ActivityBenefit -> timesAndCost.activityBenefit
     )
   }
 }
