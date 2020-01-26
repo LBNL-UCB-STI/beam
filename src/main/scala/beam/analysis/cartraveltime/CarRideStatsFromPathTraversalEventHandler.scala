@@ -150,6 +150,8 @@ class CarRideStatsFromPathTraversalEventHandler(
     // write the iteration level car ride stats to output file
     writeIterationCarRideStats(event, type2Statistics(Personal))
 
+    writeAverageCarSpeedByTypes(event)
+
     carType2PathTraversals.clear()
   }
 
@@ -161,17 +163,7 @@ class CarRideStatsFromPathTraversalEventHandler(
   private def createRootGraphForAverageCarSpeedByType(event: IterationEndsEvent): Unit = {
     val dataset = new DefaultCategoryDataset
 
-    averageCarSpeedPerIterationByType.zipWithIndex
-      .foreach {
-        case (type2Speed, iteration) =>
-          val average = if (type2Speed.values.isEmpty) 0.0 else type2Speed.values.sum / type2Speed.values.size
-          dataset.addValue(average, "Average", iteration + 1)
-
-          type2Speed.foreach {
-            case (carType, speed) =>
-              dataset.addValue(speed, carType.getClass.getSimpleName.replace("$", ""), iteration + 1)
-          }
-      }
+    executeOnAverageSpeedData({ case (it, carType, speed) => dataset.addValue(speed, carType, it) })
 
     val chart = ChartFactory.createLineChart(
       "Average car speed",
@@ -192,6 +184,39 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
+  /**
+    * Write csv containing average car speed by types
+    *
+    * @param event IterationEndsEvent
+    */
+  private def writeAverageCarSpeedByTypes(event: IterationEndsEvent): Unit = {
+    val outputPath = event.getServices.getControlerIO.getOutputFilename("averageCarSpeed.csv")
+    val csvWriter =
+      new CsvWriter(outputPath, Vector("iteration", "car_type", "speed"))
+    try {
+      executeOnAverageSpeedData({ case (it, carType, speed) => csvWriter.write(it, carType, speed) })
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Writing average car speed to the ${outputPath} has failed with: ${ex.getMessage}", ex)
+    } finally {
+      Try(csvWriter.close())
+    }
+  }
+
+  private def executeOnAverageSpeedData(execute: (Int, String, Double) => Unit): Unit = {
+    averageCarSpeedPerIterationByType.zipWithIndex
+      .foreach {
+        case (type2Speed, iteration) =>
+          val average = if (type2Speed.values.isEmpty) 0.0 else type2Speed.values.sum / type2Speed.values.size
+          execute(iteration + 1, "Average", average)
+
+          type2Speed.foreach {
+            case (carType, speed) =>
+              execute(iteration + 1, carType.getClass.getSimpleName.replace("$", ""), speed)
+          }
+      }
+
+  }
 
   /**
     * Generates category dataset used to generate graph at iteration level.
