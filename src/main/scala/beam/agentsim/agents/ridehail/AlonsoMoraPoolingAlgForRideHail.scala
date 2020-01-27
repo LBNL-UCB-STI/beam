@@ -195,7 +195,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       import scala.language.implicitConversions
       val solver: MPSolver =
         new MPSolver("SolveAssignmentProblemMIP", MPSolver.OptimizationProblemType.CBC_MIXED_INTEGER_PROGRAMMING)
-      solver.setNumThreads(96)
+      //solver.setNumThreads(96)
       val objective = solver.objective()
       val epsilonCostMap = mutable.Map.empty[Integer, mutable.Map[Integer, (MPVariable, Double)]]
       combinations.groupBy(_.vehicle).foreach {
@@ -254,6 +254,7 @@ class AlonsoMoraPoolingAlgForRideHail(
           }
         }
       }
+      solver.delete()
     }
     optimalAssignment.toList
   }
