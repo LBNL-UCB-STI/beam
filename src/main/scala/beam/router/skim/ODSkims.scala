@@ -44,7 +44,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
             travelTime,
             new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
           ),
-          beamScenario.vehicleTypes(vehicleTypeId),
+          beamScenario.vehicleTypes.getOrElse(vehicleTypeId, beamScenario.vehicleTypes.head._2,
           beamScenario.fuelTypePrices
         )
       case RIDE_HAIL =>
