@@ -1,6 +1,5 @@
 package beam.analysis.cartraveltime
 
-import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.sim.config.BeamConfig
 import javax.inject.Inject
@@ -13,138 +12,210 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import scala.collection.mutable
 
 class PersonAverageTravelTimeAnalysis @Inject()(
-                                        beamConfig: BeamConfig
-                                        ) extends GraphAnalysis {
+  beamConfig: BeamConfig
+) extends GraphAnalysis {
 
   object GraphMode extends Enumeration {
     type GraphMode = Value
-    val PersonEntersAndLeavesVehicle , PersonDepartureAndArrival = Value
+    val PersonEntersAndLeavesVehicle, PersonDepartureAndArrival = Value
   }
 
-  val personChoseOrEnteredCar : mutable.HashMap[String,Either[ModeChoiceEvent,PersonEntersVehicleEvent]] = mutable.HashMap.empty[String,Either[ModeChoiceEvent,PersonEntersVehicleEvent]]
-  val personDepartedByCar : mutable.HashMap[String, PersonDepartureEvent] = mutable.HashMap.empty[String,PersonDepartureEvent]
+  val personCarDepartures: mutable.HashMap[String, PersonDepartureEvent] =
+    mutable.HashMap.empty[String, PersonDepartureEvent]
+  val personCarArrivals: mutable.HashMap[String, PersonArrivalEvent] = mutable.HashMap.empty[String, PersonArrivalEvent]
 
-  val personTotalTravelTimeForCurrentIterationEntersAndLeavesMode : mutable.HashMap[String,List[Double]] = mutable.HashMap.empty[String,List[Double]]
-  val averageTravelTimesForAllIterationsEntersAndLeavesMode : mutable.HashMap[Int,Double] = mutable.HashMap.empty[Int,Double]
+  val personWalksTowardsCar: mutable.HashMap[String, PersonEntersVehicleEvent] =
+    mutable.HashMap.empty[String, PersonEntersVehicleEvent]
 
-  val personTotalTravelTimeForCurrentIterationArrivalAndDepartureMode : mutable.HashMap[String,List[Double]] = mutable.HashMap.empty[String,List[Double]]
-  val averageTravelTimesForAllIterationsArrivalAndDepartureMode : mutable.HashMap[Int,Double] = mutable.HashMap.empty[Int,Double]
+  val personWalksAwayFromCar: mutable.HashMap[String, PersonLeavesVehicleEvent] =
+    mutable.HashMap.empty[String, PersonLeavesVehicleEvent]
+
+  val personEntersCar: mutable.HashMap[String, PersonEntersVehicleEvent] =
+    mutable.HashMap.empty[String, PersonEntersVehicleEvent]
+
+  val personLeavesCar: mutable.HashMap[String, PersonLeavesVehicleEvent] =
+    mutable.HashMap.empty[String, PersonLeavesVehicleEvent]
+
+  val personTotalCarTravelTimes: mutable.HashMap[String, List[Double]] = mutable.HashMap.empty[String, List[Double]]
+
+  val personTravelTimeIncludingWalkForCurrentDeparture: mutable.HashMap[String, Double] =
+    mutable.HashMap.empty[String, Double]
+
+  val personTotalTravelTimesIncludingWalk: mutable.HashMap[String, List[Double]] =
+    mutable.HashMap.empty[String, List[Double]]
+
+  val averageCarTravelTimesIncludingWalkForAllIterations: mutable.HashMap[Int, Double] =
+    mutable.HashMap.empty[Int, Double]
+  val averageCarTravelTimesForAllIterations: mutable.HashMap[Int, Double] = mutable.HashMap.empty[Int, Double]
 
   override def processStats(event: Event): Unit = {
     event match {
-      case mc : ModeChoiceEvent if isCarMode(mc.mode) => processModeChoiceEvent(mc)
-      case pev: PersonEntersVehicleEvent => processPersonEntersVehicleEvent(pev)
-      case plv: PersonLeavesVehicleEvent => processPersonLeavesVehicleEvent(plv)
-      case pde: PersonDepartureEvent if isCarMode(pde.getLegMode) => processDepartureEvent(pde)
-      case pae: PersonArrivalEvent if isCarMode(pae.getLegMode) => processArrivalEvent(pae)
+      case pde: PersonDepartureEvent if isCarMode(pde.getLegMode) =>
+        processDepartureEvent(pde)
+      case pev: PersonEntersVehicleEvent if personCarDepartures.contains(pev.getPersonId.toString) =>
+        processPersonEntersVehicleEvent(pev)
+      case plv: PersonLeavesVehicleEvent if personCarDepartures.contains(plv.getPersonId.toString) =>
+        processPersonLeavesVehicleEvent(plv)
+      case pae: PersonArrivalEvent
+          if isCarMode(pae.getLegMode) && personCarDepartures.contains(pae.getPersonId.toString) =>
+        processArrivalEvent(pae)
       case _ =>
     }
   }
 
-  private def processModeChoiceEvent(mc : ModeChoiceEvent) : Unit = {
-    personChoseOrEnteredCar.put(mc.personId.toString,Left(mc))
-  }
-
   private def processPersonEntersVehicleEvent(pev: PersonEntersVehicleEvent): Unit = {
-      personChoseOrEnteredCar.get(pev.getPersonId.toString) match {
-        case Some(e:Either[ModeChoiceEvent,PersonEntersVehicleEvent]) =>
-          e match {
-            case _ if e.isLeft && isPersonBody(pev.getVehicleId.toString,pev.getPersonId.toString) =>
-              personChoseOrEnteredCar.put(pev.getPersonId.toString,Right(pev))
-            case _ =>
-          }
+    val personId = pev.getPersonId.toString
+    // if the person is walking
+    if (isPersonBody(pev.getVehicleId.toString, personId)) {
+      // Person started to walk towards his car
+      personWalksTowardsCar.put(personId, pev)
+    } else {
+      personWalksTowardsCar.get(personId.toString) match {
+        case Some(walkEvent: PersonEntersVehicleEvent) =>
+          // Person previously walked towards his car
+          personWalksTowardsCar.remove(personId)
+          // Person now entered his car
+          personEntersCar.put(personId, pev)
+          // calculate the person walk time and add it to the cumulative walk times
+          val walkTime = pev.getTime - walkEvent.getTime
+          // add walk time to the including walk cumulative time for this departure
+          val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + walkTime
+          personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
         case None =>
       }
+    }
   }
 
   private def processPersonLeavesVehicleEvent(plv: PersonLeavesVehicleEvent) = {
     val personId = plv.getPersonId.toString
-      personChoseOrEnteredCar.get(personId) match {
-        case Some(e:Either[ModeChoiceEvent,PersonEntersVehicleEvent]) =>
-          e match {
-            case _ if e.isRight && isPersonBody(e.right.get.getVehicleId.toString,e.right.get.getPersonId.toString) =>
-              val updatedTravelTimes = personTotalTravelTimeForCurrentIterationEntersAndLeavesMode.getOrElse(personId,List()) :+ (plv.getTime - e.right.get.getTime)
-              personTotalTravelTimeForCurrentIterationEntersAndLeavesMode.put(personId,updatedTravelTimes)
-              personChoseOrEnteredCar.remove(personId)
-            case _ =>
-          }
+    // The person is got down his car
+    if (!isPersonBody(plv.getVehicleId.toString, personId)) {
+      personEntersCar.get(personId) match {
+        case Some(pev: PersonEntersVehicleEvent) =>
+          // Person previously entered his car and started his journey
+          personEntersCar.remove(personId)
+          // Person now got down his car
+          personLeavesCar.put(personId, plv)
+          // calculate the person travel time by his car and add it to the cumulative car travel times
+          val travelTime = plv.getTime - pev.getTime
+          val updatedTravelTimes = personTotalCarTravelTimes.getOrElse(personId, List.empty[Double]) :+ travelTime
+          personTotalCarTravelTimes.put(personId, updatedTravelTimes)
+          // add walk time to the including walk cumulative time for this departure
+          val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + travelTime
+          personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
+        case None =>
+      }
+    } else {
+      // The person started walking away from his car
+      personLeavesCar.get(personId) match {
+        case Some(leftCarEvent: PersonLeavesVehicleEvent) =>
+          // Person previously left his car
+          personLeavesCar.remove(personId)
+          // Person now walked away from his car
+          personWalksAwayFromCar.put(personId, plv)
+          // calculate the person walk time and add it to the cumulative walk times
+          val walkTime = plv.getTime - leftCarEvent.getTime
+          // add walk time to the including walk cumulative time for this departure
+          val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + walkTime
+          personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
         case None =>
       }
     }
-
-  /**
-   * Processes departure events to compute the travel times.
-   * @param event PersonDepartureEvent
-   */
-  private def processDepartureEvent(event: PersonDepartureEvent): Unit = {
-    // Track the departure event by person
-    personDepartedByCar.put(event.getPersonId.toString,event)
   }
 
   /**
-   * Processes arrival events to compute the travel time from previous departure
-   * @param event PersonArrivalEvent
-   */
+    * Processes departure events to compute the travel times.
+    * @param event PersonDepartureEvent
+    */
+  private def processDepartureEvent(event: PersonDepartureEvent): Unit = {
+    // Start tracking departure of this person
+    personCarDepartures.put(event.getPersonId.toString, event)
+    personTravelTimeIncludingWalkForCurrentDeparture.put(event.getPersonId.toString, 0.0)
+  }
+
+  /**
+    * Processes arrival events to compute the travel time from previous departure
+    * @param event PersonArrivalEvent
+    */
   private def processArrivalEvent(event: PersonArrivalEvent): Unit = {
-    // Check for previous departure by car for the person
-    personDepartedByCar.get(event.getPersonId.toString) match {
-      case Some(departureEvent: PersonDepartureEvent) =>
-        // compute the travel time
-        val travelTime = event.getTime - departureEvent.getTime
-        // add the computed travel time to the list of travel times tracked during the hour
-        val travelTimes = personTotalTravelTimeForCurrentIterationArrivalAndDepartureMode.getOrElse(event.getPersonId.toString, List.empty[Double]) :+ travelTime
-        personTotalTravelTimeForCurrentIterationArrivalAndDepartureMode.put(event.getPersonId.toString,travelTimes)
-        // discard the departure event
-        personDepartedByCar.remove(event.getPersonId.toString)
+    val personId = event.getPersonId.toString
+    // The person previously started walking away from car
+    personWalksAwayFromCar.get(personId) match {
+      case Some(_) =>
+        // Person now completed his walk and arrived at his destination
+        personWalksAwayFromCar.remove(personId)
+        // Stop tracking the departure of this person
+        personCarDepartures.remove(personId)
+        // add including walk cumulative time of the current depature - arrival to total list
+        val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(personId, List.empty[Double]) :+ personTravelTimeIncludingWalkForCurrentDeparture
+          .getOrElse(personId, 0.0)
+        personTotalTravelTimesIncludingWalk.put(personId, updatedTime)
+        // clear state
+        personTravelTimeIncludingWalkForCurrentDeparture.remove(personId)
       case None =>
     }
   }
 
   override def createGraph(event: IterationEndsEvent): Unit = {
-    val line1Data = getSeriesDataForMode(GraphMode.PersonEntersAndLeavesVehicle,event)
-    val line2Data = getSeriesDataForMode(GraphMode.PersonDepartureAndArrival,event)
-    if((event.getIteration == beamConfig.beam.agentsim.lastIteration) && beamConfig.beam.outputs.writeGraphs){
-      val dataset = GraphUtils.createMultiLineXYDataset(Array(line1Data,line2Data))
-      createRootGraphForAverageCarTravelTime(event,dataset,"averageCarTravelTimesLineChart.png")
-      createRootGraphForAverageCarTravelTime(event,GraphUtils.createMultiLineXYDataset(Array(line1Data)),"averageCarTravelTimesLine1Chart.png")
-      createRootGraphForAverageCarTravelTime(event,GraphUtils.createMultiLineXYDataset(Array(line2Data)),"averageCarTravelTimesLine2Chart.png")
+    val averageTravelTimesIncludingWalk = personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
+    averageCarTravelTimesIncludingWalkForAllIterations.put(
+      event.getIteration,
+      getAverageTravelTimeInMinutes(averageTravelTimesIncludingWalk)
+    )
+    averageCarTravelTimesForAllIterations.put(
+      event.getIteration,
+      getAverageTravelTimeInMinutes(personTotalCarTravelTimes.values.toList.flatten)
+    )
+    if ((event.getIteration == beamConfig.beam.agentsim.lastIteration) && beamConfig.beam.outputs.writeGraphs) {
+      val line1Data =
+        getSeriesDataForMode(averageCarTravelTimesIncludingWalkForAllIterations, event, "CarTravelTimes_IncludingWalk")
+      val line2Data = getSeriesDataForMode(averageCarTravelTimesForAllIterations, event, "CarTravelTimes")
+      val dataset = GraphUtils.createMultiLineXYDataset(Array(line1Data, line2Data))
+      createRootGraphForAverageCarTravelTime(event, dataset, "averageCarTravelTimesLineChart.png")
+      createRootGraphForAverageCarTravelTime(
+        event,
+        GraphUtils.createMultiLineXYDataset(Array(line1Data)),
+        "averageCarTravelTimesLine1Chart.png"
+      )
+      createRootGraphForAverageCarTravelTime(
+        event,
+        GraphUtils.createMultiLineXYDataset(Array(line2Data)),
+        "averageCarTravelTimesLine2Chart.png"
+      )
     }
   }
 
-  private def getSeriesDataForMode(graphMode: GraphMode.Value,event: IterationEndsEvent): XYSeries = {
+  private def getSeriesDataForMode(
+    data: mutable.HashMap[Int, Double],
+    event: IterationEndsEvent,
+    title: String
+  ): XYSeries = {
     // Compute average travel time of all people during the current iteration
-    val averageTravelTimeForCurrentIteration = getAverageTravelTimeInMinutes(graphMode)
-    val averageTravelTime = graphMode match {
-      case _ if graphMode == GraphMode.PersonEntersAndLeavesVehicle => averageTravelTimesForAllIterationsEntersAndLeavesMode
-      case _ => averageTravelTimesForAllIterationsArrivalAndDepartureMode
-    }
-    averageTravelTime.put(event.getIteration,averageTravelTimeForCurrentIteration)
-    val items: Array[XYDataItem] = averageTravelTime.toArray.map(i => new XYDataItem(i._1,i._2))
-    GraphUtils.createXYSeries(graphMode.toString,"","",items)
+    val items: Array[XYDataItem] = data.toArray.map(i => new XYDataItem(i._1, i._2))
+    GraphUtils.createXYSeries(title, "", "", items)
   }
-  
-  private def getAverageTravelTimeInMinutes(graphMode: GraphMode.Value) = {
+
+  private def getAverageTravelTimeInMinutes(totalTravelTimes: List[Double]) = {
     try {
-      val travelTimesByPerson = graphMode match {
-        case _ if graphMode == GraphMode.PersonEntersAndLeavesVehicle => personTotalTravelTimeForCurrentIterationEntersAndLeavesMode
-        case _ => personTotalTravelTimeForCurrentIterationArrivalAndDepartureMode
-      }
-    val consolidatedTravelTimes = travelTimesByPerson.values.toList.flatten
-    val averageTravelTime = consolidatedTravelTimes.sum / consolidatedTravelTimes.length
+      val averageTravelTime = totalTravelTimes.sum / totalTravelTimes.length
       java.util.concurrent.TimeUnit.SECONDS.toMinutes(Math.ceil(averageTravelTime).toLong).toDouble
     } catch {
       case _: Exception => 0D
     }
   }
-  
 
   /**
-   * Plots graph for average travel times at root level
-   * @param event IterationEndsEvent
-   */
-  private def createRootGraphForAverageCarTravelTime(event: IterationEndsEvent, dataSet : XYDataset,fileName : String): Unit = {
+    * Plots graph for average travel times at root level
+    * @param event IterationEndsEvent
+    */
+  private def createRootGraphForAverageCarTravelTime(
+    event: IterationEndsEvent,
+    dataSet: XYDataset,
+    fileName: String
+  ): Unit = {
     val outputDirectoryHierarchy = event.getServices.getControlerIO
-    val chart = ChartFactory.createXYLineChart("Average Travel Times [Car]", "Iteration", "Average Travel Time [min]", dataSet)
+    val chart =
+      ChartFactory.createXYLineChart("Average Travel Times [Car]", "Iteration", "Average Travel Time [min]", dataSet)
     val xyPlot = chart.getXYPlot
     val xAxis = xyPlot.getDomainAxis()
     xAxis.setLowerBound(xAxis.getRange.getLowerBound - 0.5)
@@ -159,14 +230,19 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     )
   }
 
-  private def isCarMode(mode : String)  = mode.equalsIgnoreCase("car")
+  private def isCarMode(mode: String) = mode.equalsIgnoreCase("car")
 
-  private def isPersonBody(vehicle : String,personId : String)  = vehicle.equalsIgnoreCase(s"body-$personId")
+  private def isPersonBody(vehicle: String, personId: String) = vehicle.equalsIgnoreCase(s"body-$personId")
 
   override def resetStats(): Unit = {
-    personChoseOrEnteredCar.clear()
-    personDepartedByCar.clear()
-    personTotalTravelTimeForCurrentIterationEntersAndLeavesMode.clear()
-    personTotalTravelTimeForCurrentIterationArrivalAndDepartureMode.clear()
+    personCarDepartures.clear()
+    personCarArrivals.clear()
+    personWalksTowardsCar.clear()
+    personWalksAwayFromCar.clear()
+    personEntersCar.clear()
+    personLeavesCar.clear()
+    personTotalCarTravelTimes.clear()
+    personTotalTravelTimesIncludingWalk.clear()
+    personTravelTimeIncludingWalkForCurrentDeparture.clear()
   }
 }
