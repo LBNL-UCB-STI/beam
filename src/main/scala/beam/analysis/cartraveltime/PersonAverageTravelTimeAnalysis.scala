@@ -172,16 +172,6 @@ class PersonAverageTravelTimeAnalysis @Inject()(
       val line2Data = getSeriesDataForMode(averageCarTravelTimesForAllIterations, event, "CarTravelTimes")
       val dataset = GraphUtils.createMultiLineXYDataset(Array(line1Data, line2Data))
       createRootGraphForAverageCarTravelTime(event, dataset, "averageCarTravelTimesLineChart.png")
-      createRootGraphForAverageCarTravelTime(
-        event,
-        GraphUtils.createMultiLineXYDataset(Array(line1Data)),
-        "averageCarTravelTimesLine1Chart.png"
-      )
-      createRootGraphForAverageCarTravelTime(
-        event,
-        GraphUtils.createMultiLineXYDataset(Array(line2Data)),
-        "averageCarTravelTimesLine2Chart.png"
-      )
     }
   }
 
