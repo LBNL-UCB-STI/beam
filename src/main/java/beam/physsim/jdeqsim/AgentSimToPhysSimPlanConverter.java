@@ -92,9 +92,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
 
-    private final Map<Id<Person>, Household> personToHouseHold;
-
     private final Random rnd;
+
+    private Map<Id<Person>, Household> personToHouseHold;
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -127,8 +127,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         beamConfigChangesObservable.addObserver(this);
 
-        personToHouseHold = scenario.getHouseholds().getHouseholds().values().stream().flatMap(h -> h.getMemberIds().stream().map(m -> new AbstractMap.SimpleEntry<Id<Person>, Household>(m, h)))
-                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+
 
         rnd = new Random(beamConfig.matsim().modules().global().randomSeed());
     }
@@ -136,6 +135,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
+        buildPersonToHousehold();
+    }
+
+    public void buildPersonToHousehold() {
+        personToHouseHold = beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values().stream().flatMap(h -> h.getMemberIds().stream().map(m -> new AbstractMap.SimpleEntry<Id<Person>, Household>(m, h)))
+                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
     }
 
 
@@ -143,6 +148,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         RelaxationExperiment sim = null;
         switch (beamConfig.beam().physsim().relaxation().type()) {
             case "normal":
+            case "consecutive_increase_of_population":
                 sim = new Normal(beamConfig, agentSimScenario, jdeqsimPopulation,
                         beamServices,
                         controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, shouldWritePhysSimEvents(iterationNumber), rnd);
