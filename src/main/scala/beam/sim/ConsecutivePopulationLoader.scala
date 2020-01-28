@@ -175,7 +175,10 @@ class ConsecutivePopulationLoader(
   ): Unit = {
     val personIdStr = person.toString
     val attribValue = srcPersonAttributes.getAttribute(personIdStr, name)
-    dstPersonAttributes.putAttribute(personIdStr, name, attribValue)
+    if (attribValue != null) {
+      dstPersonAttributes.putAttribute(personIdStr, name, attribValue)
+
+    }
   }
 
   private def createCopyOfPerson(srcPerson: Person, factory: PopulationFactory) = {
