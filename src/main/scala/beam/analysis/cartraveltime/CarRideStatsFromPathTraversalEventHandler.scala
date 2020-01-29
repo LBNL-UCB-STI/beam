@@ -106,10 +106,10 @@ class CarRideStatsFromPathTraversalEventHandler(
     val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
 
     val stats = carType match {
-      case CAV => buildRideStatsForCAVs(networkHelper, freeFlowTravelTimeCalc, carPtes)
-      case _   =>
+      case Personal =>
         val drivingWithParkingPtes = buildDrivingParking(carPtes)
-        buildRideStats(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
+        buildRideStatsFromDrivingParkings(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
+      case _ => buildRideStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
     }
     logger.info(
       s"For the iteration $iterationNumber created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
@@ -430,7 +430,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     }
   }
 
-  private def buildRideStats(
+  private def buildRideStatsFromDrivingParkings(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)]
@@ -452,7 +452,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     stats
   }
 
-  private def buildRideStatsForCAVs(
+  private def buildRideStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     ptes: Seq[PathTraversalEvent]
