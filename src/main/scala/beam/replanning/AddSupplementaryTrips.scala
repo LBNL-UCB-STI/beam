@@ -1,16 +1,27 @@
 package beam.replanning
 
-import beam.agentsim.agents.choice.logit.{DestinationMNL, MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.LccmData
+import beam.agentsim.agents.choice.logit.{
+  DestinationMNL,
+  LatentClassChoiceModel,
+  MultinomialLogit,
+  UtilityFunctionOperation
+}
 import beam.sim.population.AttributesOfIndividual
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Leg, Person, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.slf4j.LoggerFactory
+import org.supercsv.cellprocessor.ift.CellProcessor
+import org.supercsv.io.CsvBeanReader
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable
 
 class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopter {
 
@@ -20,24 +31,21 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
     log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
 
-    val destinationMNL
-      : MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters] =
-      new MultinomialLogit(Map.empty, DestinationMNL.DefaultMNLParameters)
-
-    val tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters] =
-      new MultinomialLogit(Map.empty, DestinationMNL.TripMNLParameters)
-
-    val supplementaryTripGenerator = new SupplementaryTripGenerator(
-      person.getSelectedPlan.getPerson.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-    )
+//    val destinationMNL
+//      : MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters] =
+//      new MultinomialLogit(Map.empty, DestinationMNL.DefaultMNLParameters)
+//
+//    val tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters] =
+//      new MultinomialLogit(Map.empty, DestinationMNL.TripMNLParameters)
+//
+//    val supplementaryTripGenerator = new SupplementaryTripGenerator(
+//      person.getSelectedPlan.getPerson.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+//    )
 
     val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
       addSecondaryActivities(
         person.getSelectedPlan,
-        person.getSelectedPlan.getPerson,
-        supplementaryTripGenerator,
-        destinationMNL,
-        tripMNL
+        person.getSelectedPlan.getPerson
       )
     )
 
@@ -49,26 +57,51 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
     log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
   }
 
-  private def possiblyAddSubtour(
+  private def definitelyAddSubtours(
     activity: Activity,
-    person: Person,
-    generator: SupplementaryTripGenerator,
-    destinationMNL: MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters],
-    tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters]
+    person: Person
   ): List[Activity] = {
     activity.getType match {
-      case "Home" => List[Activity](activity)
-      case "Work" => generator.generateSubtour(activity, destinationMNL, tripMNL)
+      case "Home" => addSubtourToActivity(activity)
+      case "Work" => addSubtourToActivity(activity)
       case _      => List[Activity](activity)
     }
   }
 
+  private def addSubtourToActivity(
+    activity: Activity
+  ): List[Activity] = {
+    val startTime = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
+    val endTime = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+
+    val newStartTime = (endTime - startTime) / 2 - 1 + startTime
+    val newEndTime = (endTime - startTime) / 2 + 1 + startTime
+
+    val newActivity =
+      PopulationUtils.createActivityFromCoord(
+        "Temp",
+        activity.getCoord
+      )
+    newActivity.setStartTime(newStartTime)
+    newActivity.setEndTime(newEndTime)
+
+    val activityBeforeNewActivity =
+      PopulationUtils.createActivityFromCoord(activity.getType, activity.getCoord)
+    val activityAfterNewActivity =
+      PopulationUtils.createActivityFromCoord(activity.getType, activity.getCoord)
+
+    activityBeforeNewActivity.setStartTime(activity.getStartTime)
+    activityBeforeNewActivity.setEndTime(newStartTime)
+
+    activityAfterNewActivity.setStartTime(newEndTime)
+    activityAfterNewActivity.setEndTime(activity.getEndTime)
+
+    List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
+  }
+
   private def addSecondaryActivities(
     plan: Plan,
-    person: Person,
-    generator: SupplementaryTripGenerator,
-    destinationMNL: MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters],
-    tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters]
+    person: Person
   ): Plan = {
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     newPlan.setType(plan.getType)
@@ -82,7 +115,7 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
           0
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        possiblyAddSubtour(planElement, person, generator, destinationMNL, tripMNL)
+        definitelyAddSubtours(planElement, person)
     }
     newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)

@@ -9,6 +9,10 @@ object DestinationMNL {
 
   type TripMNLConfig = Map[DestinationMNL.TripParameters, UtilityFunctionOperation]
 
+  type ActivityVOTs = Map[String, Double]
+
+  type ActivityRates = Map[Int, Map[String, Double]]
+
   val DefaultMNLParameters: DestinationMNLConfig = Map(
     DestinationParameters.AccessCost      -> UtilityFunctionOperation.Multiplier(-1.0),
     DestinationParameters.EgressCost      -> UtilityFunctionOperation.Multiplier(-1.0),
@@ -17,27 +21,42 @@ object DestinationMNL {
   )
 
   val TripMNLParameters: TripMNLConfig = Map(
-    TripParameters.ExpMaxUtility -> UtilityFunctionOperation.Multiplier(1.0)
+    TripParameters.ExpMaxUtility -> UtilityFunctionOperation.Multiplier(1.0),
+    TripParameters.ASC           -> UtilityFunctionOperation.Intercept(1.0)
   )
 
-  val NoTripMNLParameters: TripMNLConfig = Map(
-    TripParameters.ASC -> UtilityFunctionOperation.Intercept(1.0)
+  val DefaultActivityRates: ActivityRates = Map(
+    0  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    1  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    2  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    3  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    4  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    5  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
+    6  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    7  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    8  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    9  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    10 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    11 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    12 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    13 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    14 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    15 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    16 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    17 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    18 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    19 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    20 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    21 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    22 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    23 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0)
   )
 
-  /**
-    * used to determine charging choice, range anxiety
-    *
-    * @param primaryFuelLevelInJoules range of vehicle in meters
-    * @param primaryFuelConsumptionInJoulePerMeter fuel consumption rate
-    * @param remainingTourDistance distance agent expects to travel
-    * @param rangeAnxietyBuffer the number of meters our remaining range needs to exceed our remaining tour in order to feel no anxiety
-    */
-  case class RemainingTripData(
-    primaryFuelLevelInJoules: Double = 0.0,
-    primaryFuelConsumptionInJoulePerMeter: Double = 0.0,
-    remainingTourDistance: Double = 0.0,
-    rangeAnxietyBuffer: Double = 20000.0
-  ) {}
+  val DefaultActivityVOTs: ActivityVOTs = Map(
+    "Home"  -> 0.8,
+    "Work"  -> 1.0,
+    "Other" -> 3.0
+  )
 
   def prettyPrintAlternatives(params: Map[DestinationMNL.DestinationParameters, Double]): String = {
     params

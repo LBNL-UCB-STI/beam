@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.logit.{DestinationMNL, MultinomialLogit}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -24,6 +25,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.replanning.SupplementaryTripGenerator
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
@@ -177,6 +179,35 @@ object HouseholdActor {
         }
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
+
+        val destinationMNL
+          : MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters] =
+          new MultinomialLogit(Map.empty, DestinationMNL.DefaultMNLParameters)
+
+        val tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters] =
+          new MultinomialLogit(Map.empty, DestinationMNL.TripMNLParameters)
+
+        val activityRates = DestinationMNL.DefaultActivityRates
+        val activityVOTs = DestinationMNL.DefaultActivityVOTs
+
+        household.members.foreach { person =>
+          val supplementaryTripGenerator =
+            new SupplementaryTripGenerator(
+              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
+              activityRates,
+              activityVOTs,
+              beamServices
+            )
+          val newPlan = supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationMNL, tripMNL)
+          newPlan match {
+            case Some(plan) =>
+              person.addPlan(plan)
+              person.setSelectedPlan(plan)
+            case None =>
+          }
+
+        }
+
         if (cavs.nonEmpty) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
