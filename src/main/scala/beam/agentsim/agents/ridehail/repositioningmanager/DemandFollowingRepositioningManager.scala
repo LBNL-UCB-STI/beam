@@ -74,11 +74,14 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     }.toMap
 
   val totalNumberOfActivities: Int = activitySegment.sorted.length
+  val peakHourNumberOfActivities: Int = timeBinToActivities.maxBy(_._2.size)._2.size
 
   val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
-    case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
+    case (timeBin, acts) => timeBin -> acts.size.toDouble / peakHourNumberOfActivities
   }
+
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
+  logger.info(s"peakHourNumberOfActivities: $peakHourNumberOfActivities")
 
   val sortedTimeBinToActivitiesWeight: Vector[(Int, Double)] = timeBinToActivitiesWeight.toVector.sortBy {
     case (timeBin, weight) => timeBin
