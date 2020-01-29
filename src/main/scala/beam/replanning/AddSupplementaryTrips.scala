@@ -42,19 +42,53 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
 //      person.getSelectedPlan.getPerson.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 //    )
 
+    val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
+
     val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
       addSecondaryActivities(
-        person.getSelectedPlan,
+        simplifiedPlan,
         person.getSelectedPlan.getPerson
       )
     )
 
     AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
 
-    person.addPlan(newPlan)
-    person.setSelectedPlan(newPlan)
+    if (newPlan.getPlanElements.size > 1) {
+      person.addPlan(newPlan)
+      person.setSelectedPlan(newPlan)
+    }
 
     log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
+  }
+
+  private def mandatoryTour(
+    plan: Plan
+  ): Plan = {
+
+    val newPlan = PopulationUtils.createPlan(plan.getPerson)
+    newPlan.setType(plan.getType)
+
+    val elements: List[Activity] = plan.getPlanElements.asScala
+      .collect { case activity: Activity => activity }
+      .filter(x => (x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))).toList
+
+    val newElements = elements.foldLeft(mutable.MutableList[Activity]())(
+      (listOfAct, currentAct) =>
+        listOfAct.lastOption match {
+          case Some(lastAct) =>
+            if (lastAct.getType == currentAct.getType) {
+              listOfAct.last.setEndTime(currentAct.getEndTime)
+              listOfAct
+            } else {
+              listOfAct += currentAct
+            }
+          case None => mutable.MutableList[Activity](currentAct)
+      }
+    )
+    newElements.foreach { x =>
+      newPlan.addActivity(x)
+    }
+    newPlan
   }
 
   private def definitelyAddSubtours(
