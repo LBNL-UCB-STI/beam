@@ -101,8 +101,13 @@ object ReplanningUtil {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
     for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
       newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
-      val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
-      newPlan.getPlanElements.add(newLeg)
+      if (trips.size >= i+1) {
+        val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
+        newPlan.getPlanElements.add(newLeg)
+      } else {
+        println("BAD TRIPS FOR PERSON "+ originalPlan.getPerson.getId.toString)
+      }
+
     }
     newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
     newPlan
