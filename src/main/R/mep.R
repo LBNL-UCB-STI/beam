@@ -50,3 +50,12 @@ ggplot(mep[type!='mep'],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='iden
   scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
   
 
+# For consistency with python results:
+mep2 <- copy(mep)[scen%in%c('A2','A3','B5','B6','C5')]
+mep2[,scen:=pp('x',as.numeric(factor(scen)))]
+mep2[,overall_mep:=0]
+mep3 <- rbindlist(mep,mep2)
+mep3[,scen:=factor(scen,c('Base0','x1','Base2','Base3','x2','Base5','Base6','x3','A2','A3','x4','B5','B6','x5','C5','C6'))]
+
+ggplot(mep3[type!='mep'],aes(x=scen,y=overall_mep,fill=type))+geom_bar(stat='identity')+theme_bw()+
+  scale_fill_manual(values=as.character(mep.mode.colors$color.hex[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)]),labels=as.character(mep.mode.colors$key[match(sort(u(mep[type!='mep']$type)),mep.mode.colors$name)])) + labs(x='',y='Mobility Energy Productivity',fill='Mode')
