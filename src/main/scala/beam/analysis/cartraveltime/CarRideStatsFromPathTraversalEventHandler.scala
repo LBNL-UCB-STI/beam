@@ -90,7 +90,6 @@ class CarRideStatsFromPathTraversalEventHandler(
           carType2PathTraversals(RideHail) = carType2PathTraversals(RideHail) += pte
         else
           carType2PathTraversals(Personal) = carType2PathTraversals(Personal) += pte
-
       case _ =>
     }
   }
@@ -104,7 +103,18 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 
   def calcRideStats(iterationNumber: Int, carType: CarType): Seq[SingleRideStat] = {
-    getRideStats(networkHelper, freeFlowTravelTimeCalc, iterationNumber, carType2PathTraversals(carType))
+    val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
+
+    val stats = carType match {
+      case CAV => buildRideStatsForCAVs(networkHelper, freeFlowTravelTimeCalc, carPtes)
+      case _   =>
+        val drivingWithParkingPtes = buildDrivingParking(carPtes)
+        buildRideStats(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
+    }
+    logger.info(
+      s"For the iteration $iterationNumber created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
+    )
+    stats
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): IterationCarRideStats = {
@@ -116,7 +126,7 @@ class CarRideStatsFromPathTraversalEventHandler(
       carType -> calcRideStats(event.getIteration, carType)
     }.toMap
 
-    writePersonalCarRideStats(event.getIteration, type2RideStats(Personal))
+    writePersonalCarRideStats(event.getIteration, type2RideStats.getOrElse(Personal, Seq.empty))
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
       getIterationCarRideStats(event.getIteration, singleRideStats)
@@ -133,7 +143,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 
     createRootGraphForAverageCarSpeedByType(event)
 
-    val rideStats = type2RideStats(Personal)
+    val rideStats = type2RideStats.getOrElse(Personal, Seq.empty)
 
     // group single ride stats by departure time ( in hours)
     val rideStatsGroupByDepartureTime = rideStats
@@ -412,20 +422,6 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     )
   }
 
-  def getRideStats(
-    networkHelper: NetworkHelper,
-    freeFlowTravelTime: FreeFlowTravelTime,
-    iterationNumber: Int,
-    carPtes: Seq[PathTraversalEvent]
-  ): Seq[SingleRideStat] = {
-    val drivingWithParkingPtes = buildDrivingParking(carPtes)
-    val stats = buildRideStats(networkHelper, freeFlowTravelTime, drivingWithParkingPtes)
-    logger.info(
-      s"For the iteration ${iterationNumber} created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
-    )
-    stats
-  }
-
   def calcFreeFlowDuration(freeFlowTravelTime: FreeFlowTravelTime, linkIds: IndexedSeq[Link]): Double = {
     linkIds.foldLeft(0.0) {
       case (acc, link) =>
@@ -434,7 +430,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     }
   }
 
-  def buildRideStats(
+  private def buildRideStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)]
@@ -447,8 +443,6 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
         }
         val travelTime =
           ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
-        // get the hour of event
-        val hour = java.util.concurrent.TimeUnit.SECONDS.toHours(driving.getTime.toLong)
         // add the computed travel time to the list of travel times tracked during the hour
         val length = driving.legLength + parking.legLength
         val linkIds = (driving.linkIds ++ parking.linkIds).map(lid => networkHelper.getLinkUnsafe(lid))
@@ -458,7 +452,21 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     stats
   }
 
-  def buildDrivingParking(ptes: Seq[PathTraversalEvent]): Iterable[(PathTraversalEvent, PathTraversalEvent)] = {
+  private def buildRideStatsForCAVs(
+    networkHelper: NetworkHelper,
+    freeFlowTravelTimeCalc: FreeFlowTravelTime,
+    ptes: Seq[PathTraversalEvent]
+  ): Seq[SingleRideStat] = {
+    ptes.map { event =>
+      val travelTime = event.arrivalTime - event.departureTime
+      val length = event.legLength
+      val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
+      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+      SingleRideStat(event.vehicleId.toString, travelTime, length, freeFlowTravelTime, event.departureTime)
+    }
+  }
+
+  private def buildDrivingParking(ptes: Seq[PathTraversalEvent]): Iterable[(PathTraversalEvent, PathTraversalEvent)] = {
     val drivingWithParkingPtes = ptes
       .groupBy(x => (x.vehicleId, x.driverId))
       .map {
