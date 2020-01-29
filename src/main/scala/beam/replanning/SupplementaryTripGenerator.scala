@@ -66,6 +66,8 @@ class SupplementaryTripGenerator(
     if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
 
     if (anyChanges) {
+      newPlan.setScore(plan.getScore)
+      newPlan.setType(plan.getType)
       Some(ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(newPlan))
     } else {
       None
