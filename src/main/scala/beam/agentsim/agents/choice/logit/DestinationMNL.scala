@@ -26,13 +26,13 @@ object DestinationMNL {
   )
 
   val DefaultActivityRates: ActivityRates = Map(
-    0  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    1  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    2  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    3  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    4  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    5  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0),
-    6  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    0  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
+    1  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
+    2  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
+    3  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
+    4  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -3.0),
+    5  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -1.0),
+    6  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
     7  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     8  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     9  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),

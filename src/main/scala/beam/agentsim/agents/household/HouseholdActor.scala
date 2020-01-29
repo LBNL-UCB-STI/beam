@@ -201,6 +201,7 @@ object HouseholdActor {
           val newPlan = supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationMNL, tripMNL)
           newPlan match {
             case Some(plan) =>
+              person.removePlan(person.getSelectedPlan)
               person.addPlan(plan)
               person.setSelectedPlan(plan)
             case None =>
