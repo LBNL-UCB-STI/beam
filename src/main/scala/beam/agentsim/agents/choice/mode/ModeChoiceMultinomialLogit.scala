@@ -41,8 +41,7 @@ class ModeChoiceMultinomialLogit(
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
-    person: Option[Person] = None
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
@@ -68,7 +67,7 @@ class ModeChoiceMultinomialLogit(
       }
 
       if (shouldLogDetails) {
-        val personId = person.map(_.getId)
+        val personId = attributesOfIndividual.personId
         val msgToLog =
           s"""|@@@[$personId]-----------------------------------------
               |@@@[$personId]Alternatives:${alternatives}

@@ -960,8 +960,7 @@ trait ChoosesMode {
       modeChoiceCalculator(
         filteredItinerariesForChoice,
         attributesOfIndividual,
-        nextActivity(choosesModeData.personData),
-        Some(matsimPlan.getPerson)
+        nextActivity(choosesModeData.personData)
       ) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(

@@ -22,8 +22,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
-    person: Option[Person] = None
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == RIDE_HAIL => idx

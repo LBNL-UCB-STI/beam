@@ -254,6 +254,7 @@ class ChangeModeForTour(
 
     val attributesOfIndividual =
       AttributesOfIndividual(
+        person.getId.toString,
         HouseholdAttributes(household, householdVehicles),
         modalityStyle,
         PersonUtils.getSex(person).equalsIgnoreCase("M"),

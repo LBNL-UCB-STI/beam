@@ -51,8 +51,7 @@ trait ModeChoiceCalculator {
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
-    person: Option[Person] = None
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip]
 
   def utilityOf(
@@ -122,7 +121,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+            case AttributesOfIndividual(_, _, Some(modalityStyle), _, _, _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle),

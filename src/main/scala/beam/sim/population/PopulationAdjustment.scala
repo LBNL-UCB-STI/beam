@@ -258,6 +258,7 @@ object PopulationAdjustment extends LazyLogging {
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
+      person.getId.toString,
       householdAttributes = householdAttributes,
       modalityStyle = modalityStyle,
       isMale = Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),

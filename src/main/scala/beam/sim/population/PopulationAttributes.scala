@@ -19,6 +19,7 @@ import scala.collection.mutable
 sealed trait PopulationAttributes
 
 case class AttributesOfIndividual(
+  personId: String,
   householdAttributes: HouseholdAttributes,
   modalityStyle: Option[String],
   isMale: Boolean,
@@ -192,7 +193,7 @@ case class AttributesOfIndividual(
 }
 
 object AttributesOfIndividual {
-  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
+  val EMPTY = AttributesOfIndividual("",HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
 }
 
 case class HouseholdAttributes(
