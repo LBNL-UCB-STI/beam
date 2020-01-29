@@ -1,13 +1,20 @@
 package beam.replanning
 
 import beam.agentsim.agents.choice.logit
-import beam.agentsim.agents.choice.logit.DestinationMNL.TripParameters.{ASC, ExpMaxUtility}
-import beam.agentsim.agents.choice.logit.DestinationMNL.{ActivityRates, ActivityVOTs, TripParameters}
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.{ASC, ExpMaxUtility}
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{
+  ActivityRates,
+  ActivityVOTs,
+  DestinationParameters,
+  SupplementaryTripAlternative,
+  TimesAndCost,
+  TripParameters
+}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.Skims
 import beam.sim.population.AttributesOfIndividual
-import beam.agentsim.agents.choice.logit.{DestinationMNL, MultinomialLogit}
+import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -19,8 +26,8 @@ import scala.util.Random
 
 class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
-  val activityRates: DestinationMNL.ActivityRates,
-  val activityVOTs: DestinationMNL.ActivityVOTs,
+  val activityRates: ActivityRates,
+  val activityVOTs: ActivityVOTs,
   val beamServices: BeamServices
 ) {
   val tazChoiceSet = generateTazChoiceSet(20)
@@ -29,8 +36,8 @@ class SupplementaryTripGenerator(
 
   def generateNewPlans(
     plan: Plan,
-    destinationMNL: MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters],
-    tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters]
+    destinationMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
+    tripMNL: MultinomialLogit[Boolean, TripParameters]
   ): Option[Plan] = {
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     var anyChanges = false
@@ -59,7 +66,7 @@ class SupplementaryTripGenerator(
     if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
 
     if (anyChanges) {
-      Some(newPlan)
+      Some(ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(newPlan))
     } else {
       None
     }
@@ -69,8 +76,8 @@ class SupplementaryTripGenerator(
     prevActivity: Activity,
     currentActivity: Activity,
     nextActivity: Activity,
-    mnl: MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters],
-    tripMnl: MultinomialLogit[Boolean, DestinationMNL.TripParameters]
+    mnl: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
+    tripMnl: MultinomialLogit[Boolean, TripParameters]
   ): List[Activity] = {
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime)
@@ -80,17 +87,17 @@ class SupplementaryTripGenerator(
 
       val (startTime, endTime) = generateSubtourStartAndEndTime(alternativeActivity, meanActivityDuration)
       val (
-        tazCosts: Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.DestinationParameters, Double]],
-        noTrip: Map[DestinationMNL.TripParameters, Double]
+        tazCosts: Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]],
+        noTrip: Map[TripParameters, Double]
       ) =
         gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime, alternativeActivity)
 
       val maxExpectedUtility = mnl.getExpectedMaximumUtility(tazCosts)
 
-      val tripChoice: Map[Boolean, Map[DestinationMNL.TripParameters, Double]] =
-        Map[Boolean, Map[DestinationMNL.TripParameters, Double]](
-          true -> Map[DestinationMNL.TripParameters, Double](
-            DestinationMNL.TripParameters.ExpMaxUtility -> maxExpectedUtility.getOrElse(0)
+      val tripChoice: Map[Boolean, Map[TripParameters, Double]] =
+        Map[Boolean, Map[TripParameters, Double]](
+          true -> Map[TripParameters, Double](
+            TripParameters.ExpMaxUtility -> maxExpectedUtility.getOrElse(0)
           ),
           false -> noTrip,
         )
@@ -142,33 +149,33 @@ class SupplementaryTripGenerator(
     endTime: Int,
     alternativeActivity: Activity
   ): (
-    Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.DestinationParameters, Double]],
-    Map[DestinationMNL.TripParameters, Double]
+    Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]],
+    Map[TripParameters, Double]
   ) = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityCost =
       attributesOfIndividual.getVOT((altEnd - altStart) / 3600)
-    val alternativeActivityParamMap = Map[DestinationMNL.TripParameters, Double](
+    val alternativeActivityParamMap = Map[DestinationChoiceModel.TripParameters, Double](
       ExpMaxUtility -> alternativeActivityCost * activityVOTs
         .getOrElse(alternativeActivity.getType, 1.0)
     )
 
-    val tazToCost: Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.DestinationParameters, Double]] =
+    val tazToCost: Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]] =
       if (TAZs.isEmpty) {
-        Map[DestinationMNL.SupplementaryTripAlternative, Map[DestinationMNL.DestinationParameters, Double]]()
+        Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]()
       } else {
         TAZs.map { taz =>
           val cost =
             getTazCost(currentActivity, taz, BeamMode.CAR, startTime, endTime, alternativeActivity)
           val alternative =
-            DestinationMNL.SupplementaryTripAlternative(
+            DestinationChoiceModel.SupplementaryTripAlternative(
               taz,
               currentActivity.getType,
               CAR,
               endTime - startTime,
               startTime
             )
-          alternative -> DestinationMNL.toUtilityParameters(cost)
+          alternative -> DestinationChoiceModel.toUtilityParameters(cost)
         }.toMap
       }
     (tazToCost, alternativeActivityParamMap)
@@ -189,7 +196,7 @@ class SupplementaryTripGenerator(
     newActivityStartTime: Double,
     newActivityEndTime: Double,
     alternativeActivity: Activity
-  ): DestinationMNL.TimesAndCost = {
+  ): DestinationChoiceModel.TimesAndCost = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
     val activityDuration = newActivityEndTime - newActivityStartTime
@@ -224,7 +231,7 @@ class SupplementaryTripGenerator(
       activityDuration / 3600 * activityVOTs.getOrElse(newActivity.getType, 1.0)
     ) + asc
 
-    DestinationMNL.TimesAndCost(
+    TimesAndCost(
       accessTripSkim.time,
       egressTripSkim.time,
       attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,

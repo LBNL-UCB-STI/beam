@@ -2,7 +2,7 @@ package beam.replanning
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.LccmData
 import beam.agentsim.agents.choice.logit.{
-  DestinationMNL,
+  DestinationChoiceModel,
   LatentClassChoiceModel,
   MultinomialLogit,
   UtilityFunctionOperation
@@ -70,7 +70,8 @@ class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopt
 
     val elements: List[Activity] = plan.getPlanElements.asScala
       .collect { case activity: Activity => activity }
-      .filter(x => (x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))).toList
+      .filter(x => (x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home")))
+      .toList
 
     val newElements = elements.foldLeft(mutable.MutableList[Activity]())(
       (listOfAct, currentAct) =>

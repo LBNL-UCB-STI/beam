@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.logit.{DestinationMNL, MultinomialLogit}
+import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -180,15 +180,19 @@ object HouseholdActor {
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
 
-        val destinationMNL
-          : MultinomialLogit[DestinationMNL.SupplementaryTripAlternative, DestinationMNL.DestinationParameters] =
-          new MultinomialLogit(Map.empty, DestinationMNL.DefaultMNLParameters)
+        val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
 
-        val tripMNL: MultinomialLogit[Boolean, DestinationMNL.TripParameters] =
-          new MultinomialLogit(Map.empty, DestinationMNL.TripMNLParameters)
+        val destinationMNL: MultinomialLogit[
+          DestinationChoiceModel.SupplementaryTripAlternative,
+          DestinationChoiceModel.DestinationParameters
+        ] =
+          new MultinomialLogit(Map.empty, destinationChoiceModel.DefaultMNLParameters)
 
-        val activityRates = DestinationMNL.DefaultActivityRates
-        val activityVOTs = DestinationMNL.DefaultActivityVOTs
+        val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
+          new MultinomialLogit(Map.empty, destinationChoiceModel.TripMNLParameters)
+
+        val activityRates = destinationChoiceModel.DefaultActivityRates
+        val activityVOTs = destinationChoiceModel.DefaultActivityVOTs
 
         household.members.foreach { person =>
           val supplementaryTripGenerator =
