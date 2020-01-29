@@ -217,6 +217,7 @@ trait ChoosesMode {
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT) =>
+            // We only include personal vehicle for use if on first or last trip of tour
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
             val tripIndex = tour.tripIndexOfElement(nextAct)
             if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {

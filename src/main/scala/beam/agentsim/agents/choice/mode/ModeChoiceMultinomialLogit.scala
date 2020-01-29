@@ -34,7 +34,6 @@ class ModeChoiceMultinomialLogit(
 
   override lazy val beamConfig: BeamConfig = beamConfigHolder.beamConfig
 
-  var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
   private val shouldLogDetails: Boolean = false
@@ -67,7 +66,6 @@ class ModeChoiceMultinomialLogit(
       val chosenModeOpt = {
         model.sampleAlternative(inputData, random)
       }
-      expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
       if (shouldLogDetails) {
         val personId = person.map(_.getId)
