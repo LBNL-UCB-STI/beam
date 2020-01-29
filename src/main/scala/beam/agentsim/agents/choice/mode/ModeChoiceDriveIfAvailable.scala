@@ -18,11 +18,20 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
 
   override lazy val beamConfig: BeamConfig = beamServices.beamConfig
 
-  def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
-  ): Option[EmbodiedBeamTrip] = {
+  override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeChoiceCalculator.ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[Modes.BeamMode] = {
+    val containsDriveAlt = alternatives.zipWithIndex.collect {
+      case (trip, idx) if trip.mode == CAR => idx
+    }
+    if (containsDriveAlt.nonEmpty) {
+      Some(alternatives(containsDriveAlt.head).mode)
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)).mode)
+    } else {
+      None
+    }
+  }
+
+  override def chooseModeFromEmboidedBeamTrips(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
     }
@@ -48,5 +57,6 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
+
 
 }

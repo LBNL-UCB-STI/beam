@@ -3,6 +3,7 @@ package beam.agentsim.agents.modalbehaviors
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeCostTimeTransfer
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -47,8 +48,11 @@ trait ModeChoiceCalculator {
   ): Double = {
     time / 3600
   }
+  def chooseModeFromAttributes(alternatives: IndexedSeq[ModeCostTimeTransfer],
+  attributesOfIndividual: AttributesOfIndividual,
+  destinationActivity: Option[Activity]): Option[BeamMode]
 
-  def apply(
+  def chooseModeFromEmboidedBeamTrips(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
@@ -98,7 +102,7 @@ trait ModeChoiceCalculator {
     attributesOfIndividual: AttributesOfIndividual
   ): Double
 
-  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
+  final def chooseRandomAlternativeIndex(alternatives: Seq[_]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
     } else {
@@ -170,4 +174,11 @@ object ModeChoiceCalculator {
   case object level3 extends automationLevel
   case object level4 extends automationLevel
   case object level5 extends automationLevel
+  case class ModeCostTimeTransfer(
+                                   mode: BeamMode,
+                                   cost: Double,
+                                   scaledTime: Double,
+                                   numTransfers: Int,
+                                   index: Int = -1
+                                 )
 }

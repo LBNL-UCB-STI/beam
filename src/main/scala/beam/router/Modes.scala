@@ -42,6 +42,7 @@ object Modes {
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL
+    def toOption: Option[BeamMode] = Some(this)
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {

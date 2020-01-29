@@ -14,11 +14,16 @@ import scala.collection.mutable.ListBuffer
   */
 class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalculator {
 
-  override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
-  ): Option[EmbodiedBeamTrip] = {
+
+  override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeChoiceCalculator.ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[Modes.BeamMode] = {
+    if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)).mode)
+    } else {
+      None
+    }
+  }
+
+  override def chooseModeFromEmboidedBeamTrips(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
     } else {

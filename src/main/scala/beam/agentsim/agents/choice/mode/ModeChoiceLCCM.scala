@@ -51,11 +51,13 @@ class ModeChoiceLCCM(
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
-  ): Option[EmbodiedBeamTrip] = {
+  override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeChoiceCalculator.ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[BeamMode] = {
+    //TODO update this
+    assert(false,"LCCM class has not been updated to handle mode choice directly from skims. This is a simple refactor if needed, see ModeChoiceMultinomialLogit for an example.")
+    alternatives.headOption.map(_.mode)
+  }
+
+  override def chooseModeFromEmboidedBeamTrips(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
@@ -335,7 +337,6 @@ class ModeChoiceLCCM(
       )
       .getOrElse(0)
   }
-
 }
 
 object ModeChoiceLCCM {

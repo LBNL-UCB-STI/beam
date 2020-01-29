@@ -19,11 +19,20 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
 
   override lazy val beamConfig: BeamConfig = beamServices.beamConfig
 
-  override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
-  ): Option[EmbodiedBeamTrip] = {
+  override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeChoiceCalculator.ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[Modes.BeamMode] = {
+    val containsRideHailAlt = alternatives.zipWithIndex.collect {
+      case (trip, idx) if trip.mode == RIDE_HAIL => idx
+    }
+    if (containsRideHailAlt.nonEmpty) {
+      Some(alternatives(containsRideHailAlt.head).mode)
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)).mode)
+    } else {
+      None
+    }
+  }
+
+  override def chooseModeFromEmboidedBeamTrips(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[EmbodiedBeamTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == RIDE_HAIL => idx
     }
@@ -49,4 +58,5 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
+
 }

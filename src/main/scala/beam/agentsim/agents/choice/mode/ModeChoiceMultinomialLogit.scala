@@ -2,13 +2,11 @@ package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
@@ -20,7 +18,6 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Random
 
 /**
   * BEAM
@@ -38,64 +35,66 @@ class ModeChoiceMultinomialLogit(
 
   private val shouldLogDetails: Boolean = false
 
-  override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
-  ): Option[EmbodiedBeamTrip] = {
-    if (alternatives.isEmpty) {
-      None
-    } else {
-      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
-
-      val bestInGroup =
-      modeCostTimeTransfers groupBy (_.mode) map {
+  override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[BeamMode] = {
+    val bestInGroup =
+      alternatives groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
       }
-      val inputData = bestInGroup.map { mct =>
-        val theParams: Map[String, Double] =
-          Map("cost" -> (mct.cost + mct.scaledTime))
-        val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
-          Map("transfer" -> mct.numTransfers)
-        } else {
-          Map()
-        }
-        (mct.mode.value, theParams ++ transferParam)
-      }.toMap
-      val chosenModeOpt = {
-        model.sampleAlternative(inputData, random)
+    val inputData = bestInGroup.map { mct =>
+      val theParams: Map[String, Double] =
+        Map("cost" -> (mct.cost + mct.scaledTime))
+      val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
+        Map("transfer" -> mct.numTransfers)
+      } else {
+        Map()
       }
-
-      if (shouldLogDetails) {
-        val personId = attributesOfIndividual.personId
-        val msgToLog =
-          s"""|@@@[$personId]-----------------------------------------
-              |@@@[$personId]Alternatives:${alternatives}
-              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-              |@@@[$personId]DestinationActivity:${destinationActivity}
-              |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
-              |@@@[$personId]bestInGroup:$bestInGroup
-              |@@@[$personId]inputData:$inputData
-              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
-              |@@@[$personId]-----------------------------------------
-              |""".stripMargin
-        logger.debug(msgToLog)
-      }
-
-      chosenModeOpt match {
-        case Some(chosenMode) =>
-          val chosenModeCostTime =
-            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
-          if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
-            None
-          } else {
-            Some(alternatives(chosenModeCostTime.head.index))
-          }
-        case None =>
-          None
-      }
+      (mct.mode.value, theParams ++ transferParam)
+    }.toMap
+    val chosenModeOpt = {
+      model.sampleAlternative(inputData, random)
     }
+
+    if (shouldLogDetails) {
+      val personId = attributesOfIndividual.personId
+      val msgToLog =
+        s"""|@@@[$personId]-----------------------------------------
+            |@@@[$personId]Alternatives:${alternatives}
+            |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
+            |@@@[$personId]DestinationActivity:${destinationActivity}
+            |@@@[$personId]modeCostTimeTransfers:$alternatives
+            |@@@[$personId]bestInGroup:$bestInGroup
+            |@@@[$personId]inputData:$inputData
+            |@@@[$personId]chosenModeOpt:${chosenModeOpt}
+            |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+            |@@@[$personId]-----------------------------------------
+            |""".stripMargin
+      logger.debug(msgToLog)
+    }
+
+    chosenModeOpt match {
+      case Some(chosenMode) =>
+        val chosenModeCostTime =
+          bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
+        if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
+          None
+        } else {
+          Some(chosenModeCostTime.head.mode)
+        }
+      case None =>
+        None
+    }
+  }
+
+
+  override def chooseModeFromEmboidedBeamTrips(
+  alternatives: IndexedSeq[EmbodiedBeamTrip],
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Option[EmbodiedBeamTrip] = {
+      val modeCostTimeTransfers = altsToModeCostTimeTransfers (alternatives, attributesOfIndividual, destinationActivity)
+      val chosenMode = chooseModeFromAttributes(modeCostTimeTransfers,attributesOfIndividual,destinationActivity)
+      //TODO this needs to find the right trip if there are multiple
+      alternatives.find(_.tripClassifier.toOption == chosenMode)
   }
 
   def timeAndCost(mct: ModeCostTimeTransfer): Double = {
@@ -322,12 +321,5 @@ object ModeChoiceMultinomialLogit {
     )
   }
 
-  case class ModeCostTimeTransfer(
-    mode: BeamMode,
-    cost: Double,
-    scaledTime: Double,
-    numTransfers: Int,
-    index: Int = -1
-  )
 
 }

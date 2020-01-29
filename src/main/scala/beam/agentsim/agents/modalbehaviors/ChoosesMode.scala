@@ -957,7 +957,7 @@ trait ChoosesMode {
           .asInstanceOf[AttributesOfIndividual]
       val availableAlts = Some(filteredItinerariesForChoice.map(_.tripClassifier).mkString(":"))
 
-      modeChoiceCalculator(
+      modeChoiceCalculator.chooseModeFromEmboidedBeamTrips(
         filteredItinerariesForChoice,
         attributesOfIndividual,
         nextActivity(choosesModeData.personData)
