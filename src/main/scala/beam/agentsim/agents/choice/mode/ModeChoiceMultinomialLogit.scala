@@ -73,13 +73,7 @@ class ModeChoiceMultinomialLogit(
 
     chosenModeOpt match {
       case Some(chosenMode) =>
-        val chosenModeCostTime =
-          bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
-        if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
-          None
-        } else {
-          Some(chosenModeCostTime.head.mode)
-        }
+        bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType)).headOption.map(_.mode)
       case None =>
         None
     }
@@ -145,9 +139,9 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    alternatives.zipWithIndex.map { altAndIdx =>
-      val mode = altAndIdx._1.tripClassifier
-      val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
+    alternatives.map { alt =>
+      val mode = alt.tripClassifier
+      val totalCost = getNonTimeCost(alt, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =
@@ -165,7 +159,7 @@ class ModeChoiceMultinomialLogit(
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
-          altAndIdx._1.legs.foreach { leg =>
+          alt.legs.foreach { leg =>
             if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
               vehId = leg.beamVehicleId
               nVeh = nVeh + 1
@@ -177,14 +171,13 @@ class ModeChoiceMultinomialLogit(
       }
       assert(numTransfers >= 0)
       val scaledTime = attributesOfIndividual.getVOT(
-        getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
+        getGeneralizedTimeOfTrip(alt, Some(attributesOfIndividual), destinationActivity)
       )
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
         scaledTime,
-        numTransfers,
-        altAndIdx._2
+        numTransfers
       )
     }
   }

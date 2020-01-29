@@ -178,7 +178,6 @@ object ModeChoiceCalculator {
                                    mode: BeamMode,
                                    cost: Double,
                                    scaledTime: Double,
-                                   numTransfers: Int,
-                                   index: Int = -1
+                                   numTransfers: Int
                                  )
 }
