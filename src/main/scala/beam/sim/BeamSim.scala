@@ -178,7 +178,7 @@ class BeamSim @Inject()(
     Skims.setup(beamServices)
 
     MatchingPerformance.runTest(8 * 3600, 4, 4, 100, "fast")
-    MatchingPerformance.runTest(8 * 3600, Int.MaxValue, 4, 100, "fast")
+    MatchingPerformance.runTest(8 * 3600, 12, 4, 100, "fast")
     //MatchingPerformance.runTest(8 * 3600, 8, 4, 100, "fast")
     //MatchingPerformance.runTest(8 * 3600, 12, 4, 100, "fast")
 //  MatchingPerformance.runTest(8 * 3600, 16, 4, 100, "fast")
