@@ -85,6 +85,7 @@ class VehicleCentricMatchingForRideHail(
     val numPassengers = v.getFreeSeats
     for (k <- 2 to numPassengers) {
       val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
+      val solutionSizePerPool = Math.pow(solutionSpaceSizePerVehicle, k)
       potentialTrips.zipWithIndex.foreach {
         case ((t1, _), pt1_index) =>
           potentialTrips
@@ -105,14 +106,14 @@ class VehicleCentricMatchingForRideHail(
                   case Some(schedule) =>
                     val t = RideHailTrip(requests, schedule, Some(v))
                     val cost = computeCost(t)
-                    if (tripsWithKPassengers.size == Int.MaxValue) {
+                    if (tripsWithKPassengers.size == solutionSizePerPool) {
                       // then replace the trip with highest sum of delays
                       val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
                       if (tripWithHighestCost > cost) {
                         tripsWithKPassengers.remove(index)
                       }
                     }
-                    if (tripsWithKPassengers.size < Int.MaxValue) {
+                    if (tripsWithKPassengers.size < solutionSizePerPool) {
                       tripsWithKPassengers.append((t, cost))
                     }
                   case _ =>
