@@ -82,10 +82,10 @@ class VehicleCentricMatchingForRideHail(
       return List.empty[(RideHailTrip, Double)]
 
     // building pooled rides from bottom up
-    val numPassengers = v.getFreeSeats
-    for (k <- 2 to numPassengers) {
+    val numFreeSeats = v.getFreeSeats
+    for (k <- 2 to numFreeSeats) {
       val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
-      val solutionSizePerPool = Math.pow(solutionSpaceSizePerVehicle, k)/2
+      val solutionSizePerPool = nCr(numFreeSeats, k)
       potentialTrips.zipWithIndex.foreach {
         case ((t1, _), pt1_index) =>
           potentialTrips
@@ -143,5 +143,17 @@ class VehicleCentricMatchingForRideHail(
     val maximum_delay = trip.upperBoundDelays
     val cost = passengers + (1 - (delay / maximum_delay.toDouble))
     -1 * cost
+  }
+
+  def nCr(n: Int, r: Int): Int = fact(n) / (fact(r) * fact(n - r))
+  def nAr(n: Int, r: Int): Int = fact(n) / fact(n - r)
+
+  // Returns factorial of n
+  def fact(n: Int): Int = {
+    var res = 1
+    for (i <- 2 to n) {
+      res = res * i
+    }
+    res
   }
 }
