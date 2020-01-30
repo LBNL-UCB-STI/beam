@@ -20,13 +20,14 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.replanning.SupplementaryTripGenerator
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
@@ -182,17 +183,17 @@ object HouseholdActor {
 
         val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
 
-        val destinationMNL: MultinomialLogit[
-          DestinationChoiceModel.SupplementaryTripAlternative,
-          DestinationChoiceModel.DestinationParameters
-        ] =
-          new MultinomialLogit(Map.empty, destinationChoiceModel.DefaultMNLParameters)
-
-        val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
-          new MultinomialLogit(Map.empty, destinationChoiceModel.TripMNLParameters)
-
         val activityRates = destinationChoiceModel.DefaultActivityRates
         val activityVOTs = destinationChoiceModel.DefaultActivityVOTs
+
+        val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
+          case VehicleCategory.Car  => BeamMode.CAR
+          case VehicleCategory.Bike => BeamMode.BIKE
+        }.toList
+
+        val cavModeAvailable: List[BeamMode] = if (cavs.nonEmpty) { List[BeamMode](BeamMode.CAV) } else { List[BeamMode]() }
+
+        val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
         household.members.foreach { person =>
           val supplementaryTripGenerator =
@@ -202,7 +203,7 @@ object HouseholdActor {
               activityVOTs,
               beamServices
             )
-          val newPlan = supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationMNL, tripMNL)
+          val newPlan = supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
           newPlan match {
             case Some(plan) =>
               person.removePlan(person.getSelectedPlan)

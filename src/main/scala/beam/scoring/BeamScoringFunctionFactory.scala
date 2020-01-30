@@ -96,8 +96,12 @@ class BeamScoringFunctionFactory @Inject()(
         }
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
-        val personActivities = person.getSelectedPlan.getPlanElements.asScala.collect { case activity: Activity => activity }
-        val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes ))
+        val personActivities = person.getSelectedPlan.getPlanElements.asScala
+          .collect {
+            case activity: Activity => activity
+          }
+          .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
+        val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
 
         finalScore = allDayScore + leavingParkingEventScore + activityScore
         finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing

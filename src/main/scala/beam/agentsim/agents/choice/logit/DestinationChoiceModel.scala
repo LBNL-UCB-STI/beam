@@ -68,6 +68,8 @@ object DestinationChoiceModel {
   type ActivityVOTs = Map[String, Double]
 
   type ActivityRates = Map[Int, Map[String, Double]]
+
+  type ActivityDurations = Map[String, Double]
 }
 
 class DestinationChoiceModel(
@@ -98,11 +100,11 @@ class DestinationChoiceModel(
     8  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     9  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     10 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    11 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    12 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
+    11 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
+    12 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
     13 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
     14 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    15 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
+    15 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     16 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     17 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
     18 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
@@ -116,7 +118,11 @@ class DestinationChoiceModel(
   val DefaultActivityVOTs: DestinationChoiceModel.ActivityVOTs = Map(
     "Home"  -> 0.8,
     "Work"  -> 1.0,
-    "Other" -> 3.0
+    "Other" -> 2.0
+  )
+
+  val DefaultActivityDurations: DestinationChoiceModel.ActivityDurations = Map(
+    "Other" -> 15.0
   )
 
 }
