@@ -33,7 +33,7 @@ class ModeChoiceMultinomialLogit(
 
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
-  private val shouldLogDetails: Boolean = false
+  private val shouldLogDetails: Boolean = true
 
   override def chooseModeFromAttributes(alternatives: IndexedSeq[ModeCostTimeTransfer], attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Option[BeamMode] = {
     val bestInGroup =

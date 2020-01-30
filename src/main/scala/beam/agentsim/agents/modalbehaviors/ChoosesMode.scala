@@ -195,29 +195,34 @@ trait ChoosesMode {
         asDriver = true
       )
       def downselectModesWithSkims(modes: Seq[BeamMode]): Seq[BeamMode] = {
-        val bodyStreetVehicleToken: VehicleOrToken = Token(body.id,self,bodyStreetVehicle)
-        val theInputData = modes.filter{ mode =>
-          mode match {
-            case CAR | BIKE =>
-              newlyAvailableBeamVehicles.find(_.streetVehicle.mode == mode).isDefined
-            case DRIVE_TRANSIT =>
-              newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAR).isDefined
-            case CAV =>
-              false // CAVs are planned in household and not selected for dynamically
-            case _ =>
-              true
-          }
-        }.map{ mode =>
-          val vehicleTypeId = newlyAvailableBeamVehicles.find(_.streetVehicle.mode == mode).getOrElse(bodyStreetVehicleToken).streetVehicle.vehicleTypeId
-          val theSkim = Skims.od_skimmer.getTimeDistanceAndCost(currentPersonLocation.loc,nextAct.getCoord,departTime,mode,vehicleTypeId,beamServices)
-          val scaledTime = attributes.getVOT(theSkim.generalizedTime/3600)
-          ModeCostTimeTransfer(mode,theSkim.cost, scaledTime, 0)
-        }.toIndexedSeq
-        modeChoiceCalculator.chooseModeFromAttributes(theInputData,attributes,Some(nextAct)).toSeq
+        if(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.filterAlternativesUsingSkimsToNCandidates <= 0) {
+          modes
+        }else{
+          //TODO if filterAlternativesUsingSkimsToNCandidates > 1 we need to sample multiple
+          val bodyStreetVehicleToken: VehicleOrToken = Token(body.id,self,bodyStreetVehicle)
+          val theInputData = modes.filter{ mode =>
+            mode match {
+              case CAR | BIKE =>
+                newlyAvailableBeamVehicles.find(_.streetVehicle.mode == mode).isDefined
+              case DRIVE_TRANSIT =>
+                newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAR).isDefined
+              case CAV =>
+                false // CAVs are planned in household and not selected for dynamically
+              case _ =>
+                true
+            }
+          }.map{ mode =>
+            val vehicleTypeId = newlyAvailableBeamVehicles.find(_.streetVehicle.mode == mode).getOrElse(bodyStreetVehicleToken).streetVehicle.vehicleTypeId
+            val theSkim = Skims.od_skimmer.getTimeDistanceAndCost(currentPersonLocation.loc,nextAct.getCoord,departTime,mode,vehicleTypeId,beamServices)
+            val scaledTime = attributes.getVOT(theSkim.generalizedTime/3600)
+            ModeCostTimeTransfer(mode,theSkim.cost, scaledTime, 0)
+          }.toIndexedSeq
+          modeChoiceCalculator.chooseModeFromAttributes(theInputData,attributes,Some(nextAct)).toSeq
+        }
       }
       var availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
-      ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
+      ).filterNot(mode => choosesModeData.excludeModes.contains(mode) || mode==TRANSIT)
       availableModes = choosesModeData.personData.currentTourMode match {
         case None =>
           downselectModesWithSkims(availableModes)
