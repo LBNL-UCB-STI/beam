@@ -85,41 +85,25 @@ class VehicleCentricMatchingForRideHail(
     val numFreeSeats = v.getFreeSeats
     for (k <- 2 to numFreeSeats) {
       val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
-      val solutionSizePerPool = nCr(numFreeSeats, k)
-      potentialTrips.zipWithIndex.foreach {
-        case ((t1, _), pt1_index) =>
-          potentialTrips
-            .drop(pt1_index)
-            .filter {
-              case (t2, _) =>
-                !(t2.requests exists (s => t1.requests contains s)) && (t1.requests.size + t2.requests.size) == k
+      //val solutionSizePerPool = nCr(numFreeSeats, k)
+      val solutionSizePerPool = Int.MaxValue
+      potentialTrips
+        .combinations(k)
+        .filter(c => c.map(_._1.requests.size).sum == k)
+        .flatMap(trips => RHMatchingToolkit.getRideHailTrip(v, trips.flatMap(_._1.requests).toList, services)).foreach {
+        t =>
+            val cost = computeCost(t)
+            if (tripsWithKPassengers.size == solutionSizePerPool) {
+              // then replace the trip with highest sum of delays
+              val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
+              if (tripWithHighestCost > cost) {
+                tripsWithKPassengers.remove(index)
+              }
             }
-            .foreach {
-              case (t2, _) =>
-                val requests = t1.requests ++ t2.requests
-                RHMatchingToolkit.getRidehailSchedule(
-                  v.schedule,
-                  requests.flatMap(x => List(x.pickup, x.dropoff)),
-                  v.vehicleRemainingRangeInMeters.toInt,
-                  services
-                ) match {
-                  case Some(schedule) =>
-                    val t = RideHailTrip(requests, schedule, Some(v))
-                    val cost = computeCost(t)
-                    if (tripsWithKPassengers.size == solutionSizePerPool) {
-                      // then replace the trip with highest sum of delays
-                      val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
-                      if (tripWithHighestCost > cost) {
-                        tripsWithKPassengers.remove(index)
-                      }
-                    }
-                    if (tripsWithKPassengers.size < solutionSizePerPool) {
-                      tripsWithKPassengers.append((t, cost))
-                    }
-                  case _ =>
-                }
+            if (tripsWithKPassengers.size < solutionSizePerPool) {
+              tripsWithKPassengers.append((t, cost))
             }
-      }
+          }
       potentialTrips.appendAll(tripsWithKPassengers)
     }
     potentialTrips.toList

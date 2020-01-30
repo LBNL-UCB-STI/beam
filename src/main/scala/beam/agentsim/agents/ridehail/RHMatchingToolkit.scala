@@ -165,6 +165,15 @@ object RHMatchingToolkit {
     }
   }
 
+  def getRideHailTrip(vehicle: VehicleAndSchedule, customers: List[CustomerRequest], beamServices: BeamServices): Option[RideHailTrip] = {
+    getRidehailSchedule(
+      vehicle.schedule,
+      customers.flatMap(x => List(x.pickup, x.dropoff)),
+      vehicle.vehicleRemainingRangeInMeters.toInt,
+      beamServices)
+      .map(schedule => RideHailTrip(customers, schedule, Some(vehicle)))
+  }
+
   def getRidehailSchedule(
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
