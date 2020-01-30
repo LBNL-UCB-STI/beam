@@ -85,7 +85,7 @@ class VehicleCentricMatchingForRideHail(
     val numPassengers = v.getFreeSeats
     for (k <- 2 to numPassengers) {
       val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
-      val solutionSizePerPool = 4
+      val solutionSizePerPool = Math.pow(solutionSpaceSizePerVehicle, k)/2
       potentialTrips.zipWithIndex.foreach {
         case ((t1, _), pt1_index) =>
           potentialTrips
