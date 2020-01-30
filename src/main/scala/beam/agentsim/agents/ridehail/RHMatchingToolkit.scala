@@ -203,7 +203,7 @@ object RHMatchingToolkit {
       for (curReq <- sortedRequests) {
         val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
         val tdc = getTimeDistanceAndCost(prevReq, curReq, beamServices)
-        val serviceTime = prevReq.serviceTime + tdc.time
+        val serviceTime = Math.max(prevReq.serviceTime + tdc.time, curReq.serviceTime)
         val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
         if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
@@ -309,7 +309,7 @@ object RHMatchingToolkit {
                 BeamMode.RIDE_HAIL,
                 Relocation,
                 leg.startTime,
-                leg.startTime + Int.MaxValue - 30000000,
+                leg.startTime,
                 0
               )
             )
@@ -372,12 +372,12 @@ object RHMatchingToolkit {
       alonsoSchedule += MobilityRequest(
         None,
         v1Act0,
-        tick + 1,
+        tick,
         Trip(v1Act0, None, null),
         BeamMode.RIDE_HAIL,
         EnRoute,
         tick,
-        tick + Int.MaxValue - 30000000,
+        tick,
         0
       )
     }
