@@ -2,20 +2,13 @@ package beam.replanning
 
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.{ASC, ExpMaxUtility}
-import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{
-  ActivityRates,
-  ActivityVOTs,
-  DestinationParameters,
-  SupplementaryTripAlternative,
-  TimesAndCost,
-  TripParameters
-}
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{ActivityRates, ActivityVOTs, DestinationParameters, SupplementaryTripAlternative, TimesAndCost, TripParameters}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.Skims
 import beam.sim.population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
@@ -97,8 +90,15 @@ class SupplementaryTripGenerator(
     modeMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
     destinationMNL: MultinomialLogit[SupplementaryTripAlternative, TripParameters],
     tripMNL: MultinomialLogit[Boolean, TripParameters],
-    modes: List[BeamMode] = List[BeamMode](CAR)
+    householdModes: List[BeamMode] = List[BeamMode](CAR)
   ): List[Activity] = {
+    val modesToConsider: List[BeamMode] =
+      if (householdModes.contains(CAV)){
+        List[BeamMode](CAV)
+      } else {
+        List[BeamMode](WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED) ++ householdModes
+    }
+
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime)
     alternativeActivity.setEndTime(nextActivity.getEndTime)
@@ -113,7 +113,7 @@ class SupplementaryTripGenerator(
         ]]],
         noTrip: Map[TripParameters, Double]
       ) =
-        gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime, alternativeActivity, modes)
+        gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
       val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
         modeTazCosts.map {
