@@ -189,9 +189,9 @@ class BeamSim @Inject()(
 //    MatchingPerformance.runTest(8 * 3600, 16, 4, 100, "greedy")
 //    MatchingPerformance.runTest(8 * 3600, 20, 4, 100, "greedy")
 //
-//    MatchingPerformance.runTest(8 * 3600, 4, 4, 100, "optimal")
-//    MatchingPerformance.runTest(8 * 3600, 8, 4, 100, "optimal")
-//    MatchingPerformance.runTest(8 * 3600, 12, 4, 100, "optimal")
+    MatchingPerformance.runTest(8 * 3600, 4, 4, 100, "optimal")
+    MatchingPerformance.runTest(8 * 3600, 8, 4, 100, "optimal")
+    MatchingPerformance.runTest(8 * 3600, 12, 4, 100, "optimal")
     MatchingPerformance.runTest(8 * 3600, 16, 4, 100, "optimal")
     MatchingPerformance.runTest(8 * 3600, 20, 4, 100, "optimal")
   }

@@ -133,8 +133,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         val combinations = ListBuffer.empty[String]
         for (t1 <- individualRequestsList) {
           for (t2 <- individualRequestsList
-                 .drop(individualRequestsList.indexOf(t1))
-                 .filter(x => rvG.containsEdge(t1.requests.head, x.requests.head))) {
+                 .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
@@ -164,6 +163,7 @@ class AlonsoMoraPoolingAlgForRideHail(
               val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
               if (!combinations.contains(matchId)) {
                 RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+                  combinations.append(t.matchId)
                   kRequestsList.append(t)
                   rTvG.addVertex(t)
                   t.requests.foreach(rTvG.addEdge(_, t))
@@ -188,7 +188,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       .map(_.asInstanceOf[RideHailTrip])
       .toList
     if (combinations.nonEmpty) {
-      val trips = combinations.map(_.getId.split(":")(1)).distinct.toArray
+      val trips = combinations.map(_.matchId).distinct.toArray
       val vehicles = supply.toArray
       import scala.language.implicitConversions
       val solver: MPSolver =
@@ -202,8 +202,7 @@ class AlonsoMoraPoolingAlgForRideHail(
           // + constraint 1
           val ct1_j = solver.makeConstraint(0.0, 1.0, s"ct1_$j")
           alternatives.foreach { trip =>
-            val tripId = trip.getId.split(":")(1)
-            val i = trips.indexOf(tripId)
+            val i = trips.indexOf(trip.matchId)
             val c_ij = trip.sumOfDelays
             val (epsilon_ij, _) = epsilonCostMap
               .getOrElseUpdate(i, mutable.Map.empty[Integer, (MPVariable, Double)])
@@ -214,7 +213,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       spatialDemand
         .values()
         .asScala
-        .map(r => combinations.filter(_.getId.contains(r.getId)))
+        .map(r => combinations.filter(_.matchId.contains(r.getId)))
         .filter(_.nonEmpty)
         .zipWithIndex
         .foreach {
@@ -223,8 +222,7 @@ class AlonsoMoraPoolingAlgForRideHail(
             val chiVar = solver.makeBoolVar(s"chi($k)")
             val ct2_k = solver.makeConstraint(1.0, 1.0, s"ct2_$k")
             alternatives.foreach { trip =>
-              val tripId = trip.getId.split(":")(1)
-              val i = trips.indexOf(tripId)
+              val i = trips.indexOf(trip.matchId)
               val j = vehicles.indexOf(trip.vehicle.get)
               ct2_k.setCoefficient(epsilonCostMap(i)(j)._1, 1)
             }
@@ -245,7 +243,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         for (i <- epsilonCostMap.keys) {
           for (j <- epsilonCostMap(i).keys) {
             val vehicle = vehicles(j)
-            val trip = combinations.find(c => c.vehicle.get == vehicle && c.getId.split(":")(1) == trips(i)).get
+            val trip = combinations.find(c => c.vehicle.get == vehicle && c.matchId == trips(i)).get
             if (epsilonCostMap(i)(j)._1.solutionValue() == 1) {
               optimalAssignment.append(trip)
             }
