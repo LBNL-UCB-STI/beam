@@ -304,7 +304,7 @@ class SupplementaryTripGenerator(
   ): (Int, Int) = {
 
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
-    val alternativeActivityDuration = altEnd - altStart
+
     val filtered = activityRates.map {
       case (activityType, hourToRate) =>
         activityType -> hourToRate
