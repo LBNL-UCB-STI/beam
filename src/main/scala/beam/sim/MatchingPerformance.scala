@@ -136,7 +136,7 @@ object MatchingPerformance extends BeamHelper {
       val pool_3p = 3 * assignments.count(_.requests.size == 3)
       val pool_4p = 4 * assignments.count(_.requests.size == 4)
       val pool_xp = pool_2p + pool_3p + pool_4p
-      logger.info(s"-------> pool share: ${pool_xp.toDouble/(pool_xp+pool_1p)}")
+      logger.info(s"-------> pool share: ${pool_xp.toDouble / (pool_xp + pool_1p)}")
       logger.info(s"-------> $pool_1p pool_1p, $pool_2p pool_2p, $pool_3p pool_3p, $pool_4p pool_4p")
       val veh_pool = assignments.count(_.requests.size > 1)
       val veh_solo = assignments.count(_.requests.size == 1)
@@ -167,7 +167,7 @@ object MatchingPerformance extends BeamHelper {
       val pool_3p = 3 * assignments.count(_.requests.size == 3)
       val pool_4p = 4 * assignments.count(_.requests.size == 4)
       val pool_xp = pool_2p + pool_3p + pool_4p
-      logger.info(s"-------> pool share: ${pool_xp.toDouble/(pool_xp+pool_1p)}")
+      logger.info(s"-------> pool share: ${pool_xp.toDouble / (pool_xp + pool_1p)}")
       logger.info(s"-------> $pool_1p pool_1p, $pool_2p pool_2p, $pool_3p pool_3p, $pool_4p pool_4p")
       val veh_pool = assignments.count(_.requests.size > 1)
       val veh_solo = assignments.count(_.requests.size == 1)
@@ -198,7 +198,7 @@ object MatchingPerformance extends BeamHelper {
       val pool_3p = 3 * assignments.count(_.requests.size == 3)
       val pool_4p = 4 * assignments.count(_.requests.size == 4)
       val pool_xp = pool_2p + pool_3p + pool_4p
-      logger.info(s"-------> pool share: ${pool_xp.toDouble/(pool_xp+pool_1p)}")
+      logger.info(s"-------> pool share: ${pool_xp.toDouble / (pool_xp + pool_1p)}")
       logger.info(s"-------> $pool_1p pool_1p, $pool_2p pool_2p, $pool_3p pool_3p, $pool_4p pool_4p")
       val veh_pool = assignments.count(_.requests.size > 1)
       val veh_solo = assignments.count(_.requests.size == 1)

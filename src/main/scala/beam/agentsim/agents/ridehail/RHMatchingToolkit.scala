@@ -74,7 +74,8 @@ object RHMatchingToolkit {
       with RTVGraphNode {
     val sumOfDelays: Int = schedule.filter(_.isDropoff).map(s => s.serviceTime - s.baselineNonPooledTime).sum
     val upperBoundDelays: Int = schedule.filter(_.isDropoff).map(s => s.upperBoundTime - s.baselineNonPooledTime).sum
-    def getId: String = s"${vehicle.toString}:${requests.sortBy(_.getId).map(_.getId).mkString(",")}"
+    val matchId: String = s"${requests.sortBy(_.getId).map(_.getId).mkString(",")}"
+    def getId: String = s"${vehicle.map(_.getId).getOrElse("NA")}:$matchId"
     override def toString: String =
       s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
   }
@@ -165,64 +166,61 @@ object RHMatchingToolkit {
     }
   }
 
-  def getRideHailTrip(vehicle: VehicleAndSchedule, customers: List[CustomerRequest], beamServices: BeamServices): Option[RideHailTrip] = {
-    getRidehailSchedule(
-      vehicle.schedule,
-      customers.flatMap(x => List(x.pickup, x.dropoff)),
-      vehicle.vehicleRemainingRangeInMeters.toInt,
-      beamServices)
-      .map(schedule => RideHailTrip(customers, schedule, Some(vehicle)))
+  def getRideHailTrip(
+    vehicle: VehicleAndSchedule,
+    customers: List[CustomerRequest],
+    beamServices: BeamServices
+  ): Option[RideHailTrip] = {
+    val schedule = vehicle.schedule
+    val newRequests = customers.flatMap(x => List(x.pickup, x.dropoff))
+    val remainingVehicleRangeInMeters = vehicle.vehicleRemainingRangeInMeters.toInt
+    getRideHailSchedule(
+      schedule,
+      newRequests,
+      remainingVehicleRangeInMeters,
+      vehicle.getRequestWithCurrentVehiclePosition,
+      beamServices
+    ).map(newSchedule => RideHailTrip(customers, newSchedule, Some(vehicle)))
   }
 
-  def getRidehailSchedule(
+  def getRideHailSchedule(
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
     remainingVehicleRangeInMeters: Int,
+    currentPosition: MobilityRequest,
     beamServices: BeamServices
   ): Option[List[MobilityRequest]] = {
-    val newPoolingList = scala.collection.mutable.ListBuffer.empty[MobilityRequest]
     val reversedSchedule = schedule.reverse
-    val sortedRequests = reversedSchedule.lastOption match {
+    val newSchedule = ListBuffer(currentPosition)
+    val processedRequests = ListBuffer.empty[MobilityRequest]
+    val pastSchedule = reversedSchedule.lastOption match {
       case Some(_) if reversedSchedule.exists(_.tag == EnRoute) =>
         val enRouteIndex = reversedSchedule.indexWhere(_.tag == EnRoute) + 1
-        newPoolingList.appendAll(reversedSchedule.slice(0, enRouteIndex))
-        // We make sure that request time is always equal or greater than the driver's "current tick" as denoted by time in EnRoute
-        val shiftRequestsBy =
-          Math.max(0, reversedSchedule(enRouteIndex - 1).baselineNonPooledTime - newRequests.head.baselineNonPooledTime)
-        (reversedSchedule.slice(enRouteIndex, reversedSchedule.size) ++ newRequests.map(
-          req =>
-            req.copy(
-              baselineNonPooledTime = req.baselineNonPooledTime + shiftRequestsBy,
-              serviceTime = req.serviceTime + shiftRequestsBy
-          )
-        )).sortBy(
-          mr => (mr.baselineNonPooledTime, mr.person.map(_.personId.toString).getOrElse("ZZZZZZZZZZZZZZZZZZZZZZZ"))
-        )
-      case Some(_) =>
-        newPoolingList.appendAll(reversedSchedule)
-        newRequests.sortBy(_.baselineNonPooledTime)
-      case None =>
-        val temp = newRequests.sortBy(_.baselineNonPooledTime)
-        newPoolingList.append(temp.head)
-        temp.drop(1)
+        processedRequests.appendAll(reversedSchedule.slice(enRouteIndex, reversedSchedule.size))
+        reversedSchedule.slice(0, enRouteIndex)
+      case _ =>
+        reversedSchedule
     }
+    processedRequests.appendAll(newRequests)
 
     var isValid = true
-    breakable {
-      for (curReq <- sortedRequests) {
-        val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
-        val tdc = getTimeDistanceAndCost(prevReq, curReq, beamServices)
-        val serviceTime = Math.max(prevReq.serviceTime + tdc.time, curReq.serviceTime)
-        val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
-        if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
-          newPoolingList.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
-        } else {
-          isValid = false
-          break
-        }
+    while (processedRequests.nonEmpty && isValid) {
+      val prevReq = newSchedule.last
+      val ((curReq, skim), index) = processedRequests
+        .map(req => (req, getTimeDistanceAndCost(prevReq, req, beamServices)))
+        .zipWithIndex
+        .minBy(_._1._2.time)
+      val serviceTime = Math.max(prevReq.serviceTime + skim.time, curReq.serviceTime)
+      val serviceDistance = prevReq.serviceDistance + skim.distance
+      isValid = serviceTime <= curReq.upperBoundTime && Math.ceil(serviceDistance) <= remainingVehicleRangeInMeters
+      if (isValid) {
+        newSchedule.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
+        processedRequests.remove(index)
       }
     }
-    if (isValid) Some(newPoolingList.toList) else None
+    if (isValid) {
+      Some(pastSchedule ++ newSchedule.drop(1).toList)
+    } else None
   }
 
   def createPersonRequest(

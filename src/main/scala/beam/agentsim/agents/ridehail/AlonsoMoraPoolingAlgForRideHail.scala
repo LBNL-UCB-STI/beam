@@ -56,11 +56,14 @@ class AlonsoMoraPoolingAlgForRideHail(
       val center = r1.pickup.activity.getCoord
       spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.foreach {
         case r2 if r1 != r2 && !rvG.containsEdge(r1, r2) =>
+          val startPoint =
+            if (r1.pickup.baselineNonPooledTime <= r2.pickup.baselineNonPooledTime) r1.pickup else r2.pickup
           RHMatchingToolkit
-            .getRidehailSchedule(
+            .getRideHailSchedule(
               List.empty[MobilityRequest],
               List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
               Integer.MAX_VALUE,
+              startPoint,
               beamServices
             )
             .foreach { schedule =>
@@ -91,10 +94,11 @@ class AlonsoMoraPoolingAlgForRideHail(
         .foreach(
           r =>
             RHMatchingToolkit
-              .getRidehailSchedule(
+              .getRideHailSchedule(
                 v.schedule,
                 List(r.pickup, r.dropoff),
                 v.vehicleRemainingRangeInMeters.toInt,
+                v.getRequestWithCurrentVehiclePosition,
                 beamServices
               )
               .foreach { schedule =>
@@ -126,25 +130,23 @@ class AlonsoMoraPoolingAlgForRideHail(
 
       if (v.getFreeSeats > 1) {
         val pairRequestsList = ListBuffer.empty[RideHailTrip]
+        val combinations = ListBuffer.empty[String]
         for (t1 <- individualRequestsList) {
           for (t2 <- individualRequestsList
                  .drop(individualRequestsList.indexOf(t1))
                  .filter(x => rvG.containsEdge(t1.requests.head, x.requests.head))) {
-            RHMatchingToolkit
-              .getRidehailSchedule(
-                v.schedule,
-                (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
-                v.vehicleRemainingRangeInMeters.toInt,
-                beamServices
-              )
-              .foreach { schedule =>
-                val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
+            val temp = t1.requests ++ t2.requests
+            val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
+            if (!combinations.contains(matchId)) {
+              RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+                combinations.append(t.matchId)
                 pairRequestsList append t
                 rTvG.addVertex(t)
                 rTvG.addEdge(t1.requests.head, t)
                 rTvG.addEdge(t2.requests.head, t)
                 rTvG.addEdge(t, v)
               }
+            }
           }
         }
         finalRequestsList.appendAll(pairRequestsList)
@@ -158,20 +160,16 @@ class AlonsoMoraPoolingAlgForRideHail(
                      x =>
                        !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
                    )) {
-              RHMatchingToolkit
-                .getRidehailSchedule(
-                  v.schedule,
-                  (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
-                  v.vehicleRemainingRangeInMeters.toInt,
-                  beamServices
-                )
-                .foreach { schedule =>
-                  val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
+              val temp = t1.requests ++ t2.requests
+              val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
+              if (!combinations.contains(matchId)) {
+                RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
                   kRequestsList.append(t)
                   rTvG.addVertex(t)
                   t.requests.foreach(rTvG.addEdge(_, t))
                   rTvG.addEdge(t, v)
                 }
+              }
             }
           }
           finalRequestsList.appendAll(kRequestsList)

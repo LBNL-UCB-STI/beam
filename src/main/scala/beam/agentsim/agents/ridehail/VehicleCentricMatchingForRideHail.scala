@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import java.math.BigInteger
+
 import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
   CustomerRequest,
   RHMatchingAlgorithm,
@@ -14,6 +16,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -64,18 +67,8 @@ class VehicleCentricMatchingForRideHail(
     val potentialTrips = mutable.ListBuffer.empty[(RideHailTrip, Double)]
     // consider solo rides as initial potential trips
     customers
-      .flatten(
-        c =>
-          RHMatchingToolkit
-            .getRidehailSchedule(v.schedule, List(c.pickup, c.dropoff), v.vehicleRemainingRangeInMeters.toInt, services)
-            .map(schedule => (c, schedule))
-      )
-      .foreach {
-        case (c, schedule) =>
-          val t = RideHailTrip(List(c), schedule, Some(v))
-          val cost = computeCost(t)
-          potentialTrips.append((t, cost))
-      }
+      .flatten(c => RHMatchingToolkit.getRideHailTrip(v, List(c), services))
+      .foreach(t => potentialTrips.append((t, computeCost(t))))
 
     // if no solo ride is possible, returns
     if (potentialTrips.isEmpty)
@@ -85,25 +78,37 @@ class VehicleCentricMatchingForRideHail(
     val numFreeSeats = v.getFreeSeats
     for (k <- 2 to numFreeSeats) {
       val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
-      //val solutionSizePerPool = nCr(numFreeSeats, k)
-      val solutionSizePerPool = Int.MaxValue
-      potentialTrips
-        .combinations(k)
-        .filter(c => c.map(_._1.requests.size).sum == k)
-        .flatMap(trips => RHMatchingToolkit.getRideHailTrip(v, trips.flatMap(_._1.requests).toList, services)).foreach {
-        t =>
-            val cost = computeCost(t)
-            if (tripsWithKPassengers.size == solutionSizePerPool) {
-              // then replace the trip with highest sum of delays
-              val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
-              if (tripWithHighestCost > cost) {
-                tripsWithKPassengers.remove(index)
+      val numCombinations = nCr(solutionSpaceSizePerVehicle, k).doubleValue()
+      val solutionSizePerPool = if (numCombinations <= 0) {
+        Int.MaxValue
+      } else {
+        solutionSpaceSizePerVehicle * Math.sqrt(numCombinations)
+      }
+      val combinations = ListBuffer.empty[String]
+      for ((t1, _) <- potentialTrips) {
+        for ((t2, _) <- potentialTrips.filter(
+               t2p => !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
+             )) {
+          val temp = t1.requests ++ t2.requests
+          val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
+          if (!combinations.contains(matchId)) {
+            RHMatchingToolkit.getRideHailTrip(v, temp, services).foreach { t =>
+              combinations.append(t.matchId)
+              val cost = computeCost(t)
+              if (tripsWithKPassengers.size == solutionSizePerPool) {
+                // then replace the trip with highest sum of delays
+                val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
+                if (tripWithHighestCost > cost) {
+                  tripsWithKPassengers.remove(index)
+                }
+              }
+              if (tripsWithKPassengers.size < solutionSizePerPool) {
+                tripsWithKPassengers.append((t, cost))
               }
             }
-            if (tripsWithKPassengers.size < solutionSizePerPool) {
-              tripsWithKPassengers.append((t, cost))
-            }
           }
+        }
+      }
       potentialTrips.appendAll(tripsWithKPassengers)
     }
     potentialTrips.toList
@@ -129,14 +134,12 @@ class VehicleCentricMatchingForRideHail(
     -1 * cost
   }
 
-  def nCr(n: Int, r: Int): Int = fact(n) / (fact(r) * fact(n - r))
-  def nAr(n: Int, r: Int): Int = fact(n) / fact(n - r)
+  def nCr(n: Int, r: Int): BigInteger = fact(n).divide(fact(r).multiply(fact(n - r)))
 
-  // Returns factorial of n
-  def fact(n: Int): Int = {
-    var res = 1
+  def fact(n: Int): BigInteger = {
+    var res: BigInteger = BigInteger.valueOf(1)
     for (i <- 2 to n) {
-      res = res * i
+      res = res.multiply(BigInteger.valueOf(i))
     }
     res
   }

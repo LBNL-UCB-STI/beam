@@ -60,10 +60,11 @@ class AsyncAlonsoMoraAlgForRideHail(
     customers.foreach(
       r =>
         RHMatchingToolkit
-          .getRidehailSchedule(
+          .getRideHailSchedule(
             v.schedule,
             List(r.pickup, r.dropoff),
             v.vehicleRemainingRangeInMeters.toInt,
+            v.getRequestWithCurrentVehiclePosition,
             beamServices
           )
           .foreach { schedule =>
@@ -76,6 +77,7 @@ class AsyncAlonsoMoraAlgForRideHail(
     )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 to v.getFreeSeats) {
+        val combinations = ListBuffer.empty[String]
         val kRequestsList = ListBuffer.empty[RideHailTrip]
         for (t1 <- finalRequestsList) {
           for (t2 <- finalRequestsList
@@ -83,20 +85,17 @@ class AsyncAlonsoMoraAlgForRideHail(
                  .filter(
                    x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
                  )) {
-            RHMatchingToolkit
-              .getRidehailSchedule(
-                v.schedule,
-                (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
-                v.vehicleRemainingRangeInMeters.toInt,
-                beamServices
-              )
-              .foreach { schedule =>
-                val t = RideHailTrip(t1.requests ++ t2.requests, schedule, Some(v))
+            val temp = t1.requests ++ t2.requests
+            val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
+            if (!combinations.contains(matchId)) {
+              RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+                combinations.append(t.matchId)
                 kRequestsList append t
                 vertices append t
                 t.requests.foreach(r => edges.append((r, t)))
                 edges append ((t, v))
               }
+            }
           }
         }
         finalRequestsList.appendAll(kRequestsList)
