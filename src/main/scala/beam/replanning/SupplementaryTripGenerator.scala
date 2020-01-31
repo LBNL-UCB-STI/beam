@@ -306,24 +306,36 @@ class SupplementaryTripGenerator(
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
     val filtered = activityRates.map {
-      case (x,y) =>
-        x -> y.filter(z => z._1 > secondsToIndex(altStart) & z._1 <= secondsToIndex(altEnd) & z._2 > 0).values.sum
+      case (activityType, hourToRate) =>
+        activityType -> hourToRate
+          .filter {
+            case (hour, rate) =>
+              hour > secondsToIndex(altStart) & hour <= secondsToIndex(altEnd) & rate > 0
+          }
+          .values
+          .sum
     }
-    val totalProb = filtered.values.sum
-    val randomDraw = r.nextDouble()
+    val chosenType = drawKeyByValue(filtered, "Other")
 
-    val probs = filtered.values.scanLeft(0.0)(_ + _/totalProb).drop(1)
-    val chosenType = filtered.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption.getOrElse(("Other",1.0))._1
-
-    val meanActivityDuration: Double = activityDurations.getOrElse(chosenType,15*60)
+    val meanActivityDuration: Double = activityDurations.getOrElse(chosenType, 15 * 60)
 
     val newActivityDuration: Double = -math.log(r.nextDouble()) * meanActivityDuration
 
-    val feasibleWindowDuration = alternativeActivityDuration - newActivityDuration - 2 * travelTimeBufferInSec
-    val startTimeBuffer = r.nextDouble() * feasibleWindowDuration + travelTimeBufferInSec
+    val earliestPossibleStartIndex = secondsToIndex(altStart + travelTimeBufferInSec)
+    val latestPossibleEndIndex = secondsToIndex(altEnd - travelTimeBufferInSec)
+    val chosenStartIndex = if (latestPossibleEndIndex > earliestPossibleStartIndex + 1) {
+      val filteredRates = activityRates
+        .getOrElse(chosenType, Map[Int, Double]())
+        .filter {
+          case (hour, rate) =>
+            hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd) & rate > 0
+        }
+      drawKeyByValue(filteredRates, earliestPossibleStartIndex)
+    } else { earliestPossibleStartIndex }
+    val startTime = math.max((r.nextDouble() + chosenStartIndex) * 3600, altStart + travelTimeBufferInSec)
     (
-      (altStart + startTimeBuffer).toInt,
-      (altStart + startTimeBuffer + newActivityDuration).toInt
+      startTime.toInt,
+      (startTime + newActivityDuration).toInt
     )
   }
 
@@ -333,6 +345,16 @@ class SupplementaryTripGenerator(
 
   private def secondsToIndex(time: Double): Int = {
     (time / 3600).toInt
+  }
+
+  private def drawKeyByValue[A](
+    keyToProb: Map[A, Double],
+    default: A
+  ): A = {
+    val totalProb = keyToProb.values.sum
+    val randomDraw = r.nextDouble()
+    val probs = keyToProb.values.scanLeft(0.0)(_ + _ / totalProb).drop(1)
+    keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption.getOrElse((default, 1.0))._1
   }
 
 }

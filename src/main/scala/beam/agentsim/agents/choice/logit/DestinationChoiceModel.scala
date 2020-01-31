@@ -125,7 +125,7 @@ class DestinationChoiceModel(
   )
 
   val DefaultActivityDurations: DestinationChoiceModel.ActivityDurations = Map(
-    "Other" -> 15.0
+    "Other" -> 15.0 * 60.0
   )
 
 }
