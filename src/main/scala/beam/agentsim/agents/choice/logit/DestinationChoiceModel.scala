@@ -67,7 +67,7 @@ object DestinationChoiceModel {
 
   type ActivityVOTs = Map[String, Double]
 
-  type ActivityRates = Map[Int, Map[String, Double]]
+  type ActivityRates = Map[String, Map[Int, Double]]
 
   type ActivityDurations = Map[String, Double]
 }
@@ -88,32 +88,35 @@ class DestinationChoiceModel(
     DestinationChoiceModel.TripParameters.ASC           -> UtilityFunctionOperation.Intercept(1.0)
   )
 
-  val DefaultActivityRates: DestinationChoiceModel.ActivityRates = Map(
-    0  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
-    1  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
-    2  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
-    3  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -5.0),
-    4  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -3.0),
-    5  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> -1.0),
-    6  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    7  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    8  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    9  -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    10 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    11 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    12 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    13 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    14 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    15 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    16 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    17 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    18 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    19 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 3.0),
-    20 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 2.0),
-    21 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    22 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 1.0),
-    23 -> Map[String, Double]("Home" -> 0.8, "Work" -> 1.0, "Other" -> 0.0)
-  )
+  val DefaultActivityRates: DestinationChoiceModel.ActivityRates =
+    Map(
+      "Other" -> Map[Int, Double](
+        0  -> -5.0,
+        1  -> -5.0,
+        2  -> -5.0,
+        3  -> -5.0,
+        4  -> -3.0,
+        5  -> -1.0,
+        6  -> 1.0,
+        7  -> 2.0,
+        8  -> 2.0,
+        9  -> 2.0,
+        11 -> 2.0,
+        10 -> 1.0,
+        12 -> 3.0,
+        13 -> 3.0,
+        14 -> 3.0,
+        15 -> 2.0,
+        16 -> 2.0,
+        17 -> 2.0,
+        18 -> 3.0,
+        19 -> 3.0,
+        20 -> 2.0,
+        21 -> 1.0,
+        22 -> 1.0,
+        23 -> 0.0
+      )
+    )
 
   val DefaultActivityVOTs: DestinationChoiceModel.ActivityVOTs = Map(
     "Home"  -> 0.8,

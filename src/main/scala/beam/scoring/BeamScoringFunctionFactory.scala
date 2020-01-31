@@ -128,8 +128,8 @@ class BeamScoringFunctionFactory @Inject()(
             .getOrElse(activity.getType, 1.0)
         )
         val intercept: Double = beamServices.beamScenario.destinationChoiceModel.DefaultActivityRates
-          .getOrElse(math.floor(altStart / 3600).toInt, Map[String, Double]())
-          .getOrElse(activity.getType, 0)
+          .getOrElse(activity.getType, Map[Int, Double]())
+          .getOrElse(math.floor(altStart / 3600).toInt, 0)
         timeValue + intercept
       }
 

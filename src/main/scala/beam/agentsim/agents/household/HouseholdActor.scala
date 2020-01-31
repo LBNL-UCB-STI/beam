@@ -191,7 +191,8 @@ object HouseholdActor {
           case VehicleCategory.Bike => BeamMode.BIKE
         }.toList
 
-        val cavModeAvailable: List[BeamMode] = if (cavs.nonEmpty) { List[BeamMode](BeamMode.CAV) } else { List[BeamMode]() }
+        val cavModeAvailable: List[BeamMode] =
+          if (cavs.nonEmpty) { List[BeamMode](BeamMode.CAV) } else { List[BeamMode]() }
 
         val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
@@ -199,11 +200,11 @@ object HouseholdActor {
           val supplementaryTripGenerator =
             new SupplementaryTripGenerator(
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
-              activityRates,
-              activityVOTs,
+              destinationChoiceModel,
               beamServices
             )
-          val newPlan = supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
+          val newPlan =
+            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
           newPlan match {
             case Some(plan) =>
               person.removePlan(person.getSelectedPlan)

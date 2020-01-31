@@ -2,7 +2,14 @@ package beam.replanning
 
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.{ASC, ExpMaxUtility}
-import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{ActivityRates, ActivityVOTs, DestinationParameters, SupplementaryTripAlternative, TimesAndCost, TripParameters}
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{
+  ActivityRates,
+  ActivityVOTs,
+  DestinationParameters,
+  SupplementaryTripAlternative,
+  TimesAndCost,
+  TripParameters
+}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.Skims
@@ -19,13 +26,16 @@ import scala.util.Random
 
 class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
-  val activityRates: ActivityRates,
-  val activityVOTs: ActivityVOTs,
+  val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices
 ) {
   val tazChoiceSet = generateTazChoiceSet(20)
   val travelTimeBufferInSec = 30 * 60
   val r = scala.util.Random
+
+  val activityRates = destinationChoiceModel.DefaultActivityRates
+  val activityVOTs = destinationChoiceModel.DefaultActivityVOTs
+  val activityDurations = destinationChoiceModel.DefaultActivityDurations
 
   def generateNewPlans(
     plan: Plan,
@@ -93,11 +103,11 @@ class SupplementaryTripGenerator(
     householdModes: List[BeamMode] = List[BeamMode](CAR)
   ): List[Activity] = {
     val modesToConsider: List[BeamMode] =
-      if (householdModes.contains(CAV)){
+      if (householdModes.contains(CAV)) {
         List[BeamMode](CAV)
       } else {
         List[BeamMode](WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED) ++ householdModes
-    }
+      }
 
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime)
@@ -105,7 +115,7 @@ class SupplementaryTripGenerator(
     if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)) {
       val meanActivityDuration = 15 * 60
 
-      val (startTime, endTime) = generateSubtourStartAndEndTime(alternativeActivity, meanActivityDuration)
+      val (startTime, endTime) = generateSubtourStartAndEndTime(alternativeActivity)
       val (
         modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
           DestinationParameters,
@@ -272,7 +282,7 @@ class SupplementaryTripGenerator(
             .getOrElse(alternativeActivity.getType, 1.0)
         )
         val asc: Double =
-          activityRates.getOrElse(desiredDepartTimeBin, Map[String, Double]()).getOrElse(newActivity.getType, 0)
+          activityRates.getOrElse(newActivity.getType, Map[Int, Double]()).getOrElse(desiredDepartTimeBin, 0)
         val newActivityBenefit: Double = attributesOfIndividual.getVOT(
           activityDuration / 3600 * activityVOTs.getOrElse(newActivity.getType, 1.0)
         ) + asc
@@ -290,12 +300,25 @@ class SupplementaryTripGenerator(
   }
 
   private def generateSubtourStartAndEndTime(
-    alternativeActivity: Activity,
-    meanActivityDuration: Double
+    alternativeActivity: Activity
   ): (Int, Int) = {
-    val newActivityDuration = -math.log(r.nextDouble()) * meanActivityDuration
+
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
+    val filtered = activityRates.map {
+      case (x,y) =>
+        x -> y.filter(z => z._1 > secondsToIndex(altStart) & z._1 <= secondsToIndex(altEnd) & z._2 > 0).values.sum
+    }
+    val totalProb = filtered.values.sum
+    val randomDraw = r.nextDouble()
+
+    val probs = filtered.values.scanLeft(0.0)(_ + _/totalProb).drop(1)
+    val chosenType = filtered.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption.getOrElse(("Other",1.0))._1
+
+    val meanActivityDuration: Double = activityDurations.getOrElse(chosenType,15*60)
+
+    val newActivityDuration: Double = -math.log(r.nextDouble()) * meanActivityDuration
+
     val feasibleWindowDuration = alternativeActivityDuration - newActivityDuration - 2 * travelTimeBufferInSec
     val startTimeBuffer = r.nextDouble() * feasibleWindowDuration + travelTimeBufferInSec
     (
@@ -305,7 +328,7 @@ class SupplementaryTripGenerator(
   }
 
   private def generateTazChoiceSet(n: Int): List[TAZ] = {
-    Random.shuffle(Skims.od_skimmer.beamServices.beamScenario.tazTreeMap.getTAZs.toList).take(n)
+    Random.shuffle(beamServices.beamScenario.tazTreeMap.getTAZs.toList).take(n)
   }
 
   private def secondsToIndex(time: Double): Int = {
