@@ -3,6 +3,7 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.{ASC, ExpMaxUtility}
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{
+  ActivityDurations,
   ActivityRates,
   ActivityVOTs,
   DestinationParameters,
@@ -29,13 +30,18 @@ class SupplementaryTripGenerator(
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices
 ) {
-  val tazChoiceSet = generateTazChoiceSet(30)
-  val travelTimeBufferInSec = 30 * 60
-  val r = scala.util.Random
 
-  val activityRates = destinationChoiceModel.activityRates
-  val activityVOTs = destinationChoiceModel.activityVOTs
-  val activityDurations = destinationChoiceModel.activityDurations
+  val tazChoiceSet: List[TAZ] =
+    generateTazChoiceSet(
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size
+    )
+
+  val travelTimeBufferInSec = 30 * 60
+  val r: Random.type = scala.util.Random
+
+  val activityRates: ActivityRates = destinationChoiceModel.activityRates
+  val activityVOTs: ActivityVOTs = destinationChoiceModel.activityVOTs
+  val activityDurations: ActivityDurations = destinationChoiceModel.activityDurations
 
   def generateNewPlans(
     plan: Plan,
