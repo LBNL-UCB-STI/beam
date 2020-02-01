@@ -113,9 +113,7 @@ class SupplementaryTripGenerator(
     alternativeActivity.setStartTime(prevActivity.getStartTime)
     alternativeActivity.setEndTime(nextActivity.getEndTime)
     if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)) {
-      val meanActivityDuration = 15 * 60
-
-      val (startTime, endTime) = generateSubtourStartAndEndTime(alternativeActivity)
+      val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
       val (
         modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
           DestinationParameters,
@@ -123,7 +121,7 @@ class SupplementaryTripGenerator(
         ]]],
         noTrip: Map[TripParameters, Double]
       ) =
-        gatherTazCosts(currentActivity, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
+        gatherTazCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
       val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
         modeTazCosts.map {
@@ -158,7 +156,7 @@ class SupplementaryTripGenerator(
 
           val newActivity =
             PopulationUtils.createActivityFromCoord(
-              "Other",
+              newActivityType,
               TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
             )
           val activityBeforeNewActivity =
@@ -185,7 +183,7 @@ class SupplementaryTripGenerator(
   }
 
   private def gatherTazCosts(
-    currentActivity: Activity,
+    newActivityType: String,
     TAZs: List[TAZ],
     startTime: Int,
     endTime: Int,
@@ -210,11 +208,11 @@ class SupplementaryTripGenerator(
       } else {
         TAZs.map { taz =>
           val cost =
-            getTazCost(currentActivity, taz, modes, startTime, endTime, alternativeActivity)
+            getTazCost(newActivityType, taz, modes, startTime, endTime, alternativeActivity)
           val alternative =
             DestinationChoiceModel.SupplementaryTripAlternative(
               taz,
-              currentActivity.getType,
+              newActivityType,
               CAR,
               endTime - startTime,
               startTime
@@ -223,7 +221,7 @@ class SupplementaryTripGenerator(
             case (x, y) =>
               DestinationChoiceModel.SupplementaryTripAlternative(
                 taz,
-                currentActivity.getType,
+                newActivityType,
                 x,
                 endTime - startTime,
                 startTime
@@ -243,7 +241,7 @@ class SupplementaryTripGenerator(
   }
 
   private def getTazCost(
-    newActivity: Activity,
+    newActivityType: String,
     taz: TAZ,
     modes: List[BeamMode],
     newActivityStartTime: Double,
@@ -260,7 +258,7 @@ class SupplementaryTripGenerator(
       modes.map { mode =>
         val accessTripSkim =
           Skims.od_skimmer.getTimeDistanceAndCost(
-            newActivity.getCoord,
+            alternativeActivity.getCoord,
             TAZTreeMap.randomLocationInTAZ(taz),
             desiredDepartTimeBin,
             mode
@@ -268,7 +266,7 @@ class SupplementaryTripGenerator(
         val egressTripSkim =
           Skims.od_skimmer.getTimeDistanceAndCost(
             TAZTreeMap.randomLocationInTAZ(taz),
-            newActivity.getCoord,
+            alternativeActivity.getCoord,
             desiredReturnTimeBin,
             mode
           )
@@ -282,9 +280,9 @@ class SupplementaryTripGenerator(
             .getOrElse(alternativeActivity.getType, 1.0)
         )
         val asc: Double =
-          activityRates.getOrElse(newActivity.getType, Map[Int, Double]()).getOrElse(desiredDepartTimeBin, 0)
+          activityRates.getOrElse(newActivityType, Map[Int, Double]()).getOrElse(desiredDepartTimeBin, 0)
         val newActivityBenefit: Double = attributesOfIndividual.getVOT(
-          activityDuration / 3600 * activityVOTs.getOrElse(newActivity.getType, 1.0)
+          activityDuration / 3600 * activityVOTs.getOrElse(newActivityType, 1.0)
         ) + asc
 
         mode -> TimesAndCost(
@@ -299,9 +297,9 @@ class SupplementaryTripGenerator(
     modeToTimeAndCosts
   }
 
-  private def generateSubtourStartAndEndTime(
+  private def generateSubtourTypeStartAndEndTime(
     alternativeActivity: Activity
-  ): (Int, Int) = {
+  ): (String, Int, Int) = {
 
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
 
@@ -334,6 +332,7 @@ class SupplementaryTripGenerator(
     } else { earliestPossibleStartIndex }
     val startTime = math.max((r.nextDouble() + chosenStartIndex) * 3600, altStart + travelTimeBufferInSec)
     (
+      chosenType,
       startTime.toInt,
       (startTime + newActivityDuration).toInt
     )
