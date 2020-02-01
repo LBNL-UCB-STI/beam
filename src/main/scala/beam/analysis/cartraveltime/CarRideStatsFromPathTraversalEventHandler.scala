@@ -132,30 +132,9 @@ class CarRideStatsFromPathTraversalEventHandler(
       getIterationCarRideStats(event.getIteration, singleRideStats)
     }
 
-    //save average personal car travel time for the current iteration
-    averageTravelTimePerIteration += java.util.concurrent.TimeUnit.SECONDS
-      .toMinutes(type2Statistics(Personal).travelTime.stats.avg.toLong)
-
-    // generate average travel times graph at root level
-    createRootGraphForAverageCarTravelTime(event)
-
     averageCarSpeedPerIterationByType += type2Statistics.mapValues(_.speed.stats.avg)
 
     createRootGraphForAverageCarSpeedByType(event)
-
-    val rideStats = type2RideStats.getOrElse(Personal, Seq.empty)
-
-    // group single ride stats by departure time ( in hours)
-    val rideStatsGroupByDepartureTime = rideStats
-      .map(r => (r.travelTime, java.util.concurrent.TimeUnit.SECONDS.toHours(r.departureTime.toLong)))
-      .groupBy(_._2)
-    // extract travel time from grouped stats
-    val travelTimesByHourByCarMode: Map[Long, Seq[Double]] =
-      rideStatsGroupByDepartureTime.map(entry => entry._1 -> entry._2.map(_._1))
-    // Generate data set from travel times data above to plot graph
-    val iterationGraphData = generateGraphDataForAverageTravelTimes(travelTimesByHourByCarMode)
-    // Plot and save the graph for each iteration
-    createIterationGraphForAverageCarTravelTime(iterationGraphData, event.getIteration)
 
     // write the iteration level car ride stats to output file
     writeIterationCarRideStats(event, type2Statistics(Personal))
