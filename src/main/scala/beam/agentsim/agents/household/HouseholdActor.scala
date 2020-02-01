@@ -183,9 +183,6 @@ object HouseholdActor {
 
         val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
 
-        val activityRates = destinationChoiceModel.DefaultActivityRates
-        val activityVOTs = destinationChoiceModel.DefaultActivityVOTs
-
         val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
           case VehicleCategory.Car  => BeamMode.CAR
           case VehicleCategory.Bike => BeamMode.BIKE

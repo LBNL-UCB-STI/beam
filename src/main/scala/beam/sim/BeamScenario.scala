@@ -43,7 +43,7 @@ case class BeamScenario(
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ
 ) {
-  lazy val destinationChoiceModel = DestinationChoiceModel(beamConfig)
+  val destinationChoiceModel = DestinationChoiceModel(beamConfig)
 
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes

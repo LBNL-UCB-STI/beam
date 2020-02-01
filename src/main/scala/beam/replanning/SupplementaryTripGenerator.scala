@@ -33,9 +33,9 @@ class SupplementaryTripGenerator(
   val travelTimeBufferInSec = 30 * 60
   val r = scala.util.Random
 
-  val activityRates = destinationChoiceModel.DefaultActivityRates
-  val activityVOTs = destinationChoiceModel.DefaultActivityVOTs
-  val activityDurations = destinationChoiceModel.DefaultActivityDurations
+  val activityRates = destinationChoiceModel.activityRates
+  val activityVOTs = destinationChoiceModel.activityVOTs
+  val activityDurations = destinationChoiceModel.activityDurations
 
   def generateNewPlans(
     plan: Plan,
