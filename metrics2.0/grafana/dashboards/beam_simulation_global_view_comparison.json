@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1578602139542,
+    "iteration": 1580562918960,
     "links": [],
     "panels": [
       {
@@ -2406,7 +2406,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -2415,6 +2417,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -2429,6 +2433,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -2562,7 +2580,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -2571,6 +2591,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -2585,6 +2607,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -2718,7 +2754,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -2727,6 +2765,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -2741,6 +2781,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -2874,7 +2928,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -2883,6 +2939,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -2897,6 +2955,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3030,7 +3102,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3039,6 +3113,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -3053,6 +3129,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3186,7 +3276,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3195,6 +3287,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -3209,6 +3303,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3342,7 +3450,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3351,6 +3461,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -3365,6 +3477,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3498,7 +3624,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3507,6 +3635,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -3521,6 +3651,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3654,7 +3798,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3663,6 +3809,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -3677,6 +3825,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3810,7 +3972,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3819,6 +3983,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -3833,6 +3999,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -3966,7 +4146,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -3975,6 +4157,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -3989,6 +4173,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4122,7 +4320,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4131,6 +4331,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -4145,6 +4347,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4278,7 +4494,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4287,6 +4505,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -4301,6 +4521,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4434,7 +4668,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4443,6 +4679,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -4457,6 +4695,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4590,7 +4842,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4599,6 +4853,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -4613,6 +4869,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4746,7 +5016,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4755,6 +5027,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of vehicles",
@@ -4769,6 +5043,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "vehicle-state",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -4902,7 +5190,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -4911,6 +5201,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of events",
@@ -4925,6 +5217,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "typeOfCharger",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5058,7 +5364,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5067,6 +5375,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of events",
@@ -5081,6 +5391,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "typeOfCharger",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5214,7 +5538,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5223,6 +5549,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of events",
@@ -5237,6 +5565,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "parkingType",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5370,7 +5712,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5379,6 +5723,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "# of events",
@@ -5393,6 +5739,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "parkingType",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5526,7 +5886,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5535,6 +5897,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -5549,6 +5913,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "trip-type",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5682,7 +6060,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5691,6 +6071,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Distance [miles]",
@@ -5705,6 +6087,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "trip-type",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5838,7 +6234,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -5847,7 +6245,9 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
               "dtick": "",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "",
@@ -5863,6 +6263,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "mode",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -5996,7 +6410,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -6005,7 +6421,9 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
               "dtick": "",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "",
@@ -6021,6 +6439,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "mode",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -6154,7 +6586,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -6163,6 +6597,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Average travel time [min]",
@@ -6177,6 +6613,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "mode",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -6306,7 +6756,9 @@
             },
             "showlegend": true,
             "xaxis": {
+              "autorange": true,
               "dtick": "1",
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "tick0": "0",
@@ -6315,6 +6767,8 @@
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
               "title": "Average travel time [min]",
@@ -6329,6 +6783,20 @@
             }
           },
           "loadFromCDN": false,
+          "queriesDescription": [
+            {
+              "color": "gray",
+              "columnNames": {
+                "dataColumn": "mode",
+                "latColumn": "",
+                "lonColumn": "",
+                "xColumn": "iteration-num",
+                "yColumn": "sum"
+              },
+              "queryNumber": 0,
+              "queryTitle": ""
+            }
+          ],
           "settings": {
             "displayModeBar": false,
             "fill": "None",
@@ -6435,8 +6903,9 @@
         {
           "allValue": null,
           "current": {
-            "text": "2020-01-09_20-34-45_beamville",
-            "value": "2020-01-09_20-34-45_beamville"
+            "tags": [],
+            "text": "2020-01-31_23-36-26_sf-light-1k-xml",
+            "value": "2020-01-31_23-36-26_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -6461,8 +6930,8 @@
           "allValue": null,
           "current": {
             "tags": [],
-            "text": "2020-01-09_20-01-59_sf-1k-unconstrained",
-            "value": "2020-01-09_20-01-59_sf-1k-unconstrained"
+            "text": "2020-01-31_23-36-26_sf-light-1k-xml",
+            "value": "2020-01-31_23-36-26_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -6503,6 +6972,6 @@
     "timezone": "",
     "title": "Beam Simulation. Global view comparison",
     "uid": "KuiPBbBWz",
-    "version": 9
+    "version": 2
   }
 }
