@@ -8,6 +8,7 @@
           <option value="scatter">Scatter</option>
           <option value="bar">Bar</option>
           <option value="histogram">Histogram</option>
+          <option value="scattermapbox">Scatter Map Box</option>
         </select>
       </div>
     </div>
@@ -39,30 +40,7 @@
 
     <gf-form-switch class="gf-form" label="Toolbar" label-class="gf-form-label width-7"
       checked="ctrl.cfg.settings.displayModeBar" on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
-
-    <div class="gf-form">
-      <label class="gf-form-label width-7">all columns</label>
-      <input class="gf-form-input" readonly ng-model="ctrl.cfg.dataColumnNames.all">
-    </div>
-
-    <div class="gf-form">
-      <label class="gf-form-label width-7">group column</label>
-      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.dataColumn"
-        ng-change="ctrl.onConfigChanged();">
-    </div>
-
-    <div class="gf-form">
-      <label class="gf-form-label width-7">X column</label>
-      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.xColumn"
-        ng-change="ctrl.onConfigChanged();">
-    </div>
-
-    <div class="gf-form">
-      <label class="gf-form-label width-7">Y column</label>
-      <input class="gf-form-input width-7" placeholder="No Label" ng-model="ctrl.cfg.dataColumnNames.yColumn"
-        ng-change="ctrl.onConfigChanged();">
-    </div>
-
+      
   </div>
 
   <div class="section gf-form-group">
@@ -113,6 +91,9 @@
 
   <div ng-repeat="axis in ctrl.editor.axis" class="section gf-form-group">
     <h5 class="section-heading">{{axis.label}}</h5>
+
+    <gf-form-switch class="gf-form" label="Show ticks" label-class="gf-form-label width-7"
+      checked="axis.layout.showticklabels" on-change="ctrl.onConfigChanged();"></gf-form-switch>
 
     <div class="gf-form">
       <label class="gf-form-label width-7">Title</label>
