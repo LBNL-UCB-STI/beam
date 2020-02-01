@@ -2,6 +2,7 @@ package beam.analysis
 
 import beam.agentsim.events._
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.sim.common.GeoUtils
 import beam.sim.metrics.SimulationMetricCollector
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.logging.ExponentialLazyLogging
@@ -13,7 +14,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
+class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMetricCollector)
     extends GraphAnalysis
     with ExponentialLazyLogging {
   private val loadOverTimeFileBaseName = "chargingPower"
@@ -77,14 +78,17 @@ class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
             parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
         }
 
+
+        val locationWGS = refuelSessionEvent.stall.locationUTM // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
+
         simMetricCollector.write(
           loadOverTimeFileBaseName,
           SimulationTime(event.getTime.toInt),
           Map(
             SimulationMetricCollector.defaultMetricValueName -> 1.0,
             "averageLoad"                                    -> currentEventAverageLoad,
-            "lon"                                            -> refuelSessionEvent.stall.locationUTM.getX,
-            "lat"                                            -> refuelSessionEvent.stall.locationUTM.getY
+            "lon"                                            -> locationWGS.getX,
+            "lat"                                            -> locationWGS.getY
           ),
           Map(
             "vehicleType"   -> loadVehicleType,
