@@ -29,7 +29,7 @@ class SupplementaryTripGenerator(
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices
 ) {
-  val tazChoiceSet = generateTazChoiceSet(20)
+  val tazChoiceSet = generateTazChoiceSet(30)
   val travelTimeBufferInSec = 30 * 60
   val r = scala.util.Random
 
@@ -112,73 +112,72 @@ class SupplementaryTripGenerator(
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime)
     alternativeActivity.setEndTime(nextActivity.getEndTime)
-    if ((currentActivity.getEndTime > 0) & (currentActivity.getStartTime > 0)) {
-      val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
-      val (
-        modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
-          DestinationParameters,
-          Double
-        ]]],
-        noTrip: Map[TripParameters, Double]
-      ) =
-        gatherTazCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
+    val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
+    val chosenAlternativeOption = newActivityType match {
+      case "None" => None
+      case _ =>
+        val (
+          modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
+            DestinationParameters,
+            Double
+          ]]],
+          noTrip: Map[TripParameters, Double]
+        ) =
+          gatherTazCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
-      val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
-        modeTazCosts.map {
-          case (alt, modeCost) =>
-            val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
-            alt -> Map[TripParameters, Double](
-              TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
-            )
+        val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
+          modeTazCosts.map {
+            case (alt, modeCost) =>
+              val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
+              alt -> Map[TripParameters, Double](
+                TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
+              )
+          }
+
+        val tripMaxUtility = destinationMNL.getExpectedMaximumUtility(modeChoice)
+
+        val tripChoice: Map[Boolean, Map[TripParameters, Double]] =
+          Map[Boolean, Map[TripParameters, Double]](
+            true -> Map[TripParameters, Double](
+              TripParameters.ExpMaxUtility -> tripMaxUtility.getOrElse(0)
+            ),
+            false -> noTrip,
+          )
+
+        val makeTrip: Boolean = tripMNL.sampleAlternative(tripChoice, r).get.alternativeType
+
+        if (makeTrip) {
+          destinationMNL.sampleAlternative(modeChoice, r)
+        } else {
+          None
         }
+    }
+    chosenAlternativeOption match {
+      case Some(outcome) =>
+        val chosenAlternative = outcome.alternativeType
 
-      val tripMaxUtility = destinationMNL.getExpectedMaximumUtility(modeChoice)
+        val newActivity =
+          PopulationUtils.createActivityFromCoord(
+            newActivityType,
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+          )
+        val activityBeforeNewActivity =
+          PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
+        val activityAfterNewActivity =
+          PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
 
-      val tripChoice: Map[Boolean, Map[TripParameters, Double]] =
-        Map[Boolean, Map[TripParameters, Double]](
-          true -> Map[TripParameters, Double](
-            TripParameters.ExpMaxUtility -> tripMaxUtility.getOrElse(0)
-          ),
-          false -> noTrip,
-        )
+        activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime)
+        activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
 
-      val makeTrip: Boolean = tripMNL.sampleAlternative(tripChoice, r).get.alternativeType
+        newActivity.setStartTime(startTime)
+        newActivity.setEndTime(endTime)
 
-      val chosenAlternativeOption = if (makeTrip) {
-        destinationMNL.sampleAlternative(modeChoice, r)
-      } else {
-        None
-      }
+        activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
+        activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
 
-      chosenAlternativeOption match {
-        case Some(outcome) =>
-          val chosenAlternative = outcome.alternativeType
-
-          val newActivity =
-            PopulationUtils.createActivityFromCoord(
-              newActivityType,
-              TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
-            )
-          val activityBeforeNewActivity =
-            PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
-          val activityAfterNewActivity =
-            PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
-
-          activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime)
-          activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
-
-          newActivity.setStartTime(startTime)
-          newActivity.setEndTime(endTime)
-
-          activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
-          activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
-
-          List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
-        case None =>
-          List(alternativeActivity)
-      }
-    } else {
-      List(alternativeActivity)
+        List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
+      case None =>
+        List(alternativeActivity)
     }
   }
 
@@ -313,7 +312,7 @@ class SupplementaryTripGenerator(
           .values
           .sum
     }
-    val chosenType = drawKeyByValue(filtered, "Other")
+    val chosenType = drawKeyByValue(filtered, "None")
 
     val meanActivityDuration: Double = activityDurations.getOrElse(chosenType, 15 * 60)
 
