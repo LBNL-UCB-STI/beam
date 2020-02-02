@@ -43,7 +43,8 @@ class CarRideStatsFromPathTraversalEventHandler(
   private val averageCarSpeedPerIterationByType: collection.mutable.MutableList[Map[CarType, Double]] =
     collection.mutable.MutableList.empty
 
-  val statsHeader: Array[String] = Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
+  private val statsHeader: Array[String] =
+    Array("iteration", "carType", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
 
   private val maybeTravelTimeStatsWriter = maybeControlerIO.map { controlerIO =>
     val fileName = controlerIO.getOutputFilename("CarTravelTime.csv")
@@ -126,7 +127,10 @@ class CarRideStatsFromPathTraversalEventHandler(
       carType -> calcRideStats(event.getIteration, carType)
     }.toMap
 
-    writePersonalCarRideStats(event.getIteration, type2RideStats.getOrElse(Personal, Seq.empty))
+    type2RideStats.foreach {
+      case (carType, stats) =>
+        writePersonalCarRideStats(event.getIteration, stats, carType)
+    }
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
       getIterationCarRideStats(event.getIteration, singleRideStats)
@@ -137,7 +141,10 @@ class CarRideStatsFromPathTraversalEventHandler(
     createRootGraphForAverageCarSpeedByType(event)
 
     // write the iteration level car ride stats to output file
-    writeIterationCarRideStats(event, type2Statistics(Personal))
+    type2Statistics.foreach {
+      case (carType, stats) =>
+        writeIterationCarRideStats(event, carType, stats)
+    }
 
     writeAverageCarSpeedByTypes(event)
 
@@ -201,7 +208,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 
           type2Speed.foreach {
             case (carType, speed) =>
-              execute(iteration + 1, carType.getClass.getSimpleName.replace("$", ""), speed)
+              execute(iteration + 1, carType.toString, speed)
           }
       }
 
@@ -289,14 +296,18 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
-  private def writePersonalCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): Unit = {
+  private def writePersonalCarRideStats(
+    iterationNumber: Int,
+    rideStats: Seq[SingleRideStat],
+    carType: CarType
+  ): Unit = {
     val maybeOutputPath = maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, "CarRideStats.csv.gz"))
     maybeOutputPath.foreach { outputPath =>
       val csvWriter =
-        new CsvWriter(outputPath, Vector("vehicle_id", "travel_time", "distance", "free_flow_travel_time"))
+        new CsvWriter(outputPath, Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time"))
       try {
         rideStats.foreach { stat =>
-          csvWriter.write(stat.vehicleId, stat.travelTime, stat.distance, stat.freeFlowTravelTime)
+          csvWriter.write(stat.vehicleId, carType.toString, stat.travelTime, stat.distance, stat.freeFlowTravelTime)
         }
       } catch {
         case NonFatal(ex) =>
@@ -311,27 +322,32 @@ class CarRideStatsFromPathTraversalEventHandler(
     toClose.foreach(c => Try(c.close()))
   }
 
-  private def writeIterationCarRideStats(event: IterationEndsEvent, carRideStatistics: IterationCarRideStats): Unit = {
+  private def writeIterationCarRideStats(
+    event: IterationEndsEvent,
+    carType: CarType,
+    carRideStatistics: IterationCarRideStats
+  ): Unit = {
     // Write car travel time stats to CSV
-    maybeTravelTimeStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.travelTime.stats))
+    maybeTravelTimeStatsWriter.foreach(writeStats(_, carType, event.getIteration, carRideStatistics.travelTime.stats))
     // Write car travel distance stats to CSV
-    maybeTravelDistanceStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.distance.stats))
+    maybeTravelDistanceStatsWriter.foreach(writeStats(_, carType, event.getIteration, carRideStatistics.distance.stats))
     // Write car travel speed stats to CSV
-    maybeTravelSpeedStatsWriter.foreach(writeStats(_, event.getIteration, carRideStatistics.speed.stats))
+    maybeTravelSpeedStatsWriter.foreach(writeStats(_, carType, event.getIteration, carRideStatistics.speed.stats))
     // Write free flow car travel time stats to CSV
     maybeFreeFlowTravelTimeStatsWriter.foreach(
-      writeStats(_, event.getIteration, carRideStatistics.freeFlowTravelTime.stats)
+      writeStats(_, carType, event.getIteration, carRideStatistics.freeFlowTravelTime.stats)
     )
     // Write free flow car speed stats to CSV
     maybeFreeFlowTravelSpeedStatsWriter.foreach(
-      writeStats(_, event.getIteration, carRideStatistics.freeFlowSpeed.stats)
+      writeStats(_, carType, event.getIteration, carRideStatistics.freeFlowSpeed.stats)
     )
   }
 
-  private def writeStats(csvWriter: CsvWriter, iteration: Int, statistics: Statistics): Unit = {
+  private def writeStats(csvWriter: CsvWriter, carType: CarType, iteration: Int, statistics: Statistics): Unit = {
     try {
       csvWriter.write(
         iteration,
+        carType.toString,
         statistics.avg,
         statistics.median,
         statistics.p75,
