@@ -276,6 +276,8 @@ dependencies {
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
     }
+
+    compile 'de.vandermeer:asciitable:0.3.2'
 }
 
 // Autoformatting using scalafmt
