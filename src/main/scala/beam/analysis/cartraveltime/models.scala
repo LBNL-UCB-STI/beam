@@ -2,6 +2,13 @@ package beam.analysis.cartraveltime
 
 import beam.utils.Statistics
 
+private[cartraveltime] sealed trait CarType {
+  override def toString: String = this.getClass.getSimpleName.replace("$", "")
+}
+object Personal extends CarType
+object CAV extends CarType
+object RideHail extends CarType
+
 case class SingleRideStat(
   vehicleId: String,
   travelTime: Double,
