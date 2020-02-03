@@ -187,7 +187,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         )
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(alg.matchAndAssign(tick), atMost = 1440.minutes)
+        Await.result(alg.matchAndAssign(tick), atMost = 10080.minutes)
       } catch {
         case e: TimeoutException =>
           rideHailManager.log.error("timeout of VehicleCentricMatchingForRideHail no allocations made")
