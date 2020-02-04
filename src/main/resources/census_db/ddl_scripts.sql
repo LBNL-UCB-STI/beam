@@ -12,3 +12,6 @@ create table data (
 );
 
 create index data_geometry_index on data using gist (geometry);
+create index geo_id_index on data using btree (geo_id);
+create index county_fp_index on data using btree (county_fp);
+create index state_fp_index on data using btree (state_fp);

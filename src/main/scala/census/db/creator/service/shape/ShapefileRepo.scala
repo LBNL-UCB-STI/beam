@@ -1,4 +1,4 @@
-package census.db.creator.shape
+package census.db.creator.service.shape
 import java.io.File
 
 import census.db.creator.domain.DataRow

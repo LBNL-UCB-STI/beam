@@ -1,17 +1,21 @@
 package census.db.creator
+import java.nio.file.Paths
+
 import census.db.creator.config.Hardcoded
-import census.db.creator.database.{DataRepoImpl, DataRepository}
-import census.db.creator.shape.ShapefileRepo
+import census.db.creator.service.fileDownloader.FileDownloadService
 
 object Starter extends App {
-  val repo: DataRepository = new DataRepoImpl(Hardcoded.config)
+//  val repo: DataRepository = new DataRepoImpl(Hardcoded.config)
+//  val shape = "/Users/e.zuykin/Downloads/tl_2019_01_tract/tl_2019_01_tract.shp"
+//  val features = new ShapefileRepo(shape).getFeatures()
 
-//  val a = repo.query("polygon ((0 0, 0 2, 2 2, 2 0, 0 0))")
+//  repo.save(features)
 
-  val shape = "/Users/e.zuykin/Downloads/tl_2019_01_tract/tl_2019_01_tract.shp"
-  val features = new ShapefileRepo(shape).getFeatures()
+  new java.io.File(Hardcoded.config.workingDir).mkdirs()
+  new java.io.File(Paths.get(Hardcoded.config.workingDir, "zips").toString).mkdirs()
+  new java.io.File(Paths.get(Hardcoded.config.workingDir, "shapes").toString).mkdirs()
 
-  repo.save(features)
+  new FileDownloadService(Hardcoded.config).downloadZipFiles()
 
   println()
 }
