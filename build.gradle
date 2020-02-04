@@ -126,6 +126,10 @@ dependencies {
 
     // Apache 2.0
     compile group: 'com.univocity', name: 'univocity-parsers', version: '2.8.1'
+    
+    // Postgre
+    compile group: 'org.postgresql', name: 'postgresql', version: '42.2.9'
+    compile group: 'org.jdbi', name: 'jdbi', version: '2.78'
 
     // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
