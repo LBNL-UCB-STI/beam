@@ -1,7 +1,7 @@
 create extension postgis;
 create extension postgis_topology;
 
-create table data (
+create table taz_info (
     geo_id text primary key,
     state_fp text,
     county_fp text,
@@ -11,7 +11,7 @@ create table data (
     geometry geometry (Geometry, 4326)
 );
 
-create index data_geometry_index on data using gist (geometry);
-create index geo_id_index on data using btree (geo_id);
-create index county_fp_index on data using btree (county_fp);
-create index state_fp_index on data using btree (state_fp);
+create index taz_info_geometry_index on taz_info using gist (geometry);
+create index taz_info_geo_id_index on taz_info using btree (geo_id);
+create index taz_info_county_fp_index on taz_info using btree (county_fp);
+create index taz_info_state_fp_index on taz_info using btree (state_fp);

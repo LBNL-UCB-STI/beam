@@ -1,7 +1,7 @@
 package census.db.creator.domain
 import com.vividsolutions.jts.geom.Geometry
 
-case class DataRow(
+case class TazInfo(
   geoId: String,
   stateFp: String,
   countyFp: String,

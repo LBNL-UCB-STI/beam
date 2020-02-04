@@ -14,7 +14,7 @@ import census.db.creator.config.Config
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 
-class FileDownloadService(val config: Config)(
+private[creator] class FileDownloadService(val config: Config)(
   implicit val system: ActorSystem,
   implicit val materializer: ActorMaterializer,
   implicit val executionContext: ExecutionContext

@@ -3,24 +3,30 @@ import java.sql.ResultSet
 
 import census.db.creator.GeometryUtil._
 import census.db.creator.config.Config
-import census.db.creator.domain.DataRow
-import com.vividsolutions.jts.geom.Geometry
+import census.db.creator.domain.TazInfo
+import com.vividsolutions.jts.geom.Polygon
 import org.skife.jdbi.v2.{DBI, StatementContext}
 
 import scala.collection.JavaConverters._
 
 trait DataRepository extends AutoCloseable {
-  def save(data: Seq[DataRow])
-  def query(border: Geometry): Seq[DataRow]
-  def query(border: String): Seq[DataRow]
+  private[creator] def save(data: Seq[TazInfo])
+
+  def query(
+    geoId: Option[String],
+    stateFp: Option[String],
+    countyFp: Option[String],
+    tractCode: Option[String],
+    border: Option[Polygon]
+  ): Seq[TazInfo]
 }
 
 class DataRepoImpl(private val config: Config) extends DataRepository {
-  private val dataTable = "data"
+  private val dataTable = "taz_info"
 
   private val connection = new DBI(config.db.url, config.db.user, config.db.password).open()
 
-  override def save(data: Seq[DataRow]): Unit = {
+  override def save(data: Seq[TazInfo]): Unit = {
     val batch = connection.prepareBatch(
       s"""insert into $dataTable (geo_id, state_fp, county_fp, tract_code, land_area, water_area, geometry)
         values(:geo_id, :state_fp, :county_fp, :tract_code, :land_area, :water_area, st_geomfromtext(:geometry,$projection))"""
@@ -40,15 +46,51 @@ class DataRepoImpl(private val config: Config) extends DataRepository {
     batch.execute()
   }
 
-  def query(border: Geometry): Seq[DataRow] =
-    connection
-      .createQuery(s"""
+  def query(
+    geoId: Option[String],
+    stateFp: Option[String],
+    countyFp: Option[String],
+    tractCode: Option[String],
+    border: Option[Polygon]
+  ): Seq[TazInfo] = {
+    var sql = s"""
         select *, st_asbinary(geometry) as geom from $dataTable
-        where st_intersects(geometry, st_geomfromtext(:geometry, $projection))
-      """.stripMargin)
-      .bind("geometry", border.toText)
+        where 1=1"""
+
+    if (geoId.isDefined) {
+      sql = sql + " AND geo_id = :geo_id"
+    }
+    if (stateFp.isDefined) {
+      sql = sql + " AND state_fp = :state_fp"
+    }
+    if (countyFp.isDefined) {
+      sql = sql + " AND county_fp = :county_fp"
+    }
+    if (tractCode.isDefined) {
+      sql = sql + " AND tract_code = :tract_code"
+    }
+    if (border.isDefined) {
+      sql = sql + s" AND st_intersects(geometry, st_geomfromtext(:geometry, $projection)"
+    }
+    val query = connection.createQuery(sql)
+    if (geoId.isDefined) {
+      query.bind("geo_id", geoId.get)
+    }
+    if (stateFp.isDefined) {
+      query.bind("state_fp", stateFp.get)
+    }
+    if (countyFp.isDefined) {
+      query.bind("county_fp", countyFp.get)
+    }
+    if (tractCode.isDefined) {
+      query.bind("tract_code", tractCode.get)
+    }
+    if (border.isDefined) {
+      query.bind("geometry", border.get.toText)
+    }
+    query
       .map((_: Int, r: ResultSet, _: StatementContext) => {
-        DataRow(
+        TazInfo(
           r.getString("geo_id"),
           r.getString("state_fp"),
           r.getString("county_fp"),
@@ -60,8 +102,7 @@ class DataRepoImpl(private val config: Config) extends DataRepository {
       })
       .list()
       .asScala
-
-  override def query(border: String): Seq[DataRow] = this.query(readWkt(border))
+  }
 
   override def close(): Unit = connection.close()
 }

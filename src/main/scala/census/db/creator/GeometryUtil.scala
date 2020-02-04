@@ -2,7 +2,7 @@ package census.db.creator
 import com.vividsolutions.jts.geom.{Geometry, GeometryFactory, PrecisionModel}
 import com.vividsolutions.jts.io.{WKBReader, WKTReader}
 
-object GeometryUtil {
+private[creator] object GeometryUtil {
   val projection = 4326
 
   private val wktReader = new WKTReader(new GeometryFactory(new PrecisionModel(), projection))

@@ -16,11 +16,19 @@ import scala.util.{Failure, Success}
 
 RUN POSTGIS DOCKER WITH FOLLOWING COMMAND:
 
-docker run --name some-postgis -e POSTGRES_PASSWORD=postgres1 -p 5432:5432 -d mdillon/postgis
+1. docker run --name some-postgis -e POSTGRES_PASSWORD=postgres1 -p 5432:5432 -d mdillon/postgis
 
+2. docker exec -it *YOUR CONTAINER ID* psql -U postgres
+
+3. After execute following script: CREATE DATABASE CENSUS
+
+4. After, copy everything from
+src/main/resources/census_db/ddl_scripts.sql
+
+Paste into psql console and press enter.
 */
 
-object Starter extends App {
+private[creator] object Starter extends App {
 
   val config: Config = ConfigFactory
     .parseString(
@@ -31,7 +39,7 @@ object Starter extends App {
     .withFallback(ConfigFactory.load())
     .resolve()
 
-  private implicit val system = ActorSystem("asdasd", config)
+  private implicit val system = ActorSystem("system", config)
   private implicit val materializer = ActorMaterializer()
   private implicit val executionContext = system.dispatcher
 
