@@ -7,12 +7,31 @@ import census.db.creator.config.Hardcoded
 import census.db.creator.database.DataRepoImpl
 import census.db.creator.service.fileDownloader.FileDownloadService
 import census.db.creator.service.shape.ShapefileRepo
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
+/*
+
+RUN POSTGIS DOCKER WITH FOLLOWING COMMAND:
+
+docker run --name some-postgis -e POSTGRES_PASSWORD=postgres1 -p 5432:5432 -d mdillon/postgis
+
+*/
+
 object Starter extends App {
-  private implicit val system = ActorSystem()
+
+  val config: Config = ConfigFactory
+    .parseString(
+      """
+        akka.http.host-connection-pool.max-open-requests = 128
+        """
+    )
+    .withFallback(ConfigFactory.load())
+    .resolve()
+
+  private implicit val system = ActorSystem("asdasd", config)
   private implicit val materializer = ActorMaterializer()
   private implicit val executionContext = system.dispatcher
 
@@ -25,7 +44,12 @@ object Starter extends App {
   } yield {
     val futures = fileFutures.map { shape =>
       shape
-        .map(x => x -> new ShapefileRepo(x).getFeatures())
+        .map { x =>
+          val repo = new ShapefileRepo(x)
+          val features = repo.getFeatures()
+          repo.close()
+          x -> features
+        }
         .map {
           case (sh, features) =>
             val repo = new DataRepoImpl(Hardcoded.config)

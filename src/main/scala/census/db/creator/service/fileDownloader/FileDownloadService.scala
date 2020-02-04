@@ -16,15 +16,16 @@ import scala.util.Failure
 
 class FileDownloadService(val config: Config)(
   implicit val system: ActorSystem,
-  implicit val materializer : ActorMaterializer,
+  implicit val materializer: ActorMaterializer,
   implicit val executionContext: ExecutionContext
 ) {
+
   // needed for the future flatMap/onComplete in the end
   def downloadZipFiles(): Future[Seq[Future[String]]] = {
     for {
       filesToDownloads <- getFileNames()
     } yield {
-      filesToDownloads
+      filesToDownloads.distinct
         .map(config.censusUrl + _)
         .map(downloadFile)
         .map(x => x.flatMap(unzipFile))
