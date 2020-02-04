@@ -13,15 +13,15 @@ trait DataRepository extends AutoCloseable {
   private[creator] def save(data: Seq[TazInfo])
 
   def query(
-    geoId: Option[String],
-    stateFp: Option[String],
-    countyFp: Option[String],
-    tractCode: Option[String],
-    border: Option[Polygon]
+    geoId: Option[String] = None,
+    stateFp: Option[String] = None,
+    countyFp: Option[String] = None,
+    tractCode: Option[String] = None,
+    border: Option[Polygon] = None
   ): Seq[TazInfo]
 }
 
-class DataRepoImpl(private val config: Config) extends DataRepository {
+class TazInfoRepoImpl(private val config: Config) extends DataRepository {
   private val dataTable = "taz_info"
 
   private val connection = new DBI(config.db.url, config.db.user, config.db.password).open()
@@ -70,7 +70,7 @@ class DataRepoImpl(private val config: Config) extends DataRepository {
       sql = sql + " AND tract_code = :tract_code"
     }
     if (border.isDefined) {
-      sql = sql + s" AND st_intersects(geometry, st_geomfromtext(:geometry, $projection)"
+      sql = sql + s" AND st_intersects(geometry, st_geomfromtext(:geometry, $projection))"
     }
     val query = connection.createQuery(sql)
     if (geoId.isDefined) {

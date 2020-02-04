@@ -4,7 +4,7 @@ import java.nio.file.Paths
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import census.db.creator.config.Hardcoded
-import census.db.creator.database.DataRepoImpl
+import census.db.creator.database.TazInfoRepoImpl
 import census.db.creator.service.fileDownloader.FileDownloadService
 import census.db.creator.service.shape.ShapefileRepo
 import com.typesafe.config.{Config, ConfigFactory}
@@ -26,7 +26,7 @@ RUN POSTGIS DOCKER WITH FOLLOWING COMMAND:
 src/main/resources/census_db/ddl_scripts.sql
 
 Paste into psql console and press enter.
-*/
+ */
 
 private[creator] object Starter extends App {
 
@@ -60,7 +60,7 @@ private[creator] object Starter extends App {
         }
         .map {
           case (sh, features) =>
-            val repo = new DataRepoImpl(Hardcoded.config)
+            val repo = new TazInfoRepoImpl(Hardcoded.config)
             repo.save(features)
             repo.close()
             sh
