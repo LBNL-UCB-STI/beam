@@ -2,7 +2,7 @@ package census.db.creator.database
 import java.sql.ResultSet
 
 import census.db.creator.GeometryUtil._
-import census.db.creator.config.Config
+import census.db.creator.config.{Config, Hardcoded}
 import census.db.creator.domain.TazInfo
 import com.vividsolutions.jts.geom.Polygon
 import org.skife.jdbi.v2.{DBI, StatementContext}
@@ -21,7 +21,7 @@ trait DataRepository extends AutoCloseable {
   ): Seq[TazInfo]
 }
 
-class TazInfoRepoImpl(private val config: Config) extends DataRepository {
+class TazInfoRepoImpl(private val config: Config = Hardcoded.config) extends DataRepository {
   private val dataTable = "taz_info"
 
   private val connection = new DBI(config.db.url, config.db.user, config.db.password).open()
