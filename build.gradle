@@ -129,6 +129,7 @@ dependencies {
     
     // Postgre
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.9'
+    compile group: 'org.flywaydb', name: 'flyway-core', version: '5.0.3'
     compile group: 'org.jdbi', name: 'jdbi', version: '2.78'
 
     // LGPL

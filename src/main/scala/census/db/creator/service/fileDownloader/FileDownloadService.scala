@@ -25,7 +25,7 @@ private[creator] class FileDownloadService(val config: Config)(
     for {
       filesToDownloads <- getFileNames()
     } yield {
-      filesToDownloads.distinct
+      filesToDownloads
         .map(config.censusUrl + _)
         .map(downloadFile)
         .map(x => x.flatMap(unzipFile))
@@ -80,7 +80,7 @@ private[creator] class FileDownloadService(val config: Config)(
       html <- page.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
     } yield {
       val pattern = "tl_\\d{4}_\\d{2}_tract\\.zip".r
-      pattern.findAllIn(html.utf8String).toSeq
+      pattern.findAllIn(html.utf8String).toSeq.distinct
     }
   }
 }
