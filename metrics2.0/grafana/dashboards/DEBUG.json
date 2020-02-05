@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1579783573378,
+    "iteration": 1580923914827,
     "links": [],
     "panels": [
       {
@@ -53,7 +53,7 @@
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time averageLoad lat lon",
+            "all": "Time simulation-hour count lat lon",
             "dataColumn": "count",
             "xColumn": "lon",
             "yColumn": "lat"
@@ -67,18 +67,26 @@
             },
             "hovermode": "closest",
             "legend": {
-              "orientation": "h"
+              "orientation": "v",
+              "x": "-100",
+              "y": ""
             },
-            "showlegend": false,
+            "showlegend": true,
             "xaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
+              "showticklabels": true,
               "type": "auto",
               "zeroline": false
             },
             "yaxis": {
+              "autorange": true,
+              "fixedrange": false,
               "rangemode": "normal",
               "showgrid": true,
+              "showticklabels": false,
               "type": "linear",
               "zeroline": false
             },
@@ -109,6 +117,32 @@
               },
               "displayName": "average charging load",
               "queryNumber": "1",
+              "queryTitle": "count of events"
+            }
+          ],
+          "queriesDescription": [
+            {
+              "color": "green",
+              "columnNames": {
+                "dataColumn": "averageLoad",
+                "latColumn": "lat",
+                "lonColumn": "lon",
+                "xColumn": "simulation-hour",
+                "yColumn": ""
+              },
+              "queryNumber": 0,
+              "queryTitle": "average charging load"
+            },
+            {
+              "color": "blue",
+              "columnNames": {
+                "dataColumn": "count",
+                "latColumn": "lat",
+                "lonColumn": "lon",
+                "xColumn": "simulation-hour",
+                "yColumn": ""
+              },
+              "queryNumber": 1,
               "queryTitle": "count of events"
             }
           ],
@@ -163,12 +197,19 @@
         },
         "targets": [
           {
-            "groupBy": [],
+            "groupBy": [
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
             "hide": false,
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT \"averageLoad\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/)",
+            "query": "SELECT \"averageLoad\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\"",
             "rawQuery": true,
             "refId": "A",
             "resultFormat": "table",
@@ -213,12 +254,19 @@
             ]
           },
           {
-            "groupBy": [],
+            "groupBy": [
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
             "hide": false,
             "measurement": "chargingPower",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT \"count\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) ",
+            "query": "SELECT \"count\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/)  GROUP BY \"simulation-hour\"",
             "rawQuery": true,
             "refId": "B",
             "resultFormat": "table",
@@ -279,8 +327,8 @@
         {
           "allValue": null,
           "current": {
-            "text": "2020-01-21_18-13-32_sf-light-1k-xml",
-            "value": "2020-01-21_18-13-32_sf-light-1k-xml"
+            "text": "2020-02-01_16-51-23_sf-light-1k-xml",
+            "value": "2020-02-01_16-51-23_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -349,6 +397,6 @@
     "timezone": "",
     "title": "DEBUG",
     "uid": "otUGbMyZk",
-    "version": 21
+    "version": 8
   }
 }
