@@ -10,7 +10,12 @@ import scala.reflect.ClassTag
 
 trait GenericCsvReader {
 
-  def readAs[T](path: String, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean, preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE)(
+  def readAs[T](
+    path: String,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(
     implicit ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
     val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), preference)
