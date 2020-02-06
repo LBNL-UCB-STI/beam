@@ -1,5 +1,5 @@
 package census.db.creator.domain
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.prep.PreparedGeometry
 
 case class TazInfo(
   geoId: String,
@@ -8,5 +8,5 @@ case class TazInfo(
   tractCode: String,
   landArea: Long,
   waterArea: Long,
-  geometry: Geometry
+  preparedGeometry: PreparedGeometry
 )

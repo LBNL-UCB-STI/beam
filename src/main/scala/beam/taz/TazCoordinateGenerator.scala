@@ -2,7 +2,8 @@ package beam.taz
 import census.db.creator.GeometryUtil
 import census.db.creator.database.TazRepository
 import census.db.creator.domain.TazInfo
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, TopologyException}
+import com.vividsolutions.jts.geom._
+import com.vividsolutions.jts.shape.random.RandomPointsInGridBuilder
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
@@ -22,32 +23,22 @@ class TazCoordinateGeneratorImpl(private val osmService: OsmService, private val
       tazs.head
     })
 
-    @tailrec def divide(pieces: Int, splitFeatures: Seq[Geometry]): Seq[Geometry] = {
+    val pointsBuilder = new RandomPointsInGridBuilder(GeometryUtil.geometryFactory)
+    pointsBuilder.setExtent(taz.preparedGeometry.getGeometry.getEnvelopeInternal)
 
-      @tailrec def safeIntersection(g1: Geometry, g2: Geometry, buffer: Double = 0.0): Geometry = {
-        try {
-          g1.intersection(g2)
-        } catch {
-          case _: TopologyException =>
-            safeIntersection(g1.buffer(buffer), g2.buffer(buffer), buffer + 1.0)
-        }
-      }
+    @tailrec def generate(n: Int): Seq[Coordinate] = {
+      pointsBuilder.setNumPoints(n)
+      val multiPoint = pointsBuilder.getGeometry
+      val points = (0 until multiPoint.getNumGeometries)
+        .map(multiPoint.getGeometryN)
+        .filter(taz.preparedGeometry.contains)
+        .map(_.getCoordinate)
 
-      if (splitFeatures.size >= pieces) return splitFeatures.take(number)
-      val g = splitFeatures.head
-      val bb = g.getEnvelopeInternal
-      val newGeometries = Seq(
-        new Envelope(bb.getMinX, bb.centre().x, bb.getMinY, bb.centre().y),
-        new Envelope(bb.centre().x, bb.getMaxX, bb.getMinY, bb.centre().y),
-        new Envelope(bb.getMinX, bb.centre().x, bb.centre().y, bb.getMaxY),
-        new Envelope(bb.centre().x, bb.getMaxX, bb.centre().y, bb.getMaxY)
-      ).map(GeometryUtil.envelopeToPolygon)
-        .map(e => safeIntersection(g, e))
-        .filter(!_.isEmpty)
+      if (points.size >= number) return points.take(number)
 
-      divide(number, splitFeatures.drop(1) ++ newGeometries)
+      generate((n * 1.1).toInt)
     }
 
-    divide(number, Seq(taz.geometry)).map(_.getCentroid.getCoordinate)
+    generate((number * 1.1).toInt)
   }
 }

@@ -5,6 +5,7 @@ import census.db.creator.GeometryUtil._
 import census.db.creator.config.{Config, Hardcoded}
 import census.db.creator.domain.TazInfo
 import com.vividsolutions.jts.geom.Polygon
+import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import org.skife.jdbi.v2.{DBI, StatementContext}
 
 import scala.collection.JavaConverters._
@@ -40,7 +41,7 @@ class PostgresTazRepo(private val config: Config = Hardcoded.config) extends Taz
         .bind("tract_code", x.tractCode)
         .bind("land_area", x.landArea)
         .bind("water_area", x.waterArea)
-        .bind("geometry", x.geometry.toText)
+        .bind("geometry", x.preparedGeometry.getGeometry.toText)
         .add()
     }
     batch.execute()
@@ -97,7 +98,7 @@ class PostgresTazRepo(private val config: Config = Hardcoded.config) extends Taz
           r.getString("tract_code"),
           r.getLong("land_area"),
           r.getLong("water_area"),
-          readWkb(r.getObject("geom"))
+          PreparedGeometryFactory.prepare(readWkb(r.getObject("geom")))
         )
       })
       .list()

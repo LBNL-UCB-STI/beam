@@ -3,6 +3,7 @@ import java.io.File
 
 import census.db.creator.domain.TazInfo
 import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.data.simple.SimpleFeatureIterator
 import org.geotools.data.store.{ContentFeatureCollection, ContentFeatureSource}
@@ -30,7 +31,7 @@ private[creator] class ShapefileRepo(path: String) extends AutoCloseable {
         feature.getAttribute("TRACTCE").toString,
         feature.getAttribute("ALAND").toString.toLong,
         feature.getAttribute("AWATER").toString.toLong,
-        feature.getDefaultGeometry.asInstanceOf[Geometry]
+        PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
       )
     }
     iterator.close()
