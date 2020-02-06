@@ -9,7 +9,7 @@ import org.skife.jdbi.v2.{DBI, StatementContext}
 
 import scala.collection.JavaConverters._
 
-trait DataRepository extends AutoCloseable {
+trait TazRepository extends AutoCloseable {
   private[creator] def save(data: Seq[TazInfo])
 
   def query(
@@ -21,12 +21,12 @@ trait DataRepository extends AutoCloseable {
   ): Seq[TazInfo]
 }
 
-class TazInfoRepoImpl(private val config: Config = Hardcoded.config) extends DataRepository {
+class PostgresTazRepo(private val config: Config = Hardcoded.config) extends TazRepository {
   private val dataTable = "taz_info"
 
   private val connection = new DBI(config.db.url, config.db.user, config.db.password).open()
 
-  override def save(data: Seq[TazInfo]): Unit = {
+  private[creator] override def save(data: Seq[TazInfo]): Unit = {
     val batch = connection.prepareBatch(
       s"""insert into $dataTable (geo_id, state_fp, county_fp, tract_code, land_area, water_area, geometry)
         values(:geo_id, :state_fp, :county_fp, :tract_code, :land_area, :water_area, st_geomfromtext(:geometry,$projection))"""

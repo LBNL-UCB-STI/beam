@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorSystem}
 import census.db.creator.config.Config
-import census.db.creator.database.TazInfoRepoImpl
+import census.db.creator.database.PostgresTazRepo
 import census.db.creator.domain.TazInfo
 
 import scala.concurrent.ExecutionContext
@@ -18,7 +18,7 @@ class TazSavingActor(config: Config)(private implicit val executionContext: Exec
 
   override def receive: Receive = {
     case TazBatchMessage(features) =>
-      val repo = new TazInfoRepoImpl(config)
+      val repo = new PostgresTazRepo(config)
       repo.save(features)
       repo.close()
 

@@ -44,9 +44,6 @@ class DownloadActor(config: Config, unzipActor: ActorRef)(
           exception.printStackTrace()
           throw exception
       }
-
-      import scala.concurrent.duration._
-      Await.result(future, 10.minutes)
   }
 
 }

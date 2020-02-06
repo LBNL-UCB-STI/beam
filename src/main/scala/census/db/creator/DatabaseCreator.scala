@@ -3,6 +3,7 @@ import java.nio.file.Paths
 
 import akka.actor.{ActorSystem, Props}
 import akka.stream.ActorMaterializer
+import akka.util.Timeout
 import census.db.creator.config.Hardcoded
 import census.db.creator.database.DbMigrationHandler
 import census.db.creator.service.actors._
@@ -32,6 +33,12 @@ private[creator] object Starter extends App {
   val shapeReader = system.actorOf(Props(new ShapeReadingActor(Hardcoded.config, tazWriter)))
   val unzipper = system.actorOf(Props(new UnzipActor(Hardcoded.config, shapeReader)))
   val downloader = system.actorOf(Props(new DownloadActor(Hardcoded.config, unzipper)))
+
+  import akka.pattern.ask
+  import scala.concurrent.duration._
+
+  implicit val timeout: Timeout = 2.seconds
+  val f = downloader ? ""
 
   for {
     files <- new FileDownloadService(Hardcoded.config).getFileNames()

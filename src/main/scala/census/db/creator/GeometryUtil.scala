@@ -10,17 +10,18 @@ object GeometryUtil {
   private val wkbReader = new WKBReader(geometryFactory)
 
   def readWkt(wkt: String): Geometry = wktReader.read(wkt)
-  def readPolygonFromWkt(wkt: String): Geometry = wktReader.read(wkt).asInstanceOf[Polygon]
+  def readPolygonFromWkt(wkt: String): Polygon = wktReader.read(wkt).asInstanceOf[Polygon]
   def readWkb(wkb: Any): Geometry = wkbReader.read(wkb.asInstanceOf[Array[Byte]])
 
-  def envelopeToPolygon(env: Envelope) = {
-    val coords = new Array[Coordinate](5)
-    coords(0) = new Coordinate(env.getMinX, env.getMinY)
-    coords(1) = new Coordinate(env.getMinX, env.getMaxY)
-    coords(2) = new Coordinate(env.getMaxX, env.getMaxY)
-    coords(3) = new Coordinate(env.getMaxX, env.getMinY)
-    coords(4) = new Coordinate(env.getMinX, env.getMinY)
-    geometryFactory.createPolygon(coords)
-  }
+  def envelopeToPolygon(env: Envelope) =
+    geometryFactory.createPolygon(
+      Array(
+        new Coordinate(env.getMinX, env.getMinY),
+        new Coordinate(env.getMinX, env.getMaxY),
+        new Coordinate(env.getMaxX, env.getMaxY),
+        new Coordinate(env.getMaxX, env.getMinY),
+        new Coordinate(env.getMinX, env.getMinY)
+      )
+    )
 
 }
