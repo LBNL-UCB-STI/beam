@@ -12,7 +12,7 @@ persons_all = pd.read_csv('Data/NHTS/perpub.csv')
 
 
 #%%
-for cbsa in persons_all.HH_CBSA.unique():
+for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
     trips = trips_all.loc[(trips_all['HH_CBSA'] == cbsa) , :]
 
 
@@ -41,22 +41,24 @@ for cbsa in persons_all.HH_CBSA.unique():
     workPIDs = set(workTrips.UniquePID)
     workerTrips = trips.loc[trips['UniquePID'].isin(workPIDs),:]
 
-    starts = workerTrips.loc[workerTrips.toWork].groupby('UniquePID')['endHour'].agg('first')
+    starts = workerTrips.loc[workerTrips.toWork].groupby('UniquePID')['startHour'].agg('first')
     ends = workerTrips.loc[workerTrips.fromWork].groupby('UniquePID')['startHour'].agg('last')
     
     workers = persons.loc[persons['UniquePID'].isin(workPIDs),:].set_index('UniquePID')
+    toMerge = pd.concat([starts,ends],axis=1,join='inner')
+    toMerge.columns = ['startWork','endWork']
     
-    workers = workers.merge(pd.concat([starts,ends],axis=1,join='inner'),left_index=True, right_index=True).rename(columns={'endHour':'startWork','startHour':'endWork'})
+    workers = workers.merge(toMerge,left_index=True, right_index=True)
     workers['workDuration'] = workers['endWork'] - workers['startWork']
     
-    workers['startTimeIndex'] = pd.cut(workers.startWork,np.arange(4,21,0.5))
-    workers['durationIndex'] = pd.cut(workers.workDuration,np.arange(0,15,0.5))
+    workers['startTimeIndex'] = pd.cut(workers.startWork,np.arange(4,21,0.25))
+    workers['durationIndex'] = pd.cut(workers.workDuration,np.arange(0,15,0.25))
     
     binProb = workers.groupby(['startTimeIndex','durationIndex']).agg({'WTPERFIN':'sum'}).fillna(0)
     binProb = binProb / binProb.sum()
     
     mat = binProb.unstack()
-    mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[0.5,0.5]), index = mat.index, columns = mat.columns)
+    mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
     binProb = mat2.stack().rename(columns={'WTTRDFIN':'probability'})
     binProb.to_csv('outputs/work_activities_'+cbsa+'.csv')
 
@@ -90,22 +92,24 @@ persons['UniquePID'] = persons.HOUSEID * 100 + persons.PERSONID
 workPIDs = set(workTrips.UniquePID)
 workerTrips = trips.loc[trips['UniquePID'].isin(workPIDs),:]
 
-starts = workerTrips.loc[workerTrips.toWork].groupby('UniquePID')['endHour'].agg('first')
+starts = workerTrips.loc[workerTrips.toWork].groupby('UniquePID')['startHour'].agg('first')
 ends = workerTrips.loc[workerTrips.fromWork].groupby('UniquePID')['startHour'].agg('last')
 
 workers = persons.loc[persons['UniquePID'].isin(workPIDs),:].set_index('UniquePID')
-
-workers = workers.merge(pd.concat([starts,ends],axis=1,join='inner'),left_index=True, right_index=True).rename(columns={'endHour':'startWork','startHour':'endWork'})
+toMerge = pd.concat([starts,ends],axis=1,join='inner')
+toMerge.columns = ['startWork','endWork']
+    
+workers = workers.merge(toMerge,left_index=True, right_index=True)
 workers['workDuration'] = workers['endWork'] - workers['startWork']
 
-workers['startTimeIndex'] = pd.cut(workers.startWork,np.arange(4,21,0.5))
-workers['durationIndex'] = pd.cut(workers.workDuration,np.arange(0,15,0.5))
+workers['startTimeIndex'] = pd.cut(workers.startWork,np.arange(4,21,0.25))
+workers['durationIndex'] = pd.cut(workers.workDuration,np.arange(0,15,0.25))
 
 binProb = workers.groupby(['startTimeIndex','durationIndex']).agg({'WTPERFIN':'sum'}).fillna(0)
 binProb = binProb / binProb.sum()
 
 mat = binProb.unstack()
-mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[0.5,0.5]), index = mat.index, columns = mat.columns)
+mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
 binProb = mat2.stack().rename(columns={'WTTRDFIN':'probability'})
 binProb.to_csv('outputs/work_activities_all_us.csv')
 
