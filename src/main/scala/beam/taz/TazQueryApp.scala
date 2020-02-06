@@ -14,7 +14,11 @@ object TazQueryApp extends App {
 
   val tazCoordinateGenerator = new TazCoordinateGeneratorImpl(osmService, tazRepo)
 
-  val coordinates = tazCoordinateGenerator.generate(tazesInsideOfBoundingBox.head.geoId, 1000)
+  val before = System.currentTimeMillis()
 
+  val coordinates =
+    tazesInsideOfBoundingBox.map(c => tazCoordinateGenerator.generate(c.geoId, 2000))
+
+  println(System.currentTimeMillis() - before)
   println()
 }
