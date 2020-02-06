@@ -17,14 +17,18 @@ class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGe
         case (geoId, xs) =>
           // One geoId contains multiple age ranges
           val allAges = xs.flatMap { entry =>
-            val maybeAge = Age(entry.lineNumber) match {
-              case Failure(ex) =>
-                logger.warn(s"Could not represent $entry as age: ${ex.getMessage}", ex)
-                None
-              case Success(value) =>
-                Some(value -> entry.estimate)
+            // Skip total age
+            if (entry.lineNumber == 1) None
+            else {
+              val maybeAge = Age(entry.lineNumber) match {
+                case Failure(ex) =>
+                  logger.warn(s"Could not represent $entry as age: ${ex.getMessage}", ex)
+                  None
+                case Success(value) =>
+                  Some(value -> entry.estimate)
+              }
+              maybeAge
             }
-            maybeAge
           }
           geoId -> allAges.toMap
       }

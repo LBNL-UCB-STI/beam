@@ -12,7 +12,6 @@ sealed trait Age {
 
 object Age {
   private val allAges: List[Age] = List(
-    Total,
     `Under 16 years`,
     `16 and 17 years`,
     `18 to 20 years`,
@@ -32,14 +31,6 @@ object Age {
         Failure(new IllegalStateException(s"Could not find age with lineNumber = $lineNumber"))
     }
 
-  }
-
-  case object Total extends Age {
-    override def lineNumber: Int = 1
-
-    override def desc: String = "Total"
-
-    override def range: Range = Range(0, 100)
   }
 
   case object `Under 16 years` extends Age {

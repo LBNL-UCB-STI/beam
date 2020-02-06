@@ -7,6 +7,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 import beam.utils.data.ctpp.readers.{
   AgeTableReader,
   BaseTableReader,
+  HouseholdSizeByUnitsInStructureTableReader,
   MeanHouseholdIncomeTableReader,
   MedianHouseholdIncomeTableReader,
   MetadataReader,
@@ -27,7 +28,16 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
   private val pathToAge: String = BaseTableReader.findFile(pathToData, Table.Age.name)
 
   private val allTables: Set[String] =
-    Set(Table.TotalHouseholds.name, Table.VehiclesAvailable.name, Table.PopulationInHouseholds.name, Table.Age.name)
+    Set(
+      Table.TotalHouseholds,
+      Table.VehiclesAvailable,
+      Table.PopulationInHouseholds,
+      Table.Age,
+      Table.MedianHouseholdIncome,
+      Table.MeanHouseholdIncome,
+      Table.Sex,
+      Table.HouseholdSizeByUnitsInStructure
+    ).map(_.name)
 
   private val headers: Array[String] = Array("geoid", "households", "population")
 
@@ -42,6 +52,8 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
     new MedianHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography)
   private val meanHouseholdIncomeTableReader =
     new MeanHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography)
+  private val householdSizeByUnitsInStructureTableReader =
+    new HouseholdSizeByUnitsInStructureTableReader(PathToData(pathToData), residenceGeography)
 
   private val metadataReader = new MetadataReader(pathToDoc)
 
@@ -58,8 +70,10 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
         .groupBy { x =>
           x.tblId
         }
-      println(tableIdToShellInfo.mkString(" "))
-
+      tableIdToShellInfo.foreach {
+        case (k, v) =>
+          println(s"$k => ${v.mkString(" ")}")
+      }
       val ageMap = ageTableReader.read()
       println(s"Read Age table: ${ageMap.size}")
 
@@ -77,6 +91,9 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
 
       val meanHouseholdIncomeMap = meanHouseholdIncomeTableReader.read()
       println(s"Read Mean Household Income table: ${meanHouseholdIncomeMap.size}")
+
+      val householdSizeMap = householdSizeByUnitsInStructureTableReader.read()
+      println(s"Read Household Size table: ${householdSizeMap.size}")
 
       val populationInHouseholdsMap = CTPPParser
         .readTable(pathToPopulationInHouseholds, filterOnlyTazGeoids)
