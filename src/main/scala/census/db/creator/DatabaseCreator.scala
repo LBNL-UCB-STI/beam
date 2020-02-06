@@ -2,12 +2,16 @@ package census.db.creator
 import java.nio.file.Paths
 
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import census.db.creator.config.Hardcoded
 import census.db.creator.database.DbMigrationHandler
 import census.db.creator.service.actors._
 import census.db.creator.service.fileDownloader.FileDownloadService
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 /*
 
@@ -17,7 +21,7 @@ docker run --name postgis -e POSTGRES_PASSWORD=postgres1 -e POSTGRES_DB=census -
 
  */
 
-private[creator] object Starter extends App {
+private[creator] object DatabaseCreator extends App {
 
   new DbMigrationHandler(Hardcoded.config).handle()
 
@@ -29,21 +33,23 @@ private[creator] object Starter extends App {
   new java.io.File(Paths.get(Hardcoded.config.workingDir, "zips").toString).mkdirs()
   new java.io.File(Paths.get(Hardcoded.config.workingDir, "shapes").toString).mkdirs()
 
-  val tazWriter = system.actorOf(Props(new TazSavingActor(Hardcoded.config)))
+  val orchestrator = system.actorOf(Props(new OrchestrationActor()))
+  val tazWriter = system.actorOf(Props(new TazSavingActor(Hardcoded.config, orchestrator)))
   val shapeReader = system.actorOf(Props(new ShapeReadingActor(Hardcoded.config, tazWriter)))
   val unzipper = system.actorOf(Props(new UnzipActor(Hardcoded.config, shapeReader)))
   val downloader = system.actorOf(Props(new DownloadActor(Hardcoded.config, unzipper)))
 
-  import akka.pattern.ask
-  import scala.concurrent.duration._
-
-  implicit val timeout: Timeout = 2.seconds
-  val f = downloader ? ""
-
   for {
     files <- new FileDownloadService(Hardcoded.config).getFileNames()
   } yield {
+    orchestrator ! TotalTaskMessage(files.size)
     files.foreach(downloader ! DownloadMessage(_))
   }
 
+  implicit val timeout: Timeout = 10.minutes
+  val time: Future[Any] = orchestrator ? IsFinished
+
+  Await.result(time, 10.minutes)
+
+  System.exit(0)
 }
