@@ -129,7 +129,7 @@ class SupplementaryTripGenerator(
           ]]],
           noTrip: Map[TripParameters, Double]
         ) =
-          gatherTazCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
+          gatherSubtourCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
         val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
           modeTazCosts.map {
@@ -187,7 +187,7 @@ class SupplementaryTripGenerator(
     }
   }
 
-  private def gatherTazCosts(
+  private def gatherSubtourCosts(
     newActivityType: String,
     TAZs: List[TAZ],
     startTime: Int,
