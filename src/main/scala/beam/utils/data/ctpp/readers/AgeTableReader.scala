@@ -3,14 +3,11 @@ package beam.utils.data.ctpp.readers
 import beam.utils.data.ctpp.models.{Age, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.Table
 import beam.utils.data.ctpp.CTPPParser
-import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.{Failure, Success}
 
 class AgeTableReader(pathToData: String, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.Age, Some(residenceGeography.level))
-    with LazyLogging {
-  logger.info(s"Path to table $table is '$pathToCsvTable'")
+    extends BaseTableReader(pathToData, Table.Age, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Age, Double]] = {
     val ageMap = CTPPParser

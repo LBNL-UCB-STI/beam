@@ -4,11 +4,14 @@ import java.io.{File, FileFilter}
 
 import beam.utils.data.ctpp.Models.CTPPEntry
 import beam.utils.data.ctpp.readers.BaseTableReader.Table
+import com.typesafe.scalalogging.StrictLogging
 
-abstract class BaseTableReader(val pathToData: String, val table: Table, maybeGeographyLevelFilter: Option[String]) {
+abstract class BaseTableReader(val pathToData: String, val table: Table, maybeGeographyLevelFilter: Option[String])
+    extends StrictLogging {
   import BaseTableReader._
 
   protected val pathToCsvTable: String = findTablePath()
+  logger.info(s"Path to table $table is '$pathToCsvTable'")
 
   def geographyLevelFilter(x: CTPPEntry): Boolean = {
     maybeGeographyLevelFilter.forall(level => x.geoId.startsWith(level))
@@ -25,6 +28,7 @@ object BaseTableReader {
     case object VehiclesAvailable extends Table("A111102", "Vehicles available")
     case object PopulationInHouseholds extends Table("A112107", "Population in households")
     case object Age extends Table("A101101", "Age")
+    case object Sex extends Table("A101110", "Sex")
   }
 
   def findFile(folderPath: String, fileName: String): String = {
