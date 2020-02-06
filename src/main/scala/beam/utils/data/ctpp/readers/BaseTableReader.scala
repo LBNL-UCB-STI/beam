@@ -6,8 +6,11 @@ import beam.utils.data.ctpp.Models.CTPPEntry
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 import com.typesafe.scalalogging.StrictLogging
 
-abstract class BaseTableReader(val pathToData: PathToData, val table: Table, maybeGeographyLevelFilter: Option[String])
-    extends StrictLogging {
+abstract class BaseTableReader(
+  protected val pathToData: PathToData,
+  protected val table: Table,
+  maybeGeographyLevelFilter: Option[String]
+) extends StrictLogging {
   import BaseTableReader._
 
   protected val pathToCsvTable: String = findTablePath()
@@ -18,6 +21,14 @@ abstract class BaseTableReader(val pathToData: PathToData, val table: Table, may
   }
 
   protected def findTablePath(): String = findFile(pathToData.path, table.name)
+
+  protected def findEstimateByLineNumberOr0(xs: Seq[CTPPEntry], lineNumber: Int, what: String): Double = {
+    xs.find(x => x.lineNumber == lineNumber).map(_.estimate).getOrElse {
+      // TODO better data missing handling
+      // logger.warn(s"Could not find total count for '$what' in input ${xs.mkString(" ")}")
+      0
+    }
+  }
 }
 
 object BaseTableReader {
@@ -34,6 +45,7 @@ object BaseTableReader {
     case object MeanHouseholdIncome extends Table("B112103", "Mean Household income in the past 12 months")
     case object MedianHouseholdIncome extends Table("B112104", "Median Household income in the past 12 months")
     case object HouseholdSizeByUnitsInStructure extends Table("A112210", "Household size (5) by Units in Structure (9)")
+    case object UsualHoursWorkedPerWeek extends Table("A102109", "Usual Hours worked per week (7)")
   }
 
   def findFile(folderPath: String, fileName: String): String = {

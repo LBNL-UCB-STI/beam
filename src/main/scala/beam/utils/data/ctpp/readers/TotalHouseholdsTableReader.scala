@@ -3,12 +3,12 @@ package beam.utils.data.ctpp.readers
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.ResidenceGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
-import beam.utils.data.ctpp.readers.TotalPopulationTableReader.TotalPopulation
+import beam.utils.data.ctpp.readers.TotalHouseholdsTableReader.TotalHouseholds
 
-class TotalPopulationTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.PopulationInHouseholds, Some(residenceGeography.level)) {
+class TotalHouseholdsTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(pathToData, Table.TotalHouseholds, Some(residenceGeography.level)) {
 
-  def read(): TotalPopulation = {
+  def read(): TotalHouseholds = {
     val map = CTPPParser
       .readTable(pathToCsvTable, geographyLevelFilter)
       .groupBy(x => x.geoId)
@@ -17,12 +17,12 @@ class TotalPopulationTableReader(pathToData: PathToData, val residenceGeography:
           // It is one to one relation, that's why we get the head
           geoId -> xs.head.estimate.toInt
       }
-    TotalPopulation(map)
+    TotalHouseholds(map)
   }
 }
 
-object TotalPopulationTableReader {
-  case class TotalPopulation(private val map: Map[String, Int]) extends Map[String, Int] {
+object TotalHouseholdsTableReader {
+  case class TotalHouseholds(private val map: Map[String, Int]) extends Map[String, Int] {
     override def +[V1 >: Int](kv: (String, V1)): Map[String, V1] = map.+(kv)
 
     override def get(key: String): Option[Int] = map.get(key)
