@@ -2,15 +2,15 @@ package beam.utils.data.ctpp.readers
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{Gender, ResidenceGeography}
-import beam.utils.data.ctpp.readers.BaseTableReader.Table
+import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
 import scala.util.{Failure, Success}
 
-class SexTableReader(pathToData: String, val residenceGeography: ResidenceGeography)
+class SexTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
     extends BaseTableReader(pathToData, Table.Sex, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Gender, Double]] = {
-    val genderMap = CTPPParser
+    val map = CTPPParser
       .readTable(pathToCsvTable, geographyLevelFilter)
       .groupBy(x => x.geoId)
       .map {
@@ -28,6 +28,6 @@ class SexTableReader(pathToData: String, val residenceGeography: ResidenceGeogra
           }
           geoId -> genders.toMap
       }
-    genderMap
+    map
   }
 }

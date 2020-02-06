@@ -3,16 +3,18 @@ package beam.utils.data.ctpp.converter
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.Models.CTPPEntry
 import beam.utils.data.ctpp.models.ResidenceGeography
-import beam.utils.data.ctpp.readers.BaseTableReader.Table
+import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 import beam.utils.data.ctpp.readers.{
   AgeTableReader,
   BaseTableReader,
+  MeanHouseholdIncomeTableReader,
+  MedianHouseholdIncomeTableReader,
   MetadataReader,
   SexTableReader,
   TotalPopulationTableReader,
   VehiclesAvailableTableReader
 }
-import beam.utils.data.ctpp.{CTPPParser, Metadata}
+import beam.utils.data.ctpp.CTPPParser
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.Try
@@ -20,8 +22,6 @@ import scala.util.Try
 class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) extends StrictLogging {
   import HouseholdPopulationConverter._
 
-  private val pathToTotalHouseholds: String = BaseTableReader.findFile(pathToData, Table.TotalHouseholds.name)
-  private val pathToVehiclesAvailable: String = BaseTableReader.findFile(pathToData, Table.VehiclesAvailable.name)
   private val pathToPopulationInHouseholds: String =
     BaseTableReader.findFile(pathToData, Table.PopulationInHouseholds.name)
   private val pathToAge: String = BaseTableReader.findFile(pathToData, Table.Age.name)
@@ -32,10 +32,16 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
   private val headers: Array[String] = Array("geoid", "households", "population")
 
   private val residenceGeography: ResidenceGeography = ResidenceGeography.TAZ
-  private val ageTableReader = new AgeTableReader(pathToData, residenceGeography)
-  private val totalPopulationTableReader = new TotalPopulationTableReader(pathToData, residenceGeography)
-  private val vehiclesAvailableTableReader = new VehiclesAvailableTableReader(pathToData, residenceGeography)
-  private val sexTableReader = new SexTableReader(pathToData, residenceGeography)
+  private val ageTableReader = new AgeTableReader(PathToData(pathToData), residenceGeography)
+  private val totalPopulationTableReader = new TotalPopulationTableReader(PathToData(pathToData), residenceGeography)
+  private val vehiclesAvailableTableReader =
+    new VehiclesAvailableTableReader(PathToData(pathToData), residenceGeography)
+  private val sexTableReader = new SexTableReader(PathToData(pathToData), residenceGeography)
+
+  private val medianHouseholdIncomeTableReader =
+    new MedianHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography)
+  private val meanHouseholdIncomeTableReader =
+    new MeanHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography)
 
   private val metadataReader = new MetadataReader(pathToDoc)
 
@@ -66,10 +72,11 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
       val genderMap = sexTableReader.read()
       println(s"Read Sex table: ${genderMap.size}")
 
-      val totalHouseholdMap = CTPPParser
-        .readTable(pathToTotalHouseholds, filterOnlyTazGeoids)
-        .groupBy(x => x.geoId)
-      println(s"totalHouseholdMap size: ${totalHouseholdMap.size}")
+      val medianHouseholdIncomeMap = medianHouseholdIncomeTableReader.read()
+      println(s"Read Median Household Income table: ${medianHouseholdIncomeMap.size}")
+
+      val meanHouseholdIncomeMap = meanHouseholdIncomeTableReader.read()
+      println(s"Read Mean Household Income table: ${meanHouseholdIncomeMap.size}")
 
       val populationInHouseholdsMap = CTPPParser
         .readTable(pathToPopulationInHouseholds, filterOnlyTazGeoids)
@@ -77,7 +84,7 @@ class HouseholdPopulationConverter(val pathToDoc: String, pathToData: String) ex
 
       println(s"populationInHouseholdsMap size: ${populationInHouseholdsMap.size}")
 
-      val totalKeys = totalHouseholdMap.keySet ++ vehiclesAvailableMap.keySet ++ populationInHouseholdsMap.keySet ++ ageMap.keySet
+      val totalKeys = totalPopulationMap.keySet ++ vehiclesAvailableMap.keySet ++ populationInHouseholdsMap.keySet ++ ageMap.keySet
 //      totalKeys.foreach { geoId =>
 //        // It is one to one relation, that's why we get the head!
 //        val totalHouseHolds = totalHouseholdMap.get(geoId).map(x => x.head.estimate).getOrElse {

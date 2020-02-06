@@ -2,11 +2,11 @@ package beam.utils.data.ctpp.readers
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{ResidenceGeography, Vehicles}
-import beam.utils.data.ctpp.readers.BaseTableReader.Table
+import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
 import scala.util.{Failure, Success}
 
-class VehiclesAvailableTableReader(pathToData: String, val residenceGeography: ResidenceGeography)
+class VehiclesAvailableTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
     extends BaseTableReader(pathToData, Table.VehiclesAvailable, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Vehicles, Double]] = {

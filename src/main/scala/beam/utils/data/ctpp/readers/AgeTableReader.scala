@@ -1,12 +1,12 @@
 package beam.utils.data.ctpp.readers
 
 import beam.utils.data.ctpp.models.{Age, ResidenceGeography}
-import beam.utils.data.ctpp.readers.BaseTableReader.Table
+import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 import beam.utils.data.ctpp.CTPPParser
 
 import scala.util.{Failure, Success}
 
-class AgeTableReader(pathToData: String, val residenceGeography: ResidenceGeography)
+class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
     extends BaseTableReader(pathToData, Table.Age, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Age, Double]] = {
