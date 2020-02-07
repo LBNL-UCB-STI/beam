@@ -18,6 +18,8 @@ import beam.sim.population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 
@@ -28,8 +30,11 @@ import scala.util.Random
 class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
   val destinationChoiceModel: DestinationChoiceModel,
-  val beamServices: BeamServices
+  val beamServices: BeamServices,
+  val personId: Id[Person]
 ) {
+  val r: Random.type = scala.util.Random
+  val personSpecificSeed = personId.hashCode().toLong
 
   val tazChoiceSet: List[TAZ] =
     generateTazChoiceSet(
@@ -37,7 +42,6 @@ class SupplementaryTripGenerator(
     )
 
   val travelTimeBufferInSec = 30 * 60
-  val r: Random.type = scala.util.Random
 
   val activityRates: ActivityRates = destinationChoiceModel.activityRates
   val activityVOTs: ActivityVOTs = destinationChoiceModel.activityVOTs
@@ -322,7 +326,10 @@ class SupplementaryTripGenerator(
 
     val meanActivityDuration: Double = activityDurations.getOrElse(chosenType, 15 * 60)
 
-    val newActivityDuration: Double = -math.log(r.nextDouble()) * meanActivityDuration
+    val r_repeat = new scala.util.Random
+    r_repeat.setSeed(personSpecificSeed)
+
+    val newActivityDuration: Double = -math.log(r_repeat.nextDouble()) * meanActivityDuration
 
     val earliestPossibleStartIndex = secondsToIndex(altStart + travelTimeBufferInSec)
     val latestPossibleEndIndex = secondsToIndex(altEnd - travelTimeBufferInSec)
@@ -344,7 +351,9 @@ class SupplementaryTripGenerator(
   }
 
   private def generateTazChoiceSet(n: Int): List[TAZ] = {
-    Random.shuffle(beamServices.beamScenario.tazTreeMap.getTAZs.toList).take(n)
+    val r_repeat = new scala.util.Random
+    r_repeat.setSeed(personSpecificSeed)
+    r_repeat.shuffle(beamServices.beamScenario.tazTreeMap.getTAZs.toSeq).take(n).toList
   }
 
   private def secondsToIndex(time: Double): Int = {
