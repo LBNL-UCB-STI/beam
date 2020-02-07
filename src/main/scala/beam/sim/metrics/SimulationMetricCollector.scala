@@ -38,6 +38,15 @@ trait SimulationMetricCollector {
     overwriteIfExist: Boolean = false
   ): Unit
 
+  def writeJava(
+    metricName: String,
+    time: Double,
+    values: java.util.Map[String, Double],
+    tags: java.util.Map[String, String],
+    level: MetricLevel = ShortLevel,
+    overwriteIfExist: Boolean = false
+  ): Unit = write(metricName, SimulationTime(time.toInt), values.asScala.toMap, tags.asScala.toMap, level, overwriteIfExist)
+
   def writeStr(
     metricName: String,
     time: SimulationTime,

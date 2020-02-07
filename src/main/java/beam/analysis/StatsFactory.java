@@ -4,6 +4,7 @@ import beam.analysis.plots.*;
 import beam.analysis.summary.*;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
+import com.conveyal.r5.transit.TransportNetwork;
 
 import java.beans.Beans;
 import java.util.Arrays;
@@ -79,7 +80,8 @@ public class StatsFactory {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
         switch (statsType) {
             case RideHailWaiting:
-                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector());
+                TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();
+                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector(), beamServices.geo(), transportNetwork);
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
@@ -87,9 +89,9 @@ public class StatsFactory {
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
-                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),writeGraphs);
+                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(), writeGraphs);
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
+                return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
             case RealizedMode:
                 return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
