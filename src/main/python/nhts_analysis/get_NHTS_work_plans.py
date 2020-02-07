@@ -59,7 +59,7 @@ for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
     
     mat = binProb.unstack()
     mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
-    binProb = mat2.stack().rename(columns={'WTTRDFIN':'probability'})
+    binProb = mat2.stack().rename(columns={'WTPERFIN':'probability'})
     binProb.to_csv('outputs/work_activities_'+cbsa+'.csv')
 
 
@@ -110,6 +110,6 @@ binProb = binProb / binProb.sum()
 
 mat = binProb.unstack()
 mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
-binProb = mat2.stack().rename(columns={'WTTRDFIN':'probability'})
+binProb = mat2.stack().rename(columns={'WTPERFIN':'probability'})
 binProb.to_csv('outputs/work_activities_all_us.csv')
 
