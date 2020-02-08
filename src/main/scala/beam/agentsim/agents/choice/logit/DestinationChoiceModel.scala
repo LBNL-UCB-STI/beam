@@ -244,7 +244,7 @@ class DestinationChoiceModel(
     attributesOfIndividual: AttributesOfIndividual
   ): Double = {
     val (actStart, actEnd) = getRealStartEndTime(activity)
-    val actDuration = actStart - actEnd
+    val actDuration = actEnd - actStart
     val activityValueOfTime =
     attributesOfIndividual.getVOT(actDuration / 3600) * activityVOTs.getOrElse(activity.getType, 1.0D)
     val activityIntercept = activityRates
