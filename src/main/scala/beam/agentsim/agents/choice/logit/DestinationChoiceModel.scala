@@ -4,9 +4,13 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import org.matsim.core.utils.io.IOUtils
+
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import java.nio.file.{Files, Paths}
+
+import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.population.Activity
 
 object DestinationChoiceModel {
   def apply(beamConfig: BeamConfig) = new DestinationChoiceModel(beamConfig)
@@ -233,6 +237,36 @@ class DestinationChoiceModel(
         println(e)
         (DefaultActivityVOTs, DefaultActivityDurations)
     }
+  }
+
+  def getActivityUtility(
+    activity: Activity,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = {
+    val (actStart, actEnd) = getRealStartEndTime(activity)
+    val actDuration = actStart - actEnd
+    val activityValueOfTime =
+    attributesOfIndividual.getVOT(actDuration / 3600) * activityVOTs.getOrElse(activity.getType, 1.0D)
+    val activityIntercept = activityRates
+      .getOrElse(activity.getType, Map[Int, Double]())
+      .getOrElse(secondsToIndex(actStart), 0D)
+    val tripIntercept = activity.getType.toLowerCase match {
+      case "home" | "work" => 0D
+      case _               => beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.additional_trip_utility
+    }
+    activityValueOfTime + activityIntercept + tripIntercept
+  }
+
+  private def getRealStartEndTime(
+    activity: Activity
+  ): (Double, Double) = {
+    val start = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
+    val end = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    (start, end)
+  }
+
+  private def secondsToIndex(time: Double): Int = {
+    (time / 3600).toInt
   }
 
 }

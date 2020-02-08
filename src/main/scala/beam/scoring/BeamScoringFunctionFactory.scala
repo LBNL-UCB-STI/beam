@@ -121,16 +121,7 @@ class BeamScoringFunctionFactory @Inject()(
         activity: Activity,
         attributes: AttributesOfIndividual
       ): Double = {
-        val (altStart, altEnd) = getRealStartEndTime(activity)
-        val duration = altEnd - altStart
-        val timeValue: Double = attributes.getVOT(
-          duration / 3600 * beamServices.beamScenario.destinationChoiceModel.DefaultActivityVOTs
-            .getOrElse(activity.getType, 1.0)
-        )
-        val intercept: Double = beamServices.beamScenario.destinationChoiceModel.DefaultActivityRates
-          .getOrElse(activity.getType, Map[Int, Double]())
-          .getOrElse(math.floor(altStart / 3600).toInt, 0)
-        timeValue + intercept
+        beamServices.beamScenario.destinationChoiceModel.getActivityUtility(activity, attributes)
       }
 
       private def getRealStartEndTime(

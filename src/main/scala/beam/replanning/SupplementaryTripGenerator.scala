@@ -19,7 +19,7 @@ import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLog
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 
@@ -202,12 +202,10 @@ class SupplementaryTripGenerator(
     Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]],
     Map[TripParameters, Double]
   ) = {
-    val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
-    val alternativeActivityCost =
-      attributesOfIndividual.getVOT((altEnd - altStart) / 3600)
+    val alternativeActivityUtility =
+      destinationChoiceModel.getActivityUtility(alternativeActivity, attributesOfIndividual)
     val alternativeActivityParamMap = Map[DestinationChoiceModel.TripParameters, Double](
-      ExpMaxUtility -> alternativeActivityCost * activityVOTs
-        .getOrElse(alternativeActivity.getType, 1.0)
+      ExpMaxUtility -> alternativeActivityUtility
     )
 
     val modeToTazToCost
@@ -216,8 +214,12 @@ class SupplementaryTripGenerator(
         Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]]()
       } else {
         TAZs.map { taz =>
+          val destinationCoord: Coord = TAZTreeMap.randomLocationInTAZ(taz)
+          val additionalActivity = PopulationUtils.createActivityFromCoord(newActivityType, destinationCoord)
+          additionalActivity.setStartTime(startTime)
+          additionalActivity.setEndTime(endTime)
           val cost =
-            getTazCost(newActivityType, taz, modes, startTime, endTime, alternativeActivity)
+            getTazCost(additionalActivity, alternativeActivity, modes)
           val alternative =
             DestinationChoiceModel.SupplementaryTripAlternative(
               taz,
@@ -250,49 +252,44 @@ class SupplementaryTripGenerator(
   }
 
   private def getTazCost(
-    newActivityType: String,
-    taz: TAZ,
-    modes: List[BeamMode],
-    newActivityStartTime: Double,
-    newActivityEndTime: Double,
-    alternativeActivity: Activity
+    additionalActivity: Activity,
+    alternativeActivity: Activity,
+    modes: List[BeamMode]
   ): Map[BeamMode, DestinationChoiceModel.TimesAndCost] = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
-    val activityDuration = newActivityEndTime - newActivityStartTime
-    val desiredDepartTimeBin = secondsToIndex(newActivityStartTime)
-    val desiredReturnTimeBin = secondsToIndex(newActivityEndTime)
+    val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
+    val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime)
+    val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime)
 
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
         val accessTripSkim =
           Skims.od_skimmer.getTimeDistanceAndCost(
             alternativeActivity.getCoord,
-            TAZTreeMap.randomLocationInTAZ(taz),
+            additionalActivity.getCoord,
             desiredDepartTimeBin,
             mode
           )
         val egressTripSkim =
           Skims.od_skimmer.getTimeDistanceAndCost(
-            TAZTreeMap.randomLocationInTAZ(taz),
+            additionalActivity.getCoord,
             alternativeActivity.getCoord,
             desiredReturnTimeBin,
             mode
           )
         val startingOverlap =
-          (altStart - (newActivityStartTime - accessTripSkim.time - travelTimeBufferInSec)).max(0)
+          (altStart - (additionalActivity.getStartTime - accessTripSkim.time - travelTimeBufferInSec)).max(0)
         val endingOverlap =
-          ((newActivityEndTime + egressTripSkim.time + travelTimeBufferInSec) - altEnd).max(0)
+          ((additionalActivity.getEndTime + egressTripSkim.time + travelTimeBufferInSec) - altEnd).max(0)
         val schedulePenalty = math.pow(startingOverlap, 2) + math.pow(endingOverlap, 2)
         val previousActivityBenefit = attributesOfIndividual.getVOT(
           (alternativeActivityDuration - accessTripSkim.time - egressTripSkim.time - activityDuration) / 3600 * activityVOTs
             .getOrElse(alternativeActivity.getType, 1.0)
         )
-        val asc: Double =
-          activityRates.getOrElse(newActivityType, Map[Int, Double]()).getOrElse(desiredDepartTimeBin, 0)
-        val newActivityBenefit: Double = attributesOfIndividual.getVOT(
-          activityDuration / 3600 * activityVOTs.getOrElse(newActivityType, 1.0)
-        ) + asc
+
+        val newActivityBenefit: Double =
+          destinationChoiceModel.getActivityUtility(additionalActivity, attributesOfIndividual)
 
         mode -> TimesAndCost(
           accessTripSkim.time,
