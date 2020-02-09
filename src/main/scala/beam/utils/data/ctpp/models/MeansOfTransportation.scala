@@ -7,6 +7,7 @@ sealed trait MeansOfTransportation {
 }
 
 object MeansOfTransportation {
+
   val all: List[MeansOfTransportation] = List(
     `Car, truck, or van -- Drove alone`,
     `Car, truck, or van -- In a 2-person carpool`,

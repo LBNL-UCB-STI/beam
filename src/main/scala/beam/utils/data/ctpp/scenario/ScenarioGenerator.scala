@@ -5,6 +5,6 @@ import org.matsim.households.Households
 
 import scala.concurrent.Future
 
-trait ScenarioGeneratorLike {
+trait ScenarioGenerator {
   def generate: Future[(Households, Population)]
 }

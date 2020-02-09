@@ -18,7 +18,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 
 class SimpleScenarioGenerator(val pathToDoc: String, val pathToData: String, val javaRnd: Random)(
   implicit val ex: ExecutionContext
-) extends ScenarioGeneratorLike
+) extends ScenarioGenerator
     with StrictLogging {
 
   private val residenceGeography: ResidenceGeography = ResidenceGeography.TAZ
