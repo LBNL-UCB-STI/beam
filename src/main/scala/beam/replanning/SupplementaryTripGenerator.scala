@@ -114,11 +114,10 @@ class SupplementaryTripGenerator(
   ): List[Activity] = {
     val modesToConsider: List[BeamMode] =
       if (householdModes.contains(CAV)) {
-        List[BeamMode](CAV)
+        List[BeamMode](CAV, WALK)
       } else {
         List[BeamMode](WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED) ++ householdModes
       }
-
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime)
     alternativeActivity.setEndTime(nextActivity.getEndTime)
@@ -279,9 +278,9 @@ class SupplementaryTripGenerator(
             mode
           )
         val startingOverlap =
-          (altStart - (additionalActivity.getStartTime - accessTripSkim.time - travelTimeBufferInSec)).max(0)
+          (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)
         val endingOverlap =
-          ((additionalActivity.getEndTime + egressTripSkim.time + travelTimeBufferInSec) - altEnd).max(0)
+          ((additionalActivity.getEndTime + egressTripSkim.time) - altEnd).max(0)
         val schedulePenalty = math.pow(startingOverlap, 2) + math.pow(endingOverlap, 2)
         val previousActivityBenefit = attributesOfIndividual.getVOT(
           (alternativeActivityDuration - accessTripSkim.time - egressTripSkim.time - activityDuration) / 3600 * activityVOTs
@@ -319,32 +318,40 @@ class SupplementaryTripGenerator(
           .values
           .sum
     }
-    val chosenType = drawKeyByValue(filtered, "None")
+    val chosenType = drawKeyByValue(filtered)
 
-    val meanActivityDuration: Double = activityDurations.getOrElse(chosenType, 15 * 60)
+    chosenType match {
+      case Some(actType) =>
+        val meanActivityDuration: Double = activityDurations.getOrElse(actType, 15 * 60)
 
-    val r_repeat = new scala.util.Random
-    r_repeat.setSeed(personSpecificSeed)
+        val r_repeat = new scala.util.Random
+        r_repeat.setSeed(personSpecificSeed)
 
-    val newActivityDuration: Double = -math.log(r_repeat.nextDouble()) * meanActivityDuration
+        val newActivityDuration: Double = -math.log(r_repeat.nextDouble()) * meanActivityDuration
 
-    val earliestPossibleStartIndex = secondsToIndex(altStart + travelTimeBufferInSec)
-    val latestPossibleEndIndex = secondsToIndex(altEnd - travelTimeBufferInSec)
-    val chosenStartIndex = if (latestPossibleEndIndex > earliestPossibleStartIndex + 1) {
-      val filteredRates = activityRates
-        .getOrElse(chosenType, Map[Int, Double]())
-        .filter {
-          case (hour, rate) =>
-            hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd) & rate > 0
+        val earliestPossibleStartIndex = secondsToIndex(altStart + travelTimeBufferInSec)
+        val latestPossibleEndIndex = secondsToIndex(altEnd - travelTimeBufferInSec)
+        val chosenStartIndex = if (latestPossibleEndIndex > earliestPossibleStartIndex + 1) {
+          val filteredRates = activityRates
+            .getOrElse(actType, Map[Int, Double]())
+            .filter {
+              case (hour, rate) =>
+                hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd - travelTimeBufferInSec) & rate > 0
+            }
+          drawKeyByValue(filteredRates)
+        } else { None }
+        chosenStartIndex match {
+          case Some(index) =>
+            val startTime = math.max((r.nextDouble() + index) * 3600, altStart + travelTimeBufferInSec)
+            (
+              actType,
+              startTime.toInt,
+              (startTime + newActivityDuration).toInt
+            )
+          case None => ( "None", 0, 0 )
         }
-      drawKeyByValue(filteredRates, earliestPossibleStartIndex)
-    } else { earliestPossibleStartIndex }
-    val startTime = math.max((r.nextDouble() + chosenStartIndex) * 3600, altStart + travelTimeBufferInSec)
-    (
-      chosenType,
-      startTime.toInt,
-      (startTime + newActivityDuration).toInt
-    )
+      case None => ( "None", 0, 0 )
+    }
   }
 
   private def generateTazChoiceSet(n: Int): List[TAZ] = {
@@ -358,13 +365,15 @@ class SupplementaryTripGenerator(
   }
 
   private def drawKeyByValue[A](
-    keyToProb: Map[A, Double],
-    default: A
-  ): A = {
+    keyToProb: Map[A, Double]
+  ): Option[A] = {
     val totalProb = keyToProb.values.sum
     val randomDraw = r.nextDouble()
     val probs = keyToProb.values.scanLeft(0.0)(_ + _ / totalProb).drop(1)
-    keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption.getOrElse((default, 1.0))._1
+    keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption match {
+      case Some(result) => Some(result._1)
+      case _ => None
+    }
   }
 
 }
