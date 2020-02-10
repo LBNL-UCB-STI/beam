@@ -2,7 +2,9 @@ package beam.utils.data.synthpop
 
 import java.io.File
 
+import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
+import beam.taz.RandomPointsInGridGenerator
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{Gender, GeoId}
 import com.typesafe.scalalogging.StrictLogging
@@ -13,14 +15,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
-import org.matsim.households.{
-  HouseholdsFactoryImpl,
-  HouseholdsImpl,
-  Income,
-  IncomeImpl,
-  Household => MatsimHousehold,
-  Households => MatsimHouseholds
-}
+import org.matsim.households.{HouseholdsFactoryImpl, HouseholdsImpl, Income, IncomeImpl, Household => MatsimHousehold, Households => MatsimHouseholds}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.opengis.feature.simple.SimpleFeature
 
@@ -38,7 +33,14 @@ class SimpleScenarioGenerator(
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
-  private var personIndex: Int = 0
+
+  private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
+    // TODO: Is it truth for all cases? Check the coverage https://epsg.io/26910
+    // WGS84 bounds:
+    //-172.54 23.81
+    //-47.74 86.46
+    override def localCRS: String = "epsg:26910"
+  }
 
   override def generate: (MatsimHouseholds, MatsimPopulation) = {
     val households =
@@ -63,34 +65,40 @@ class SimpleScenarioGenerator(
     val householdsFactory = new HouseholdsFactoryImpl()
     val scenarioHouseholdAttributes = matsimHouseholds.getHouseholdAttributes
 
-    var personId: Int = 0
+    var globalPersonId: Int = 0
+
     geoIdToHouseholds.foreach {
       case (geoId, households) =>
         val nLocationsToGenerate = households.size
         val geom = geoIdToGeom(geoId)
         val centroid = geom.getGeometry.getCentroid
-        households.foreach { household =>
-          val persons = householdWithPersons(household)
+        val householdLocation = RandomPointsInGridGenerator.generate(geom.getGeometry, nLocationsToGenerate)
+        require(householdLocation.size == nLocationsToGenerate)
+        households.zip(householdLocation).foreach {
+          case (household, wgsLocation) =>
+            val persons = householdWithPersons(household)
 
-          val matsimHousehold = createHousehold(household, persons, householdsFactory)
-          matsimHouseholds.addHousehold(matsimHousehold)
-          // TODO: Use `TazCoordinateGeneratorImpl` from https://github.com/LBNL-UCB-STI/beam/pull/2357
-          val location = centroid
-          scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", location.getX)
-          scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", location.getY)
+            val (matsimPersons, lastPersonId) = persons.foldLeft((List.empty[MatsimPerson], globalPersonId)) {
+              case ((xs, nextPersonId), person) =>
+                val matsimPerson =
+                  createPerson(
+                    household,
+                    person,
+                    nextPersonId,
+                    matsimPopulation.getFactory,
+                    matsimPopulation.getPersonAttributes
+                  )
+                (matsimPerson :: xs, nextPersonId + 1)
+            }
+            globalPersonId = lastPersonId
+            matsimPersons.foreach(matsimPopulation.addPerson)
 
-          persons.foreach { person =>
-            val matsimPerson =
-              createPerson(
-                household,
-                person,
-                personId,
-                matsimPopulation.getFactory,
-                matsimPopulation.getPersonAttributes
-              )
-            matsimPopulation.addPerson(matsimPerson)
-            personId += 1
-          }
+            val matsimHousehold = createHousehold(household, matsimPersons, householdsFactory)
+            matsimHouseholds.addHousehold(matsimHousehold)
+
+            val utmCoord = geoUtils.wgs2Utm(wgsLocation)
+            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmCoord.getX)
+            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmCoord.getY)
         }
     }
     (matsimHouseholds, matsimPopulation)
@@ -98,13 +106,12 @@ class SimpleScenarioGenerator(
 
   private def createHousehold(
     household: Models.Household,
-    persons: Seq[Models.Person],
+    matsimPersons: Seq[MatsimPerson],
     householdFactory: HouseholdsFactoryImpl
   ): MatsimHousehold = {
     val h = householdFactory.createHousehold(Id.create[MatsimHousehold](household.id, classOf[MatsimHousehold]))
     h.setIncome(new IncomeImpl(household.income, Income.IncomePeriod.year))
-    val matsimPersons = persons.map(x => Id.createPersonId(personIndex)).asJava
-    h.setMemberIds(matsimPersons)
+    h.setMemberIds(matsimPersons.map(_.getId).asJava)
     h
   }
 
