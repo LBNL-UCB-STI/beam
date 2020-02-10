@@ -13,6 +13,7 @@ private[creator] class FileDownloadService(val config: Config)(
   implicit val materializer: ActorMaterializer,
   implicit val executionContext: ExecutionContext
 ) {
+
   def getFileNames(): Future[Seq[String]] = {
     for {
       page <- Http().singleRequest(HttpRequest(uri = config.censusUrl))
