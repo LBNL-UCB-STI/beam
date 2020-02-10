@@ -16,7 +16,7 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
   private val tableInfoPath: String = pathToDoc + "/" + tableInfoFileName
 
   def showTable(tableId: String): Unit = {
-    val tablesInfo = getTablesInfo(pathToDoc)
+    val tablesInfo = getTablesInfo()
     val (it, toClose) = GenericCsvReader.readAs[TableShell](
       pathToDoc + tableShellFileName,
       toTableShell,
@@ -56,7 +56,7 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
     }
   }
 
-  def getTablesInfo(pathToDoc: String): List[TableInfo] = {
+  def getTablesInfo(): List[TableInfo] = {
     val (it, toClose) = GenericCsvReader.readAs[TableInfo](tableInfoPath, toTableInfo, x => true)
     try {
       it.toList
@@ -86,4 +86,9 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
 object MetadataReader {
   case class TableShell(tblId: String, lineNumber: Int, lineIdent: Int, description: String)
   case class TableInfo(tblId: String, content: String, universe: String, numberOfCells: Int, runGeos: String)
+
+  def main(args: Array[String]): Unit = {
+    val metaRdr = new MetadataReader("D:/Work/beam/Austin/2012-2016 CTPP documentation")
+    metaRdr.readShellTable.filter(x => x.tblId == "B302104").foreach(println)
+  }
 }

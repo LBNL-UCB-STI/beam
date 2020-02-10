@@ -13,7 +13,14 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
-import org.matsim.households.{HouseholdsFactoryImpl, HouseholdsImpl, Income, IncomeImpl, Household => MatsimHousehold, Households => MatsimHouseholds}
+import org.matsim.households.{
+  HouseholdsFactoryImpl,
+  HouseholdsImpl,
+  Income,
+  IncomeImpl,
+  Household => MatsimHousehold,
+  Households => MatsimHouseholds
+}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.opengis.feature.simple.SimpleFeature
 
@@ -129,7 +136,8 @@ class SimpleScenarioGenerator(
           override def hasNext: Boolean = fe.hasNext
           override def next(): SimpleFeature = fe.next()
         }
-        val geoIdToGeom = it.filter { feature =>
+        val geoIdToGeom = it
+          .filter { feature =>
             val geoIdStr = feature.getAttribute("GEOID").toString
             val shouldConsider = uniqueGeoIds.contains(geoIdStr)
             shouldConsider

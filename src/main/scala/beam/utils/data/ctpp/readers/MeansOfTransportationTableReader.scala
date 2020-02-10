@@ -1,7 +1,7 @@
 package beam.utils.data.ctpp.readers
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.{MeansOfTransportation, OD}
+import beam.utils.data.ctpp.models.{FlowGeoParser, MeansOfTransportation, OD}
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
 class MeansOfTransportationTableReader(pathToData: PathToData)
@@ -12,10 +12,7 @@ class MeansOfTransportationTableReader(pathToData: PathToData)
     CTPPParser
       .readTable(pathToCsvTable, x => geographyLevelFilter(x) && interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        // C56	CTPP Flow- TAZ-to-TAZ	st/cty/taz/st/cty/taz	C5600USssccczzzzzzzzssccczzzzzzzz
-        val fromTo = entry.geoId.substring("C5600US".length)
-        val fromGeoId = fromTo.substring(0, "ssccczzzzzzzz".length)
-        val toGeoId = fromTo.substring("ssccczzzzzzzz".length)
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
         val mode = MeansOfTransportation(entry.lineNumber).get
         OD(fromGeoId, toGeoId, mode, entry.estimate)
       }
