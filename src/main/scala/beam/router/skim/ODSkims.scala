@@ -36,7 +36,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
     val beamConfig = beamServices.beamConfig
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val travelCost: Double = mode match {
-      case CAR | CAV =>
+      case CAR =>
         DrivingCost.estimateDrivingCost(
           new BeamLeg(
             departureTime,
@@ -47,6 +47,17 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
           beamScenario.vehicleTypes(vehicleTypeId),
           beamScenario.fuelTypePrices
         )
+      case CAV =>
+        DrivingCost.estimateDrivingCost(
+          new BeamLeg(
+            departureTime,
+            mode,
+            travelTime,
+            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
+          ),
+          beamScenario.vehicleTypes(vehicleTypeId),
+          beamScenario.fuelTypePrices
+        ) * beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
       case RIDE_HAIL =>
         beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
       case RIDE_HAIL_POOLED =>
