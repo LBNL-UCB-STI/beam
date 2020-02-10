@@ -21,11 +21,11 @@ object GraphReadmeGenerator {
       |
       |modeChoice.png - Number of transportation chooses, distributed by modes, per iteration.
       |
-      |realizedModeChoice.png - ???
+      |realizedModeChoice.png - Actual number of transportation chooses, distributed by modes, per iteration. Choosen mode might be not used due to different reasons (for example, ride hail can be too far). It that case person will go to replanning and anothe mode will be choosen.
       |
-      |referenceModeChoice.png - ???
+      |referenceModeChoice.png - The same as `modeChoice.png`, but with additional reference modes plot if benchmark file is provided (bemam param `beam.calibration.mode.benchmarkFilePath`)
       |
-      |referenceRealizedModeChoice.png - ???
+      |referenceRealizedModeChoice.png - The same as `realizedModeChoice.png`, but with additional reference mode plot
       |
       |replanningCountModeChoice.png - Replanning event count per iteration.
       |
