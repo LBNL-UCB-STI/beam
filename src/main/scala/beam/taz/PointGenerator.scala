@@ -21,16 +21,19 @@ object RandomPointsInGridGenerator extends PointGenerator {
     @tailrec
     def generate(n: Int): Seq[Coord] = {
       pointsBuilder.setNumPoints(n)
-      val multiPoint = pointsBuilder.getGeometry
+      val multiPoint = pointsBuilder.getGeometry.intersection(geometry)
+
       val points = (0 until multiPoint.getNumGeometries)
         .map(multiPoint.getGeometryN)
-        .filter(geometry.contains)
-        .map { x =>
-          val coord = x.getCoordinate
-          new Coord(coord.getOrdinate(0), coord.getOrdinate(1))
-        }
+        .filter(x => x.getGeometryType.contains("Point"))
 
-      if (points.size >= nPoints) return points.take(nPoints)
+      if (points.size >= nPoints)
+        return points
+          .take(nPoints)
+          .map { x =>
+            val coord = x.getCoordinate
+            new Coord(coord.getOrdinate(0), coord.getOrdinate(1))
+          }
 
       generate((n * 1.1).toInt)
     }
