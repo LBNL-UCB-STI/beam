@@ -108,6 +108,9 @@ object TimeLeavingHomeTableReader {
     )
     val readData = timeLeavingHomeReader.read()
 
-    println(s"Read ${readData.size} OD pairs")
+    val nonZeros = readData.filter(x => x.value != 0.0)
+    val sum = readData.map(_.value).sum
+    println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
+    println(s"Sum: $sum")
   }
 }
