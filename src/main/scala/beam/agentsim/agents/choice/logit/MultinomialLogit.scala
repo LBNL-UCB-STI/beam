@@ -2,16 +2,15 @@ package beam.agentsim.agents.choice.logit
 
 import beam.utils.MathUtils
 
-import scala.collection.immutable.SortedSet
 import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
 
 /**
   * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *
   * @param utilityFunctions mappings from alternatives to the attributes which can be evaluated against them
   * @param common common attributes of all alternatives
+  * @param scale_factor amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
   * @tparam A the type of alternatives we are choosing between
   * @tparam T the attributes of this multinomial logit function
   */
