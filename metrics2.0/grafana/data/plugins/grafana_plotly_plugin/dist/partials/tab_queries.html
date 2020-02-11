@@ -37,6 +37,11 @@
                 ng-change="ctrl.onConfigChanged();">
         </div>
         <div class="gf-form">
+            <label class="gf-form-label width-7">y axis text</label>
+            <input class="gf-form-input width-15" placeholder="y axis text" ng-model="ctrl.editor.query.yaxistext"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
             <label class="gf-form-label width-7">dataColumn</label>
             <input class="gf-form-input width-15" placeholder="data" ng-model="ctrl.editor.query.columnNames.dataColumn"
                 ng-change="ctrl.onConfigChanged();">
@@ -48,7 +53,7 @@
         </div>
         <div class="gf-form">
             <label class="gf-form-label width-7">yColumn</label>
-            <input class="gf-form-input width-15" placeholder="X" ng-model="ctrl.editor.query.columnNames.yColumn"
+            <input class="gf-form-input width-15" placeholder="Y" ng-model="ctrl.editor.query.columnNames.yColumn"
                 ng-change="ctrl.onConfigChanged();">
         </div>
         <div class="gf-form">
