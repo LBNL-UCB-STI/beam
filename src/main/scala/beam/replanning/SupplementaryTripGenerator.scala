@@ -57,16 +57,28 @@ class SupplementaryTripGenerator(
       SupplementaryTripAlternative,
       DestinationChoiceModel.DestinationParameters
     ] =
-      new MultinomialLogit(Map.empty, destinationChoiceModel.DefaultMNLParameters)
+      new MultinomialLogit(
+        Map.empty,
+        destinationChoiceModel.DefaultMNLParameters,
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor
+      )
 
     val destinationMNL: MultinomialLogit[
       SupplementaryTripAlternative,
       DestinationChoiceModel.TripParameters
     ] =
-      new MultinomialLogit(Map.empty, destinationChoiceModel.TripMNLParameters)
+      new MultinomialLogit(
+        Map.empty,
+        destinationChoiceModel.TripMNLParameters,
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.destination_nest_scale_factor
+      )
 
     val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
-      new MultinomialLogit(Map.empty, destinationChoiceModel.TripMNLParameters)
+      new MultinomialLogit(
+        Map.empty,
+        destinationChoiceModel.TripMNLParameters,
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.trip_nest_scale_factor
+      )
 
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     var anyChanges = false
@@ -348,9 +360,9 @@ class SupplementaryTripGenerator(
               startTime.toInt,
               (startTime + newActivityDuration).toInt
             )
-          case None => ( "None", 0, 0 )
+          case None => ("None", 0, 0)
         }
-      case None => ( "None", 0, 0 )
+      case None => ("None", 0, 0)
     }
   }
 
@@ -372,7 +384,7 @@ class SupplementaryTripGenerator(
     val probs = keyToProb.values.scanLeft(0.0)(_ + _ / totalProb).drop(1)
     keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption match {
       case Some(result) => Some(result._1)
-      case _ => None
+      case _            => None
     }
   }
 

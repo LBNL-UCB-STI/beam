@@ -1,5 +1,7 @@
 package beam.agentsim.agents.choice.logit
 
+import beam.utils.MathUtils
+
 import scala.collection.immutable.SortedSet
 import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
@@ -109,16 +111,16 @@ class MultinomialLogit[A, T](
   def getExpectedMaximumUtility(
     alternatives: Map[A, Map[T, Double]]
   ): Option[Double] = {
-    val utilityOfAlternatives: Iterable[Double] =
+    val scaledUtilityOfAlternatives: Iterable[Double] =
       for {
         (alt, attributes) <- alternatives
         utility           <- getUtilityOfAlternative(alt, attributes)
       } yield {
-        Math.exp(utility)
+        utility * scale_factor
       }
 
-    if (utilityOfAlternatives.isEmpty) None
-    else Some { Math.log(utilityOfAlternatives.sum) }
+    if (scaledUtilityOfAlternatives.isEmpty) None
+    else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / scale_factor }
   }
 
   /**
