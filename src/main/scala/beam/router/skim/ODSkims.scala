@@ -35,9 +35,9 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
     val beamScenario = beamServices.beamScenario
     val beamConfig = beamServices.beamConfig
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
-    val votMultiplier: Double = mode match{
+    val votMultiplier: Double = mode match {
       case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
-      case _ => 1.0
+      case _   => 1.0
     }
     val travelCost: Double = mode match {
       case CAR | CAV =>
