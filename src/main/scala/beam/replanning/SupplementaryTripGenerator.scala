@@ -36,11 +36,6 @@ class SupplementaryTripGenerator(
   val r: Random.type = scala.util.Random
   val personSpecificSeed = personId.hashCode().toLong
 
-  val tazChoiceSet: List[TAZ] =
-    generateTazChoiceSet(
-      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size
-    )
-
   val travelTimeBufferInSec = 30 * 60
 
   val activityRates: ActivityRates = destinationChoiceModel.activityRates
@@ -124,6 +119,12 @@ class SupplementaryTripGenerator(
     tripMNL: MultinomialLogit[Boolean, TripParameters],
     householdModes: List[BeamMode] = List[BeamMode](CAR)
   ): List[Activity] = {
+    val tazChoiceSet: List[TAZ] =
+      generateTazChoiceSet(
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size,
+        prevActivity.getCoord
+      )
+
     val modesToConsider: List[BeamMode] =
       if (householdModes.contains(CAV)) {
         List[BeamMode](CAV, WALK)
@@ -366,10 +367,15 @@ class SupplementaryTripGenerator(
     }
   }
 
-  private def generateTazChoiceSet(n: Int): List[TAZ] = {
+  private def generateTazChoiceSet(n: Int, coord: Coord): List[TAZ] = {
     val r_repeat = new scala.util.Random
     r_repeat.setSeed(personSpecificSeed)
-    r_repeat.shuffle(beamServices.beamScenario.tazTreeMap.getTAZs.toSeq).take(n).toList
+    r_repeat
+      .shuffle(
+        beamServices.beamScenario.tazTreeMap.getTAZInRadius(coord, 16000.0).asScala.toSeq.sortBy(_.tazId.toString)
+      )
+      .take(n)
+      .toList
   }
 
   private def secondsToIndex(time: Double): Int = {
