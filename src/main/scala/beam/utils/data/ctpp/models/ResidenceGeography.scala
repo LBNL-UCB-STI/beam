@@ -36,7 +36,7 @@ object ResidenceGeography {
   }
 
   case object MetropolitanStatisticalAreaEACHPrincipalCity extends ResidenceGeography {
-    override def name: String = "Metropolitan Statistical Area – EACH Principal City"
+    override def name: String = "Metropolitan Statistical Area - EACH Principal City"
     override def level: String = "C08"
   }
 
