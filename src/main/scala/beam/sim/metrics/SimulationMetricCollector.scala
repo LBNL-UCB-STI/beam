@@ -18,6 +18,7 @@ import scala.util.control.NonFatal
 
 object SimulationMetricCollector {
   val defaultMetricValueName: String = "count"
+
   case class SimulationTime(seconds: Int) extends AnyVal {
 
     def hours: Long =
@@ -34,7 +35,6 @@ trait SimulationMetricCollector {
     time: SimulationTime,
     values: Map[String, Double] = Map.empty,
     tags: Map[String, String] = Map.empty,
-    level: MetricLevel = ShortLevel,
     overwriteIfExist: Boolean = false
   ): Unit
 
@@ -43,129 +43,93 @@ trait SimulationMetricCollector {
     time: Double,
     values: java.util.Map[String, Double],
     tags: java.util.Map[String, String],
-    level: MetricLevel = ShortLevel,
     overwriteIfExist: Boolean = false
-  ): Unit = write(metricName, SimulationTime(time.toInt), values.asScala.toMap, tags.asScala.toMap, level, overwriteIfExist)
+  ): Unit = write(metricName, SimulationTime(time.toInt), values.asScala.toMap, tags.asScala.toMap, overwriteIfExist)
 
-  def writeStr(
+  def writeIterationMapPoint(
     metricName: String,
-    time: SimulationTime,
-    values: Map[String, String] = Map.empty,
-    tags: Map[String, String] = Map.empty,
-    level: MetricLevel = ShortLevel,
+    eventTime: Double,
+    value: Double,
+    lat: Double,
+    lon: Double,
     overwriteIfExist: Boolean = false
-  ): Unit
+  ): Unit =
+    write(
+      metricName,
+      SimulationTime(eventTime.toInt),
+      Map("value" -> value, "lat" -> lat, "lon" -> lon),
+      overwriteIfExist = overwriteIfExist
+    )
 
   def writeGlobal(
     metricName: String,
     metricValue: Double,
-    level: MetricLevel = ShortLevel,
-    tags: Map[String, String] = Map.empty
+    tags: Map[String, String] = Map.empty,
+    overwriteIfExist: Boolean = false
   ): Unit = {
-    write(metricName, SimulationTime(0), Map(defaultMetricValueName -> metricValue), tags, level)
+    write(metricName, SimulationTime(0), Map(defaultMetricValueName -> metricValue), tags, overwriteIfExist)
   }
 
   def writeGlobalJava(
     metricName: String,
     metricValue: Double,
-    tags: java.util.Map[String, String]
+    tags: java.util.Map[String, String],
+    overwriteIfExist: Boolean = false
   ): Unit = {
-    write(metricName, SimulationTime(0), Map(defaultMetricValueName -> metricValue), tags.asScala.toMap, ShortLevel)
-  }
-
-  def writeGlobalJava(
-    metricName: String,
-    metricValue: Double,
-    level: MetricLevel = ShortLevel,
-    tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
-  ): Unit = {
-    write(metricName, SimulationTime(0), Map(defaultMetricValueName -> metricValue), tags.asScala.toMap, level)
+    write(
+      metricName,
+      SimulationTime(0),
+      Map(defaultMetricValueName -> metricValue),
+      tags.asScala.toMap,
+      overwriteIfExist
+    )
   }
 
   def writeIteration(
     metricName: String,
     time: SimulationTime,
     metricValue: Double = 1.0,
-    level: MetricLevel = ShortLevel,
-    tags: Map[String, String] = Map.empty
+    tags: Map[String, String] = Map.empty,
+    overwriteIfExist: Boolean = false
   ): Unit = {
-    write(metricName, time, Map(defaultMetricValueName -> metricValue), tags, level)
-  }
-
-  def writeIterationJava(
-    metricName: String,
-    seconds: Int,
-    metricValue: Double = 1.0,
-    level: MetricLevel,
-    tags: java.util.Map[String, String] = Collections.EMPTY_MAP.asInstanceOf[java.util.Map[String, String]]
-  ): Unit = {
-    write(
-      metricName,
-      SimulationTime(seconds),
-      Map(defaultMetricValueName -> metricValue),
-      tags.asScala.toMap,
-      level
-    )
+    write(metricName, time, Map(defaultMetricValueName -> metricValue), tags, overwriteIfExist)
   }
 
   def writeIterationJava(
     metricName: String,
     seconds: Int,
     metricValue: Double,
-    level: MetricLevel,
     tags: java.util.Map[String, String],
-    overwriteIfExist: Boolean
+    overwriteIfExist: Boolean = false
   ): Unit = {
     write(
       metricName,
       SimulationTime(seconds),
       Map(defaultMetricValueName -> metricValue),
       tags.asScala.toMap,
-      level,
       overwriteIfExist
     )
   }
 
-  def increment(name: String, time: SimulationTime, level: MetricLevel): Unit = {
-    if (isRightLevel(level)) {
-      writeIteration(name, time = time, level = level)
-    }
-  }
-
-  def decrement(name: String, time: SimulationTime, level: MetricLevel): Unit = {
-    if (isRightLevel(level)) {
-      writeIteration(name, time = time, -1.0, level = level)
-    }
-  }
-
   def clear(): Unit
+
   def close(): Unit
 }
 
 // To use in tests as a mock
 object NoOpSimulationMetricCollector extends SimulationMetricCollector {
 
-  override def clear(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def write(
     metricName: String,
     time: SimulationTime,
     values: Map[String, Double],
     tags: Map[String, String],
-    level: MetricLevel,
     overwriteIfExist: Boolean = false
   ): Unit = {}
 
-  override def writeStr(
-    metricName: String,
-    time: SimulationTime,
-    values: Map[String, String],
-    tags: Map[String, String],
-    level: MetricLevel,
-    overwriteIfExist: Boolean
-  ): Unit = ???
+  override def clear(): Unit = {}
+
+  override def close(): Unit = {}
 }
 
 class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
@@ -205,40 +169,9 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     time: SimulationTime,
     values: Map[String, Double],
     tags: Map[String, String],
-    level: MetricLevel,
     overwriteIfExist: Boolean
   ): Unit = {
-    if (isRightLevel(level)) {
-      val rawPoint = Point
-        .measurement(metricName)
-        .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
-        .tag("simulation-hour", time.hours.toString)
-
-      val withFields = values.foldLeft(rawPoint) {
-        case (p, (n, v)) => p.addField(n, v)
-      }
-
-      val withDefaultTags = defaultTags.foldLeft(withFields) {
-        case (p, (k, v)) => p.tag(k, v)
-      }
-
-      val withOtherTags = tags.foldLeft(withDefaultTags) {
-        case (p, (k, v)) => p.tag(k, v)
-      }
-
-      maybeInfluxDB.foreach(_.write(withOtherTags.build()))
-    }
-  }
-
-  override def writeStr(
-    metricName: String,
-    time: SimulationTime,
-    values: Map[String, String],
-    tags: Map[String, String],
-    level: MetricLevel,
-    overwriteIfExist: Boolean
-  ): Unit = {
-    if (isRightLevel(level)) {
+    if (true) {
       val rawPoint = Point
         .measurement(metricName)
         .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)

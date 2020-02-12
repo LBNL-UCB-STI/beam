@@ -72,8 +72,7 @@ class BeamMobsim @Inject()(
     beamServices.simMetricCollector.writeIteration(
       "beam-iteration",
       SimulationTime(0),
-      beamServices.matsimServices.getIterationNumber.toLong,
-      Metrics.ShortLevel
+      beamServices.matsimServices.getIterationNumber.toLong
     )
 
     // to have zero values for graphs even if there are no values calculated during iteration
@@ -83,13 +82,7 @@ class BeamMobsim @Inject()(
       tags: Map[String, String] = Map()
     ): Unit = {
       for (hour <- 0 to 24) {
-        beamServices.simMetricCollector.write(
-          metricName,
-          SimulationTime(60 * 60 * hour),
-          values,
-          tags,
-          Metrics.ShortLevel
-        )
+        beamServices.simMetricCollector.write(metricName, SimulationTime(60 * 60 * hour), values, tags)
       }
     }
 

@@ -123,7 +123,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         HashMap<String, String> tags = new HashMap<>();
         tags.put("mode", "car");
-        simMetricCollector.writeGlobalJava("average-travel-time", averageVal, tags);
+        simMetricCollector.writeGlobalJava("average-travel-time", averageVal, tags, false);
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {

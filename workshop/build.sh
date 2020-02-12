@@ -5,7 +5,6 @@ mkdir beam
 mkdir beam/output
 cp -r ../test/input beam/input
 cp -r ../metrics2.0/* beam/
-rm beam/grafana/dashboards/DEBUG.json
 cp run-beam.* beam/
 cp docker-* beam/
 cp clear-data.cmd beam/

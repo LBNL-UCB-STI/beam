@@ -5,8 +5,8 @@
     "canEdit": true,
     "canAdmin": true,
     "canStar": true,
-    "slug": "DEBUG",
-    "url": "/d/otUGbMyZk/debug",
+    "slug": "beam-simulation-iteration-map-view",
+    "url": "/d/otUGbMyZk/beam-simulation-iteration-map-view",
     "expires": "0001-01-01T00:00:00Z",
     "created": "2019-11-09T19:25:10Z",
     "updated": "2019-11-09T19:30:56Z",
@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1581431656199,
+    "iteration": 1581507517336,
     "links": [],
     "panels": [
       {
@@ -53,7 +53,7 @@
         "options": {},
         "pconfig": {
           "dataColumnNames": {
-            "all": "Time simulation-hour waitingTime lat lon",
+            "all": "Time simulation-hour value lat lon",
             "dataColumn": "count",
             "xColumn": "lon",
             "yColumn": "lat"
@@ -157,7 +157,7 @@
             {
               "color": "red",
               "columnNames": {
-                "dataColumn": "waitingTime",
+                "dataColumn": "value",
                 "latColumn": "lat",
                 "lonColumn": "lon",
                 "xColumn": "simulation-hour",
@@ -345,7 +345,7 @@
             "measurement": "ride-hail-waiting-time-map",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT \"waitingTime\", \"lat\", \"lon\" FROM \"ride-hail-waiting-time-map\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/)  GROUP BY \"simulation-hour\"",
+            "query": "SELECT \"value\", \"lat\", \"lon\" FROM \"ride-hail-waiting-time-map\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\"",
             "rawQuery": true,
             "refId": "C",
             "resultFormat": "table",
@@ -353,7 +353,7 @@
               [
                 {
                   "params": [
-                    "waitingTime"
+                    "value"
                   ],
                   "type": "field"
                 }
@@ -392,12 +392,12 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "DEBUG graph",
+        "title": "Iteration Map View graph",
         "type": "natel-plotly-panel",
         "version": 1
       }
     ],
-    "refresh": "",
+    "refresh": "5s",
     "schemaVersion": 20,
     "style": "dark",
     "tags": [],
@@ -406,9 +406,9 @@
         {
           "allValue": null,
           "current": {
-            "selected": false,
-            "text": "2020-02-07_01-14-02_sf-light-1k-xml",
-            "value": "2020-02-07_01-14-02_sf-light-1k-xml"
+            "selected": true,
+            "text": "2020-02-11_17-40-10_sf-light-1k-xml",
+            "value": "2020-02-11_17-40-10_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -432,9 +432,10 @@
         {
           "allValue": null,
           "current": {
-            "selected": true,
-            "text": "19",
-            "value": "19"
+            "selected": false,
+            "tags": [],
+            "text": "17",
+            "value": "17"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -476,8 +477,8 @@
       ]
     },
     "timezone": "",
-    "title": "DEBUG",
+    "title": "Beam Simulation. Iteration Map View",
     "uid": "otUGbMyZk",
-    "version": 34
+    "version": 3
   }
 }

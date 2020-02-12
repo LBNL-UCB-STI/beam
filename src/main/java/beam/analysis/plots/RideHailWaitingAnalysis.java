@@ -9,6 +9,7 @@ import beam.sim.metrics.Metrics;
 import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
+import com.univocity.parsers.annotations.Convert;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -357,15 +358,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         try {
             int linkId = Integer.parseInt(event.location);
             Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
-
-            Map<String, Object> values = new HashMap<>();
-            values.put("waitingTime", waitingTime);
-            values.put("lon", coord.getX());
-            values.put("lat", coord.getY());
-            Map<String, String> tags = new HashMap<>();
-
-            // log.info("RHWAITINGTIME -> linkId: " + event.location + " time: " + event.getTime() + " coord: " + coord.toString() + " waiting: " + waitingTime);
-            simMetricCollector.writeJava("ride-hail-waiting-time-map", event.getTime(), values, tags, Metrics.ShortLevel(), false);
+            simMetricCollector.writeIterationMapPoint("ride-hail-waiting-time-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
         } catch (NumberFormatException e) {
             log.error("RHWAITINGTIME -> Can't parse 'event.location' as Integer. Event: " + event.toString());
         }
@@ -404,7 +397,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
                 HashMap<String, String> tags = new HashMap<>(1);
                 tags.put("category", categoryName);
-                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, Metrics.ShortLevel(), tags, true);
+                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
             });
         });
     }

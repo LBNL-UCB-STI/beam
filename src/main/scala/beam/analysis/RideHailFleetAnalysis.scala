@@ -211,10 +211,10 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   def write(metric: String, value: Double, time: Int, key: String): Unit = {
     val tags = Map("vehicle-state" -> key)
-    beamServices.simMetricCollector.write(
+    beamServices.simMetricCollector.writeIteration(
       metric,
       SimulationTime(time * 60 * 60),
-      Map(SimulationMetricCollector.defaultMetricValueName -> value),
+      value,
       tags,
       overwriteIfExist = true
     )

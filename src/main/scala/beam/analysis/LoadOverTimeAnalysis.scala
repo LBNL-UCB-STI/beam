@@ -78,17 +78,16 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
             parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
         }
 
-
         val locationWGS = refuelSessionEvent.stall.locationUTM // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
 
         simMetricCollector.write(
           loadOverTimeFileBaseName,
           SimulationTime(event.getTime.toInt),
           Map(
-            SimulationMetricCollector.defaultMetricValueName -> 1.0,
-            "averageLoad"                                    -> currentEventAverageLoad,
-            "lon"                                            -> locationWGS.getX,
-            "lat"                                            -> locationWGS.getY
+            "count"       -> 1.0,
+            "averageLoad" -> currentEventAverageLoad,
+            "lon"         -> locationWGS.getX,
+            "lat"         -> locationWGS.getY
           ),
           Map(
             "vehicleType"   -> loadVehicleType,

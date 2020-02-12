@@ -796,13 +796,8 @@ trait BeamHelper extends LazyLogging {
     val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
     val privateFleetSize = beamScenario.privateVehicles.size
 
-    def writeMetric(metric: String, value: Int): Unit = writeStrMetric(metric, value.toString)
-    def writeStrMetric(metric: String, value: String): Unit = {
-      beamServices.simMetricCollector.writeStr(
-        metric,
-        SimulationMetricCollector.SimulationTime(0),
-        Map(SimulationMetricCollector.defaultMetricValueName -> value)
-      )
+    def writeMetric(metric: String, value: Int): Unit = {
+      beamServices.simMetricCollector.writeGlobal(metric, value)
     }
 
     writeMetric("beam-run-population-size", numOfPersons)

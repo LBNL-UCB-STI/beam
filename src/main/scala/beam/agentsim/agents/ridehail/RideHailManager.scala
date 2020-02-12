@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -371,7 +375,7 @@ class RideHailManager(
 
   val stalls = rideHailDepotParkingManager.rideHailParkingStalls
 
-  private var cntEVCAV  = 0
+  private var cntEVCAV = 0
   private var cntEVnCAV = 0
   private var cntnEVCAV = 0
   private var cntnEVnCAV = 0
@@ -1231,11 +1235,8 @@ class RideHailManager(
     val inquiryWithUpdatedLoc = RideHailRequest.handleImpression(inquiry, beamServices)
     rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
-        beamServices.simMetricCollector.increment(
-          "ride-hail-inquiry-not-available",
-          SimulationTime(inquiry.departAt),
-          Metrics.ShortLevel
-        )
+        beamServices.simMetricCollector
+          .writeIteration("ride-hail-inquiry-not-available", SimulationTime(inquiry.departAt))
         log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
         inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(
           inquiryWithUpdatedLoc,
@@ -1244,11 +1245,7 @@ class RideHailManager(
         )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         servedRideHail += 1
-        beamServices.simMetricCollector.increment(
-          "ride-hail-inquiry-served",
-          SimulationTime(inquiry.departAt),
-          Metrics.ShortLevel
-        )
+        beamServices.simMetricCollector.writeIteration("ride-hail-inquiry-served", SimulationTime(inquiry.departAt))
         inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(
           inquiryWithUpdatedLoc.departAt,
@@ -1359,7 +1356,7 @@ class RideHailManager(
       request.pickUpLocationUTM
     )
     if (vehicleManager.inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-      beamServices.simMetricCollector.increment("ride-hail-allocation-failed", SimulationTime(tick), Metrics.ShortLevel)
+      beamServices.simMetricCollector.writeIteration("ride-hail-allocation-failed", SimulationTime(tick))
       failedAllocation(request, tick)
     } else {
       // Track remaining seats available
@@ -1374,11 +1371,7 @@ class RideHailManager(
         RideHailResponse(request, Some(travelProposal))
       )
 
-      beamServices.simMetricCollector.increment(
-        "ride-hail-allocation-reserved",
-        SimulationTime(tick),
-        Metrics.ShortLevel
-      )
+      beamServices.simMetricCollector.writeIteration("ride-hail-allocation-reserved", SimulationTime(tick))
       log.debug(
         "Reserving vehicle: {} customer: {} request: {} pendingAcks: {}",
         travelProposal.rideHailAgentLocation.vehicleId,
@@ -1588,34 +1581,24 @@ class RideHailManager(
 
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick, beamServices) match {
       case VehicleAllocations(allocations) =>
-        allocations.foreach { allocation =>
-          allocation match {
-            case RoutingRequiredToAllocateVehicle(request, routesRequired) =>
-              // Client has requested routes
-              reservationIdToRequest.put(request.requestId, request)
-              routesRequired.foreach(
-                rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId)
-              )
-              allRoutesRequired = allRoutesRequired ++ routesRequired
-            case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
-                if pickDropIdWithRoutes.nonEmpty =>
-              handleReservation(request, tick, createTravelProposal(alloc))
-              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
-            case VehicleMatchedToCustomers(request, _, _) =>
-              beamServices.simMetricCollector.increment(
-                "ride-hail-allocation-failed",
-                SimulationTime(tick),
-                Metrics.ShortLevel
-              )
-              failedAllocation(request, tick)
-            case NoVehicleAllocated(request) =>
-              beamServices.simMetricCollector.increment(
-                "ride-hail-allocation-failed",
-                SimulationTime(tick),
-                Metrics.ShortLevel
-              )
-              failedAllocation(request, tick)
-          }
+        allocations.foreach {
+          case RoutingRequiredToAllocateVehicle(request, routesRequired) =>
+            // Client has requested routes
+            reservationIdToRequest.put(request.requestId, request)
+            routesRequired.foreach(
+              rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId)
+            )
+            allRoutesRequired = allRoutesRequired ++ routesRequired
+          case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
+              if pickDropIdWithRoutes.nonEmpty =>
+            handleReservation(request, tick, createTravelProposal(alloc))
+            rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+          case VehicleMatchedToCustomers(request, _, _) =>
+            beamServices.simMetricCollector.writeIteration("ride-hail-allocation-failed", SimulationTime(tick))
+            failedAllocation(request, tick)
+          case NoVehicleAllocated(request) =>
+            beamServices.simMetricCollector.writeIteration("ride-hail-allocation-failed", SimulationTime(tick))
+            failedAllocation(request, tick)
         }
       case _ =>
     }
