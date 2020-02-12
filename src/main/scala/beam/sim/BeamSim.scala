@@ -83,7 +83,7 @@ class BeamSim @Inject()(
 
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
-  val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
+  val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()o
   val graphFileNameDirectory = mutable.Map[String, Int]()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()

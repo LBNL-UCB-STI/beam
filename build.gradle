@@ -5,6 +5,7 @@ import com.bmuschko.gradle.docker.tasks.image.*
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import org.gradle.internal.os.OperatingSystem
 
 buildscript {
     repositories {
@@ -40,7 +41,7 @@ apply plugin: 'scalafmt'
 apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.8.0'
+version = '0.8.5'
 
 description = """"""
 
@@ -54,12 +55,20 @@ def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
 def tscfgVersion = "0.9.4"
+def orToolsProj = ""
+if(OperatingSystem.current().isMacOsX()) {
+    orToolsProj = 'externalAPI/google-ortools/macos'
+} else if(OperatingSystem.current().isLinux()) {
+    orToolsProj = 'externalAPI/google-ortools/ubuntu'
+}
+println(orToolsProj)
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
 sourceSets.main.java.srcDirs = []
 
 sourceSets.test.java.srcDirs = []
 sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
+
 
 sourceSets {
     main {
@@ -224,6 +233,14 @@ dependencies {
 
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
+
+    if (!orToolsProj.empty) {
+        compile fileTree(include: ['*.jar'], dir: orToolsProj, excludes: ['protobuf.jar'])
+    } else {
+        compile("io.github.oliviercailloux:google-or-tools:6.7.2") {
+            exclude group: 'com.google.protobuf', module: 'protobuf-java'
+        }
+    }
 
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
@@ -443,7 +460,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC + jmx
+                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k", "-Djava.library.path=${orToolsProj}"] + logGC + jmx
 
 println(applicationDefaultJvmArgs)
 
@@ -451,7 +468,6 @@ run {
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }
-
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
@@ -543,14 +559,14 @@ docker{
     }
 
     javaApplication {
-        baseImage = 'continuumio/miniconda3'
+        baseImage = 'beammodel/miniconda3'
         maintainer = 'LBNL Beam Team'
         tag = "beammodel/beam:$version"
     }
 }
 
 dockerDistTar {
-    instruction 'RUN apt-get update && apt-get -y install openjdk-8-jdk && rm -rf /var/lib/apt/lists/*'
+    instruction 'RUN apt-get update'
     addFile 'test/', 'test/'
 }
 
