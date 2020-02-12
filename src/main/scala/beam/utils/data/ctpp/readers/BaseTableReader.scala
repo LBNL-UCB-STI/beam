@@ -49,6 +49,7 @@ object BaseTableReader {
     case object UsualHoursWorkedPerWeek extends Table("A102109", "Usual Hours worked per week (7)")
     case object MeanOfTransportation extends Table("A302103", "Means of transportation (18)")
     case object TimeLeavingHome extends Table("B302104", "Time leaving home (17)")
+    case object HouseholdIncome extends Table("B303100", "Household income in the past 12 months (2016$) (9)")
   }
 
   def findFile(folderPath: String, fileName: String): String = {
