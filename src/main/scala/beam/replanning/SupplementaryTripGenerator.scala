@@ -368,11 +368,13 @@ class SupplementaryTripGenerator(
   }
 
   private def generateTazChoiceSet(n: Int, coord: Coord): List[TAZ] = {
+    val maxDistance =
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_distance_meters
     val r_repeat = new scala.util.Random
     r_repeat.setSeed(personSpecificSeed)
     r_repeat
       .shuffle(
-        beamServices.beamScenario.tazTreeMap.getTAZInRadius(coord, 16000.0).asScala.toSeq.sortBy(_.tazId.toString)
+        beamServices.beamScenario.tazTreeMap.getTAZInRadius(coord, maxDistance).asScala.toSeq.sortBy(_.tazId.toString)
       )
       .take(n)
       .toList
