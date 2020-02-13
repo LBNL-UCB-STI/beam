@@ -2,7 +2,9 @@ package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, HexIndex}
 import beam.sim.config.BeamConfig
+import beam.utils.ProfilingUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.network.Network
@@ -12,26 +14,35 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
-case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) {
+case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
   private val transformToH3Proj =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
 
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
     network.getNodes.values().asScala.map(n => transformToH3Proj.transform(n.getCoord))
   )
-  private val resolution = beamConfig.beam.h3.resolution
-  private val lowerBoundResolution = beamConfig.beam.h3.lowerBoundResolution
-  private val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
-  fillBox(boundingBox, resolution).foreach { hex =>
-    val hexCentroid = H3TAZ.hexToCoord(hex)
-    val hexCentroidBis =
-      new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
-        .transform(hexCentroid)
-    val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
-    tazToH3TAZMapping.put(hex, tazId)
-  }
+  private val resolution = beamConfig.beam.router.skim.h3Resolution
+  private val fillBoxResult: Iterable[String] =
+    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $resolution", x => logger.info(x)) {
+      fillBox(boundingBox, resolution)
+    }
+  logger.info(s"fillBox for boundingBox $boundingBox with resolution $resolution gives ${fillBoxResult.size} elemets")
+
+  private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
+    ProfilingUtils.timed(s"Constructed tazToH3TAZMapping", str => logger.info(str)) {
+      val transformation =
+        new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
+      fillBoxResult.par
+        .map { hex =>
+          val hexCentroid = H3TAZ.hexToCoord(hex)
+          val hexCentroidBis = transformation.transform(hexCentroid)
+          val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
+          (hex, tazId)
+        }
+        .toMap
+        .seq
+    }
 
   def getAll: Iterable[HexIndex] = {
     tazToH3TAZMapping.keys

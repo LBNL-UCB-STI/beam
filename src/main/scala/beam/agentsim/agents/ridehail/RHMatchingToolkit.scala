@@ -23,7 +23,6 @@ import org.matsim.core.population.PopulationUtils
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
-import scala.util.control.Breaks._
 
 object RHMatchingToolkit {
 
