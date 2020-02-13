@@ -17,7 +17,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 object SimulationMetricCollector {
-  val defaultMetricValueName: String = "count"
+  val defaultMetricName: String = "count"
 
   case class SimulationTime(seconds: Int) extends AnyVal {
 
@@ -67,7 +67,7 @@ trait SimulationMetricCollector {
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit = {
-    write(metricName, SimulationTime(0), Map(defaultMetricValueName -> metricValue), tags, overwriteIfExist)
+    write(metricName, SimulationTime(0), Map(defaultMetricName -> metricValue), tags, overwriteIfExist)
   }
 
   def writeGlobalJava(
@@ -79,7 +79,7 @@ trait SimulationMetricCollector {
     write(
       metricName,
       SimulationTime(0),
-      Map(defaultMetricValueName -> metricValue),
+      Map(defaultMetricName -> metricValue),
       tags.asScala.toMap,
       overwriteIfExist
     )
@@ -92,7 +92,7 @@ trait SimulationMetricCollector {
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit = {
-    write(metricName, time, Map(defaultMetricValueName -> metricValue), tags, overwriteIfExist)
+    write(metricName, time, Map(defaultMetricName -> metricValue), tags, overwriteIfExist)
   }
 
   def writeIterationJava(
@@ -105,7 +105,7 @@ trait SimulationMetricCollector {
     write(
       metricName,
       SimulationTime(seconds),
-      Map(defaultMetricValueName -> metricValue),
+      Map(defaultMetricName -> metricValue),
       tags.asScala.toMap,
       overwriteIfExist
     )

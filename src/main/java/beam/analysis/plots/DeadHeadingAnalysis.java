@@ -278,6 +278,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
+
+        // white spaces in the beginning of tags are required for proper legend items order in graph
         HashMap<String, String> tags = new HashMap<>();
         if (_num_passengers == -1) {
             tags.put("trip-type", "  repositioning");

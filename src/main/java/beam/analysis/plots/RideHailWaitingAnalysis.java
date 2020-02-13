@@ -360,7 +360,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
             simMetricCollector.writeIterationMapPoint("ride-hail-waiting-time-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
         } catch (NumberFormatException e) {
-            log.error("RHWAITINGTIME -> Can't parse 'event.location' as Integer. Event: " + event.toString());
+            log.error("Can't parse 'event.location' as Integer. Event: " + event.toString());
         }
 
         waitingTime = waitingTime / 60;
@@ -374,6 +374,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
 
+        // to write metrics once per hour
         if (lastHourWrittenToStats < hour) {
             lastHourWrittenToStats = hour;
             writeWaitingTimeToStats(hoursTimesMap, getCategories());
