@@ -6,7 +6,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.RandomPointsInGridGenerator
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{Gender, GeoId}
+import beam.utils.data.synthpop.models.Models.{Gender, TazGeoId, TractGeoId}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import com.vividsolutions.jts.geom.{Geometry, Point}
@@ -36,7 +36,8 @@ trait ScenarioGenerator {
 class SimpleScenarioGenerator(
   val pathToHouseholdFile: String,
   val pathToPopulationFile: String,
-  val pathToShapeFile: String,
+  val pathToTractShapeFile: String,
+  val pathToTazShapeFile: String,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -61,11 +62,17 @@ class SimpleScenarioGenerator(
     logger.info(s"householdWithPersons: ${householdWithPersons.size}")
 
     val geoIdToHouseholds = households.values.groupBy(x => x.geoId)
-    val uniqueGeoIds = geoIdToHouseholds.keySet.map(_.asUniqueKey)
+    val uniqueGeoIds = geoIdToHouseholds.keySet
     logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
-    val geoIdToGeom = getGeoIdToGeomMap(uniqueGeoIds)
-    logger.info(s"geoIdToGeom: ${geoIdToGeom.size}")
+    val tractGeoIdToGeom = getTractMap(uniqueGeoIds)
+    logger.info(s"tractGeoIdToGeom: ${tractGeoIdToGeom.size}")
+
+    val tazGeoIdToGeom = getTazMap(uniqueGeoIds)
+    logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
+
+    val tractToTazes = getCensusTractToTaz(tractGeoIdToGeom, tazGeoIdToGeom)
+    logger.info(s"tractToTazes: ${tractToTazes.size}")
 
     val matsimPopulation = PopulationUtils.createPopulation(ConfigUtils.createConfig())
     val matsimHouseholds = new HouseholdsImpl()
@@ -77,7 +84,7 @@ class SimpleScenarioGenerator(
     geoIdToHouseholds.foreach {
       case (geoId, households) =>
         val nLocationsToGenerate = households.size
-        val geom = geoIdToGeom(geoId)
+        val geom = tractGeoIdToGeom(geoId)
         val centroid = geom.getGeometry.getCentroid
         val householdLocation = RandomPointsInGridGenerator.generate(geom.getGeometry, nLocationsToGenerate)
         require(householdLocation.size == nLocationsToGenerate)
@@ -141,8 +148,8 @@ class SimpleScenarioGenerator(
     matsimPerson
   }
 
-  private def getGeoIdToGeomMap(uniqueGeoIds: Set[String]): Map[GeoId, PreparedGeometry] = {
-    val dataStore = new ShapefileDataStore(new File(pathToShapeFile).toURI.toURL)
+  private def getTractMap(uniqueGeoIds: Set[TractGeoId]): Map[TractGeoId, PreparedGeometry] = {
+    val dataStore = new ShapefileDataStore(new File(pathToTractShapeFile).toURI.toURL)
     try {
       val fe = dataStore.getFeatureSource.getFeatures.features()
       try {
@@ -150,10 +157,12 @@ class SimpleScenarioGenerator(
           override def hasNext: Boolean = fe.hasNext
           override def next(): SimpleFeature = fe.next()
         }
-        val geoIdToGeom = it
+        val tractGeoIdToGeom = it
           .filter { feature =>
-            val geoIdStr = feature.getAttribute("GEOID").toString
-            val shouldConsider = uniqueGeoIds.contains(geoIdStr)
+            val state = feature.getAttribute("STATEFP").toString
+            val county = feature.getAttribute("COUNTYFP").toString
+            val tract = feature.getAttribute("TRACTCE").toString
+            val shouldConsider = uniqueGeoIds.contains(TractGeoId(state, county, tract))
             shouldConsider
           }
           .map { feature =>
@@ -161,10 +170,10 @@ class SimpleScenarioGenerator(
             val county = feature.getAttribute("COUNTYFP").toString
             val tract = feature.getAttribute("TRACTCE").toString
             val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-            GeoId(state, county, tract) -> geom
+            TractGeoId(state, county, tract) -> geom
           }
           .toMap
-        geoIdToGeom
+        tractGeoIdToGeom
       } finally {
         Try(fe.close())
       }
@@ -172,20 +181,75 @@ class SimpleScenarioGenerator(
       Try(dataStore.dispose())
     }
   }
+
+  private def getTazMap(uniqueGeoIds: Set[TractGeoId]): Map[TazGeoId, PreparedGeometry] = {
+    val considerOnlyStateAndCounty = uniqueGeoIds.map(_.copy(tract = ""))
+    val dataStore = new ShapefileDataStore(new File(pathToTazShapeFile).toURI.toURL)
+    try {
+      val fe = dataStore.getFeatureSource.getFeatures.features()
+      try {
+        val it = new Iterator[SimpleFeature] {
+          override def hasNext: Boolean = fe.hasNext
+          override def next(): SimpleFeature = fe.next()
+        }
+        val tazGeoIdToGeom = it
+          .filter { feature =>
+            val state = feature.getAttribute("STATEFP10").toString
+            val county = feature.getAttribute("COUNTYFP10").toString
+            val shouldConsider = considerOnlyStateAndCounty.contains(TractGeoId(state, county, ""))
+            shouldConsider
+          }
+          .map { feature =>
+            val state = feature.getAttribute("STATEFP10").toString
+            val county = feature.getAttribute("COUNTYFP10").toString
+            val taz = feature.getAttribute("TAZCE10").toString
+            val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
+            TazGeoId(state, county, taz) -> geom
+          }
+          .toMap
+        tazGeoIdToGeom
+      } finally {
+        Try(fe.close())
+      }
+    } finally {
+      Try(dataStore.dispose())
+    }
+  }
+
+  def getCensusTractToTaz(
+    tractGeoIdToGeom: Map[TractGeoId, PreparedGeometry],
+    tazGeoIdToGeom: Map[TazGeoId, PreparedGeometry]
+  ): Map[TractGeoId, Vector[(TazGeoId, PreparedGeometry)]] = {
+    // TODO: This can be easily parallelized (very dummy improvement, in case if there is nothing better)
+    val result = tractGeoIdToGeom.map {
+      case (tractGeoId, tractGeom) =>
+        val insideTract = tazGeoIdToGeom.filter {
+          case (tazGeoId, tazGeom) =>
+            // TODO: Not sure this is best way, but better than contains for weird looking polygons, like tract with full id: 48 453 001775
+            // https://imgur.com/a/6aedkUo
+            // You can see that the red Census Tract and inside it there are multiple TAZ, but some of TAZs are partially outsize of census tract
+            tractGeom.intersects(tazGeom.getGeometry)
+        }.toVector
+        tractGeoId -> insideTract
+    }
+    result.filter { case (k, v) => v.nonEmpty }
+  }
 }
 
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
     require(
-      args.size == 3,
-      "Expecting two arguments: first one is the path to household CSV file, the second one is the path to population CSV file"
+      args.size == 4,
+      "Expecting four arguments: first one is the path to household CSV file, the second one is the path to population CSV file, the third argument is the path to Census Tract shape file, the fourth argument is the path to Census TAZ shape file"
     )
     val pathToHouseholdFile = args(0)
     val pathToPopulationFile = args(1)
-    val pathToShapeFile = args(2)
+    val pathToTractShapeFile = args(2)
+    val pathToTazShapeFile = args(3)
 
-    val gen = new SimpleScenarioGenerator(pathToHouseholdFile, pathToPopulationFile, pathToShapeFile)
+    val gen =
+      new SimpleScenarioGenerator(pathToHouseholdFile, pathToPopulationFile, pathToTractShapeFile, pathToTazShapeFile)
 
     gen.generate
 

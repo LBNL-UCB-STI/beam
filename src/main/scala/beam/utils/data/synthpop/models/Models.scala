@@ -7,13 +7,17 @@ object Models {
     case object Male extends Gender
     case object Female extends Gender
   }
-  case class GeoId(state: String, county: String, tract: String) {
+  case class TractGeoId(state: String, county: String, tract: String) {
     def asUniqueKey: String = s"${state}${county}${tract}"
+  }
+
+  case class TazGeoId(state: String, county: String, taz: String) {
+    def asUniqueKey: String = s"${state}${county}${taz}"
   }
 
   case class Household(
     id: String,
-    geoId: GeoId,
+    geoId: TractGeoId,
     numOfPersons: Int,
     numOfVehicles: Int,
     income: Double,
