@@ -78,7 +78,9 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
             parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (currentEventAverageLoad, 1)))
         }
 
-        val locationWGS = refuelSessionEvent.stall.locationUTM // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
+        // it turns out that coordinates already in WGS
+        // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
+        val locationWGS = refuelSessionEvent.stall.locationUTM
 
         simMetricCollector.write(
           loadOverTimeFileBaseName,
