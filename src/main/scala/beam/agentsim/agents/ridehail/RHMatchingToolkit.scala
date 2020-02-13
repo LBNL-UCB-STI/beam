@@ -37,24 +37,24 @@ object RHMatchingToolkit {
   }
   sealed trait RVGraphNode extends RTVGraphNode
   case class RVGraph(clazz: Class[RideHailTrip])
-    extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
+      extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
   case class RTVGraph(clazz: Class[DefaultEdge])
-    extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
+      extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
   // ***************************
 
   // customer requests
   case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
-    extends RVGraphNode {
+      extends RVGraphNode {
     override def getId: String = person.personId.toString
     override def toString: String = s"Person:${person.personId}|Pickup:$pickup|Dropoff:$dropoff"
   }
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(
-                                 vehicle: BeamVehicle,
-                                 schedule: List[MobilityRequest],
-                                 geofence: Option[Geofence],
-                                 vehicleRemainingRangeInMeters: Double = Double.MaxValue
-                               ) extends RVGraphNode {
+    vehicle: BeamVehicle,
+    schedule: List[MobilityRequest],
+    geofence: Option[Geofence],
+    vehicleRemainingRangeInMeters: Double = Double.MaxValue
+  ) extends RVGraphNode {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
     private val seatingCapacity: Int = vehicle.beamVehicleType.seatingCapacity
@@ -66,11 +66,11 @@ object RHMatchingToolkit {
   }
   // Trip that can be satisfied by one or more ride hail vehicle
   case class RideHailTrip(
-                           requests: List[CustomerRequest],
-                           schedule: List[MobilityRequest],
-                           vehicle: Option[VehicleAndSchedule]
-                         ) extends DefaultEdge
-    with RTVGraphNode {
+    requests: List[CustomerRequest],
+    schedule: List[MobilityRequest],
+    vehicle: Option[VehicleAndSchedule]
+  ) extends DefaultEdge
+      with RTVGraphNode {
     val sumOfDelays: Int = schedule.filter(_.isDropoff).map(s => s.serviceTime - s.baselineNonPooledTime).sum
     val upperBoundDelays: Int = schedule.filter(_.isDropoff).map(s => s.upperBoundTime - s.baselineNonPooledTime).sum
     val matchId: String = s"${requests.sortBy(_.getId).map(_.getId).mkString(",")}"
@@ -110,7 +110,7 @@ object RHMatchingToolkit {
         demand.filter(
           r =>
             GeoUtils.distFormula(r.pickup.activity.getCoord, gfCenter) <= gf.geofenceRadius &&
-              GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
+            GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
         )
       case _ => demand
     }
@@ -157,7 +157,7 @@ object RHMatchingToolkit {
               r2 =>
                 r1 != r2 && RHMatchingToolkit
                   .checkAngle(center, r1.dropoff.activity.getCoord, r2.dropoff.activity.getCoord)
-            )
+          )
         )
         .sortBy(-_.size)
         .flatten
@@ -166,10 +166,10 @@ object RHMatchingToolkit {
   }
 
   def getRideHailTrip(
-                       vehicle: VehicleAndSchedule,
-                       customers: List[CustomerRequest],
-                       beamServices: BeamServices
-                     ): Option[RideHailTrip] = {
+    vehicle: VehicleAndSchedule,
+    customers: List[CustomerRequest],
+    beamServices: BeamServices
+  ): Option[RideHailTrip] = {
     val schedule = vehicle.schedule
     val newRequests = customers.flatMap(x => List(x.pickup, x.dropoff))
     val remainingVehicleRangeInMeters = vehicle.vehicleRemainingRangeInMeters.toInt
@@ -183,12 +183,12 @@ object RHMatchingToolkit {
   }
 
   def getRideHailSchedule(
-                           schedule: List[MobilityRequest],
-                           newRequests: List[MobilityRequest],
-                           remainingVehicleRangeInMeters: Int,
-                           currentPosition: MobilityRequest,
-                           beamServices: BeamServices
-                         ): Option[List[MobilityRequest]] = {
+    schedule: List[MobilityRequest],
+    newRequests: List[MobilityRequest],
+    remainingVehicleRangeInMeters: Int,
+    currentPosition: MobilityRequest,
+    beamServices: BeamServices
+  ): Option[List[MobilityRequest]] = {
     val reversedSchedule = schedule.reverse
     val newSchedule = ListBuffer(currentPosition)
     val processedRequests = ListBuffer.empty[MobilityRequest]
@@ -223,12 +223,12 @@ object RHMatchingToolkit {
   }
 
   def createPersonRequest(
-                           vehiclePersonId: PersonIdWithActorRef,
-                           src: Location,
-                           departureTime: Int,
-                           dst: Location,
-                           beamServices: BeamServices
-                         ): CustomerRequest = {
+    vehiclePersonId: PersonIdWithActorRef,
+    src: Location,
+    departureTime: Int,
+    dst: Location,
+    beamServices: BeamServices
+  ): CustomerRequest = {
     val alonsoMora: AllocationManager.AlonsoMora =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
     val waitingTimeInSec = alonsoMora.waitingTimeInSec
@@ -277,11 +277,11 @@ object RHMatchingToolkit {
   }
 
   def createVehicleAndScheduleFromRideHailAgentLocation(
-                                                         veh: RideHailAgentLocation,
-                                                         tick: Int,
-                                                         beamServices: BeamServices,
-                                                         remainingRangeInMeters: Double
-                                                       ): VehicleAndSchedule = {
+    veh: RideHailAgentLocation,
+    tick: Int,
+    beamServices: BeamServices,
+    remainingRangeInMeters: Double
+  ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
@@ -400,13 +400,13 @@ object RHMatchingToolkit {
   }
 
   def createVehicleAndSchedule(
-                                vid: String,
-                                vehicleType: BeamVehicleType,
-                                dst: Location,
-                                dstTime: Int,
-                                geofence: Option[Geofence] = None,
-                                vehicleRemainingRangeInMeters: Int = Int.MaxValue
-                              ): VehicleAndSchedule = {
+    vid: String,
+    vehicleType: BeamVehicleType,
+    dst: Location,
+    dstTime: Int,
+    geofence: Option[Geofence] = None,
+    vehicleRemainingRangeInMeters: Int = Int.MaxValue
+  ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
