@@ -77,9 +77,9 @@ class BeamMobsim @Inject()(
 
     // to have zero values for graphs even if there are no values calculated during iteration
     def writeZeros(
-                    metricName: String,
-                    values: Map[String, Double] = Map(SimulationMetricCollector.defaultMetricName -> 0.0),
-                    tags: Map[String, String] = Map()
+      metricName: String,
+      values: Map[String, Double] = Map(SimulationMetricCollector.defaultMetricName -> 0.0),
+      tags: Map[String, String] = Map()
     ): Unit = {
       for (hour <- 0 to 24) {
         beamServices.simMetricCollector.write(metricName, SimulationTime(60 * 60 * hour), values, tags)
