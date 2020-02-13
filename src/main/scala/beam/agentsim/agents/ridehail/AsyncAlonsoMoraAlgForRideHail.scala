@@ -34,7 +34,10 @@ class AsyncAlonsoMoraAlgForRideHail(
   private implicit val implicitServices = beamServices
 
   override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {
-    asyncBuildOfRSVGraph().map(greedyAssignment)
+    asyncBuildOfRSVGraph().map {
+      case rTvG if rTvG.edgeSet().isEmpty => List.empty[RideHailTrip]
+      case rTvG                           => greedyAssignment(rTvG)
+    }
   }
 
   private def matchVehicleRequests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
@@ -120,7 +123,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       }
       .recover {
         case e =>
-          println(e.getMessage)
+          logger.error(e.getMessage)
           RTVGraph(classOf[DefaultEdge])
       }
   }
