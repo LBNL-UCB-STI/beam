@@ -36,3 +36,25 @@ class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGe
   }
 
 }
+
+object AgeTableReader {
+
+  def main(args: Array[String]): Unit = {
+    val rdr =
+      new AgeTableReader(PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"), ResidenceGeography.TAZ)
+    val readData = rdr.read()
+    val ageToTotalNumberOfWorkers = readData.values.flatten
+      .groupBy { case (age, cnt) => age }
+      .map {
+        case (age, xs) =>
+          age -> xs.map(_._2).sum
+      }
+    ageToTotalNumberOfWorkers.foreach {
+      case (age, cnt) =>
+        println(s"$age => $cnt")
+    }
+    val totalNumberOfWorkers =
+      ageToTotalNumberOfWorkers.filter { case (age, _) => age != Age.`Under 16 years` }.values.sum
+    println(s"totalNumberOfWorkers: ${totalNumberOfWorkers.toInt}")
+  }
+}

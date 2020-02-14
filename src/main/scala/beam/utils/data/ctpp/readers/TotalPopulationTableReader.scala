@@ -31,4 +31,16 @@ object TotalPopulationTableReader {
 
     override def -(key: String): Map[String, Int] = map.-(key)
   }
+
+  def main(args: Array[String]): Unit = {
+    val readData = new TotalPopulationTableReader(
+      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
+      ResidenceGeography.TAZ
+    ).read()
+
+    println(s"Number of keys: ${readData.size}")
+    val totalNumberOfPeopleInAllGeoIds = readData.map(_._2).sum
+    println(s"totalNumberOfPeopleInAllGeoIds: $totalNumberOfPeopleInAllGeoIds")
+
+  }
 }

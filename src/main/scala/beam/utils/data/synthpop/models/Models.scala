@@ -1,5 +1,7 @@
 package beam.utils.data.synthpop.models
 
+import scala.util.{Success, Try}
+
 object Models {
   sealed trait Gender
 
@@ -13,6 +15,21 @@ object Models {
 
   case class TazGeoId(state: String, county: String, taz: String) {
     def asUniqueKey: String = s"${state}${county}${taz}"
+  }
+
+  object TazGeoId {
+
+    def apply(input: String): TazGeoId = {
+      require(
+        input.length == 13,
+        "Expecting to get TAZ GeoId which has the following format `st/cty/taz` => `ssccczzzzzzzz`"
+      )
+      // C56	CTPP Flow- TAZ-to-TAZ	st/cty/taz/st/cty/taz	C5600USssccczzzzzzzzssccczzzzzzzz
+      val state = input.substring(0, 2)
+      val county = input.substring(2, 5)
+      val taz = input.substring(5)
+      TazGeoId(state, county, taz)
+    }
   }
 
   case class Household(
