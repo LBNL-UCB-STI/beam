@@ -1,7 +1,6 @@
 package beam.sim.metrics
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
-import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import beam.sim.config.BeamConfig
@@ -10,9 +9,10 @@ import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.influxdb.{BatchOptions, InfluxDB, InfluxDBFactory}
-import org.influxdb.dto.{Point, Query}
+import org.influxdb.dto.Point
 
 import scala.collection.JavaConverters._
+import scala.collection.{immutable, mutable}
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -111,6 +111,8 @@ trait SimulationMetricCollector {
     )
   }
 
+  def metricEnable(metricName: String): Boolean
+
   def clear(): Unit
 
   def close(): Unit
@@ -130,6 +132,9 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
   override def clear(): Unit = {}
 
   override def close(): Unit = {}
+
+  def metricEnable(metricName: String): Boolean = false
+
 }
 
 class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
@@ -139,6 +144,18 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
   private val metricToLastSeenTs: ConcurrentHashMap[String, Long] = new ConcurrentHashMap[String, Long]()
   private val step: Long = TimeUnit.MICROSECONDS.toNanos(1L)
   private val todayBeginningOfDay: LocalDateTime = LocalDate.now().atStartOfDay()
+
+  private val disabledMetrics: mutable.HashSet[String] = new mutable.HashSet[String]()
+
+  private val enabledMetrics: immutable.HashSet[String] = {
+    val metrics = beamCfg.beam.sim.metric.collector.metrics
+      .split(',')
+      .map(entry => entry.trim)
+
+    scala.collection.immutable.HashSet(metrics: _*)
+  }
+
+  def metricEnable(metricName: String): Boolean = enabledMetrics.contains(metricName)
 
   private val todayAsNanos: Long = {
     val todayInstant = todayBeginningOfDay.toInstant(ZoneId.systemDefault().getRules.getOffset(todayBeginningOfDay))
@@ -171,7 +188,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     tags: Map[String, String],
     overwriteIfExist: Boolean
   ): Unit = {
-    if (true) {
+    if (metricEnable(metricName)) {
       val rawPoint = Point
         .measurement(metricName)
         .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
@@ -190,11 +207,16 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       }
 
       maybeInfluxDB.foreach(_.write(withOtherTags.build()))
+    } else {
+      disabledMetrics.add(metricName)
     }
   }
 
   override def clear(): Unit = {
     metricToLastSeenTs.clear()
+
+    logger.info(s"Following metrics was disabled: ${disabledMetrics.mkString(",")}")
+    logger.info(s"Following metrics was enabled: ${enabledMetrics.mkString(",")}")
   }
 
   override def close(): Unit = {
