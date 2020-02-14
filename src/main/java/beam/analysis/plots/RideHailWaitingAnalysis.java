@@ -355,12 +355,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private void processRideHailWaitingTimes(ModeChoiceEvent event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        try {
-            int linkId = Integer.parseInt(event.location);
-            Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
-            simMetricCollector.writeIterationMapPoint("ride-hail-waiting-time-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
-        } catch (NumberFormatException e) {
-            log.error("Can't parse 'event.location' as Integer. Event: " + event.toString());
+        if (simMetricCollector.metricEnable("ride-hail-waiting-time-map")) {
+            try {
+                int linkId = Integer.parseInt(event.location);
+                Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
+                simMetricCollector.writeIterationMapPoint("ride-hail-waiting-time-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
+            } catch (NumberFormatException e) {
+                log.error("Can't parse 'event.location' as Integer. Event: " + event.toString());
+            }
         }
 
         waitingTime = waitingTime / 60;
@@ -382,25 +384,27 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeWaitingTimeToStats(Map<Integer, List<Double>> hourToWaitings, List<Double> categories) {
-        Map<Integer, Map<Double, Integer>> hourToCategories = WaitingStatsComputation.calculateHourlyData(hourToWaitings, categories);
+        if (simMetricCollector.metricEnable("ride-hail-waiting-time")) {
+            Map<Integer, Map<Double, Integer>> hourToCategories = WaitingStatsComputation.calculateHourlyData(hourToWaitings, categories);
 
-        DecimalFormat df = new DecimalFormat("##");
-        df.setRoundingMode(RoundingMode.FLOOR);
+            DecimalFormat df = new DecimalFormat("##");
+            df.setRoundingMode(RoundingMode.FLOOR);
 
-        hourToCategories.forEach((hour, catToCnt) -> {
-            catToCnt.forEach((category, count) -> {
-                String categoryName = "";
-                if (category.equals(categoryValueMax)) {
-                    categoryName = df.format(categoryValueBeforeMax) + "+";
-                } else {
-                    categoryName = df.format(category);
-                }
+            hourToCategories.forEach((hour, catToCnt) -> {
+                catToCnt.forEach((category, count) -> {
+                    String categoryName = "";
+                    if (category.equals(categoryValueMax)) {
+                        categoryName = df.format(categoryValueBeforeMax) + "+";
+                    } else {
+                        categoryName = df.format(category);
+                    }
 
-                HashMap<String, String> tags = new HashMap<>(1);
-                tags.put("category", categoryName);
-                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
+                    HashMap<String, String> tags = new HashMap<>(1);
+                    tags.put("category", categoryName);
+                    simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
+                });
             });
-        });
+        }
     }
 
     private void processRideHailingSingleWaitingTimes(Event event, double waitingTime) {
