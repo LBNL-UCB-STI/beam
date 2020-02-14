@@ -804,7 +804,7 @@ trait BeamHelper extends LazyLogging {
     writeMetric("beam-run-households", numOfHouseholds)
     writeMetric("beam-run-private-fleet-size", privateFleetSize)
 
-    def exist(path: String): Boolean = {
+    def fileExist(path: String): Boolean = {
       val f = new File(path);
       f.exists && !f.isDirectory
     }
@@ -818,12 +818,13 @@ trait BeamHelper extends LazyLogging {
      */
 
     val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
-      if (exist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath)) {
+      if (fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
+          fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
         (
           beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
           beamConfig.beam.agentsim.taz.parkingFilePath
         )
-      } else if (exist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
+      } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
         (beamConfig.beam.agentsim.taz.parkingFilePath, "")
       } else {
         ("", "")
