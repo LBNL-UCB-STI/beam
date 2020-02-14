@@ -278,20 +278,21 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
+        if (simMetricCollector.metricEnable("ride-hail-trip-distance")) {
+            // white spaces in the beginning of tags are required for proper legend items order in graph
+            HashMap<String, String> tags = new HashMap<>();
+            if (_num_passengers == -1) {
+                tags.put("trip-type", "  repositioning");
+            } else if (_num_passengers == 0) {
+                tags.put("trip-type", " deadheading");
+            } else {
+                tags.put("trip-type", _num_passengers.toString());
+            }
 
-        // white spaces in the beginning of tags are required for proper legend items order in graph
-        HashMap<String, String> tags = new HashMap<>();
-        if (_num_passengers == -1) {
-            tags.put("trip-type", "  repositioning");
-        } else if (_num_passengers == 0) {
-            tags.put("trip-type", " deadheading");
-        } else {
-            tags.put("trip-type", _num_passengers.toString());
+            int seconds = hour * 60 * 60;
+            double distanceInMiles = distanceInKilometers * 0.62137119;
+            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
         }
-
-        int seconds = hour * 60 * 60;
-        double distanceInMiles = distanceInKilometers * 0.62137119;
-        simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
     }
 
 
