@@ -1106,6 +1106,7 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
+          beamVehicles.remove(vehicle.id)
           vehicle.manager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
