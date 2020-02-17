@@ -80,12 +80,15 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
         // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
         val locationWGS = refuelSessionEvent.stall.locationUTM
 
+        val sessionDuration = refuelSessionEvent.sessionDuration
+        val currentEventAverageLoadInkWh = if (sessionDuration != 0) energyInkWh / sessionDuration else 0
+
         simMetricCollector.write(
           loadOverTimeFileBaseName,
           SimulationTime(event.getTime.toInt),
           Map(
             "count"       -> 1.0,
-            "averageLoad" -> currentEventAverageLoad,
+            "averageLoad" -> currentEventAverageLoadInkWh,
             "lon"         -> locationWGS.getX,
             "lat"         -> locationWGS.getY
           ),

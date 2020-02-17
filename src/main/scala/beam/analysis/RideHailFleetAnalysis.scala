@@ -1,7 +1,7 @@
 package beam.analysis
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.events.{ParkEvent, PathTraversalEvent, RefuelSessionEvent}
+import beam.agentsim.events.{ParkingEvent, PathTraversalEvent, RefuelSessionEvent}
 import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -122,7 +122,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           }
         }
 
-      case parkEvent: ParkEvent =>
+      case parkEvent: ParkingEvent =>
         val vehicle = parkEvent.vehicleId.toString
 
         if (rideHailEvCav.contains(vehicle)) {
@@ -381,7 +381,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
         } else {
           EventStatus(event.getTime, event.getTime + duration, "charging", Some("parked"))
         }
-      case event: ParkEvent =>
+      case event: ParkingEvent =>
         if (isRH)
           EventStatus(event.getTime, 30 * 3600, "idle")
         else
