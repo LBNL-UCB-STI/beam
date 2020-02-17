@@ -18,9 +18,10 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK_TRANSIT
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.sim.common.GeoUtilsImpl
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -91,6 +92,7 @@ class PersonAndTransitDriverSpec
       val personEvents = new TestProbe(system)
       val otherEvents = new TestProbe(system)
       val agencyEvents = new TestProbe(system)
+      val skimEvents = new TestProbe(system)
 
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -112,6 +114,8 @@ class PersonAndTransitDriverSpec
                 personEvents.ref ! event
               case agencyRevenueEvent: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
+              case _: AbstractSkimmerEvent =>
+                skimEvents.ref ! event
               case _ =>
                 otherEvents.ref ! event
             }
@@ -345,8 +349,6 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -444,6 +446,8 @@ class PersonAndTransitDriverSpec
       tramEvents.expectMsgType[PathTraversalEvent]
 
       agencyEvents.expectMsgType[AgencyRevenueEvent]
+
+      skimEvents.expectMsgType[AbstractSkimmerEvent]
 
       otherEvents.expectNoMessage()
 

@@ -15,6 +15,7 @@ import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
 
 import scala.language.reflectiveCalls
+import scala.util.Random
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -22,6 +23,9 @@ import scala.language.reflectiveCalls
 object FileUtils extends LazyLogging {
 
   val runStartTime: String = getDateString
+  val suffixLength = 3
+
+  def randomString(size: Int): String = Random.alphanumeric.filter(_.isLower).take(size).mkString
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
@@ -31,9 +35,10 @@ object FileUtils extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
+    val uniqueSuffix = "_" + randomString(suffixLength)
     val outputDir = Paths
       .get(
-        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix
+        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix + uniqueSuffix
       )
       .toFile
     outputDir.mkdir()
@@ -51,8 +56,10 @@ object FileUtils extends LazyLogging {
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(addTimestampToOutputDirectory)
+    val uniqueSuffix = randomString(suffixLength)
+
     val outputDir = Paths
-      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
+      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix + "_" + uniqueSuffix)
       .toFile
     outputDir.mkdir()
     outputDir.getAbsolutePath

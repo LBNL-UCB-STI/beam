@@ -9,13 +9,15 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
+import beam.analysis.cartraveltime.CarRideStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.Skims
+import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -63,8 +65,6 @@ class BeamSim @Inject()(
   private val beamScenario: BeamScenario,
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
-  private val beamSkimmer: BeamSkimmer,
-  private val travelTimeObserved: TravelTimeObserved,
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val routeHistory: RouteHistory,
   private val rideHailIterationHistory: RideHailIterationHistory,
@@ -94,12 +94,16 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
+  val carTravelTimeFromPte: CarRideStatsFromPathTraversalEventHandler =
+    new CarRideStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+
   override def notifyStartup(event: StartupEvent): Unit = {
 
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
 
     eventsManager.addHandler(rideHailUtilizationCollector)
+    eventsManager.addHandler(carTravelTimeFromPte)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -177,6 +181,7 @@ class BeamSim @Inject()(
     beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
 
     FailFast.run(beamServices)
+    Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
@@ -213,10 +218,6 @@ class BeamSim @Inject()(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
-    travelTimeObserved.notifyIterationEnds(event)
-
-    beamSkimmer.notifyIterationEnds(event)
-
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(
         scenario,
@@ -228,6 +229,7 @@ class BeamSim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
+    carTravelTimeFromPte.notifyIterationEnds(event)
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
@@ -364,6 +366,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+    carTravelTimeFromPte.notifyShutdown(event)
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
@@ -403,6 +406,8 @@ class BeamSim @Inject()(
         process.waitFor(5, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
+
+    Skims.clear()
   }
 
   private def writeSummaryVehicleStats(summaryVehicleStatsFile: File): immutable.HashSet[String] = {

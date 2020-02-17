@@ -1,5 +1,6 @@
 package beam.analysis;
 
+import beam.analysis.cartraveltime.PersonAverageTravelTimeAnalysis;
 import beam.analysis.plots.*;
 import beam.analysis.summary.*;
 import beam.sim.BeamServices;
@@ -38,7 +39,8 @@ public class StatsFactory {
         RideHailSummary,
         LoadOverTimeAnalysis,
         ChargingAnalysis,
-        EVFleetAnalysis
+        EVFleetAnalysis,
+        PersonAverageTravelTimeAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -129,6 +131,8 @@ public class StatsFactory {
                 return new ChargingAnalysis();
             case EVFleetAnalysis:
                 return new RideHailFleetAnalysis(beamServices);
+            case PersonAverageTravelTimeAnalysis:
+                return new PersonAverageTravelTimeAnalysis(beamConfig);
             default:
                 return null;
         }

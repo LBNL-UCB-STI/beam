@@ -7,10 +7,10 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
-import beam.router.BeamSkimmer
-import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
+import beam.router.skim.{ODSkims, Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
@@ -21,19 +21,17 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  beamServices: BeamServices,
-  skimmer: BeamSkimmer
+  beamServices: BeamServices
 ) {
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
   private def alonsoMora: AllocationManager.AlonsoMora =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-  private def solutionSpaceSizePerVehicle: Int = alonsoMora.solutionSpaceSizePerVehicle
+  private def solutionSpaceSizePerVehicle: Int = alonsoMora.numRequestsPerVehicle
   private def waitingTimeInSec: Int = alonsoMora.waitingTimeInSec
 
   val rvG = RVGraph(classOf[RideHailTrip])
@@ -46,7 +44,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         .getDisk(
           r1.pickup.activity.getCoord.getX,
           r1.pickup.activity.getCoord.getY,
-          waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+          waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
         )
         .asScala
         .withFilter(x => r1 != x && !rvG.containsEdge(r1, x))
@@ -55,7 +53,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         List.empty[MobilityRequest],
         List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
         Integer.MAX_VALUE,
-        skimmer
+        beamServices
       ).map { schedule =>
         rvG.addVertex(r2)
         rvG.addVertex(r1)
@@ -69,17 +67,17 @@ class AlonsoMoraPoolingAlgForRideHail(
         .getDisk(
           v.getRequestWithCurrentVehiclePosition.activity.getCoord.getX,
           v.getRequestWithCurrentVehiclePosition.activity.getCoord.getY,
-          waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+          waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
         )
         .asScala
         .take(solutionSpaceSizePerVehicle)
     } yield {
-      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer).map {
-        schedule =>
+      getRidehailSchedule(v.schedule, List(r.pickup, r.dropoff), v.vehicleRemainingRangeInMeters.toInt, beamServices)
+        .map { schedule =>
           rvG.addVertex(v)
           rvG.addVertex(r)
           rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
-      }
+        }
     }
   }
 
@@ -110,7 +108,7 @@ class AlonsoMoraPoolingAlgForRideHail(
             v.schedule,
             (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
             v.vehicleRemainingRangeInMeters.toInt,
-            skimmer
+            beamServices
           ) map { schedule =>
             val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
             pairRequestsList append t
@@ -136,7 +134,7 @@ class AlonsoMoraPoolingAlgForRideHail(
               v.schedule,
               (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
               v.vehicleRemainingRangeInMeters.toInt,
-              skimmer
+              beamServices
             ).map { schedule =>
               val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
               kRequestsList.append(t)
@@ -213,16 +211,17 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   // ************ Helper functions ************
-  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, skimmer: BeamSkimmer): Skim = {
-    skimmer.getTimeDistanceAndCost(
+  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices) = {
+    Skims.od_skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
       src.baselineNonPooledTime,
       BeamMode.CAR,
       Id.create(
-        skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
-      )
+      ),
+      beamServices
     )
   }
 
@@ -230,7 +229,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
     remainingVehicleRangeInMeters: Int,
-    skimmer: BeamSkimmer
+    beamServices: BeamServices
   ): Option[List[MobilityRequest]] = {
     val newPoolingList = scala.collection.mutable.ListBuffer.empty[MobilityRequest]
     val reversedSchedule = schedule.reverse
@@ -260,7 +259,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     sortedRequests.foreach { curReq =>
       val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
-      val tdc = getTimeDistanceAndCost(prevReq, curReq, skimmer)
+      val tdc = getTimeDistanceAndCost(prevReq, curReq, beamServices)
       val serviceTime = prevReq.serviceTime + tdc.time
       val serviceDistance = prevReq.serviceDistance + tdc.distance.toInt
       if (serviceTime <= curReq.upperBoundTime && serviceDistance <= remainingVehicleRangeInMeters) {
@@ -278,27 +277,26 @@ object AlonsoMoraPoolingAlgForRideHail {
     departureTime: Int,
     dst: Location,
     beamServices: BeamServices
-  )(
-    implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val alonsoMora: AllocationManager.AlonsoMora =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
     val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
+    val travelTimeDelayAsFraction = alonsoMora.excessRideTimeAsFraction
 
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
-    val skim = skimmer
+    val skim = Skims.od_skimmer
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
         p1Act2.getCoord,
         departureTime,
         BeamMode.CAR,
         Id.create(
-          skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
-        )
+        ),
+        beamServices
       )
     CustomerRequest(
       vehiclePersonId,
@@ -347,7 +345,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     val alonsoMora: AllocationManager.AlonsoMora =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
     val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.travelTimeDelayAsFraction
+    val travelTimeDelayAsFraction = alonsoMora.excessRideTimeAsFraction
 
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach {

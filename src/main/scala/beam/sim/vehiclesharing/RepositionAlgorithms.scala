@@ -1,6 +1,5 @@
 package beam.sim.vehiclesharing
 
-import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
@@ -23,8 +22,7 @@ trait RepositionAlgorithmType {
 
   def getInstance(
     managerId: Id[VehicleManager],
-    beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer
+    beamServices: BeamServices
   ): RepositionAlgorithm
   def getRepositionTimeBin: Int
   def getStatTimeBin: Int
@@ -35,16 +33,14 @@ case class AvailabilityBasedRepositioningType(
 ) extends RepositionAlgorithmType {
   override def getInstance(
     managerId: Id[VehicleManager],
-    beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer
+    beamServices: BeamServices
   ): RepositionAlgorithm = {
     AvailabilityBasedRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
       params.min_availability_undersupply_algorithm.get.matchLimit,
       managerId,
-      beamServices,
-      beamSkimmer
+      beamServices
     )
   }
   def getRepositionTimeBin: Int = params.repositionTimeBin

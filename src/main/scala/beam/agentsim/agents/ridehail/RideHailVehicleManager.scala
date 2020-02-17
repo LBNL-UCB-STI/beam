@@ -97,13 +97,25 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getRideHailAgentLocation(vehicleId: Id[Vehicle]): RideHailAgentLocation = {
-    getServiceStatusOf(vehicleId) match {
-      case Available =>
-        idleRideHailVehicles(vehicleId)
-      case InService =>
-        inServiceRideHailVehicles(vehicleId)
-      case OutOfService =>
-        outOfServiceRideHailVehicles(vehicleId)
+    try {
+      getServiceStatusOf(vehicleId) match {
+        case Available =>
+          idleRideHailVehicles(vehicleId)
+        case InService =>
+          inServiceRideHailVehicles(vehicleId)
+        case OutOfService =>
+          outOfServiceRideHailVehicles(vehicleId)
+      }
+    } catch {
+      case ex: Throwable =>
+        logger.error(
+          s"RideHailAgentLocation blowing up on $vehicleId with Idle/Available List: ${idleRideHailVehicles.keys
+            .mkString(";")}; " +
+          s"OutOfService List: ${outOfServiceRideHailVehicles.keys
+            .mkString(";")}; and InService List: ${inServiceRideHailVehicles.keys.mkString(";")}",
+          ex
+        )
+        throw ex
     }
   }
 
@@ -219,8 +231,12 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
               newLocation.currentLocationUTM.loc.getY,
               newLocation
             )
+            logger.debug(
+              s"Updating Idle/Available with Id: $vehicleId == ${newLocation.vehicleId}; Full list before: ${idleRideHailVehicles.keys
+                .mkString(";")}"
+            )
             idleRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
+          case None => logger.info(s"None trying to update Idle/Available vehicle: $vehicleId")
         }
       case InService =>
         inServiceRideHailVehicles.get(vehicleId) match {
@@ -236,8 +252,12 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
               newLocation.currentLocationUTM.loc.getY,
               newLocation
             )
+            logger.debug(
+              s"Updating InService with Id: $vehicleId == ${newLocation.vehicleId}; Full list before: ${inServiceRideHailVehicles.keys
+                .mkString(";")}"
+            )
             inServiceRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
+          case None => logger.info(s"None trying to update InService vehicle: $vehicleId")
         }
       case OutOfService =>
         outOfServiceRideHailVehicles.get(vehicleId) match {
@@ -253,8 +273,12 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
               newLocation.currentLocationUTM.loc.getY,
               newLocation
             )
+            logger.debug(
+              s"Updating OutOfService with Id: $vehicleId == ${newLocation.vehicleId}; Full list before: ${outOfServiceRideHailVehicles.keys
+                .mkString(";")}"
+            )
             outOfServiceRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
+          case None => logger.info(s"None trying to update OutOfService vehicle: $vehicleId")
         }
     }
   }
@@ -264,17 +288,28 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def makeAvailable(agentLocation: RideHailAgentLocation) = {
+    logger.debug(
+      s"Making vehicle '${agentLocation.vehicleId}' Idle/Available; Full list before: ${idleRideHailVehicles.keys.mkString(";")}"
+    )
     idleRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
     idleRideHailAgentSpatialIndex.put(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
     )
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from InService since now Idle/Available; Full list before: ${inServiceRideHailVehicles.keys
+        .mkString(";")}"
+    )
     inServiceRideHailVehicles.remove(agentLocation.vehicleId)
     inServiceRideHailAgentSpatialIndex.remove(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
+    )
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from OutOfService since now Idle/Available; Full list before: ${outOfServiceRideHailVehicles.keys
+        .mkString(";")}"
     )
     outOfServiceRideHailVehicles.remove(agentLocation.vehicleId)
     outOfServiceRideHailAgentSpatialIndex.remove(
@@ -289,17 +324,28 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def putIntoService(agentLocation: RideHailAgentLocation) = {
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from Idle/Available since will be InService; Full list before: ${idleRideHailVehicles.keys
+        .mkString(";")}"
+    )
     idleRideHailVehicles.remove(agentLocation.vehicleId)
     idleRideHailAgentSpatialIndex.remove(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
     )
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from OutOfService since will be Idle/Available; Full list before: ${outOfServiceRideHailVehicles.keys
+        .mkString(";")}"
+    )
     outOfServiceRideHailVehicles.remove(agentLocation.vehicleId)
     outOfServiceRideHailAgentSpatialIndex.remove(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
+    )
+    logger.debug(
+      s"Making vehicle '${agentLocation.vehicleId}' InService; Full list before: ${inServiceRideHailVehicles.keys.mkString(";")}"
     )
     inServiceRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
     inServiceRideHailAgentSpatialIndex.put(
@@ -314,17 +360,28 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def putOutOfService(agentLocation: RideHailAgentLocation) = {
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from Idle/Available since will be OutOfService; Full list before: ${idleRideHailVehicles.keys
+        .mkString(";")}"
+    )
     idleRideHailVehicles.remove(agentLocation.vehicleId)
     idleRideHailAgentSpatialIndex.remove(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
     )
+    logger.debug(
+      s"Removing vehicle '${agentLocation.vehicleId}' from InService since will be OutOfService; Full list before: ${inServiceRideHailVehicles.keys
+        .mkString(";")}"
+    )
     inServiceRideHailVehicles.remove(agentLocation.vehicleId)
     inServiceRideHailAgentSpatialIndex.remove(
       agentLocation.currentLocationUTM.loc.getX,
       agentLocation.currentLocationUTM.loc.getY,
       agentLocation
+    )
+    logger.debug(
+      s"Making vehicle '${agentLocation.vehicleId}' OutOfService; Full list before: ${outOfServiceRideHailVehicles.keys.mkString(";")}"
     )
     outOfServiceRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
     outOfServiceRideHailAgentSpatialIndex.put(

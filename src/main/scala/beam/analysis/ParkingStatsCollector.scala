@@ -160,7 +160,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              If the occurred event is a ParkEvent and if the person is being tracked
              store the parking time and parking cost
        */
-      case parkEvent: ParkEvent =>
+      case parkEvent: ParkingEvent =>
         beamServices.simMetricCollector.writeIteration(
           "parking",
           SimulationTime(parkEvent.time.toInt),
