@@ -8,7 +8,6 @@ import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
 import beam.sim.OutputDataDescription;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.OutputDataDescriptor;
 import com.google.common.base.CaseFormat;
@@ -278,7 +277,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
-        if (simMetricCollector.metricEnable("ride-hail-trip-distance")) {
+        if (simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
             // white spaces in the beginning of tags are required for proper legend items order in graph
             HashMap<String, String> tags = new HashMap<>();
             if (_num_passengers == -1) {

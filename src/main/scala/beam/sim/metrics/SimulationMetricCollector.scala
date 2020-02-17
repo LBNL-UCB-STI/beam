@@ -111,7 +111,7 @@ trait SimulationMetricCollector {
     )
   }
 
-  def metricEnable(metricName: String): Boolean
+  def metricEnabled(metricName: String): Boolean
 
   def clear(): Unit
 
@@ -133,7 +133,7 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
 
   override def close(): Unit = {}
 
-  def metricEnable(metricName: String): Boolean = false
+  def metricEnabled(metricName: String): Boolean = false
 
 }
 
@@ -155,7 +155,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     scala.collection.immutable.HashSet(metrics: _*)
   }
 
-  def metricEnable(metricName: String): Boolean = enabledMetrics.contains(metricName)
+  def metricEnabled(metricName: String): Boolean = enabledMetrics.contains(metricName)
 
   private val todayAsNanos: Long = {
     val todayInstant = todayBeginningOfDay.toInstant(ZoneId.systemDefault().getRules.getOffset(todayBeginningOfDay))
@@ -188,7 +188,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     tags: Map[String, String],
     overwriteIfExist: Boolean
   ): Unit = {
-    if (metricEnable(metricName)) {
+    if (metricEnabled(metricName)) {
       val rawPoint = Point
         .measurement(metricName)
         .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)

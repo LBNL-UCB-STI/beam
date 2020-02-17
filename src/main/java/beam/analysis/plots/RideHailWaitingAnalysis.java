@@ -5,11 +5,9 @@ import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
-import com.univocity.parsers.annotations.Convert;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -355,7 +353,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private void processRideHailWaitingTimes(ModeChoiceEvent event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        if (simMetricCollector.metricEnable("ride-hail-waiting-time-map")) {
+        if (simMetricCollector.metricEnabled("ride-hail-waiting-time-map")) {
             try {
                 int linkId = Integer.parseInt(event.location);
                 Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
@@ -384,7 +382,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeWaitingTimeToStats(Map<Integer, List<Double>> hourToWaitings, List<Double> categories) {
-        if (simMetricCollector.metricEnable("ride-hail-waiting-time")) {
+        if (simMetricCollector.metricEnabled("ride-hail-waiting-time")) {
             Map<Integer, Map<Double, Integer>> hourToCategories = WaitingStatsComputation.calculateHourlyData(hourToWaitings, categories);
 
             DecimalFormat df = new DecimalFormat("##");
