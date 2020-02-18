@@ -6,6 +6,7 @@ import beam.analysis.summary.*;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import com.conveyal.r5.transit.TransportNetwork;
+import org.apache.commons.lang.ArrayUtils;
 
 import java.beans.Beans;
 import java.util.Arrays;
@@ -75,7 +76,24 @@ public class StatsFactory {
     }
 
     public void createStats() {
-        Arrays.stream(StatsType.values()).forEach(this::getAnalysis);
+        Boolean EVFleetAnalysisEnabled = beamServices.simMetricCollector().metricEnabled("rh-ev-cav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-cav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-nocav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-nocav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-cav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-cav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-nocav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-nocav-distance");
+
+        if (EVFleetAnalysisEnabled) {
+            Arrays.stream(StatsType.values()).forEach(this::getAnalysis);
+        } else {
+            for (StatsType statsType : StatsType.values()) {
+                if (!statsType.equals(StatsType.EVFleetAnalysis)) {
+                    getAnalysis(statsType);
+                }
+            }
+        }
     }
 
     private BeamAnalysis createStats(StatsType statsType) {
