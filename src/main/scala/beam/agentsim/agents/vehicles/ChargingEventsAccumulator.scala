@@ -1,4 +1,4 @@
-package beam.sim
+package beam.agentsim.agents.vehicles
 
 import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent.Finish
