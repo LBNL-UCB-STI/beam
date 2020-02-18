@@ -181,6 +181,12 @@ class BeamMobsimIteration(
   context.watch(rideHailManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
 
+  var chargingEventsAccumulator: ActorRef = _
+
+  if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents) {
+    chargingEventsAccumulator = context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+  }
+
   var memoryLoggingTimerActorRef: ActorRef = _
   var memoryLoggingTimerCancellable: Cancellable = _
 
@@ -276,6 +282,9 @@ class BeamMobsimIteration(
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
+      if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents) {
+        chargingEventsAccumulator ! Finish
+      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
