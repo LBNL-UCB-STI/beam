@@ -6,11 +6,12 @@ import java.util.Random
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.RandomPointsInGridGenerator
+import beam.utils.ProfilingUtils
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{Gender, TazGeoId, TractGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PumaGeoId}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import com.vividsolutions.jts.geom.{Geometry, Point}
@@ -41,8 +42,8 @@ class SimpleScenarioGenerator(
   val pathToHouseholdFile: String,
   val pathToPopulationFile: String,
   val pathToCTPPFolder: String,
-  val pathToTractShapeFile: String,
-  val pathToTazShapeFile: String,
+  val pathToPumaShapeFile: String,
+  val pathToBlockGroupShapeFile: String,
   val javaRnd: Random,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
@@ -74,14 +75,19 @@ class SimpleScenarioGenerator(
     val uniqueGeoIds = geoIdToHouseholds.keySet
     logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
-    val tractGeoIdToGeom = getTractMap(uniqueGeoIds)
-    logger.info(s"tractGeoIdToGeom: ${tractGeoIdToGeom.size}")
+    val pumaIdToMap = getPumaMap
+    logger.info(s"pumaIdToMap: ${pumaIdToMap.size}")
 
-    val tazGeoIdToGeom = getTazMap(uniqueGeoIds)
-    logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
+    val blockGroupGeoIdToGeom = getBlockGroupMap(uniqueGeoIds)
+    logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
 
-    val tractToTazes = getCensusTractToTaz(tractGeoIdToGeom, tazGeoIdToGeom)
-    logger.info(s"tractToTazes: ${tractToTazes.size}")
+    val blockGroupToPumaMap = ProfilingUtils.timed(
+      s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${blockGroupGeoIdToGeom.size} and pumaIdToMap ${pumaIdToMap.size}",
+      x => logger.info(x)
+    ) {
+      getBlockGroupToPuma(blockGroupGeoIdToGeom, pumaIdToMap)
+    }
+    logger.info(s"blockGroupToPumaMap: ${blockGroupToPumaMap.size}")
 
     val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
       ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
@@ -96,11 +102,19 @@ class SimpleScenarioGenerator(
     var globalPersonId: Int = 0
 
     geoIdToHouseholds.foreach {
-      case (tractGeoId, households) =>
+      case (blockGroupGeoId, households) =>
         val nLocationsToGenerate = households.size
-        val tazes = tractToTazes(tractGeoId)
-        logger.info(s"Tazes: ${tazes.size}")
-        val geom = tractGeoIdToGeom(tractGeoId)
+        val pumaGeoIdOfHousehold = blockGroupToPumaMap(blockGroupGeoId)
+        val timeLeavingSample = timeLeavingOD.get(pumaGeoIdOfHousehold.asUniqueKey)
+        timeLeavingSample.foreach { x =>
+          val sum = x.map(_.value).sum
+          logger.info(s"Sum: ${sum}")
+          x.foreach { z =>
+            logger.info(s"$z")
+          }
+        }
+        logger.info(s"pumaGeoIdOfHousehold: ${pumaGeoIdOfHousehold}, timeLeavingSample: $timeLeavingSample")
+        val geom = blockGroupGeoIdToGeom(blockGroupGeoId)
         val centroid = geom.getGeometry.getCentroid
         val householdLocation = RandomPointsInGridGenerator.generate(geom.getGeometry, nLocationsToGenerate)
         require(householdLocation.size == nLocationsToGenerate)
@@ -165,8 +179,8 @@ class SimpleScenarioGenerator(
     matsimPerson
   }
 
-  private def getTractMap(uniqueGeoIds: Set[TractGeoId]): Map[TractGeoId, PreparedGeometry] = {
-    val dataStore = new ShapefileDataStore(new File(pathToTractShapeFile).toURI.toURL)
+  private def getPumaMap: Map[PumaGeoId, PreparedGeometry] = {
+    val dataStore = new ShapefileDataStore(new File(pathToPumaShapeFile).toURI.toURL)
     try {
       val fe = dataStore.getFeatureSource.getFeatures.features()
       try {
@@ -174,22 +188,12 @@ class SimpleScenarioGenerator(
           override def hasNext: Boolean = fe.hasNext
           override def next(): SimpleFeature = fe.next()
         }
-        val tractGeoIdToGeom = it
-          .filter { feature =>
-            val state = feature.getAttribute("STATEFP").toString
-            val county = feature.getAttribute("COUNTYFP").toString
-            val tract = feature.getAttribute("TRACTCE").toString
-            val shouldConsider = uniqueGeoIds.contains(TractGeoId(state, county, tract))
-            shouldConsider
-          }
-          .map { feature =>
-            val state = feature.getAttribute("STATEFP").toString
-            val county = feature.getAttribute("COUNTYFP").toString
-            val tract = feature.getAttribute("TRACTCE").toString
-            val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-            TractGeoId(state, county, tract) -> geom
-          }
-          .toMap
+        val tractGeoIdToGeom = it.map { feature =>
+          val state = feature.getAttribute("STATEFP10").toString
+          val puma = feature.getAttribute("PUMACE10").toString
+          val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
+          PumaGeoId(state, puma) -> geom
+        }.toMap
         tractGeoIdToGeom
       } finally {
         Try(fe.close())
@@ -199,9 +203,8 @@ class SimpleScenarioGenerator(
     }
   }
 
-  private def getTazMap(uniqueGeoIds: Set[TractGeoId]): Map[TazGeoId, PreparedGeometry] = {
-    val considerOnlyStateAndCounty = uniqueGeoIds.map(_.copy(tract = ""))
-    val dataStore = new ShapefileDataStore(new File(pathToTazShapeFile).toURI.toURL)
+  private def getBlockGroupMap(uniqueGeoIds: Set[BlockGroupGeoId]): Map[BlockGroupGeoId, PreparedGeometry] = {
+    val dataStore = new ShapefileDataStore(new File(pathToBlockGroupShapeFile).toURI.toURL)
     try {
       val fe = dataStore.getFeatureSource.getFeatures.features()
       try {
@@ -211,17 +214,22 @@ class SimpleScenarioGenerator(
         }
         val tazGeoIdToGeom = it
           .filter { feature =>
-            val state = feature.getAttribute("STATEFP10").toString
-            val county = feature.getAttribute("COUNTYFP10").toString
-            val shouldConsider = considerOnlyStateAndCounty.contains(TractGeoId(state, county, ""))
+            val state = feature.getAttribute("STATEFP").toString
+            val county = feature.getAttribute("COUNTYFP").toString
+            val tract = feature.getAttribute("TRACTCE").toString
+            val blockGroup = feature.getAttribute("BLKGRPCE").toString
+            val shouldConsider = uniqueGeoIds.contains(
+              BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup)
+            )
             shouldConsider
           }
           .map { feature =>
-            val state = feature.getAttribute("STATEFP10").toString
-            val county = feature.getAttribute("COUNTYFP10").toString
-            val taz = feature.getAttribute("TAZCE10").toString
+            val state = feature.getAttribute("STATEFP").toString
+            val county = feature.getAttribute("COUNTYFP").toString
+            val tract = feature.getAttribute("TRACTCE").toString
+            val blockGroup = feature.getAttribute("BLKGRPCE").toString
             val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-            TazGeoId(state, county, taz) -> geom
+            BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup) -> geom
           }
           .toMap
         tazGeoIdToGeom
@@ -233,23 +241,29 @@ class SimpleScenarioGenerator(
     }
   }
 
-  def getCensusTractToTaz(
-    tractGeoIdToGeom: Map[TractGeoId, PreparedGeometry],
-    tazGeoIdToGeom: Map[TazGeoId, PreparedGeometry]
-  ): Map[TractGeoId, Vector[(TazGeoId, PreparedGeometry)]] = {
-    // TODO: This can be easily parallelized (very dummy improvement, in case if there is nothing better)
-    val result = tractGeoIdToGeom.map {
-      case (tractGeoId, tractGeom) =>
-        val insideTract = tazGeoIdToGeom.filter {
-          case (tazGeoId, tazGeom) =>
-            // TODO: Not sure this is best way, but better than contains for weird looking polygons, like tract with full id: 48 453 001775
-            // https://imgur.com/a/6aedkUo
-            // You can see that the red Census Tract and inside it there are multiple TAZ, but some of TAZs are partially outsize of census tract
-            tractGeom.intersects(tazGeom.getGeometry)
-        }.toVector
-        tractGeoId -> insideTract
-    }
-    result.filter { case (k, v) => v.nonEmpty }
+  def getBlockGroupToPuma(
+    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, PreparedGeometry],
+    pumaGeoIdToGeom: Map[PumaGeoId, PreparedGeometry],
+  ): Map[BlockGroupGeoId, PumaGeoId] = {
+    // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
+    val blockGroupToPuma = blockGroupGeoIdToGeom
+      .flatMap {
+        case (blockGroupGeoId, blockGroupGeom) =>
+          // Intersect with all and get the best by the covered area
+          val allIntersections = pumaGeoIdToGeom.map {
+            case (pumaGeoId, pumaGeom) =>
+              val intersection = blockGroupGeom.getGeometry.intersection(pumaGeom.getGeometry)
+              (intersection, blockGroupGeoId, pumaGeoId)
+          }
+          val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
+          best
+      }
+      .map {
+        case (_, blockGroupGeoId, pumaGeoId) =>
+          blockGroupGeoId -> pumaGeoId
+      }
+      .toMap
+    blockGroupToPuma
   }
 }
 
@@ -263,16 +277,16 @@ object SimpleScenarioGenerator {
     val pathToHouseholdFile = args(0)
     val pathToPopulationFile = args(1)
     val pathToCTPPFolder = args(2)
-    val pathToTractShapeFile = args(3)
-    val pathToTazShapeFile = args(4)
+    val pathToPumaShapeFile = args(3)
+    val pathToBlockGroupShapeFile = args(4)
 
     val gen =
       new SimpleScenarioGenerator(
         pathToHouseholdFile,
         pathToPopulationFile,
         pathToCTPPFolder,
-        pathToTractShapeFile,
-        pathToTazShapeFile,
+        pathToPumaShapeFile,
+        pathToBlockGroupShapeFile,
         new Random(42)
       )
 

@@ -1,7 +1,7 @@
 package beam.utils.data.synthpop
 
 import beam.utils.csv.GenericCsvReader
-import beam.utils.data.synthpop.models.Models.{Gender, Household, Person, TractGeoId}
+import beam.utils.data.synthpop.models.Models.{Gender, Person}
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.Try
