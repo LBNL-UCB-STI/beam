@@ -1,9 +1,10 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.residence
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.ResidenceGeography
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
-import beam.utils.data.ctpp.readers.TotalPopulationTableReader.TotalPopulation
+import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader.TotalPopulation
 
 class TotalPopulationTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
     extends BaseTableReader(pathToData, Table.PopulationInHouseholds, Some(residenceGeography.level)) {

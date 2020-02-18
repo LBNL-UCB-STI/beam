@@ -1,12 +1,16 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.flow
 
 import java.util.concurrent.TimeUnit
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.{FlowGeoParser, OD}
+import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
-class TravelTimeTableReader(pathToData: PathToData) extends BaseTableReader(pathToData, Table.TravelTime, Some("C56")) {
+class TravelTimeTableReader(
+  pathToData: PathToData,
+  val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
+) extends BaseTableReader(pathToData, Table.TravelTime, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302106,3,2,Less than 5 minutes)
     TableShell(B302106,4,2,5 to 14 minutes)
@@ -84,7 +88,8 @@ object TravelTimeTableReader {
 
   def main(args: Array[String]): Unit = {
     val rdr = new TravelTimeTableReader(
-      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48")
+      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
+      ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
     )
     val readData = rdr.read()
 

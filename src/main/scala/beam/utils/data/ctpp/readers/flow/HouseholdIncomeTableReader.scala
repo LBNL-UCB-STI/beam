@@ -1,11 +1,18 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.flow
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.{FlowGeoParser, HouseholdIncome, OD}
+import beam.utils.data.ctpp.models.{FlowGeoParser, HouseholdIncome, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
-class HouseholdIncomeTableReader(pathToData: PathToData)
-    extends BaseTableReader(pathToData, Table.HouseholdIncomeInThePast12Months, Some("C55")) {
+class HouseholdIncomeTableReader(
+  pathToData: PathToData,
+  val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
+) extends BaseTableReader(
+      pathToData,
+      Table.HouseholdIncomeInThePast12Months,
+      Some(residenceToWorkplaceFlowGeography.level)
+    ) {
 
   def read(): Seq[OD[HouseholdIncome]] = {
     CTPPParser
@@ -24,7 +31,9 @@ object HouseholdIncomeTableReader {
   def main(args: Array[String]): Unit = {
     // require(args.length == 1, "Provide the path to the data folder CTPP")
     val pathToData = "D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48" // args(0)
-    val readData = new HouseholdIncomeTableReader(PathToData(pathToData)).read()
+    val readData =
+      new HouseholdIncomeTableReader(PathToData(pathToData), ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
+        .read()
     val nonZeros = readData.filter(x => x.value != 0.0)
     val distinctHomeLocations = readData.map(_.source).distinct.size
     val distintWorkLocations = readData.map(_.destination).distinct.size

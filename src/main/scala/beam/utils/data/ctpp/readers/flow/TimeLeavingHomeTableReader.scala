@@ -1,13 +1,16 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.flow
 
 import java.util.concurrent.TimeUnit
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceGeography}
+import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
-class TimeLeavingHomeTableReader(pathToData: PathToData)
-    extends BaseTableReader(pathToData, Table.TimeLeavingHome, Some("C56")) {
+class TimeLeavingHomeTableReader(
+  pathToData: PathToData,
+  val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
+) extends BaseTableReader(pathToData, Table.TimeLeavingHome, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302104,1,0,Total)
     TableShell(B302104,2,1,Did not work at home:)
@@ -104,12 +107,13 @@ object TimeLeavingHomeTableReader {
 
   def main(args: Array[String]): Unit = {
     val timeLeavingHomeReader = new TimeLeavingHomeTableReader(
-      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48")
+      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
+      ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
     )
     val readData = timeLeavingHomeReader.read()
 
     val nonZeros = readData.filter(x => x.value != 0.0)
-    val sum = readData.map(_.value).sum
+    val sum = readData.map(_.value).sum.toInt
     println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
     println(s"Sum: $sum")
   }

@@ -1,11 +1,14 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.flow
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.{FlowGeoParser, MeansOfTransportation, OD}
+import beam.utils.data.ctpp.models.{FlowGeoParser, MeansOfTransportation, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
-class MeansOfTransportationTableReader(pathToData: PathToData)
-    extends BaseTableReader(pathToData, Table.MeanOfTransportation, Some("C56")) {
+class MeansOfTransportationTableReader(
+  pathToData: PathToData,
+  val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
+) extends BaseTableReader(pathToData, Table.MeanOfTransportation, Some(residenceToWorkplaceFlowGeography.level)) {
   private val interestedLineNumber: Set[Int] = MeansOfTransportation.all.map(_.lineNumber).toSet
 
   def read(): Seq[OD[MeansOfTransportation]] = {
@@ -24,7 +27,9 @@ object MeansOfTransportationTableReader {
   def main(args: Array[String]): Unit = {
     require(args.length == 1, "Provide the path to the data folder CTPP")
     val pathToData = args(0)
-    val ods = new MeansOfTransportationTableReader(PathToData(pathToData)).read()
+    val ods =
+      new MeansOfTransportationTableReader(PathToData(pathToData), ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
+        .read()
     println(s"Read ${ods.size} OD pairs")
   }
 }

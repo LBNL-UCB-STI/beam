@@ -1,8 +1,8 @@
 package beam.utils.data.synthpop
 
-import beam.utils.data.ctpp.models.{HouseholdIncome, OD}
+import beam.utils.data.ctpp.models.{HouseholdIncome, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.ctpp.readers.HouseholdIncomeTableReader
+import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
 import beam.utils.data.synthpop.models.Models.TazGeoId
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.math3.distribution.EnumeratedDistribution
@@ -20,7 +20,7 @@ class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val randomS
     with StrictLogging {
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
   private val householdGeoIdToIncomeOD: Map[TazGeoId, Seq[OD[HouseholdIncome]]] =
-    new HouseholdIncomeTableReader(pathToCTPPData)
+    new HouseholdIncomeTableReader(pathToCTPPData, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
       .read()
       .groupBy(x => x.source)
       .map {

@@ -4,11 +4,21 @@ import java.util.Random
 
 import beam.utils.data.ctpp.models._
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.ctpp.readers.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
-import beam.utils.data.ctpp.readers.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
-import beam.utils.data.ctpp.readers.TotalHouseholdsTableReader.TotalHouseholds
-import beam.utils.data.ctpp.readers.TotalPopulationTableReader.TotalPopulation
-import beam.utils.data.ctpp.readers._
+import beam.utils.data.ctpp.readers.residence.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
+import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
+import beam.utils.data.ctpp.readers.residence.TotalHouseholdsTableReader.TotalHouseholds
+import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader.TotalPopulation
+import beam.utils.data.ctpp.readers.residence.{
+  AgeTableReader,
+  HouseholdSizeByUnitsInStructureTableReader,
+  MeanHouseholdIncomeTableReader,
+  MedianHouseholdIncomeTableReader,
+  SexTableReader,
+  TotalHouseholdsTableReader,
+  TotalPopulationTableReader,
+  UsualHoursWorkedPerWeekTableReader,
+  VehiclesAvailableTableReader
+}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.population.Population
 import org.matsim.households.Households

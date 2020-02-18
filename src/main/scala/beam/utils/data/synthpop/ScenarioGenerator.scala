@@ -6,8 +6,9 @@ import java.util.Random
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.RandomPointsInGridGenerator
+import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.ctpp.readers.{HouseholdIncomeTableReader, TimeLeavingHomeTableReader}
+import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{Gender, TazGeoId, TractGeoId}
 import com.typesafe.scalalogging.StrictLogging
@@ -82,7 +83,10 @@ class SimpleScenarioGenerator(
     val tractToTazes = getCensusTractToTaz(tractGeoIdToGeom, tazGeoIdToGeom)
     logger.info(s"tractToTazes: ${tractToTazes.size}")
 
-    val timeLeavingOD = new TimeLeavingHomeTableReader(pathToCTPPData).read().groupBy(x => x.source)
+    val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
+      ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
+    val timeLeavingOD =
+      new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
 
     val matsimPopulation = PopulationUtils.createPopulation(ConfigUtils.createConfig())
     val matsimHouseholds = new HouseholdsImpl()

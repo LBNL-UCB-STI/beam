@@ -1,7 +1,8 @@
-package beam.utils.data.ctpp.readers
+package beam.utils.data.ctpp.readers.residence
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{ResidenceGeography, WorkedHours}
+import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 
 class UsualHoursWorkedPerWeekTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
