@@ -250,7 +250,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
         // to create appropriate legend with all possible entities on every iteration start
-        if (deadHeadingsTnc0Map.isEmpty()) {
+        if (deadHeadingsTnc0Map.isEmpty() && simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
             for (int np = -1; np < 7; np++) {
                 writeTripDistanceMetric(0, 0, np);
             }

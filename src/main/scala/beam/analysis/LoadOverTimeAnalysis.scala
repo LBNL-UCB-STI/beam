@@ -76,28 +76,30 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
             parkingTypeToHourlyLoad.put(parkingType, mutable.Map(hourOfEvent -> (energyInkWh, 1)))
         }
 
-        // it turns out that coordinates already in WGS
-        // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
-        val locationWGS = refuelSessionEvent.stall.locationUTM
+        if (simMetricCollector.metricEnabled(loadOverTimeFileBaseName)) {
+          // it turns out that coordinates already in WGS
+          // geoUtils.utm2Wgs(refuelSessionEvent.stall.locationUTM)
+          val locationWGS = refuelSessionEvent.stall.locationUTM
 
-        val sessionDuration = refuelSessionEvent.sessionDuration
-        val currentEventAverageLoadInkWh = if (sessionDuration != 0) energyInkWh / sessionDuration else 0
+          val sessionDuration = refuelSessionEvent.sessionDuration
+          val currentEventAverageLoadInkWh = if (sessionDuration != 0) energyInkWh / sessionDuration else 0
 
-        simMetricCollector.write(
-          loadOverTimeFileBaseName,
-          SimulationTime(event.getTime.toInt),
-          Map(
-            "count"       -> 1.0,
-            "averageLoad" -> currentEventAverageLoadInkWh,
-            "lon"         -> locationWGS.getX,
-            "lat"         -> locationWGS.getY
-          ),
-          Map(
-            "vehicleType"   -> loadVehicleType,
-            "typeOfCharger" -> chargerType,
-            "parkingType"   -> parkingType
+          simMetricCollector.write(
+            loadOverTimeFileBaseName,
+            SimulationTime(event.getTime.toInt),
+            Map(
+              "count"       -> 1.0,
+              "averageLoad" -> currentEventAverageLoadInkWh,
+              "lon"         -> locationWGS.getX,
+              "lat"         -> locationWGS.getY
+            ),
+            Map(
+              "vehicleType"   -> loadVehicleType,
+              "typeOfCharger" -> chargerType,
+              "parkingType"   -> parkingType
+            )
           )
-        )
+        }
 
       case _ =>
     }

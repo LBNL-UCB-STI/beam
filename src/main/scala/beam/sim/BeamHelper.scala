@@ -818,63 +818,71 @@ trait BeamHelper extends LazyLogging {
           provides charging depot stalls
      */
 
-    val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
-      if (fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
-          fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-        (
-          beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
-          beamConfig.beam.agentsim.taz.parkingFilePath
-        )
-      } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-        (beamConfig.beam.agentsim.taz.parkingFilePath, "")
-      } else {
-        ("", "")
-      }
-    }
+    def metricEnabled(metricName: String): Boolean = beamServices.simMetricCollector.metricEnabled(metricName)
 
-    if (chargingDepotsFilePath.nonEmpty) {
-      val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-      val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-      val (chargingDepots, _) =
-        ParkingZoneFileUtils.fromFile(chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
+    if (metricEnabled("beam-run-charging-depots-cnt") ||
+        metricEnabled("beam-run-public-fast-charge-cnt") ||
+        metricEnabled("beam-run-public-fast-charge-stalls-cnt") ||
+        metricEnabled("beam-run-charging-depots-stalls-cnt")) {
 
-      var cntChargingDepots = 0
-      var cntChargingDepotsStalls = 0
-      chargingDepots.foreach(
-        parkingZone =>
-          if (parkingZone.chargingPointType.nonEmpty) {
-            cntChargingDepots += 1
-            cntChargingDepotsStalls += parkingZone.stallsAvailable
+      val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
+        if (fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
+            fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
+          (
+            beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
+            beamConfig.beam.agentsim.taz.parkingFilePath
+          )
+        } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
+          (beamConfig.beam.agentsim.taz.parkingFilePath, "")
+        } else {
+          ("", "")
         }
-      )
+      }
 
-      var cntPublicFastCharge = 0
-      var cntPublicFastChargeStalls = 0
-      if (publicFastChargerFilePath.nonEmpty) {
+      if (chargingDepotsFilePath.nonEmpty) {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-        val (publicChargers, _) =
-          ParkingZoneFileUtils.fromFile(publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
+        val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+        val (chargingDepots, _) =
+          ParkingZoneFileUtils.fromFile(chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
 
-        publicChargers.foreach(
-          publicCharger =>
-            if (publicCharger.chargingPointType.nonEmpty) {
-              if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
-                cntPublicFastCharge += 1
-                cntPublicFastChargeStalls += publicCharger.stallsAvailable
-              }
+        var cntChargingDepots = 0
+        var cntChargingDepotsStalls = 0
+        chargingDepots.foreach(
+          parkingZone =>
+            if (parkingZone.chargingPointType.nonEmpty) {
+              cntChargingDepots += 1
+              cntChargingDepotsStalls += parkingZone.stallsAvailable
           }
         )
+
+        var cntPublicFastCharge = 0
+        var cntPublicFastChargeStalls = 0
+        if (publicFastChargerFilePath.nonEmpty) {
+          val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+          val (publicChargers, _) =
+            ParkingZoneFileUtils.fromFile(publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
+
+          publicChargers.foreach(
+            publicCharger =>
+              if (publicCharger.chargingPointType.nonEmpty) {
+                if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
+                  cntPublicFastCharge += 1
+                  cntPublicFastChargeStalls += publicCharger.stallsAvailable
+                }
+            }
+          )
+        }
+
+        writeMetric("beam-run-charging-depots-cnt", cntChargingDepots)
+
+        writeMetric("beam-run-public-fast-charge-cnt", cntPublicFastCharge)
+        writeMetric("beam-run-public-fast-charge-stalls-cnt", cntPublicFastChargeStalls)
+        writeMetric("beam-run-charging-depots-stalls-cnt", cntChargingDepotsStalls)
+      } else {
+        logger.error(
+          s"Can't read charging information not from 'beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath' nor from 'beamConfig.beam.agentsim.taz.parkingFilePath'. Metrics will get 0 values."
+        )
       }
-
-      writeMetric("beam-run-charging-depots-cnt", cntChargingDepots)
-
-      writeMetric("beam-run-public-fast-charge-cnt", cntPublicFastCharge)
-      writeMetric("beam-run-public-fast-charge-stalls-cnt", cntPublicFastChargeStalls)
-      writeMetric("beam-run-charging-depots-stalls-cnt", cntChargingDepotsStalls)
-    } else {
-      logger.error(
-        s"Can't read charging information not from 'beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath' nor from 'beamConfig.beam.agentsim.taz.parkingFilePath'. Metrics will get 0 values."
-      )
     }
   }
 
