@@ -33,7 +33,8 @@ class TransitSystem(
   val tollCalculator: TollCalculator,
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
-  val eventsManager: EventsManager
+  val eventsManager: EventsManager,
+  val chargingEventsAccumulator: Option[ActorRef]
 ) extends Actor
     with ActorLogging {
 
@@ -94,7 +95,8 @@ class TransitSystem(
             vehicle,
             legs,
             geo,
-            networkHelper
+            networkHelper,
+            chargingEventsAccumulator
           )
           val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
           context.watch(transitDriver)

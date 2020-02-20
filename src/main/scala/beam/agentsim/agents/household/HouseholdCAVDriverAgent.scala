@@ -33,7 +33,8 @@ class HouseholdCAVDriverAgent(
   val parkingManager: ActorRef,
   val vehicle: BeamVehicle,
   val transportNetwork: TransportNetwork,
-  val tollCalculator: TollCalculator
+  val tollCalculator: TollCalculator,
+  override val chargingEventsAccumulator: Option[ActorRef]
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
   val networkHelper = beamServices.networkHelper
   val geo = beamServices.geo
@@ -127,7 +128,8 @@ object HouseholdCAVDriverAgent {
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg],
     transportNetwork: TransportNetwork,
-    tollCalculator: TollCalculator
+    tollCalculator: TollCalculator,
+    chargingEventsAccumulator: Option[ActorRef]
   ): Props = {
     Props(
       new HouseholdCAVDriverAgent(
@@ -139,7 +141,8 @@ object HouseholdCAVDriverAgent {
         parkingManager,
         vehicle,
         transportNetwork,
-        tollCalculator
+        tollCalculator,
+        chargingEventsAccumulator
       )
     )
   }

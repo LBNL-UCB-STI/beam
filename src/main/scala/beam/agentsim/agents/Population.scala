@@ -32,7 +32,8 @@ class Population(
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
-  boundingBox: Envelope
+  boundingBox: Envelope,
+  chargingEventsAccumulator: Option[ActorRef]
 ) extends Actor
     with ActorLogging {
 
@@ -117,7 +118,8 @@ class Population(
           homeCoord,
           sharedVehicleFleets,
           routeHistory,
-          boundingBox
+          boundingBox,
+          chargingEventsAccumulator
         ),
         household.getId.toString
       )
@@ -161,7 +163,8 @@ object Population {
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    chargingEventsAccumulator: Option[ActorRef]
   ): Props = {
     Props(
       new Population(
@@ -177,7 +180,8 @@ object Population {
         sharedVehicleFleets,
         eventsManager,
         routeHistory,
-        boundingBox
+        boundingBox,
+        chargingEventsAccumulator
       )
     )
   }

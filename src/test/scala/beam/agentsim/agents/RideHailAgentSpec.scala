@@ -173,7 +173,8 @@ class RideHailAgentSpec
           services,
           beamScenario,
           beamScenario.transportNetwork,
-          tollCalculator = new TollCalculator(beamConfig)
+          tollCalculator = new TollCalculator(beamConfig),
+          None
         )
       )
 
@@ -249,7 +250,8 @@ class RideHailAgentSpec
           services,
           beamScenario,
           beamScenario.transportNetwork,
-          tollCalculator = new TollCalculator(beamConfig)
+          tollCalculator = new TollCalculator(beamConfig),
+          None
         )
       )
 
@@ -319,7 +321,8 @@ class RideHailAgentSpec
           services,
           beamScenario,
           beamScenario.transportNetwork,
-          tollCalculator = new TollCalculator(beamConfig)
+          tollCalculator = new TollCalculator(beamConfig),
+          None
         )
       )
 

@@ -191,7 +191,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-
+  val chargingEventsAccumulator: Option[ActorRef] = None
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
@@ -853,16 +853,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
-    eventsManager.processEvent(
-      new ChargingPlugInEvent(
-        tick = currentTick,
-        stall = vehicle.stall.get,
-        locationWGS = geo.utm2Wgs(vehicle.stall.get.locationUTM),
-        vehId = vehicle.id,
-        primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
-        secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
-      )
+    val chargingPlugInEvent = new ChargingPlugInEvent(
+      tick = currentTick,
+      stall = vehicle.stall.get,
+      locationWGS = geo.utm2Wgs(vehicle.stall.get.locationUTM),
+      vehId = vehicle.id,
+      primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
+      secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
     )
+    eventsManager.processEvent(chargingPlugInEvent)
+    chargingEventsAccumulator match {
+      case Some(acc) =>
+        acc ! chargingPlugInEvent
+      case None =>
+    }
+
   }
 
   /**
@@ -878,17 +883,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
     log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
     vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        currentTick,
-        vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        chargingDuration,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
+
+    val refuelSessionEvent: RefuelSessionEvent = new RefuelSessionEvent(
+      currentTick,
+      vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      energyInJoules,
+      vehicle.primaryFuelLevelInJoules - energyInJoules,
+      chargingDuration,
+      vehicle.id,
+      vehicle.beamVehicleType
     )
+    eventsManager.processEvent(refuelSessionEvent)
+    chargingEventsAccumulator match {
+      case Some(acc) =>
+        acc ! refuelSessionEvent
+      case None =>
+    }
 
     vehicle.disconnectFromChargingPoint()
     log.debug(
@@ -896,16 +906,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       vehicle.id,
       vehicle.stall.get
     )
-    eventsManager.processEvent(
-      new ChargingPlugOutEvent(
-        currentTick,
-        vehicle.stall.get
-          .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id,
-        vehicle.primaryFuelLevelInJoules,
-        Some(vehicle.secondaryFuelLevelInJoules)
-      )
+    val chargingPlugOutEvent: ChargingPlugOutEvent = new ChargingPlugOutEvent(
+      currentTick,
+      vehicle.stall.get
+        .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      vehicle.id,
+      vehicle.primaryFuelLevelInJoules,
+      Some(vehicle.secondaryFuelLevelInJoules)
     )
+    eventsManager.processEvent(chargingPlugOutEvent)
+    chargingEventsAccumulator match {
+      case Some(acc) =>
+        acc ! chargingPlugOutEvent
+      case None =>
+    }
+
     vehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall.parkingZoneId)

@@ -257,7 +257,8 @@ class PersonAndTransitDriverSpec
           vehicle = bus,
           Array(busLeg.beamLeg, busLeg2.beamLeg),
           new GeoUtilsImpl(beamConfig),
-          services.networkHelper
+          services.networkHelper,
+          None
         )
       )
       val tramDriverProps = Props(
@@ -272,7 +273,8 @@ class PersonAndTransitDriverSpec
           vehicle = tram,
           Array(tramLeg.beamLeg),
           new GeoUtilsImpl(beamConfig),
-          services.networkHelper
+          services.networkHelper,
+          None
         )
       )
 
@@ -349,7 +351,8 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          boundingBox
+          boundingBox,
+          None
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

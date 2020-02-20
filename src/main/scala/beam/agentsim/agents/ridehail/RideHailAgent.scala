@@ -49,7 +49,8 @@ object RideHailAgent {
     vehicle: BeamVehicle,
     location: Coord,
     shifts: Option[List[Range]],
-    geofence: Option[Geofence]
+    geofence: Option[Geofence],
+    chargingEventsAccumulator: Option[ActorRef]
   ) =
     Props(
       new RideHailAgent(
@@ -65,7 +66,8 @@ object RideHailAgent {
         services,
         beamScenario,
         transportNetwork,
-        tollCalculator
+        tollCalculator,
+        chargingEventsAccumulator
       )
     )
 
@@ -170,7 +172,8 @@ class RideHailAgent(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
-  val tollCalculator: TollCalculator
+  val tollCalculator: TollCalculator,
+  override val chargingEventsAccumulator: Option[ActorRef]
 ) extends BeamAgent[RideHailAgentData]
     with DrivesVehicle[RideHailAgentData]
     with Stash {
@@ -626,17 +629,21 @@ class RideHailAgent(
 
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
     vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        tick,
-        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        tick - sessionStart,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
+    val refuelSessionEvent = new RefuelSessionEvent(
+      tick,
+      vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      energyInJoules,
+      vehicle.primaryFuelLevelInJoules - energyInJoules,
+      tick - sessionStart,
+      vehicle.id,
+      vehicle.beamVehicleType
     )
+    eventsManager.processEvent(refuelSessionEvent)
+    chargingEventsAccumulator match {
+      case Some(acc) => acc ! refuelSessionEvent
+      case None      =>
+    }
+
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
     //If so then note it would still need to check the queue and any other localized cleanup

@@ -148,6 +148,10 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
+  val chargingEventsAccumulator: Option[ActorRef] = Some(
+    context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+  )
+
   private val parkingManager = context.actorOf(
     ZonalParkingManager
       .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
@@ -173,19 +177,14 @@ class BeamMobsimIteration(
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        routeHistory
+        routeHistory,
+        chargingEventsAccumulator
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
   )
   context.watch(rideHailManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
-
-  var chargingEventsAccumulator: ActorRef = _
-
-  if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents) {
-    chargingEventsAccumulator = context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
-  }
 
   var memoryLoggingTimerActorRef: ActorRef = _
   var memoryLoggingTimerCancellable: Cancellable = _
@@ -222,7 +221,8 @@ class BeamMobsimIteration(
         tollCalculator,
         geo,
         networkHelper,
-        matsimServices.getEvents
+        matsimServices.getEvents,
+        chargingEventsAccumulator
       )
     ),
     "transit-system"
@@ -244,7 +244,8 @@ class BeamMobsimIteration(
       sharedVehicleFleets,
       matsimServices.getEvents,
       routeHistory,
-      envelopeInUTM
+      envelopeInUTM,
+      chargingEventsAccumulator
     ),
     "population"
   )
@@ -282,8 +283,8 @@ class BeamMobsimIteration(
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
-      if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents) {
-        chargingEventsAccumulator ! Finish
+      if (chargingEventsAccumulator.isDefined) {
+        chargingEventsAccumulator.get ! Finish
       }
       context.stop(scheduler)
       context.stop(errorListener)

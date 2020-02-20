@@ -69,7 +69,8 @@ object PersonAgent {
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef],
     routeHistory: RouteHistory,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    chargingEventsAccumulator: Option[ActorRef]
   ): Props = {
     Props(
       new PersonAgent(
@@ -88,7 +89,8 @@ object PersonAgent {
         householdRef,
         sharedVehicleFleets,
         routeHistory,
-        boundingBox
+        boundingBox,
+        chargingEventsAccumulator
       )
     )
   }
@@ -243,7 +245,8 @@ class PersonAgent(
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
   val routeHistory: RouteHistory,
-  val boundingBox: Envelope
+  val boundingBox: Envelope,
+  override val chargingEventsAccumulator: Option[ActorRef]
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking

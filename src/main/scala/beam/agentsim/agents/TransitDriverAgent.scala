@@ -37,7 +37,8 @@ object TransitDriverAgent {
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg],
     geo: GeoUtils,
-    networkHelper: NetworkHelper
+    networkHelper: NetworkHelper,
+    chargingEventsAccumulator: Option[ActorRef]
   ): Props = {
     Props(
       new TransitDriverAgent(
@@ -51,7 +52,8 @@ object TransitDriverAgent {
         vehicle,
         legs,
         geo,
-        networkHelper
+        networkHelper,
+        chargingEventsAccumulator
       )
     )
   }
@@ -100,7 +102,8 @@ class TransitDriverAgent(
   val vehicle: BeamVehicle,
   val legs: Seq[BeamLeg],
   val geo: GeoUtils,
-  val networkHelper: NetworkHelper
+  val networkHelper: NetworkHelper,
+  override val chargingEventsAccumulator: Option[ActorRef]
 ) extends DrivesVehicle[DrivingData] {
 
   override val id: Id[TransitDriverAgent] = transitDriverId

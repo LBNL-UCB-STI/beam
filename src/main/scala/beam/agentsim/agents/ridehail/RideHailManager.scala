@@ -211,7 +211,8 @@ class RideHailManager(
   val activityQuadTreeBounds: QuadTreeBounds,
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats],
-  val routeHistory: RouteHistory
+  val routeHistory: RouteHistory,
+  val chargingEventsAccumulator: Option[ActorRef]
 ) extends Actor
     with ActorLogging
     with Stash {
@@ -1464,7 +1465,8 @@ class RideHailManager(
       rideHailBeamVehicle,
       rideInitialLocation,
       shifts.map(_.split(";").map(beam.sim.common.Range(_)).toList),
-      geofence
+      geofence,
+      chargingEventsAccumulator
     )
 
     val rideHailAgentRef: ActorRef =
