@@ -1,7 +1,6 @@
 package beam.utils.data.synthpop
 
 import java.io.File
-import java.util.Random
 
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
@@ -13,21 +12,15 @@ import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PumaGeoId}
 import com.typesafe.scalalogging.StrictLogging
+import com.vividsolutions.jts.geom.Geometry
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
-import com.vividsolutions.jts.geom.{Geometry, Point}
+import org.apache.commons.math3.random.MersenneTwister
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
-import org.matsim.households.{
-  HouseholdsFactoryImpl,
-  HouseholdsImpl,
-  Income,
-  IncomeImpl,
-  Household => MatsimHousehold,
-  Households => MatsimHouseholds
-}
+import org.matsim.households.{HouseholdsFactoryImpl, HouseholdsImpl, Income, IncomeImpl, Household => MatsimHousehold, Households => MatsimHouseholds}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.opengis.feature.simple.SimpleFeature
 
@@ -44,10 +37,12 @@ class SimpleScenarioGenerator(
   val pathToCTPPFolder: String,
   val pathToPumaShapeFile: String,
   val pathToBlockGroupShapeFile: String,
-  val javaRnd: Random,
+  val randomSeed: Int,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
+
+  private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     // TODO: Is it truth for all cases? Check the coverage https://epsg.io/26910
@@ -56,6 +51,8 @@ class SimpleScenarioGenerator(
     //-47.74 86.46
     override def localCRS: String = "epsg:26910"
   }
+
+  private val defaultTimeLeavingHomeRange: Range = Range(6 * 3600, 7 * 3600)
 
   override def generate: (MatsimHouseholds, MatsimPopulation) = {
     val pathToCTPPData = PathToData(pathToCTPPFolder)
@@ -91,7 +88,7 @@ class SimpleScenarioGenerator(
 
     val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
       ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
-    val timeLeavingOD =
+    val sourceToTimeLeavingOD =
       new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
 
     val matsimPopulation = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -103,28 +100,47 @@ class SimpleScenarioGenerator(
 
     geoIdToHouseholds.foreach {
       case (blockGroupGeoId, households) =>
-        val nLocationsToGenerate = households.size
+        // TODO We need to bring building density in the future
         val pumaGeoIdOfHousehold = blockGroupToPumaMap(blockGroupGeoId)
-        val timeLeavingSample = timeLeavingOD.get(pumaGeoIdOfHousehold.asUniqueKey)
-        timeLeavingSample.foreach { x =>
-          val sum = x.map(_.value).sum
-          logger.info(s"Sum: ${sum}")
-          x.foreach { z =>
-            logger.info(s"$z")
-          }
-        }
-        logger.info(s"pumaGeoIdOfHousehold: ${pumaGeoIdOfHousehold}, timeLeavingSample: $timeLeavingSample")
-        val geom = blockGroupGeoIdToGeom(blockGroupGeoId)
-        val centroid = geom.getGeometry.getCentroid
-        val householdLocation = RandomPointsInGridGenerator.generate(geom.getGeometry, nLocationsToGenerate)
-        require(householdLocation.size == nLocationsToGenerate)
-        households.zip(householdLocation).foreach {
-          case (household, wgsLocation) =>
-//            val workLocation = rndWorkDestinationGenerator.next(wgsLocation, )
-            val persons = householdWithPersons(household)
 
-            val (matsimPersons, lastPersonId) = persons.foldLeft((List.empty[MatsimPerson], globalPersonId)) {
-              case ((xs, nextPersonId), person) =>
+        val timeLeavingODPairs = sourceToTimeLeavingOD(pumaGeoIdOfHousehold.asUniqueKey)
+        val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
+        logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
+
+        val householdWithPersonData = households.map { household =>
+          val persons = householdWithPersons(household)
+          val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
+            rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold, household.income).map { workDest =>
+              val foundDests = timeLeavingODPairs.filter(x => x.destination == workDest)
+              if (foundDests.isEmpty) {
+                logger.info(s"Could not find work destination '${workDest}' in ${timeLeavingODPairs.mkString(" ")}")
+                (person, workDest, defaultTimeLeavingHomeRange)
+              } else {
+                val timeLeavingHomeRange =
+                  ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
+                (person, workDest, timeLeavingHomeRange)
+              }
+            }
+          }
+          if (personWithWorkDestAndTimeLeaving.size != persons.size) {
+            logger.warn(
+              s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
+            )
+          }
+          (household, personWithWorkDestAndTimeLeaving)
+        }
+        logger.info(s"householdWithPersonData: ${householdWithPersonData.size}")
+        val blockGeomOfHousehold = blockGroupGeoIdToGeom(blockGroupGeoId)
+        val nLocationsToGenerate = households.size
+        val householdLocation =
+          RandomPointsInGridGenerator.generate(blockGeomOfHousehold.getGeometry, nLocationsToGenerate)
+        require(householdLocation.size == nLocationsToGenerate)
+        householdWithPersonData.zip(householdLocation).foreach {
+          case ((household, personsWithData), wgsLocation) =>
+            val (matsimPersons, lastPersonId) = personsWithData.foldLeft((List.empty[MatsimPerson], globalPersonId)) {
+              case ((xs, nextPersonId), (person, workDist, timeLeavingHomeRange)) =>
+                // TODO Map `workDist` to actual geo location
+                // TODO Create plan from `timeLeavingHomeRange`
                 val matsimPerson =
                   createPerson(
                     household,
@@ -287,10 +303,11 @@ object SimpleScenarioGenerator {
         pathToCTPPFolder,
         pathToPumaShapeFile,
         pathToBlockGroupShapeFile,
-        new Random(42)
+        42
       )
 
     gen.generate
 
   }
+
 }
