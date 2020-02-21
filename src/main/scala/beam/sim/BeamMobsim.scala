@@ -71,6 +71,7 @@ class BeamMobsim @Inject()(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory
@@ -112,6 +113,7 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
   val beamServices: BeamServices,
+  val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory
@@ -135,6 +137,17 @@ class BeamMobsimIteration(
     ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
     "scheduler"
   )
+
+  val chargingEventsAccumulator: Option[ActorRef] = Some(
+    context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+  )
+
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setChargingEventsAccumulator(chargingEventsAccumulator)
+    case _ =>
+  }
+
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
@@ -147,10 +160,6 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
-
-  val chargingEventsAccumulator: Option[ActorRef] = Some(
-    context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
-  )
 
   private val parkingManager = context.actorOf(
     ZonalParkingManager

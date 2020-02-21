@@ -864,7 +864,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     eventsManager.processEvent(chargingPlugInEvent)
     chargingEventsAccumulator match {
       case Some(acc) =>
-        acc ! chargingPlugInEvent
+//        acc ! chargingPlugInEvent
       case None =>
     }
 
@@ -896,7 +896,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     eventsManager.processEvent(refuelSessionEvent)
     chargingEventsAccumulator match {
       case Some(acc) =>
-        acc ! refuelSessionEvent
+//        acc ! refuelSessionEvent
       case None =>
     }
 
@@ -917,7 +917,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     eventsManager.processEvent(chargingPlugOutEvent)
     chargingEventsAccumulator match {
       case Some(acc) =>
-        acc ! chargingPlugOutEvent
+//        acc ! chargingPlugOutEvent
       case None =>
     }
 

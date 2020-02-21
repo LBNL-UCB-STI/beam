@@ -22,7 +22,7 @@ object ChargingEventsAccumulator {
 class ChargingEventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Actor {
   import ChargingEventsAccumulator._
 
-  val timeout: Int = 300
+  val timeout: Int = 100
 
   val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
@@ -32,9 +32,7 @@ class ChargingEventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) ext
   override def receive: Receive = {
 
     case t @ TriggerWithId(ChargingEventsAccumulatorTrigger(_), _) =>
-      if (chargingEventsBuffer.nonEmpty) {
-        informExternalSystem(chargingEventsBuffer)
-      }
+      informExternalSystem(chargingEventsBuffer)
       chargingEventsBuffer.clear()
       scheduler ! CompletionNotice(t.triggerId)
 
@@ -48,9 +46,7 @@ class ChargingEventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) ext
       chargingEventsBuffer += e
 
     case Finish =>
-      if (chargingEventsBuffer.nonEmpty) {
-        informExternalSystem(chargingEventsBuffer)
-      }
+      informExternalSystem(chargingEventsBuffer)
       context.stop(self)
 
   }
