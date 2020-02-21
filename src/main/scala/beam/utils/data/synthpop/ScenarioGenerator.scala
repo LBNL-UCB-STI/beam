@@ -10,17 +10,26 @@ import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PumaGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Geometry
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import org.apache.commons.math3.random.MersenneTwister
 import org.geotools.data.shapefile.ShapefileDataStore
+import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
-import org.matsim.households.{HouseholdsFactoryImpl, HouseholdsImpl, Income, IncomeImpl, Household => MatsimHousehold, Households => MatsimHouseholds}
+import org.matsim.households.{
+  HouseholdsFactoryImpl,
+  HouseholdsImpl,
+  Income,
+  IncomeImpl,
+  Household => MatsimHousehold,
+  Households => MatsimHouseholds
+}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.opengis.feature.simple.SimpleFeature
 
@@ -36,7 +45,9 @@ class SimpleScenarioGenerator(
   val pathToPopulationFile: String,
   val pathToCTPPFolder: String,
   val pathToPumaShapeFile: String,
+  val pathToPowPumaShapeFile: String,
   val pathToBlockGroupShapeFile: String,
+  val pathToWorkedHours: String,
   val randomSeed: Int,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
@@ -54,9 +65,16 @@ class SimpleScenarioGenerator(
 
   private val defaultTimeLeavingHomeRange: Range = Range(6 * 3600, 7 * 3600)
 
+  def drawTimeLeavingHome(timeLeavingHomeRange: Range): Double = {
+    // Randomly pick a number between [start, end]
+    val howMany = timeLeavingHomeRange.end - timeLeavingHomeRange.start + 1
+    timeLeavingHomeRange.start + rndGen.nextInt(howMany)
+  }
+
   override def generate: (MatsimHouseholds, MatsimPopulation) = {
     val pathToCTPPData = PathToData(pathToCTPPFolder)
-    val rndWorkDestinationGenerator = new RandomWorkDestinationGenerator(pathToCTPPData, 42)
+    val rndWorkDestinationGenerator = new RandomWorkDestinationGenerator(pathToCTPPData, randomSeed)
+    val workedDurationGeneratorImpl = new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
 
     val households =
       new HouseholdReader(pathToHouseholdFile).read().groupBy(x => x.id).map { case (hhId, xs) => hhId -> xs.head }
@@ -67,6 +85,12 @@ class SimpleScenarioGenerator(
         (household, persons)
     }
     logger.info(s"householdWithPersons: ${householdWithPersons.size}")
+    val uniqueStates = households.map(_._2.geoId.state).toSet
+
+    logger.info(s"uniqueStates: ${uniqueStates.size}")
+
+    val powPumaGeoIdMap = getPlaceOfWorkPumaMap(uniqueStates)
+    logger.info(s"powPumaGeoIdMap: ${powPumaGeoIdMap.size}")
 
     val geoIdToHouseholds = households.values.groupBy(x => x.geoId)
     val uniqueGeoIds = geoIdToHouseholds.keySet
@@ -110,15 +134,16 @@ class SimpleScenarioGenerator(
         val householdWithPersonData = households.map { household =>
           val persons = householdWithPersons(household)
           val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-            rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold, household.income).map { workDest =>
-              val foundDests = timeLeavingODPairs.filter(x => x.destination == workDest)
+            rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold, household.income).map { powPumaWorkDest =>
+              val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
               if (foundDests.isEmpty) {
-                logger.info(s"Could not find work destination '${workDest}' in ${timeLeavingODPairs.mkString(" ")}")
-                (person, workDest, defaultTimeLeavingHomeRange)
+                logger
+                  .info(s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}")
+                (person, powPumaWorkDest, defaultTimeLeavingHomeRange)
               } else {
                 val timeLeavingHomeRange =
                   ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
-                (person, workDest, timeLeavingHomeRange)
+                (person, powPumaWorkDest, timeLeavingHomeRange)
               }
             }
           }
@@ -136,9 +161,11 @@ class SimpleScenarioGenerator(
           RandomPointsInGridGenerator.generate(blockGeomOfHousehold.getGeometry, nLocationsToGenerate)
         require(householdLocation.size == nLocationsToGenerate)
         householdWithPersonData.zip(householdLocation).foreach {
-          case ((household, personsWithData), wgsLocation) =>
+          case ((household, personsWithData), wgsHouseholdLocation) =>
+            val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+
             val (matsimPersons, lastPersonId) = personsWithData.foldLeft((List.empty[MatsimPerson], globalPersonId)) {
-              case ((xs, nextPersonId), (person, workDist, timeLeavingHomeRange)) =>
+              case ((xs, nextPersonId), (person, workDestPumaGeoId, timeLeavingHomeRange)) =>
                 // TODO Map `workDist` to actual geo location
                 // TODO Create plan from `timeLeavingHomeRange`
                 val matsimPerson =
@@ -149,6 +176,25 @@ class SimpleScenarioGenerator(
                     matsimPopulation.getFactory,
                     matsimPopulation.getPersonAttributes
                   )
+
+                val plan = PopulationUtils.createPlan(matsimPerson)
+                matsimPerson.addPlan(plan)
+                matsimPerson.setSelectedPlan(plan)
+
+                // Create Home Activity: end time is when a person leaves a home
+                // Create Leg
+                val leavingHomeActivity = PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
+                leavingHomeActivity.setEndTime(drawTimeLeavingHome(timeLeavingHomeRange))
+                PopulationUtils.createAndAddLeg(plan, "")
+
+                val workDestGeo = powPumaGeoIdMap.get(workDestPumaGeoId)
+                logger.info(s"workDestGeo: ${workDestGeo}")
+
+                // Create Work Activity: end time is the time when a person leaves a work
+                // Create leg
+
+                // Create Home Activity: end time not defined
+
                 (matsimPerson :: xs, nextPersonId + 1)
             }
             globalPersonId = lastPersonId
@@ -157,9 +203,8 @@ class SimpleScenarioGenerator(
             val matsimHousehold = createHousehold(household, matsimPersons, householdsFactory)
             matsimHouseholds.addHousehold(matsimHousehold)
 
-            val utmCoord = geoUtils.wgs2Utm(wgsLocation)
-            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmCoord.getX)
-            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmCoord.getY)
+            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmHouseholdCoord.getX)
+            scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmHouseholdCoord.getY)
         }
     }
     (matsimHouseholds, matsimPopulation)
@@ -210,6 +255,40 @@ class SimpleScenarioGenerator(
           val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
           PumaGeoId(state, puma) -> geom
         }.toMap
+        tractGeoIdToGeom
+      } finally {
+        Try(fe.close())
+      }
+    } finally {
+      Try(dataStore.dispose())
+    }
+  }
+
+  private def getPlaceOfWorkPumaMap(uniqueStates: Set[String]): Map[PowPumaGeoId, Geometry] = {
+    val dataStore = new ShapefileDataStore(new File(pathToPowPumaShapeFile).toURI.toURL)
+    try {
+      val fe = dataStore.getFeatureSource.getFeatures.features()
+      val destinationCoordSystem = CRS.decode("EPSG:4326", true)
+      val mathTransform =
+        CRS.findMathTransform(dataStore.getSchema.getCoordinateReferenceSystem, destinationCoordSystem, true)
+      try {
+        val it = new Iterator[SimpleFeature] {
+          override def hasNext: Boolean = fe.hasNext
+          override def next(): SimpleFeature = fe.next()
+        }
+        val tractGeoIdToGeom = it
+          .filter { feature =>
+            val state = feature.getAttribute("PWSTATE").toString
+            uniqueStates.contains(state)
+          }
+          .map { feature =>
+            val state = feature.getAttribute("PWSTATE").toString
+            val puma = feature.getAttribute("PWPUMA").toString
+            val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
+            val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
+            PowPumaGeoId(state, puma) -> wgsGeom
+          }
+          .toMap
         tractGeoIdToGeom
       } finally {
         Try(fe.close())
@@ -287,14 +366,16 @@ object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
     require(
-      args.size == 5,
+      args.size == 7,
       "Expecting four arguments: first one is the path to household CSV file, the second one is the path to population CSV file, the third argument is the path to Census Tract shape file, the fourth argument is the path to Census TAZ shape file"
     )
     val pathToHouseholdFile = args(0)
     val pathToPopulationFile = args(1)
     val pathToCTPPFolder = args(2)
     val pathToPumaShapeFile = args(3)
-    val pathToBlockGroupShapeFile = args(4)
+    val pathToPowPumaShapeFile = args(4)
+    val pathToBlockGroupShapeFile = args(5)
+    val pathToWorkedHours = args(6)
 
     val gen =
       new SimpleScenarioGenerator(
@@ -302,7 +383,9 @@ object SimpleScenarioGenerator {
         pathToPopulationFile,
         pathToCTPPFolder,
         pathToPumaShapeFile,
+        pathToPowPumaShapeFile,
         pathToBlockGroupShapeFile,
+        pathToWorkedHours,
         42
       )
 

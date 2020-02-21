@@ -11,6 +11,28 @@ object Models {
     def asUniqueKey: String = s"${state}${puma}"
   }
 
+  object PumaGeoId {
+
+    def fromString(s: String): PumaGeoId = {
+      val state = s.substring(0, 2)
+      val puma = s.substring(2)
+      PumaGeoId(state, puma)
+    }
+  }
+
+  case class PowPumaGeoId(state: String, puma: String) {
+    def asUniqueKey: String = s"${state}${puma}"
+  }
+
+  object PowPumaGeoId {
+
+    def fromString(s: String): PowPumaGeoId = {
+      val state = s.substring(0, 2)
+      val puma = s.substring(2)
+      PowPumaGeoId(state, puma)
+    }
+  }
+
   case class BlockGroupGeoId(state: String, county: String, tract: String, blockGroup: String) {
     def asUniqueKey: String = s"${state}${county}${tract}${blockGroup}"
   }
