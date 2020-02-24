@@ -27,12 +27,15 @@ case class JointDistribution(fileName: String, columnMapping: Map[String, String
   val rng: MersenneTwister = new MersenneTwister()
   val mappedArray = readAs[Map[String, String]](fileName, toScalaMap, _ => true)
 
-  def getProbabilityList(keyValueTuple: (String, String)*): Array[String] = {
-    getList(keyValueTuple: _*).map(_(RETURN_COLUMN))
+  def getProbabilityList(keyValueTuple: (String, Either[String, CustomRange])*): Array[String] = {
+    getRangeList(keyValueTuple: _*).map(_(RETURN_COLUMN))
   }
 
-  private def sample(input: Array[Map[String, String]], sampleWithinRange: Boolean): Map[String, String] = {
-    val pmf = input
+  def getSample(
+    sampleWithinRange: Boolean,
+    keyValueTuple: (String, Either[String, CustomRange])*
+  ): Map[String, String] = {
+    val pmf = getRangeList(keyValueTuple: _*)
       .map(
         value =>
           new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
@@ -42,43 +45,8 @@ case class JointDistribution(fileName: String, columnMapping: Map[String, String
     distr.sample()
   }
 
-  def getSample(sampleWithinRange: Boolean, keyValueTuple: (String, String)*): Map[String, String] = {
-    sample(getList(keyValueTuple: _*), sampleWithinRange)
-  }
-
-  def getRangeSample(
-    sampleWithinRange: Boolean,
-    keyValue: Map[String, String],
-    keyRangeValueTuple: (String, CustomRange)*
-  ): Map[String, String] = {
-    sample(getRangeList(keyValue, keyRangeValueTuple: _*), sampleWithinRange)
-  }
-
-  def getProbability(keyValueTuple: (String, String)*): Double = {
+  def getProbability(keyValueTuple: (String, Either[String, CustomRange])*): Double = {
     getProbabilityList(keyValueTuple: _*).map(_.toDouble).sum
-  }
-
-  private def getList(keyValueTuple: (String, String)*): Array[Map[String, String]] = {
-    mappedArray._1
-      .filter(
-        map =>
-          keyValueTuple
-            .map(keyValue => {
-
-              val value = map(keyValue._1)
-              columnMapping.get(keyValue._1) match {
-                case Some(v) if v == JointDistribution.RANGE_COLUMN_TYPE =>
-                  val startEnd = toRange(value, true)
-                  val range = toRange(keyValue._2)
-                  range.start <= startEnd.start && range.end >= startEnd.end
-                case _ =>
-                  value == keyValue._2
-              }
-
-            })
-            .reduce(_ && _)
-      )
-      .toArray
   }
 
   private def row(values: Map[String, String], range: Boolean): Map[String, String] = {
@@ -86,7 +54,7 @@ case class JointDistribution(fileName: String, columnMapping: Map[String, String
       values.map {
         case (key, value) =>
           if (value.contains(",")) {
-            val startEnd = toRange(value, true)
+            val startEnd = toRange(Left(value), true)
             key -> (startEnd.start + (startEnd.end - startEnd.start) * rng.nextDouble()).toString
           } else {
             key -> value
@@ -97,43 +65,43 @@ case class JointDistribution(fileName: String, columnMapping: Map[String, String
     }
   }
 
-  def getRangeList(
-    keyValueTuple: Map[String, String],
-    keyRangeValueTuple: (String, CustomRange)*
-  ): Array[Map[String, String]] = {
-
+  def getRangeList(keyValueTuple: (String, Either[String, CustomRange])*): Array[Map[String, String]] = {
     mappedArray._1
       .filter(
         map =>
-          keyRangeValueTuple
-            .map(keyValue => {
-              val value = map(keyValue._1)
-              val startEnd = toRange(value, true)
-              keyValue._2.start <= startEnd.start && keyValue._2.end >= startEnd.end
-            })
-            .reduce(_ && _)
-          &&
           keyValueTuple
-            .map {
-              case (key, value) => map(key) == value
-            }
+            .map(keyValue => {
+
+              val value = map(keyValue._1)
+              columnMapping.get(keyValue._1) match {
+                case Some(v) if v == JointDistribution.RANGE_COLUMN_TYPE =>
+                  val startEnd = toRange(Left(value), true)
+                  val range = toRange(keyValue._2)
+                  range.start <= startEnd.start && range.end >= startEnd.end
+                case _ =>
+                  keyValue._2 match {
+                    case Left(left) => value == left
+                    case _          => false
+                  }
+              }
+            })
             .reduce(_ && _)
       )
       .toArray
   }
 
-  def getSum(keyValueTuple: (String, String)*): Double = {
-    getProbabilityList(keyValueTuple: _*).map(_.toDouble).sum
-  }
-
-  private def toRange(value: String, trimBracket: Boolean = false): CustomRange = {
-    val startLast = value.split(",")
-    val start = startLast(0).trim
-    val end = startLast(1).trim
-    if (trimBracket)
-      CustomRange(start.substring(1).toDouble, end.substring(0, end.length - 1).toDouble)
-    else
-      CustomRange(start.toDouble, end.toDouble)
+  private def toRange(range: Either[String, CustomRange], trimBracket: Boolean = false): CustomRange = {
+    range match {
+      case Left(value) =>
+        val startLast = value.split(",")
+        val start = startLast(0).trim
+        val end = startLast(1).trim
+        if (trimBracket)
+          CustomRange(start.substring(1).toDouble, end.substring(0, end.length - 1).toDouble)
+        else
+          CustomRange(start.toDouble, end.toDouble)
+      case Right(value) => value
+    }
   }
 
   private def toScalaMap(rec: JavaMap[String, String]): Map[String, String] = rec.asScala.toMap
