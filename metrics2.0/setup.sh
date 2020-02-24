@@ -74,6 +74,9 @@ configure_grafana() {
   install_datasources
   install_dashboards
 
+  chmod -R 777 /var/lib/grafana
+  chmod -R 777 /var/log/grafana
+
   echo "Grafana is ready"
 }
 
@@ -92,6 +95,17 @@ configure_influx_db() {
   wait_for_influx_db
   create_beam_database
 
+  # this block of `mkdir` and `chmod` is necessary
+  # to be able to remove those directories after they do not need
+  # because in any case those dirs will be created as `root`
+  # and without those `chmod` nobody will be able to remove them without sudo or things like that
+  mkdir -p /var/lib/influxdb/data/_internal
+  mkdir -p /var/lib/influxdb/data/beam
+  mkdir -p /var/lib/influxdb/log
+  # mkdir -p /var/lib/influxdb/data/wal
+  chmod -R 777 /var/lib/influxdb
+  chmod -R 777 /var/log/influxdb
+
   echo "InfluxDB is ready"
 }
 
@@ -102,4 +116,5 @@ echo "Running configure_influx_db in the background..."
 configure_influx_db &
 
 /run.sh
+
 exit 0

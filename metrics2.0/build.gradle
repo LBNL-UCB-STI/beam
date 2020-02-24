@@ -1,0 +1,78 @@
+import java.time.Duration
+
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        // 0.9.5 because starting from plugin version 0.10.0, Gradle 4.9 or newer is required
+        classpath 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    }
+}
+
+apply plugin: 'docker-compose'
+
+task grafanaStart {
+    description 'Starts Grafana and Influx DB docker container. Currently it is an equivalent of docker-compose up -d.'
+    group 'Grafana'
+
+    // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    dependsOn(composeUp)
+
+    doLast {
+        println """Grafana is ready."""
+        println """Global view: \n\t http://localhost:3003/d/dvib8mbWz/beam-simulation-global-view"""
+        println """Iteration view: \n\t http://localhost:3003/d/5oUysNJWz/beam-simulation-iteration-view"""
+        println """Iteration MAP view: \n\t http://localhost:3003/d/otUGbMyZk/beam-simulation-iteration-map-view"""
+        println """Global view comparison: \n\t http://localhost:3003/d/KuiPBbBWz/beam-simulation-global-view-comparison"""
+        println """Iteration view comparison: \n\t http://localhost:3003/d/66mrcxfWz/beam-simulation-iteration-view-comparison"""
+    }
+}
+
+//this task is not yet working
+//task grafanaClearData {
+//    description 'Clear all collected by grafana data, i.e. all BEAM runs data which are displayed in graphs.'
+//    group 'Grafana'
+//
+//    doFirst {
+//        // delete only files in dirs
+//        ['grafana/log', 'grafana/data/png', 'influxdb/data', 'influxdb/log'].forEach {
+//            directory ->
+//                delete fileTree(dir: directory, exclude: '.gitignore')
+//                println "files under $directory are removed"
+//        }
+//
+//        // delete completely
+//        ['influxdb/data/data', 'grafana/data/png', 'influxdb/data/log'].forEach {
+//            dirName ->
+//                def directory = new File(dirName)
+//                if (directory.deleteDir()) {
+//                    println "$dirName deleted"
+//                } else {
+//                    println "can not delete $dirName"
+//                }
+//        }
+//
+//        // delete file completely
+//        delete 'grafana/data/grafana.db'
+//        println "grafana/data/grafana.db deleted"
+//
+//
+//    }
+//}
+
+task grafanaStop {
+    description 'Stops Grafana and Influx DB docker container. Currently it is an equivalent of docker-compose down.'
+    group 'Grafana'
+
+    // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    dependsOn(composeDown)
+
+    doLast {
+        println "Grafana has stopped."
+        println "In order to erase all collected by grafana data use grafanaClearData task."
+    }
+}

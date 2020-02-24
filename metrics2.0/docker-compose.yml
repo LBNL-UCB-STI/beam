@@ -10,7 +10,8 @@ services:
       - ./grafana/datasources:/etc/grafana/datasources
       - ./grafana/dashboards:/etc/grafana/dashboards
       - ./setup.sh:/setup.sh
-      - ./influxdb/data:/var/lib/influxdb
+      - ./influxdb/data/data:/var/lib/influxdb/data
+      - ./influxdb/data/log:/var/lib/influxdb/log
       - ./influxdb/log:/var/log/influxdb
     entrypoint: /setup.sh
     environment:
