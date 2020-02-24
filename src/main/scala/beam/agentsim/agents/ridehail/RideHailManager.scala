@@ -21,11 +21,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -38,7 +34,8 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
-import beam.router.skim.{Skims, TAZSkimmerEvent}
+import beam.router.Modes.BeamMode
+import beam.router.skim.{Skims, SkimsUtils, TAZSkimmerEvent}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -271,8 +268,7 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
+  val radiusInMeters: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
