@@ -38,6 +38,14 @@ trait SimulationMetricCollector {
     overwriteIfExist: Boolean = false
   ): Unit
 
+  def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String] = Map.empty,
+    tags: Map[String, String] = Map.empty,
+    overwriteIfExist: Boolean = false
+  ): Unit
+
   def writeJava(
     metricName: String,
     time: Double,
@@ -129,12 +137,19 @@ object NoOpSimulationMetricCollector extends SimulationMetricCollector {
     overwriteIfExist: Boolean = false
   ): Unit = {}
 
+  def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String],
+    tags: Map[String, String],
+    overwriteIfExist: Boolean
+  ): Unit = {}
+
   override def clear(): Unit = {}
 
   override def close(): Unit = {}
 
   def metricEnabled(metricName: String): Boolean = false
-
 }
 
 class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
@@ -185,6 +200,37 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     metricName: String,
     time: SimulationTime,
     values: Map[String, Double],
+    tags: Map[String, String],
+    overwriteIfExist: Boolean
+  ): Unit = {
+    if (metricEnabled(metricName)) {
+      val rawPoint = Point
+        .measurement(metricName)
+        .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
+        .tag("simulation-hour", time.hours.toString)
+
+      val withFields = values.foldLeft(rawPoint) {
+        case (p, (n, v)) => p.addField(n, v)
+      }
+
+      val withDefaultTags = defaultTags.foldLeft(withFields) {
+        case (p, (k, v)) => p.tag(k, v)
+      }
+
+      val withOtherTags = tags.foldLeft(withDefaultTags) {
+        case (p, (k, v)) => p.tag(k, v)
+      }
+
+      maybeInfluxDB.foreach(_.write(withOtherTags.build()))
+    } else {
+      disabledMetrics.add(metricName)
+    }
+  }
+
+  override def writeStr(
+    metricName: String,
+    time: SimulationTime,
+    values: Map[String, String],
     tags: Map[String, String],
     overwriteIfExist: Boolean
   ): Unit = {
