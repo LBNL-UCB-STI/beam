@@ -73,6 +73,6 @@ task grafanaStop {
 
     doLast {
         println "Grafana has stopped."
-        println "In order to erase all collected by grafana data use grafanaClearData task."
+        // println "In order to erase all collected by grafana data use grafanaClearData task."
     }
 }
