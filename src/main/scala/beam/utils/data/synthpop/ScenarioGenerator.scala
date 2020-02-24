@@ -5,7 +5,7 @@ import java.io.File
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.RandomPointsInGridGenerator
-import beam.utils.csv.writers.{HouseholdsCsvWriter, PopulationCsvWriter}
+import beam.utils.csv.writers.{HouseholdsCsvWriter, PlansCsvWriter, PopulationCsvWriter}
 import beam.utils.{ProfilingUtils, Statistics}
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
@@ -25,7 +25,14 @@ import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPe
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.households.{HouseholdsFactoryImpl, HouseholdsImpl, Income, IncomeImpl, Household => MatsimHousehold, Households => MatsimHouseholds}
+import org.matsim.households.{
+  HouseholdsFactoryImpl,
+  HouseholdsImpl,
+  Income,
+  IncomeImpl,
+  Household => MatsimHousehold,
+  Households => MatsimHouseholds
+}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.opengis.feature.simple.SimpleFeature
 
@@ -33,6 +40,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
+import scala.util.control.NonFatal
 
 trait ScenarioGenerator {
   def generate: (MatsimHouseholds, MatsimPopulation)
@@ -58,8 +66,6 @@ class SimpleScenarioGenerator(
 
   val mapBoundingBox: Envelope = getBoundingBoxOfOsmMap(pathToOsmMap)
 
-
-
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
@@ -82,10 +88,10 @@ class SimpleScenarioGenerator(
     val households =
       new HouseholdReader(pathToHouseholdFile).read().groupBy(x => x.id).map { case (hhId, xs) => hhId -> xs.head }
     val householdIdToPersons = new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
-    val householdWithPersons = householdIdToPersons.map {
+    val householdWithPersons = householdIdToPersons.flatMap {
       case (hhId, persons) =>
-        val household = households(hhId)
-        (household, persons)
+        val household = households.get(hhId)
+        household.map(x => (x, persons))
     }
     logger.info(s"householdWithPersons: ${householdWithPersons.size}")
     val uniqueStates = households.map(_._2.geoId.state).toSet
@@ -239,7 +245,7 @@ class SimpleScenarioGenerator(
                   val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
                   nextWorkLocation.update(workDestPumaGeoId, offset + 1)
                   workLocations.lift(offset) match {
-                    case Some(wgsWorkingLocation)=>
+                    case Some(wgsWorkingLocation) =>
                       if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
                         val matsimPerson =
                           createPerson(
@@ -257,7 +263,7 @@ class SimpleScenarioGenerator(
                         // Create Home Activity: end time is when a person leaves a home
                         // Create Leg
                         val leavingHomeActivity =
-                        PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
+                          PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
                         leavingHomeActivity.setEndTime(timeLeavingHomeSeconds)
                         PopulationUtils.createAndAddLeg(plan, "")
@@ -275,7 +281,7 @@ class SimpleScenarioGenerator(
                         // Create Work Activity: end time is the time when a person leaves a work
                         // Create leg
                         val leavingWorkActivity =
-                        PopulationUtils.createAndAddActivityFromCoord(plan, "Work", utmWorkingLocation)
+                          PopulationUtils.createAndAddActivityFromCoord(plan, "Work", utmWorkingLocation)
                         leavingWorkActivity.setEndTime(timeLeavingWork)
                         PopulationUtils.createAndAddLeg(plan, "")
 
@@ -283,8 +289,7 @@ class SimpleScenarioGenerator(
                         PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
 
                         (matsimPerson :: xs, nextPersonId + 1)
-                      }
-                      else {
+                      } else {
                         logger.info(s"Coordinate $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
                         (xs, nextPersonId + 1)
                       }
@@ -497,8 +502,7 @@ class SimpleScenarioGenerator(
         if (lat < minX) maxY = lat
       }
       new Envelope(minX, maxX, minY, maxY)
-    }
-    finally {
+    } finally {
       Try(osm.close())
     }
   }
@@ -542,7 +546,25 @@ object SimpleScenarioGenerator {
 
     println(scenario)
 
-//    PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
-//    HouseholdsCsvWriter.toCsv(scenario, "population.csv.gz")
+    try {
+      PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
+    } catch {
+      case NonFatal(ex) =>
+        println(s"Can't write population: ${ex}")
+    }
+
+    try {
+      HouseholdsCsvWriter.toCsv(scenario, "household.csv.gz")
+    } catch {
+      case NonFatal(ex) =>
+        println(s"Can't write households: ${ex}")
+    }
+
+    try {
+      PlansCsvWriter.toCsv(scenario, "plan.csv.gz")
+    } catch {
+      case NonFatal(ex) =>
+        println(s"Can't write plans: ${ex}")
+    }
   }
 }

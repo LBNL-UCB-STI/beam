@@ -37,8 +37,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val customAttributes: AttributesOfIndividual =
-        person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+      val maybeAttribs: Option[AttributesOfIndividual] = Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
 
       // `personAttributes.getAttribute(...)` can return `null`
       val excludedModes = Option(
@@ -53,19 +52,20 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         .getOrElse("")
 
       val personAge = readAge(
-        customAttributes.age,
+        maybeAttribs.flatMap(_.age),
         Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
+      val isMale = maybeAttribs.map(_.isMale).getOrElse(personAttributes.getAttribute(person.getId.toString, "sex") == "F")
       val values = Seq(
         person.getId.toString,
         personAge,
-        !customAttributes.isMale,
+        !isMale,
         personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
         String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
         excludedModes,
         Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
-          .getOrElse(customAttributes.valueOfTime)
+          .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
       )
       values.mkString("", FieldSeparator, LineSeparator)
     }
