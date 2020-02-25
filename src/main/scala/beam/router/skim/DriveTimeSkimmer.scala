@@ -25,7 +25,7 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
   override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims(beamServices)
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
   override protected val skimFileHeader: String =
-    "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,numIteration"
+    "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
   override protected val skimName: String = config.drive_time_skimmer.name
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
@@ -46,8 +46,8 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
                   currentSkim.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach { theSkimInternal =>
-                    series += ((theSkimInternal.numObservations, theSkimInternal.timeSimulated, timeObserved))
-                    for (_ <- 1 to theSkimInternal.numObservations)
+                    series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
+                    for (_ <- 1 to theSkimInternal.observations)
                       deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
                     currentSkim.update(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
                   }
@@ -80,8 +80,8 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
       DriveTimeSkimmerInternal(
         timeSimulated = line("timeSimulated").toDouble,
         timeObserved = line("timeObserved").toDouble,
-        numObservations = line("counts").toInt,
-        numIteration = line("numIteration").toInt
+        observations = line("counts").toInt,
+        iterations = line("iterations").toInt
       )
     )
   }
@@ -92,31 +92,45 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[DriveTimeSkimmerInternal])
-      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
+      .getOrElse(DriveTimeSkimmerInternal(0, 0)) // no skim means no observation
     val currSkim = currIteration
       .map(_.asInstanceOf[DriveTimeSkimmerInternal])
-      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
+      .getOrElse(
+        DriveTimeSkimmerInternal(
+          0,
+          0,
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber + 1
+        )
+      ) // no current skim means 0 observation
     DriveTimeSkimmerInternal(
-      timeSimulated = (prevSkim.timeSimulated * prevSkim.numIteration + currSkim.timeSimulated * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
+      timeSimulated = (prevSkim.timeSimulated * prevSkim.iterations + currSkim.timeSimulated * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
-      numObservations = (prevSkim.numObservations * prevSkim.numIteration + currSkim.numObservations * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      numIteration = prevSkim.numIteration + currSkim.numIteration
+      observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      iterations = prevSkim.iterations + currSkim.iterations
     )
   }
 
-  protected def aggregateWithinAnIteration(
+  protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
       .map(_.asInstanceOf[DriveTimeSkimmerInternal])
-      .getOrElse(DriveTimeSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
+      .getOrElse(
+        DriveTimeSkimmerInternal(
+          0,
+          0,
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber + 1
+        )
+      )
     val currSkim = currObservation.asInstanceOf[DriveTimeSkimmerInternal]
     DriveTimeSkimmerInternal(
-      timeSimulated = (prevSkim.timeSimulated * prevSkim.numObservations + currSkim.timeSimulated * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
+      timeSimulated = (prevSkim.timeSimulated * prevSkim.observations + currSkim.timeSimulated * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
-      numObservations = prevSkim.numObservations + currSkim.numObservations,
-      numIteration = beamServices.matsimServices.getIterationNumber + 1
+      observations = prevSkim.observations + currSkim.observations,
+      iterations = prevSkim.iterations
     )
   }
 }
@@ -130,10 +144,10 @@ object DriveTimeSkimmer extends LazyLogging {
   case class DriveTimeSkimmerInternal(
     timeSimulated: Double,
     timeObserved: Double,
-    numObservations: Int = 1,
-    numIteration: Int = 0
+    observations: Int = 0,
+    iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = timeSimulated + "," + timeObserved + "," + numObservations + "," + numIteration
+    override def toCsv: String = timeSimulated + "," + timeObserved + "," + observations + "," + iterations
   }
 
 }
