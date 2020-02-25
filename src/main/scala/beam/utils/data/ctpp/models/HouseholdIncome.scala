@@ -31,7 +31,7 @@ object HouseholdIncome {
     override def range: Range = 25000 to 34999
   }
   case object `$35,000-$49,999` extends HouseholdIncome {
-    override def range: Range = 25000 to 34999
+    override def range: Range = 35000 to 49999
   }
   case object `$50,000-$74,999` extends HouseholdIncome {
     override def range: Range = 50000 to 74999
@@ -43,6 +43,6 @@ object HouseholdIncome {
     override def range: Range = 100000 to 149999
   }
   case object `$150,000 or more` extends HouseholdIncome {
-    override def range: Range = 150000 to Int.MaxValue
+    override def range: Range = 150000 to 150001
   }
 }
