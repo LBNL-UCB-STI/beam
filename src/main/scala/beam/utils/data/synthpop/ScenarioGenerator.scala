@@ -88,13 +88,17 @@ class SimpleScenarioGenerator(
     val workedDurationGeneratorImpl = new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
 
     val households =
-      new HouseholdReader(pathToHouseholdFile).read().map { hh =>
-        val updatedHh = if (hh.income < 0) {
-          logger.warn(s"Income for household[${hh.id}] is negative: ${hh.income}, setting it to zero")
-          hh.copy(income = 0)
-        } else hh
-        updatedHh
-      }.groupBy(x => x.id).map { case (hhId, xs) => hhId -> xs.head }
+      new HouseholdReader(pathToHouseholdFile)
+        .read()
+        .map { hh =>
+          val updatedHh = if (hh.income < 0) {
+            logger.warn(s"Income for household[${hh.id}] is negative: ${hh.income}, setting it to zero")
+            hh.copy(income = 0)
+          } else hh
+          updatedHh
+        }
+        .groupBy(x => x.id)
+        .map { case (hhId, xs) => hhId -> xs.head }
     val householdIdToPersons = new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
     val householdWithPersons = householdIdToPersons.map {
       case (hhId, persons) =>

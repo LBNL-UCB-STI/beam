@@ -37,7 +37,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val maybeAttribs: Option[AttributesOfIndividual] = Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
+      val maybeAttribs: Option[AttributesOfIndividual] =
+        Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
 
       // `personAttributes.getAttribute(...)` can return `null`
       val excludedModes = Option(
@@ -56,7 +57,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
-      val isMale = maybeAttribs.map(_.isMale).getOrElse(personAttributes.getAttribute(person.getId.toString, "sex") == "F")
+      val isMale =
+        maybeAttribs.map(_.isMale).getOrElse(personAttributes.getAttribute(person.getId.toString, "sex") == "F")
       val values = Seq(
         person.getId.toString,
         personAge,
