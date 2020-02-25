@@ -528,6 +528,19 @@ object SimpleScenarioGenerator {
     val pathToWorkedHours = args(7)
     val pathToOsmMap = args(8)
 
+    /*
+    Args:
+    "C:\repos\synthpop\demos\household_TX_Travis County.csv"
+    "C:\repos\synthpop\demos\people_TX_Travis County.csv"
+    "D:\Work\beam\Austin\2012-2016 CTPP documentation\tx\48"
+    "D:\Work\beam\Austin\Census\tl_2014_48_puma10\tl_2014_48_puma10.shp"
+    "C:\Users\User\Downloads\ipums_migpuma_pwpuma_2010\ipums_migpuma_pwpuma_2010.shp"
+    "D:\Work\beam\Austin\Census\tl_2019_48_bg\tl_2019_48_bg.shp"
+    "D:\Work\beam\Austin\CongestionLevel_Austin.csv"
+    "D:\Work\beam\Austin\work_activities_all_us.csv"
+    "D:\Work\beam\Austin\texas-a-bit-bigger.osm.pbf"
+    * */
+
     val gen =
       new SimpleScenarioGenerator(
         pathToHouseholdFile,
