@@ -4,6 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import beam.utils.Statistics
 import beam.utils.data.ctpp.JointDistribution
+import com.typesafe.scalalogging.LazyLogging
+
+import scala.util.control.NonFatal
 
 trait WorkedDurationGenerator {
 
@@ -14,7 +17,7 @@ trait WorkedDurationGenerator {
   def next(rangeWhenLeftHome: Range): Int
 }
 
-class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends WorkedDurationGenerator {
+class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends WorkedDurationGenerator with LazyLogging {
   private val jd = JointDistribution.fromCsvFile(pathToCsv = pathToCsv, seed = randomSeed,
     columnMapping = Map(
       "startTimeIndex" -> JointDistribution.RANGE_COLUMN_TYPE,
@@ -28,12 +31,19 @@ class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends Wo
    * @return Worked duration in seconds
    */
   override def next(rangeWhenLeftHome: Range): Int = {
-    val startHour = TimeUnit.SECONDS.toHours(rangeWhenLeftHome.start)
-    val endHour = TimeUnit.SECONDS.toHours(rangeWhenLeftHome.end)
+    val startHour = rangeWhenLeftHome.start / 3600.0
+    val endHour = rangeWhenLeftHome.end / 3600.0
     val startTimeIndexStr = s"$startHour, $endHour"
-    val sample = jd.getSample(true, ("startTimeIndex", Left(startTimeIndexStr)))
-    val workDuration = sample("durationIndex").toDouble
-    TimeUnit.HOURS.toSeconds(workDuration.toLong).toInt
+    try {
+      val sample = jd.getSample(true, ("startTimeIndex", Left(startTimeIndexStr)))
+      val workDuration = sample("durationIndex").toDouble
+      TimeUnit.HOURS.toSeconds(workDuration.toLong).toInt
+    }
+    catch {
+      case NonFatal(ex) =>
+        logger.warn(s"Can't compute worked duration. startTimeIndexStr: '$startTimeIndexStr',  rangeWhenLeftHome: $rangeWhenLeftHome: ${ex.getMessage}", ex)
+        TimeUnit.HOURS.toSeconds(7).toInt
+    }
   }
 }
 
