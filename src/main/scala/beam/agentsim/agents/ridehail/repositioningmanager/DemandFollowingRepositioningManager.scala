@@ -91,9 +91,11 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
 
-  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
-    createClusters
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createHexClusters", x => logger.info(x)) {
+    createHexClusters
   }
+
+  println(timeBinToClusters.size)
 
   def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
@@ -250,14 +252,14 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
           else {
             acts
               .map(_.getCoord)
-              .groupBy(c => beamServices.beamScenario.h3taz.getHRHex(c.getX, c.getX))
+              .groupBy(c => beamServices.beamScenario.h3taz.getIndex(c.getX, c.getX))
               .map {
                 case (hex, group) =>
                   val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
                   logger.debug(s"HexIndex: $hex")
                   logger.debug(s"Size: ${group.size}")
                   logger.debug(s"Center: $centroid")
-                  ClusterInfo(group.size, beamServices.beamScenario.h3taz.getCentroid(hex), group.toIndexedSeq)
+                  ClusterInfo(group.size, centroid, group.toIndexedSeq)
               }
               .toArray
           }

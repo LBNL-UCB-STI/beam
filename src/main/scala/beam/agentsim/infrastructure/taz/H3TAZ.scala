@@ -16,11 +16,13 @@ import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 import scala.collection.JavaConverters._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
-  private val transformToH3Proj =
+  private val toH3CoordSystem =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
+  private val toScenarioCoordSystem =
+    new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
 
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
-    network.getNodes.values().asScala.map(n => transformToH3Proj.transform(n.getCoord))
+    network.getNodes.values().asScala.map(n => toH3CoordSystem.transform(n.getCoord))
   )
   private val resolution = beamConfig.beam.router.skim.h3Resolution
   private val fillBoxResult: Iterable[String] =
@@ -31,41 +33,30 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
     ProfilingUtils.timed(s"Constructed tazToH3TAZMapping", str => logger.info(str)) {
-      val transformation =
-        new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
       fillBoxResult.par
         .map { hex =>
-          val hexCentroid = getCentroid(hex)
-          val hexCentroidBis = transformation.transform(hexCentroid)
-          val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
+          val centroid = getCentroid(hex)
+          val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
           (hex, tazId)
         }
         .toMap
         .seq
     }
 
-  def getAll: Iterable[HexIndex] = {
-    tazToH3TAZMapping.keys
-  }
+  def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
+  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
+  def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
+  def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
 
-  def getHRHex(x: Double, y: Double): HexIndex = {
-    val coord = H3TAZ.toGeoCoord(transformToH3Proj.transform(new Coord(x, y)))
+  def getIndex(c: Coord): HexIndex = {
+    val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, resolution)
-  }
-
-  def getHRHex(tazId: Id[TAZ]): Iterable[HexIndex] = {
-    tazToH3TAZMapping.filter(_._2 == tazId).keys
-  }
-
-  def getTAZ(hex: HexIndex): Id[TAZ] = {
-    tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   }
 
   def getCentroid(hex: HexIndex): Coord = {
     val coordinate = toJtsCoordinate(H3.h3ToGeo(hex))
-    new Coord(coordinate.x, coordinate.y)
+    toScenarioCoordSystem.transform(new Coord(coordinate.x, coordinate.y))
   }
-
 }
 
 object H3TAZ {
