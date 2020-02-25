@@ -269,7 +269,7 @@ class SimpleScenarioGenerator(
                         PopulationUtils.createAndAddLeg(plan, "")
 
                         val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                        val margin = 1.0
+                        val margin = 1.3
                         val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
                         distances += distance
                         val travelTime =
