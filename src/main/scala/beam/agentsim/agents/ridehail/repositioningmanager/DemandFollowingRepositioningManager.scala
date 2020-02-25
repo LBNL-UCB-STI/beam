@@ -174,13 +174,12 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val maxDemandCLuster = topNClosest.maxBy(_._1.size)
         val maxDistance = Math.max(1.0, maxDistanceCluster._2)
         val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-        val demandCoef = 0.3
-        val distCoef = 0.7
+        val demandCoef = 0.9
         val pmf = topNClosest.map {
           case (x, dist) =>
             new CPair[ClusterInfo, java.lang.Double](
               x,
-              demandCoef * x.size.toDouble / maxDemand + distCoef * (1 - dist.toDouble / maxDistance)
+              demandCoef * x.size.toDouble / maxDemand + (1-demandCoef) * (1 - dist.toDouble / maxDistance)
             )
         }.toList
 
