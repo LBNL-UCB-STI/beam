@@ -73,6 +73,7 @@ class BeamMobsim @Inject()(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory
@@ -140,6 +141,19 @@ class BeamMobsimIteration(
   )
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
+
+  val chargingEventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents)
+      Some(
+        context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+      )
+    else None
+
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setChargingEventsAccumulator(chargingEventsAccumulator)
+    case _ =>
+  }
 
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
