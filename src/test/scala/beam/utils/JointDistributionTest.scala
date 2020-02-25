@@ -6,9 +6,10 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 class JointDistributionTest extends WordSpecLike with Matchers {
 
-  val jointDistribution = JointDistribution(
-    "test/input/beamville/test-data/joint-distribution.csv",
-    Map(
+  val jointDistribution = JointDistribution.fromCsvFile(
+    pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",
+    seed = 42,
+    columnMapping = Map(
       "age"            -> JointDistribution.DOUBLE_COLUMN_TYPE,
       "startTimeIndex" -> JointDistribution.RANGE_COLUMN_TYPE,
       "durationIndex"  -> JointDistribution.RANGE_COLUMN_TYPE,
