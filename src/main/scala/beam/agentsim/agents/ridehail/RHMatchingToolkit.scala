@@ -230,7 +230,8 @@ object RHMatchingToolkit {
     beamServices: BeamServices
   ): CustomerRequest = {
     val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec
-    val travelTimeDelayAsFraction = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxExcessRideTime
+    val travelTimeDelayAsFraction =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxExcessRideTime
 
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
@@ -292,7 +293,8 @@ object RHMatchingToolkit {
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
 
     val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec
-    val travelTimeDelayAsFraction = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxExcessRideTime
+    val travelTimeDelayAsFraction =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxExcessRideTime
 
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach {

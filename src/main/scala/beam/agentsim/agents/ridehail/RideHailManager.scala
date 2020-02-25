@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -268,7 +272,9 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
+  val radiusInMeters
+    : Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec * SkimsUtils
+    .speedMeterPerSec(BeamMode.CAV)
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 

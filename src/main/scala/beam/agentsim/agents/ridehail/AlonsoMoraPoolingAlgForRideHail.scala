@@ -30,8 +30,10 @@ class AlonsoMoraPoolingAlgForRideHail(
 ) extends RHMatchingAlgorithm {
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
-  private def solutionSpaceSizePerVehicle: Int = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
-  private def waitingTimeInSec: Int = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec
+  private def solutionSpaceSizePerVehicle: Int =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
+  private def waitingTimeInSec: Int =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec
   private implicit val services = beamServices
 
   // a greedy assignment using a cost function

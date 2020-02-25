@@ -4,7 +4,7 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.{ODSkims, Skims}
+import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -91,8 +91,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
 
-  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
-    createClusters
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createHexClusters", x => logger.info(x)) {
+    createHexClusters
   }
 
   def repositionVehicles(
@@ -168,15 +168,20 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
         // We get top N closest clusters and randomly pick one of them.
         // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
-        val topNClosest = clusters.map(x => (x, beamServices.geo.distUTMInMeters(x.coord, vehicleLocation))).sortBy(_._2).take(N)
+        val topNClosest =
+          clusters.map(x => (x, beamServices.geo.distUTMInMeters(x.coord, vehicleLocation))).sortBy(_._2).take(N)
         val maxDistanceCluster = topNClosest.maxBy(_._2)
         val maxDemandCLuster = topNClosest.maxBy(_._1.size)
         val maxDistance = Math.max(1.0, maxDistanceCluster._2)
         val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
         val demandCoef = 0.5
         val distCoef = 0.5
-        val pmf = topNClosest.map { case (x, dist) =>
-          new CPair[ClusterInfo, java.lang.Double](x, demandCoef * x.size.toDouble/maxDemand + distCoef * (1-dist.toDouble/maxDistance))
+        val pmf = topNClosest.map {
+          case (x, dist) =>
+            new CPair[ClusterInfo, java.lang.Double](
+              x,
+              demandCoef * x.size.toDouble / maxDemand + distCoef * (1 - dist.toDouble / maxDistance)
+            )
         }.toList
 
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
@@ -232,6 +237,30 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
                 logger.error("err clustering", ex)
                 throw ex
             }
+          }
+        timeBin -> clusters
+    }
+  }
+
+  private def createHexClusters: Map[Int, Array[ClusterInfo]] = {
+    // Build clusters for every time bin. Number of clusters is configured
+    timeBinToActivities.map {
+      case (timeBin, acts) =>
+        val clusters =
+          if (acts.isEmpty) Array.empty[ClusterInfo]
+          else {
+            acts
+              .map(_.getCoord)
+              .groupBy(c => beamServices.beamScenario.h3taz.getHRHex(c.getX, c.getX))
+              .map {
+                case (hex, group) =>
+                  val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
+                  logger.debug(s"HexIndex: $hex")
+                  logger.debug(s"Size: ${group.size}")
+                  logger.debug(s"Center: $centroid")
+                  ClusterInfo(group.size, beamServices.beamScenario.h3taz.getCentroid(hex), group.toIndexedSeq)
+              }
+              .toArray
           }
         timeBin -> clusters
     }
