@@ -138,9 +138,12 @@ class BeamMobsimIteration(
     "scheduler"
   )
 
-  val chargingEventsAccumulator: Option[ActorRef] = Some(
-    context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
-  )
+  val chargingEventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents)
+      Some(
+        context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+      )
+    else None
 
   eventsManager match {
     case lem: LoggingEventsManager =>

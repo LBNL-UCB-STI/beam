@@ -22,7 +22,7 @@ object ChargingEventsAccumulator {
 class ChargingEventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Actor {
   import ChargingEventsAccumulator._
 
-  val timeout: Int = 100
+  val timeout: Int = beamConfig.beam.agentsim.agents.vehicles.collectChargingEventsIntervalInSeconds
 
   val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
