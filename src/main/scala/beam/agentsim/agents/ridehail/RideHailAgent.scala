@@ -49,8 +49,7 @@ object RideHailAgent {
     vehicle: BeamVehicle,
     location: Coord,
     shifts: Option[List[Range]],
-    geofence: Option[Geofence],
-    chargingEventsAccumulator: Option[ActorRef]
+    geofence: Option[Geofence]
   ) =
     Props(
       new RideHailAgent(
@@ -66,8 +65,7 @@ object RideHailAgent {
         services,
         beamScenario,
         transportNetwork,
-        tollCalculator,
-        chargingEventsAccumulator
+        tollCalculator
       )
     )
 
@@ -172,8 +170,7 @@ class RideHailAgent(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
-  val tollCalculator: TollCalculator,
-  override val chargingEventsAccumulator: Option[ActorRef]
+  val tollCalculator: TollCalculator
 ) extends BeamAgent[RideHailAgentData]
     with DrivesVehicle[RideHailAgentData]
     with Stash {
@@ -639,11 +636,6 @@ class RideHailAgent(
       vehicle.beamVehicleType
     )
     eventsManager.processEvent(refuelSessionEvent)
-    chargingEventsAccumulator match {
-      case Some(acc) => acc ! refuelSessionEvent
-      case None      =>
-    }
-
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
     //If so then note it would still need to check the queue and any other localized cleanup

@@ -138,8 +138,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            boundingBox,
-            chargingEventsAccumulator = None
+            boundingBox
           )
         )
       )
@@ -284,8 +283,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            boundingBox,
-            None
+            boundingBox
           )
         )
       )
@@ -522,8 +520,7 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          boundingBox,
-          None
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

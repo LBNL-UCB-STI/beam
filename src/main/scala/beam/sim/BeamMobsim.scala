@@ -186,8 +186,7 @@ class BeamMobsimIteration(
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        routeHistory,
-        chargingEventsAccumulator
+        routeHistory
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -230,8 +229,7 @@ class BeamMobsimIteration(
         tollCalculator,
         geo,
         networkHelper,
-        matsimServices.getEvents,
-        chargingEventsAccumulator
+        matsimServices.getEvents
       )
     ),
     "transit-system"
@@ -253,8 +251,7 @@ class BeamMobsimIteration(
       sharedVehicleFleets,
       matsimServices.getEvents,
       routeHistory,
-      envelopeInUTM,
-      chargingEventsAccumulator
+      envelopeInUTM
     ),
     "population"
   )

@@ -68,8 +68,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    boundingBox: Envelope,
-    chargingEventsAccumulator: Option[ActorRef]
+    boundingBox: Envelope
   ): Props = {
     Props(
       new HouseholdActor(
@@ -89,8 +88,7 @@ object HouseholdActor {
         homeCoord,
         sharedVehicleFleets,
         routeHistory,
-        boundingBox,
-        chargingEventsAccumulator
+        boundingBox
       )
     )
   }
@@ -130,8 +128,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    boundingBox: Envelope,
-    chargingEventsAccumulator: Option[ActorRef]
+    boundingBox: Envelope
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -194,8 +191,7 @@ object HouseholdActor {
                 cav,
                 Seq(),
                 transportNetwork,
-                tollCalculator,
-                chargingEventsAccumulator
+                tollCalculator
               ),
               s"cavDriver-${cav.id.toString}"
             )
@@ -283,8 +279,7 @@ object HouseholdActor {
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets,
               routeHistory,
-              boundingBox,
-              chargingEventsAccumulator
+              boundingBox
             ),
             person.getId.toString
           )

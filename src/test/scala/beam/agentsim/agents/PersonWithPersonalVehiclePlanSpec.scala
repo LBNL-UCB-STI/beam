@@ -127,8 +127,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            boundingBox,
-            None
+            boundingBox
           )
         )
       )
@@ -350,8 +349,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            boundingBox,
-            None
+            boundingBox
           )
         )
       )
@@ -494,8 +492,7 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          boundingBox,
-          None
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -591,8 +588,7 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          boundingBox,
-          None
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
