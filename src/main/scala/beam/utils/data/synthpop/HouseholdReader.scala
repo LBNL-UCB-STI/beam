@@ -21,11 +21,25 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
     // Get the details of columns from https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2017.pdf?
 
     val id = GenericCsvReader.getIfNotNull(rec, "id").toString
-    val numOfPersons = Option(rec.get("NP")).map(_.toInt).getOrElse(0)
-    val numOfVehicles = Option(rec.get("VEH")).map(_.toDouble.toInt).getOrElse(0)
-    val income = Option(rec.get("FINCP")).map(_.toDouble).getOrElse(0.0)
-    val numOfChildren = Option(rec.get("NOC")).map(_.toDouble.toInt).getOrElse(0)
-    val numOfWorkers = Option(rec.get("WIF")).map(_.toDouble.toInt).getOrElse(0)
+    val numOfPersons = Option(rec.get("NP")).map(_.toInt).getOrElse {
+      logger.warn(s"Could not find `NP` field in ${rec.toString}")
+      0
+    }
+    val numOfVehicles = Option(rec.get("VEH")).map(_.toDouble.toInt).getOrElse {
+      logger.warn(s"Could not find `VEH` field in ${rec.toString}")
+      0
+    }
+    val income = Option(rec.get("HINCP")).map(_.toDouble).getOrElse {
+      logger.warn(s"Could not find `HINCP` field in ${rec.toString}")
+      0.0
+    }
+    // TODO FIX SythPop, https://github.com/LBNL-UCB-STI/synthpop/blob/master/synthpop/recipes/starter2.py to make sure we have exact number of children.
+    // For now we assume than if there `hh_children == yes` then it is 1 otherwise 0
+    val numOfChildren = if (Option(rec.get("hh_children")).contains("yes")) 1 else 0
+    val numOfWorkers = Option(rec.get("workers")).map(_.toDouble.toInt).getOrElse {
+      logger.warn(s"Could not find `workers` field in ${rec.toString}")
+      0
+    }
 
     // Read geoid
     val state = GenericCsvReader.getIfNotNull(rec, "state").toString
