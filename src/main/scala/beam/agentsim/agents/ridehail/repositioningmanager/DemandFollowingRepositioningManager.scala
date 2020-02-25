@@ -168,9 +168,15 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
         // We get top N closest clusters and randomly pick one of them.
         // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
-        val topNClosest = clusters.sortBy(x => beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)).take(N)
-        val pmf = topNClosest.map { x =>
-          new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble)
+        val topNClosest = clusters.map(x => (x, beamServices.geo.distUTMInMeters(x.coord, vehicleLocation))).sortBy(_._2).take(N)
+        val maxDistanceCluster = topNClosest.maxBy(_._2)
+        val maxDemandCLuster = topNClosest.maxBy(_._1.size)
+        val maxDistance = Math.max(1.0, maxDistanceCluster._2)
+        val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
+        val demandCoef = 0.5
+        val distCoef = 0.5
+        val pmf = topNClosest.map { case (x, dist) =>
+          new CPair[ClusterInfo, java.lang.Double](x, demandCoef * x.size.toDouble/maxDemand + distCoef * (1-dist.toDouble/maxDistance))
         }.toList
 
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
