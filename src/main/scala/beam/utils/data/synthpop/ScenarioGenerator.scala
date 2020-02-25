@@ -88,10 +88,10 @@ class SimpleScenarioGenerator(
     val households =
       new HouseholdReader(pathToHouseholdFile).read().groupBy(x => x.id).map { case (hhId, xs) => hhId -> xs.head }
     val householdIdToPersons = new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
-    val householdWithPersons = householdIdToPersons.flatMap {
+    val householdWithPersons = householdIdToPersons.map {
       case (hhId, persons) =>
-        val household = households.get(hhId)
-        household.map(x => (x, persons))
+        val household = households(hhId)
+        (household, persons)
     }
     logger.info(s"householdWithPersons: ${householdWithPersons.size}")
     val uniqueStates = households.map(_._2.geoId.state).toSet
@@ -290,7 +290,7 @@ class SimpleScenarioGenerator(
 
                         (matsimPerson :: xs, nextPersonId + 1)
                       } else {
-                        logger.info(s"Coordinate $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
+                        logger.info(s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
                         (xs, nextPersonId + 1)
                       }
                     case None =>
@@ -305,6 +305,9 @@ class SimpleScenarioGenerator(
 
               scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmHouseholdCoord.getX)
               scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmHouseholdCoord.getY)
+            }
+            else {
+              logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
             }
         }
     }
@@ -497,9 +500,9 @@ class SimpleScenarioGenerator(
         val lat = x.fixedLat / 10000000.0
 
         if (lon < minX) minX = lon
-        if (lon > maxY) maxX = lon
+        if (lon > maxX) maxX = lon
         if (lat < minY) minY = lat
-        if (lat < minX) maxY = lat
+        if (lat > maxY) maxY = lat
       }
       new Envelope(minX, maxX, minY, maxY)
     } finally {
