@@ -25,7 +25,7 @@ class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val randomS
   override def next(homeLocation: PumaGeoId, income: Double): Option[PowPumaGeoId] = {
     householdGeoIdToIncomeOD.get(homeLocation.asUniqueKey) match {
       case Some(xs) =>
-        val incomeInRange = xs.filter(od => od.attribute.range.contains(income.toInt))
+        val incomeInRange = xs.filter(od => od.attribute.contains(income.toInt))
         if (incomeInRange.isEmpty) {
           logger.info(s"Could not find OD with income ${income} in ${xs.mkString(" ")}")
         }
