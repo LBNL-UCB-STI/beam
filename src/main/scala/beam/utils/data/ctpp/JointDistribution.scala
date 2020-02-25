@@ -29,7 +29,14 @@ object JointDistribution extends GenericCsvReader {
     } finally {
       Try(toClose.close())
     }
-    new JointDistribution(mappedArray, seed, columnMapping)
+
+    val detectedColumn = mappedArray(0).map{
+      case(key, value) => (key, if(value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    }
+    if(columnMapping.nonEmpty)
+      new JointDistribution(mappedArray, seed, columnMapping)
+    else
+      new JointDistribution(mappedArray, seed, detectedColumn)
   }
 }
 
