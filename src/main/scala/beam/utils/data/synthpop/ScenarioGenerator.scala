@@ -24,16 +24,18 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.{
   HouseholdsFactoryImpl,
   HouseholdsImpl,
+  HouseholdsWriterV10,
   Income,
   IncomeImpl,
   Household => MatsimHousehold,
   Households => MatsimHouseholds
 }
-import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.opengis.feature.simple.SimpleFeature
 
 import scala.collection.JavaConverters._
@@ -290,7 +292,8 @@ class SimpleScenarioGenerator(
 
                         (matsimPerson :: xs, nextPersonId + 1)
                       } else {
-                        logger.info(s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
+                        logger
+                          .info(s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
                         (xs, nextPersonId + 1)
                       }
                     case None =>
@@ -305,8 +308,7 @@ class SimpleScenarioGenerator(
 
               scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmHouseholdCoord.getX)
               scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmHouseholdCoord.getY)
-            }
-            else {
+            } else {
               logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
             }
         }
@@ -539,7 +541,7 @@ object SimpleScenarioGenerator {
     "D:\Work\beam\Austin\CongestionLevel_Austin.csv"
     "D:\Work\beam\Austin\work_activities_all_us.csv"
     "D:\Work\beam\Austin\texas-a-bit-bigger.osm.pbf"
-    * */
+     * */
 
     val gen =
       new SimpleScenarioGenerator(
@@ -560,7 +562,10 @@ object SimpleScenarioGenerator {
     scenario.setHouseholds(households)
     scenario.setPopulation(population)
 
-    println(scenario)
+    new HouseholdsWriterV10(households).writeFile("households.xml.gz")
+    new PopulationWriter(population).write("population.xml.gz")
+    new ObjectAttributesXmlWriter(households.getHouseholdAttributes).writeFile("householdAttributes.xml.gz")
+    new ObjectAttributesXmlWriter(population.getPersonAttributes).writeFile(s"populationAttributes.xml.gz")
 
     try {
       PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
