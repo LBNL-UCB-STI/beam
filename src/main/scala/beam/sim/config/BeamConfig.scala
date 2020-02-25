@@ -16,7 +16,6 @@ object BeamConfig {
     debug: BeamConfig.Beam.Debug,
     exchange: BeamConfig.Beam.Exchange,
     experimental: BeamConfig.Beam.Experimental,
-    h3: BeamConfig.Beam.H3,
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
@@ -1896,21 +1895,6 @@ object BeamConfig {
       }
     }
 
-    case class H3(
-      lowerBoundResolution: scala.Int,
-      resolution: scala.Int
-    )
-
-    object H3 {
-
-      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.H3 = {
-        BeamConfig.Beam.H3(
-          lowerBoundResolution = if (c.hasPathOrNull("lowerBoundResolution")) c.getInt("lowerBoundResolution") else 10,
-          resolution = if (c.hasPathOrNull("resolution")) c.getInt("resolution") else 10
-        )
-      }
-    }
-
     case class Logger(
       keepConsoleAppenderOn: scala.Boolean
     )
@@ -2225,6 +2209,7 @@ object BeamConfig {
     object Router {
       case class Skim(
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
+        h3Resolution: scala.Int,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
@@ -2275,7 +2260,8 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
-          name: java.lang.String
+          name: java.lang.String,
+          timeBin: scala.Int
         )
 
         object TazSkimmer {
@@ -2283,7 +2269,8 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer",
+              timeBin = if (c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 300
             )
           }
         }
@@ -2294,6 +2281,7 @@ object BeamConfig {
               if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
             ),
+            h3Resolution = if (c.hasPathOrNull("h3Resolution")) c.getInt("h3Resolution") else 6,
             keepKLatestSkims = if (c.hasPathOrNull("keepKLatestSkims")) c.getInt("keepKLatestSkims") else 1,
             origin_destination_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
               if (c.hasPathOrNull("origin-destination-skimmer")) c.getConfig("origin-destination-skimmer")
@@ -2455,8 +2443,6 @@ object BeamConfig {
           if (c.hasPathOrNull("experimental")) c.getConfig("experimental")
           else com.typesafe.config.ConfigFactory.parseString("experimental{}")
         ),
-        h3 = BeamConfig.Beam
-          .H3(if (c.hasPathOrNull("h3")) c.getConfig("h3") else com.typesafe.config.ConfigFactory.parseString("h3{}")),
         inputDirectory =
           if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory") else "/test/input/beamville",
         logger = BeamConfig.Beam.Logger(

@@ -22,7 +22,7 @@ object ParkingZoneSearch {
     * where traversal either terminates in an un-defined branch (no options found),
     * or a leaf, which contains the index of a ParkingZone in the ParkingZones lookup array
     * with the matching attributes. type parameter A is a tag from a graph partitioning, such as a TAZ,
-    * or possibly an h3 label.
+    * or possibly an h3 key.
     */
   type ZoneSearchTree[A] = Map[Id[A], Map[ParkingType, List[Int]]]
 

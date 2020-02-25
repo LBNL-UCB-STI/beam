@@ -16,6 +16,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
 import beam.router.osm.TollCalculator
+import beam.router.skim.TAZSkimsCollector
+import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -71,7 +73,6 @@ class BeamMobsim @Inject()(
       Props(
         new BeamMobsimIteration(
           beamServices,
-          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory
@@ -137,20 +138,6 @@ class BeamMobsimIteration(
     ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
     "scheduler"
   )
-
-  val chargingEventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents)
-      Some(
-        context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
-      )
-    else None
-
-  eventsManager match {
-    case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setChargingEventsAccumulator(chargingEventsAccumulator)
-    case _ =>
-  }
-
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
@@ -263,6 +250,14 @@ class BeamMobsimIteration(
 
   scheduleRideHailManagerTimerMessages()
 
+  //to monitor with TAZSkimmer add actor hereinafter
+  private val tazSkimmer = context.actorOf(
+    TAZSkimsCollector.props(scheduler, beamServices, rideHailManager +: sharedVehicleFleets),
+    "taz-skims-collector"
+  )
+  context.watch(tazSkimmer)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
+
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
     system: ActorSystem,
@@ -292,6 +287,7 @@ class BeamMobsimIteration(
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
+      tazSkimmer ! Finish
       if (chargingEventsAccumulator.isDefined) {
         chargingEventsAccumulator.get ! Finish
       }
@@ -299,6 +295,7 @@ class BeamMobsimIteration(
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
+      context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)
