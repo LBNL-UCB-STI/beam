@@ -91,8 +91,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
 
-  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createHexClusters", x => logger.info(x)) {
-    createHexClusters
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
+    createClusters
   }
 
   println(timeBinToClusters.size)
@@ -176,7 +176,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val maxDemandCLuster = topNClosest.maxBy(_._1.size)
         val maxDistance = Math.max(1.0, maxDistanceCluster._2)
         val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-        val demandCoef = 0.7
+        val demandCoef = 0.97
         val pmf = topNClosest.map {
           case (x, dist) =>
             new CPair[ClusterInfo, java.lang.Double](
