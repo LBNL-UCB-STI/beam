@@ -10,7 +10,7 @@ trait PointGenerator {
   def generate(geometry: Geometry, nPoints: Int): Seq[Coord]
 }
 
-object RandomPointsInGridGenerator extends PointGenerator {
+class RandomPointsInGridGenerator(val growthCoeff: Double) extends PointGenerator {
   private val projection: Int = 4326
   private val geometryFactory: GeometryFactory = new GeometryFactory(new PrecisionModel(), projection)
 
@@ -32,9 +32,9 @@ object RandomPointsInGridGenerator extends PointGenerator {
 
       if (points.size >= nPoints) return points.take(nPoints)
 
-      generate((n * 1.1).toInt)
+      generate((n * growthCoeff).toInt)
     }
 
-    generate((nPoints * 1.1).toInt)
+    generate((nPoints * growthCoeff).toInt)
   }
 }
