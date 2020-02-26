@@ -28,6 +28,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.csv.readers
+import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
@@ -584,11 +585,17 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim") {
+      if (src == "urbansim" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
-          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          val source = if (src == "urbansim") {
+            buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          }
+          else {
+            // FIXME
+            new GenericScenarioSource("C:/repos/beam/temp_households.csv", "C:/repos/beam/temp_persons.csv", "C:/repos/beam/temp_plans.csv")
+          }
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
