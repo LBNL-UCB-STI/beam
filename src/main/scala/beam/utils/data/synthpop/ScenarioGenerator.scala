@@ -12,6 +12,8 @@ import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
+import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
+import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import beam.utils.scenario.{HouseholdId, HouseholdInfo, PersonId, PersonInfo, PlanElement}
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
@@ -594,6 +596,25 @@ object SimpleScenarioGenerator {
 
     val generatedData = gen.generate
     println(s"generatedData: ${generatedData.size}")
+
+    val households = generatedData.map(_._1).toVector
+    CsvHouseholdInfoWriter.write("temp_households.csv", households)
+    val readHouseholds = CsvHouseholdInfoReader.read("temp_households.csv")
+    val areHouseholdsEqual = readHouseholds.toVector == households
+    println(s"areHouseholdsEqual: $areHouseholdsEqual")
+
+    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
+    CsvPersonInfoWriter.write("temp_persons.csv", persons)
+    val readPersons = CsvPersonInfoReader.read("temp_persons.csv")
+    val arePersonsEqual = readPersons.toVector == persons
+    println(s"arePersonsEqual: $arePersonsEqual")
+
+    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
+    CsvPlanElementWriter.write("temp_plans.csv", planElements)
+    val readPlanElements = CsvPlanElementReader.read("temp_plans.csv")
+    val arePlanElementsEqual = readPlanElements.toVector == planElements
+    println(s"arePlanElementsEqual: $arePlanElementsEqual")
+
 //
 //    try {
 //      PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
