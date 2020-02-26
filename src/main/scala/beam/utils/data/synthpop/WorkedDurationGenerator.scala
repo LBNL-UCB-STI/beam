@@ -34,8 +34,8 @@ class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends Wo
     * @return Worked duration in seconds
     */
   override def next(rangeWhenLeftHome: Range): Int = {
-    val startHour = rangeWhenLeftHome.start / 3600.0
-    val endHour = rangeWhenLeftHome.end / 3600.0
+    val startHour = roundToFraction(rangeWhenLeftHome.start / 3600.0, 2)
+    val endHour = roundToFraction(rangeWhenLeftHome.end / 3600.0, 2)
     val startTimeIndexStr = s"$startHour, $endHour"
     try {
       val sample = jd.getSample(true, ("startTimeIndex", Left(startTimeIndexStr)))
@@ -44,12 +44,14 @@ class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends Wo
     } catch {
       case NonFatal(ex) =>
         logger.warn(
-          s"Can't compute worked duration. startTimeIndexStr: '$startTimeIndexStr',  rangeWhenLeftHome: $rangeWhenLeftHome: ${ex.getMessage}",
+          s"Can't compute worked duration. startTimeIndexStr: '$startTimeIndexStr',  rangeWhenLeftHome: $rangeWhenLeftHome. Error: ${ex.getMessage}",
           ex
         )
         TimeUnit.HOURS.toSeconds(7).toInt
     }
   }
+
+  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 }
 
 object WorkedDurationGeneratorImpl {
