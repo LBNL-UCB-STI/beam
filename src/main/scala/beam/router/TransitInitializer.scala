@@ -78,19 +78,6 @@ class TransitInitializer(
         )
     }
 
-    def limitedWarn(stopIdx: Int): Unit = {
-      if (numStopsNotFound < 5) {
-        logger.warn("Stop {} not linked to street network.", stopIdx)
-        numStopsNotFound = numStopsNotFound + 1
-      } else if (numStopsNotFound == 5) {
-        logger.warn(
-          "Stop {} not linked to street network. Further warnings messages will be suppressed",
-          stopIdx
-        )
-        numStopsNotFound = numStopsNotFound + 1
-      }
-    }
-
     def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
@@ -189,42 +176,61 @@ class TransitInitializer(
     fromStopIdx: Int,
     toStopIdx: Int
   ): Option[StreetPath] = {
-    val profileRequest = new ProfileRequest()
-    //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-    val toVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-    profileRequest.fromLon = fromVertex.getLon
-    profileRequest.fromLat = fromVertex.getLat
-    profileRequest.toLon = toVertex.getLon
-    profileRequest.toLat = toVertex.getLat
-    profileRequest.fromTime = 0
-    profileRequest.toTime = beamConfig.beam.routing.r5.departureWindow.toInt
-    profileRequest.date = dates.localBaseDate
-    profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
-    profileRequest.transitModes = null
-    profileRequest.accessModes = profileRequest.directModes
-    profileRequest.egressModes = null
-    val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-    streetRouter.profileRequest = profileRequest
-    streetRouter.streetMode = StreetMode.valueOf("CAR")
-    streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-    if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-      if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
-        streetRouter.route()
-        val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-        if (lastState != null) {
-          Some(new StreetPath(lastState, transportNetwork, false))
+    val fromStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx)
+    val toStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx)
+    if (fromStopIndex == -1 || toStopIndex == -1) {
+      if (fromStopIndex == -1) limitedWarn(fromStopIdx)
+      if (toStopIndex == -1) limitedWarn(toStopIdx)
+      None
+    } else {
+      val profileRequest = new ProfileRequest()
+      //Set timezone to timezone of transport network
+      profileRequest.zoneId = transportNetwork.getTimeZone
+      val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(fromStopIndex)
+      val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(toStopIndex)
+      profileRequest.fromLon = fromVertex.getLon
+      profileRequest.fromLat = fromVertex.getLat
+      profileRequest.toLon = toVertex.getLon
+      profileRequest.toLat = toVertex.getLat
+      profileRequest.fromTime = 0
+      profileRequest.toTime = beamConfig.beam.routing.r5.departureWindow.toInt
+      profileRequest.date = dates.localBaseDate
+      profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
+      profileRequest.transitModes = null
+      profileRequest.accessModes = profileRequest.directModes
+      profileRequest.egressModes = null
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer)
+      streetRouter.profileRequest = profileRequest
+      streetRouter.streetMode = StreetMode.valueOf("CAR")
+      streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
+      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
+        if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+          streetRouter.route()
+          val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+          if (lastState != null) {
+            Some(new StreetPath(lastState, transportNetwork, false))
+          } else {
+            None
+          }
         } else {
           None
         }
       } else {
         None
       }
-    } else {
-      None
+    }
+  }
+
+  def limitedWarn(stopIdx: Int): Unit = {
+    if (numStopsNotFound < 5) {
+      logger.warn("Stop {} not linked to street network.", stopIdx)
+      numStopsNotFound = numStopsNotFound + 1
+    } else if (numStopsNotFound == 5) {
+      logger.warn(
+        "Stop {} not linked to street network. Further warnings messages will be suppressed",
+        stopIdx
+      )
+      numStopsNotFound = numStopsNotFound + 1
     }
   }
 }

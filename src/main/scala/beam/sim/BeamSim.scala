@@ -2,7 +2,8 @@ package beam.sim
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.TimeUnit
+import java.util.Collections
+import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
@@ -28,6 +29,9 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.controler.Controler
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -167,6 +171,10 @@ class BeamSim @Inject()(
     )
 
     val controllerIO = event.getServices.getControlerIO
+
+    // FIXME: Remove this once ready to merge
+    // generateRandomCoordinates()
+
     PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv.gz"))
     VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv.gz"))
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
@@ -345,11 +353,25 @@ class BeamSim @Inject()(
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
+          dumpHouseholdAttributes
+
           // Rename files
           renameGeneratedOutputFiles(event)
         case x =>
           logger.warn("dumper is not `ShutdownListener`")
       }
+    }
+  }
+
+  private def dumpHouseholdAttributes(): Unit = {
+    val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
+    if (householdAttributes != null) {
+      val writer = new ObjectAttributesXmlWriter(householdAttributes)
+      writer.setPrettyPrint(true)
+      writer.putAttributeConverters(Collections.emptyMap())
+      writer.writeFile(
+        beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
+      )
     }
   }
 
@@ -581,4 +603,47 @@ class BeamSim @Inject()(
       }
   }
 
+  private def generateRandomCoordinates(): Unit = {
+    val boundingBox = beamServices.beamScenario.transportNetwork.streetLayer.envelope
+
+    val personToHh = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { h =>
+        h.getMemberIds.asScala.map { m =>
+          (m, h)
+        }
+      }
+      .toMap
+
+    scenario.getPopulation.getPersons.values.asScala.foreach { p =>
+      p.getPlans.asScala.foreach { plan =>
+        plan.getPlanElements.asScala.collect { case act: Activity => act }.zipWithIndex.foreach {
+          case (act: Activity, idx: Int) =>
+            val x = ThreadLocalRandom.current().nextDouble(boundingBox.getMinX, boundingBox.getMaxX)
+            val y = ThreadLocalRandom.current().nextDouble(boundingBox.getMinY, boundingBox.getMaxY)
+            val newCoord = beamServices.geo.wgs2Utm(new Coord(x, y))
+            act.setCoord(newCoord)
+            if (act.getType == "Home") {
+              val hh = personToHh(p.getId)
+              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordx", newCoord.getX)
+              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordy", newCoord.getY)
+            }
+
+          //            if (idx % 2 == 0) {
+//              val x = ThreadLocalRandom.current().nextDouble(-97.781, -97.770)
+//              val y = ThreadLocalRandom.current().nextDouble(30.295, 30.310)
+//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
+//            }
+//            else if (idx % 2 == 1) {
+//              val x = ThreadLocalRandom.current().nextDouble(-97.712, -97.705)
+//              val y = ThreadLocalRandom.current().nextDouble(30.231, 30.237)
+//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
+//            }
+          // logger.info(s"act: $act")
+          case _ =>
+        }
+      }
+    }
+  }
 }
