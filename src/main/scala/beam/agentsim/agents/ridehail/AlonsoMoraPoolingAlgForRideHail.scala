@@ -1,18 +1,12 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
-  CustomerRequest,
-  RHMatchingAlgorithm,
-  RTVGraph,
-  RVGraph,
-  RideHailTrip,
-  VehicleAndSchedule
-}
+import beam.agentsim.agents.ridehail.RHMatchingToolkit._
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
+import com.github.beam.OrToolsLoader
 import com.google.ortools.linearsolver.{MPSolver, MPVariable}
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
@@ -23,11 +17,17 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
+object AlonsoMoraPoolingAlgForRideHail{
+  private lazy val initialize: Unit = OrToolsLoader.load()
+}
+
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   beamServices: BeamServices
 ) extends RHMatchingAlgorithm {
+
+  AlonsoMoraPoolingAlgForRideHail.initialize
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
   private def alonsoMora: AllocationManager.AlonsoMora =
