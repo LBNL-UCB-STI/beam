@@ -162,6 +162,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val nextTimeBin = currentTimeBin + 1
     val fractionOfClosestClusters =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
+    val sensitivityOfDistance =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityOfDistance
 
     timeBinToClusters.get(nextTimeBin).flatMap { clusters =>
       if (clusters.map(_.size).sum == 0) None
@@ -176,8 +178,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val maxDemandCLuster = topNClosest.maxBy(_._1.size)
         val maxDistance = Math.max(1.0, maxDistanceCluster._2)
         val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-        val demandCoef = 0.95
-        val distanceCoef = 1 - demandCoef
+        val distanceCoef = 0.01 * sensitivityOfDistance
+        val demandCoef = 1 - distanceCoef
         val pmf = topNClosest.map {
           case (x, dist) =>
             new CPair[ClusterInfo, java.lang.Double](
