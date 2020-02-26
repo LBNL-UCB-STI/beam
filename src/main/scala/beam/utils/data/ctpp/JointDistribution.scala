@@ -29,7 +29,14 @@ object JointDistribution extends GenericCsvReader {
     } finally {
       Try(toClose.close())
     }
-    new JointDistribution(mappedArray, seed, columnMapping)
+
+    val detectedColumn = mappedArray(0).map{
+      case(key, value) => (key, if(value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    }
+    if(columnMapping.nonEmpty)
+      new JointDistribution(mappedArray, seed, columnMapping)
+    else
+      new JointDistribution(mappedArray, seed, detectedColumn)
   }
 }
 
@@ -48,12 +55,18 @@ class JointDistribution(
     sampleWithinRange: Boolean,
     keyValueTuple: (String, Either[String, CustomRange])*
   ): Map[String, String] = {
+
     val pmf = getRangeList(keyValueTuple: _*)
       .map(
         value =>
           new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
       )
       .toList
+
+    val values = pmf.map(_.getValue)
+    if(values.isEmpty || values.reduce(_ + _) == 0.0) {
+      return Map()
+    }
     val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
     distr.sample()
   }
