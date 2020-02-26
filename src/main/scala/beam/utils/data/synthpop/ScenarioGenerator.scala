@@ -4,7 +4,7 @@ import java.io.File
 
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
-import beam.taz.RandomPointsInGridGenerator
+import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
 import beam.utils.csv.writers.{HouseholdsCsvWriter, PlansCsvWriter, PopulationCsvWriter}
 import beam.utils.{ProfilingUtils, Statistics}
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
@@ -12,6 +12,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
+import beam.utils.scenario.{HouseholdId, HouseholdInfo, PersonId, PersonInfo, PlanElement}
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
@@ -45,10 +46,11 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 trait ScenarioGenerator {
-  def generate: (MatsimHouseholds, MatsimPopulation)
+  def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
 }
 
 case class PersonWithExtraInfo(person: Models.Person, workDest: PowPumaGeoId, timeLeavingHomeRange: Range)
+case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
   val pathToHouseholdFile: String,
@@ -66,7 +68,7 @@ class SimpleScenarioGenerator(
 ) extends ScenarioGenerator
     with StrictLogging {
 
-  val mapBoundingBox: Envelope = getBoundingBoxOfOsmMap(pathToOsmMap)
+  private val mapBoundingBox: Envelope = getBoundingBoxOfOsmMap(pathToOsmMap)
 
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
@@ -82,34 +84,64 @@ class SimpleScenarioGenerator(
 
   private val congestionLevelData: CsvCongestionLevelData = new CsvCongestionLevelData(pathToCongestionLevelDataFile)
 
-  override def generate: (MatsimHouseholds, MatsimPopulation) = {
-    val pathToCTPPData = PathToData(pathToCTPPFolder)
-    val rndWorkDestinationGenerator = new RandomWorkDestinationGenerator(pathToCTPPData, randomSeed)
-    val workedDurationGeneratorImpl = new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
+  private val planElementTemplate: PlanElement = PlanElement(
+    personId = PersonId("1"),
+    planIndex = 0,
+    planScore = 0,
+    planSelected = true,
+    planElementType = "activity",
+    planElementIndex = 1,
+    activityType = None,
+    activityLocationX = None,
+    activityLocationY = None,
+    activityEndTime = None,
+    legMode = None,
+    legDepartureTime = None,
+    legTravelTime = None,
+    legRouteType = None,
+    legRouteStartLink = None,
+    legRouteEndLink = None,
+    legRouteTravelTime = None,
+    legRouteDistance = None,
+    legRouteLinks = Seq.empty
+  )
 
-    val households =
-      new HouseholdReader(pathToHouseholdFile)
-        .read()
-        .map { hh =>
-          val updatedHh = if (hh.income < 0) {
-            logger.warn(s"Income for household[${hh.id}] is negative: ${hh.income}, setting it to zero")
-            hh.copy(income = 0)
-          } else hh
-          updatedHh
-        }
-        .groupBy(x => x.id)
-        .map { case (hhId, xs) => hhId -> xs.head }
-    val householdIdToPersons = new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
-    val householdWithPersons = householdIdToPersons.map {
-      case (hhId, persons) =>
-        val household = households(hhId)
-        (household, persons)
-    }
-    logger.info(s"householdWithPersons: ${householdWithPersons.size}")
-    val uniqueStates = households.map(_._2.geoId.state).toSet
+  private val pathToCTPPData = PathToData(pathToCTPPFolder)
+  private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
+    new RandomWorkDestinationGenerator(pathToCTPPData, randomSeed)
+  private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
+    new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
+  private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
+    ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
+  private val sourceToTimeLeavingOD =
+    new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
+  private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(2.0)
 
-    logger.info(s"uniqueStates: ${uniqueStates.size}")
+  private val households: Map[String, Models.Household] =
+    new HouseholdReader(pathToHouseholdFile)
+      .read()
+      .map { hh =>
+        val updatedHh = if (hh.income < 0) {
+          logger.warn(s"Income for household[${hh.id}] is negative: ${hh.income}, setting it to zero")
+          hh.copy(income = 0)
+        } else hh
+        updatedHh
+      }
+      .groupBy(x => x.id)
+      .map { case (hhId, xs) => hhId -> xs.head }
+  private val householdIdToPersons: Map[String, Seq[Models.Person]] =
+    new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
+  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = householdIdToPersons.map {
+    case (hhId, persons) =>
+      val household = households(hhId)
+      (household, persons)
+  }
+  logger.info(s"householdWithPersons: ${householdWithPersons.size}")
 
+  private val uniqueStates = households.map(_._2.geoId.state).toSet
+  logger.info(s"uniqueStates: ${uniqueStates.size}")
+
+  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
     val powPumaGeoIdMap = getPlaceOfWorkPumaMap(uniqueStates)
     logger.info(s"powPumaGeoIdMap: ${powPumaGeoIdMap.size}")
 
@@ -123,7 +155,7 @@ class SimpleScenarioGenerator(
     val blockGroupGeoIdToGeom = getBlockGroupMap(uniqueGeoIds)
     logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
 
-    val blockGroupToPumaMap = ProfilingUtils.timed(
+    val blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId] = ProfilingUtils.timed(
       s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${blockGroupGeoIdToGeom.size} and pumaIdToMap ${pumaIdToMap.size}",
       x => logger.info(x)
     ) {
@@ -131,18 +163,178 @@ class SimpleScenarioGenerator(
     }
     logger.info(s"blockGroupToPumaMap: ${blockGroupToPumaMap.size}")
 
-    val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
-      ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
-    val sourceToTimeLeavingOD =
-      new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
-
-    val matsimPopulation = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-    val matsimHouseholds = new HouseholdsImpl()
-    val householdsFactory = new HouseholdsFactoryImpl()
-    val scenarioHouseholdAttributes = matsimHouseholds.getHouseholdAttributes
-
     var globalPersonId: Int = 0
 
+    val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
+
+    // Build work destination to the number of occurrences
+    // We need this to be able to generate random work destinations inside geometry.
+    val allWorkingDestinations = blockGroupGeoIdToHouseholds.values.flatMap { x =>
+      x.flatMap { case (_, xs) => xs.map(_.workDest) }
+    }
+    val powPumaToOccurrences = allWorkingDestinations.foldLeft(Map[PowPumaGeoId, Int]()) {
+      case (acc, c) =>
+        val occur = acc.getOrElse(c, 0) + 1
+        acc.updated(c, occur)
+    }
+    logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
+    logger.info(s"powPumaToOccurrences: ${powPumaToOccurrences.size}")
+    powPumaToOccurrences.foreach {
+      case (powPumaGeoId, cnt) =>
+        logger.info(s"$powPumaGeoId => $cnt")
+    }
+    // Generate all work destinations which will be later assigned to people
+    val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
+      case (powPumaGeoId, nWorkingPlaces) =>
+        val workingGeos = powPumaGeoIdMap.get(powPumaGeoId) match {
+          case Some(geom) =>
+            // FIXME
+            val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
+            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${powPumaGeoId}", x => logger.info(x)) {
+              pointsGenerator.generate(geom, nLocations)
+            }
+          case None =>
+            logger.warn(s"Can't find ${powPumaGeoId} in `powPumaGeoIdMap`")
+            Seq.empty
+        }
+        powPumaGeoId -> workingGeos
+    }.seq
+
+    val blockGroupGeoIdToHouseholdsLocations =
+      ProfilingUtils.timed(s"Generate ${households.size} locations", x => logger.info(x)) {
+        blockGroupGeoIdToHouseholds.par.map {
+          case (blockGroupGeoId, householdsWithPersonData) =>
+            val blockGeomOfHousehold = blockGroupGeoIdToGeom(blockGroupGeoId)
+            blockGroupGeoId -> pointsGenerator.generate(
+              blockGeomOfHousehold.getGeometry,
+              householdsWithPersonData.size
+            )
+        }.seq
+      }
+
+    val nextWorkLocation = mutable.HashMap[PowPumaGeoId, Int]()
+    val finalResult = blockGroupGeoIdToHouseholds.map {
+      case (blockGroupGeoId, householdsWithPersonData) =>
+        logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
+        val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
+        if (householdLocation.size != householdsWithPersonData.size) {
+          logger.warn(
+            s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
+          )
+        }
+        val res = householdsWithPersonData.zip(householdLocation).flatMap {
+          case ((household, personsWithData), wgsHouseholdLocation) =>
+            if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
+              val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+              val createdHousehold = HouseholdInfo(
+                HouseholdId(household.id),
+                household.numOfVehicles,
+                household.income,
+                utmHouseholdCoord.getX,
+                utmHouseholdCoord.getY
+              )
+
+              val (personsAndPlans, lastPersonId) =
+                personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
+                  case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
+                    val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
+                    val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
+                    nextWorkLocation.update(workDestPumaGeoId, offset + 1)
+                    workLocations.lift(offset) match {
+                      case Some(wgsWorkingLocation) =>
+                        if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
+                          val valueOfTime =
+                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                          val createdPerson = beam.utils.scenario.PersonInfo(
+                            personId = PersonId(nextPersonId.toString),
+                            householdId = createdHousehold.householdId,
+                            rank = 0,
+                            age = person.age,
+                            isFemale = person.gender == Gender.Female,
+                            valueOfTime = valueOfTime
+                          )
+                          val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
+
+                          // Create Home Activity: end time is when a person leaves a home
+                          val leavingHomeActivity = planElementTemplate.copy(
+                            personId = createdPerson.personId,
+                            planElementType = "activity",
+                            planElementIndex = 1,
+                            activityType = Some("Home"),
+                            activityLocationX = Some(utmHouseholdCoord.getX),
+                            activityLocationY = Some(utmHouseholdCoord.getY),
+                            activityEndTime = Some(timeLeavingHomeSeconds)
+                          )
+                          // Create Leg
+                          val leavingHomeLeg = planElementTemplate
+                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+
+                          val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
+                          val margin = 1.3
+                          val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
+                          val travelTime =
+                            estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
+                          val workStartTime = timeLeavingHomeSeconds + travelTime
+                          val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
+                          val timeLeavingWork = workStartTime + workingDuration
+
+                          val leavingWorkActivity = planElementTemplate.copy(
+                            personId = createdPerson.personId,
+                            planElementType = "activity",
+                            planElementIndex = 3,
+                            activityType = Some("Work"),
+                            activityLocationX = Some(utmWorkingLocation.getX),
+                            activityLocationY = Some(utmWorkingLocation.getY),
+                            activityEndTime = Some(timeLeavingWork)
+                          )
+                          val leavingWorkLeg = planElementTemplate
+                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+
+                          // Create Home Activity: end time not defined
+                          val homeActivity = planElementTemplate.copy(
+                            personId = createdPerson.personId,
+                            planElementType = "activity",
+                            planElementIndex = 5,
+                            activityType = Some("Home"),
+                            activityLocationX = Some(utmWorkingLocation.getX),
+                            activityLocationY = Some(utmWorkingLocation.getY)
+                          )
+
+                          val personWithPlans = PersonWithPlans(
+                            createdPerson,
+                            List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
+                          )
+                          (personWithPlans :: xs, nextPersonId + 1)
+                        } else {
+                          logger
+                            .info(
+                              s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox"
+                            )
+                          (xs, nextPersonId + 1)
+                        }
+                      case None =>
+                        (xs, nextPersonId + 1)
+                    }
+                }
+              globalPersonId = lastPersonId
+              if (personsAndPlans.size == personsWithData.size) {
+                Some((createdHousehold, personsAndPlans))
+              } else None
+            } else {
+              logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
+              None
+            }
+        }
+        blockGroupGeoId -> res
+    }
+
+    finalResult.values.flatten
+  }
+
+  private def getBlockGroupIdToHouseholdAndPeople(
+    blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId],
+    geoIdToHouseholds: Map[BlockGroupGeoId, Iterable[Models.Household]]
+  ): Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
       geoIdToHouseholds.map {
         case (blockGroupGeoId, households) =>
@@ -188,174 +380,7 @@ class SimpleScenarioGenerator(
           }
           blockGroupGeoId -> householdsWithPersonData
       }
-    // Build work destination to the number of occurrences
-    // We need this to be able to generate random work destinations inside geometry.
-    val allWorkingDestinations = blockGroupGeoIdToHouseholds.values.flatMap { x =>
-      x.flatMap { case (_, xs) => xs.map(_.workDest) }
-    }
-    val powPumaToOccurrences = allWorkingDestinations.foldLeft(Map[PowPumaGeoId, Int]()) {
-      case (acc, c) =>
-        val occur = acc.getOrElse(c, 0) + 1
-        acc.updated(c, occur)
-    }
-    logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
-    logger.info(s"powPumaToOccurrences: ${powPumaToOccurrences.size}")
-    powPumaToOccurrences.foreach {
-      case (powPumaGeoId, cnt) =>
-        logger.info(s"$powPumaGeoId => $cnt")
-    }
-    // Generate all work destinations which will be later assigned to people
-    val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
-      case (powPumaGeoId, nWorkingPlaces) =>
-        val workingGeos = powPumaGeoIdMap.get(powPumaGeoId) match {
-          case Some(geom) =>
-            // FIXME
-            val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
-            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${powPumaGeoId}", x => logger.info(x)) {
-              RandomPointsInGridGenerator.generate(geom, nLocations)
-            }
-          case None =>
-            logger.warn(s"Can't find ${powPumaGeoId} in `powPumaGeoIdMap`")
-            Seq.empty
-        }
-        powPumaGeoId -> workingGeos
-    }.seq
-
-    val nextWorkLocation = mutable.HashMap[PowPumaGeoId, Int]()
-
-    val distances = ArrayBuffer[Double]()
-
-    val blockGroupGeoIdToHouseholdsLocations =
-      ProfilingUtils.timed(s"Generate ${households.size} locations", x => logger.info(x)) {
-        blockGroupGeoIdToHouseholds.par.map {
-          case (blockGroupGeoId, householdsWithPersonData) =>
-            val blockGeomOfHousehold = blockGroupGeoIdToGeom(blockGroupGeoId)
-            blockGroupGeoId -> RandomPointsInGridGenerator.generate(
-              blockGeomOfHousehold.getGeometry,
-              householdsWithPersonData.size
-            )
-        }.seq
-      }
-
-    blockGroupGeoIdToHouseholds.foreach {
-      case (blockGroupGeoId, householdsWithPersonData) =>
-        logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
-        val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
-        if (householdLocation.size != householdsWithPersonData.size) {
-          logger.warn(
-            s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
-          )
-        }
-        householdsWithPersonData.zip(householdLocation).foreach {
-          case ((household, personsWithData), wgsHouseholdLocation) =>
-            if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
-              val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
-
-              val (matsimPersons, lastPersonId) = personsWithData.foldLeft((List.empty[MatsimPerson], globalPersonId)) {
-                case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
-                  val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
-                  val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
-                  nextWorkLocation.update(workDestPumaGeoId, offset + 1)
-                  workLocations.lift(offset) match {
-                    case Some(wgsWorkingLocation) =>
-                      if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
-                        val matsimPerson =
-                          createPerson(
-                            household,
-                            person,
-                            nextPersonId,
-                            matsimPopulation.getFactory,
-                            matsimPopulation.getPersonAttributes
-                          )
-
-                        val plan = PopulationUtils.createPlan(matsimPerson)
-                        matsimPerson.addPlan(plan)
-                        matsimPerson.setSelectedPlan(plan)
-
-                        // Create Home Activity: end time is when a person leaves a home
-                        // Create Leg
-                        val leavingHomeActivity =
-                          PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
-                        val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
-                        leavingHomeActivity.setEndTime(timeLeavingHomeSeconds)
-                        PopulationUtils.createAndAddLeg(plan, "")
-
-                        val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                        val margin = 1.3
-                        val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
-                        distances += distance
-                        val travelTime =
-                          estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
-                        val workStartTime = timeLeavingHomeSeconds + travelTime
-                        val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                        val timeLeavingWork = workStartTime + workingDuration
-
-                        // Create Work Activity: end time is the time when a person leaves a work
-                        // Create leg
-                        val leavingWorkActivity =
-                          PopulationUtils.createAndAddActivityFromCoord(plan, "Work", utmWorkingLocation)
-                        leavingWorkActivity.setEndTime(timeLeavingWork)
-                        PopulationUtils.createAndAddLeg(plan, "")
-
-                        // Create Home Activity: end time not defined
-                        PopulationUtils.createAndAddActivityFromCoord(plan, "Home", utmHouseholdCoord)
-
-                        (matsimPerson :: xs, nextPersonId + 1)
-                      } else {
-                        logger
-                          .info(s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox")
-                        (xs, nextPersonId + 1)
-                      }
-                    case None =>
-                      (xs, nextPersonId + 1)
-                  }
-              }
-              globalPersonId = lastPersonId
-              matsimPersons.foreach(matsimPopulation.addPerson)
-
-              val matsimHousehold = createHousehold(household, matsimPersons, householdsFactory)
-              matsimHouseholds.addHousehold(matsimHousehold)
-
-              scenarioHouseholdAttributes.putAttribute(household.id, "homecoordx", utmHouseholdCoord.getX)
-              scenarioHouseholdAttributes.putAttribute(household.id, "homecoordy", utmHouseholdCoord.getY)
-            } else {
-              logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
-            }
-        }
-    }
-
-    logger.info(s"Distance stats: ${Statistics(distances)}")
-    (matsimHouseholds, matsimPopulation)
-  }
-
-  private def createHousehold(
-    household: Models.Household,
-    matsimPersons: Seq[MatsimPerson],
-    householdFactory: HouseholdsFactoryImpl
-  ): MatsimHousehold = {
-    val h = householdFactory.createHousehold(Id.create[MatsimHousehold](household.id, classOf[MatsimHousehold]))
-    h.setIncome(new IncomeImpl(household.income, Income.IncomePeriod.year))
-    h.setMemberIds(matsimPersons.map(_.getId).asJava)
-    h
-  }
-
-  private def createPerson(
-    household: Models.Household,
-    person: Models.Person,
-    personId: Int,
-    populationFactory: PopulationFactory,
-    personAttributes: ObjectAttributes
-  ): MatsimPerson = {
-    val sexChar = if (person.gender == Gender.Female) "F" else "M"
-    val matsimPerson = populationFactory.createPerson(Id.createPersonId(personId))
-    val valueOfTime = PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
-    personAttributes.putAttribute(personId.toString, "householdId", person.householdId)
-    personAttributes.putAttribute(personId.toString, "age", person.age)
-    personAttributes.putAttribute(personId.toString, "valueOfTime", valueOfTime)
-    personAttributes.putAttribute(personId.toString, "sex", sexChar)
-    matsimPerson.getAttributes.putAttribute("sex", sexChar)
-    matsimPerson.getAttributes.putAttribute("age", person.age)
-    matsimPerson
+    blockGroupGeoIdToHouseholds
   }
 
   private def getPumaMap: Map[PumaGeoId, PreparedGeometry] = {
@@ -567,35 +592,28 @@ object SimpleScenarioGenerator {
         42
       )
 
-    val (households, population) = gen.generate
-    val scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
-    scenario.setHouseholds(households)
-    scenario.setPopulation(population)
-
-    new HouseholdsWriterV10(households).writeFile("households.xml.gz")
-    new PopulationWriter(population).write("population.xml.gz")
-    new ObjectAttributesXmlWriter(households.getHouseholdAttributes).writeFile("householdAttributes.xml.gz")
-    new ObjectAttributesXmlWriter(population.getPersonAttributes).writeFile(s"populationAttributes.xml.gz")
-
-    try {
-      PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
-    } catch {
-      case NonFatal(ex) =>
-        println(s"Can't write population: ${ex}")
-    }
-
-    try {
-      HouseholdsCsvWriter.toCsv(scenario, "household.csv.gz")
-    } catch {
-      case NonFatal(ex) =>
-        println(s"Can't write households: ${ex}")
-    }
-
-    try {
-      PlansCsvWriter.toCsv(scenario, "plan.csv.gz")
-    } catch {
-      case NonFatal(ex) =>
-        println(s"Can't write plans: ${ex}")
-    }
+    val generatedData = gen.generate
+    println(s"generatedData: ${generatedData.size}")
+//
+//    try {
+//      PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
+//    } catch {
+//      case NonFatal(ex) =>
+//        println(s"Can't write population: ${ex}")
+//    }
+//
+//    try {
+//      HouseholdsCsvWriter.toCsv(scenario, "household.csv.gz")
+//    } catch {
+//      case NonFatal(ex) =>
+//        println(s"Can't write households: ${ex}")
+//    }
+//
+//    try {
+//      PlansCsvWriter.toCsv(scenario, "plan.csv.gz")
+//    } catch {
+//      case NonFatal(ex) =>
+//        println(s"Can't write plans: ${ex}")
+//    }
   }
 }
