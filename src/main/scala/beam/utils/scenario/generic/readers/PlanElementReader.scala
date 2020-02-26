@@ -15,8 +15,7 @@ object CsvPlanElementReader extends PlanElementReader {
     val (it, toClose) = readAs[PlanElement](path, toPlanElement, x => true)
     try {
       it.toArray
-    }
-    finally {
+    } finally {
       Try(toClose.close())
     }
   }

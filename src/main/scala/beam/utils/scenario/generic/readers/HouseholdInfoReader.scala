@@ -16,8 +16,7 @@ object CsvHouseholdInfoReader extends HouseholdInfoReader {
     val (it, toClose) = readAs[HouseholdInfo](path, toHouseholdInfo, x => true)
     try {
       it.toArray
-    }
-    finally {
+    } finally {
       Try(toClose.close())
     }
   }

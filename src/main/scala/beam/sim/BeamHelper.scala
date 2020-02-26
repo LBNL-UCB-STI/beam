@@ -591,10 +591,13 @@ trait BeamHelper extends LazyLogging {
         val scenario = {
           val source = if (src == "urbansim") {
             buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-          }
-          else {
+          } else {
             // FIXME
-            new GenericScenarioSource("C:/repos/beam/temp_households.csv", "C:/repos/beam/temp_persons.csv", "C:/repos/beam/temp_plans.csv")
+            new GenericScenarioSource(
+              "C:/repos/beam/temp_households.csv",
+              "C:/repos/beam/temp_persons.csv",
+              "C:/repos/beam/temp_plans.csv"
+            )
           }
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
         }.asInstanceOf[MutableScenario]

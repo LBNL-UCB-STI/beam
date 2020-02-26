@@ -16,8 +16,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
     val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, x => true)
     try {
       it.toArray
-    }
-    finally {
+    } finally {
       Try(toClose.close())
     }
   }
