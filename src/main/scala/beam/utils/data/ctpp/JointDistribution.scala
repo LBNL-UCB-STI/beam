@@ -55,12 +55,18 @@ class JointDistribution(
     sampleWithinRange: Boolean,
     keyValueTuple: (String, Either[String, CustomRange])*
   ): Map[String, String] = {
+
     val pmf = getRangeList(keyValueTuple: _*)
       .map(
         value =>
           new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
       )
       .toList
+
+    val values = pmf.map(_.getValue)
+    if(values.isEmpty || values.reduce(_ + _) == 0.0) {
+      return Map()
+    }
     val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
     distr.sample()
   }
