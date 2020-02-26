@@ -5,8 +5,7 @@ import java.io.File
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
-import beam.utils.csv.writers.{HouseholdsCsvWriter, PlansCsvWriter, PopulationCsvWriter}
-import beam.utils.{ProfilingUtils, Statistics}
+import beam.utils.ProfilingUtils
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
@@ -14,38 +13,20 @@ import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
-import beam.utils.scenario.{HouseholdId, HouseholdInfo, PersonId, PersonInfo, PlanElement}
+import beam.utils.scenario._
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.commons.math3.random.MersenneTwister
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{PopulationFactory, Person => MatsimPerson, Population => MatsimPopulation}
-import org.matsim.core.config.ConfigUtils
-import org.matsim.core.population.PopulationUtils
-import org.matsim.core.population.io.PopulationWriter
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.households.{
-  HouseholdsFactoryImpl,
-  HouseholdsImpl,
-  HouseholdsWriterV10,
-  Income,
-  IncomeImpl,
-  Household => MatsimHousehold,
-  Households => MatsimHouseholds
-}
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
+import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
-import scala.util.control.NonFatal
 
 trait ScenarioGenerator {
   def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
@@ -265,7 +246,7 @@ class SimpleScenarioGenerator(
                             activityType = Some("Home"),
                             activityLocationX = Some(utmHouseholdCoord.getX),
                             activityLocationY = Some(utmHouseholdCoord.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds)
+                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0)
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
@@ -278,7 +259,7 @@ class SimpleScenarioGenerator(
                             estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
                           val workStartTime = timeLeavingHomeSeconds + travelTime
                           val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                          val timeLeavingWork = workStartTime + workingDuration
+                          val timeLeavingWorkSeconds = workStartTime + workingDuration
 
                           val leavingWorkActivity = planElementTemplate.copy(
                             personId = createdPerson.personId,
@@ -287,7 +268,7 @@ class SimpleScenarioGenerator(
                             activityType = Some("Work"),
                             activityLocationX = Some(utmWorkingLocation.getX),
                             activityLocationY = Some(utmWorkingLocation.getY),
-                            activityEndTime = Some(timeLeavingWork)
+                            activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
                           )
                           val leavingWorkLeg = planElementTemplate
                             .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
@@ -553,10 +534,7 @@ class SimpleScenarioGenerator(
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
-    require(
-      args.size == 9,
-      "Expecting four arguments: first one is the path to household CSV file, the second one is the path to population CSV file, the third argument is the path to Census Tract shape file, the fourth argument is the path to Census TAZ shape file"
-    )
+    require(args.length == 10, "Expecting 10 arguments")
     val pathToHouseholdFile = args(0)
     val pathToPopulationFile = args(1)
     val pathToCTPPFolder = args(2)
@@ -566,18 +544,20 @@ object SimpleScenarioGenerator {
     val pathToCongestionLevelDataFile = args(6)
     val pathToWorkedHours = args(7)
     val pathToOsmMap = args(8)
+    val pathToOutput = args(9)
 
     /*
     Args:
-    "C:\repos\synthpop\demos\household_TX_Travis County.csv"
-    "C:\repos\synthpop\demos\people_TX_Travis County.csv"
-    "D:\Work\beam\Austin\2012-2016 CTPP documentation\tx\48"
-    "D:\Work\beam\Austin\Census\tl_2014_48_puma10\tl_2014_48_puma10.shp"
-    "C:\Users\User\Downloads\ipums_migpuma_pwpuma_2010\ipums_migpuma_pwpuma_2010.shp"
-    "D:\Work\beam\Austin\Census\tl_2019_48_bg\tl_2019_48_bg.shp"
-    "D:\Work\beam\Austin\CongestionLevel_Austin.csv"
-    "D:\Work\beam\Austin\work_activities_all_us.csv"
-    "D:\Work\beam\Austin\texas-a-bit-bigger.osm.pbf"
+      "D:\Work\beam\Austin\input\household_TX_Travis County.csv"
+      "D:\Work\beam\Austin\input\people_TX_Travis County.csv"
+      "D:\Work\beam\Austin\input\CTPP\48"
+      "D:\Work\beam\Austin\input\tl_2014_48_puma10\tl_2014_48_puma10.shp"
+      "D:\Work\beam\Austin\input\ipums_migpuma_pwpuma_2010\ipums_migpuma_pwpuma_2010.shp"
+      "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
+      "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
+      "D:\Work\beam\Austin\input\work_activities_all_us.csv"
+      "D:\Work\beam\Austin\texas-latest-simplified-austin-light-v5-incomplete-ways.osm.pbf"
+      "D:\Work\beam\Austin\results"
      * */
 
     val gen =
@@ -595,46 +575,31 @@ object SimpleScenarioGenerator {
       )
 
     val generatedData = gen.generate
-    println(s"generatedData: ${generatedData.size}")
+    println(s"Number of households: ${generatedData.size}")
+    println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 
     val households = generatedData.map(_._1).toVector
-    CsvHouseholdInfoWriter.write("temp_households.csv", households)
-    val readHouseholds = CsvHouseholdInfoReader.read("temp_households.csv")
+    val householdFilePath = s"$pathToOutput/households.csv"
+    CsvHouseholdInfoWriter.write(householdFilePath, households)
+    println(s"Wrote households information to $householdFilePath")
+    val readHouseholds = CsvHouseholdInfoReader.read(householdFilePath)
     val areHouseholdsEqual = readHouseholds.toVector == households
     println(s"areHouseholdsEqual: $areHouseholdsEqual")
 
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
-    CsvPersonInfoWriter.write("temp_persons.csv", persons)
-    val readPersons = CsvPersonInfoReader.read("temp_persons.csv")
+    val personsFilePath = s"$pathToOutput/persons.csv"
+    CsvPersonInfoWriter.write(personsFilePath, persons)
+    println(s"Wrote persons information to $personsFilePath")
+    val readPersons = CsvPersonInfoReader.read(personsFilePath)
     val arePersonsEqual = readPersons.toVector == persons
     println(s"arePersonsEqual: $arePersonsEqual")
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    CsvPlanElementWriter.write("temp_plans.csv", planElements)
-    val readPlanElements = CsvPlanElementReader.read("temp_plans.csv")
+    val plansFilePath = s"$pathToOutput/plans.csv"
+    CsvPlanElementWriter.write(plansFilePath, planElements)
+    println(s"Wrote plans information to $plansFilePath")
+    val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
-
-//
-//    try {
-//      PopulationCsvWriter.toCsv(scenario, "population.csv.gz")
-//    } catch {
-//      case NonFatal(ex) =>
-//        println(s"Can't write population: ${ex}")
-//    }
-//
-//    try {
-//      HouseholdsCsvWriter.toCsv(scenario, "household.csv.gz")
-//    } catch {
-//      case NonFatal(ex) =>
-//        println(s"Can't write households: ${ex}")
-//    }
-//
-//    try {
-//      PlansCsvWriter.toCsv(scenario, "plan.csv.gz")
-//    } catch {
-//      case NonFatal(ex) =>
-//        println(s"Can't write plans: ${ex}")
-//    }
   }
 }

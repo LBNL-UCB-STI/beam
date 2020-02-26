@@ -30,10 +30,10 @@ object JointDistribution extends GenericCsvReader {
       Try(toClose.close())
     }
 
-    val detectedColumn = mappedArray(0).map{
-      case(key, value) => (key, if(value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    val detectedColumn = mappedArray(0).map {
+      case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
-    if(columnMapping.nonEmpty)
+    if (columnMapping.nonEmpty)
       new JointDistribution(mappedArray, seed, columnMapping)
     else
       new JointDistribution(mappedArray, seed, detectedColumn)
@@ -64,7 +64,7 @@ class JointDistribution(
       .toList
 
     val values = pmf.map(_.getValue)
-    if(values.isEmpty || values.reduce(_ + _) == 0.0) {
+    if (values.isEmpty || values.reduce(_ + _) == 0.0) {
       return Map()
     }
     val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
