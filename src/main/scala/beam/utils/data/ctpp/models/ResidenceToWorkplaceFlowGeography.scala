@@ -39,8 +39,8 @@ object ResidenceToWorkplaceFlowGeography {
 
   case object `Metropolitan Statistical Area To Metropolitan Statistical Area`
       extends ResidenceToWorkplaceFlowGeography {
-    override def from: String = "Metropolitan Statistical Area – EACH Principal City"
-    override def to: String = "Metropolitan Statistical Area – EACH Principal City"
+    override def from: String = "Metropolitan Statistical Area - EACH Principal City"
+    override def to: String = "Metropolitan Statistical Area - EACH Principal City"
     override def level: String = "C48"
   }
 
