@@ -592,11 +592,13 @@ trait BeamHelper extends LazyLogging {
           val source = if (src == "urbansim") {
             buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
           } else {
-            // FIXME
+            val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+            val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+            val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
             new GenericScenarioSource(
-              "C:/repos/beam/temp_households.csv",
-              "C:/repos/beam/temp_persons.csv",
-              "C:/repos/beam/temp_plans.csv"
+              pathToHouseholds = pathToHouseholds,
+              pathToPersonFile = pathToPersonFile,
+              pathToPlans = pathToPlans
             )
           }
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
