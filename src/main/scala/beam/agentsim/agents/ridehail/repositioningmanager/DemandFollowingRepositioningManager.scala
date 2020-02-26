@@ -91,8 +91,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
 
-  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
-    createClusters
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createHexClusters", x => logger.info(x)) {
+    createHexClusters
   }
 
   println(timeBinToClusters.size)
@@ -176,15 +176,15 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val maxDemandCLuster = topNClosest.maxBy(_._1.size)
         val maxDistance = Math.max(1.0, maxDistanceCluster._2)
         val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-        val demandCoef = 0.97
+        val demandCoef = 0.75
+        val distanceCoef = 1 - demandCoef
         val pmf = topNClosest.map {
           case (x, dist) =>
             new CPair[ClusterInfo, java.lang.Double](
               x,
-              demandCoef * x.size.toDouble / maxDemand + (1-demandCoef) * (1 - dist.toDouble / maxDistance)
+              (demandCoef * (x.size.toDouble / maxDemand)) + (distanceCoef * (1 - (dist.toDouble / maxDistance)))
             )
         }.toList
-
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
         // Randomly pick the coordinate of one of activities
@@ -252,7 +252,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
           else {
             acts
               .map(_.getCoord)
-              .groupBy(c => beamServices.beamScenario.h3taz.getIndex(c.getX, c.getX))
+              .groupBy(beamServices.beamScenario.h3taz.getIndex)
               .map {
                 case (hex, group) =>
                   val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)

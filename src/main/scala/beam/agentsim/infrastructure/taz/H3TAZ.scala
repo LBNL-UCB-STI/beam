@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toJtsCoordinate, H3, HexIndex}
+import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -47,16 +47,13 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
   def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
+  def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
   def getIndex(c: Coord): HexIndex = {
     val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, resolution)
   }
 
-  def getCentroid(hex: HexIndex): Coord = {
-    val coordinate = toJtsCoordinate(H3.h3ToGeo(hex))
-    toScenarioCoordSystem.transform(new Coord(coordinate.x, coordinate.y))
-  }
 }
 
 object H3TAZ {
@@ -91,6 +88,9 @@ object H3TAZ {
   }
   private def toGeoCoord(in: Coord): GeoCoord = {
     new GeoCoord(in.getY, in.getX)
+  }
+  private def toCoord(in: GeoCoord): Coord = {
+    new Coord(in.lng, in.lat)
   }
 
   private def quadTreeExtentFromShapeFile(coords: Iterable[Coord]): QuadTreeBounds = {
