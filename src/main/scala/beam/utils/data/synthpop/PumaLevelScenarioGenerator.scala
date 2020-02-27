@@ -14,12 +14,14 @@ import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInf
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.commons.math3.random.MersenneTwister
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 import scala.util.Try
+
+case class PersonWithExtraInfoPuma(person: Models.Person, workDest: PowPumaGeoId, timeLeavingHomeRange: Range)
 
 class PumaLevelScenarioGenerator(
   val pathToHouseholdFile: String,
@@ -116,13 +118,16 @@ class PumaLevelScenarioGenerator(
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(
-    GeoServiceInputParam(pathToPumaShapeFile, pathToPowPumaShapeFile, pathToBlockGroupShapeFile),
+    GeoServiceInputParam("", pathToBlockGroupShapeFile),
     uniqueStates,
     uniqueGeoIds
   )
 
+  val pumaGeoIdToGeom: Map[PumaGeoId, Geometry] = geoSvc.getPumaMap(pathToPumaShapeFile)
+  val powPumaGeoIdMap: Map[PowPumaGeoId, Geometry] = geoSvc.getPlaceOfWorkPumaMap(pathToPowPumaShapeFile, uniqueStates)
+
   val blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId] = ProfilingUtils.timed(
-    s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and pumaIdToMap ${geoSvc.pumaGeoIdToGeom.size}",
+    s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and pumaIdToMap ${pumaGeoIdToGeom.size}",
     x => logger.info(x)
   ) {
     getBlockGroupToPuma
@@ -155,7 +160,7 @@ class PumaLevelScenarioGenerator(
     // Generate all work destinations which will be later assigned to people
     val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
       case (powPumaGeoId: PowPumaGeoId, nWorkingPlaces) =>
-        val workingGeos = geoSvc.powPumaGeoIdMap.get(powPumaGeoId) match {
+        val workingGeos = powPumaGeoIdMap.get(powPumaGeoId) match {
           case Some(geom) =>
             // FIXME
             val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
@@ -205,7 +210,7 @@ class PumaLevelScenarioGenerator(
 
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
+                  case ((xs, nextPersonId), PersonWithExtraInfoPuma(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
                     val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
                     val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
@@ -306,7 +311,7 @@ class PumaLevelScenarioGenerator(
       .flatMap {
         case (blockGroupGeoId, blockGroupGeom) =>
           // Intersect with all and get the best by the covered area
-          val allIntersections = geoSvc.pumaGeoIdToGeom.map {
+          val allIntersections = pumaGeoIdToGeom.map {
             case (pumaGeoId, pumaGeom) =>
               val intersection = blockGroupGeom.intersection(pumaGeom)
               (intersection, blockGroupGeoId, pumaGeoId)
@@ -325,8 +330,8 @@ class PumaLevelScenarioGenerator(
   private def getBlockGroupIdToHouseholdAndPeople(
     blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId],
     geoIdToHouseholds: Map[BlockGroupGeoId, Iterable[Models.Household]]
-  ): Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
-    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
+  ): Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfoPuma])]] = {
+    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfoPuma])]] =
       geoIdToHouseholds.map {
         case (blockGroupGeoId, households) =>
           // TODO We need to bring building density in the future
@@ -339,27 +344,29 @@ class PumaLevelScenarioGenerator(
           val householdsWithPersonData = households.map { household =>
             val persons = householdWithPersons(household)
             val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold, household.income).map { powPumaWorkDest =>
-                val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
-                if (foundDests.isEmpty) {
-                  logger
-                    .info(
-                      s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
+              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold.asUniqueKey, household.income).map {
+                powPumaWorkDestStr =>
+                  val powPumaWorkDest = PowPumaGeoId.fromString(powPumaWorkDestStr)
+                  val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
+                  if (foundDests.isEmpty) {
+                    logger
+                      .info(
+                        s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
+                      )
+                    PersonWithExtraInfoPuma(
+                      person = person,
+                      workDest = powPumaWorkDest,
+                      timeLeavingHomeRange = defaultTimeLeavingHomeRange
                     )
-                  PersonWithExtraInfo(
-                    person = person,
-                    workDest = powPumaWorkDest,
-                    timeLeavingHomeRange = defaultTimeLeavingHomeRange
-                  )
-                } else {
-                  val timeLeavingHomeRange =
-                    ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
-                  PersonWithExtraInfo(
-                    person = person,
-                    workDest = powPumaWorkDest,
-                    timeLeavingHomeRange = timeLeavingHomeRange
-                  )
-                }
+                  } else {
+                    val timeLeavingHomeRange =
+                      ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
+                    PersonWithExtraInfoPuma(
+                      person = person,
+                      workDest = powPumaWorkDest,
+                      timeLeavingHomeRange = timeLeavingHomeRange
+                    )
+                  }
               }
             }
             if (personWithWorkDestAndTimeLeaving.size != persons.size) {

@@ -8,7 +8,7 @@ import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
@@ -19,21 +19,20 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
-import scala.util.Try
+import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
   def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
 }
 
-case class PersonWithExtraInfo(person: Models.Person, workDest: PowPumaGeoId, timeLeavingHomeRange: Range)
+case class PersonWithExtraInfo(person: Models.Person, workDest: TazGeoId, timeLeavingHomeRange: Range)
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
   val pathToHouseholdFile: String,
   val pathToPopulationFile: String,
   val pathToCTPPFolder: String,
-  val pathToPumaShapeFile: String,
-  val pathToPowPumaShapeFile: String,
+  val pathToTazShapeFile: String,
   val pathToBlockGroupShapeFile: String,
   val pathToCongestionLevelDataFile: String,
   val pathToWorkedHours: String,
@@ -90,7 +89,7 @@ class SimpleScenarioGenerator(
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
-    ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
+    ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
   private val sourceToTimeLeavingOD =
     new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
@@ -123,57 +122,57 @@ class SimpleScenarioGenerator(
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(
-    GeoServiceInputParam(pathToPumaShapeFile, pathToPowPumaShapeFile, pathToBlockGroupShapeFile),
+    GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile),
     uniqueStates,
     uniqueGeoIds
   )
 
-  val blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId] = ProfilingUtils.timed(
-    s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and pumaIdToMap ${geoSvc.pumaGeoIdToGeom.size}",
+  val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
+    s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
   ) {
-    getBlockGroupToPuma
+    getBlockGroupToTazs
   }
-  logger.info(s"blockGroupToPumaMap: ${blockGroupToPumaMap.size}")
+  logger.info(s"blockGroupToPumaMap: ${blockGroupToToTazs.size}")
 
   logger.info(s"Initializing finished")
 
   override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
     var globalPersonId: Int = 0
 
-    val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
+    val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople
 
     // Build work destination to the number of occurrences
     // We need this to be able to generate random work destinations inside geometry.
     val allWorkingDestinations = blockGroupGeoIdToHouseholds.values.flatMap { x =>
       x.flatMap { case (_, xs) => xs.map(_.workDest) }
     }
-    val powPumaToOccurrences = allWorkingDestinations.foldLeft(Map[PowPumaGeoId, Int]()) {
+    val tazGeoIdToOccurrences = allWorkingDestinations.foldLeft(Map[TazGeoId, Int]()) {
       case (acc, c) =>
         val occur = acc.getOrElse(c, 0) + 1
         acc.updated(c, occur)
     }
     logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
-    logger.info(s"powPumaToOccurrences: ${powPumaToOccurrences.size}")
-    powPumaToOccurrences.foreach {
+    logger.info(s"tazGeoIdToOccurrences: ${tazGeoIdToOccurrences.size}")
+    tazGeoIdToOccurrences.foreach {
       case (powPumaGeoId, cnt) =>
         logger.info(s"$powPumaGeoId => $cnt")
     }
     // Generate all work destinations which will be later assigned to people
-    val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
-      case (powPumaGeoId: PowPumaGeoId, nWorkingPlaces) =>
-        val workingGeos = geoSvc.powPumaGeoIdMap.get(powPumaGeoId) match {
+    val tazGeoIdToWorkingLocations = tazGeoIdToOccurrences.par.map {
+      case (tazGeoId: TazGeoId, nWorkingPlaces) =>
+        val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
           case Some(geom) =>
             // FIXME
             val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
-            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${powPumaGeoId}", x => logger.info(x)) {
+            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
               pointsGenerator.generate(geom, nLocations)
             }
           case None =>
-            logger.warn(s"Can't find ${powPumaGeoId} in `powPumaGeoIdMap`")
+            logger.warn(s"Can't find ${tazGeoId} in `powPumaGeoIdMap`")
             Seq.empty
         }
-        powPumaGeoId -> workingGeos
+        tazGeoId -> workingGeos
     }.seq
 
     val blockGroupGeoIdToHouseholdsLocations =
@@ -188,7 +187,7 @@ class SimpleScenarioGenerator(
         }.seq
       }
 
-    val nextWorkLocation = mutable.HashMap[PowPumaGeoId, Int]()
+    val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     val finalResult = blockGroupGeoIdToHouseholds.map {
       case (blockGroupGeoId, householdsWithPersonData) =>
         logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
@@ -198,7 +197,7 @@ class SimpleScenarioGenerator(
             s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
           )
         }
-        val res = householdsWithPersonData.zip(householdLocation).flatMap {
+        val res = householdsWithPersonData.zip(householdLocation).map {
           case ((household, personsWithData), wgsHouseholdLocation) =>
             if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
@@ -213,7 +212,7 @@ class SimpleScenarioGenerator(
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
                   case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
-                    val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
+                    val workLocations = tazGeoIdToWorkingLocations(workDestPumaGeoId)
                     val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
                     workLocations.lift(offset) match {
@@ -272,8 +271,8 @@ class SimpleScenarioGenerator(
                             planElementType = "activity",
                             planElementIndex = 5,
                             activityType = Some("Home"),
-                            activityLocationX = Some(utmWorkingLocation.getX),
-                            activityLocationY = Some(utmWorkingLocation.getY)
+                            activityLocationX = Some(utmHouseholdCoord.getX),
+                            activityLocationY = Some(utmHouseholdCoord.getY)
                           )
 
                           val personWithPlans = PersonWithPlans(
@@ -297,65 +296,65 @@ class SimpleScenarioGenerator(
                 Some((createdHousehold, personsAndPlans))
               } else None
             } else {
-              logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
               None
             }
         }
         blockGroupGeoId -> res
     }
 
-    finalResult.values.flatten
+    val outOfBoundingBoxCnt = finalResult.values.flatten.count(x => x.isEmpty)
+    if (outOfBoundingBoxCnt != 0)
+      logger.warn(
+        s"There were ${outOfBoundingBoxCnt} households which locations does not belong to bounding box $mapBoundingBox"
+      )
+    finalResult.values.flatten.flatten
   }
 
-  private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
+  private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
     // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
-    val blockGroupToPuma = geoSvc.blockGroupGeoIdToGeom
-      .flatMap {
+    val blockGroupToTazs = geoSvc.blockGroupGeoIdToGeom
+      .map {
         case (blockGroupGeoId, blockGroupGeom) =>
           // Intersect with all and get the best by the covered area
-          val allIntersections = geoSvc.pumaGeoIdToGeom.map {
-            case (pumaGeoId, pumaGeom) =>
-              val intersection = blockGroupGeom.intersection(pumaGeom)
-              (intersection, blockGroupGeoId, pumaGeoId)
+          val allIntersections = geoSvc.tazGeoIdToGeom.map {
+            case (tazGeoId, tazGeo) =>
+              val intersection = blockGroupGeom.intersection(tazGeo)
+              (intersection, blockGroupGeoId, tazGeoId)
           }
-          val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
-          best
+          blockGroupGeoId -> allIntersections.map(_._3).toList
       }
-      .map {
-        case (_, blockGroupGeoId, pumaGeoId) =>
-          blockGroupGeoId -> pumaGeoId
-      }
-      .toMap
-    blockGroupToPuma
+    blockGroupToTazs
   }
 
-  private def getBlockGroupIdToHouseholdAndPeople(
-    blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId],
-    geoIdToHouseholds: Map[BlockGroupGeoId, Iterable[Models.Household]]
-  ): Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+  private def getBlockGroupIdToHouseholdAndPeople
+    : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
       geoIdToHouseholds.map {
         case (blockGroupGeoId, households) =>
-          // TODO We need to bring building density in the future
-          val pumaGeoIdOfHousehold: PumaGeoId = blockGroupToPumaMap(blockGroupGeoId)
-
-          val timeLeavingODPairs = sourceToTimeLeavingOD(pumaGeoIdOfHousehold.asUniqueKey)
+          // Randomly choose TAZ which belongs to BlockGroupGeoId.
+          // It is one to many relation
+          // BlockGroupGeoId1 -> TAZ1
+          // BlockGroupGeoId1 -> TAZ2
+          // BlockGroupGeoId1 -> TAZ3
+          val tazGeoId: TazGeoId = new Random(randomSeed).shuffle(blockGroupToToTazs(blockGroupGeoId)).head
+          val timeLeavingODPairs = sourceToTimeLeavingOD(tazGeoId.asUniqueKey)
           val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
           logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
 
           val householdsWithPersonData = households.map { household =>
             val persons = householdWithPersons(household)
             val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold, household.income).map { powPumaWorkDest =>
-                val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
+              rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income).map { tazWorkDestStr =>
+                val tazWorkDest = TazGeoId.fromString(tazWorkDestStr)
+                val foundDests = timeLeavingODPairs.filter(x => x.destination == tazWorkDest.asUniqueKey)
                 if (foundDests.isEmpty) {
                   logger
                     .info(
-                      s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
+                      s"Could not find work destination '${tazWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
                     )
                   PersonWithExtraInfo(
                     person = person,
-                    workDest = powPumaWorkDest,
+                    workDest = tazWorkDest,
                     timeLeavingHomeRange = defaultTimeLeavingHomeRange
                   )
                 } else {
@@ -363,7 +362,7 @@ class SimpleScenarioGenerator(
                     ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
                   PersonWithExtraInfo(
                     person = person,
-                    workDest = powPumaWorkDest,
+                    workDest = tazWorkDest,
                     timeLeavingHomeRange = timeLeavingHomeRange
                   )
                 }
@@ -428,17 +427,16 @@ class SimpleScenarioGenerator(
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 10, "Expecting 10 arguments")
+    require(args.length == 9, "Expecting 10 arguments")
     val pathToHouseholdFile = args(0)
     val pathToPopulationFile = args(1)
     val pathToCTPPFolder = args(2)
-    val pathToPumaShapeFile = args(3)
-    val pathToPowPumaShapeFile = args(4)
-    val pathToBlockGroupShapeFile = args(5)
-    val pathToCongestionLevelDataFile = args(6)
-    val pathToWorkedHours = args(7)
-    val pathToOsmMap = args(8)
-    val pathToOutput = args(9)
+    val pathToTazShapeFile = args(3)
+    val pathToBlockGroupShapeFile = args(4)
+    val pathToCongestionLevelDataFile = args(5)
+    val pathToWorkedHours = args(6)
+    val pathToOsmMap = args(7)
+    val pathToOutput = args(8)
 
     /*
     Args:
@@ -459,8 +457,7 @@ object SimpleScenarioGenerator {
         pathToHouseholdFile,
         pathToPopulationFile,
         pathToCTPPFolder,
-        pathToPumaShapeFile,
-        pathToPowPumaShapeFile,
+        pathToTazShapeFile,
         pathToBlockGroupShapeFile,
         pathToCongestionLevelDataFile,
         pathToWorkedHours,

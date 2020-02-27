@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.math3.random.MersenneTwister
 
 trait WorkDestinationGenerator {
-  def next(homeLocation: PumaGeoId, income: Double): Option[PowPumaGeoId]
+  def next(homeLocation: String, income: Double): Option[String]
 }
 
 class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val randomSeed: Int)
@@ -16,23 +16,23 @@ class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val randomS
     with StrictLogging {
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
   private val householdGeoIdToIncomeOD: Map[String, Seq[OD[HouseholdIncome]]] =
-    new HouseholdIncomeTableReader(pathToCTPPData, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
+    new HouseholdIncomeTableReader(pathToCTPPData, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
       .read()
       .groupBy(x => x.source)
 
   logger.info(s"householdGeoIdToIncomeOD: ${householdGeoIdToIncomeOD.size}")
 
-  override def next(homeLocation: PumaGeoId, income: Double): Option[PowPumaGeoId] = {
-    householdGeoIdToIncomeOD.get(homeLocation.asUniqueKey) match {
+  override def next(homeLocation: String, income: Double): Option[String] = {
+    householdGeoIdToIncomeOD.get(homeLocation) match {
       case Some(xs) =>
         val incomeInRange = xs.filter(od => od.attribute.contains(income.toInt))
         if (incomeInRange.isEmpty) {
           logger.info(s"Could not find OD with income ${income} in ${xs.mkString(" ")}")
         }
-        ODSampler.sample(incomeInRange, rndGen).map(x => PowPumaGeoId.fromString(x.destination))
+        ODSampler.sample(incomeInRange, rndGen).map(x => x.destination)
       case None =>
         logger.info(
-          s"Could not find '${homeLocation}' key as ${homeLocation.asUniqueKey} in the `householdGeoIdToIncomeOD`"
+          s"Could not find '${homeLocation}' key as ${homeLocation} in the `householdGeoIdToIncomeOD`"
         )
         None
     }

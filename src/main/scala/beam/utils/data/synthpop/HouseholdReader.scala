@@ -1,7 +1,7 @@
 package beam.utils.data.synthpop
 
 import beam.utils.csv.GenericCsvReader
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Household}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Household, State}
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.Try
@@ -42,8 +42,8 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
     }
 
     // Read geoid
-    val state = GenericCsvReader.getIfNotNull(rec, "state").toString
-    val county = GenericCsvReader.getIfNotNull(rec, "county").toString
+    val state = State(GenericCsvReader.getIfNotNull(rec, "state").toString)
+    val county = County(GenericCsvReader.getIfNotNull(rec, "county").toString)
     val tract = GenericCsvReader.getIfNotNull(rec, "tract").toString
     val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group").toString
     val geoId = BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroupId)
