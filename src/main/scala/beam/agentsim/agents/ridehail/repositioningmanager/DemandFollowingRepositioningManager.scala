@@ -162,7 +162,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val nextTimeBin = currentTimeBin + 1
     val fractionOfClosestClusters =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
-    val sensitivityOfDistance =
+    val sensitivityOfDistance: Double =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityOfDistance
 
     timeBinToClusters.get(nextTimeBin).flatMap { clusters =>
@@ -174,18 +174,22 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
         val topNClosest =
           clusters.map(x => (x, beamServices.geo.distUTMInMeters(x.coord, vehicleLocation))).sortBy(_._2).take(N)
-        val maxDistanceCluster = topNClosest.maxBy(_._2)
-        val maxDemandCLuster = topNClosest.maxBy(_._1.size)
-        val maxDistance = Math.max(1.0, maxDistanceCluster._2)
-        val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-        val distanceCoef = 0.01 * sensitivityOfDistance
-        val demandCoef = 1 - distanceCoef
+//        val maxDistanceCluster = topNClosest.maxBy(_._2)
+//        val maxDemandCLuster = topNClosest.maxBy(_._1.size)
+//        val maxDistance = Math.max(1.0, maxDistanceCluster._2)
+//        val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
+//        val distanceCoef = 0.01 * sensitivityOfDistance
+//        val demandCoef = 1 - distanceCoef
+//        val pmf = topNClosest.map {
+//          case (x, dist) =>
+//            new CPair[ClusterInfo, java.lang.Double](
+//              x,
+//              (demandCoef * (x.size.toDouble / maxDemand)) + (distanceCoef * (1 - (dist.toDouble / maxDistance)))
+//            )
+//        }.toList
         val pmf = topNClosest.map {
           case (x, dist) =>
-            new CPair[ClusterInfo, java.lang.Double](
-              x,
-              (demandCoef * (x.size.toDouble / maxDemand)) + (distanceCoef * (1 - (dist.toDouble / maxDistance)))
-            )
+            new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble/Math.pow(Math.max(1.0, dist*sensitivityOfDistance), 2))
         }.toList
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
