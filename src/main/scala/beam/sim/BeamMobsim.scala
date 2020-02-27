@@ -16,6 +16,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
 import beam.router.osm.TollCalculator
+import beam.router.skim.TAZSkimsCollector
+import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -247,6 +249,14 @@ class BeamMobsimIteration(
 
   scheduleRideHailManagerTimerMessages()
 
+  //to monitor with TAZSkimmer add actor hereinafter
+  private val tazSkimmer = context.actorOf(
+    TAZSkimsCollector.props(scheduler, beamServices, rideHailManager +: sharedVehicleFleets),
+    "taz-skims-collector"
+  )
+  context.watch(tazSkimmer)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
+
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
     system: ActorSystem,
@@ -276,10 +286,12 @@ class BeamMobsimIteration(
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
+      tazSkimmer ! Finish
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
+      context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)

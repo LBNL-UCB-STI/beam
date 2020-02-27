@@ -225,6 +225,10 @@ dependencies {
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
+    compile("io.github.oliviercailloux:google-or-tools:6.7.2") {
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }
+
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
@@ -443,7 +447,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC + jmx
+                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
 
 println(applicationDefaultJvmArgs)
 
