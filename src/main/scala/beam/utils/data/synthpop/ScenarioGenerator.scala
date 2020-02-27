@@ -51,6 +51,8 @@ class SimpleScenarioGenerator(
 ) extends ScenarioGenerator
     with StrictLogging {
 
+  logger.info(s"Initializing...")
+
   private val mapBoundingBox: Envelope = getBoundingBoxOfOsmMap(pathToOsmMap)
 
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
@@ -98,7 +100,7 @@ class SimpleScenarioGenerator(
     ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
   private val sourceToTimeLeavingOD =
     new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
-  private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(2.0)
+  private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
   private val households: Map[String, Models.Household] =
     new HouseholdReader(pathToHouseholdFile)
@@ -120,32 +122,30 @@ class SimpleScenarioGenerator(
       (household, persons)
   }
   logger.info(s"householdWithPersons: ${householdWithPersons.size}")
+  private val geoIdToHouseholds = households.values.groupBy(x => x.geoId)
+  private val uniqueGeoIds = geoIdToHouseholds.keySet
+  logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
   private val uniqueStates = households.map(_._2.geoId.state).toSet
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
+  private val geoSvc: GeoService = new GeoService(
+    GeoServiceInputParam(pathToPumaShapeFile, pathToPowPumaShapeFile, pathToBlockGroupShapeFile),
+    uniqueStates,
+    uniqueGeoIds
+  )
+
+  val blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId] = ProfilingUtils.timed(
+    s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and pumaIdToMap ${geoSvc.pumaGeoIdToGeom.size}",
+    x => logger.info(x)
+  ) {
+    getBlockGroupToPuma
+  }
+  logger.info(s"blockGroupToPumaMap: ${blockGroupToPumaMap.size}")
+
+  logger.info(s"Initializing finished")
+
   override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
-    val powPumaGeoIdMap = getPlaceOfWorkPumaMap(uniqueStates)
-    logger.info(s"powPumaGeoIdMap: ${powPumaGeoIdMap.size}")
-
-    val geoIdToHouseholds = households.values.groupBy(x => x.geoId)
-    val uniqueGeoIds = geoIdToHouseholds.keySet
-    logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
-
-    val pumaIdToMap = getPumaMap
-    logger.info(s"pumaIdToMap: ${pumaIdToMap.size}")
-
-    val blockGroupGeoIdToGeom = getBlockGroupMap(uniqueGeoIds)
-    logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
-
-    val blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId] = ProfilingUtils.timed(
-      s"getBlockGroupToPuma for blockGroupGeoIdToGeom ${blockGroupGeoIdToGeom.size} and pumaIdToMap ${pumaIdToMap.size}",
-      x => logger.info(x)
-    ) {
-      getBlockGroupToPuma(blockGroupGeoIdToGeom, pumaIdToMap)
-    }
-    logger.info(s"blockGroupToPumaMap: ${blockGroupToPumaMap.size}")
-
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -168,8 +168,8 @@ class SimpleScenarioGenerator(
     }
     // Generate all work destinations which will be later assigned to people
     val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
-      case (powPumaGeoId, nWorkingPlaces) =>
-        val workingGeos = powPumaGeoIdMap.get(powPumaGeoId) match {
+      case (powPumaGeoId: PowPumaGeoId, nWorkingPlaces) =>
+        val workingGeos = geoSvc.powPumaGeoIdMap.get(powPumaGeoId) match {
           case Some(geom) =>
             // FIXME
             val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
@@ -187,9 +187,9 @@ class SimpleScenarioGenerator(
       ProfilingUtils.timed(s"Generate ${households.size} locations", x => logger.info(x)) {
         blockGroupGeoIdToHouseholds.par.map {
           case (blockGroupGeoId, householdsWithPersonData) =>
-            val blockGeomOfHousehold = blockGroupGeoIdToGeom(blockGroupGeoId)
+            val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
             blockGroupGeoId -> pointsGenerator.generate(
-              blockGeomOfHousehold.getGeometry,
+              blockGeomOfHousehold,
               householdsWithPersonData.size
             )
         }.seq
@@ -314,6 +314,28 @@ class SimpleScenarioGenerator(
     finalResult.values.flatten
   }
 
+  private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
+    // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
+    val blockGroupToPuma = geoSvc.blockGroupGeoIdToGeom
+      .flatMap {
+        case (blockGroupGeoId, blockGroupGeom) =>
+          // Intersect with all and get the best by the covered area
+          val allIntersections = geoSvc.pumaGeoIdToGeom.map {
+            case (pumaGeoId, pumaGeom) =>
+              val intersection = blockGroupGeom.intersection(pumaGeom)
+              (intersection, blockGroupGeoId, pumaGeoId)
+          }
+          val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
+          best
+      }
+      .map {
+        case (_, blockGroupGeoId, pumaGeoId) =>
+          blockGroupGeoId -> pumaGeoId
+      }
+      .toMap
+    blockGroupToPuma
+  }
+
   private def getBlockGroupIdToHouseholdAndPeople(
     blockGroupToPumaMap: Map[BlockGroupGeoId, PumaGeoId],
     geoIdToHouseholds: Map[BlockGroupGeoId, Iterable[Models.Household]]
@@ -322,7 +344,7 @@ class SimpleScenarioGenerator(
       geoIdToHouseholds.map {
         case (blockGroupGeoId, households) =>
           // TODO We need to bring building density in the future
-          val pumaGeoIdOfHousehold = blockGroupToPumaMap(blockGroupGeoId)
+          val pumaGeoIdOfHousehold: PumaGeoId = blockGroupToPumaMap(blockGroupGeoId)
 
           val timeLeavingODPairs = sourceToTimeLeavingOD(pumaGeoIdOfHousehold.asUniqueKey)
           val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
@@ -364,127 +386,6 @@ class SimpleScenarioGenerator(
           blockGroupGeoId -> householdsWithPersonData
       }
     blockGroupGeoIdToHouseholds
-  }
-
-  private def getPumaMap: Map[PumaGeoId, PreparedGeometry] = {
-    val dataStore = new ShapefileDataStore(new File(pathToPumaShapeFile).toURI.toURL)
-    try {
-      val fe = dataStore.getFeatureSource.getFeatures.features()
-      try {
-        val it = new Iterator[SimpleFeature] {
-          override def hasNext: Boolean = fe.hasNext
-          override def next(): SimpleFeature = fe.next()
-        }
-        val tractGeoIdToGeom = it.map { feature =>
-          val state = feature.getAttribute("STATEFP10").toString
-          val puma = feature.getAttribute("PUMACE10").toString
-          val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-          PumaGeoId(state, puma) -> geom
-        }.toMap
-        tractGeoIdToGeom
-      } finally {
-        Try(fe.close())
-      }
-    } finally {
-      Try(dataStore.dispose())
-    }
-  }
-
-  private def getPlaceOfWorkPumaMap(uniqueStates: Set[String]): Map[PowPumaGeoId, Geometry] = {
-    val dataStore = new ShapefileDataStore(new File(pathToPowPumaShapeFile).toURI.toURL)
-    try {
-      val fe = dataStore.getFeatureSource.getFeatures.features()
-      val destinationCoordSystem = CRS.decode("EPSG:4326", true)
-      val mathTransform =
-        CRS.findMathTransform(dataStore.getSchema.getCoordinateReferenceSystem, destinationCoordSystem, true)
-      try {
-        val it = new Iterator[SimpleFeature] {
-          override def hasNext: Boolean = fe.hasNext
-          override def next(): SimpleFeature = fe.next()
-        }
-        val tractGeoIdToGeom = it
-          .filter { feature =>
-            val state = feature.getAttribute("PWSTATE").toString
-            uniqueStates.contains(state)
-          }
-          .map { feature =>
-            val state = feature.getAttribute("PWSTATE").toString
-            val puma = feature.getAttribute("PWPUMA").toString
-            val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-            val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
-            PowPumaGeoId(state, puma) -> wgsGeom
-          }
-          .toMap
-        tractGeoIdToGeom
-      } finally {
-        Try(fe.close())
-      }
-    } finally {
-      Try(dataStore.dispose())
-    }
-  }
-
-  private def getBlockGroupMap(uniqueGeoIds: Set[BlockGroupGeoId]): Map[BlockGroupGeoId, PreparedGeometry] = {
-    val dataStore = new ShapefileDataStore(new File(pathToBlockGroupShapeFile).toURI.toURL)
-    try {
-      val fe = dataStore.getFeatureSource.getFeatures.features()
-      try {
-        val it = new Iterator[SimpleFeature] {
-          override def hasNext: Boolean = fe.hasNext
-          override def next(): SimpleFeature = fe.next()
-        }
-        val tazGeoIdToGeom = it
-          .filter { feature =>
-            val state = feature.getAttribute("STATEFP").toString
-            val county = feature.getAttribute("COUNTYFP").toString
-            val tract = feature.getAttribute("TRACTCE").toString
-            val blockGroup = feature.getAttribute("BLKGRPCE").toString
-            val shouldConsider = uniqueGeoIds.contains(
-              BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup)
-            )
-            shouldConsider
-          }
-          .map { feature =>
-            val state = feature.getAttribute("STATEFP").toString
-            val county = feature.getAttribute("COUNTYFP").toString
-            val tract = feature.getAttribute("TRACTCE").toString
-            val blockGroup = feature.getAttribute("BLKGRPCE").toString
-            val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-            BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup) -> geom
-          }
-          .toMap
-        tazGeoIdToGeom
-      } finally {
-        Try(fe.close())
-      }
-    } finally {
-      Try(dataStore.dispose())
-    }
-  }
-
-  def getBlockGroupToPuma(
-    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, PreparedGeometry],
-    pumaGeoIdToGeom: Map[PumaGeoId, PreparedGeometry],
-  ): Map[BlockGroupGeoId, PumaGeoId] = {
-    // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
-    val blockGroupToPuma = blockGroupGeoIdToGeom
-      .flatMap {
-        case (blockGroupGeoId, blockGroupGeom) =>
-          // Intersect with all and get the best by the covered area
-          val allIntersections = pumaGeoIdToGeom.map {
-            case (pumaGeoId, pumaGeom) =>
-              val intersection = blockGroupGeom.getGeometry.intersection(pumaGeom.getGeometry)
-              (intersection, blockGroupGeoId, pumaGeoId)
-          }
-          val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
-          best
-      }
-      .map {
-        case (_, blockGroupGeoId, pumaGeoId) =>
-          blockGroupGeoId -> pumaGeoId
-      }
-      .toMap
-    blockGroupToPuma
   }
 
   private def drawTimeLeavingHome(timeLeavingHomeRange: Range): Int = {
