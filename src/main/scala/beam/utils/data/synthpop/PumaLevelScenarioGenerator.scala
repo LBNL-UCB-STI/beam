@@ -21,14 +21,7 @@ import org.matsim.api.core.v01.Coord
 import scala.collection.mutable
 import scala.util.Try
 
-trait ScenarioGenerator {
-  def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
-}
-
-case class PersonWithExtraInfo(person: Models.Person, workDest: PowPumaGeoId, timeLeavingHomeRange: Range)
-case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
-
-class SimpleScenarioGenerator(
+class PumaLevelScenarioGenerator(
   val pathToHouseholdFile: String,
   val pathToPopulationFile: String,
   val pathToCTPPFolder: String,
@@ -425,7 +418,7 @@ class SimpleScenarioGenerator(
   }
 }
 
-object SimpleScenarioGenerator {
+object PumaLevelScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
     require(args.length == 10, "Expecting 10 arguments")
@@ -455,7 +448,7 @@ object SimpleScenarioGenerator {
      * */
 
     val gen =
-      new SimpleScenarioGenerator(
+      new PumaLevelScenarioGenerator(
         pathToHouseholdFile,
         pathToPopulationFile,
         pathToCTPPFolder,
