@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, ChargingEventsAccumulator}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, EventsAccumulator}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -142,16 +142,16 @@ class BeamMobsimIteration(
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
-  val chargingEventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.agents.vehicles.collectChargingEvents)
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.agents.vehicles.collectEvents)
       Some(
-        context.actorOf(ChargingEventsAccumulator.props(scheduler, beamServices.beamConfig))
+        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
       )
     else None
 
   eventsManager match {
     case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setChargingEventsAccumulator(chargingEventsAccumulator)
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
     case _ =>
   }
 
@@ -302,8 +302,8 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      if (chargingEventsAccumulator.isDefined) {
-        chargingEventsAccumulator.get ! Finish
+      if (eventsAccumulator.isDefined) {
+        eventsAccumulator.get ! Finish
       }
       context.stop(scheduler)
       context.stop(errorListener)

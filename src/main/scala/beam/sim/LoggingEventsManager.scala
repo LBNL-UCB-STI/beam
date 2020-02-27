@@ -3,7 +3,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.ChargingEventsAccumulator
+import beam.agentsim.agents.vehicles.EventsAccumulator
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
@@ -34,18 +34,18 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
     collection.mutable.HashMap()
 
-  private var chargingEventsAccumulator: Option[ActorRef] = None
+  private var eventsAccumulator: Option[ActorRef] = None
 
-  def setChargingEventsAccumulator(accumulator: Option[ActorRef]): Unit = {
-    chargingEventsAccumulator = accumulator
+  def setEventsAccumulator(accumulator: Option[ActorRef]): Unit = {
+    eventsAccumulator = accumulator
   }
 
   override def processEvent(event: Event): Unit = {
-    chargingEventsAccumulator match {
+    eventsAccumulator match {
       case Some(accumulator) =>
         event match {
           case e @ (_: ChargingPlugInEvent | _: ChargingPlugOutEvent | _: RefuelSessionEvent) =>
-            accumulator ! e
+            accumulator ! EventsAccumulator.ProcessChargingEvents(e)
           case _ =>
         }
       case None =>
