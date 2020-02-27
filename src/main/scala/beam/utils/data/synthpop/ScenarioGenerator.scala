@@ -305,7 +305,7 @@ class SimpleScenarioGenerator(
     val outOfBoundingBoxCnt = finalResult.values.flatten.count(x => x.isEmpty)
     if (outOfBoundingBoxCnt != 0)
       logger.warn(
-        s"There were ${outOfBoundingBoxCnt} households which locations does not belong to bounding box $mapBoundingBox"
+        s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box $mapBoundingBox"
       )
     finalResult.values.flatten.flatten
   }
