@@ -189,7 +189,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 //        }.toList
         val pmf = topNClosest.map {
           case (x, dist) =>
-            new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble/Math.pow(Math.max(1.0, dist*sensitivityOfDistance), 2))
+            new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble/Math.max(1.0, Math.pow(dist*sensitivityOfDistance, 2)))
         }.toList
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
