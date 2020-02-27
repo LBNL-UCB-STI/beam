@@ -226,13 +226,14 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        beamScenario.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike) match {
-          case Some(vehType) =>
-            vehicleTypes.append(vehType)
-          case None =>
-            throw new RuntimeException("Bike not found in vehicle types.")
-        }
+        // FIXME What is this? Why we add bike in any case?
+//        beamScenario.vehicleTypes.values
+//          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+//          case Some(vehType) =>
+//            vehicleTypes.append(vehType)
+//          case None =>
+//            throw new RuntimeException("Bike not found in vehicle types.")
+//        }
         initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
 
