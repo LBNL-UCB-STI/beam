@@ -12,14 +12,9 @@ import scala.collection.mutable.ListBuffer
 
 object EventsAccumulator {
 
-  object EventTypes extends Enumeration {
-    type EventTypes = Value
-    val charging = Value
-  }
-
   case class ProcessChargingEvents(event: org.matsim.api.core.v01.events.Event)
 
-  case class ChargingEventsAccumulatorTrigger(tick: Int) extends Trigger
+  case class EventsAccumulatorTrigger(tick: Int) extends Trigger
 
   def props(scheduler: ActorRef, beamConfig: BeamConfig): Props =
     Props(new EventsAccumulator(scheduler, beamConfig))
@@ -29,27 +24,22 @@ object EventsAccumulator {
 class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Actor {
   import EventsAccumulator._
 
-  val timeout: Int = beamConfig.beam.agentsim.agents.vehicles.collectEventsIntervalInSeconds
-
-  val enabledEvents: Array[String] =
-    beamConfig.beam.agentsim.agents.vehicles.collectEventTypes.split(",").map(_.toLowerCase)
+  val timeout: Int = beamConfig.beam.agentsim.collectEventsIntervalInSeconds
 
   val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
 
-  scheduler ! ScheduleTrigger(ChargingEventsAccumulatorTrigger(timeout), self)
+  scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(timeout), self)
 
   override def receive: Receive = {
 
-    case t @ TriggerWithId(ChargingEventsAccumulatorTrigger(_), _) =>
+    case t @ TriggerWithId(EventsAccumulatorTrigger(_), _) =>
       informExternalSystem(chargingEventsBuffer)
       clearStates()
       scheduler ! CompletionNotice(t.triggerId)
 
     case ProcessChargingEvents(e) =>
-      if (enabledEvents.contains(EventTypes.charging.toString.toLowerCase)) {
-        chargingEventsBuffer += e
-      }
+      chargingEventsBuffer += e
 
     case Finish =>
       informExternalSystem(chargingEventsBuffer)

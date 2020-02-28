@@ -143,7 +143,7 @@ class BeamMobsimIteration(
   context.watch(scheduler)
 
   val eventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.agents.vehicles.collectEvents)
+    if (beamConfig.beam.agentsim.collectEvents)
       Some(
         context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
       )
