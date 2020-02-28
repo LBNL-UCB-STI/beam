@@ -1,7 +1,14 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.ridehail.RHMatchingToolkit._
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
+  CustomerRequest,
+  RHMatchingAlgorithm,
+  RTVGraph,
+  RVGraph,
+  RideHailTrip,
+  VehicleAndSchedule
+}
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
@@ -17,8 +24,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-object AlonsoMoraPoolingAlgForRideHail{
-  private lazy val initialize: Unit = { OrToolsLoader.load() }
+object AlonsoMoraPoolingAlgForRideHail {
+  private lazy val initialize: Unit = {
+    OrToolsLoader.load()
+  }
 }
 
 class AlonsoMoraPoolingAlgForRideHail(
@@ -234,6 +243,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       epsilonCostMap.flatMap(_._2.values).foreach {
         case (epsilon, c) => objective.setCoefficient(epsilon, c)
       }
+      solver.enableOutput()
       objective.setMinimization()
       val resultStatus = solver.solve
       if (resultStatus ne MPSolver.ResultStatus.OPTIMAL) {
