@@ -85,9 +85,9 @@ class SimpleScenarioGenerator(
 
   private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData, randomSeed)
+    new RandomWorkDestinationGenerator(pathToCTPPData, new MersenneTwister(randomSeed))
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
-    new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
+    new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
   private val sourceToTimeLeavingOD =
@@ -113,8 +113,16 @@ class SimpleScenarioGenerator(
       val household = households(hhId)
       (household, persons)
   }
+  private val personIdToHousehold: Map[Models.Person, Models.Household] = householdIdToPersons.flatMap {
+    case (hhId, persons) =>
+      val household = households(hhId)
+      persons.map { p =>
+        p -> household
+      }
+  }
+
   logger.info(s"householdWithPersons: ${householdWithPersons.size}")
-  private val geoIdToHouseholds = households.values.groupBy(x => x.geoId)
+  private val geoIdToHouseholds = households.values.toSeq.groupBy(x => x.geoId)
   private val uniqueGeoIds = geoIdToHouseholds.keySet
   logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
@@ -326,58 +334,95 @@ class SimpleScenarioGenerator(
     blockGroupToTazs
   }
 
-  private def getBlockGroupIdToHouseholdAndPeople
-    : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
-    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
-      geoIdToHouseholds.map {
-        case (blockGroupGeoId, households) =>
-          // Randomly choose TAZ which belongs to BlockGroupGeoId.
-          // It is one to many relation
-          // BlockGroupGeoId1 -> TAZ1
-          // BlockGroupGeoId1 -> TAZ2
-          // BlockGroupGeoId1 -> TAZ3
-          val tazGeoId: TazGeoId = new Random(randomSeed).shuffle(blockGroupToToTazs(blockGroupGeoId)).head
-          val timeLeavingODPairs = sourceToTimeLeavingOD(tazGeoId.asUniqueKey)
-          val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
-          logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
+  def findWorkingLocation(
+    tazGeoId: TazGeoId,
+    households: Iterable[Models.Household]
+  ): Iterable[Seq[Option[PersonWithExtraInfo]]] = {
+    sourceToTimeLeavingOD
+      .get(tazGeoId.asUniqueKey)
+      .map { timeLeavingODPairs =>
+        // logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
 
-          val householdsWithPersonData = households.map { household =>
+        val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
+          households.map { household =>
             val persons = householdWithPersons(household)
             val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
               rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income).map { tazWorkDestStr =>
                 val tazWorkDest = TazGeoId.fromString(tazWorkDestStr)
                 val foundDests = timeLeavingODPairs.filter(x => x.destination == tazWorkDest.asUniqueKey)
                 if (foundDests.isEmpty) {
-                  logger
-                    .info(
-                      s"Could not find work destination '${tazWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
-                    )
-                  PersonWithExtraInfo(
-                    person = person,
-                    workDest = tazWorkDest,
-                    timeLeavingHomeRange = defaultTimeLeavingHomeRange
-                  )
+//                logger
+//                  .info(
+//                    s"Could not find work destination '${tazWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
+//                  )
+                  None
                 } else {
                   val timeLeavingHomeRange =
                     ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
-                  PersonWithExtraInfo(
-                    person = person,
-                    workDest = tazWorkDest,
-                    timeLeavingHomeRange = timeLeavingHomeRange
+                  Some(
+                    PersonWithExtraInfo(
+                      person = person,
+                      workDest = tazWorkDest,
+                      timeLeavingHomeRange = timeLeavingHomeRange
+                    )
                   )
                 }
               }
             }
-            if (personWithWorkDestAndTimeLeaving.size != persons.size) {
-              logger.warn(
-                s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
-              )
-            }
-            (household, personWithWorkDestAndTimeLeaving)
+//          if (personWithWorkDestAndTimeLeaving.size != persons.size) {
+//            logger.warn(
+//              s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
+//            )
+//          }
+            personWithWorkDestAndTimeLeaving
           }
-          blockGroupGeoId -> householdsWithPersonData
+        personData
       }
+      .getOrElse(Iterable.empty)
+  }
+
+  private def getBlockGroupIdToHouseholdAndPeople
+    : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
+      geoIdToHouseholds.toSeq.zipWithIndex.map {
+        case ((blockGroupGeoId, households), index) =>
+          val tazes = blockGroupToToTazs(blockGroupGeoId)
+          // It is one to many relation
+          // BlockGroupGeoId1 -> TAZ1
+          // BlockGroupGeoId1 -> TAZ2
+          // BlockGroupGeoId1 -> TAZ3
+          // So let's generate all possible combinations and choose randomly from them
+          val allPossibleLocations: List[PersonWithExtraInfo] = tazes.flatMap { tazGeoId =>
+            findWorkingLocation(tazGeoId, households).flatten.flatten
+          }
+          val uniquePersons = randomlyChooseUniquePersons(allPossibleLocations)
+
+          val householdWithPersons = uniquePersons
+            .map(p => (personIdToHousehold(p.person), p))
+            .groupBy { case (hh, xs) => hh }
+            .map { case (hh, xs) => (hh, xs.map(_._2)) }
+            .toSeq
+
+          logger.info(
+            s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${index + 1} out of ${geoIdToHouseholds.size}"
+          )
+          blockGroupGeoId -> householdWithPersons
+      }.toMap
     blockGroupGeoIdToHouseholds
+  }
+
+  private def randomlyChooseUniquePersons(
+    allPossibleLocations: List[PersonWithExtraInfo]
+  ): List[PersonWithExtraInfo] = {
+    allPossibleLocations
+      .groupBy { p =>
+        p.person
+      }
+      .map {
+        case (p, xs) =>
+          new Random(randomSeed).shuffle(xs).head
+      }
+      .toList
   }
 
   private def drawTimeLeavingHome(timeLeavingHomeRange: Range): Int = {

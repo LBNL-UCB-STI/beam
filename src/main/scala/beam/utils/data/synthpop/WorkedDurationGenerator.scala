@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import beam.utils.Statistics
 import beam.utils.data.ctpp.JointDistribution
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 
 import scala.util.control.NonFatal
 
@@ -17,10 +18,12 @@ trait WorkedDurationGenerator {
   def next(rangeWhenLeftHome: Range): Int
 }
 
-class WorkedDurationGeneratorImpl(pathToCsv: String, randomSeed: Int) extends WorkedDurationGenerator with LazyLogging {
+class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGenerator)
+    extends WorkedDurationGenerator
+    with LazyLogging {
   private val jd = JointDistribution.fromCsvFile(
     pathToCsv = pathToCsv,
-    seed = randomSeed,
+    rndGen = rndGen,
     columnMapping = Map(
       "startTimeIndex" -> JointDistribution.RANGE_COLUMN_TYPE,
       "durationIndex"  -> JointDistribution.RANGE_COLUMN_TYPE,
@@ -58,7 +61,7 @@ object WorkedDurationGeneratorImpl {
 
   def main(args: Array[String]): Unit = {
     val path = """D:\Work\beam\Austin\input\work_activities_all_us.csv"""
-    val w = new WorkedDurationGeneratorImpl(path, 42)
+    val w = new WorkedDurationGeneratorImpl(path, new MersenneTwister(42))
     val timeWhenLeaveHome = Range(TimeUnit.HOURS.toSeconds(10).toInt, TimeUnit.HOURS.toSeconds(11).toInt)
     val allDurations = (1 to 10000).map { _ =>
       w.next(timeWhenLeaveHome) / 3600.0

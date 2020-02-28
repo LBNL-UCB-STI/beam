@@ -81,9 +81,9 @@ class PumaLevelScenarioGenerator(
 
   private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData, randomSeed)
+    new RandomWorkDestinationGenerator(pathToCTPPData, new MersenneTwister(randomSeed))
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
-    new WorkedDurationGeneratorImpl(pathToWorkedHours, randomSeed)
+    new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
   private val sourceToTimeLeavingOD =
