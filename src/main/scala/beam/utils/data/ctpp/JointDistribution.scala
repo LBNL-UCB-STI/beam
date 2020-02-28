@@ -2,11 +2,11 @@ package beam.utils.data.ctpp
 
 import java.util.{Map => JavaMap}
 
-import org.apache.commons.math3.util.{Pair => CPair}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
-import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.random.RandomGenerator
+import org.apache.commons.math3.util.{Pair => CPair}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -21,7 +21,11 @@ object JointDistribution extends GenericCsvReader {
   val STRING_COLUMN_TYPE = "string"
   val RETURN_COLUMN = "probability"
 
-  def fromCsvFile(pathToCsv: String, seed: Int, columnMapping: Map[String, String] = Map()): JointDistribution = {
+  def fromCsvFile(
+    pathToCsv: String,
+    rndGen: RandomGenerator,
+    columnMapping: Map[String, String] = Map()
+  ): JointDistribution = {
     def toScalaMap(rec: JavaMap[String, String]): Map[String, String] = rec.asScala.toMap
     val (it, toClose) = readAs[Map[String, String]](pathToCsv, toScalaMap, _ => true)
     val mappedArray: Array[Map[String, String]] = try {
@@ -34,18 +38,17 @@ object JointDistribution extends GenericCsvReader {
       case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
     if (columnMapping.nonEmpty)
-      new JointDistribution(mappedArray, seed, columnMapping)
+      new JointDistribution(mappedArray, rndGen, columnMapping)
     else
-      new JointDistribution(mappedArray, seed, detectedColumn)
+      new JointDistribution(mappedArray, rndGen, detectedColumn)
   }
 }
 
 class JointDistribution(
   val mappedArray: Array[Map[String, String]],
-  val seed: Int,
+  val rndGen: RandomGenerator,
   val columnMapping: Map[String, String] = Map()
 ) {
-  private val rng: MersenneTwister = new MersenneTwister(seed)
 
   def getProbabilityList(keyValueTuple: (String, Either[String, CustomRange])*): Array[String] = {
     getRangeList(keyValueTuple: _*).map(_(RETURN_COLUMN))
@@ -67,7 +70,7 @@ class JointDistribution(
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {
       return Map()
     }
-    val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
+    val distr = new EnumeratedDistribution[Map[String, String]](rndGen, pmf.asJava)
     distr.sample()
   }
 
@@ -81,7 +84,7 @@ class JointDistribution(
         case (key, value) =>
           if (value.contains(",")) {
             val startEnd = toRange(Left(value), trimBracket = true)
-            key -> (startEnd.start + (startEnd.end - startEnd.start) * rng.nextDouble()).toString
+            key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
           } else {
             key -> value
           }
