@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
 object AlonsoMoraPoolingAlgForRideHail{
-  private lazy val initialize: Unit = OrToolsLoader.load()
+  private lazy val initialize: Unit = { OrToolsLoader.load() }
 }
 
 class AlonsoMoraPoolingAlgForRideHail(
