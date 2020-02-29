@@ -243,7 +243,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       epsilonCostMap.flatMap(_._2.values).foreach {
         case (epsilon, c) => objective.setCoefficient(epsilon, c)
       }
-      solver.enableOutput()
+
       objective.setMinimization()
       val resultStatus = solver.solve
       if (resultStatus ne MPSolver.ResultStatus.OPTIMAL) {
