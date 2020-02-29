@@ -4,7 +4,7 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.Skims
+import beam.router.skim.{Skims, TAZSkimmerEvent}
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -119,9 +119,10 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
       // Filter out vehicles that don't have enough range
+      val range = beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
       newPositions
         .filter { vehAndNewLoc =>
-          Skims.od_skimmer
+          val skim = Skims.od_skimmer
             .getTimeDistanceAndCost(
               vehAndNewLoc._1.currentLocationUTM.loc,
               vehAndNewLoc._2,
@@ -130,9 +131,17 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
               vehAndNewLoc._1.vehicleType.id,
               beamServices
             )
-            .distance <= rideHailManager.vehicleManager
-            .getVehicleState(vehAndNewLoc._1.vehicleId)
-            .totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+          if(skim.distance <= rideHailManager.vehicleManager.getVehicleState(vehAndNewLoc._1.vehicleId).totalRemainingRange - range) {
+            beamServices.matsimServices.getEvents.processEvent(
+              TAZSkimmerEvent(tick, vehAndNewLoc._1.currentLocationUTM.loc, "repDistanceRHVehicles", skim.distance, beamServices, "RideHailManager")
+            )
+            beamServices.matsimServices.getEvents.processEvent(
+              TAZSkimmerEvent(tick, vehAndNewLoc._1.currentLocationUTM.loc, "repTimeRHVehicles", skim.time, beamServices, "RideHailManager")
+            )
+            true
+          } else {
+            false
+          }
         }
         .map(tup => (tup._1.vehicleId, tup._2))
         .toVector
@@ -142,8 +151,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
-    val currentTimeBin = getTimeBin(tick)
-    val weight = timeBinToActivitiesWeight.getOrElse(currentTimeBin, 0.0)
+    val timeBin = getTimeBin(tick)
+    val weight = timeBinToActivitiesWeight.getOrElse(timeBin, 0.0)
     val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
                              sensitivityOfRepositioningToDemandForCAVs
                            } else {
@@ -152,51 +161,36 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
-      s"tick: $tick, currentTimeBin: $currentTimeBin, vehicleId: ${vehicle.vehicleId}, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
+      s"tick: $tick, currentTimeBin: ${tick / horizon}, repositionTimeBin: $timeBin, vehicleId: ${vehicle.vehicleId}, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
     )
     shouldRepos
   }
 
   private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: Id[Vehicle]): Option[Coord] = {
-    val currentTimeBin = getTimeBin(tick)
-    val nextTimeBin = currentTimeBin + 1
-    val fractionOfClosestClusters =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
+    val timeBin = getTimeBin(tick)
     val sensitivityToDistance: Double =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityToDistance
-
-    timeBinToClusters.get(nextTimeBin).flatMap { clusters =>
+    timeBinToClusters.get(timeBin).flatMap { clusters =>
       if (clusters.map(_.size).sum == 0) None
       else {
-        val N: Int = Math.max(1, Math.round(clusters.length * fractionOfClosestClusters).toInt)
-
-        // We get top N closest clusters and randomly pick one of them.
-        // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
-        val topNClosest =
-          clusters.map(x => (x, beamServices.geo.distUTMInMeters(x.coord, vehicleLocation))).sortBy(_._2).take(N)
-//        val maxDistanceCluster = topNClosest.maxBy(_._2)
-//        val maxDemandCLuster = topNClosest.maxBy(_._1.size)
-//        val maxDistance = Math.max(1.0, maxDistanceCluster._2)
-//        val maxDemand = Math.max(1.0, maxDemandCLuster._1.size)
-//        val distanceCoef = 0.01 * sensitivityToDistance
-//        val demandCoef = 1 - distanceCoef
-//        val pmf = topNClosest.map {
-//          case (x, dist) =>
-//            new CPair[ClusterInfo, java.lang.Double](
-//              x,
-//              (demandCoef * (x.size.toDouble / maxDemand)) + (distanceCoef * (1 - (dist.toDouble / maxDistance)))
-//            )
-//        }.toList
-        val pmf = topNClosest.map {
-          case (x, dist) =>
-            new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble/Math.max(1.0, Math.pow(dist * sensitivityToDistance, 2)))
+        // The probability is proportional to the cluster size per inverse square law -
+        // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
+        // as higher demands as higher probability
+        val pmf = clusters.map { x =>
+          new CPair[ClusterInfo, java.lang.Double](
+            x,
+            x.size.toDouble / Math.max(
+              1.0,
+              Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
+            )
+          )
         }.toList
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
         // Randomly pick the coordinate of one of activities
         val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
         logger.debug(
-          s"tick $tick, currentTimeBin: $currentTimeBin, nextTimeBin: $nextTimeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled, drawn coord: $drawnCoord"
+          s"tick $tick, currentTimeBin: ${tick / horizon}, repositionTimeBin: $timeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
         )
         Some(drawnCoord)
       }
@@ -289,7 +283,15 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     db
   }
 
-  private def getTimeBin(tick: Int): Int = tick / horizon
+  private def getTimeBin(tick: Int): Int = {
+    if (tick % horizon < horizon / 2) {
+      // current time bin
+      tick / horizon
+    } else {
+      // next time bin
+      1 + (tick / horizon)
+    }
+  }
 
   private def timeBinToSeconds(timeBin: Int): Int = timeBin * horizon
 }
