@@ -11,6 +11,7 @@ trait PointGenerator {
 }
 
 class RandomPointsInGridGenerator(val growthCoeff: Double) extends PointGenerator {
+  require(growthCoeff > 1)
   private val projection: Int = 4326
   private val geometryFactory: GeometryFactory = new GeometryFactory(new PrecisionModel(), projection)
 
@@ -30,11 +31,15 @@ class RandomPointsInGridGenerator(val growthCoeff: Double) extends PointGenerato
           new Coord(coord.getOrdinate(0), coord.getOrdinate(1))
         }
 
-      if (points.size >= nPoints) return points.take(nPoints)
-
-      generate((n * growthCoeff).toInt)
+      if (points.size >= nPoints) {
+        points.take(nPoints)
+      }
+      else {
+        val nextN = Math.ceil(n * growthCoeff).toInt
+        require(n != nextN)
+        generate(nextN)
+      }
     }
-
-    generate((nPoints * growthCoeff).toInt)
+    generate(Math.ceil(nPoints * growthCoeff).toInt)
   }
 }

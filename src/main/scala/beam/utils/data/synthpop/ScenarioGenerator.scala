@@ -177,7 +177,7 @@ class SimpleScenarioGenerator(
               pointsGenerator.generate(geom, nLocations)
             }
           case None =>
-            logger.warn(s"Can't find ${tazGeoId} in `powPumaGeoIdMap`")
+            logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
             Seq.empty
         }
         tazGeoId -> workingGeos
@@ -381,7 +381,8 @@ class SimpleScenarioGenerator(
       .getOrElse(Iterable.empty)
   }
 
-  private def getBlockGroupIdToHouseholdAndPeople
+  private def
+  getBlockGroupIdToHouseholdAndPeople
     : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
       geoIdToHouseholds.toSeq.zipWithIndex.map {
