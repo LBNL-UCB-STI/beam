@@ -131,12 +131,28 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
               vehAndNewLoc._1.vehicleType.id,
               beamServices
             )
-          if(skim.distance <= rideHailManager.vehicleManager.getVehicleState(vehAndNewLoc._1.vehicleId).totalRemainingRange - range) {
+          if (skim.distance <= rideHailManager.vehicleManager
+                .getVehicleState(vehAndNewLoc._1.vehicleId)
+                .totalRemainingRange - range) {
             beamServices.matsimServices.getEvents.processEvent(
-              TAZSkimmerEvent(tick, vehAndNewLoc._1.currentLocationUTM.loc, "repDistanceRHVehicles", skim.distance, beamServices, "RideHailManager")
+              TAZSkimmerEvent(
+                tick,
+                vehAndNewLoc._1.currentLocationUTM.loc,
+                "repDistanceRHVehicles",
+                skim.distance,
+                beamServices,
+                "RideHailManager"
+              )
             )
             beamServices.matsimServices.getEvents.processEvent(
-              TAZSkimmerEvent(tick, vehAndNewLoc._1.currentLocationUTM.loc, "repTimeRHVehicles", skim.time, beamServices, "RideHailManager")
+              TAZSkimmerEvent(
+                tick,
+                vehAndNewLoc._1.currentLocationUTM.loc,
+                "repTimeRHVehicles",
+                skim.time,
+                beamServices,
+                "RideHailManager"
+              )
             )
             true
           } else {
