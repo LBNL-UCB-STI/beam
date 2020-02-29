@@ -180,7 +180,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       }
       val alg =
-        new AlonsoMoraPoolingAlgForRideHail(
+        new VehicleCentricMatchingForRideHail(
           spatialPoolCustomerReqs,
           availVehicles,
           rideHailManager.beamServices
