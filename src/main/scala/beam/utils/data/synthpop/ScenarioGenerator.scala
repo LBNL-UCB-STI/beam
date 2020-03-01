@@ -4,6 +4,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
 import beam.utils.ProfilingUtils
+import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
@@ -49,7 +50,7 @@ class SimpleScenarioGenerator(
 
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
-  private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
+  private val geoUtils: GeoUtils = new GeoUtils {
     // TODO: Is it truth for all cases? Check the coverage https://epsg.io/26910
     // WGS84 bounds:
     //-172.54 23.81
@@ -134,6 +135,11 @@ class SimpleScenarioGenerator(
     uniqueStates,
     uniqueGeoIds
   )
+
+
+  writeTazCenters()
+
+
 
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
@@ -467,6 +473,20 @@ class SimpleScenarioGenerator(
       Try(osm.close())
     }
   }
+
+  def writeTazCenters(pathToFolder: String): Unit = {
+    val pathToFile = pathToFolder + "/taz-centers.csv.gz"
+    val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
+    try {
+      geoSvc.tazGeoIdToGeom.foreach { case (taz, geo) =>
+        val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
+        csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, geo.getArea)
+      }
+    }
+    finally {
+      Try(csvWriter.close())
+    }
+  }
 }
 
 object SimpleScenarioGenerator {
@@ -509,6 +529,8 @@ object SimpleScenarioGenerator {
         pathToOsmMap,
         42
       )
+
+    gen.writeTazCenters(pathToOutput)
 
     val generatedData = gen.generate
     println(s"Number of households: ${generatedData.size}")
