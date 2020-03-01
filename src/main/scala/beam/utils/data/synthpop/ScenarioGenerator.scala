@@ -381,8 +381,7 @@ class SimpleScenarioGenerator(
       .getOrElse(Iterable.empty)
   }
 
-  private def
-  getBlockGroupIdToHouseholdAndPeople
+  private def getBlockGroupIdToHouseholdAndPeople
     : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
       geoIdToHouseholds.toSeq.zipWithIndex.map {

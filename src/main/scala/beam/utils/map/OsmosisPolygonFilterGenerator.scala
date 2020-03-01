@@ -15,6 +15,7 @@ import org.opengis.referencing.operation.MathTransform
 import scala.util.Try
 
 object OsmosisPolygonFilterGenerator extends StrictLogging {
+
   // How to run
   // ./gradlew execute -PmainClass=beam.utils.map.OsmosisPolygonFilterGenerator -PappArgs="['D:/Work/beam/Austin/input/tl_2017_us_county/tl_2017_us_county.shp', '48', 'williamson,bastrop,burnet,caldwell,hays,travis', 'D:/Work/beam/Austin/results']" -PmaxRAM=4g
   def main(args: Array[String]): Unit = {
@@ -37,33 +38,40 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     createOsmosisPolygonFilterFile(pathToOutputFolder, countyWithGeom)
   }
 
-  private def createOsmosisPolygonFilterFile(pathToOutputFolder: String, countyToGeom: Seq[(String, Geometry)]): Unit = {
+  private def createOsmosisPolygonFilterFile(
+    pathToOutputFolder: String,
+    countyToGeom: Seq[(String, Geometry)]
+  ): Unit = {
     val sb = new java.lang.StringBuffer()
     def write(s: String): Unit = {
       sb.append(s)
       sb.append(System.lineSeparator())
     }
     write("counties")
-    countyToGeom.foreach { case (county, geom) =>
-      write(county)
-      geom.getCoordinates.foreach { coord =>
-        val s = s"\t${coord.getOrdinate(0)}\t${coord.getOrdinate(1)}"
-        write(s)
-      }
-      write("END")
+    countyToGeom.foreach {
+      case (county, geom) =>
+        write(county)
+        geom.getCoordinates.foreach { coord =>
+          val s = s"\t${coord.getOrdinate(0)}\t${coord.getOrdinate(1)}"
+          write(s)
+        }
+        write("END")
     }
     write("END")
 
     val path = pathToOutputFolder + "/counties.poly"
-    Files.write(new File(path).toPath, sb.toString.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING)
+    Files.write(
+      new File(path).toPath,
+      sb.toString.getBytes(StandardCharsets.UTF_8),
+      StandardOpenOption.TRUNCATE_EXISTING
+    )
 
     // Once this is done, you can crop the input PBF by using the following command:
     // `D:\Work\beam\Austin\osmosis\bin\osmosis.bat --read-pbf file="D:\Work\beam\Austin\texas-latest.osm.pbf" --log-progress --bounding-polygon file="D:\Work\beam\Austin\results\counties.poly" completeWays=yes completeRelations=yes clipIncompleteEntities=true --tf reject-ways highway=service,proposed,construction,abandoned,platform,raceway --write-pbf file="d:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"`
   }
 
-
   private def readShape(path: String, stateCodes: Set[String], counties: Set[String]): Array[(String, Geometry)] = {
-    def filter(feature: SimpleFeature): Boolean ={
+    def filter(feature: SimpleFeature): Boolean = {
       val state = feature.getAttribute("STATEFP").toString
       val countyName = feature.getAttribute("NAME").toString.toLowerCase
       stateCodes.contains(state) && counties.contains(countyName)
@@ -78,15 +86,18 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     ShapefileReader.read("EPSG:4326", path, filter, map)
   }
 
-  private def writeWktForDebuggingPurpose(pathToOutputPolygonFilterFile: String, countyToGeom: Seq[(String, Geometry)]): Unit = {
+  private def writeWktForDebuggingPurpose(
+    pathToOutputPolygonFilterFile: String,
+    countyToGeom: Seq[(String, Geometry)]
+  ): Unit = {
     val resultGeomFilePath = pathToOutputPolygonFilterFile + "/wkt.csv"
     val writer = new CsvWriter(resultGeomFilePath, Array("county", "wkt"))
     try {
-      countyToGeom.foreach { case (county, geom) =>
-        writer.write(county, "\"" + geom.toText + "\"")
+      countyToGeom.foreach {
+        case (county, geom) =>
+          writer.write(county, "\"" + geom.toText + "\"")
       }
-    }
-    finally {
+    } finally {
       Try(writer.close())
     }
   }

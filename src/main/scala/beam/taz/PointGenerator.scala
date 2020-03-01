@@ -33,8 +33,7 @@ class RandomPointsInGridGenerator(val growthCoeff: Double) extends PointGenerato
 
       if (points.size >= nPoints) {
         points.take(nPoints)
-      }
-      else {
+      } else {
         val nextN = Math.ceil(n * growthCoeff).toInt
         require(n != nextN)
         generate(nextN)
