@@ -136,11 +136,6 @@ class SimpleScenarioGenerator(
     uniqueGeoIds
   )
 
-
-  writeTazCenters()
-
-
-
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
