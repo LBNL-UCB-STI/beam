@@ -503,12 +503,11 @@ object SimpleScenarioGenerator {
       "D:\Work\beam\Austin\input\household_TX_Travis County.csv"
       "D:\Work\beam\Austin\input\people_TX_Travis County.csv"
       "D:\Work\beam\Austin\input\CTPP\48"
-      "D:\Work\beam\Austin\input\tl_2014_48_puma10\tl_2014_48_puma10.shp"
-      "D:\Work\beam\Austin\input\ipums_migpuma_pwpuma_2010\ipums_migpuma_pwpuma_2010.shp"
+      "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
       "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
       "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
       "D:\Work\beam\Austin\input\work_activities_all_us.csv"
-      "D:\Work\beam\Austin\texas-latest-simplified-austin-light-v5-incomplete-ways.osm.pbf"
+      "D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"
       "D:\Work\beam\Austin\results"
      * */
 
