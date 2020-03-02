@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, EventsAccumulator}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -73,6 +73,7 @@ class BeamMobsim @Inject()(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory
@@ -114,6 +115,7 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
   val beamServices: BeamServices,
+  val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory
@@ -139,6 +141,19 @@ class BeamMobsimIteration(
   )
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
+
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents)
+      Some(
+        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
+      )
+    else None
+
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
 
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
@@ -287,6 +302,9 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
+      if (eventsAccumulator.isDefined) {
+        eventsAccumulator.get ! Finish
+      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
