@@ -21,7 +21,7 @@ case class ParkingStall(
 object ParkingStall {
 
   // FIXME
-  val CostOfEmergencyStallInDollars: Double = 0.0
+  val CostOfEmergencyStallInDollars: Double = 50.0
 
   /**
     * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
