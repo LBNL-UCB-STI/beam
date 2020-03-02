@@ -473,12 +473,12 @@ class SimpleScenarioGenerator(
     val pathToFile = pathToFolder + "/taz-centers.csv.gz"
     val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
     try {
-      geoSvc.tazGeoIdToGeom.foreach { case (taz, geo) =>
-        val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
-        csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, geo.getArea)
+      geoSvc.tazGeoIdToGeom.foreach {
+        case (taz, geo) =>
+          val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
+          csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, geo.getArea)
       }
-    }
-    finally {
+    } finally {
       Try(csvWriter.close())
     }
   }
