@@ -21,7 +21,12 @@ object JointDistribution extends GenericCsvReader {
   val STRING_COLUMN_TYPE = "string"
   val RETURN_COLUMN = "probability"
 
-  def fromCsvFile(pathToCsv: String, seed: Int, columnMapping: Map[String, String] = Map()): JointDistribution = {
+  def fromCsvFile(
+    pathToCsv: String,
+    seed: Int,
+    columnMapping: Map[String, String] = Map(),
+    scale: Boolean = false
+  ): JointDistribution = {
     def toScalaMap(rec: JavaMap[String, String]): Map[String, String] = rec.asScala.toMap
     val (it, toClose) = readAs[Map[String, String]](pathToCsv, toScalaMap, _ => true)
     val mappedArray: Array[Map[String, String]] = try {
@@ -30,20 +35,21 @@ object JointDistribution extends GenericCsvReader {
       Try(toClose.close())
     }
 
-    val detectedColumn = mappedArray(0).map{
-      case(key, value) => (key, if(value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    val detectedColumn = mappedArray(0).map {
+      case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
-    if(columnMapping.nonEmpty)
-      new JointDistribution(mappedArray, seed, columnMapping)
+    if (columnMapping.nonEmpty)
+      new JointDistribution(mappedArray, seed, columnMapping, scale)
     else
-      new JointDistribution(mappedArray, seed, detectedColumn)
+      new JointDistribution(mappedArray, seed, detectedColumn, scale)
   }
 }
 
 class JointDistribution(
   val mappedArray: Array[Map[String, String]],
   val seed: Int,
-  val columnMapping: Map[String, String] = Map()
+  val columnMapping: Map[String, String] = Map(),
+  scale: Boolean = false
 ) {
   private val rng: MersenneTwister = new MersenneTwister(seed)
 
@@ -64,7 +70,7 @@ class JointDistribution(
       .toList
 
     val values = pmf.map(_.getValue)
-    if(values.isEmpty || values.reduce(_ + _) == 0.0) {
+    if (values.isEmpty || values.reduce(_ + _) == 0.0) {
       return Map()
     }
     val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
@@ -101,7 +107,11 @@ class JointDistribution(
               case Some(v) if v == JointDistribution.RANGE_COLUMN_TYPE =>
                 val startEnd = toRange(Left(value), trimBracket = true)
                 val range = toRange(keyValue._2)
-                range.start <= startEnd.start && range.end >= startEnd.end
+                if (scale) {
+                  val diff = startEnd.end - startEnd.start
+                  range.start - diff < startEnd.start && range.end + diff > startEnd.end
+                } else
+                  range.start <= startEnd.start && range.end >= startEnd.end
               case _ =>
                 keyValue._2 match {
                   case Left(left) => value == left
