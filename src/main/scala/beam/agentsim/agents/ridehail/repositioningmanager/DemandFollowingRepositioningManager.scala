@@ -29,6 +29,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   val repositionTimeout: Int =
     rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
+
   val sensitivityToDistance: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityToDistance
   private val activitySegment: ActivitySegment = {
@@ -59,6 +60,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         idx -> activities
     }.toMap
   val peakHourNumberOfActivities: Int = timeBinToActivities.maxBy(_._2.size)._2.size
+
   val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
     case (timeBin, acts) => timeBin -> acts.size.toDouble / peakHourNumberOfActivities
   }
@@ -68,17 +70,11 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: $horizon")
 
-//  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createHexClusters", x => logger.info(x)) {
-//    createHexClusters
-//  }
-//
-//  println(timeBinToClusters.size)
-
   def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
     tick: Int
   ): Vector[(Id[Vehicle], Location)] = {
-    val clusters = getTimeBins(tick).flatMap(createHexClusters)
+    val clusters = createHexClusters(tick)
     val nonRepositioningIdleVehicles = idleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
@@ -146,7 +142,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val weights = getTimeBins(tick).map(timeBinToActivitiesWeight.getOrElse(_, 0.0))
-    val weight = if(weights.isEmpty) 0.0 else weights.sum/weights.size
+    val weight = if (weights.isEmpty) 0.0 else weights.sum / weights.size
     val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
                              sensitivityOfRepositioningToDemandForCAVs
                            } else {
@@ -160,58 +156,62 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     shouldRepos
   }
 
-  private def findWhereToReposition(tick: Int, vehicleLocation: Coord, vehicleId: Id[Vehicle], clusters: IndexedSeq[ClusterInfo]): Option[Coord] = {
-      if (clusters.map(_.size).sum == 0) None
-      else {
-        // The probability is proportional to the cluster size per inverse square law -
-        // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
-        // as higher demands as higher probability
-        val pmf = clusters.map { x =>
-          new CPair[ClusterInfo, java.lang.Double](
-            x,
-            x.size.toDouble / Math.max(
-              1.0,
-              Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
-            )
+  private def findWhereToReposition(
+    tick: Int,
+    vehicleLocation: Coord,
+    vehicleId: Id[Vehicle],
+    clusters: Array[ClusterInfo]
+  ): Option[Coord] = {
+    if (clusters.map(_.size).sum == 0) None
+    else {
+      // The probability is proportional to the cluster size per inverse square law -
+      // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
+      // as higher demands as higher probability
+      val pmf = clusters.map { x =>
+        new CPair[ClusterInfo, java.lang.Double](
+          x,
+          x.size.toDouble / Math.max(
+            1.0,
+            Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
           )
-        }.toList
-        val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
-        val sampled = distr.sample()
-        // Randomly pick the coordinate of one of activities
-        val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
-        logger.debug(
-          s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
         )
-        Some(drawnCoord)
-      }
-  }
-
-  private def createHexClusters(tick: Int): IndexedSeq[ClusterInfo] = {
-    // Build clusters for every time bin. Number of clusters is configured
-    getTimeBins(tick).flatMap(timeBinToActivities.get).flatMap {
-      acts =>
-          if (acts.isEmpty)
-            Array.empty[ClusterInfo]
-          else {
-            acts
-              .map(_.getCoord)
-              .groupBy(beamServices.beamScenario.h3taz.getIndex)
-              .map {
-                case (hex, group) =>
-                  val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
-                  logger.debug(s"HexIndex: $hex")
-                  logger.debug(s"Size: ${group.size}")
-                  logger.debug(s"Center: $centroid")
-                  ClusterInfo(group.size, centroid, group.toIndexedSeq)
-              }
-              .toArray
-          }
+      }.toList
+      val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
+      val sampled = distr.sample()
+      // Randomly pick the coordinate of one of activities
+      val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
+      logger.debug(
+        s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
+      )
+      Some(drawnCoord)
     }
   }
 
-  private def getTimeBins(tick: Int): Range.Inclusive = {
+  private def createHexClusters(tick: Int): Array[ClusterInfo] = {
+    // Build clusters for every time bin. Number of clusters is configured
+    getTimeBins(tick).map(timeBinToActivities(_)).flatMap { acts =>
+      if (acts.isEmpty)
+        Array.empty[ClusterInfo]
+      else {
+        acts
+          .map(_.getCoord)
+          .groupBy(beamServices.beamScenario.h3taz.getIndex)
+          .map {
+            case (hex, group) =>
+              val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
+              logger.debug(s"HexIndex: $hex")
+              logger.debug(s"Size: ${group.size}")
+              logger.debug(s"Center: $centroid")
+              ClusterInfo(group.size, centroid, group.toIndexedSeq)
+          }
+      }
+    }
+  }
+
+  private def getTimeBins(tick: Int): Array[Int] = {
+    import scala.language.postfixOps
     val bin = tick / repositionTimeout
-    (bin + 1) to (bin + horizon)
+    (bin + 1) to (bin + horizon) toArray
   }
 
 //  private def timeBinToSeconds(timeBin: Int): Int = timeBin * horizon
