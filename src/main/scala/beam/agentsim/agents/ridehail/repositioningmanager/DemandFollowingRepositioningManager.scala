@@ -142,7 +142,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val weights = getTimeBins(tick).map(timeBinToActivitiesWeight.getOrElse(_, 0.0))
-    val weight = if (weights.isEmpty) 0.0 else weights.sum / weights.size
+    val weight = if (weights.isEmpty) 0.0 else weights.sum / weights.length
     val scaled = weight * (if (vehicle.vehicleType.automationLevel >= 4) {
                              sensitivityOfRepositioningToDemandForCAVs
                            } else {
@@ -189,7 +189,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
     // Build clusters for every time bin. Number of clusters is configured
-    getTimeBins(tick).map(timeBinToActivities(_)).flatMap { acts =>
+    getTimeBins(tick).flatMap(timeBinToActivities.get).flatMap { acts =>
       if (acts.isEmpty)
         Array.empty[ClusterInfo]
       else {
@@ -213,6 +213,4 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val bin = tick / repositionTimeout
     (bin + 1) to (bin + horizon) toArray
   }
-
-//  private def timeBinToSeconds(timeBin: Int): Int = timeBin * horizon
 }
