@@ -1,5 +1,3 @@
-import java.time.Duration
-
 buildscript {
     repositories {
         jcenter()
@@ -32,41 +30,47 @@ task grafanaStart {
     }
 }
 
-//this task is not yet working
-//task grafanaClearData {
-//    description 'Clear all collected by grafana data, i.e. all BEAM runs data which are displayed in graphs.'
-//    group 'Grafana'
-//
-//    doFirst {
-//        // delete only files in dirs
-//        ['grafana/log', 'grafana/data/png', 'influxdb/data', 'influxdb/log'].forEach {
-//            directory ->
-//                delete fileTree(dir: directory, exclude: '.gitignore')
-//                println "files under $directory are removed"
-//        }
-//
-//        // delete completely
-//        ['influxdb/data/data', 'grafana/data/png', 'influxdb/data/log'].forEach {
-//            dirName ->
-//                def directory = new File(dirName)
-//                if (directory.deleteDir()) {
-//                    println "$dirName deleted"
-//                } else {
-//                    println "can not delete $dirName"
-//                }
-//        }
-//
-//        // delete file completely
-//        delete 'grafana/data/grafana.db'
-//        println "grafana/data/grafana.db deleted"
-//
-//
-//    }
-//}
+task ChmodGrafanaInfluxDBFolders(type: Exec) {
+    executable = "docker"
+    args = ['exec', 'docker-influxdb-grafana', 'sh', '-c', './chmodfolders.sh']
+}
+
+task grafanaClearData {
+    description 'Clear all collected by grafana data, i.e. all BEAM runs data which are displayed in graphs.'
+    group 'Grafana'
+
+    doFirst {
+        // delete only files in dirs
+        ['grafana/log', 'grafana/data/png', 'influxdb/data', 'influxdb/log'].forEach {
+            directory ->
+                delete fileTree(dir: directory, exclude: '.gitignore')
+                println "files under $directory are removed"
+        }
+
+        // delete completely
+        ['influxdb/data/data', 'grafana/data/png', 'influxdb/data/log'].forEach {
+            dirName ->
+                def directory = new File(dirName)
+                if (directory.deleteDir()) {
+                    println "$dirName deleted"
+                } else {
+                    println "can not delete $dirName"
+                }
+        }
+
+        // delete file completely
+        delete 'grafana/data/grafana.db'
+        println "grafana/data/grafana.db deleted"
+    }
+}
 
 task grafanaStop {
     description 'Stops Grafana and Influx DB docker container. Currently it is an equivalent of docker-compose down.'
     group 'Grafana'
+
+    // to do chmod on all grafana and influxDB folders
+    // so, one will be able to remove them
+    dependsOn(ChmodGrafanaInfluxDBFolders)
 
     // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
     dependsOn(composeDown)
@@ -76,3 +80,6 @@ task grafanaStop {
         // println "In order to erase all collected by grafana data use grafanaClearData task."
     }
 }
+
+// to ensure that `docker compose down` called after chmod of folders inside docker image
+composeDown.mustRunAfter ChmodGrafanaInfluxDBFolders

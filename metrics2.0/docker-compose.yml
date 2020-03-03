@@ -1,8 +1,9 @@
 version: '3.3'
 
 services:
-  docker-influxdb-grafana:
+  influxdb-grafana:
     image: philhawthorne/docker-influxdb-grafana:latest
+    # container name is using in gradle task
     container_name: docker-influxdb-grafana
     volumes:
       - ./grafana/data:/var/lib/grafana
