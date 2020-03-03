@@ -170,7 +170,14 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     scala.collection.immutable.HashSet(metrics: _*)
   }
 
-  def metricEnabled(metricName: String): Boolean = enabledMetrics.contains(metricName)
+  def metricEnabled(metricName: String): Boolean = {
+    val isEnabled = enabledMetrics.contains(metricName)
+    if (!isEnabled) {
+      disabledMetrics.add(metricName)
+    }
+
+    isEnabled
+  }
 
   private val todayAsNanos: Long = {
     val todayInstant = todayBeginningOfDay.toInstant(ZoneId.systemDefault().getRules.getOffset(todayBeginningOfDay))
@@ -222,8 +229,6 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       }
 
       maybeInfluxDB.foreach(_.write(withOtherTags.build()))
-    } else {
-      disabledMetrics.add(metricName)
     }
   }
 
@@ -253,21 +258,19 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       }
 
       maybeInfluxDB.foreach(_.write(withOtherTags.build()))
-    } else {
-      disabledMetrics.add(metricName)
     }
   }
 
   override def clear(): Unit = {
     metricToLastSeenTs.clear()
-
-    logger.info(s"Following metrics was disabled: ${disabledMetrics.mkString(",")}")
-    logger.info(s"Following metrics was enabled: ${enabledMetrics.mkString(",")}")
   }
 
   override def close(): Unit = {
     Try(maybeInfluxDB.foreach(_.flush()))
     Try(maybeInfluxDB.foreach(_.close()))
+
+    logger.info(s"Following metrics was disabled: ${disabledMetrics.mkString(",")}")
+    logger.info(s"Following metrics was enabled: ${enabledMetrics.mkString(",")}")
   }
 
   private def influxTime(metricName: String, simulationTimeSeconds: Long, overwriteIfExist: Boolean): Long = {
