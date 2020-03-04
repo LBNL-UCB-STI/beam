@@ -86,11 +86,11 @@ class CarRideStatsFromPathTraversalEventHandler(
     event match {
       case pte: PathTraversalEvent if pte.mode == BeamMode.CAR =>
         if (isCav(pte))
-          carType2PathTraversals(CAV) = carType2PathTraversals(CAV) += pte
+          carType2PathTraversals(CarType.CAV) = carType2PathTraversals(CarType.CAV) += pte
         else if (isRideHail(pte))
-          carType2PathTraversals(RideHail) = carType2PathTraversals(RideHail) += pte
+          carType2PathTraversals(CarType.RideHail) = carType2PathTraversals(CarType.RideHail) += pte
         else
-          carType2PathTraversals(Personal) = carType2PathTraversals(Personal) += pte
+          carType2PathTraversals(CarType.Personal) = carType2PathTraversals(CarType.Personal) += pte
       case _ =>
     }
   }
@@ -107,7 +107,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
 
     val stats = carType match {
-      case Personal =>
+      case CarType.Personal =>
         val drivingWithParkingPtes = buildDrivingParking(carPtes)
         buildRideStatsFromDrivingParkings(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
       case _ => buildRideStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
@@ -304,10 +304,20 @@ class CarRideStatsFromPathTraversalEventHandler(
     val maybeOutputPath = maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, "CarRideStats.csv.gz"))
     maybeOutputPath.foreach { outputPath =>
       val csvWriter =
-        new CsvWriter(outputPath, Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time"))
+        new CsvWriter(
+          outputPath,
+          Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time")
+        )
       try {
         rideStats.foreach { stat =>
-          csvWriter.write(stat.vehicleId, carType.toString, stat.travelTime, stat.distance, stat.freeFlowTravelTime, stat.departureTime)
+          csvWriter.write(
+            stat.vehicleId,
+            carType.toString,
+            stat.travelTime,
+            stat.distance,
+            stat.freeFlowTravelTime,
+            stat.departureTime
+          )
         }
       } catch {
         case NonFatal(ex) =>
@@ -382,7 +392,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val (ptesIter: Iterator[PathTraversalEvent], closable: Closeable) = {
       val (e, c) = EventReader.fromCsvFile(eventsFilePath, eventsFilterWhenReadFromCsv)
       (
-        e.map(PathTraversalEvent.apply)
+        e.map(PathTraversalEvent.apply(_))
           .filter(pte => pte.mode == BeamMode.CAR && !pte.vehicleId.toString.startsWith("rideHailVehicle")),
         c
       )
@@ -495,7 +505,7 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val iterationNumber = Try(args(2).toInt).toOption.getOrElse(-1)
 
     val c = CarRideStatsFromPathTraversalEventHandler(pathToNetwork, eventsFilePath)
-    val rideStats = c.calcRideStats(iterationNumber, Personal)
+    val rideStats = c.calcRideStats(iterationNumber, CarType.Personal)
     val iterationCarRideStats = c.getIterationCarRideStats(iterationNumber, rideStats)
     logger.info("IterationCarRideStats:")
     logger.info(s"travelTime: ${iterationCarRideStats.travelTime}")
