@@ -1,5 +1,7 @@
 package beam.agentsim.agents.vehicles
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
@@ -61,7 +63,7 @@ class BeamVehicle(
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
-  var driver: Option[ActorRef] = None
+  var driver: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
@@ -74,7 +76,7 @@ class BeamVehicle(
     * Called by the driver.
     */
   def unsetDriver(): Unit = {
-    driver = None
+    driver.set(None)
   }
 
   /**
@@ -84,9 +86,7 @@ class BeamVehicle(
     * @param newDriver incoming driver
     */
   def becomeDriver(newDriver: ActorRef): Unit = {
-    if (driver.isEmpty) {
-      driver = Some(newDriver)
-    } else {
+    if (!driver.compareAndSet(None, Some(newDriver))) {
       // This is _always_ a programming error.
       // A BeamVehicle is only a data structure, not an Actor.
       // It must be ensured externally, by other means, that only one agent can access
@@ -250,7 +250,7 @@ class BeamVehicle(
       beamVehicleType.secondaryFuelCapacityInJoule,
       primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
       beamVehicleType.secondaryFuelCapacityInJoule.map(_ / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get),
-      driver,
+      driver.get(),
       stall
     )
 
