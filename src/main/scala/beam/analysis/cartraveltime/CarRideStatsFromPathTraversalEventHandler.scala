@@ -129,7 +129,7 @@ class CarRideStatsFromPathTraversalEventHandler(
 
     type2RideStats.foreach {
       case (carType, stats) =>
-        writePersonalCarRideStats(event.getIteration, stats, carType)
+        writeCarRideStats(event.getIteration, stats, carType)
     }
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
@@ -296,7 +296,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
-  private def writePersonalCarRideStats(
+  private def writeCarRideStats(
     iterationNumber: Int,
     rideStats: Seq[SingleRideStat],
     carType: CarType
@@ -304,10 +304,10 @@ class CarRideStatsFromPathTraversalEventHandler(
     val maybeOutputPath = maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, "CarRideStats.csv.gz"))
     maybeOutputPath.foreach { outputPath =>
       val csvWriter =
-        new CsvWriter(outputPath, Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time"))
+        new CsvWriter(outputPath, Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time"))
       try {
         rideStats.foreach { stat =>
-          csvWriter.write(stat.vehicleId, carType.toString, stat.travelTime, stat.distance, stat.freeFlowTravelTime)
+          csvWriter.write(stat.vehicleId, carType.toString, stat.travelTime, stat.distance, stat.freeFlowTravelTime, stat.departureTime)
         }
       } catch {
         case NonFatal(ex) =>
