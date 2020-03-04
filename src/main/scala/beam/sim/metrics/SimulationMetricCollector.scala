@@ -288,6 +288,13 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     // See https://github.com/influxdata/influxdb/issues/2055
     // Points in a series can not have the same exact time (down to nanosecond). A series is defined by the measurement and tagset.
     // We store the last seen `tsNano` and add up `step` in case if it is already there
+
+    // TODO: Just realized that the code below will work properly only in case that every metric with the same name will come from the same thread!
+    // So it will be the same metric arriving sequentially
+    // But if the same metric can be sent from different threads this won't work correctly because we have three operation: read, modify and write without any synchronization
+    // This scenario can be solved by using ConcurrentHashMap[String, AtomicLong]:
+    // - You have correctness when you write (add metric) or read it
+    // - You have correctness when you concurrently modify the value of AtomicLong
     val key = s"$metricName:$tsNano"
     val prevTs = metricToLastSeenTs.getOrDefault(key, tsNano)
     val newTs = prevTs + step
