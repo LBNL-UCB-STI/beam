@@ -146,7 +146,7 @@ dependencies {
 
     compile "org.jgrapht:jgrapht-core:1.3.0"
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'or-tools-wrapper', version: '7.5.1') {
+    compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 
