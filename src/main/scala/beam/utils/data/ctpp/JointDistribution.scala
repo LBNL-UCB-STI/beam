@@ -21,6 +21,15 @@ object JointDistribution extends GenericCsvReader {
   val STRING_COLUMN_TYPE = "string"
   val RETURN_COLUMN = "probability"
 
+  /**
+    * @param pathToCsv csv file path
+    * @param rndGen    Random Number Generator.  Random number generator. If an instance of `JointDistribution` is shared across multiple threads,
+    *                make sure you use thread-safe instance of `RandomGenerator`, for example, `SynchronizedRandomGenerator`
+    *                or wrap it by your own implementation which uses ThreadLocal
+    * @param columnMapping - map of column name and its type. Permissible value of column type are "range", "string", "double", "int",
+    *                      if its blank map then they are detected
+    * @param scale if its true then it will consider lower bound and upper bound for calculating samples (default is false)
+    */
   def fromCsvFile(
     pathToCsv: String,
     rndGen: RandomGenerator,
@@ -47,12 +56,13 @@ object JointDistribution extends GenericCsvReader {
 
 /**
   *
-  * @param mappedArray
+  * @param mappedArray Array of csv column values map
   * @param rndGen Random number generator. If an instance of `JointDistribution` is shared across multiple threads,
   *               make sure you use thread-safe instance of `RandomGenerator`, for example, `SynchronizedRandomGenerator`
   *               or wrap it by your own implementation which uses ThreadLocal
-  * @param columnMapping
-  * @param scale
+  * @param columnMapping - map of column name and its type. Permissible value of column type are "range", "string", "double", "int",
+  *                      if its blank map then they are detected
+  * @param scale if its true then it will consider lower bound and upper bound for calculating samples (default is false)
   */
 class JointDistribution(
   val mappedArray: Array[Map[String, String]],
