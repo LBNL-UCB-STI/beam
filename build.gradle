@@ -180,6 +180,8 @@ dependencies {
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
+    compile files('externalAPI/helics/helics-2.3.1.jar')
+
     /////////////////////////////////
     // Scala dependencies
     /////////////////////////////////
@@ -410,6 +412,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
+def externalAPIs = "externalAPI/helics"
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
 
@@ -443,7 +446,8 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC + jmx
+                             "-Dlogback.configurationFile=logback_prod.xml",
+                             "-Djava.library.path=${externalAPIs}"] + logGC + jmx
 
 println(applicationDefaultJvmArgs)
 

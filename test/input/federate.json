@@ -1,0 +1,58 @@
+{
+  "name":"beam-test",
+  "observer":false,
+  "rollback": false,
+  "only_update_on_change":false,
+  "only_transmit_on_change":false,
+  "source_only":false,
+  "uninterruptible":false,
+  "coreType":"test",
+  "coreName":"the name of the core",
+  "coreInit":"1",
+  "maxIterations":10,
+  "period":  1.0,
+  "offset": 0.0,
+  "timeDelta":0.0,
+  "outputDelay":0,
+  "inputDelay":0,
+
+  "endpoints":[
+    {
+      "name":"ept1",
+      "type":"genmessage",
+      "global":true
+    },
+    {
+      "name":"ept2",
+      "type":"message2",
+      "knownDestinations":"ept1",
+      "subscriptions":"pub1"
+    }
+  ],
+
+  "publications":[
+    {
+      "key":"pub1",
+      "type":"double",
+      "unit":"m",
+      "global":true
+    },
+    {
+      "key":"pub2",
+      "type":"double"
+    }
+  ],
+
+  "subscriptions":[
+    {
+      "key":"pub1",
+      "type":"double",
+      "required":true
+    },
+    {
+      "key":"comboFed/pub2",
+      "shortcut":"pubshortcut"
+    }
+  ]
+
+}
