@@ -23,7 +23,7 @@ case class MobilityRequest(
   tag: MobilityRequestType,
   serviceTime: Int,
   upperBoundTime: Int,
-  serviceDistance: Int,
+  serviceDistance: Double,
   pickupRequest: Option[MobilityRequest] = None,
   routingRequestId: Option[Int] = None,
   vehicleOccupancy: Option[Int] = None,
