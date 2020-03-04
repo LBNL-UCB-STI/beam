@@ -68,6 +68,8 @@ object Models {
     income: Double,
     numOfChildren: Int,
     numOfWorkers: Int
-  )
-  case class Person(age: Int, gender: Gender, householdId: String)
+  ) {
+    val fullId: String = s"${geoId.state.value}-${geoId.county.value}-${geoId.tract}-${geoId.blockGroup}:$id"
+  }
+  case class Person(id: String, age: Int, gender: Gender, householdId: String)
 }

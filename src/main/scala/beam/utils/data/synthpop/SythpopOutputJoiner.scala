@@ -41,6 +41,8 @@ object SythpopOutputUnion {
       .sortBy { case (name, _) => name }
       .map(_._2)
 
+    householdFiles.zip(peopleFiles)
+
     val householdCsvWriter = new CsvWriter(
       outputFolder + "/all_households.csv",
       Vector("NP", "VEH", "HINCP", "hh_children", "workers", "state", "county", "tract", "block group", "id")

@@ -19,14 +19,14 @@ class PopulationReader(val pathToPopulationFile: String) extends StrictLogging {
 
   private[synthpop] def toPerson(rec: java.util.Map[String, String]): Person = {
     // Get the details of columns from https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2017.pdf?
-
     val age = Option(rec.get("AGEP")).map(_.toInt).getOrElse(0)
     val gender = Option(rec.get("SEX")).map(_.toInt).getOrElse(1) match {
       case 1 => Gender.Male
       case 2 => Gender.Female
     }
     val householdId = GenericCsvReader.getIfNotNull(rec, "hh_id")
-    Person(age = age, gender = gender, householdId = householdId)
+    val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+    Person(id = id, age = age, gender = gender, householdId = householdId)
   }
 }
 

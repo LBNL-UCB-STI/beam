@@ -30,8 +30,7 @@ case class PersonWithExtraInfo(person: Models.Person, workDest: TazGeoId, timeLe
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
-  val pathToHouseholdFile: String,
-  val pathToPopulationFile: String,
+  val pathToSythpopDataFolder: String,
   val pathToCTPPFolder: String,
   val pathToTazShapeFile: String,
   val pathToBlockGroupShapeFile: String,
@@ -95,39 +94,23 @@ class SimpleScenarioGenerator(
     new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
-  private val households: Map[String, Models.Household] =
-    new HouseholdReader(pathToHouseholdFile)
-      .read()
-      .map { hh =>
-        val updatedHh = if (hh.income < 0) {
-          logger.warn(s"Income for household[${hh.id}] is negative: ${hh.income}, setting it to zero")
-          hh.copy(income = 0)
-        } else hh
-        updatedHh
-      }
-      .groupBy(x => x.id)
-      .map { case (hhId, xs) => hhId -> xs.head }
-  private val householdIdToPersons: Map[String, Seq[Models.Person]] =
-    new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
-  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = householdIdToPersons.map {
+  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = SythpopReader.apply(pathToSythpopDataFolder).read
+
+  private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
     case (hhId, persons) =>
-      val household = households(hhId)
-      (household, persons)
-  }
-  private val personIdToHousehold: Map[Models.Person, Models.Household] = householdIdToPersons.flatMap {
-    case (hhId, persons) =>
-      val household = households(hhId)
       persons.map { p =>
-        p -> household
+        p -> hhId
       }
   }
 
+  private val households = householdWithPersons.keySet
+
   logger.info(s"householdWithPersons: ${householdWithPersons.size}")
-  private val geoIdToHouseholds = households.values.toSeq.groupBy(x => x.geoId)
+  private val geoIdToHouseholds = households.toSeq.groupBy(x => x.geoId)
   private val uniqueGeoIds = geoIdToHouseholds.keySet
   logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
-  private val uniqueStates = households.map(_._2.geoId.state).toSet
+  private val uniqueStates = households.map(_.geoId.state).toSet
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(
@@ -487,21 +470,19 @@ class SimpleScenarioGenerator(
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 9, "Expecting 10 arguments")
-    val pathToHouseholdFile = args(0)
-    val pathToPopulationFile = args(1)
-    val pathToCTPPFolder = args(2)
-    val pathToTazShapeFile = args(3)
-    val pathToBlockGroupShapeFile = args(4)
-    val pathToCongestionLevelDataFile = args(5)
-    val pathToWorkedHours = args(6)
-    val pathToOsmMap = args(7)
-    val pathToOutput = args(8)
+    require(args.length == 8, s"Expecting 8 arguments, but got ${args.length}")
+    val pathToSythpopDataFolder = args(0)
+    val pathToCTPPFolder = args(1)
+    val pathToTazShapeFile = args(2)
+    val pathToBlockGroupShapeFile = args(3)
+    val pathToCongestionLevelDataFile = args(4)
+    val pathToWorkedHours = args(5)
+    val pathToOsmMap = args(6)
+    val pathToOutput = args(7)
 
     /*
     Args:
-      "D:\Work\beam\Austin\input\household_TX_Travis County.csv"
-      "D:\Work\beam\Austin\input\people_TX_Travis County.csv"
+      "D:\Work\beam\Austin\input\"
       "D:\Work\beam\Austin\input\CTPP\48"
       "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
       "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
@@ -513,8 +494,7 @@ object SimpleScenarioGenerator {
 
     val gen =
       new SimpleScenarioGenerator(
-        pathToHouseholdFile,
-        pathToPopulationFile,
+        pathToSythpopDataFolder,
         pathToCTPPFolder,
         pathToTazShapeFile,
         pathToBlockGroupShapeFile,
