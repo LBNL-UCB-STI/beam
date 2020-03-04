@@ -6,7 +6,7 @@ import org.apache.commons.math3.util.{Pair => CPair}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
-import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.random.RandomGenerator
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -23,7 +23,7 @@ object JointDistribution extends GenericCsvReader {
 
   def fromCsvFile(
     pathToCsv: String,
-    seed: Int,
+    rndGen: RandomGenerator,
     columnMapping: Map[String, String] = Map(),
     scale: Boolean = false
   ): JointDistribution = {
@@ -39,19 +39,27 @@ object JointDistribution extends GenericCsvReader {
       case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
     if (columnMapping.nonEmpty)
-      new JointDistribution(mappedArray, seed, columnMapping, scale)
+      new JointDistribution(mappedArray, rndGen, columnMapping, scale)
     else
-      new JointDistribution(mappedArray, seed, detectedColumn, scale)
+      new JointDistribution(mappedArray, rndGen, detectedColumn, scale)
   }
 }
 
+/**
+  *
+  * @param mappedArray
+  * @param rndGen Random number generator. If an instance of `JointDistribution` is shared across multiple threads,
+  *               make sure you use thread-safe instance of `RandomGenerator`, for example, `SynchronizedRandomGenerator`
+  *               or wrap it by your own implementation which uses ThreadLocal
+  * @param columnMapping
+  * @param scale
+  */
 class JointDistribution(
   val mappedArray: Array[Map[String, String]],
-  val seed: Int,
+  val rndGen: RandomGenerator,
   val columnMapping: Map[String, String] = Map(),
   scale: Boolean = false
 ) {
-  private val rng: MersenneTwister = new MersenneTwister(seed)
 
   def getProbabilityList(keyValueTuple: (String, Either[String, CustomRange])*): Array[String] = {
     getRangeList(keyValueTuple: _*).map(_(RETURN_COLUMN))
@@ -73,7 +81,7 @@ class JointDistribution(
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {
       return Map()
     }
-    val distr = new EnumeratedDistribution[Map[String, String]](rng, pmf.asJava)
+    val distr = new EnumeratedDistribution[Map[String, String]](rndGen, pmf.asJava)
     distr.sample()
   }
 
@@ -87,7 +95,7 @@ class JointDistribution(
         case (key, value) =>
           if (value.contains(",")) {
             val startEnd = toRange(Left(value), trimBracket = true)
-            key -> (startEnd.start + (startEnd.end - startEnd.start) * rng.nextDouble()).toString
+            key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
           } else {
             key -> value
           }

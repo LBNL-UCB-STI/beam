@@ -2,13 +2,14 @@ package beam.utils
 
 import beam.utils.data.ctpp.JointDistribution
 import beam.utils.data.ctpp.JointDistribution.CustomRange
+import org.apache.commons.math3.random.MersenneTwister
 import org.scalatest.{Matchers, WordSpecLike}
 
 class JointDistributionTest extends WordSpecLike with Matchers {
 
   val jointDistribution = JointDistribution.fromCsvFile(
     pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",
-    seed = 42,
+    new MersenneTwister(42),
     columnMapping = Map(
       "age"            -> JointDistribution.DOUBLE_COLUMN_TYPE,
       "startTimeIndex" -> JointDistribution.RANGE_COLUMN_TYPE,
