@@ -46,13 +46,13 @@ class JointDistributionTest extends WordSpecLike with Matchers {
 
     "sample test " in {
       val sample = jointDistribution.getSample(false, ("age", Left("22")), ("durationIndex", Left("0.0, 2.5")))
-      println(sample("durationIndex"))
+      sample.size shouldBe 4
     }
 
     "range sample test" in {
       val sample =
         jointDistribution.getSample(false, ("age", Left("22")), ("durationIndex", Right(CustomRange(0.0, 2.5))))
-      println(sample("durationIndex"))
+      sample.size shouldBe 4
     }
   }
 
