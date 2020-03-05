@@ -4,7 +4,6 @@ package helics
 
 import java.util.concurrent.TimeUnit
 
-
 object HelloWorld {
 
   def main(args: Array[String]): Unit = {
@@ -45,7 +44,7 @@ object HelloWorld {
 
     var isupdated = helics.helicsInputIsUpdated(sub)
 
-    while ( {
+    while ({
       currenttime <= 100
     }) {
       currenttime = helics.helicsFederateRequestTime(vFed, 100)

@@ -7,6 +7,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
+import beam.utils.DateUtils
+import helics.BeamFederate
 
 import scala.collection.mutable.ListBuffer
 
@@ -24,25 +26,31 @@ object EventsAccumulator {
 class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Actor {
   import EventsAccumulator._
 
-  val timeout: Int = beamConfig.beam.agentsim.collectEventsIntervalInSeconds
-
-  val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
+  private val EOT: Int = DateUtils.getEndOfTime(beamConfig)
+  private val timeInterval: Int = beamConfig.beam.agentsim.collectEventsIntervalInSeconds
+  private val federate1 = BeamFederate.getBeamFederate1(timeInterval)
+  private val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
 
-  scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(timeout), self)
+  scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(timeInterval), self)
 
   override def receive: Receive = {
 
-    case t @ TriggerWithId(EventsAccumulatorTrigger(_), _) =>
-      informExternalSystem(chargingEventsBuffer)
+    case t @ TriggerWithId(EventsAccumulatorTrigger(tick), _) =>
+      informExternalSystem(tick, chargingEventsBuffer)
       clearStates()
-      scheduler ! CompletionNotice(t.triggerId)
+      sender ! CompletionNotice(
+        t.triggerId,
+        Vector(ScheduleTrigger(EventsAccumulatorTrigger(tick + timeInterval), self))
+      )
 
     case ProcessChargingEvents(e) =>
       chargingEventsBuffer += e
 
     case Finish =>
-      informExternalSystem(chargingEventsBuffer)
+      informExternalSystem(EOT + timeInterval, chargingEventsBuffer)
+      clearStates()
+      federate1.close()
       context.stop(self)
   }
 
@@ -50,7 +58,17 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
     chargingEventsBuffer.clear()
   }
 
-  private def informExternalSystem(chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event]): Unit = {
-    // TODO implement this stub later
+  private def informExternalSystem(
+    time: Int,
+    chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event]
+  ): Unit = {
+    chargingEventsBuffer.foreach {
+      case e: ChargingPlugInEvent =>
+        federate1.publishPlugInEvent(e.tick.toInt, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
+      case e: ChargingPlugOutEvent =>
+        federate1.publishPlugOutEvent(e.tick.toInt, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
+      case _: RefuelSessionEvent =>
+      case _                     =>
+    }
   }
 }
