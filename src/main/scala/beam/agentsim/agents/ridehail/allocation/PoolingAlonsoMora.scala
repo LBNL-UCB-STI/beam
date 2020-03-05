@@ -182,7 +182,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
       val alg: RHMatchingAlgorithm =
         rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.matchingAlgorithm match {
-          case algoName if algoName == null || algoName.isEmpty || algoName == "VehicleCentricMatchingForRideHail" =>
+          case algoName if algoName == "VehicleCentricMatchingForRideHail" =>
             new VehicleCentricMatchingForRideHail(
               spatialPoolCustomerReqs,
               availVehicles,
