@@ -1,7 +1,7 @@
 package beam.utils.data.ctpp.readers.residence
 
 import beam.utils.data.ctpp.CTPPParser
-import beam.utils.data.ctpp.models.ResidenceGeography
+import beam.utils.data.ctpp.models.{ResidenceGeoParser, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
 import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader.TotalPopulation
@@ -13,10 +13,10 @@ class TotalPopulationTableReader(pathToData: PathToData, val residenceGeography:
     val map = CTPPParser
       .readTable(pathToCsvTable, geographyLevelFilter)
       .groupBy(x => x.geoId)
-      .map {
+      .flatMap {
         case (geoId, xs) =>
           // It is one to one relation, that's why we get the head
-          geoId -> xs.head.estimate.toInt
+          ResidenceGeoParser.parse(geoId).map(parseGeoId => parseGeoId -> xs.head.estimate.toInt).toOption
       }
     TotalPopulation(map)
   }

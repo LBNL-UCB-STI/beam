@@ -9,6 +9,8 @@ import org.geotools.geometry.jts.JTS
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
+import scala.reflect.ClassTag
+
 case class GeoServiceInputParam(
   pathToTazShapeFile: String,
   pathToBlockGroupShapeFile: String
@@ -16,14 +18,23 @@ case class GeoServiceInputParam(
 
 class GeoService(param: GeoServiceInputParam, uniqueStates: Set[State], uniqueGeoIds: Set[BlockGroupGeoId])
     extends StrictLogging {
+  import GeoService._
+
   private val crsCode: String = "EPSG:4326"
 
   val blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry] =
     getBlockGroupMap(param.pathToBlockGroupShapeFile, uniqueGeoIds)
   logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
 
-  val tazGeoIdToGeom: Map[TazGeoId, Geometry] =
-    getTazMap(param.pathToTazShapeFile, uniqueGeoIds.map(x => (x.state, x.county)))
+  val tazGeoIdToGeom: Map[TazGeoId, Geometry] = {
+    val stateAndCounty = uniqueGeoIds.map(x => (x.state, x.county))
+    def filter(feature: SimpleFeature): Boolean = {
+      val state = State(feature.getAttribute("STATEFP10").toString)
+      val county = County(feature.getAttribute("COUNTYFP10").toString)
+      uniqueGeoIds.isEmpty || stateAndCounty.contains((state), county)
+    }
+    getTazMap(crsCode, param.pathToTazShapeFile, filter, defaultTazMapper).toMap
+  }
   logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
 
   def getBlockGroupMap(
@@ -53,23 +64,6 @@ class GeoService(param: GeoServiceInputParam, uniqueStates: Set[State], uniqueGe
     ShapefileReader.read(crsCode, pathToBlockGroupShapeFile, filter, map).toMap
   }
 
-  def getTazMap(pathToTazShapeFile: String, uniqueGeoIds: Set[(State, County)]): Map[TazGeoId, Geometry] = {
-    def filter(feature: SimpleFeature): Boolean = {
-      val state = State(feature.getAttribute("STATEFP10").toString)
-      val county = County(feature.getAttribute("COUNTYFP10").toString)
-      uniqueGeoIds.contains((state), county)
-    }
-    def map(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry) = {
-      val state = State(feature.getAttribute("STATEFP10").toString)
-      val county = County(feature.getAttribute("COUNTYFP10").toString)
-      val taz = feature.getAttribute("TAZCE10").toString
-      val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-      val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
-      TazGeoId(state, county, taz) -> wgsGeom
-    }
-    ShapefileReader.read(crsCode, pathToTazShapeFile, filter, map).toMap
-  }
-
   def getPlaceOfWorkPumaMap(pathToPowPumaShapeFile: String, uniqueStates: Set[State]): Map[PowPumaGeoId, Geometry] = {
     def filter(feature: SimpleFeature): Boolean = {
       val state = State(feature.getAttribute("PWSTATE").toString)
@@ -95,5 +89,27 @@ class GeoService(param: GeoServiceInputParam, uniqueStates: Set[State], uniqueGe
       PumaGeoId(State(state), puma) -> wgsGeom
     }
     ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
+  }
+}
+
+object GeoService {
+
+  def defaultTazMapper(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry) = {
+    val state = State(feature.getAttribute("STATEFP10").toString)
+    val county = County(feature.getAttribute("COUNTYFP10").toString)
+    val taz = feature.getAttribute("TAZCE10").toString
+    val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
+    val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
+    TazGeoId(state, county, taz) -> wgsGeom
+  }
+
+  def getTazMap[T: ClassTag](
+    crsCode: String,
+    pathToTazShapeFile: String,
+    filter: SimpleFeature => Boolean,
+    mapper: (MathTransform, SimpleFeature) => T
+  ): Seq[T] = {
+
+    ShapefileReader.read(crsCode, pathToTazShapeFile, filter, mapper)
   }
 }

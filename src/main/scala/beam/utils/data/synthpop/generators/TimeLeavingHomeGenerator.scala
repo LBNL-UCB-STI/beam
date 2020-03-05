@@ -13,7 +13,8 @@ trait TimeLeavingHomeGenerator {
 class TimeLeavingHomeGeneratorImpl(
   val pathToCTPPData: PathToData,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends TimeLeavingHomeGenerator with StrictLogging {
+) extends TimeLeavingHomeGenerator
+    with StrictLogging {
 
   private val sourceToTimeLeavingOD: Map[String, Seq[OD[Range]]] =
     new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
