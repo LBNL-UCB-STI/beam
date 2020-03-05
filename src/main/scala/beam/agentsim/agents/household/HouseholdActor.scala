@@ -198,8 +198,8 @@ object HouseholdActor {
             context.watch(cavDriverRef)
             cav.spaceTime = SpaceTime(homeCoord, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
-            cav.manager = Some(self)
-            cav.driver = Some(cavDriverRef)
+            cav.manager.set(Some(self))
+            cav.becomeDriver(cavDriverRef)
           }
           household.members.foreach { person =>
             person.getSelectedPlan.getPlanElements.forEach {
@@ -371,7 +371,7 @@ object HouseholdActor {
                 .map { cavAndSchedule =>
                   akka.pattern
                     .ask(
-                      cavAndSchedule._1.driver.get,
+                      cavAndSchedule._1.driver.get.get,
                       ModifyPassengerSchedule(cavAndSchedule._2, tick)
                     )
                     .mapTo[ModifyPassengerScheduleAck]
@@ -438,7 +438,7 @@ object HouseholdActor {
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
-          veh.manager = Some(self)
+          veh.manager.set(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")

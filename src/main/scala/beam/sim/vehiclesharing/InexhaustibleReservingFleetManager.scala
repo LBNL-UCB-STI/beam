@@ -45,7 +45,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         rand.nextInt()
       )
       nextVehicleIndex += 1
-      vehicle.manager = Some(self)
+      vehicle.manager.set(Some(self))
       vehicle.spaceTime = whenWhere
       vehicle.becomeDriver(sender)
 

@@ -257,7 +257,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       vehicle.becomeDriver(self)
-      vehicle.manager = Some(rideHailManager)
+      vehicle.manager.set(Some(rideHailManager))
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
@@ -691,7 +691,7 @@ class RideHailAgent(
 
   def requestParkingStall(): Unit = {
     val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
+      RideHailAgentLocation(vehicle.driver.get.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
     val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
@@ -783,7 +783,7 @@ class RideHailAgent(
             //assert(false)
           }
 
-          vehicle.manager.get ! nextIdle
+          vehicle.manager.get.get ! nextIdle
 
         case None =>
       }
