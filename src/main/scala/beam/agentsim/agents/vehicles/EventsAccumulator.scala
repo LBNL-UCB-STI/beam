@@ -29,14 +29,15 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
   val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
 
-  scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(timeout), self)
+  scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(0), self)
 
   override def receive: Receive = {
 
-    case t @ TriggerWithId(EventsAccumulatorTrigger(_), _) =>
+    case t @ TriggerWithId(EventsAccumulatorTrigger(tick), _) =>
+      scheduler ! CompletionNotice(t.triggerId)
       informExternalSystem(chargingEventsBuffer)
       clearStates()
-      scheduler ! CompletionNotice(t.triggerId)
+      scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(tick + timeout), self)
 
     case ProcessChargingEvents(e) =>
       chargingEventsBuffer += e
