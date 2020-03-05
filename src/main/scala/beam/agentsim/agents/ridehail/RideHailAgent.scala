@@ -626,17 +626,16 @@ class RideHailAgent(
 
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
     vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        tick,
-        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        tick - sessionStart,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
+    val refuelSessionEvent = new RefuelSessionEvent(
+      tick,
+      vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      energyInJoules,
+      vehicle.primaryFuelLevelInJoules - energyInJoules,
+      tick - sessionStart,
+      vehicle.id,
+      vehicle.beamVehicleType
     )
+    eventsManager.processEvent(refuelSessionEvent)
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
     //If so then note it would still need to check the queue and any other localized cleanup

@@ -2,15 +2,14 @@ package beam.router.skim
 
 import java.io.File
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
+import akka.actor.ActorRef
+import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
+import beam.router.skim.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
 import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.router.skim.Skims.SkimType
-import beam.router.skim.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
+import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
@@ -42,10 +41,8 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
-         |beam.outputs.writeSkimsInterval = 1
-         |beam.h3.resolution = 10
-         |beam.h3.lowerBoundResolution = 10
          |beam.router.skim = {
+         |  h3Resolution = 6
          |  keepKLatestSkims = 1
          |  writeSkimsInterval = 1
          |  writeAggregatedSkimsInterval = 1
@@ -155,12 +152,11 @@ object SkimmerSpec extends LazyLogging {
         case e: PathTraversalEvent if e.mode == BeamMode.CAR =>
           beamServices.matsimServices.getEvents.processEvent(
             TAZSkimmerEvent(
-              event.getTime,
-              beamServices,
-              (event.getTime / 3600).toInt * 3600,
+              event.getTime.toInt,
               new Coord(e.startX, e.startY),
-              "default",
-              e.mode.toString
+              e.mode.toString,
+              1.0,
+              beamServices
             )
           )
         case _ =>
@@ -275,8 +271,8 @@ object SkimmerSpec extends LazyLogging {
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        numObservations = row("numObservations").toInt,
-        numIteration = row("numIteration").toInt,
+        observations = row("observations").toInt,
+        iterations = row("iterations").toInt,
       )
     )
   }
@@ -291,8 +287,8 @@ object SkimmerSpec extends LazyLogging {
       DriveTimeSkimmerInternal(
         timeSimulated = row("timeSimulated").toDouble,
         timeObserved = row("timeObserved").toDouble,
-        numObservations = row("counts").toInt,
-        numIteration = row("numIteration").toInt
+        observations = row("counts").toInt,
+        iterations = row("iterations").toInt
       )
     )
   }
@@ -303,14 +299,13 @@ object SkimmerSpec extends LazyLogging {
         row("time").toInt,
         Id.create(row("taz"), classOf[TAZ]),
         row("hex"),
-        row("groupId"),
-        row("label")
+        row("actor"),
+        row("key")
       ),
       TAZSkimmerInternal(
-        row("sumValue").toDouble,
-        row("meanValue").toDouble,
-        row("numObservations").toInt,
-        row("numIteration").toInt
+        row("value").toDouble,
+        row("observations").toInt,
+        row("iterations").toInt
       )
     )
   }
