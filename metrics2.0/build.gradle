@@ -14,7 +14,7 @@ buildscript {
 apply plugin: 'docker-compose'
 
 task grafanaStart {
-    description 'Starts Grafana and Influx DB docker container. Currently it is an equivalent of docker-compose up -d.'
+    description 'Starts Grafana and Influx DB docker container.'
     group 'Grafana'
 
     // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
@@ -41,14 +41,14 @@ task grafanaClearData {
 
     doFirst {
         // delete only files in dirs
-        ['grafana/log', 'grafana/data/png', 'influxdb/data', 'influxdb/log'].forEach {
+        ["$projectDir/grafana/log", "$projectDir/grafana/data/png", "$projectDir/influxdb/data", "$projectDir/influxdb/log"].forEach {
             directory ->
                 delete fileTree(dir: directory, exclude: '.gitignore')
                 println "files under $directory are removed"
         }
 
         // delete completely
-        ['influxdb/data/data', 'grafana/data/png', 'influxdb/data/log'].forEach {
+        ["$projectDir/influxdb/data/data", "$projectDir/grafana/data/png", "$projectDir/influxdb/data/log"].forEach {
             dirName ->
                 def directory = new File(dirName)
                 if (directory.deleteDir()) {
@@ -59,13 +59,14 @@ task grafanaClearData {
         }
 
         // delete file completely
-        delete 'grafana/data/grafana.db'
-        println "grafana/data/grafana.db deleted"
+        def path = "$projectDir/grafana/data/grafana.db"
+        delete path
+        println "$path deleted"
     }
 }
 
 task grafanaStop {
-    description 'Stops Grafana and Influx DB docker container. Currently it is an equivalent of docker-compose down.'
+    description 'Stops Grafana and Influx DB docker container.'
     group 'Grafana'
 
     // to do chmod on all grafana and influxDB folders
