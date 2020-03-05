@@ -1,10 +1,11 @@
-package beam.utils.data.synthpop
+package beam.utils.data.synthpop.generators
 
 import beam.utils.data.ctpp.models.{HouseholdIncome, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
+import beam.utils.data.synthpop.ODSampler
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator, SynchronizedRandomGenerator}
+import org.apache.commons.math3.random.RandomGenerator
 
 trait WorkDestinationGenerator {
   def next(homeLocation: String, income: Double): Option[String]

@@ -7,6 +7,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
 import beam.utils.scenario._

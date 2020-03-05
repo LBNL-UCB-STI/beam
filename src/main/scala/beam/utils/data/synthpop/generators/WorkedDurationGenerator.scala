@@ -1,4 +1,4 @@
-package beam.utils.data.synthpop
+package beam.utils.data.synthpop.generators
 
 import java.util.concurrent.TimeUnit
 

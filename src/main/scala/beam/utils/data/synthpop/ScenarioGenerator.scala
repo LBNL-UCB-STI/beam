@@ -7,9 +7,14 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
+import beam.utils.data.synthpop.generators.{
+  RandomWorkDestinationGenerator,
+  TimeLeavingHomeGenerator,
+  TimeLeavingHomeGeneratorImpl,
+  WorkedDurationGeneratorImpl
+}
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId, TazGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
@@ -90,11 +95,14 @@ class SimpleScenarioGenerator(
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
-  private val sourceToTimeLeavingOD =
-    new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
+
+  private val timeLeavingHomeGenerator: TimeLeavingHomeGenerator =
+    new TimeLeavingHomeGeneratorImpl(pathToCTPPData, residenceToWorkplaceFlowGeography)
+
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
-  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = SythpopReader.apply(pathToSythpopDataFolder).read
+  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] =
+    SythpopReader.apply(pathToSythpopDataFolder).read()
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
     case (hhId, persons) =>
@@ -105,7 +113,9 @@ class SimpleScenarioGenerator(
 
   private val households = householdWithPersons.keySet
 
-  logger.info(s"householdWithPersons: ${householdWithPersons.size}")
+  logger.info(s"Total number of households: ${householdWithPersons.size}")
+  logger.info(s"Total number of people: ${householdWithPersons.map(_._2.size).sum}")
+
   private val geoIdToHouseholds = households.toSeq.groupBy(x => x.geoId)
   private val uniqueGeoIds = geoIdToHouseholds.keySet
   logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
@@ -132,6 +142,7 @@ class SimpleScenarioGenerator(
   override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
     var globalPersonId: Int = 0
 
+    logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople
 
     // Build work destination to the number of occurrences
@@ -150,25 +161,28 @@ class SimpleScenarioGenerator(
       case (powPumaGeoId, cnt) =>
         logger.info(s"$powPumaGeoId => $cnt")
     }
+    logger.info(s"Generating TAZ geo id to working locations...")
     // Generate all work destinations which will be later assigned to people
-    val tazGeoIdToWorkingLocations = tazGeoIdToOccurrences.par.map {
-      case (tazGeoId: TazGeoId, nWorkingPlaces) =>
-        val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
-          case Some(geom) =>
-            // FIXME
-            val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
-            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
-              pointsGenerator.generate(geom, nLocations)
+    val tazGeoIdToWorkingLocations =
+      ProfilingUtils.timed("Generated TAZ geo id to working locations", x => logger.info(x)) {
+        tazGeoIdToOccurrences.par.map {
+          case (tazGeoId: TazGeoId, nWorkingPlaces) =>
+            val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
+              case Some(geom) =>
+                ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
+                  pointsGenerator.generate(geom, nWorkingPlaces)
+                }
+              case None =>
+                logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
+                Seq.empty
             }
-          case None =>
-            logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
-            Seq.empty
-        }
-        tazGeoId -> workingGeos
-    }.seq
+            tazGeoId -> workingGeos
+        }.seq
+      }
 
+    logger.info(s"Generating BlockGroup geo id to household locations...")
     val blockGroupGeoIdToHouseholdsLocations =
-      ProfilingUtils.timed(s"Generate ${households.size} locations", x => logger.info(x)) {
+      ProfilingUtils.timed(s"Generate ${households.size} household locations", x => logger.info(x)) {
         blockGroupGeoIdToHouseholds.par.map {
           case (blockGroupGeoId, householdsWithPersonData) =>
             val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
@@ -194,7 +208,7 @@ class SimpleScenarioGenerator(
             if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
-                HouseholdId(household.id),
+                HouseholdId(household.fullId),
                 household.numOfVehicles,
                 household.income,
                 utmHouseholdCoord.getX,
@@ -322,47 +336,40 @@ class SimpleScenarioGenerator(
     tazGeoId: TazGeoId,
     households: Iterable[Models.Household]
   ): Iterable[Seq[Option[PersonWithExtraInfo]]] = {
-    sourceToTimeLeavingOD
-      .get(tazGeoId.asUniqueKey)
-      .map { timeLeavingODPairs =>
-        // logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
-
-        val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
-          households.map { household =>
-            val persons = householdWithPersons(household)
-            val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-              rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income).map { tazWorkDestStr =>
-                val tazWorkDest = TazGeoId.fromString(tazWorkDestStr)
-                val foundDests = timeLeavingODPairs.filter(x => x.destination == tazWorkDest.asUniqueKey)
-                if (foundDests.isEmpty) {
+    val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
+      households.map { household =>
+        val persons = householdWithPersons(household)
+        val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
+          rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income).map { tazWorkDestStr =>
+            val tazWorkDest = TazGeoId.fromString(tazWorkDestStr)
+            val foundDests = timeLeavingHomeGenerator.find(tazGeoId.asUniqueKey, tazWorkDest.asUniqueKey)
+            if (foundDests.isEmpty) {
 //                logger
 //                  .info(
 //                    s"Could not find work destination '${tazWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
 //                  )
-                  None
-                } else {
-                  val timeLeavingHomeRange =
-                    ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
-                  Some(
-                    PersonWithExtraInfo(
-                      person = person,
-                      workDest = tazWorkDest,
-                      timeLeavingHomeRange = timeLeavingHomeRange
-                    )
-                  )
-                }
-              }
+              None
+            } else {
+              val timeLeavingHomeRange =
+                ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
+              Some(
+                PersonWithExtraInfo(
+                  person = person,
+                  workDest = tazWorkDest,
+                  timeLeavingHomeRange = timeLeavingHomeRange
+                )
+              )
             }
+          }
+        }
 //          if (personWithWorkDestAndTimeLeaving.size != persons.size) {
 //            logger.warn(
 //              s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
 //            )
 //          }
-            personWithWorkDestAndTimeLeaving
-          }
-        personData
+        personWithWorkDestAndTimeLeaving
       }
-      .getOrElse(Iterable.empty)
+    personData
   }
 
   private def getBlockGroupIdToHouseholdAndPeople
