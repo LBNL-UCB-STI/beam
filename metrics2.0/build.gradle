@@ -40,11 +40,11 @@ task grafanaClearData {
     group 'Grafana'
 
     doFirst {
-        // delete only files in dirs
+        // delete only content in dirs
         ["$projectDir/grafana/log", "$projectDir/grafana/data/png", "$projectDir/influxdb/data", "$projectDir/influxdb/log"].forEach {
             directory ->
                 delete fileTree(dir: directory, exclude: '.gitignore')
-                println "files under $directory are removed"
+                println "files and folders under $directory are removed"
         }
 
         // delete completely
