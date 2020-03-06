@@ -73,7 +73,8 @@ class BeamVehicle(
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
-  val driver: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
+  private val driver: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
+  def getDriver : Option[ActorRef] = driver.get()
 
   private val stallRWLock = new ReentrantReadWriteLock()
 

@@ -691,7 +691,7 @@ class RideHailAgent(
 
   def requestParkingStall(): Unit = {
     val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.driver.get.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
+      RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
     val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry

@@ -371,7 +371,7 @@ object HouseholdActor {
                 .map { cavAndSchedule =>
                   akka.pattern
                     .ask(
-                      cavAndSchedule._1.driver.get.get,
+                      cavAndSchedule._1.getDriver.get,
                       ModifyPassengerSchedule(cavAndSchedule._2, tick)
                     )
                     .mapTo[ModifyPassengerScheduleAck]

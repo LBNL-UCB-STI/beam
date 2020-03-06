@@ -963,7 +963,7 @@ class RideHailManager(
     val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
     val rideHailAgentLocation =
       RideHailAgentLocation(
-        beamVehicle.driver.get.get,
+        beamVehicle.getDriver.get,
         vehicleId,
         beamVehicle.beamVehicleType,
         whenWhere,
@@ -976,7 +976,7 @@ class RideHailManager(
 
     val triggerToSend = removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(vehicleId, beamVehicle.driver.get.get, parkingStall, whenWhere.time, triggerId, JustArrivedAtDepot)
+        attemptToRefuel(vehicleId, beamVehicle.getDriver.get, parkingStall, whenWhere.time, triggerId, JustArrivedAtDepot)
       //If not arrived for refueling;
       case _ => {
         log.debug("Making vehicle {} available", vehicleId)
