@@ -49,7 +49,7 @@ class BeamVehicle(
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
-  def setManager(value:Option[ActorRef]): Unit = this.manager.set(value)
+  def setManager(value: Option[ActorRef]): Unit = this.manager.set(value)
   def getManager: Option[ActorRef] = this.manager.get
 
   val rand: Random = new Random(randomSeed)
@@ -74,7 +74,7 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   private val driver: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
-  def getDriver : Option[ActorRef] = driver.get()
+  def getDriver: Option[ActorRef] = driver.get()
 
   private val stallRWLock = new ReentrantReadWriteLock()
 
