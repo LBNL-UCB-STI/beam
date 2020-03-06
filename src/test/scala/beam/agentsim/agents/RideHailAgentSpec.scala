@@ -148,7 +148,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager.set(Some(self))
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -224,7 +224,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager.set(Some(self))
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -294,7 +294,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager.set(Some(self))
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
