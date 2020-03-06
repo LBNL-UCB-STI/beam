@@ -42,7 +42,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       xs.foreach {
         case (id, resp) =>
           val veh = vehicles(id)
-          veh.manager.set(Some(self))
+          veh.setManager(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           veh.setMustBeDrivenHome(true)
           veh.useParkingStall(resp.stall)

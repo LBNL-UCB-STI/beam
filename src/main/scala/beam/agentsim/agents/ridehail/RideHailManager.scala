@@ -1453,7 +1453,7 @@ class RideHailManager(
       Some(beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC)
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
-    rideHailBeamVehicle.manager.set(Some(self))
+    rideHailBeamVehicle.setManager(Some(self))
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
     vehicleManager.vehicleState.put(rideHailBeamVehicle.id, rideHailBeamVehicle.getState)
 

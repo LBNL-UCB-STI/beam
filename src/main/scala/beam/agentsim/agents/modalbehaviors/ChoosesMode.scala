@@ -1106,7 +1106,7 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
-          vehicle.manager.get.get ! ReleaseVehicle(vehicle)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
         triggerId,

@@ -60,7 +60,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         vehicleType,
         rand.nextInt()
       )
-      vehicle.manager.set(Some(self))
+      vehicle.setManager(Some(self))
       vehicle.spaceTime = SpaceTime(location, 0)
       vehicle.id -> vehicle
   }).toMap
@@ -74,7 +74,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.values.map { veh =>
-          veh.manager.set(Some(self))
+          veh.setManager(Some(self))
           parkingManager ? parkingInquiry(veh.spaceTime) flatMap {
             case ParkingInquiryResponse(stall, _) =>
               veh.useParkingStall(stall)

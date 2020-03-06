@@ -198,7 +198,7 @@ object HouseholdActor {
             context.watch(cavDriverRef)
             cav.spaceTime = SpaceTime(homeCoord, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
-            cav.manager.set(Some(self))
+            cav.setManager(Some(self))
             cav.becomeDriver(cavDriverRef)
           }
           household.members.foreach { person =>
@@ -438,7 +438,7 @@ object HouseholdActor {
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
-          veh.manager.set(Some(self))
+          veh.setManager(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")

@@ -257,7 +257,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       vehicle.becomeDriver(self)
-      vehicle.manager.set(Some(rideHailManager))
+      vehicle.setManager(Some(rideHailManager))
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
@@ -783,7 +783,7 @@ class RideHailAgent(
             //assert(false)
           }
 
-          vehicle.manager.get.get ! nextIdle
+          vehicle.getManager.get ! nextIdle
 
         case None =>
       }
