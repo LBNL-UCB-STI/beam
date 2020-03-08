@@ -22,8 +22,8 @@ trait AbstractSkimmerKey {
 }
 
 trait AbstractSkimmerInternal {
-  val numObservations: Int
-  val numIteration: Int
+  val observations: Int
+  val iterations: Int
   def toCsv: String
 }
 
@@ -61,7 +61,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
   ): AbstractSkimmerInternal
-  protected def aggregateWithinAnIteration(
+  protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
@@ -93,7 +93,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   override def handleEvent(event: Event): Unit = {
     event match {
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
-        currentSkim.update(e.getKey, aggregateWithinAnIteration(currentSkim.get(e.getKey), e.getSkimmerInternal))
+        currentSkim.update(e.getKey, aggregateWithinIteration(currentSkim.get(e.getKey), e.getSkimmerInternal))
       case _ =>
     }
   }
