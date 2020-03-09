@@ -36,6 +36,8 @@ class CarRideStatsFromPathTraversalEventHandler(
     with ShutdownListener {
   import CarRideStatsFromPathTraversalEventHandler._
 
+  private var secondsInHour = 3600
+
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
   private val averageTravelTimePerIteration: collection.mutable.MutableList[Long] =
     collection.mutable.MutableList.empty
@@ -122,6 +124,25 @@ class CarRideStatsFromPathTraversalEventHandler(
     buildStatistics(networkHelper, freeFlowTravelTimeCalc, iterationNumber, rideStats)
   }
 
+  private def createCarRideIterationGraph(
+    iterationNumber: Int,
+    rideStats: Seq[SingleRideStat],
+    mode: String
+  ): Unit = {
+
+    val hourAverageSpeed = rideStats.groupBy(stats => stats.departureTime.toInt / secondsInHour).map {
+      case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
+    }
+
+    val maxHour = hourAverageSpeed.keys.max
+
+    val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
+
+    // generate the category dataset using the average travel times data
+    val dataSet = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
+    createIterationGraphForAverageSpeed(dataSet, iterationNumber, mode)
+  }
+
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[SingleRideStat]] = carType2PathTraversals.keys.map { carType =>
       carType -> calcRideStats(event.getIteration, carType)
@@ -130,6 +151,12 @@ class CarRideStatsFromPathTraversalEventHandler(
     type2RideStats.foreach {
       case (carType, stats) =>
         writeCarRideStats(event.getIteration, stats, carType)
+    }
+
+    type2RideStats.get(CarType.RideHail) match {
+      case Some(stats) =>
+        createCarRideIterationGraph(event.getIteration, stats, CarType.RideHail.toString)
+      case _ => logger.info("No RideHail stats available")
     }
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
@@ -282,6 +309,38 @@ class CarRideStatsFromPathTraversalEventHandler(
       graphTitle,
       "hour",
       "Average Travel Time [min]",
+      fileName,
+      false
+    )
+    val plot = chart.getCategoryPlot
+    GraphUtils.plotLegendItems(plot, dataset.getRowCount)
+    val graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName)
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      graphImageFile,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
+  }
+
+  /**
+    * Plots graph for average travel times per hour at iteration level
+    *
+    * @param dataset category dataset for graph genration
+    * @param iterationNumber iteration number
+    */
+  private def createIterationGraphForAverageSpeed(
+    dataset: CategoryDataset,
+    iterationNumber: Int,
+    mode: String
+  ): Unit = {
+    val fileName = s"averageSpeed$mode.png"
+    val graphTitle = s"Average Speed [ $mode ]"
+    val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
+      dataset,
+      graphTitle,
+      "hour",
+      "Average Speed [m/s]",
       fileName,
       false
     )
