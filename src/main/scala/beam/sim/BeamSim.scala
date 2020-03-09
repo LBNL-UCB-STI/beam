@@ -316,7 +316,7 @@ class BeamSim @Inject()(
     writeEventsAnalysisUsing(event)
 
     // Clear the state of private vehicles because they are shared across iterations
-    beamServices.beamScenario.privateVehicles.values.foreach(_.clear())
+    beamServices.beamScenario.privateVehicles.values.foreach(_.resetState())
   }
 
   private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {

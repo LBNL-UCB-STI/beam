@@ -377,7 +377,7 @@ class BeamVehicle(
 
   override def toString = s"$id (${beamVehicleType.id})"
 
-  def clear(): Unit = {
+  def resetState(): Unit = {
     setManager(None)
     spaceTime = null
 
