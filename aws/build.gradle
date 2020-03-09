@@ -92,7 +92,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
   "command": "deploy"
 }"""
-        functionName = "simulateBeam"
+        functionName = "runBeamWithGrafana-TEST"
         invocationType = InvocationType.RequestResponse
         payload = pload
     }
