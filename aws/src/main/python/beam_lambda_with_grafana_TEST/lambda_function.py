@@ -6,10 +6,8 @@ import os
 import glob
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''
-  -    ./gradlew --stacktrace grafanaStart
-  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
-'''
+CONFIG_SCRIPT = '''sudo ./gradlew --stacktrace grafanaStart
+  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
 
 EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
 
@@ -64,6 +62,11 @@ write_files:
           0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
       path: /tmp/slack_notification
 runcmd:
+  - echo "-------------------Installing dependencies----------------------"
+  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - sudo chmod +x /usr/local/bin/docker-compose
+  - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+  - sudo apt-get install docker.io
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
@@ -299,6 +302,7 @@ def deploy_handler(event):
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
+        #instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
