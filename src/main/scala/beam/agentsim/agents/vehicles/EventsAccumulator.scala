@@ -34,10 +34,9 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
   override def receive: Receive = {
 
     case t @ TriggerWithId(EventsAccumulatorTrigger(tick), _) =>
-      scheduler ! CompletionNotice(t.triggerId)
       informExternalSystem(chargingEventsBuffer)
       clearStates()
-      scheduler ! ScheduleTrigger(EventsAccumulatorTrigger(tick + timeout), self)
+      scheduler ! CompletionNotice(t.triggerId, Vector(ScheduleTrigger(EventsAccumulatorTrigger(tick + timeout), self)))
 
     case ProcessChargingEvents(e) =>
       chargingEventsBuffer += e
