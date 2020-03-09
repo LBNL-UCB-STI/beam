@@ -36,7 +36,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     with ShutdownListener {
   import CarRideStatsFromPathTraversalEventHandler._
 
-  private var secondsInHour = 3600
+  private val secondsInHour = 3600
 
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
   private val averageTravelTimePerIteration: collection.mutable.MutableList[Long] =
@@ -151,12 +151,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     type2RideStats.foreach {
       case (carType, stats) =>
         writeCarRideStats(event.getIteration, stats, carType)
-    }
-
-    type2RideStats.get(CarType.RideHail) match {
-      case Some(stats) =>
         createCarRideIterationGraph(event.getIteration, stats, CarType.RideHail.toString)
-      case _ => logger.info("No RideHail stats available")
     }
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
