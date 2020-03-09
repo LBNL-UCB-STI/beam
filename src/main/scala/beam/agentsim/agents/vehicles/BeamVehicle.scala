@@ -54,6 +54,7 @@ class BeamVehicle(
 
   val rand: Random = new Random(randomSeed)
 
+  @volatile
   var spaceTime: SpaceTime = _
 
   private val fuelRWLock = new ReentrantReadWriteLock()
@@ -375,6 +376,30 @@ class BeamVehicle(
   }
 
   override def toString = s"$id (${beamVehicleType.id})"
+
+  def resetState(): Unit = {
+    setManager(None)
+    spaceTime = null
+
+    fuelRWLock.write {
+      primaryFuelLevelInJoulesInternal = 0.0
+      secondaryFuelLevelInJoulesInternal = 0.0
+    }
+
+    mustBeDrivenHomeInternal.set(false)
+    unsetDriver()
+
+    stallRWLock.write {
+      reservedStallInternal = None
+      stallInternal = None
+      lastUsedStallInternal = None
+    }
+
+    chargerRWLock.write {
+      connectedToCharger = false
+      chargerConnectedTick = None
+    }
+  }
 }
 
 object BeamVehicle {
