@@ -151,7 +151,7 @@ class CarRideStatsFromPathTraversalEventHandler(
     type2RideStats.foreach {
       case (carType, stats) =>
         writeCarRideStats(event.getIteration, stats, carType)
-        createCarRideIterationGraph(event.getIteration, stats, CarType.RideHail.toString)
+        createCarRideIterationGraph(event.getIteration, stats, carType.toString)
     }
 
     val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
