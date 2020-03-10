@@ -6,7 +6,9 @@ import os
 import glob
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''sudo ./gradlew --stacktrace grafanaStart
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+
+CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
   -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
 
 EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
@@ -62,16 +64,13 @@ write_files:
           0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
       path: /tmp/slack_notification
 runcmd:
+  - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Installing dependencies----------------------"
-  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-  - sudo chmod +x /usr/local/bin/docker-compose
-  - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-  - sudo apt-get install docker.io
+  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; sudo chmod +x /usr/local/bin/docker-compose; sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose; sudo apt-get install docker.io -y
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
-  - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - start_json=$(printf "{
       \\"command\\":\\"add\\",
@@ -299,6 +298,7 @@ def deploy_handler(event):
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
+    run_grafana = event.get('run_grafana', 'false')
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
@@ -310,7 +310,12 @@ def deploy_handler(event):
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = CONFIG_SCRIPT
+    selected_script = ""
+    if run_grafana == TRUE:
+        selected_script = CONFIG_SCRIPT_WITH_GRAFANA
+    else:
+        selected_script = CONFIG_SCRIPT
+
     params = configs
     if s3_publish == TRUE:
         selected_script += S3_PUBLISH_SCRIPT
@@ -355,6 +360,10 @@ def deploy_handler(event):
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+
+            if run_grafana == TRUE:
+                txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
+
             runNum += 1
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)

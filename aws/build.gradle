@@ -90,7 +90,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
   "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
-  "command": "deploy"
+  "command": "deploy",
+  "run_grafana" : "${ext.getParameterValue('runGrafana')}"
 }"""
         functionName = "runBeamWithGrafana-TEST"
         invocationType = InvocationType.RequestResponse
