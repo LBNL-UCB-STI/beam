@@ -53,7 +53,7 @@ object FlowStatsForParking {
   def main(args: Array[String]): Unit = {
 //    "D:\Work\beam\Austin\input\CTPP\48"
 //    "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
-    val pathToCTTPDate = """D:\Work\beam\Austin\input\CTPP\48"""
+    val pathToCTTPData = """D:\Work\beam\Austin\input\CTPP\48"""
     val pathToTazShapeFile = """D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"""
 
     def mapper(mathTransform: MathTransform, feature: SimpleFeature) = {
@@ -64,7 +64,7 @@ object FlowStatsForParking {
 
     val tazGeoIdToGeomAndLandArea: Map[TazGeoId, (Geometry, Long)] =
       getTazMap("EPSG:4326", pathToTazShapeFile, x => true, mapper).toMap
-    val flowStatsForParking = new FlowStatsForParking(PathToData(pathToCTTPDate), tazGeoIdToGeomAndLandArea)
+    val flowStatsForParking = new FlowStatsForParking(PathToData(pathToCTTPData), tazGeoIdToGeomAndLandArea)
 
     val rows = flowStatsForParking.allRows
     println(s"flowStatsForParking rows size: ${rows.size}")

@@ -2,14 +2,16 @@ package beam.utils.data.synthpop
 
 import beam.utils.data.synthpop.models.Models._
 import beam.utils.map.ShapefileReader
+import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 case class GeoServiceInputParam(
   pathToTazShapeFile: String,
@@ -109,7 +111,31 @@ object GeoService {
     filter: SimpleFeature => Boolean,
     mapper: (MathTransform, SimpleFeature) => T
   ): Seq[T] = {
-
     ShapefileReader.read(crsCode, pathToTazShapeFile, filter, mapper)
+  }
+
+  def getBoundingBoxOfOsmMap(path: String): Envelope = {
+    val osm = new OSM(null)
+    try {
+      osm.readFromFile(path)
+
+      var minX = Double.MaxValue
+      var maxX = Double.MinValue
+      var minY = Double.MaxValue
+      var maxY = Double.MinValue
+
+      osm.nodes.values().forEach { x =>
+        val lon = x.fixedLon / 10000000.0
+        val lat = x.fixedLat / 10000000.0
+
+        if (lon < minX) minX = lon
+        if (lon > maxX) maxX = lon
+        if (lat < minY) minY = lat
+        if (lat > maxY) maxY = lat
+      }
+      new Envelope(minX, maxX, minY, maxY)
+    } finally {
+      Try(osm.close())
+    }
   }
 }

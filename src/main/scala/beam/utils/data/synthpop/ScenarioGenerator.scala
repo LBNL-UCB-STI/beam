@@ -50,7 +50,7 @@ class SimpleScenarioGenerator(
 
   logger.info(s"Initializing...")
 
-  private val mapBoundingBox: Envelope = getBoundingBoxOfOsmMap(pathToOsmMap)
+  private val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
 
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
@@ -432,31 +432,6 @@ class SimpleScenarioGenerator(
     val congestionLevel = (100 - congestionLevelData.level(timeLeavingHomeSeconds)) / 100
     val averageSpeed = offPeakSpeed * congestionLevel
     distance / averageSpeed
-  }
-
-  private def getBoundingBoxOfOsmMap(path: String): Envelope = {
-    val osm = new OSM(null)
-    try {
-      osm.readFromFile(path)
-
-      var minX = Double.MaxValue
-      var maxX = Double.MinValue
-      var minY = Double.MaxValue
-      var maxY = Double.MinValue
-
-      osm.nodes.values().forEach { x =>
-        val lon = x.fixedLon / 10000000.0
-        val lat = x.fixedLat / 10000000.0
-
-        if (lon < minX) minX = lon
-        if (lon > maxX) maxX = lon
-        if (lat < minY) minY = lat
-        if (lat > maxY) maxY = lat
-      }
-      new Envelope(minX, maxX, minY, maxY)
-    } finally {
-      Try(osm.close())
-    }
   }
 
   def writeTazCenters(pathToFolder: String): Unit = {
