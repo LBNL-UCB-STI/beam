@@ -22,6 +22,7 @@ S3_PUBLISH_SCRIPT = '''
   -         finalPath="$path2";
   -       done;
   -    done;
+  -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
   -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"

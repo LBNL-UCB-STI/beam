@@ -156,7 +156,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -301,7 +301,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -404,7 +404,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle2.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -457,7 +457,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      car1.manager = Some(mockSharedVehicleFleet.ref)
+      car1.setManager(Some(mockSharedVehicleFleet.ref))
 
       val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
       population.addPerson(person1)
@@ -532,7 +532,7 @@ class PersonWithVehicleSharingSpec
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle)))
+            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle)))
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
@@ -571,7 +571,7 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
-        Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
+        Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
