@@ -18,12 +18,13 @@ case class EventStatus(start: Double, end: Double, eventType: String, nextType: 
 
 class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
-  val resolutionInSeconds = 60
-  val lastHour = 25
-  val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
-  var processedHour = 0
+  private val metersInMile: Double = 1609.34
+  private   val resolutionInSeconds = 60
+  private val lastHour = 25
+  private val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
+  private var processedHour = 0
 
-  val states = List(
+  private val states = List(
     "driving-full",
     "driving-reposition",
     "driving-topickup",
@@ -35,20 +36,20 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     "parked"
   )
 
-  val keys = states.zipWithIndex.toMap
+  private val keys = states.zipWithIndex.toMap
 
   import RefuelSessionEvent._
 
-  val rideHailEvCav = mutable.Map[String, ArrayBuffer[Event]]()
-  val ridehailEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
-  val rideHailNonEvCav = mutable.Map[String, ArrayBuffer[Event]]()
-  val rideHailNonEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
+  private val rideHailEvCav = mutable.Map[String, ArrayBuffer[Event]]()
+  private val ridehailEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
+  private val rideHailNonEvCav = mutable.Map[String, ArrayBuffer[Event]]()
+  private val rideHailNonEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
 
   override def processStats(event: Event): Unit = {
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
-        if (refuelSessionEvent.getAttributes.get(ATTRIBUTE_ENERGY_DELIVERED).toDouble > 0.0) {
-          val vehicle = refuelSessionEvent.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
+        if (refuelSessionEvent.energyInJoules > 0.0) {
+          val vehicle = refuelSessionEvent.vehId.toString
           if (vehicle.contains("rideHail")) {
             if (rideHailEvCav.contains(vehicle)) {
               collectEvent(
@@ -259,6 +260,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
             false
           else
             days(idx + 1).getEventType == "ParkEvent" && days(idx + 2).getEventType == "RefuelSessionEvent"
+
         chargingNext = chargingDirectlyNext || chargingOneAfter
         pickupNext = days(idx + 1).getEventType == "PathTraversal" && days(idx + 1).getAttributes
           .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
@@ -297,13 +299,13 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
           val meanDistancePerTime = legLength / sum
           duringEvent.zipWithIndex.foreach(indexValue => {
             if (indexValue._1) {
-              distanceUtilization(indexValue._2)(eventIdx) += meanDistancePerTime / 1609.34
+              distanceUtilization(indexValue._2)(eventIdx) += meanDistancePerTime / metersInMile
             }
           })
         } else {
           val firstIndex = afterEventStart.indexOf(true)
           if (firstIndex > 0)
-            distanceUtilization(firstIndex)(eventIdx) += legLength / 1609.34
+            distanceUtilization(firstIndex)(eventIdx) += legLength / metersInMile
         }
       }
 
