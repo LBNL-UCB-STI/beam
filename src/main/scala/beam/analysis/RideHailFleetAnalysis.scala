@@ -19,7 +19,7 @@ case class EventStatus(start: Double, end: Double, eventType: String, nextType: 
 class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   private val metersInMile: Double = 1609.34
-  private   val resolutionInSeconds = 60
+  private val resolutionInSeconds = 60
   private val lastHour = 25
   private val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
   private var processedHour = 0

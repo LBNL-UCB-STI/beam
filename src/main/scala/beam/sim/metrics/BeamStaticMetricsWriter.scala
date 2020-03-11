@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
 import beam.sim.config.BeamConfig
-import beam.sim.metrics.SimulationMetricCollector.{SimulationTime, defaultMetricName}
+import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.core.scenario.MutableScenario
 
