@@ -953,7 +953,7 @@ class RideHailManager(
     }
   }
 
-  def continueProcessingTimeoutIfReady: Unit = {
+  def continueProcessingTimeoutIfReady(): Unit = {
     if (modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
       throwRideHailFleetStateEvent(modifyPassengerScheduleManager.getCurrentTick.get)
       currentlyProcessingTimeoutTrigger.map(_.trigger) match {
@@ -969,19 +969,22 @@ class RideHailManager(
 
   def throwRideHailFleetStateEvent(tick: Int): Unit = {
     val tick = modifyPassengerScheduleManager.getCurrentTick.get
-    val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values.toList
+
+    val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values
     val inServiceRideHailStateEvents = calculateCavEvs(inServiceRideHailVehicles, "InService", tick)
     eventsManager.processEvent(inServiceRideHailStateEvents)
-    val outOfServiceRideHailVehicles = vehicleManager.outOfServiceRideHailVehicles.values.toList
+
+    val outOfServiceRideHailVehicles = vehicleManager.outOfServiceRideHailVehicles.values
     val outOfServiceRideHailStateEvents = calculateCavEvs(outOfServiceRideHailVehicles, "offline", tick)
     eventsManager.processEvent(outOfServiceRideHailStateEvents)
-    val idleRideHailEvents = vehicleManager.idleRideHailVehicles.values.toList
+
+    val idleRideHailEvents = vehicleManager.idleRideHailVehicles.values
     val idleRideHailStateEvents = calculateCavEvs(idleRideHailEvents, "idle", tick)
     eventsManager.processEvent(idleRideHailStateEvents)
   }
 
   def calculateCavEvs(
-    rideHailAgentLocations: List[RideHailAgentLocation],
+    rideHailAgentLocations: Iterable[RideHailAgentLocation],
     vehicleType: String,
     tick: Int
   ): RideHailFleetStateEvent = {
