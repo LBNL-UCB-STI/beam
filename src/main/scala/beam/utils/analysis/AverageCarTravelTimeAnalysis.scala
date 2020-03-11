@@ -5,7 +5,7 @@ import java.nio.file.Paths
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.analysis.cartraveltime.{CarRideStatsFromPathTraversalEventHandler, Personal, SingleRideStat}
+import beam.analysis.cartraveltime.{CarRideStatsFromPathTraversalEventHandler, CarType, SingleRideStat}
 import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.model.RoutingModel
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
@@ -90,7 +90,7 @@ object AverageCarTravelTimeAnalysis {
 
     val statsF0 = Future {
       val rideStats = ProfilingUtils.timed(s"$eventsFile0: computeStatsConsiderParking", x => println(x)) {
-        carRideStatsFromPathTraversal.calcRideStats(15, Personal)
+        carRideStatsFromPathTraversal.calcRideStats(15, CarType.Personal)
       }
       showStats(eventsFile0, rideStats)
     }
