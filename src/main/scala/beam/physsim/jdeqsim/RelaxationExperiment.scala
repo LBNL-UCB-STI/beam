@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim
 
+import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Scenario
@@ -16,6 +17,7 @@ sealed abstract class RelaxationExperiment(
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
   val iterationNumber: Int,
+  val linkStatsGraph: PhyssimCalcLinkStats,
   val shouldWritePhysSimEvents: Boolean,
   val javaRnd: java.util.Random
 ) {
@@ -32,6 +34,7 @@ class Normal(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -43,6 +46,7 @@ class Normal(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -56,6 +60,7 @@ class Normal(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     )
@@ -73,6 +78,7 @@ class Experiment_2_0(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -84,6 +90,7 @@ class Experiment_2_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -97,6 +104,7 @@ class Experiment_2_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     )
@@ -116,6 +124,7 @@ class Experiment_2_1(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -127,6 +136,7 @@ class Experiment_2_1(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -140,6 +150,7 @@ class Experiment_2_1(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     )
@@ -159,6 +170,7 @@ class Experiment_3_0(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -170,6 +182,7 @@ class Experiment_3_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -183,6 +196,7 @@ class Experiment_3_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     )
@@ -205,6 +219,7 @@ class Experiment_4_0(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -216,6 +231,7 @@ class Experiment_4_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -248,6 +264,7 @@ class Experiment_5_0(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -259,6 +276,7 @@ class Experiment_5_0(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -288,6 +306,7 @@ class Experiment_5_0(
         isCACCVehicleMap,
         beamConfigChangesObservable,
         iterationNumber,
+        linkStatsGraph,
         shouldWritePhysSimEvents,
         javaRnd
       )
@@ -308,6 +327,7 @@ class Experiment_5_1(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -319,6 +339,7 @@ class Experiment_5_1(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -348,6 +369,7 @@ class Experiment_5_1(
         isCACCVehicleMap,
         beamConfigChangesObservable,
         iterationNumber,
+        linkStatsGraph,
         shouldWritePhysSimEvents,
         javaRnd
       )
@@ -368,6 +390,7 @@ class Experiment_5_2(
   isCACCVehicleMap: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends RelaxationExperiment(
@@ -379,6 +402,7 @@ class Experiment_5_2(
       isCACCVehicleMap,
       beamConfigChangesObservable,
       iterationNumber,
+      linkStatsGraph,
       shouldWritePhysSimEvents,
       javaRnd
     ) {
@@ -408,6 +432,7 @@ class Experiment_5_2(
         isCACCVehicleMap,
         beamConfigChangesObservable,
         iterationNumber,
+        linkStatsGraph,
         shouldWritePhysSimEvents,
         javaRnd
       )

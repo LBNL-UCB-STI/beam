@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.handling.{BeamEventsLogger, BeamEventsWriterCSV}
+import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.analysis.via.EventWriterXML_viaCompatible
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
@@ -47,6 +48,7 @@ class PhysSim(
   isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
+  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends StrictLogging {
@@ -230,6 +232,8 @@ class PhysSim(
       jdeqsimEvents.addHandler(writer)
       Some(writer)
     } else None
+
+    linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig.travelTimeCalculator());
 
     val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
       Some(
