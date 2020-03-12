@@ -22,11 +22,10 @@ S3_PUBLISH_SCRIPT = '''
   -         finalPath="$path2";
   -       done;
   -    done;
+  -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
-  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"
-  -    sudo aws --region "$S3_REGION" s3 ls s3://beam-outputs/$finalPath | wc -l
-  -    s3_output_count = $?'''
+  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
@@ -69,6 +68,29 @@ runcmd:
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - echo $start_json
   - chmod +x /tmp/slack.sh
   - echo "notification sent..."
   - echo "notification saved..."
@@ -91,9 +113,9 @@ runcmd:
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
+
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
-  - s3_output_count=0
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
@@ -104,14 +126,32 @@ runcmd:
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
-  - if [ $s3_output_count > 0 ]
-  - then
-  -   sudo aws ec2 create-tags --region $REGION --resources $(ec2metadata --instance-id) --tags Key=BackedUp,Value=$s3p
-  - fi
   - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
   - echo "$bye_msg"
+  - stop_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Completed\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
   - /tmp/slack.sh "$bye_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
@@ -177,30 +217,30 @@ def validate(name):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
     res = ec2.run_instances(BlockDeviceMappings=[
-        {
-            'DeviceName': '/dev/sda1',
-            'Ebs': {
-                'VolumeSize': volume_size,
-                'VolumeType': 'gp2'
-            }
-        }
-    ],
-        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-        InstanceType=instance_type,
-        UserData=script,
-        KeyName=os.environ[region_prefix + 'KEY_NAME'],
-        MinCount=1,
-        MaxCount=1,
-        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-        TagSpecifications=[ {
-            'ResourceType': 'instance',
-            'Tags': [ {
-                'Key': 'Name',
-                'Value': instance_name
-            } ]
-        } ])
+                                {
+                                    'DeviceName': '/dev/sda1',
+                                    'Ebs': {
+                                        'VolumeSize': volume_size,
+                                        'VolumeType': 'gp2'
+                                    }
+                                }
+                            ],
+                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+                            InstanceType=instance_type,
+                            UserData=script,
+                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
+                            MinCount=1,
+                            MaxCount=1,
+                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+                            TagSpecifications=[ {
+                                'ResourceType': 'instance',
+                                'Tags': [ {
+                                    'Key': 'Name',
+                                    'Value': instance_name
+                                } ]
+                            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -298,7 +338,6 @@ def deploy_handler(event):
         for arg in params:
             uid = str(uuid.uuid4())[:8]
             runName = titled
-            runName = runName + '_' + shutdown_behaviour.toUpperCase()
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
@@ -306,7 +345,8 @@ def deploy_handler(event):
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
-                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN'])
+                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+                .replace('$SHEET_ID', os.environ['SHEET_ID'])
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
