@@ -102,7 +102,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val pathToData: String, val
   private def generate(
     totalHouseholds: TotalHouseholds,
     totalPopulation: TotalPopulation,
-    ageMap: Map[String, Map[Age, Double]],
+    ageMap: Map[String, Map[AgeRange, Double]],
     vehiclesAvailableMap: Map[String, Map[Vehicles, Double]],
     sexMap: Map[String, Map[Gender, Double]],
     medianHouseholdIncome: MedianHouseholdIncome,

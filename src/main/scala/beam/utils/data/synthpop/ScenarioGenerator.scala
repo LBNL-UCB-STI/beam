@@ -42,9 +42,10 @@ class SimpleScenarioGenerator(
   val pathToCongestionLevelDataFile: String,
   val pathToWorkedHours: String,
   val pathToOsmMap: String,
+  val stateCode: String,
   val randomSeed: Int,
   val offPeakSpeed: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
-  val defaultValueOfTime: Double = 8.0,
+  val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -99,10 +100,48 @@ class SimpleScenarioGenerator(
   private val timeLeavingHomeGenerator: TimeLeavingHomeGenerator =
     new TimeLeavingHomeGeneratorImpl(pathToCTPPData, residenceToWorkplaceFlowGeography)
 
+  private val workForceSampler = new WorkForceSampler(pathToCTPPData, stateCode, new MersenneTwister(randomSeed))
+
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
-  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] =
-    SythpopReader.apply(pathToSythpopDataFolder).read()
+  private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = {
+    // Read households and people
+    val temp = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
+    // Take only with age is >= 16
+    val elderThan16Years = temp
+      .map {
+        case (hh, persons) =>
+          hh -> persons.filter(p => p.age >= 16)
+      }
+      .filter { case (_, persons) => persons.nonEmpty }
+      .toMap
+    val removedHh = temp.size - elderThan16Years.size
+    val removedPeopleYoungerThan16 = temp.map(x => x._2.size).sum - elderThan16Years.values.map(x => x.size).sum
+    logger.info(s"Read ${temp.size} households with ${temp.map(x => x._2.size).sum} people")
+    logger.info(s"""After filtering them got ${elderThan16Years.size} households with ${elderThan16Years.values
+                     .map(x => x.size)
+                     .sum} people.
+         |Removed $removedHh households and $removedPeopleYoungerThan16 people who are younger than 16""".stripMargin)
+
+//    showAgeCounts(elderThan16Years)
+
+    val finalResult = elderThan16Years.foldLeft(Map[Models.Household, Seq[Models.Person]]()) {
+      case (acc, (hh, people)) =>
+        val workers = people.collect { case person if workForceSampler.isWorker(person.age) => person }
+        if (workers.isEmpty) acc
+        else {
+          acc + (hh -> workers)
+        }
+    }
+    val removedEmptyHh = elderThan16Years.size - finalResult.size
+    val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - finalResult.values.map(x => x.size).sum
+    logger.info(s"""After applying work force sampler them got ${finalResult.size} households with ${finalResult.values
+                     .map(x => x.size)
+                     .sum} people.
+         |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin)
+
+    finalResult
+  }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
     case (hhId, persons) =>
@@ -447,12 +486,27 @@ class SimpleScenarioGenerator(
       Try(csvWriter.close())
     }
   }
+
+  private def showAgeCounts(hhToPeople: Map[Models.Household, Seq[Models.Person]]): Unit = {
+    val ages = hhToPeople.values.flatten
+      .map { person =>
+        person.age
+      }
+      .groupBy(x => x)
+      .toSeq
+      .map { case (age, xs) => (age, xs.size) }
+      .sortBy { case (age, _) => age }
+    ages.foreach {
+      case (age, cnt) =>
+        logger.info(s"Age: $age, count: $cnt")
+    }
+  }
 }
 
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 8, s"Expecting 8 arguments, but got ${args.length}")
+    require(args.length == 9, s"Expecting 8 arguments, but got ${args.length}")
     val pathToSythpopDataFolder = args(0)
     val pathToCTPPFolder = args(1)
     val pathToTazShapeFile = args(2)
@@ -461,6 +515,7 @@ object SimpleScenarioGenerator {
     val pathToWorkedHours = args(5)
     val pathToOsmMap = args(6)
     val pathToOutput = args(7)
+    val stateCode = args(8)
 
     /*
     Args:
@@ -472,18 +527,20 @@ object SimpleScenarioGenerator {
       "D:\Work\beam\Austin\input\work_activities_all_us.csv"
       "D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"
       "D:\Work\beam\Austin\results"
+      "48"
      * */
 
     val gen =
       new SimpleScenarioGenerator(
-        pathToSythpopDataFolder,
-        pathToCTPPFolder,
-        pathToTazShapeFile,
-        pathToBlockGroupShapeFile,
-        pathToCongestionLevelDataFile,
-        pathToWorkedHours,
-        pathToOsmMap,
-        42
+        pathToSythpopDataFolder = pathToSythpopDataFolder,
+        pathToCTPPFolder = pathToCTPPFolder,
+        pathToTazShapeFile = pathToTazShapeFile,
+        pathToBlockGroupShapeFile = pathToBlockGroupShapeFile,
+        pathToCongestionLevelDataFile = pathToCongestionLevelDataFile,
+        pathToWorkedHours = pathToWorkedHours,
+        pathToOsmMap = pathToOsmMap,
+        stateCode = stateCode,
+        randomSeed = 42,
       )
 
     gen.writeTazCenters(pathToOutput)

@@ -55,6 +55,11 @@ object BaseTableReader {
           "Household income in the past 12 months (2016$) (9) (Workers 16 years and over in households)"
         )
     case object TravelTime extends Table("B302106", "Travel time (12) (Workers 16 years and over)")
+    case object AgeOfWorker
+        extends Table(
+          "B302101",
+          "Age of Worker (8) (Workers 16 years and over) - Large Geos Only: State, County, MCD, Place, PUMA/POWPUMA, MSA"
+        )
   }
 
   def findFile(folderPath: String, fileName: String): String = {

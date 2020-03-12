@@ -6,7 +6,10 @@ object ResidenceGeoParser {
   val markerLength: Int = "C0300US".length
 
   def parse(input: String): Try[String] = {
-    if (input.startsWith("C1300US")) {
+    if (input.startsWith("C02")) {
+      //      C02	CTPP - State	st	C02nnUSss
+      Success(input.substring("C02nnUS".length))
+    } else if (input.startsWith("C1300US")) {
       //      C13	CTPP-  State-County-TAZ	st/cty/taz	C1300USssccczzzzzzzz
       val geoId = input.substring("C1300US".length)
       Success(geoId)
