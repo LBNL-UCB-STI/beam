@@ -63,7 +63,7 @@ def update_lambda(image_ids, function_name):
         'us_west_2_IMAGE_ID': image_ids['us-west-2'],
     })
     lm.update_function_configuration(
-        FunctionName='simulateBeam',
+        FunctionName=function_name,
         Environment={
             'Variables': en_var
         }
