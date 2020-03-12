@@ -14,6 +14,7 @@ import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
+import beam.physsim.routingTool.{RoutingToolWrapper, RoutingToolWrapperImpl}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
@@ -165,6 +166,8 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+
+          bind(classOf[RoutingToolWrapper]).to(classOf[RoutingToolWrapperImpl])
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
@@ -489,6 +492,7 @@ trait BeamHelper extends LazyLogging {
     logger.warn(logStart)
 
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+
     val services = injector.getInstance(classOf[BeamServices])
 
     runBeam(
