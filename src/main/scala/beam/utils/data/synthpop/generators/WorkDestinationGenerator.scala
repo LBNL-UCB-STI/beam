@@ -8,10 +8,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.math3.random.RandomGenerator
 
 trait WorkDestinationGenerator {
-  def next(homeLocation: String, income: Double): Option[String]
+  def next(homeLocation: String, income: Double, rndGen: RandomGenerator): Option[String]
 }
 
-class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val rndGen: RandomGenerator)
+class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData)
     extends WorkDestinationGenerator
     with StrictLogging {
   private val householdGeoIdToIncomeOD: Map[String, Seq[OD[HouseholdIncome]]] =
@@ -21,7 +21,7 @@ class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData, val rndGen:
 
   logger.info(s"householdGeoIdToIncomeOD: ${householdGeoIdToIncomeOD.size}")
 
-  override def next(homeLocation: String, income: Double): Option[String] = {
+  override def next(homeLocation: String, income: Double, rndGen: RandomGenerator): Option[String] = {
     householdGeoIdToIncomeOD.get(homeLocation) match {
       case Some(xs) =>
         val incomeInRange = xs.filter(od => od.attribute.contains(income.toInt))

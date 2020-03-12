@@ -82,7 +82,7 @@ class PumaLevelScenarioGenerator(
 
   private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData, new MersenneTwister(randomSeed))
+    new RandomWorkDestinationGenerator(pathToCTPPData)
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
@@ -345,7 +345,7 @@ class PumaLevelScenarioGenerator(
           val householdsWithPersonData = households.map { household =>
             val persons = householdWithPersons(household)
             val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold.asUniqueKey, household.income).map {
+              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold.asUniqueKey, household.income, rndGen).map {
                 powPumaWorkDestStr =>
                   val powPumaWorkDest = PowPumaGeoId.fromString(powPumaWorkDestStr)
                   val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)

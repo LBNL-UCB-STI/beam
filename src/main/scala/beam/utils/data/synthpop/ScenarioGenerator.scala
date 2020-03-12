@@ -21,7 +21,7 @@ import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInf
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
@@ -91,7 +91,7 @@ class SimpleScenarioGenerator(
 
   private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData, new MersenneTwister(randomSeed))
+    new RandomWorkDestinationGenerator(pathToCTPPData)
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
@@ -373,13 +373,14 @@ class SimpleScenarioGenerator(
 
   def findWorkingLocation(
     tazGeoId: TazGeoId,
-    households: Iterable[Models.Household]
+    households: Iterable[Models.Household],
+    rndGen: RandomGenerator
   ): Iterable[Seq[Option[PersonWithExtraInfo]]] = {
     val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
       households.map { household =>
         val persons = householdWithPersons(household)
         val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-          rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income).map { tazWorkDestStr =>
+          rndWorkDestinationGenerator.next(tazGeoId.asUniqueKey, household.income, rndGen).map { tazWorkDestStr =>
             val tazWorkDest = TazGeoId.fromString(tazWorkDestStr)
             val foundDests = timeLeavingHomeGenerator.find(tazGeoId.asUniqueKey, tazWorkDest.asUniqueKey)
             if (foundDests.isEmpty) {
@@ -414,30 +415,34 @@ class SimpleScenarioGenerator(
   private def getBlockGroupIdToHouseholdAndPeople
     : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
-      geoIdToHouseholds.toSeq.zipWithIndex.map {
-        case ((blockGroupGeoId, households), index) =>
-          val tazes = blockGroupToToTazs(blockGroupGeoId)
-          // It is one to many relation
-          // BlockGroupGeoId1 -> TAZ1
-          // BlockGroupGeoId1 -> TAZ2
-          // BlockGroupGeoId1 -> TAZ3
-          // So let's generate all possible combinations and choose randomly from them
-          val allPossibleLocations: List[PersonWithExtraInfo] = tazes.flatMap { tazGeoId =>
-            findWorkingLocation(tazGeoId, households).flatten.flatten
-          }
-          val uniquePersons = randomlyChooseUniquePersons(allPossibleLocations)
+      geoIdToHouseholds.toSeq.zipWithIndex.par
+        .map { // We process it in parallel, but there is no shared state
+          case ((blockGroupGeoId, households), index) =>
+            val rndGen = new MersenneTwister(randomSeed) // It is important to create random generator here!
+            val tazes = blockGroupToToTazs(blockGroupGeoId)
+            // It is one to many relation
+            // BlockGroupGeoId1 -> TAZ1
+            // BlockGroupGeoId1 -> TAZ2
+            // BlockGroupGeoId1 -> TAZ3
+            // So let's generate all possible combinations and choose randomly from them
+            val allPossibleLocations: List[PersonWithExtraInfo] = tazes.flatMap { tazGeoId =>
+              findWorkingLocation(tazGeoId, households, rndGen).flatten.flatten
+            }
+            val uniquePersons = randomlyChooseUniquePersons(allPossibleLocations)
 
-          val householdWithPersons = uniquePersons
-            .map(p => (personIdToHousehold(p.person), p))
-            .groupBy { case (hh, xs) => hh }
-            .map { case (hh, xs) => (hh, xs.map(_._2)) }
-            .toSeq
+            val householdWithPersons = uniquePersons
+              .map(p => (personIdToHousehold(p.person), p))
+              .groupBy { case (hh, xs) => hh }
+              .map { case (hh, xs) => (hh, xs.map(_._2)) }
+              .toSeq
 
-          logger.info(
-            s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${index + 1} out of ${geoIdToHouseholds.size}"
-          )
-          blockGroupGeoId -> householdWithPersons
-      }.toMap
+            logger.info(
+              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${index + 1} out of ${geoIdToHouseholds.size}"
+            )
+            blockGroupGeoId -> householdWithPersons
+        }
+        .seq
+        .toMap
     blockGroupGeoIdToHouseholds
   }
 
