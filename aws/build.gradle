@@ -93,7 +93,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy",
   "run_grafana" : "${ext.getParameterValue('runGrafana')}"
 }"""
-        functionName = "runBeamWithGrafana-TEST"
+        functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
         payload = pload
     }
