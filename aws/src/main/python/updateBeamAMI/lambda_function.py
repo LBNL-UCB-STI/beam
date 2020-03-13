@@ -68,7 +68,7 @@ def update_lambda(image_ids, function_name):
             'Variables': en_var
         }
     )
-    logger.info('simulateBeam image ids updated')
+    logger.info(function_name + ' image ids updated')
 
 
 def check_instance_id(instance_ids):
