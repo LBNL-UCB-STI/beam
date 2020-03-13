@@ -3,7 +3,7 @@ package beam.utils.data.synthpop
 import beam.utils.data.synthpop.models.Models
 import com.typesafe.scalalogging.StrictLogging
 
-object PopulationAdjustment extends StrictLogging {
+object PopulationCorrection extends StrictLogging {
 
   def adjust(
     input: Seq[(Models.Household, Seq[Models.Person])],

@@ -104,7 +104,7 @@ class SimpleScenarioGenerator(
     // Read households and people
     val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
     // Adjust population
-    PopulationAdjustment.adjust(temp, workForceSampler)
+    PopulationCorrection.adjust(temp, workForceSampler)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -292,7 +292,7 @@ class SimpleScenarioGenerator(
                         } else {
                           logger
                             .info(
-                              s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox"
+                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox}"
                             )
                           (xs, nextPersonId + 1)
                         }
@@ -314,7 +314,7 @@ class SimpleScenarioGenerator(
     val outOfBoundingBoxCnt = finalResult.values.flatten.count(x => x.isEmpty)
     if (outOfBoundingBoxCnt != 0)
       logger.warn(
-        s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box $mapBoundingBox"
+        s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box ${geoSvc.mapBoundingBox}"
       )
     finalResult.values.flatten.flatten
   }
