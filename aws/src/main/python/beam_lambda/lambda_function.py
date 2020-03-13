@@ -277,9 +277,17 @@ def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
 
 def deploy_handler(event):
-    titled = event.get('title', 'hostname-test')
-    if titled is None:
-        return "Unable to start the run, runName is required. Please restart with appropriate runName."
+    missing_parameters = []
+
+    def parameter_wasnt_specified(parameter_value):
+        # in gradle if parameter wasn't specified then project.findProperty return 'null'
+        return parameter_value is None or parameter_value == 'null'
+
+    def get_param(param_name):
+        param_value = event.get(param_name)
+        if parameter_wasnt_specified(param_value):
+            missing_parameters.append(param_name)
+        return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
@@ -290,23 +298,30 @@ def deploy_handler(event):
     execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
     batch = event.get('batch', TRUE)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
-    s3_publish = event.get('s3_publish', 'true')
-    instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
+    s3_publish = event.get('s3_publish', TRUE)
     volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
-    region = event.get('region', os.environ['REGION'])
-    shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', 'false')
 
+    titled = get_param('title')
+    instance_type = get_param('instance_type')
+    region = get_param('region')
+    shutdown_behaviour = get_param('shutdown_behaviour')
+
+    if missing_parameters:
+        return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
+
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
-        #instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
-        shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
+        return "Unable to start run, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
+
+    if region not in regions:
+        return "Unable to start run, {region} region not supported.".format(region=region)
 
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
@@ -339,9 +354,6 @@ def deploy_handler(event):
 
     txt = ''
 
-    if region not in regions:
-        return "Unable to start run, {region} region not supported.".format(region=region)
-
     init_ec2(region)
 
     if validate(branch) and validate(commit_id):
@@ -351,7 +363,7 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
@@ -372,7 +384,7 @@ def deploy_handler(event):
     return txt
 
 def instance_handler(event):
-    region = event.get('region', os.environ['REGION'])
+    region = event.get('region')
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
     system_instances = os.environ['SYSTEM_INSTANCES']
