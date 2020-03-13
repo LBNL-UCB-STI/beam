@@ -42,7 +42,7 @@ class SimpleScenarioGenerator(
   val pathToOsmMap: String,
   val stateCode: String,
   val randomSeed: Int,
-  val offPeakSpeed: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
+  val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -438,7 +438,7 @@ class SimpleScenarioGenerator(
   ): Double = {
     val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, workingLocation) * margin
     val congestionLevel = (100 - congestionLevelData.level(timeLeavingHomeSeconds)) / 100
-    val averageSpeed = offPeakSpeed * congestionLevel
+    val averageSpeed = offPeakSpeedMetersPerSecond * congestionLevel
     distance / averageSpeed
   }
 
