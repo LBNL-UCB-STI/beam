@@ -18,9 +18,7 @@ import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
-import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
@@ -50,8 +48,6 @@ class SimpleScenarioGenerator(
     with StrictLogging {
 
   logger.info(s"Initializing...")
-
-  private val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
 
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
@@ -106,41 +102,9 @@ class SimpleScenarioGenerator(
 
   private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = {
     // Read households and people
-    val temp = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
-    // Take only with age is >= 16
-    val elderThan16Years = temp
-      .map {
-        case (hh, persons) =>
-          hh -> persons.filter(p => p.age >= 16)
-      }
-      .filter { case (_, persons) => persons.nonEmpty }
-      .toMap
-    val removedHh = temp.size - elderThan16Years.size
-    val removedPeopleYoungerThan16 = temp.map(x => x._2.size).sum - elderThan16Years.values.map(x => x.size).sum
-    logger.info(s"Read ${temp.size} households with ${temp.map(x => x._2.size).sum} people")
-    logger.info(s"""After filtering them got ${elderThan16Years.size} households with ${elderThan16Years.values
-                     .map(x => x.size)
-                     .sum} people.
-         |Removed $removedHh households and $removedPeopleYoungerThan16 people who are younger than 16""".stripMargin)
-
-//    showAgeCounts(elderThan16Years)
-
-    val finalResult = elderThan16Years.foldLeft(Map[Models.Household, Seq[Models.Person]]()) {
-      case (acc, (hh, people)) =>
-        val workers = people.collect { case person if workForceSampler.isWorker(person.age) => person }
-        if (workers.isEmpty) acc
-        else {
-          acc + (hh -> workers)
-        }
-    }
-    val removedEmptyHh = elderThan16Years.size - finalResult.size
-    val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - finalResult.values.map(x => x.size).sum
-    logger.info(s"""After applying work force sampler them got ${finalResult.size} households with ${finalResult.values
-                     .map(x => x.size)
-                     .sum} people.
-         |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin)
-
-    finalResult
+    val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
+    // Adjust population
+    PopulationAdjustment.adjust(temp, workForceSampler)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -163,7 +127,7 @@ class SimpleScenarioGenerator(
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(
-    GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile),
+    GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile, pathToOsmMap),
     uniqueStates,
     uniqueGeoIds
   )
@@ -244,7 +208,7 @@ class SimpleScenarioGenerator(
         }
         val res = householdsWithPersonData.zip(householdLocation).map {
           case ((household, personsWithData), wgsHouseholdLocation) =>
-            if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
+            if (geoSvc.mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
@@ -262,7 +226,7 @@ class SimpleScenarioGenerator(
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
                     workLocations.lift(offset) match {
                       case Some(wgsWorkingLocation) =>
-                        if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
+                        if (geoSvc.mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
                           val valueOfTime =
                             PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
@@ -492,26 +456,12 @@ class SimpleScenarioGenerator(
     }
   }
 
-  private def showAgeCounts(hhToPeople: Map[Models.Household, Seq[Models.Person]]): Unit = {
-    val ages = hhToPeople.values.flatten
-      .map { person =>
-        person.age
-      }
-      .groupBy(x => x)
-      .toSeq
-      .map { case (age, xs) => (age, xs.size) }
-      .sortBy { case (age, _) => age }
-    ages.foreach {
-      case (age, cnt) =>
-        logger.info(s"Age: $age, count: $cnt")
-    }
-  }
 }
 
 object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 9, s"Expecting 8 arguments, but got ${args.length}")
+    require(args.length == 9, s"Expecting 9 arguments, but got ${args.length}")
     val pathToSythpopDataFolder = args(0)
     val pathToCTPPFolder = args(1)
     val pathToTazShapeFile = args(2)

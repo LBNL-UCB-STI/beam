@@ -15,12 +15,15 @@ import scala.util.Try
 
 case class GeoServiceInputParam(
   pathToTazShapeFile: String,
-  pathToBlockGroupShapeFile: String
+  pathToBlockGroupShapeFile: String,
+  pathToOSMFile: String
 )
 
 class GeoService(param: GeoServiceInputParam, uniqueStates: Set[State], uniqueGeoIds: Set[BlockGroupGeoId])
     extends StrictLogging {
   import GeoService._
+
+  val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
 
   private val crsCode: String = "EPSG:4326"
 
