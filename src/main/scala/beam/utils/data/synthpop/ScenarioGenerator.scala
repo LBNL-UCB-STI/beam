@@ -146,7 +146,9 @@ class SimpleScenarioGenerator(
     var globalPersonId: Int = 0
 
     logger.info(s"Generating BlockGroupId to Households and their people")
-    val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople
+    val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
+      assignWorkingLocations
+    }
 
     // Build work destination to the number of occurrences
     // We need this to be able to generate random work destinations inside geometry.
@@ -161,8 +163,8 @@ class SimpleScenarioGenerator(
     logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
     logger.info(s"tazGeoIdToOccurrences: ${tazGeoIdToOccurrences.size}")
     tazGeoIdToOccurrences.foreach {
-      case (powPumaGeoId, cnt) =>
-        logger.info(s"$powPumaGeoId => $cnt")
+      case (tazGeoId, cnt) =>
+        logger.info(s"$tazGeoId => $cnt")
     }
     logger.info(s"Generating TAZ geo id to working locations...")
     // Generate all work destinations which will be later assigned to people
@@ -324,7 +326,7 @@ class SimpleScenarioGenerator(
     val blockGroupToTazs = geoSvc.blockGroupGeoIdToGeom
       .map {
         case (blockGroupGeoId, blockGroupGeom) =>
-          // Intersect with all and get the best by the covered area
+          // Intersect with all TAZ
           val allIntersections = geoSvc.tazGeoIdToGeom.map {
             case (tazGeoId, tazGeo) =>
               val intersection = blockGroupGeom.intersection(tazGeo)
@@ -376,10 +378,9 @@ class SimpleScenarioGenerator(
     personData
   }
 
-  private def getBlockGroupIdToHouseholdAndPeople
-    : Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+  private def assignWorkingLocations: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
-      geoIdToHouseholds.toSeq.zipWithIndex.par
+      geoIdToHouseholds.toSeq.zipWithIndex.par // Process in parallel!
         .map { // We process it in parallel, but there is no shared state
           case ((blockGroupGeoId, households), index) =>
             val rndGen = new MersenneTwister(randomSeed) // It is important to create random generator here!
