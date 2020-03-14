@@ -1,5 +1,7 @@
 package beam.utils.data.synthpop
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
@@ -379,11 +381,12 @@ class SimpleScenarioGenerator(
   }
 
   private def assignWorkingLocations: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+    val numberOfProcessed = new AtomicInteger(0)
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
-      geoIdToHouseholds.toSeq.zipWithIndex.par // Process in parallel!
+      geoIdToHouseholds.toSeq.par // Process in parallel!
         .map { // We process it in parallel, but there is no shared state
-          case ((blockGroupGeoId, households), index) =>
-            val rndGen = new MersenneTwister(randomSeed) // It is important to create random generator here!
+          case (blockGroupGeoId, households) =>
+            val rndGen = new MersenneTwister(randomSeed) // It is important to create random generator here because `MersenneTwister` is not thread-safe
             val tazes = blockGroupToToTazs(blockGroupGeoId)
             // It is one to many relation
             // BlockGroupGeoId1 -> TAZ1
@@ -400,9 +403,9 @@ class SimpleScenarioGenerator(
               .groupBy { case (hh, xs) => hh }
               .map { case (hh, xs) => (hh, xs.map(_._2)) }
               .toSeq
-
+            val processed = numberOfProcessed.incrementAndGet()
             logger.info(
-              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${index + 1} out of ${geoIdToHouseholds.size}"
+              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${processed} out of ${geoIdToHouseholds.size}"
             )
             blockGroupGeoId -> householdWithPersons
         }
@@ -460,6 +463,10 @@ class SimpleScenarioGenerator(
 }
 
 object SimpleScenarioGenerator {
+  /*
+    How to run it through gradle:
+    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs="['D:/Work/beam/Austin/input', 'D:/Work/beam/Austin/input/CTPP/48', 'D:/Work/beam/Austin/input/tl_2011_48_taz10/tl_2011_48_taz10.shp', 'D:/Work/beam/Austin/input/tl_2019_48_bg/tl_2019_48_bg.shp', 'D:/Work/beam/Austin/input/CongestionLevel_Austin.csv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv', 'D:/Work/beam/Austin/input/texas-six-counties-simplified.osm.pbf', '48', 'D:/Work/beam/Austin/results']"
+   */
 
   def main(args: Array[String]): Unit = {
     require(args.length == 9, s"Expecting 9 arguments, but got ${args.length}")
@@ -470,9 +477,8 @@ object SimpleScenarioGenerator {
     val pathToCongestionLevelDataFile = args(4)
     val pathToWorkedHours = args(5)
     val pathToOsmMap = args(6)
-    val pathToOutput = args(7)
-    val stateCode = args(8)
-
+    val stateCode = args(7)
+    val pathToOutput = args(8)
     /*
     Args:
       "D:\Work\beam\Austin\input\"
@@ -482,8 +488,8 @@ object SimpleScenarioGenerator {
       "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
       "D:\Work\beam\Austin\input\work_activities_all_us.csv"
       "D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"
-      "D:\Work\beam\Austin\results"
       "48"
+      "D:\Work\beam\Austin\results"
      * */
 
     val gen =
