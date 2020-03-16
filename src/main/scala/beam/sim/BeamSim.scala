@@ -314,6 +314,9 @@ class BeamSim @Inject()(
     delayMetricAnalysis.generateDelayAnalysis(event)
 
     writeEventsAnalysisUsing(event)
+
+    // Clear the state of private vehicles because they are shared across iterations
+    beamServices.beamScenario.privateVehicles.values.foreach(_.resetState())
   }
 
   private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
@@ -363,6 +366,8 @@ class BeamSim @Inject()(
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
+
+    GraphReadmeGenerator.generateGraphReadme(event.getServices.getControlerIO.getOutputPath)
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
