@@ -653,8 +653,7 @@ trait BeamHelper extends LazyLogging {
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
-    if (false)
-      prepareDirectories(config, beamConfig, outputDirectory)
+    prepareDirectories(config, beamConfig, outputDirectory)
 
     val matsimConfig: MatsimConfig = buildMatsimConfig(config, beamConfig, outputDirectory)
 
