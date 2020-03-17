@@ -198,6 +198,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       .split(',')
       .map(entry => entry.trim)
 
+    logger.info(s"Enabled metrics: ${metrics.mkString(",")}")
     scala.collection.immutable.HashSet(metrics: _*)
   }
 
