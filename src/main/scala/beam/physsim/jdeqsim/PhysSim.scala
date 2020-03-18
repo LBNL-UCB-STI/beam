@@ -1,42 +1,20 @@
 package beam.physsim.jdeqsim
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
-import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.handling.{BeamEventsLogger, BeamEventsWriterCSV}
 import beam.analysis.physsim.PhyssimCalcLinkStats
-import beam.analysis.via.EventWriterXML_viaCompatible
-import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
-import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
-import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.CAR
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.WorkerParameters
 import beam.sim.config.BeamConfig
-import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
+import beam.utils.Statistics
 import beam.utils.csv.CsvWriter
-import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.events.algorithms.EventWriter
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
-import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Try}
 
 class PhysSim(
@@ -54,7 +32,6 @@ class PhysSim(
 ) extends StrictLogging {
 
   val rnd: Random = new Random(javaRnd)
-  val shouldLogWhenLinksAreNotTheSame: Boolean = false
 
   val workerParams: WorkerParameters = WorkerParameters(
     beamConfig = beamConfig,
@@ -68,14 +45,6 @@ class PhysSim(
     fareCalculator = beamServices.fareCalculator,
     tollCalculator = beamServices.tollCalculator
   )
-
-  val bodyType: BeamVehicleType = beamServices.beamScenario.vehicleTypes(
-    Id.create(beamServices.beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
-  )
-
-  val (carVehId, carVehType) = beamServices.beamScenario.vehicleTypes
-    .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
-    .maxBy(_._2.sampleProbabilityWithinCategory)
 
   def run(nIterations: Int, reroutePerIterPct: Double, travelTime: TravelTime): TravelTime = {
     assert(nIterations >= 1)
@@ -119,7 +88,19 @@ class PhysSim(
       printStats(firstResult, lastResult)
       lastResult
     } else {
-      val simulationResult = simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+      val jdeqSimScenario = initScenario
+      val jdeqSimRunner = new JDEQSimRunner(
+        beamConfig,
+        jdeqSimScenario,
+        population,
+        beamServices,
+        controlerIO,
+        isCACCVehicle,
+        beamConfigChangesObservable,
+        currentIter
+      )
+      val simulationResult =
+        jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
       carTravelTimeWriter.writeRow(
         Vector(
           currentIter,
@@ -134,10 +115,11 @@ class PhysSim(
       )
       carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
-        val before = printRouteStats(s"Before rerouting at $currentIter iter", population)
+        val rerouter = new Rerouter(workerParams, beamServices)
+        val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
-        val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct)
+        val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct, rerouter)
         reroutedTravelTimeWriter.writeRow(
           Vector(
             currentIter,
@@ -153,7 +135,7 @@ class PhysSim(
         reroutedTravelTimeWriter.flush()
 //        logger.info("AverageCarTravelTime after replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
-        val after = printRouteStats(s"After rerouting at $currentIter iter", population)
+        val after = rerouter.printRouteStats(s"After rerouting at $currentIter iter", population)
         val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
         val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
         val absTotalCountDiff = Math.abs(before.totalLinkCount - after.totalLinkCount)
@@ -212,294 +194,16 @@ class PhysSim(
     carPeople
   }
 
-  private def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqSimScenario = initScenario
-    val jdeqsimEvents = new EventsManagerImpl
-    val travelTimeCalculator =
-      new TravelTimeCalculator(agentSimScenario.getNetwork, agentSimScenario.getConfig.travelTimeCalculator)
-
-    val eventTypeCounter = new EventTypeCounter
-    jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map {
-      case (k, v) => k -> Boolean2boolean(v)
-    })
-    jdeqsimEvents.addHandler(carTravelTimeHandler)
-
-    jdeqsimEvents.addHandler(travelTimeCalculator)
-    jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
-    val maybeEventWriter = if (writeEvents) {
-      val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
-      jdeqsimEvents.addHandler(writer)
-      Some(writer)
-    } else None
-
-    linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig.travelTimeCalculator());
-
-    val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
-      Some(
-        new Hao2018CaccRoadCapacityAdjustmentFunction(
-          beamConfig,
-          iterationNumber,
-          controlerIO,
-          beamConfigChangesObservable
-        )
-      )
-    } else None
-
-    try {
-      ProfilingUtils.timed(s"JDEQSim iteration $currentPhysSimIter", x => logger.info(x)) {
-        val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
-        logger.info(s"JDEQSim iteration $currentPhysSimIter start");
-        if (beamConfig.beam.debug.debugEnabled) {
-          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
-        }
-        jdeqSimulation.run()
-        logger.info(s"JDEQSim iteration $currentPhysSimIter finished");
-      }
-
-    } finally {
-      maybeEventWriter.foreach { wrt =>
-        Try(wrt.closeFile())
-      }
-      maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
-    }
-    jdeqsimEvents.finishProcessing()
-    SimulationResult(
-      iteration = currentPhysSimIter,
-      travelTime = travelTimeCalculator.getLinkTravelTimes,
-      eventTypeToNumberOfMessages = eventTypeCounter.getStats,
-      carTravelTimeStats = carTravelTimeHandler.compute
-    )
-  }
-
-  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double): Statistics = {
+  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: Rerouter): Statistics = {
     val rightPeopleToReplan = getCarPeople(population)
-    // logger.info(s"rightPeopleToReplan: ${rightPeopleToReplan.mkString(" ")}")
-    val personToRoutes = rightPeopleToReplan.flatMap(_.getPlans.asScala.toVector).map { plan =>
-      val route = plan.getPlanElements.asScala.zipWithIndex.collect {
-        case (leg: Leg, idx: Int) if leg.getMode.equalsIgnoreCase("car") =>
-          ElementIndexToLeg(idx, leg)
-      }.toVector
-      plan.getPerson -> route
-    }
-    val pctToNumberPersonToTake = (personToRoutes.size * reroutePerIterPct).toInt
-    val takeN = if (pctToNumberPersonToTake > personToRoutes.size) personToRoutes.size else pctToNumberPersonToTake
+    val pctToNumberPersonToTake = (rightPeopleToReplan.size * reroutePerIterPct).toInt
+    val takeN =
+      if (pctToNumberPersonToTake > rightPeopleToReplan.size) rightPeopleToReplan.size else pctToNumberPersonToTake
     if (takeN > 0) {
-      val toReroute = rnd.shuffle(personToRoutes).take(takeN).toArray
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, travelTimeError = 0)
-      // Get new routes
-      val result = ProfilingUtils.timed(
-        s"Get new routes for ${takeN} out of ${rightPeopleToReplan.size} people which is ${100 * reroutePerIterPct}% of population",
-        x => logger.info(x)
-      ) {
-        // TODO: `toReroute.par` => so it will run rerouting in parallel
-        toReroute.par.map {
-          case (person, xs) =>
-            reroute(r5Wrapper, person, xs)
-        }.seq
-      }
-      var newTravelTimes = new ArrayBuffer[Double]()
-      ProfilingUtils.timed(s"Update routes for $takeN people", x => logger.info(x)) {
-        var oldTravelTimes = new ArrayBuffer[Double]()
-        // Update plans
-        result.foreach {
-          case (person, xs) =>
-            val elems = person.getSelectedPlan.getPlanElements.asScala
-            xs.foreach {
-              case ElementIndexToRoutingResponse(index, maybeResp) =>
-                elems(index) match {
-                  case leg: Leg =>
-                    maybeResp.fold(
-                      ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
-                      (resp: RoutingResponse) => {
-                        resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
-                          case Some(beamLeg) =>
-                            oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
-                            newTravelTimes += beamLeg.duration.toDouble
-
-                            val javaLinkIds = beamLeg.travelPath.linkIds
-                              .map(beamServices.networkHelper.getLinkUnsafe)
-                              .map(_.getId)
-                              .asJava
-                            val newRoute = RouteUtils.createNetworkRoute(javaLinkIds, agentSimScenario.getNetwork)
-                            leg.setRoute(newRoute)
-                            leg.setDepartureTime(beamLeg.startTime)
-                            leg.setTravelTime(0)
-                            leg.getAttributes.putAttribute("travel_time", beamLeg.duration);
-                            leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
-                          case _ =>
-                        }
-                      }
-                    )
-                  case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
-                }
-            }
-        }
-        // We're assuming this should go down
-        logger.info(
-          s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
-        )
-        logger.info(
-          s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}"
-        )
-      }
-      Statistics(newTravelTimes.map(x => x / 60).toArray)
+      val toReroute = rnd.shuffle(rightPeopleToReplan).take(takeN)
+      rerouter.reroutePeople(travelTime, toReroute)
     } else
       Statistics(Array.empty[Double])
-  }
-
-  private def getR5UtmCoord(linkId: Int): Coord = {
-    val r5EdgeCoord = beamServices.geo.coordOfR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, linkId)
-    beamServices.geo.wgs2Utm(r5EdgeCoord)
-  }
-
-  private def printRouteStats(str: String, population: Population): RerouteStats = {
-    val routes = population.getPersons.values.asScala.flatMap { person =>
-      person.getSelectedPlan.getPlanElements.asScala.collect {
-        case leg: Leg if Option(leg.getRoute).nonEmpty && leg.getRoute.isInstanceOf[NetworkRoute] =>
-          leg.getRoute.asInstanceOf[NetworkRoute]
-      }
-    }
-    val totalRouteLen = routes.map { route =>
-      // route.getLinkIds does not contain start and end links, so we should compute them separately
-      val startAndEndLen = beamServices.networkHelper
-        .getLinkUnsafe(route.getStartLinkId.toString.toInt)
-        .getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
-      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) {
-        case (acc, curr) =>
-          acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
-      }
-      startAndEndLen + linkLength
-    }.sum
-
-    val totalLinkCount = routes.map { route =>
-      // route.getLinkIds does not contain start and end links, so that's why 2 +
-      2 + route.getLinkIds.size()
-    }.sum
-
-    val avgRouteLen = totalRouteLen / routes.size
-    val avgLinkCount = totalLinkCount / routes.size
-    logger.info(s"""$str.
-         |Number of routes: ${routes.size}
-         |Total route length: $totalRouteLen
-         |Avg route length: $avgRouteLen
-         |Total link count: $totalLinkCount
-         |Avg link count: $avgLinkCount""".stripMargin)
-    RerouteStats(routes.size, totalRouteLen, totalLinkCount)
-  }
-
-  private def verifyResponse(
-    routingRequest: RoutingRequest,
-    leg: Leg,
-    maybeRoutingResponse: Try[RoutingResponse]
-  ): Unit = {
-    maybeRoutingResponse.fold(
-      _ => (),
-      resp => {
-        val r5Leg = resp.itineraries.head.legs.head
-        val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
-        val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
-        val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
-        val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
-        if (startLinkId != matsimStartLinkId && shouldLogWhenLinksAreNotTheSame) {
-          logger.info(s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
-             |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
-             |MATSim leg: ${leg}""".stripMargin)
-        }
-        if (endLinkId != matsimEndLinkId && shouldLogWhenLinksAreNotTheSame) {
-          logger.info(s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
-             |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
-             |MATSim leg: ${leg}""".stripMargin)
-        }
-        // r5Leg
-        ()
-      }
-    )
-  }
-
-  private def reroute(
-    r5: R5Wrapper,
-    person: Person,
-    elemIdxToRoute: Vector[ElementIndexToLeg]
-  ): (Person, Vector[ElementIndexToRoutingResponse]) = {
-    val car = new BeamVehicle(
-      BeamVehicle.createId(person.getId, Some("car")),
-      new Powertrain(carVehType.primaryFuelConsumptionInJoulePerMeter),
-      carVehType
-    )
-
-    val idxToResponse = elemIdxToRoute.map {
-      case ElementIndexToLeg(idx, leg) =>
-        val route = leg.getRoute
-        // Do we need to snap it to R5 edge?
-        val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
-        val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
-
-        val departTime = leg.getDepartureTime.toInt
-        val currentPointUTM = SpaceTime(startCoord, departTime)
-        val carStreetVeh =
-          StreetVehicle(
-            car.id,
-            car.beamVehicleType.id,
-            currentPointUTM,
-            CAR,
-            asDriver = true
-          )
-        val streetVehicles = Vector(carStreetVeh)
-        val maybeAttributes: Option[AttributesOfIndividual] =
-          Option(person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual])
-        val routingRequest = RoutingRequest(
-          originUTM = startCoord,
-          destinationUTM = endCoord,
-          departureTime = departTime,
-          withTransit = false,
-          streetVehicles = streetVehicles,
-          attributesOfIndividual = maybeAttributes,
-          streetVehiclesUseIntermodalUse = Access
-        )
-        val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
-        verifyResponse(routingRequest, leg, maybeRoutingResponse)
-        ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
-    }
-    person -> idxToResponse
-  }
-
-  def getJDEQSimulation(
-    jdeqSimScenario: MutableScenario,
-    jdeqsimEvents: EventsManager,
-    maybeRoadCapacityAdjustmentFunction: Option[RoadCapacityAdjustmentFunction]
-  ): org.matsim.core.mobsim.jdeqsim.JDEQSimulation = {
-    val config = new JDEQSimConfigGroup
-    val flowCapacityFactor = beamConfig.beam.physsim.flowCapacityFactor
-    config.setFlowCapacityFactor(flowCapacityFactor)
-    config.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)
-    config.setSimulationEndTime(beamConfig.matsim.modules.qsim.endTime)
-    maybeRoadCapacityAdjustmentFunction match {
-      case Some(roadCapacityAdjustmentFunction) =>
-        logger.info("CACC enabled")
-        var caccCategoryRoadCount = 0
-        for (link <- jdeqSimScenario.getNetwork.getLinks.values.asScala) {
-          if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)) caccCategoryRoadCount += 1
-        }
-        logger.info(
-          "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
-        )
-        val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
-        val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-        val minimumRoadSpeedInMetersPerSecond = beamConfig.beam.physsim.jdeqsim.cacc.minimumRoadSpeedInMetersPerSecond
-        new JDEQSimulation(
-          config,
-          jdeqSimScenario,
-          jdeqsimEvents,
-          caccSettings,
-          speedAdjustmentFactor,
-          minimumRoadSpeedInMetersPerSecond
-        )
-
-      case None =>
-        logger.info("CACC disabled")
-        new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
-    }
   }
 
   private def initScenario = {
@@ -507,28 +211,6 @@ class PhysSim(
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(population)
     jdeqSimScenario
-  }
-
-  private def createViaXmlEventsWriter(currentPhysSimIter: Int): EventWriter = {
-    val eventsSampling = beamConfig.beam.physsim.eventsSampling
-    val eventsForFullVersionOfVia = beamConfig.beam.physsim.eventsForFullVersionOfVia
-    val fileName =
-      controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.xml.gz")
-    val eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia, eventsSampling)
-    eventsWriterXML
-  }
-
-  private def createCsvWriter(currentPhysSimIter: Int, jdeqsimEvents: EventsManagerImpl): BeamEventsWriterCSV = {
-    val fileName =
-      controlerIO.getIterationFilename(iterationNumber, s"${currentPhysSimIter}_MultiJDEQSim_physSimEvents.csv.gz")
-    val beamEventLogger = new BeamEventsLogger(
-      beamServices,
-      beamServices.matsimServices,
-      jdeqsimEvents,
-      beamServices.beamConfig.beam.physsim.events.eventsToWrite
-    )
-    val csvEventsWriter = new BeamEventsWriterCSV(fileName, beamEventLogger, beamServices, null)
-    csvEventsWriter
   }
 }
 

@@ -140,7 +140,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var r5: R5Wrapper = new R5Wrapper(
     workerParams,
     new FreeFlowTravelTime,
-    workerParams.beamConfig.beam.routing.r5.travelTimeError
+    workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
 
   private val linksBelowMinCarSpeed =
@@ -215,7 +215,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 //            println(msg)
 //          }
 
-          if (shouldFixError && workerParams.beamConfig.beam.routing.r5.travelTimeError > 0) {
+          if (shouldFixError && workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction > 0) {
             val itinerariesWithoutError = routeWithError.itineraries.map { itinerary =>
               if (!itinerary.tripClassifier.isTransit) {
                 val newLegs = itinerary.legs.map { leg =>
@@ -249,7 +249,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
-        workerParams.beamConfig.beam.routing.r5.travelTimeError
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
@@ -258,7 +258,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       r5 = new R5Wrapper(
         workerParams,
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
-        workerParams.beamConfig.beam.routing.r5.travelTimeError
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
@@ -282,7 +282,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 }
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeError: Double)
+class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport {
 
   private val WorkerParameters(
@@ -1234,18 +1234,14 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       }
   }
 
-  private val zeroIterErrors: Array[Double] = Array.fill(1000000) {
-    ThreadLocalRandom.current().nextDouble(1 - 0.5, 1 + 0.5)
-  }
-
-  private val errors: Array[Double] = if (travelTimeError == 0.0) {
+  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction == 0.0) {
     Array.empty
   } else {
     Array.fill(1000000) {
-      ThreadLocalRandom.current().nextDouble(1 - travelTimeError, 1 + travelTimeError)
+      ThreadLocalRandom.current().nextDouble(1 - travelTimeNoiseFraction, 1 + travelTimeNoiseFraction)
     }
   }
-  private val errorIdx: AtomicInteger = new AtomicInteger(0)
+  private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
@@ -1265,11 +1261,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
-          val physSimTravelTimeWithError = (if (travelTimeError == 0.0 || !shouldAddErr) { physSimTravelTime } else {
-                                              val idx = Math.abs(errorIdx.getAndIncrement() % errors.length)
-                                              physSimTravelTime * errors(idx)
-                                            }).ceil.toInt
-          val linkTravelTime = Math.max(physSimTravelTimeWithError, minTravelTime)
+          val physSimTravelTimeWithNoise =
+            (if (travelTimeNoiseFraction == 0.0 || !shouldAddErr) { physSimTravelTime } else {
+               val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
+               physSimTravelTime * travelTimeNoises(idx)
+             }).ceil.toInt
+          val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         }
       }
