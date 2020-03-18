@@ -7,48 +7,24 @@ import org.matsim.api.core.v01.Coord
 import scala.collection.mutable.ListBuffer
 
 case class BeamFederate(name: String, bin: Int) {
-  System.loadLibrary("JNIhelics")
-
+  import BeamFederate._
   private val fedinfo = helics.helicsCreateFederateInfo
   helics.helicsFederateInfoSetCoreName(fedinfo, name)
   helics.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
   helics.helicsFederateInfoSetCoreInitString(fedinfo, "--federates=1")
   helics.helicsFederateInfoSetTimeProperty(fedinfo, helics_property_time_delta_get(), bin)
   helics.helicsFederateInfoSetIntegerProperty(fedinfo, helics_property_int_log_level_get(), 1)
-
   private val cfed = helics.helicsCreateCombinationFederate(name, fedinfo)
-  private val plugInVehId =
-    helics.helicsFederateRegisterPublication(cfed, "plugInVehId", helics_data_type.helics_data_type_string, "")
-  private val plugInSOC =
-    helics.helicsFederateRegisterPublication(cfed, "plugInSOC", helics_data_type.helics_data_type_double, "")
-  private val plugInLng =
-    helics.helicsFederateRegisterPublication(cfed, "plugInLng", helics_data_type.helics_data_type_double, "")
-  private val plugInLat =
-    helics.helicsFederateRegisterPublication(cfed, "plugInLat", helics_data_type.helics_data_type_double, "")
-  private val plugOutVehId =
-    helics.helicsFederateRegisterPublication(cfed, "plugOutVehId", helics_data_type.helics_data_type_string, "")
-  private val plugOutSOC =
-    helics.helicsFederateRegisterPublication(cfed, "plugOutSOC", helics_data_type.helics_data_type_double, "")
-  private val plugOutLng =
-    helics.helicsFederateRegisterPublication(cfed, "plugOutLng", helics_data_type.helics_data_type_double, "")
-  private val plugOutLat =
-    helics.helicsFederateRegisterPublication(cfed, "plugOutLat", helics_data_type.helics_data_type_double, "")
-
+  private val event = helics.helicsFederateRegisterPublication(cfed, "event", helics_data_type.helics_data_type_string, "")
+  private val soc = helics.helicsFederateRegisterPublication(cfed, "soc", helics_data_type.helics_data_type_double, "")
+  private val latlng = helics.helicsFederateRegisterPublication(cfed, "latlng", helics_data_type.helics_data_type_vector, "")
   helics.helicsFederateEnterInitializingMode(cfed)
   helics.helicsFederateEnterExecutingMode(cfed)
 
-  def publishPlugInEvent(time: Int, vehId: String, location: Coord, soc: Double): Unit = {
-    helics.helicsPublicationPublishString(plugInVehId, vehId)
-    helics.helicsPublicationPublishDouble(plugInSOC, soc)
-    helics.helicsPublicationPublishDouble(plugInLng, location.getX)
-    helics.helicsPublicationPublishDouble(plugInLat, location.getY)
-  }
-
-  def publishPlugOutEvent(time: Int, vehId: String, location: Coord, soc: Double): Unit = {
-    helics.helicsPublicationPublishString(plugOutVehId, vehId)
-    helics.helicsPublicationPublishDouble(plugOutSOC, soc)
-    helics.helicsPublicationPublishDouble(plugOutLng, location.getX)
-    helics.helicsPublicationPublishDouble(plugOutLat, location.getY)
+  def publishSOC(time: Int, eventType: String, vehId: String, location: Coord, socInJoules: Double): Unit = {
+    helics.helicsPublicationPublishDouble(soc, socInJoules)
+    helics.helicsPublicationPublishVector(latlng, Array(location.getY, location.getX), 3)
+    helics.helicsPublicationPublishString(event, s"$eventType:$vehId:$time")
   }
 
   def close(): Unit = {
@@ -59,8 +35,8 @@ case class BeamFederate(name: String, bin: Int) {
 }
 
 object BeamFederate {
+  System.loadLibrary("JNIhelics")
   var outGoing: Option[BeamFederate] = None
-
   def getBeamFederate1(bin: Int): BeamFederate = {
     if (outGoing.isEmpty)
       outGoing = Some(BeamFederate("BeamFederate1", bin))

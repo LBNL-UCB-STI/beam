@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
 import helics as h
-from math import pi
-import random
 
 
 initstring = "-f "+"2"+" --name=federate_broker"
@@ -49,23 +47,17 @@ h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, delta
 cfed = h.helicsCreateCombinationFederate("mapping_federate", fedinfo)
 print("PI SENDER: Combination federate created")
 
-subs_plugInVehId = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugInVehId", "string")
-subs_plugInSOC = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugInSOC", "double")
-subs_plugInLng = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugInLng", "double")
-subs_plugInLat = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugInLat", "double")
+subs_plugIn = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugIn", "vector")
+subs_plugOut = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugOut", "vector")
 
-subs_plugOutVehId = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugOutVehId", "string")
-subs_plugOutSOC = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugOutSOC", "double")
-subs_plugOutLng = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugOutLng", "double")
-subs_plugOutLat = h.helicsFederateRegisterSubscription(cfed, "BeamFederate1/plugOutLat", "double")
 print("PI SENDER: subscription registered")
 
 # Enter execution mode #
 h.helicsFederateEnterExecutingMode(cfed)
 print("PI SENDER: Entering execution mode")
 
-plugInUpdated = h.helicsInputIsUpdated(subs_plugInVehId)
-plugOutUpdated = h.helicsInputIsUpdated(subs_plugOutVehId)
+plugInUpdated = h.helicsInputIsUpdated(subs_plugIn)
+plugOutUpdated = h.helicsInputIsUpdated(subs_plugOut)
 
 # start execution loop #
 currenttime = 0
@@ -74,7 +66,8 @@ t = 0.0
 end_time = 30*3600
 while desiredtime <= end_time:
     currenttime = h.helicsFederateRequestTime(cfed, 100)
-    if h.helicsInputIsUpdated(subs_plugInVehId) == 1:
+    if h.helicsInputIsUpdated(subs_plugIn) == 1:
+        h.helicsInputGetVector(subs_plugIn)
         print("plugIn event [{}]: {} {} {} {}\n".format(currenttime,
                                                         h.helicsInputGetVector(subs_plugInVehId),
                                                         h.helicsInputGetVector(subs_plugInSOC),
