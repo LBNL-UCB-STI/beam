@@ -12,11 +12,15 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class LoggingUtil {
+
+    public static final String LOG_OUTPUT_DIRECTORY_KEY = "log-path";
+
     private static boolean keepConsoleAppenderOn = true;
 
     public static void initLogger(String outputDirectory, boolean keepConsoleAppenderOn) throws JoranException, IOException {
-        String logFileName = System.getProperty(ContextInitializer.CONFIG_FILE_PROPERTY);
-        if (logFileName != null) {
+        String logbackConfigFile = System.getProperty(ContextInitializer.CONFIG_FILE_PROPERTY);
+
+        if (logbackConfigFile != null) {
             LoggingUtil.keepConsoleAppenderOn = keepConsoleAppenderOn;
             // https://logback.qos.ch/faq.html#sharedConfiguration
             LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -30,24 +34,23 @@ public class LoggingUtil {
             }
             // ################################################
 
-            InputStream resourceAsStream = context.getClass().getClassLoader().getResourceAsStream(logFileName);
+            InputStream resourceAsStream = context.getClass().getClassLoader().getResourceAsStream(logbackConfigFile);
             if (resourceAsStream != null) {
                 try {
+                    context.reset();
+                    context.putProperty(LOG_OUTPUT_DIRECTORY_KEY, outputDirectory);
+
                     JoranConfigurator jc = new JoranConfigurator();
                     jc.setContext(context);
-                    context.reset(); // override default configuration
-                    // inject the path `log-path` property of the LoggerContext
-                    context.putProperty("log-path", outputDirectory);
                     jc.doConfigure(resourceAsStream);
-                    if (!keepConsoleAppenderOn)
+                    if (!keepConsoleAppenderOn) {
                         context.getLoggerList().forEach(Logger::detachAndStopAllAppenders);
-                }
-                finally {
+                    }
+                } finally {
                     resourceAsStream.close();
                 }
-            }
-            else {
-                System.err.println(String.format("Could not find resource '%s' in classpath. Logger is not properly configured!", logFileName));
+            } else {
+                System.err.println(String.format("Could not find resource '%s' in classpath. Logger is not properly configured!", logbackConfigFile));
             }
         }
     }
