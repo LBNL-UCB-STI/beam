@@ -58,7 +58,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.util.Random
@@ -786,12 +786,16 @@ trait BeamHelper extends LazyLogging {
     } else if (!beamConfig.beam.warmStart.enabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1) {
       logger.info(s"""Before sampling:
                      |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
-                     |Number of vehicles: ${getVehicleGroupingStringUsing(scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq, beamScenario)}
+                     |Number of vehicles: ${getVehicleGroupingStringUsing(
+                       scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
+                       beamScenario
+                     )}
                      |Number of persons: ${scenario.getPopulation.getPersons.keySet.size}""".stripMargin)
       // check the total count of population required based on the config 'agentSampleSizeAsFractionOfPopulation'
       // required population = agentSampleSizeAsFractionOfPopulation * current population
       val totalPopulationRequired = math.round(
-        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size())
+        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
+      )
       // check the additional population required to be generated (excluding the existing population)
       val additionalPopulationRequired: Long = totalPopulationRequired - scenario.getPopulation.getPersons.size()
       // check the repetitions(of existing population) required to clone the additional population
@@ -802,57 +806,67 @@ trait BeamHelper extends LazyLogging {
         val existingHouseHolds = scenario.getHouseholds.getHouseholds.asScala
         val newHouseHolds: mutable.Map[HouseholdImpl, Household] = existingHouseHolds.flatMap(hh => {
           // proceed only if the required population is not yet reached
-          if (populationCounter <= totalPopulationRequired){
+          if (populationCounter <= totalPopulationRequired) {
             // get the members in the current house hold and duplicate them with new ids
-            val members = hh._2.getMemberIds.asScala.flatMap(m => {
-              val person: Person = scenario.getPopulation.getPersons.get(m)
-              if(person != null) {
-                populationCounter += 1
-                // proceed only if the required population is not yet reached
-                if (populationCounter <= totalPopulationRequired){
-                  // clone the existing person to create a new person with different id
-                  val newPerson = scenario.getPopulation.getFactory.createPerson(Id.createPersonId(s"${person.getId.toString}_$i"))
-                  Option(person.getAttributes.getAttribute("sex")).map(a => newPerson.getAttributes.putAttribute("sex",a))
-                  Option(person.getAttributes.getAttribute("age")).map(a => newPerson.getAttributes.putAttribute("age",a))
-                  person.getCustomAttributes.keySet().forEach(a => {
-                    newPerson.getCustomAttributes.put(a,person.getCustomAttributes.get(a))
-                  })
-                  // copy the plans and attributes of the existing person to the new person
-                  person.getPlans.forEach(p => newPerson.addPlan(p))
-                  PersonUtils.setSex(newPerson,PersonUtils.getSex(person))
-                  PersonUtils.setAge(newPerson,PersonUtils.getAge(person))
-                  PersonUtils.setCarAvail(newPerson,PersonUtils.getCarAvail(person))
-                  PersonUtils.setLicence(newPerson,PersonUtils.getLicense(person))
-                  newPerson.setSelectedPlan(person.getSelectedPlan)
-                  // add the new person to the scenario
-                  scenario.getPopulation.addPerson(newPerson)
-                  Some(newPerson.getId)
+            val members = hh._2.getMemberIds.asScala
+              .flatMap(m => {
+                val person: Person = scenario.getPopulation.getPersons.get(m)
+                if (person != null) {
+                  populationCounter += 1
+                  // proceed only if the required population is not yet reached
+                  if (populationCounter <= totalPopulationRequired) {
+                    // clone the existing person to create a new person with different id
+                    val newPerson =
+                      scenario.getPopulation.getFactory.createPerson(Id.createPersonId(s"${person.getId.toString}_$i"))
+                    Option(person.getAttributes.getAttribute("sex"))
+                      .map(a => newPerson.getAttributes.putAttribute("sex", a))
+                    Option(person.getAttributes.getAttribute("age"))
+                      .map(a => newPerson.getAttributes.putAttribute("age", a))
+                    person.getCustomAttributes
+                      .keySet()
+                      .forEach(a => {
+                        newPerson.getCustomAttributes.put(a, person.getCustomAttributes.get(a))
+                      })
+                    // copy the plans and attributes of the existing person to the new person
+                    person.getPlans.forEach(p => newPerson.addPlan(p))
+                    PersonUtils.setSex(newPerson, PersonUtils.getSex(person))
+                    PersonUtils.setAge(newPerson, PersonUtils.getAge(person))
+                    PersonUtils.setCarAvail(newPerson, PersonUtils.getCarAvail(person))
+                    PersonUtils.setLicence(newPerson, PersonUtils.getLicense(person))
+                    newPerson.setSelectedPlan(person.getSelectedPlan)
+                    // add the new person to the scenario
+                    scenario.getPopulation.addPerson(newPerson)
+                    Some(newPerson.getId)
+                  } else {
+                    None
+                  }
                 } else {
                   None
                 }
-              } else {
-                None
-              }
-            }).toList
+              })
+              .toList
             val vehicles = hh._2.getVehicleIds.asScala.flatMap(v => {
               val vehicle: Vehicle = scenario.getVehicles.getVehicles.get(v)
-              if(vehicle != null) {
+              if (vehicle != null) {
                 // clone the current vehicle to form a new vehicle with different id
-                val newVehicle = scenario.getVehicles.getFactory.createVehicle(Id.createVehicleId(s"${vehicle.getId.toString}_$i"),vehicle.getType)
+                val newVehicle = scenario.getVehicles.getFactory
+                  .createVehicle(Id.createVehicleId(s"${vehicle.getId.toString}_$i"), vehicle.getType)
                 // add the new cloned vehicle to the scenario
                 scenario.getVehicles.addVehicle(newVehicle)
                 Some(newVehicle.getId)
-              }  else {
+              } else {
                 None
               }
             })
             // generate a new household and add the above clone members and vehicles
-            val newHouseHold = scenario.getHouseholds.getFactory.createHousehold(Id.create(s"${hh._1.toString}_$i", classOf[Household])).asInstanceOf[HouseholdImpl]
+            val newHouseHold = scenario.getHouseholds.getFactory
+              .createHousehold(Id.create(s"${hh._1.toString}_$i", classOf[Household]))
+              .asInstanceOf[HouseholdImpl]
             newHouseHold.setIncome(hh._2.getIncome)
             if (members.nonEmpty) {
               newHouseHold.setMemberIds(JavaConverters.seqAsJavaList(members))
             }
-            if(vehicles.nonEmpty){
+            if (vehicles.nonEmpty) {
               newHouseHold.setVehicleIds(JavaConverters.seqAsJavaList(vehicles))
             }
             Some(newHouseHold -> hh._2)
@@ -861,24 +875,27 @@ trait BeamHelper extends LazyLogging {
           }
         })
         // add the generated new households with attributes to the current scenario
-        newHouseHolds foreach { case (newhh,oldhh) =>
-          scenario.getHouseholds.getHouseholds.put(newhh.getId,newhh)
-          for (attr <- List("homecoordx","homecoordy","housingtype")) {
-            val attrValue = scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString,attr)
-            scenario.getHouseholds.getHouseholdAttributes.putAttribute(newhh.getId.toString,attr,attrValue)
-          }
+        newHouseHolds foreach {
+          case (newhh, oldhh) =>
+            scenario.getHouseholds.getHouseholds.put(newhh.getId, newhh)
+            for (attr <- List("homecoordx", "homecoordy", "housingtype")) {
+              val attrValue = scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString, attr)
+              scenario.getHouseholds.getHouseholdAttributes.putAttribute(newhh.getId.toString, attr, attrValue)
+            }
         }
       }
       // reset the counter
       populationCounter = 0
       logger.info(s"""After sampling:
                      |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
-                     |Number of vehicles: ${getVehicleGroupingStringUsing(scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq, beamScenario)}
+                     |Number of vehicles: ${getVehicleGroupingStringUsing(
+                       scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
+                       beamScenario
+                     )}
                      |Number of persons: ${scenario.getPopulation.getPersons.keySet.size}""".stripMargin)
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
-    }
-    else {
+    } else {
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
     }
