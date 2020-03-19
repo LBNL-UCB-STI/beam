@@ -119,6 +119,8 @@ object CaccSpec {
   private val carTravelTimeValues = Set(BeamMode.CAR.value, BeamMode.CAV.value)
 
   case object NotFoundCarInTravelTimeMode
-    extends IllegalStateException(s"The line does not contain ${carTravelTimeValues.mkString("'", "', '", "'")} as TravelTimeMode")
+      extends IllegalStateException(
+        s"The line does not contain ${carTravelTimeValues.mkString("'", "', '", "'")} as TravelTimeMode"
+      )
 
 }
