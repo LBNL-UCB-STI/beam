@@ -4,11 +4,11 @@ import org.scalatest.Matchers._
 
 import scala.reflect.io.File
 
-class CarRideStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
+class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
 
   "CarRideStatsFromPathTraversalEventHandlerSpec" must {
     "write speed statistics files" in {
-      val handler = new CarRideStatsFromPathTraversalEventHandler(
+      val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
         Some(beamServices.matsimServices.getControlerIO)
       )
