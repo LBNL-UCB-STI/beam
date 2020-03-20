@@ -38,10 +38,10 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
-import beam.router.skim.{Skims, TAZSkimmerEvent}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
@@ -967,7 +967,7 @@ class RideHailManager(
     val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
     val rideHailAgentLocation =
       RideHailAgentLocation(
-        beamVehicle.driver.get,
+        beamVehicle.getDriver.get,
         vehicleId,
         beamVehicle.beamVehicleType,
         whenWhere,
@@ -980,7 +980,14 @@ class RideHailManager(
 
     val triggerToSend = removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(vehicleId, beamVehicle.driver.get, parkingStall, whenWhere.time, triggerId, JustArrivedAtDepot)
+        attemptToRefuel(
+          vehicleId,
+          beamVehicle.getDriver.get,
+          parkingStall,
+          whenWhere.time,
+          triggerId,
+          JustArrivedAtDepot
+        )
       //If not arrived for refueling;
       case _ => {
         log.debug("Making vehicle {} available", vehicleId)
@@ -1457,7 +1464,7 @@ class RideHailManager(
       Some(beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC)
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
-    rideHailBeamVehicle.manager = Some(self)
+    rideHailBeamVehicle.setManager(Some(self))
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
     vehicleManager.vehicleState.put(rideHailBeamVehicle.id, rideHailBeamVehicle.getState)
 

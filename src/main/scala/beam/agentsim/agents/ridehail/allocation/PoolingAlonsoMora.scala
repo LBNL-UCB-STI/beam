@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents._
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.CustomerRequest
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RHMatchingAlgorithm}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -179,12 +179,30 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rideHailManager.log
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       }
-      val alg =
-        new VehicleCentricMatchingForRideHail(
-          spatialPoolCustomerReqs,
-          availVehicles,
-          rideHailManager.beamServices
-        )
+
+      val alg: RHMatchingAlgorithm =
+        rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.matchingAlgorithm match {
+          case "VehicleCentricMatchingForRideHail" =>
+            new VehicleCentricMatchingForRideHail(
+              spatialPoolCustomerReqs,
+              availVehicles,
+              rideHailManager.beamServices
+            )
+          case "AsyncAlonsoMoraAlgForRideHail" =>
+            new AsyncAlonsoMoraAlgForRideHail(
+              spatialPoolCustomerReqs,
+              availVehicles,
+              rideHailManager.beamServices
+            )
+          case "AlonsoMoraPoolingAlgForRideHail" =>
+            new AlonsoMoraPoolingAlgForRideHail(
+              spatialPoolCustomerReqs,
+              availVehicles,
+              rideHailManager.beamServices
+            )
+          case algoName => throw new RuntimeException(s"Unknown matching algorithm $algoName for alonsoMora")
+        }
+
       import scala.concurrent.duration._
       val assignment = try {
         Await.result(alg.matchAndAssign(tick), atMost = 2.minutes)
