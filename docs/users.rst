@@ -203,7 +203,13 @@ To add a configuration for a different scenario , follow the above steps and cha
 
 Using grafana to view BEAM metrics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-`Grafana <https://grafana.com/>`_ is the open source analytics and monitoring solution.
+`Grafana <https://grafana.com/>`_ is the open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
+There are various grafana dashboards which include:
+
+* dashboards with per-hour metrics
+* dashboards with per-iteration metrics
+* dashboards to compare two different BEAM iterations or two runs
+* dashboard with a metrics displayed on a map
 
 **Setting up**
 
