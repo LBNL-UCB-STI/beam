@@ -150,6 +150,8 @@ dependencies {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 
+    compile ('com.github.LBNL-UCB-STI:helics-wrapper:2.4.1')
+
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
@@ -179,8 +181,6 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
-
-    compile files('externalAPI/helics/helics-2.3.1.jar')
 
     /////////////////////////////////
     // Scala dependencies
@@ -411,8 +411,6 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // ./gradlew :run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
-
-def externalAPIs = "externalAPI/helics"
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
 
