@@ -37,8 +37,7 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
   override def receive: Receive = {
 
     case t @ TriggerWithId(EventsAccumulatorTrigger(tick), _) =>
-      informExternalSystem(chargingEventsBuffer)
-      clearStates()
+      informExternalSystem(tick)
       val triggers = if(tick < EOT) {
         Vector(ScheduleTrigger(EventsAccumulatorTrigger(tick + timeInterval), self))
       } else {
@@ -50,25 +49,25 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
       chargingEventsBuffer += e
 
     case Finish =>
-      informExternalSystem(chargingEventsBuffer)
-      clearStates()
-      federate1.close()
+      informExternalSystem(EOT)
       context.stop(self)
+  }
+
+  private def informExternalSystem(tick: Int): Unit = {
+    val currentTime = federate1.getCurrentTime(tick)
+    chargingEventsBuffer.foreach {
+      case e: ChargingPlugInEvent =>
+        federate1.publishSOC(currentTime, e.getEventType, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
+      case e: ChargingPlugOutEvent =>
+        federate1.publishSOC(currentTime, e.getEventType, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
+      case _: RefuelSessionEvent =>
+      case _                     =>
+    }
+    if(tick >= EOT)
+      clearStates()
   }
 
   private def clearStates(): Unit = {
     chargingEventsBuffer.clear()
-  }
-
-  private def informExternalSystem(chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event]): Unit = {
-    chargingEventsBuffer.foreach {
-      case e: ChargingPlugInEvent =>
-        e.getEventType
-        federate1.publishSOC(e.tick.toInt, e.getEventType, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
-      case e: ChargingPlugOutEvent =>
-        federate1.publishSOC(e.tick.toInt, e.getEventType, e.vehId.toString, e.stall.locationUTM, e.primaryFuelLevel)
-      case _: RefuelSessionEvent =>
-      case _                     =>
-    }
   }
 }
