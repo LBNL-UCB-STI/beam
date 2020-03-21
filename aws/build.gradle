@@ -1,6 +1,8 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import com.amazonaws.services.lambda.model.InvokeResult
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask
+import jp.classmethod.aws.gradle.lambda.AWSLambdaPluginExtension
 
 
 buildscript {
@@ -11,7 +13,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.41"
     }
 }
 
@@ -252,4 +254,32 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
     } catch (ignored) {
     }
     return gitResult
+}
+
+task installSpreadPythonDependency(type: Exec) {
+    workingDir 'src/main/python/spreadsheet_lambda/package'
+    executable 'python3'
+    args '-m', 'pip', 'install', '-r', 'requirements.txt', '-t', '.'
+}
+
+task packageSpreadSheetFunction(dependsOn: [installSpreadPythonDependency], type: Zip) {
+    from fileTree('src/main/python/spreadsheet_lambda/package')
+    from ('src/main/python/spreadsheet_lambda/lambda_function.py')
+    from ('src/main/python/spreadsheet_lambda/beam-simulation.json')
+    include '**/'
+    archiveName = 'function.zip'
+}
+
+task spreadsheetCreationFunction(dependsOn: packageSpreadSheetFunction, type: AWSLambdaMigrateFunctionTask) {
+    functionName = "spreadsheetData"
+    role = "arn:aws:iam::340032650202:role/BeamLambdaExecution"
+    functionDescription = "Beam Run Data"
+    zipFile = packageSpreadSheetFunction.archivePath
+    handler = "lambda_function.lambda_handler"
+    runtime = "Python36"
+    timeout = 60
+    memorySize = 256
+    environment = [
+            REGION: "us-west-2",
+    ]
 }
