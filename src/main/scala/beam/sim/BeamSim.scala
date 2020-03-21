@@ -10,7 +10,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.CarRideStatsFromPathTraversalEventHandler
+import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -95,8 +95,8 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
-  val carTravelTimeFromPte: CarRideStatsFromPathTraversalEventHandler =
-    new CarRideStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+  val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
+    new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
