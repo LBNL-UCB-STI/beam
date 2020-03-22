@@ -2,6 +2,9 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.config.BeamConfig;
+import beam.sim.metrics.NoOpSimulationMetricCollector;
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
+import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.TestConfigUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +40,8 @@ public class ModeChosenGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
-    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation() {
+
+    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(NoOpSimulationMetricCollector$.MODULE$, new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();

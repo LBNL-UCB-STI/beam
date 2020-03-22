@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{FileOutputStream, FileWriter}
+import java.io.{File, FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -11,6 +11,11 @@ import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
+import beam.agentsim.infrastructure.parking.ParkingType.{Public, Residential, Workplace}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
@@ -24,7 +29,10 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
+import beam.sim.metrics.BeamStaticMetricsWriter
 import beam.sim.metrics.Metrics._
+import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
+import beam.sim.metrics.{InfluxDbSimulationMetricCollector, SimulationMetricCollector}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -213,6 +221,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
+          bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
         }
       }
     )
@@ -403,7 +412,9 @@ trait BeamHelper extends LazyLogging {
           """.stripMargin)
       .withFallback(config)
 
-    if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) {
+      Kamon.init()
+    }
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
     import akka.cluster.singleton.{
@@ -436,7 +447,6 @@ trait BeamHelper extends LazyLogging {
 
     import scala.concurrent.ExecutionContext.Implicits.global
     Await.ready(system.whenTerminated.map(_ => {
-      if (isMetricsEnable) Kamon.shutdown()
       logger.info("Exiting BEAM")
     }), scala.concurrent.duration.Duration.Inf)
   }
@@ -639,7 +649,9 @@ trait BeamHelper extends LazyLogging {
 
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) {
+      Kamon.init(config.withFallback(ConfigFactory.load()))
+    }
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
@@ -698,7 +710,6 @@ trait BeamHelper extends LazyLogging {
 
   def run(beamServices: BeamServices) {
     beamServices.controler.run()
-    if (isMetricsEnable) Kamon.shutdown()
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
@@ -769,10 +780,11 @@ trait BeamHelper extends LazyLogging {
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
       val numOfPersons = scenario.getPopulation.getPersons.size()
+      val vehiclesStr = getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)
 
       logger.info(s"""After sampling:
            |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)}. Removed: ${getVehicleGroupingStringUsing(
+           |Number of vehicles: $vehiclesStr. Removed: ${getVehicleGroupingStringUsing(
                        notSelectedVehicleIds.toIndexedSeq,
                        beamScenario
                      )}
@@ -784,6 +796,13 @@ trait BeamHelper extends LazyLogging {
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
     }
+
+    BeamStaticMetricsWriter.calculateAndWriteMetrics(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamConfig
+    )
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {

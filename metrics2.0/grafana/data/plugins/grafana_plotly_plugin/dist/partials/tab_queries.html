@@ -1,0 +1,89 @@
+<div ng-if="ctrl.dataWarnings" style="margin-bottom:20px;">
+    <div ng-repeat="warn in ctrl.dataWarnings" style="margin-bottom:3px; padding:5px; border:1px solid red;">
+        {{warn}}
+    </div>
+</div>
+
+<div class="edit-tab-with-sidemenu">
+    <aside class="edit-sidemenu-aside" style="min-width: 140px">
+        <ul class="edit-sidemenu">
+            <li ng-repeat="query in ctrl.editor.queries" ng-class="{ active: ctrl.editor.queryIndex === $index }">
+                <a ng-click="ctrl.editor.selectQuery( $index )">{{query.queryNumber}}. {{ query.queryTitle }}</a>
+            </li>
+            <li>
+                <button class="btn btn-success" ng-click="ctrl.editor.createQuery();"
+                    style="margin-bottom: 5px; width: 100%">
+                    <i class="fa fa-plus" /> Add new
+                </button>
+            </li>
+            <li>
+                <button class="btn btn-danger" ng-click="ctrl.editor.removeCurrentQuery();"
+                    ng-if="ctrl.editor.queries.length > 1" style="width: 100%">
+                    <i class="fa fa-trash" /> Delete
+                </button>
+            </li>
+        </ul>
+    </aside>
+
+    <div class="edit-tab-content">
+        <div class="gf-form">
+            <label class="gf-form-label width-7">number</label>
+            <input class="gf-form-input width-15" placeholder="number" ng-model="ctrl.editor.query.queryNumber"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">title</label>
+            <input class="gf-form-input width-15" placeholder="title" ng-model="ctrl.editor.query.queryTitle"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">y axis text</label>
+            <input class="gf-form-input width-15" placeholder="y axis text" ng-model="ctrl.editor.query.yaxistext"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">dataColumn</label>
+            <input class="gf-form-input width-15" placeholder="data" ng-model="ctrl.editor.query.columnNames.dataColumn"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">xColumn</label>
+            <input class="gf-form-input width-15" placeholder="X" ng-model="ctrl.editor.query.columnNames.xColumn"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">yColumn</label>
+            <input class="gf-form-input width-15" placeholder="Y" ng-model="ctrl.editor.query.columnNames.yColumn"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">lonColumn</label>
+            <input class="gf-form-input width-15" placeholder="lon" ng-model="ctrl.editor.query.columnNames.lonColumn"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">latColumn</label>
+            <input class="gf-form-input width-15" placeholder="lat" ng-model="ctrl.editor.query.columnNames.latColumn"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+        <div class="gf-form">
+            <label class="gf-form-label width-7">color</label>
+            <input class="gf-form-input width-15" placeholder="color" ng-model="ctrl.editor.query.color"
+                ng-change="ctrl.onConfigChanged();">
+        </div>
+    </div>
+</div>
+
+<!--
+
+    columnNames: {
+        dataColumn: "",
+        xColumn: "",
+        lonColumn: "lon",
+        latColumn: "lat",
+    },
+    queryTitle: "",
+    queryNumber: "0",
+    color: "gray" 
+
+-->
