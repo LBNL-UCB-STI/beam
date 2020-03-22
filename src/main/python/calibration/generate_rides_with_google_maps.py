@@ -1,25 +1,47 @@
 import pandas as pd
-import sys
+import getopt, sys
 from pathlib import Path
 import glob
+import random
+import numpy as np
+from tabulate import tabulate
 
 
 def main(args):
-    if len(args) > 1:
-        input_file_path = Path(args[1])
-        if not Path.is_file(input_file_path):
-            print(f"The input file [{input_file_path}] does not exist")
-            sys.exit(1)
-    else:
-        print("Input file was not provided")
-        input_file_path = select_input(args[0])
-        if input_file_path is None:
-            print("No possible file was found.")
-            sys.exit(0)
-
+    program_arguments = parse_parameters(args)
+    input_file_path = Path(search_argument("--inputFile", program_arguments))
     output_file = output_name(input_file_path)
-    convert_file(input_file_path, output_file)
-    print(f"The file [{output_file}] was created.")
+    convert_file(input_file_path, output_file, program_arguments)
+
+
+def search_argument(argument_name, arguments):
+    the_tuple = filter(lambda x: x[0] == argument_name, arguments)
+    result = next(the_tuple, None)
+    if result is None:
+        return None
+    else:
+        return result[1]
+
+
+def parse_parameters(args):
+    short_options = ""
+    long_options = ["help", "inputFile=", "sampleSize=", "sampleSeed=", "maxDistance=", "departureTimeRange="]
+    try:
+        arguments, _ = getopt.getopt(args[1:], short_options, long_options)
+
+        if search_argument("--inputFile", arguments) is None:
+            arguments.insert(0, ("--inputFile", select_input(args[0])))
+
+        if search_argument("--sampleSize", arguments) is not None \
+                and search_argument("--sampleSeed", arguments) is None:
+            seed = random.randint(0, 4294967296)
+            print(f"Seed not specified. Using the number [{seed}] as seed.")
+            arguments.append(("--sampleSeed", str(seed)))
+
+        return arguments
+    except getopt.error as err:
+        print(str(err))
+        sys.exit(2)
 
 
 def output_name(input_file_path):
@@ -31,16 +53,19 @@ def output_name(input_file_path):
     return input_file_path.parent.joinpath(result_file_name).resolve()
 
 
-def convert_file(input_file_name, output_file_name):
-    df = read_csv_as_dataframe(input_file_name)
+def convert_file(input_file_name, output_file_name, program_arguments):
+    df = read_csv_as_dataframe(input_file_name, program_arguments)
     urls_list = generate_urls_as_list(
         df['start_x'].values.tolist(),
         df['start_y'].values.tolist(),
         df['end_x'].values.tolist(),
         df['end_y'].values.tolist()
     )
-    df['google_link'] = pd.Series(urls_list)
+    df['google_link'] = pd.Series(data=urls_list, dtype='str', index=df.index)
+    print(tabulate(df, headers='keys', tablefmt='psql'))
+
     df.to_csv(output_file_name, header=True, index=False)
+    print(f"File [{output_file_name.absolute()}] created.")
 
 
 def select_input(execution_file):
@@ -79,19 +104,42 @@ def url_from_tuple(tuple_value):
     start_y = tuple_value[1]
     end_x = tuple_value[2]
     end_y = tuple_value[3]
-    return f"https://www.google.com/maps/dir/{start_y}%09{start_x}/{end_y}%09{end_x}"
+    result = f"https://www.google.com/maps/dir/{start_y}%09{start_x}/{end_y}%09{end_x}"
+    return str(result)
 
 
 def generate_urls_as_list(start_x_list, start_y_list, end_x_list, end_y_list):
     tuples = list(zip(start_x_list, start_y_list, end_x_list, end_y_list))
-    return list(map(url_from_tuple, tuples))
+    return np.array(list(map(url_from_tuple, tuples)))
 
 
-def read_csv_as_dataframe(file_path):
+def read_csv_as_dataframe(file_path, program_arguments):
     columns = ["vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time", "start_x",
                "start_y", "end_x", "end_y"]
     original_df = pd.read_csv(file_path, skiprows=1, names=columns)
-    return original_df.copy()
+
+    sample_size = search_argument("--sampleSize", program_arguments)
+    if sample_size is not None:
+        sample_size = int(sample_size)
+        sample_seed = int(search_argument("--sampleSeed", program_arguments))
+        print(f"**** Sampling data. sampleSize: [{max_distance}]. sampleSeed: [{sample_seed}]")
+        original_df = original_df.sample(n=sample_size, random_state=sample_seed)
+
+    max_distance = search_argument("--maxDistance", program_arguments)
+    if max_distance is not None:
+        max_distance = float(max_distance)
+        print(f"**** Filtering maxDistance: [{max_distance}]")
+        original_df = original_df[original_df['distance'] <= max_distance]
+
+    departure_time_range = search_argument("--departureTimeRange", program_arguments)
+    if departure_time_range is not None:
+        departure_time_range = departure_time_range[1:-1]
+        departure_time_start = float(departure_time_range.split(",")[0])
+        departure_time_end = float(departure_time_range.split(",")[1])
+        print(f"**** Filtering departureTimeRange: [{departure_time_start},{departure_time_end}]")
+        original_df = original_df[(original_df['departure_time'] >= departure_time_start) & (original_df['departure_time'] <= departure_time_end)]
+
+    return original_df
 
 
 if __name__ == "__main__":
