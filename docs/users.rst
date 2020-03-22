@@ -220,7 +220,7 @@ Grafana is controlled with gradle commands, those commands under hood are using 
 
 **Start Grafana**
 
-To run Grafana one should use gradle command grafanaStart without any parameters. The command will start Grafana and InfluxDB docker image, configure them and print all five URLs to Grafana dashboards after the docker image is running. ::
+To run Grafana one should use gradle command grafanaStart without any parameters. The command will start Grafana and InfluxDB docker container, configure them and print all five URLs to Grafana dashboards after the docker image is running. ::
 
     ./gradlew grafanaStart
 
@@ -234,7 +234,7 @@ To stop Grafana one should use gradle command grafanaStop without any parameters
 
 **Clean collected data**
 
-To clear all collected by grafana data from BEAM runs one should use gradle command grafanaClearData ::
+To clear all collected by Grafana and InfluxDB data from BEAM runs one should use gradle command grafanaClearData ::
 
     ./gradlew grafanaClearData
 

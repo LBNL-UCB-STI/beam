@@ -564,21 +564,21 @@ Configuration of Grafana metrics
 To configure which metrics will be written one should use BEAM configuration files.
 
 There is a configuration entry beam.sim.metric.collector.metrics which contains names of enabled metrics
-and this way controls which metrics will be written during BEAM execution.
+and thus controls which metrics will be written during BEAM execution.
 
-By default metrics which does not affect performance are enabled globally in “test/input/common/metrics.conf” file.
+By default metrics which do not affect performance are enabled globally in “test/input/common/metrics.conf” file.
 
 To configure metrics for specific BEAM configuration one may add the configuration entry in that specific configuration file.
 
 **Metrics description:**
 
-Metrics which contains a run name and an iteration number, **necessary for displaying any metric**:
+Metrics which contain a run name and an iteration number, **necessary for displaying any metric**:
 ::
 
     beam-run,
     beam-iteration
 
-Metrics which contains a single number with a count of households, population size, charging stalls count e.t.c:
+Metrics which contain a single number with a count of households, population size, charging stalls count e.t.c:
 ::
 
     beam-run-households,
@@ -589,7 +589,7 @@ Metrics which contains a single number with a count of households, population si
     beam-run-public-fast-charge-cnt,
     beam-run-public-fast-charge-stalls-cnt
 
-Metrics which contains a single number with a count of different types of ride hail vehicles:
+Metrics which contain a single number with a count of different types of ride hail vehicles:
 ::
 
     beam-run-RH-ev-cav,
@@ -623,8 +623,8 @@ Various metrics for ride hail:
     ride-hail-waiting-time,
     ride-hail-waiting-time-map,
     ride-hail-trip-distance,
-    ride-hail-inquiry-served (graph does not added to a grafana dashboard),
-    ride-hail-allocation-reserved (graph does not added to a grafana dashboard)
+    ride-hail-inquiry-served (graph is not added to a grafana dashboard),
+    ride-hail-allocation-reserved (graph is not added to a grafana dashboard)
 
 **New metrics**
 
