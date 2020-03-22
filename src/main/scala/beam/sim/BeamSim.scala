@@ -10,7 +10,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -95,8 +99,27 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
-  val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
-    new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+  val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
+    val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
+      networkHelper,
+      Some(beamServices.matsimServices.getControlerIO),
+      TakeAllTripsTripFilter,
+      ""
+    )
+    val studyAreCarTravelTime = if (beamServices.beamConfig.beam.calibration.studyArea.enabled) {
+      Some(
+        new CarTripStatsFromPathTraversalEventHandler(
+          networkHelper,
+          Some(beamServices.matsimServices.getControlerIO),
+          new StudyAreaTripFilter(beamServices.beamConfig.beam.calibration.studyArea, beamServices.geo),
+          "studyarea"
+        )
+      )
+    } else {
+      None
+    }
+    List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
+  }
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
@@ -104,7 +127,7 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("histogram", "**")
 
     eventsManager.addHandler(rideHailUtilizationCollector)
-    eventsManager.addHandler(carTravelTimeFromPte)
+    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -230,7 +253,7 @@ class BeamSim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
-    carTravelTimeFromPte.notifyIterationEnds(event)
+    carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
@@ -384,7 +407,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    carTravelTimeFromPte.notifyShutdown(event)
+    carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
