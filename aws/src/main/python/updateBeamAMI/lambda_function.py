@@ -63,12 +63,12 @@ def update_lambda(image_ids, function_name):
         'us_west_2_IMAGE_ID': image_ids['us-west-2'],
     })
     lm.update_function_configuration(
-        FunctionName='simulateBeam',
+        FunctionName=function_name,
         Environment={
             'Variables': en_var
         }
     )
-    logger.info('simulateBeam image ids updated')
+    logger.info(function_name + ' image ids updated')
 
 
 def check_instance_id(instance_ids):
