@@ -414,7 +414,7 @@ mainClassName = "beam.sim.RunBeam"
 
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
-
+def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
@@ -443,7 +443,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
            "-Djava.net.preferIPv4Stack=true", "-Djava.rmi.server.hostname=127.0.0.1"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
                              "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
 
