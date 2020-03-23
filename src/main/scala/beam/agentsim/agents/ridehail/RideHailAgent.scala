@@ -123,22 +123,23 @@ object RideHailAgent {
 
   sealed trait InterruptReply {
     val interruptId: Int
-    val vehicleId: Id[Vehicle]
+    val vehicleId: Id[BeamVehicle]
     val tick: Int
   }
 
   case class InterruptedWhileDriving(
     interruptId: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     tick: Int,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
 
-  case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
-  case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 

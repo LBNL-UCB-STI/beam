@@ -56,7 +56,7 @@ import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.Vehicle
+//import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -118,11 +118,7 @@ object RideHailManager {
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
 
-  case class RegisterRideAvailable(
-    rideHailAgent: ActorRef,
-    vehicleId: Id[Vehicle],
-    availableSince: SpaceTime
-  )
+  case class RegisterRideAvailable(rideHailAgent: ActorRef, vehicleId: Id[BeamVehicle], availableSince: SpaceTime)
 
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
 
@@ -135,7 +131,7 @@ object RideHailManager {
   case class RepositionVehicleRequest(
     passengerSchedule: PassengerSchedule,
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     rideHailAgent: RideHailAgentLocation
   )
 
@@ -216,7 +212,7 @@ class RideHailManager(
     with ActorLogging
     with Stash {
   type DepotId = Int
-  type VehicleId = Id[Vehicle]
+  type VehicleId = Id[BeamVehicle]
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
@@ -307,7 +303,7 @@ class RideHailManager(
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
-  private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
+  private val pendingAgentsSentToPark = collection.mutable.Map[Id[BeamVehicle], ParkingStall]()
   private val cachedNotifyVehicleIdle = collection.mutable.Map[Id[_], NotifyVehicleIdle]()
   val doNotUseInAllocation: mutable.Set[Id[_]] = collection.mutable.Set[Id[_]]()
 
@@ -886,7 +882,7 @@ class RideHailManager(
   }
 
   def updatePassengerSchedule(
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     passengerSchedule: Option[PassengerSchedule],
     passengerScheduleIndex: Option[Int]
   ): Boolean = {
@@ -907,7 +903,7 @@ class RideHailManager(
     }
   }
 
-  def updateLatestObservedTick(vehicleId: Id[Vehicle], tick: Int): Boolean = {
+  def updateLatestObservedTick(vehicleId: Id[BeamVehicle], tick: Int): Boolean = {
     // Update with latest tick
     val locationWithLatest = vehicleManager
       .getRideHailAgentLocation(vehicleId)
@@ -938,7 +934,7 @@ class RideHailManager(
   }
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {
-    val vehicleId = notifyVehicleIdleMessage.resourceId.asInstanceOf[Id[Vehicle]]
+    val vehicleId = notifyVehicleIdleMessage.resourceId.asInstanceOf[Id[BeamVehicle]]
     log.debug(
       "RHM.NotifyVehicleIdle: {}, service status: {}",
       notifyVehicleIdleMessage,
@@ -1328,7 +1324,7 @@ class RideHailManager(
       cachedNotifyVehicleIdle.get(travelProposal.rideHailAgentLocation.vehicleId) match {
         case Some(notifyVehicleIdle) =>
           handleNotifyVehicleIdle(notifyVehicleIdle)
-          modifyPassengerScheduleManager.setStatusToIdle(notifyVehicleIdle.resourceId.asInstanceOf[Id[Vehicle]])
+          modifyPassengerScheduleManager.setStatusToIdle(notifyVehicleIdle.resourceId.asInstanceOf[Id[BeamVehicle]])
           cachedNotifyVehicleIdle.remove(travelProposal.rideHailAgentLocation.vehicleId)
         case None =>
       }
@@ -1680,7 +1676,7 @@ class RideHailManager(
   }
 
   def continueRepositioning(tick: Int): Unit = {
-    val idleVehicles: mutable.Map[Id[Vehicle], RideHailAgentLocation] =
+    val idleVehicles: mutable.Map[Id[BeamVehicle], RideHailAgentLocation] =
       vehicleManager.getIdleVehiclesAndFilterOutExluded
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
@@ -1754,7 +1750,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
-    val futureRepoRoutingMap = mutable.Map[Id[Vehicle], Future[RoutingRequest]]()
+    val futureRepoRoutingMap = mutable.Map[Id[BeamVehicle], Future[RoutingRequest]]()
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId)) {

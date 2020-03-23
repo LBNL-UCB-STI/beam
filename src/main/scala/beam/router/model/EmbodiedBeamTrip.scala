@@ -1,5 +1,6 @@
 package beam.router.model
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
@@ -14,7 +15,6 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
@@ -25,7 +25,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   lazy val tripClassifier: BeamMode = determineTripMode(legs)
 
   @transient
-  lazy val vehiclesInTrip: IndexedSeq[Id[Vehicle]] = determineVehiclesInTrip(legs)
+  lazy val vehiclesInTrip: IndexedSeq[Id[BeamVehicle]] = determineVehiclesInTrip(legs)
 
   @transient
   lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
@@ -83,7 +83,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     })
   }
 
-  def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[Vehicle]] = {
+  def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
     legs.map(leg => leg.beamVehicleId).distinct
   }
 

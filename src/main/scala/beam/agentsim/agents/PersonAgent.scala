@@ -42,7 +42,6 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-import org.matsim.vehicles.Vehicle
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
@@ -51,7 +50,7 @@ import scala.concurrent.duration._
   */
 object PersonAgent {
 
-  type VehicleStack = Vector[Id[Vehicle]]
+  type VehicleStack = Vector[Id[BeamVehicle]]
 
   def props(
     scheduler: ActorRef,

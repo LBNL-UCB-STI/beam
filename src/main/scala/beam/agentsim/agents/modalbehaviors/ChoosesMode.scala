@@ -28,7 +28,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
-import org.matsim.vehicles.Vehicle
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,7 +42,7 @@ trait ChoosesMode {
 
   val dummyRHVehicle =
     StreetVehicle(
-      Id.create("dummyRH", classOf[Vehicle]),
+      Id.create("dummyRH", classOf[BeamVehicle]),
       Id.create(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
@@ -1239,7 +1238,7 @@ object ChoosesMode {
     )
   }
 
-  case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
+  case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[BeamVehicle])
 
   case class CavTripLegsRequest(person: PersonIdWithActorRef, originActivity: Activity)
 

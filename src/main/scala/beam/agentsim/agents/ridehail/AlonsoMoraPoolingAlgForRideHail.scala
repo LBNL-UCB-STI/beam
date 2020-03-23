@@ -332,7 +332,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     remainingRangeInMeters: Double
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
-      Id.create(veh.vehicleId, classOf[BeamVehicle]),
+      veh.vehicleId,
       new Powertrain(0.0),
       veh.vehicleType
     )
