@@ -13,6 +13,7 @@ import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.jfree.data.general.DatasetUtilities
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -27,14 +28,16 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
 
-class CarRideStatsFromPathTraversalEventHandler(
+class CarTripStatsFromPathTraversalEventHandler(
   val networkHelper: NetworkHelper,
   val maybeControlerIO: Option[OutputDirectoryHierarchy]
 ) extends LazyLogging
     with IterationEndsListener
     with BasicEventHandler
     with ShutdownListener {
-  import CarRideStatsFromPathTraversalEventHandler._
+  import CarTripStatsFromPathTraversalEventHandler._
+
+  private val secondsInHour = 3600
 
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
   private val averageTravelTimePerIteration: collection.mutable.MutableList[Long] =
@@ -86,11 +89,11 @@ class CarRideStatsFromPathTraversalEventHandler(
     event match {
       case pte: PathTraversalEvent if pte.mode == BeamMode.CAR =>
         if (isCav(pte))
-          carType2PathTraversals(CAV) = carType2PathTraversals(CAV) += pte
+          carType2PathTraversals(CarType.CAV) = carType2PathTraversals(CarType.CAV) += pte
         else if (isRideHail(pte))
-          carType2PathTraversals(RideHail) = carType2PathTraversals(RideHail) += pte
+          carType2PathTraversals(CarType.RideHail) = carType2PathTraversals(CarType.RideHail) += pte
         else
-          carType2PathTraversals(Personal) = carType2PathTraversals(Personal) += pte
+          carType2PathTraversals(CarType.Personal) = carType2PathTraversals(CarType.Personal) += pte
       case _ =>
     }
   }
@@ -103,14 +106,14 @@ class CarRideStatsFromPathTraversalEventHandler(
     pte.vehicleType == "CAV"
   }
 
-  def calcRideStats(iterationNumber: Int, carType: CarType): Seq[SingleRideStat] = {
+  def calcRideStats(iterationNumber: Int, carType: CarType): Seq[CarTripStat] = {
     val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
 
     val stats = carType match {
-      case Personal =>
+      case CarType.Personal =>
         val drivingWithParkingPtes = buildDrivingParking(carPtes)
-        buildRideStatsFromDrivingParkings(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
-      case _ => buildRideStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
+        buildPersonalTripStats(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
+      case _ => buildRideHailAndCavTripStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
     }
     logger.info(
       s"For the iteration $iterationNumber created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
@@ -118,21 +121,41 @@ class CarRideStatsFromPathTraversalEventHandler(
     stats
   }
 
-  def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[SingleRideStat]): IterationCarRideStats = {
+  def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[CarTripStat]): IterationCarTripStats = {
     buildStatistics(networkHelper, freeFlowTravelTimeCalc, iterationNumber, rideStats)
   }
 
+  private def createCarRideIterationGraph(
+    iterationNumber: Int,
+    rideStats: Seq[CarTripStat],
+    mode: String
+  ): Unit = {
+
+    val hourAverageSpeed = rideStats.groupBy(stats => stats.departureTime.toInt / secondsInHour).map {
+      case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
+    }
+
+    val maxHour = hourAverageSpeed.keys.max
+
+    val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
+
+    // generate the category dataset using the average travel times data
+    val dataSet = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
+    createIterationGraphForAverageSpeed(dataSet, iterationNumber, mode)
+  }
+
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val type2RideStats: Map[CarType, Seq[SingleRideStat]] = carType2PathTraversals.keys.map { carType =>
+    val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys.map { carType =>
       carType -> calcRideStats(event.getIteration, carType)
     }.toMap
 
     type2RideStats.foreach {
       case (carType, stats) =>
-        writePersonalCarRideStats(event.getIteration, stats, carType)
+        writeCarTripStats(event.getIteration, stats, carType)
+        createCarRideIterationGraph(event.getIteration, stats, carType.toString)
     }
 
-    val type2Statistics: Map[CarType, IterationCarRideStats] = type2RideStats.mapValues { singleRideStats =>
+    val type2Statistics: Map[CarType, IterationCarTripStats] = type2RideStats.mapValues { singleRideStats =>
       getIterationCarRideStats(event.getIteration, singleRideStats)
     }
 
@@ -296,18 +319,77 @@ class CarRideStatsFromPathTraversalEventHandler(
     )
   }
 
-  private def writePersonalCarRideStats(
+  /**
+    * Plots graph for average travel times per hour at iteration level
+    *
+    * @param dataset category dataset for graph genration
+    * @param iterationNumber iteration number
+    */
+  private def createIterationGraphForAverageSpeed(
+    dataset: CategoryDataset,
     iterationNumber: Int,
-    rideStats: Seq[SingleRideStat],
+    mode: String
+  ): Unit = {
+    val fileName = s"averageSpeed$mode.png"
+    val graphTitle = s"Average Speed [ $mode ]"
+    val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
+      dataset,
+      graphTitle,
+      "hour",
+      "Average Speed [m/s]",
+      fileName,
+      false
+    )
+    val plot = chart.getCategoryPlot
+    GraphUtils.plotLegendItems(plot, dataset.getRowCount)
+    val graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName)
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      graphImageFile,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
+  }
+
+  private def writeCarTripStats(
+    iterationNumber: Int,
+    rideStats: Seq[CarTripStat],
     carType: CarType
   ): Unit = {
-    val maybeOutputPath = maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, "CarRideStats.csv.gz"))
+    val carTypeFilename = s"$carType".toLowerCase
+    val maybeOutputPath =
+      maybeControlerIO.map(cio => cio.getIterationFilename(iterationNumber, s"${carTypeFilename}.CarRideStats.csv.gz"))
     maybeOutputPath.foreach { outputPath =>
       val csvWriter =
-        new CsvWriter(outputPath, Vector("vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time"))
+        new CsvWriter(
+          outputPath,
+          Vector(
+            "vehicle_id",
+            "carType",
+            "travel_time",
+            "distance",
+            "free_flow_travel_time",
+            "departure_time",
+            "start_x",
+            "start_y",
+            "end_x",
+            "end_y"
+          )
+        )
       try {
         rideStats.foreach { stat =>
-          csvWriter.write(stat.vehicleId, carType.toString, stat.travelTime, stat.distance, stat.freeFlowTravelTime)
+          csvWriter.write(
+            stat.vehicleId,
+            carType.toString,
+            stat.travelTime,
+            stat.distance,
+            stat.freeFlowTravelTime,
+            stat.departureTime,
+            stat.startCoordWGS.getX,
+            stat.startCoordWGS.getY,
+            stat.endCoordWGS.getX,
+            stat.endCoordWGS.getY
+          )
         }
       } catch {
         case NonFatal(ex) =>
@@ -325,7 +407,7 @@ class CarRideStatsFromPathTraversalEventHandler(
   private def writeIterationCarRideStats(
     event: IterationEndsEvent,
     carType: CarType,
-    carRideStatistics: IterationCarRideStats
+    carRideStatistics: IterationCarTripStats
   ): Unit = {
     // Write car travel time stats to CSV
     maybeTravelTimeStatsWriter.foreach(writeStats(_, carType, event.getIteration, carRideStatistics.travelTime.stats))
@@ -365,13 +447,13 @@ class CarRideStatsFromPathTraversalEventHandler(
   }
 }
 
-object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
+object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
 
   def eventsFilterWhenReadFromCsv(event: Event): Boolean = {
     event.getEventType == "PathTraversal"
   }
 
-  def apply(pathToNetwork: String, eventsFilePath: String): CarRideStatsFromPathTraversalEventHandler = {
+  def apply(pathToNetwork: String, eventsFilePath: String): CarTripStatsFromPathTraversalEventHandler = {
     val network: Network = {
       val n = NetworkUtils.createNetwork()
       new MatsimNetworkReader(n)
@@ -382,12 +464,12 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val (ptesIter: Iterator[PathTraversalEvent], closable: Closeable) = {
       val (e, c) = EventReader.fromCsvFile(eventsFilePath, eventsFilterWhenReadFromCsv)
       (
-        e.map(PathTraversalEvent.apply)
+        e.map(PathTraversalEvent.apply(_))
           .filter(pte => pte.mode == BeamMode.CAR && !pte.vehicleId.toString.startsWith("rideHailVehicle")),
         c
       )
     }
-    val r = new CarRideStatsFromPathTraversalEventHandler(new NetworkHelperImpl(network), None)
+    val r = new CarTripStatsFromPathTraversalEventHandler(new NetworkHelperImpl(network), None)
     try {
       ptesIter.foreach(r.handleEvent)
       r
@@ -400,14 +482,14 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     networkHelper: NetworkHelper,
     freeFlowTravelTime: FreeFlowTravelTime,
     iterationNumber: Int,
-    rideStats: Seq[SingleRideStat]
-  ): IterationCarRideStats = {
+    rideStats: Seq[CarTripStat]
+  ): IterationCarTripStats = {
     val travelTimeStas = TravelTimeStatistics(rideStats)
     val speedStats = SpeedStatistics(rideStats)
     val distanceStats = DistanceStatistics(Statistics(rideStats.map(_.distance)))
     val freeFlowTravelTimeStats = FreeFlowTravelTimeStatistics(rideStats)
     val freeFlowSpeedStats = FreeFlowSpeedStatistics(rideStats)
-    IterationCarRideStats(
+    IterationCarTripStats(
       iteration = iterationNumber,
       travelTime = travelTimeStas,
       speed = speedStats,
@@ -425,12 +507,12 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     }
   }
 
-  private def buildRideStatsFromDrivingParkings(
+  private def buildPersonalTripStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)]
-  ): Seq[SingleRideStat] = {
-    val stats = drivingWithParkingPtes.foldLeft(List.empty[SingleRideStat]) {
+  ): Seq[CarTripStat] = {
+    val stats = drivingWithParkingPtes.foldLeft(List.empty[CarTripStat]) {
       case (acc, (driving, parking)) =>
         if (driving.arrivalTime != parking.departureTime) {
           val msg = s"arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
@@ -442,22 +524,40 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
         val length = driving.legLength + parking.legLength
         val linkIds = (driving.linkIds ++ parking.linkIds).map(lid => networkHelper.getLinkUnsafe(lid))
         val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
-        SingleRideStat(driving.vehicleId.toString, travelTime, length, freeFlowTravelTime, driving.departureTime) :: acc
+        val startCoordWGS = new Coord(driving.startX, driving.startY)
+        val endCoordWGS = new Coord(parking.endX, parking.endY)
+        CarTripStat(
+          vehicleId = driving.vehicleId.toString,
+          travelTime = travelTime,
+          distance = length,
+          freeFlowTravelTime = freeFlowTravelTime,
+          departureTime = driving.departureTime,
+          startCoordWGS = startCoordWGS,
+          endCoordWGS = endCoordWGS
+        ) :: acc
     }
     stats
   }
 
-  private def buildRideStats(
+  private def buildRideHailAndCavTripStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     ptes: Seq[PathTraversalEvent]
-  ): Seq[SingleRideStat] = {
+  ): Seq[CarTripStat] = {
     ptes.map { event =>
       val travelTime = event.arrivalTime - event.departureTime
       val length = event.legLength
       val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
       val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
-      SingleRideStat(event.vehicleId.toString, travelTime, length, freeFlowTravelTime, event.departureTime)
+      CarTripStat(
+        event.vehicleId.toString,
+        travelTime,
+        length,
+        freeFlowTravelTime,
+        event.departureTime,
+        startCoordWGS = new Coord(event.startX, event.startY),
+        endCoordWGS = new Coord(event.endX, event.endY)
+      )
     }
   }
 
@@ -494,8 +594,8 @@ object CarRideStatsFromPathTraversalEventHandler extends LazyLogging {
     val eventsFilePath = args(1)
     val iterationNumber = Try(args(2).toInt).toOption.getOrElse(-1)
 
-    val c = CarRideStatsFromPathTraversalEventHandler(pathToNetwork, eventsFilePath)
-    val rideStats = c.calcRideStats(iterationNumber, Personal)
+    val c = CarTripStatsFromPathTraversalEventHandler(pathToNetwork, eventsFilePath)
+    val rideStats = c.calcRideStats(iterationNumber, CarType.Personal)
     val iterationCarRideStats = c.getIterationCarRideStats(iterationNumber, rideStats)
     logger.info("IterationCarRideStats:")
     logger.info(s"travelTime: ${iterationCarRideStats.travelTime}")

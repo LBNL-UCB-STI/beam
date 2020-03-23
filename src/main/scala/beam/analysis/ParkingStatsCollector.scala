@@ -5,6 +5,8 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events._
 import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
+import beam.sim.metrics.MetricsSupport
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
@@ -159,6 +161,13 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              store the parking time and parking cost
        */
       case parkEvent: ParkingEvent =>
+        beamServices.simMetricCollector.writeIteration(
+          "parking",
+          SimulationTime(parkEvent.time.toInt),
+          1,
+          tags = Map("parking-type" -> parkEvent.parkingType.toString)
+        )
+
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {
           // get the parking cost from the event attributes
           val parkingCost: Option[Double] = Some(parkEvent.costInDollars)

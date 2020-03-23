@@ -1,20 +1,21 @@
 package beam.sflight
 
+import scala.io.Source
+
 import beam.analysis.plots.PersonTravelTimeAnalysis
+import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
 import com.google.inject
+import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import scala.io.Source
 
 class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
@@ -58,7 +59,8 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val controller = services.controler
     controller.run()
 
-    CaccSpec.avgCarModeFromCsv(extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber))
+    val fileName = extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber)
+    CaccSpec.avgCarModeFromCsv(fileName)
   }
 
   private def extractFileName(
@@ -97,10 +99,11 @@ object CaccSpec {
 
   def avgCarModeFromCsv(filePath: String): Double = {
     val carLine = using(Source.fromFile(filePath)) { source =>
-      source.getLines().find(_.startsWith("car"))
+      source.getLines().find(isCar)
     }
+
     val allHourAvg = carLine
-      .getOrElse(throw new IllegalStateException("The line does not contain 'car' as TravelTimeMode"))
+      .getOrElse(throw NotFoundCarInTravelTimeMode)
       .split(",")
       .tail
       .map(_.toDouble)
@@ -108,5 +111,16 @@ object CaccSpec {
     val relevantTimes = allHourAvg.filterNot(_ == 0D)
     relevantTimes.sum / relevantTimes.length
   }
+
+  def isCar(value: String): Boolean = {
+    carTravelTimeValues.exists(value.startsWith)
+  }
+
+  private val carTravelTimeValues = Set(BeamMode.CAR.value, BeamMode.CAV.value)
+
+  case object NotFoundCarInTravelTimeMode
+      extends IllegalStateException(
+        s"The line does not contain ${carTravelTimeValues.mkString("'", "', '", "'")} as TravelTimeMode"
+      )
 
 }

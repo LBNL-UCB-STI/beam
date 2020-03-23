@@ -2,9 +2,12 @@ package beam.sim.metrics
 
 import akka.util.Helpers.toRootLowerCase
 import beam.utils.FileUtils
-import kamon.trace.{Segment, TraceContext}
+import kamon.metric.Timer.Started
+import org.influxdb.{InfluxDB, InfluxDBFactory}
+import org.influxdb.BatchOptions
 
-import scala.collection.mutable
+import java.time.{LocalDate, ZoneId}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 object Metrics {
 
@@ -12,18 +15,23 @@ object Metrics {
 
   var runName: String = "beam"
 
+  @volatile
   var iterationNumber: Int = 0
 
-  val currentSegments: mutable.Map[String, Segment] = mutable.Map()
+  val timers: ConcurrentHashMap[String, Started] = new ConcurrentHashMap[String, Started]()
 
-  var currentContext: TraceContext = _
+  def addTimer(name: String, started: Started): Unit = {
+    timers.putIfAbsent(name, started)
+  }
 
-  def setCurrentContext(context: TraceContext): Unit = currentContext = context
+  def getTimer(name: String): Option[Started] = {
+    Option(timers.get(name))
+  }
 
   def defaultTags: Map[String, String] =
     Map(
       "run-name"        -> runName,
-      "unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
+      "unique-run-name" -> s"${FileUtils.runStartTime}_$runName",
       "iteration-num"   -> s"$iterationNumber"
     )
 
