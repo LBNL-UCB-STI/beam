@@ -6,14 +6,11 @@ services:
     # container name is using in gradle task
     container_name: docker-influxdb-grafana
     volumes:
-      - ./grafana/data:/var/lib/grafana
-      - ./grafana/log:/var/log/grafana
+      - ./grafana/plugins:/var/lib/grafana/plugins
       - ./grafana/datasources:/etc/grafana/datasources
       - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./influxdb/snapshot:/var/lib/influxdb/snapshot
       - ./setup.sh:/setup.sh
-      - ./influxdb/data/data:/var/lib/influxdb/data
-      - ./influxdb/data/log:/var/lib/influxdb/log
-      - ./influxdb/log:/var/log/influxdb
     entrypoint: /setup.sh
     environment:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-root}
