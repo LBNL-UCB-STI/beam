@@ -832,7 +832,7 @@ trait ChoosesMode {
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
       case ActualVehicle(beamVehicle) =>
-        beamVehicle.mustBeDrivenHome
+        beamVehicle.isMustBeDrivenHome
       case _: Token =>
         false // is not a household vehicle
     }
@@ -1105,7 +1105,7 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
-          vehicle.manager.get ! ReleaseVehicle(vehicle)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
         triggerId,

@@ -258,7 +258,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       vehicle.becomeDriver(self)
-      vehicle.manager = Some(rideHailManager)
+      vehicle.setManager(Some(rideHailManager))
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
@@ -627,17 +627,16 @@ class RideHailAgent(
 
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
     vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        tick,
-        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        tick - sessionStart,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
+    val refuelSessionEvent = new RefuelSessionEvent(
+      tick,
+      vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      energyInJoules,
+      vehicle.primaryFuelLevelInJoules - energyInJoules,
+      tick - sessionStart,
+      vehicle.id,
+      vehicle.beamVehicleType
     )
+    eventsManager.processEvent(refuelSessionEvent)
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
     //If so then note it would still need to check the queue and any other localized cleanup
@@ -693,7 +692,7 @@ class RideHailAgent(
 
   def requestParkingStall(): Unit = {
     val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
+      RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
     val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
@@ -785,7 +784,7 @@ class RideHailAgent(
             //assert(false)
           }
 
-          vehicle.manager.get ! nextIdle
+          vehicle.getManager.get ! nextIdle
 
         case None =>
       }

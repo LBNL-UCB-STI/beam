@@ -36,7 +36,12 @@ case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, 
     val timeSimulated = carTrip.totalTravelTimeInSecs.toDouble
 
     val skimmerKey = DriveTimeSkimmerKey(origTaz, destTaz, hour)
-    val skimmerInternal = DriveTimeSkimmerInternal(timeSimulated = timeSimulated, timeObserved = 0)
+    val skimmerInternal = DriveTimeSkimmerInternal(
+      timeSimulated = timeSimulated,
+      timeObserved = 0,
+      observations = 1,
+      iterations = beamServices.matsimServices.getIterationNumber + 1
+    )
     (skimmerKey, skimmerInternal)
   }
 }

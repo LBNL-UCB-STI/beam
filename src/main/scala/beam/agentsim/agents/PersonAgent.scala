@@ -260,7 +260,7 @@ class PersonAgent(
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType
   )
-  body.manager = Some(self)
+  body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
 
   val attributes: AttributesOfIndividual =
@@ -673,7 +673,7 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
+        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -681,9 +681,9 @@ class PersonAgent(
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
             if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
           }
-          if (!currentBeamVehicle.mustBeDrivenHome) {
+          if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
-            currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
+            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
             beamVehicles -= data.currentVehicle.head
           }
         }
@@ -999,7 +999,7 @@ class PersonAgent(
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
                   beamVehicles -= personalVeh.id
-                  personalVeh.manager.get ! ReleaseVehicle(personalVeh)
+                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
                   None
                 } else {
                   currentTourPersonalVehicle

@@ -1,4 +1,5 @@
 include 'beam-gui'
 include 'aws'
+include 'metrics2.0'
 
 rootProject.name = 'beam'
