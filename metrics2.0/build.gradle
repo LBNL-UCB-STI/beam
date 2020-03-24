@@ -84,7 +84,7 @@ task grafanaClearData {
     doFirst {
         // delete only content in dirs
         delete fileTree(dir: "$projectDir/influxdb/snapshot", exclude: '.gitignore')
-        println "files and folders under $projectDir/influxdb/snapshot are removed"
+        println "files under $projectDir/influxdb/snapshot removed"
     }
 }
 
