@@ -5,13 +5,15 @@ import glob
 import random
 import numpy as np
 from tabulate import tabulate
+from urllib.parse import urlparse
+from classes import BoundBox
 
 
 def main(args):
     program_arguments = parse_parameters(args)
-    input_file_path = Path(search_argument("--inputFile", program_arguments))
-    output_file = output_name(input_file_path)
-    convert_file(input_file_path, output_file, program_arguments)
+    input_file_location = search_argument("--inputFile", program_arguments)
+    output_file_path = generate_output_file_path(input_file_location)
+    convert_file(input_file_location, output_file_path, program_arguments)
 
 
 def search_argument(argument_name, arguments):
@@ -25,7 +27,8 @@ def search_argument(argument_name, arguments):
 
 def parse_parameters(args):
     short_options = ""
-    long_options = ["help", "inputFile=", "sampleSize=", "sampleSeed=", "maxDistance=", "departureTimeRange="]
+    long_options = ["help", "inputFile=", "sampleSize=", "sampleSeed=", "maxDistance=", "departureTimeRange=",
+                    "areaBoundBox="]
     try:
         arguments, _ = getopt.getopt(args[1:], short_options, long_options)
 
@@ -38,23 +41,40 @@ def parse_parameters(args):
             print(f"Seed not specified. Using the number [{seed}] as seed.")
             arguments.append(("--sampleSeed", str(seed)))
 
+        # if search_argument("--sampleSize", arguments) is not None \
+
         return arguments
     except getopt.error as err:
         print(str(err))
         sys.exit(2)
 
 
-def output_name(input_file_path):
+def generate_output_file_path(input_file_arg):
+    result_file_name = extract_name(input_file_arg)
+    if is_url(input_file_arg):
+        url = urlparse(input_file_arg)
+        parent_path = Path(url.path[1:]).parent
+        return parent_path.joinpath(result_file_name).resolve()
+    else:
+        absolute_path = Path(input_file_arg)
+        return absolute_path.parent.joinpath(result_file_name).resolve()
+
+
+def extract_name(input_file_arg):
+    input_file_path = Path(input_file_arg)
     input_name = input_file_path.name
     tmp_list = input_name.rsplit(".")[:-2]
     tmp_list.append("output")
     tmp_list.append("csv")
-    result_file_name = ".".join(tmp_list)
-    return input_file_path.parent.joinpath(result_file_name).resolve()
+    return ".".join(tmp_list)
 
 
-def convert_file(input_file_name, output_file_name, program_arguments):
-    df = read_csv_as_dataframe(input_file_name, program_arguments)
+def is_url(input_file_arg):
+    return urlparse(input_file_arg).scheme != ''
+
+
+def convert_file(input_file_location, output_file_path, program_arguments):
+    df = read_csv_as_dataframe(input_file_location, program_arguments)
     urls_list = generate_urls_as_list(
         df['start_x'].values.tolist(),
         df['start_y'].values.tolist(),
@@ -64,8 +84,9 @@ def convert_file(input_file_name, output_file_name, program_arguments):
     df['google_link'] = pd.Series(data=urls_list, dtype='str', index=df.index)
     print(tabulate(df, headers='keys', tablefmt='psql'))
 
-    df.to_csv(output_file_name, header=True, index=False)
-    print(f"File [{output_file_name.absolute()}] created.")
+    output_file_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_file_path, header=True, index=False)
+    print(f"File [{output_file_path.absolute()}] created.")
 
 
 def select_input(execution_file):
@@ -137,10 +158,24 @@ def read_csv_as_dataframe(file_path, program_arguments):
         departure_time_start = float(departure_time_range.split(",")[0])
         departure_time_end = float(departure_time_range.split(",")[1])
         print(f"**** Filtering departureTimeRange: [{departure_time_start},{departure_time_end}]")
-        original_df = original_df[(original_df['departure_time'] >= departure_time_start) & (original_df['departure_time'] <= departure_time_end)]
+        original_df = original_df[(original_df['departure_time'] >= departure_time_start) & (
+                    original_df['departure_time'] <= departure_time_end)]
+
+    area_bound_box = search_argument("--areaBoundBox", program_arguments)
+    if area_bound_box is not None:
+        area_bound_box = BoundBox.from_str(area_bound_box)
+        print(f"**** Filtering area BoundBox: {area_bound_box.to_string()}")
+        original_df = original_df[((original_df['start_x'] >= area_bound_box.topLeft.x)
+                                  & (original_df['start_x'] <= area_bound_box.rightBottom.x)
+                                  & (original_df['start_y'] >= area_bound_box.topLeft.y)
+                                  & (original_df['start_y'] <= area_bound_box.rightBottom.y)) |
+                                  ((original_df['end_x'] >= area_bound_box.topLeft.x)
+                                   & (original_df['end_x'] <= area_bound_box.rightBottom.x)
+                                   & (original_df['end_y'] >= area_bound_box.topLeft.y)
+                                   & (original_df['end_y'] <= area_bound_box.rightBottom.y))
+        ]
 
     return original_df
-
 
 if __name__ == "__main__":
     main(sys.argv)
