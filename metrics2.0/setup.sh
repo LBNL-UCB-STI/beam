@@ -84,13 +84,23 @@ wait_for_influx_db() {
   done
 }
 
-create_beam_database() {
-  influx -execute "CREATE DATABASE beam"
+create_or_restore_beam_database() {
+  target=/var/lib/influxdb/snapshot
+
+  if find "$target" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
+    # not empty, probably there is a snapshot
+    influxd restore -portable $target
+    echo "beam database restored"
+  else
+    # is empty, nothing to restore
+    influx -execute "CREATE DATABASE beam"
+    echo "beam database created"
+  fi
 }
 
 configure_influx_db() {
   wait_for_influx_db
-  create_beam_database
+  create_or_restore_beam_database
 
   echo "InfluxDB is ready"
 }
@@ -101,12 +111,17 @@ configure_grafana &
 echo "Running configure_influx_db in the background..."
 configure_influx_db &
 
-# this will create script, which will be called from gradle
-echo "chmod 777 -R /var/lib/grafana" >> chmodfolders.sh
-echo "chmod 777 -R /var/log/grafana" >> chmodfolders.sh
-echo "chmod 777 -R /var/lib/influxdb" >> chmodfolders.sh
-echo "chmod 777 -R /var/log/influxdb" >> chmodfolders.sh
+# this script will be used to allow everyone to delete collected by grafana and indluxDB data and logs
+echo "chmod 777 -R /var/lib/influxdb/snapshot" >> chmodfolders.sh
 chmod +x chmodfolders.sh
+
+echo "service grafana-server stop" >> stopservices.sh
+echo "service influxdb stop" >> stopservices.sh
+chmod +x stopservices.sh
+
+echo "rm -f /var/lib/influxdb/snapshot/*" >> backup.sh
+echo "influxd backup -portable /var/lib/influxdb/snapshot" >> backup.sh
+chmod +x backup.sh
 
 /run.sh
 
