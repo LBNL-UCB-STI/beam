@@ -22,7 +22,7 @@ import scala.util.Try
 class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
   val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
   if (!isWarmMode) {
-    throw new IllegalStateException("BeamWarmStart cannot be initialized since warmstart is disabled")
+    throw new IllegalStateException("BeamWarmStart cannot be initialized since WarmStart is disabled")
   }
 
   private val srcPath = beamConfig.beam.warmStart.path
@@ -43,7 +43,7 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     getWarmStartFilePath(fileName, rootFirst) match {
       case Some(compressedFileFullPath) =>
         logger.info(
-          s"compressedLocation: description: ${description}, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
+          s"compressedLocation: description: $description, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
         )
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
@@ -55,19 +55,9 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  private def notCompressedLocation(description: String, fileName: String, rootFirst: Boolean): String = {
-    getWarmStartFilePath(fileName, rootFirst) match {
-      case Some(fileFullPath) if Files.isRegularFile(Paths.get(fileFullPath)) =>
-        logger.info(s"**** warmStartFile method fileName:[$fileName]. notCompressedFile:[$fileFullPath]")
-        fileFullPath
-      case _ =>
-        throwErrorFileNotFound(description, srcPath)
-    }
-  }
-
   @throws(classOf[FileNotFoundException])
   private def throwErrorFileNotFound(fileDesc: String, path: String): String = {
-    throw new FileNotFoundException(s"Warmstart configuration is invalid. [$fileDesc] not found at path [$path]")
+    throw new FileNotFoundException(s"WarmStart configuration is invalid. [$fileDesc] not found at path [$path]")
   }
 
   private def extractFileFromZip(runPath: String, zipFileFullPath: String, fileName: String): String = {
@@ -208,7 +198,7 @@ object BeamWarmStart extends LazyLogging {
   }
 
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
-    logger.debug("Warmstart updateExecutionConfig")
+    logger.debug("WarmStart updateExecutionConfig")
     val beamConfig: BeamConfig = beamExecutionConfig.beamConfig
 
     if (beamConfig.beam.warmStart.enabled) {
@@ -221,11 +211,10 @@ object BeamWarmStart extends LazyLogging {
         )
       }
       val configAgents = beamConfig.beam.agentsim.agents
-      val scenarioConfig = beamConfig.beam.exchange.scenario
 
       val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
-      val populationAttributesCsv = instance.compressedLocation("Population", "population.csv.gz", rootFirst = true)
+      val populationAttributesCsv = instance.compressedLocation("Population", "population.csv.gz")
 
       // We need to get the plans from the iteration folder, not root!
       val plansXml = instance.compressedLocation("Plans.xml", "plans.xml.gz", rootFirst = false)
@@ -234,9 +223,9 @@ object BeamWarmStart extends LazyLogging {
       // We need to get the plans from the iteration folder, not root!
       val plansCsv = instance.compressedLocation("Plans.csv", "plans.csv.gz", rootFirst = false)
       
-      val houseHoldsCsv = instance.compressedLocation("Households", "households.csv.gz", rootFirst = true)
+      val houseHoldsCsv = instance.compressedLocation("Households", "households.csv.gz")
 
-      val vehiclesCsv = instance.compressedLocation("Vehicles", "vehicles.csv.gz", rootFirst = true)
+      val vehiclesCsv = instance.compressedLocation("Vehicles", "vehicles.csv.gz")
 
       val rideHailFleetCsv = instance.compressedLocation("Ride-hail fleet state", "rideHailFleet.csv.gz")
       val newRideHailInit = {
