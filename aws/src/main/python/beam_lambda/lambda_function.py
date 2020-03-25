@@ -218,32 +218,38 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[ {
+                                'ResourceType': 'instance', //spot-instances-request
+                            'Tags': [ {
+        'Key': 'Name',
+        'Value': instance_name
+    }{
+        'Key': 'GitUserEmail',
+        'Value': git_user_email
+    },{
+        'Key': 'DeployType',
+        'Value': deploy_type_tag
+    } ]
+    } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -304,6 +310,8 @@ def deploy_handler(event):
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', 'false')
 
+    git_user_email = get_param('git_user_email')
+    deploy_type_tag = get_param('deploy_type_tag')
     titled = get_param('title')
     instance_type = get_param('instance_type')
     region = get_param('region')
@@ -368,7 +376,7 @@ def deploy_handler(event):
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 

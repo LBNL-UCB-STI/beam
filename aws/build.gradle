@@ -75,6 +75,8 @@ task deploy(type: AWSLambdaInvokeTask) {
 
         def pload = """{
   "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+  "git_user_email": "${getCurrentGitUserEmail()}",
+  "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
