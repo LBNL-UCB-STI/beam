@@ -102,7 +102,7 @@ class BeamSim @Inject()(
   val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
     val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
       networkHelper,
-      Some(beamServices.matsimServices.getControlerIO),
+      beamServices.matsimServices.getControlerIO,
       TakeAllTripsTripFilter,
       ""
     )
@@ -110,7 +110,7 @@ class BeamSim @Inject()(
       Some(
         new CarTripStatsFromPathTraversalEventHandler(
           networkHelper,
-          Some(beamServices.matsimServices.getControlerIO),
+          beamServices.matsimServices.getControlerIO,
           new StudyAreaTripFilter(beamServices.beamConfig.beam.calibration.studyArea, beamServices.geo),
           "studyarea"
         )

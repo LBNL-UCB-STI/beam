@@ -1,5 +1,6 @@
 package beam.analysis.cartraveltime
 import beam.agentsim.agents.GenericEventsSpec
+import org.matsim.core.controler.events.IterationEndsEvent
 import org.scalatest.Assertion
 import org.scalatest.Matchers._
 
@@ -11,12 +12,14 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
     "write speed statistics files" in {
       val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
-        Some(beamServices.matsimServices.getControlerIO),
+        beamServices.matsimServices.getControlerIO,
         TakeAllTripsTripFilter,
         ""
       )
 
       processHandlers(List(handler))
+
+      handler.notifyIterationEnds(new IterationEndsEvent(beamServices.matsimServices, 0))
 
       checkFileExistenceInRoot("averageCarSpeed.csv")
       checkFileExistenceInRoot("averageCarSpeed.png")
@@ -26,9 +29,18 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
       checkFileExistenceInRoot("FreeFlowCarSpeed.csv")
 
       // If those start to fail, someone changed vehicle types for beamville or `CarTripStatsFromPathTraversalEventHandler` is changed
-      checkFileExistenceInIterFolder("ridehail.CarRideStats.csv.gz", 0)
-      checkFileExistenceInIterFolder("personal.CarRideStats.csv.gz", 0)
-      checkFileExistenceInIterFolder("cav.CarRideStats.csv.gz", 0)
+      checkFileExistenceInIterFolder("CarRideStats.ridehail.csv.gz", 0)
+      checkFileExistenceInIterFolder("CarRideStats.personal.csv.gz", 0)
+      checkFileExistenceInIterFolder("CarRideStats.cav.csv.gz", 0)
+
+      checkFileExistenceInIterFolder("AverageSpeed.ridehail.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeed.personal.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeed.cav.png", 0)
+
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.ridehail.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.personal.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.cav.png", 0)
+
     }
   }
 
