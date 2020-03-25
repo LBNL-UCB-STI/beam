@@ -222,7 +222,7 @@ object BeamWarmStart extends LazyLogging {
 
       // We need to get the plans from the iteration folder, not root!
       val plansCsv = instance.compressedLocation("Plans.csv", "plans.csv.gz", rootFirst = false)
-      
+
       val houseHoldsCsv = instance.compressedLocation("Households", "households.csv.gz")
 
       val vehiclesCsv = instance.compressedLocation("Vehicles", "vehicles.csv.gz")
