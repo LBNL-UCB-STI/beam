@@ -397,7 +397,9 @@ class RideHailManager(
           }
           .foreach(activityEndTimes += _)
       )
+      val maxActivityEndTime = activityEndTimes.max
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer
+
       var idx = 0
       while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
         if (idx >= persons.length) {
@@ -426,7 +428,7 @@ class RideHailManager(
                 math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
               val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
               val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, maxActivityEndTime)
               equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
 
               val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
@@ -910,8 +912,7 @@ class RideHailManager(
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case msg =>
-      log.warning("unknown message received by RideHailManager {}", msg)
-
+      log.warning(s"unknown message from ${sender()} with type '${msg.getClass}', message: ${msg}")
   }
 
   def updatePassengerSchedule(
