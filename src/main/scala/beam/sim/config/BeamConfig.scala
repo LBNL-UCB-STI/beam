@@ -24,6 +24,7 @@ object BeamConfig {
     replanning: BeamConfig.Beam.Replanning,
     router: BeamConfig.Beam.Router,
     routing: BeamConfig.Beam.Routing,
+    sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
@@ -2396,6 +2397,76 @@ object BeamConfig {
       }
     }
 
+    case class Sim(
+      metric: BeamConfig.Beam.Sim.Metric
+    )
+
+    object Sim {
+      case class Metric(
+        collector: BeamConfig.Beam.Sim.Metric.Collector
+      )
+
+      object Metric {
+        case class Collector(
+          influxDbSimulationMetricCollector: BeamConfig.Beam.Sim.Metric.Collector.InfluxDbSimulationMetricCollector,
+          metrics: java.lang.String
+        )
+
+        object Collector {
+          case class InfluxDbSimulationMetricCollector(
+            connectionString: java.lang.String,
+            database: java.lang.String
+          )
+
+          object InfluxDbSimulationMetricCollector {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Sim.Metric.Collector.InfluxDbSimulationMetricCollector = {
+              BeamConfig.Beam.Sim.Metric.Collector.InfluxDbSimulationMetricCollector(
+                connectionString =
+                  if (c.hasPathOrNull("connectionString")) c.getString("connectionString") else "http://localhost:8086",
+                database = if (c.hasPathOrNull("database")) c.getString("database") else "beam"
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim.Metric.Collector = {
+            BeamConfig.Beam.Sim.Metric.Collector(
+              influxDbSimulationMetricCollector =
+                BeamConfig.Beam.Sim.Metric.Collector.InfluxDbSimulationMetricCollector(
+                  if (c.hasPathOrNull("influxDbSimulationMetricCollector"))
+                    c.getConfig("influxDbSimulationMetricCollector")
+                  else com.typesafe.config.ConfigFactory.parseString("influxDbSimulationMetricCollector{}")
+                ),
+              metrics =
+                if (c.hasPathOrNull("metrics")) c.getString("metrics")
+                else
+                  "beam-run-households,beam-run-charging-depots-stalls-cnt,beam-run-charging-depots-cnt,beam-run-private-fleet-size,beam-run,beam-run-public-fast-charge-cnt,beam-run-population-size,beam-run-public-fast-charge-stalls-cnt,beam-run-RH-ev-non-cav,ride-hail-inquiry-served,beam-iteration,rh-ev-cav-count,rh-ev-cav-distance,rh-noev-nocav-distance,beam-run-RH-non-ev-non-cav,average-travel-time,rh-ev-nocav-distance,rh-noev-cav-distance,beam-run-RH-ev-cav,chargingPower,ride-hail-allocation-reserved,ride-hail-waiting-time-map,rh-noev-nocav-count,ride-hail-trip-distance,rh-ev-nocav-count,mode-choices,rh-noev-cav-count,beam-run-RH-non-ev-cav,parking,ride-hail-waiting-time"
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim.Metric = {
+          BeamConfig.Beam.Sim.Metric(
+            collector = BeamConfig.Beam.Sim.Metric.Collector(
+              if (c.hasPathOrNull("collector")) c.getConfig("collector")
+              else com.typesafe.config.ConfigFactory.parseString("collector{}")
+            )
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim = {
+        BeamConfig.Beam.Sim(
+          metric = BeamConfig.Beam.Sim.Metric(
+            if (c.hasPathOrNull("metric")) c.getConfig("metric")
+            else com.typesafe.config.ConfigFactory.parseString("metric{}")
+          )
+        )
+      }
+    }
+
     case class Spatial(
       boundingBoxBuffer: scala.Int,
       localCRS: java.lang.String
@@ -2496,6 +2567,9 @@ object BeamConfig {
         routing = BeamConfig.Beam.Routing(
           if (c.hasPathOrNull("routing")) c.getConfig("routing")
           else com.typesafe.config.ConfigFactory.parseString("routing{}")
+        ),
+        sim = BeamConfig.Beam.Sim(
+          if (c.hasPathOrNull("sim")) c.getConfig("sim") else com.typesafe.config.ConfigFactory.parseString("sim{}")
         ),
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")

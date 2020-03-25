@@ -309,7 +309,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
   }
 
   private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
-    countOccurrence("r5-plans-count")
+    countOccurrence("r5-plans-count", request.time)
 
     val profileRequest = createProfileRequest
     profileRequest.fromLon = request.from.getX
