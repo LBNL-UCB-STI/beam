@@ -37,7 +37,7 @@ task GrafanaInfluxDBChmodFolders(type: Exec) {
     args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './chmodfolders.sh']
 
     doLast {
-        println "Folders prepared to be cleaned."
+        println "Snapshot folder might be cleaned."
     }
 }
 
@@ -46,7 +46,7 @@ task GrafanaInfluxDBStopServices(type: Exec) {
     args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './stopservices.sh']
 
     doLast {
-        println "Services stopped."
+        println "Grafana and InfluxDB services are stopped."
     }
 }
 
@@ -55,7 +55,7 @@ task GrafanaInfluxDBCreateSnapshot(type: Exec) {
     args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './backup.sh']
 
     doLast {
-        println "Snapshot created."
+        println "InfluxDB snapshot created."
     }
 }
 
@@ -89,7 +89,7 @@ task grafanaClearData {
 }
 
 task grafanaStop {
-    description 'Stops Grafana and Influx DB docker container.'
+    description 'Stops Grafana and InfluxDB docker container.'
     group 'Grafana'
 
     dependsOn(GrafanaInfluxDBCreateSnapshot)
