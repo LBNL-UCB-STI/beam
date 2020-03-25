@@ -122,7 +122,7 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  private def findIterationContainsFile(itFile: String, iterBase: String) = {
+  private def findIterationContainsFile(itFile: String, iterBase: String): Option[Int] = {
     new File(iterBase)
       .list()
       .filter(_.startsWith("it."))
