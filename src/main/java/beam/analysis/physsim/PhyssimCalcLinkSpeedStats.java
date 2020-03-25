@@ -33,16 +33,17 @@ import java.util.stream.IntStream;
  */
 public class PhyssimCalcLinkSpeedStats {
 
+    static final String OUTPUT_FILE_NAME = "physsimLinkAverageSpeedPercentage";
     private static final int BIN_SIZE = 3600;
     private static final List<Color> COLORS = Collections.unmodifiableList(
             Arrays.asList(Color.GREEN, Color.BLUE)
     );
     private static final int NUM_OF_BIN_TEST_MODE = 24;
+
     private final int numOfBins;
     private final BeamConfig beamConfig;
     private final Network network;
     private final OutputDirectoryHierarchy outputDirectoryHierarchy;
-    static final String outputFileName = "physsimLinkAverageSpeedPercentage";
 
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;
@@ -66,7 +67,7 @@ public class PhyssimCalcLinkSpeedStats {
         CategoryDataset dataSet = generateGraphCategoryDataSet(processedData);
         if (this.outputDirectoryHierarchy != null) {
             if (!isTestMode()) {
-                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName + ".csv"));
+                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, OUTPUT_FILE_NAME + ".csv"));
             }
             if (beamConfig.beam().outputs().writeGraphs()) {
                 generateAverageLinkSpeedGraph(dataSet, iteration);
@@ -154,7 +155,7 @@ public class PhyssimCalcLinkSpeedStats {
         plot.getRenderer().setSeriesPaint(0, getColor(0));
         plot.setFixedLegendItems(legendItems);
         //Save the chart as image
-        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputFileName + ".png");
+        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, OUTPUT_FILE_NAME + ".png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
