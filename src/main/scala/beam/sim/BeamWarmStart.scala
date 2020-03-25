@@ -208,7 +208,7 @@ object BeamWarmStart extends LazyLogging {
   }
 
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
-    logger.error("Warmstart updateExecutionConfig")
+    logger.debug("Warmstart updateExecutionConfig")
     val beamConfig: BeamConfig = beamExecutionConfig.beamConfig
 
     if (beamConfig.beam.warmStart.enabled) {
