@@ -12,10 +12,10 @@ trait RoutingToolWrapper {
   def createCCH(): Unit
 }
 
-class RoutingToolWrapperImpl @Inject()(beamServices: BeamServices) extends RoutingToolWrapper {
+class RoutingToolWrapperImpl1 @Inject()(beamServices: BeamServices)
+      extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile)
 
-  private val pbfPath = beamServices.beamConfig.beam.routing.r5.osmFile
-
+class InternalRTWrapper (private val pbfPath : String) extends RoutingToolWrapper {
   private val toolDockerImage = "rooting-tool"
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraph = s"$basePath/RawData/ConvertGraph"
@@ -45,7 +45,7 @@ class RoutingToolWrapperImpl @Inject()(beamServices: BeamServices) extends Routi
         | -i $pbfInTempDirPath
         | -d binary
         | -o $graphPath
-        | -scc -a capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
+        | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
       """.stripMargin.replace("\n", ""))
 
     println(convertGraphOutput.!!)
@@ -81,4 +81,8 @@ class RoutingToolWrapperImpl @Inject()(beamServices: BeamServices) extends Routi
     println(assignTrafficOutput.!!)
   }
 
+}
+
+object Starter extends App{
+  new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf").createCCH()
 }
