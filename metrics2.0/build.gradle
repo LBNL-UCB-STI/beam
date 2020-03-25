@@ -1,0 +1,115 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        // 0.9.5 because starting from plugin version 0.10.0, Gradle 4.9 or newer is required
+        classpath 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    }
+}
+
+apply plugin: 'docker-compose'
+
+def grafana_influxDB_container_name = 'docker-influxdb-grafana'
+
+task grafanaStart {
+    description 'Starts Grafana and Influx DB docker container.'
+    group 'Grafana'
+
+    // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    dependsOn(composeUp)
+
+    doLast {
+        println """Grafana is ready."""
+        println """Global view: \n\t http://localhost:3003/d/dvib8mbWz/beam-simulation-global-view"""
+        println """Iteration view: \n\t http://localhost:3003/d/5oUysNJWz/beam-simulation-iteration-view"""
+        println """Iteration MAP view: \n\t http://localhost:3003/d/otUGbMyZk/beam-simulation-iteration-map-view"""
+        println """Global view comparison: \n\t http://localhost:3003/d/KuiPBbBWz/beam-simulation-global-view-comparison"""
+        println """Iteration view comparison: \n\t http://localhost:3003/d/66mrcxfWz/beam-simulation-iteration-view-comparison"""
+    }
+}
+
+task GrafanaInfluxDBChmodFolders(type: Exec) {
+    executable = "docker"
+    args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './chmodfolders.sh']
+
+    doLast{
+        println "Folders prepared to be cleaned."
+    }
+}
+
+task GrafanaInfluxDBContainerStop(type: Exec) {
+    executable = "docker"
+    args = ['container', 'stop', grafana_influxDB_container_name]
+
+    doLast {
+        println "$grafana_influxDB_container_name container stopped."
+    }
+}
+
+task GrafanaInfluxDBContainerRM(type: Exec) {
+    executable = "docker"
+    args = ['container', 'rm', grafana_influxDB_container_name]
+
+    doLast {
+        println "$grafana_influxDB_container_name container removed."
+    }
+}
+
+task grafanaClearData {
+    description 'Clear all collected by grafana data, i.e. all BEAM runs data which are displayed in graphs.'
+    group 'Grafana'
+
+    doFirst {
+        // delete only content in dirs
+        ["$projectDir/grafana/log", "$projectDir/grafana/data/png", "$projectDir/influxdb/data", "$projectDir/influxdb/log"].forEach {
+            directory ->
+                delete fileTree(dir: directory, exclude: '.gitignore')
+                println "files and folders under $directory are removed"
+        }
+
+        // delete completely
+        ["$projectDir/influxdb/data/data", "$projectDir/grafana/data/png", "$projectDir/influxdb/data/log"].forEach {
+            dirName ->
+                def directory = new File(dirName)
+                if (directory.deleteDir()) {
+                    println "$dirName deleted"
+                } else {
+                    println "can not delete $dirName"
+                }
+        }
+
+        // delete file completely
+        def path = "$projectDir/grafana/data/grafana.db"
+        delete path
+        println "$path deleted"
+    }
+}
+
+task grafanaStop {
+    description 'Stops Grafana and Influx DB docker container.'
+    group 'Grafana'
+
+    // to do chmod on all grafana and influxDB folders
+    // so, one will be able to remove them
+    dependsOn(GrafanaInfluxDBChmodFolders)
+    dependsOn(GrafanaInfluxDBContainerStop)
+    dependsOn(GrafanaInfluxDBContainerRM)
+
+    // the whole logic used to come from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    // but it appears that, sometimes, after switching branches and\or restarting pc
+    // composeDown is unable to stop container
+    // dependsOn(composeDown)
+
+    doLast {
+        println "Grafana has stopped."
+        println "In order to clean all collected by grafana data use \'grafanaClearData\' gradle task."
+    }
+}
+
+// to ensure that `docker compose down` called after chmod of folders inside docker image
+GrafanaInfluxDBContainerRM.mustRunAfter GrafanaInfluxDBContainerStop
+GrafanaInfluxDBContainerStop.mustRunAfter GrafanaInfluxDBChmodFolders
