@@ -152,11 +152,6 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
   private lazy val parentRunPath: String =
     FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
 
-  private def getTravelTime(statsFile: String): TravelTime = {
-    val binSize = beamConfig.beam.agentsim.timeBinSize
-
-    new LinkTravelTimeContainer(statsFile, binSize, maxHour)
-  }
 }
 
 object BeamWarmStart extends LazyLogging {
