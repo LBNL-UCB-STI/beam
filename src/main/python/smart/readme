@@ -1,0 +1,34 @@
+
+
+ Documentation:
+
+
+ "smartdata_setup.py": contains the script for downloading events file, summaryStat and beamLog that is going to be stored locally.
+ Once downloaded the script will extract from files the required data that going to formatted and aggregated then stored in a csv file named as: {year}.{iteration}.metrics-final.csv
+ The script also generates the sankey-diagram, under the "sankey" folder
+
+ "smartdata_run.py": In this file you would want to define the scenarios and their correspondent S3 folders (this script assume that all scenarios have the same link, but with different folders) as follows:
+ (Rank, Year, Iteration, Scenario, Technology, Scenario-Technology folder name in the S3 link, Run folder corresponding to the Year and Scenario)
+Rank here, serves as a way to order matrices or vectors in certain way to be able to do matrix and vector multiplication.
+
+ ****
+
+ "smartplots_setup.py": contains the scripts generating the different plots.
+ To add a new plot, one will need to create a function that does that specific plot, then call it from "smartplots_run.py"
+
+"smartplots_run.py": contains the configuration required to generate a plot for a certain scenario.
+this is the main script that should be run to generate plots.
+Optionally, it is possible to call this script from "smartdata_run.py" immediately after the files have been downloaded, stored and processed.
+
+
+**** NEW
+
+"smartplots2_setup.py": contains same plot as "smartplots_setup.py", but these plots have mixed years
+
+"smartplots2_run.py": steps for plotting different scenarios in different years
+name => is the prefix for every png/csv file
+scenarios_id => the ids of the scenarios to plotted in that order
+scenarios_itr => the iteration from which to extract the corresponding data
+scenarios_year => the year from which to extract the corresponding data
+bottom_labels => labels at the bottom of x axis (scenarios)
+top_labels => labels on top fo the x axis (technologies)

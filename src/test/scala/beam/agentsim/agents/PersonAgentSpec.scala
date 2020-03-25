@@ -15,11 +15,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -34,7 +35,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -77,7 +78,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -115,9 +119,7 @@ class PersonAgentSpec
           parkingManager,
           services.tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo),
           boundingBox = boundingBox
         )
       )
@@ -125,7 +127,6 @@ class PersonAgentSpec
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
-      expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
     }
 
@@ -135,7 +136,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -181,8 +185,6 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -221,7 +223,7 @@ class PersonAgentSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    endPoint = SpaceTime(1.0, 1.0, 28850),
                     distanceInM = 1000D
                   )
                 ),
@@ -284,7 +286,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -380,8 +385,6 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -519,7 +522,10 @@ class PersonAgentSpec
       val events = new TestProbe(system)
       eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
-          events.ref ! event
+          event match {
+            case _: AbstractSkimmerEvent => // ignore
+            case _                       => events.ref ! event
+          }
         }
       })
       val transitDriverProps = Props(new ForwardActor(self))
@@ -658,8 +664,6 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )

@@ -46,7 +46,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       beamServices.controler.run()
     }
 
-    "keep passengers right count" in {
+    "keep passengers right count" ignore {
       val events = TrieMap[String, Tuple3[Int, Int, Int]]()
 
       initialSetup(new BasicEventHandler {

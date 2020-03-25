@@ -6,6 +6,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.metrics.SimulationMetricCollector
 import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.core.controler._
@@ -56,7 +57,7 @@ import org.matsim.core.controler._
 trait BeamServices {
   val injector: Injector
   val controler: ControlerI
-  val beamConfig: BeamConfig
+  def beamConfig: BeamConfig
   def beamScenario: BeamScenario
 
   val geo: GeoUtils
@@ -68,12 +69,18 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
   def tollCalculator: TollCalculator
+
+  def simMetricCollector: SimulationMetricCollector
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+
+  def beamConfig: BeamConfig = {
+    val inst = injector.getInstance(classOf[BeamConfigChangesObservable])
+    inst.lastBeamConfig
+  }
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -85,4 +92,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
   override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
+
+  override def simMetricCollector: SimulationMetricCollector = injector.getInstance(classOf[SimulationMetricCollector])
 }

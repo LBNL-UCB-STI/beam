@@ -25,8 +25,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -43,7 +44,7 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
@@ -89,7 +90,10 @@ class PersonWithVehicleSharingSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -134,8 +138,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -154,7 +156,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -171,7 +173,10 @@ class PersonWithVehicleSharingSpec
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
-                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+                  travelPath = embodyRequest.leg.travelPath.copy(
+                    linkTravelTime = IndexedSeq(0, 500, 0),
+                    endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500)
+                  )
                 ),
                 beamVehicleId = vehicleId,
                 beamVehicleTypeId = vehicle.beamVehicleType.id,
@@ -206,7 +211,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
@@ -229,7 +234,10 @@ class PersonWithVehicleSharingSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -275,8 +283,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -295,7 +301,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -319,7 +325,7 @@ class PersonWithVehicleSharingSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.0, 28850),
                     distanceInM = 1000D
                   )
                 ),
@@ -374,7 +380,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[NotifyVehicleIdle]
@@ -398,7 +404,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle2.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -422,7 +428,7 @@ class PersonWithVehicleSharingSpec
                     linkTravelTime = Vector(10, 10, 10, 10),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.01, 61200),
-                    endPoint = SpaceTime(0.0, 0.0, 61240),
+                    endPoint = SpaceTime(0.0, 0.0, 61230),
                     distanceInM = 1000D
                   )
                 ),
@@ -451,7 +457,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      car1.manager = Some(mockSharedVehicleFleet.ref)
+      car1.setManager(Some(mockSharedVehicleFleet.ref))
 
       val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
       population.addPerson(person1)
@@ -514,8 +520,6 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -528,7 +532,7 @@ class PersonWithVehicleSharingSpec
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle)))
+            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle)))
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
@@ -537,7 +541,10 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 500, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,
@@ -564,7 +571,7 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
-        Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
+        Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
@@ -572,7 +579,10 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 500, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,
@@ -676,13 +686,7 @@ class PersonWithVehicleSharingSpec
     person
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
-    whenWhere.loc,
-    "wherever",
-    0.0,
-    None,
-    0.0
-  )
+  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def afterAll(): Unit = {
     shutdown()

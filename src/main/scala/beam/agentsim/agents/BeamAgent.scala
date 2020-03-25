@@ -40,7 +40,8 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTick
       reason match {
         case FSM.Shutdown =>
           log.error(
-            "Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n"
+            "BeamAgent Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception. In state {}\n",
+            currentState
           )
         case _ =>
       }

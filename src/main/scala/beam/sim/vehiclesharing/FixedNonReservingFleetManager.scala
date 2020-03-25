@@ -22,7 +22,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
@@ -32,6 +31,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Random
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
   val id: Id[VehicleManager],
@@ -40,7 +40,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val vehicleType: BeamVehicleType,
   val mainScheduler: ActorRef,
   val beamServices: BeamServices,
-  val beamSkimmer: BeamSkimmer,
   val maxWalkingDistance: Int,
   val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
 ) extends Actor
@@ -51,19 +50,22 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
+  private val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+
   private val vehicles = (locations.zipWithIndex map {
     case (location, ix) =>
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
-        vehicleType
+        vehicleType,
+        rand.nextInt()
       )
-      vehicle.manager = Some(self)
+      vehicle.setManager(Some(self))
       vehicle.spaceTime = SpaceTime(location, 0)
       vehicle.id -> vehicle
   }).toMap
 
-  private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
   override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
@@ -72,7 +74,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.values.map { veh =>
-          veh.manager = Some(self)
+          veh.setManager(Some(self))
           parkingManager ? parkingInquiry(veh.spaceTime) flatMap {
             case ParkingInquiryResponse(stall, _) =>
               veh.useParkingStall(stall)
@@ -117,13 +119,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
-    whenWhere.loc,
-    "wherever",
-    0.0,
-    None,
-    0.0
-  )
+  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def getId: Id[VehicleManager] = id
   override def queryAvailableVehicles: List[BeamVehicle] =
@@ -131,7 +127,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getServices: BeamServices = beamServices
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
-  override def getSkimmer: BeamSkimmer = beamSkimmer
+  override def getAvailableVehicles: Iterable[BeamVehicle] = availableVehicles.values
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)

@@ -25,8 +25,13 @@ case class BeamVehicleType(
   vehicleCategory: VehicleCategory,
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
-  sampleProbabilityWithinCategory: Double = 1.0
+  sampleProbabilityWithinCategory: Double = 1.0,
+  sampleProbabilityString: Option[String] = None
 ) {
+
+  def isEV: Boolean = {
+    primaryFuelType == Electricity || secondaryFuelType.contains(Electricity)
+  }
 
   def isCaccEnabled: Boolean = {
     automationLevel >= 3

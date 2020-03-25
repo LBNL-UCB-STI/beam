@@ -4,7 +4,8 @@ import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper}
+import com.google.inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
@@ -16,6 +17,8 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _
   protected var scenario: Scenario = _
+  protected var networkHelper: NetworkHelper = _
+  private var injector: inject.Injector = _
 
   override def beforeAll(): Unit = {
 
@@ -29,7 +32,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(beamScenario.network)
 
-    val injector = org.matsim.core.controler.Injector.createInjector(
+    injector = org.matsim.core.controler.Injector.createInjector(
       matsimConfig,
       module(baseConfig, beamConfig, scenario, beamScenario)
     )
@@ -40,9 +43,13 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])
+    networkHelper = injector.getInstance(classOf[NetworkHelper])
   }
 
   override protected def afterAll(): Unit = {
+    val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
+    if (travelDistanceStats != null)
+      travelDistanceStats.close()
     scenario = null
     eventManager = null
     beamServices = null
