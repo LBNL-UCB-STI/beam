@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+"""Generate A CSV file containing Google Maps links and apply filters from the Beam files: {iteration}.personal.CarRideStats.csv.gz
+Example of usage:
+python generate_rides_with_google_maps.py \
+--inputFile="/folder-path/it.0/0.CarRideStats.csv.gz" \
+--sampleSize=5 \
+--sampleSeed=12345 \
+--travelDistanceIntervalInMeters=[4450,6000] \
+--departureTimeIntervalInSeconds=[25246,25248] \
+--areaBoundBox=[(10,11.1),(12,14)]
+
+Only inputFile is a mandatory parameter. All others are optional
+"""
+
 import pandas as pd
 import getopt, sys
 from pathlib import Path
@@ -6,7 +20,10 @@ import random
 import numpy as np
 from tabulate import tabulate
 from urllib.parse import urlparse
-from classes import BoundBox
+import re
+
+
+__author__ = "Carlos Caldas"
 
 
 def main(args):
@@ -27,7 +44,12 @@ def search_argument(argument_name, arguments):
 
 def parse_parameters(args):
     short_options = ""
-    long_options = ["help", "inputFile=", "sampleSize=", "sampleSeed=", "maxDistance=", "departureTimeRange=",
+    long_options = ["help",
+                    "inputFile=",
+                    "sampleSize=",
+                    "sampleSeed=",
+                    "travelDistanceIntervalInMeters=",
+                    "departureTimeIntervalInSeconds=",
                     "areaBoundBox="]
     try:
         arguments, _ = getopt.getopt(args[1:], short_options, long_options)
@@ -38,10 +60,8 @@ def parse_parameters(args):
         if search_argument("--sampleSize", arguments) is not None \
                 and search_argument("--sampleSeed", arguments) is None:
             seed = random.randint(0, 4294967296)
-            print(f"Seed not specified. Using the number [{seed}] as seed.")
+            print(f"[INFO] Seed not specified. Using the number [{seed}] as seed.")
             arguments.append(("--sampleSeed", str(seed)))
-
-        # if search_argument("--sampleSize", arguments) is not None \
 
         return arguments
     except getopt.error as err:
@@ -139,43 +159,79 @@ def read_csv_as_dataframe(file_path, program_arguments):
                "start_y", "end_x", "end_y"]
     original_df = pd.read_csv(file_path, skiprows=1, names=columns)
 
-    sample_size = search_argument("--sampleSize", program_arguments)
-    if sample_size is not None:
-        sample_size = int(sample_size)
-        sample_seed = int(search_argument("--sampleSeed", program_arguments))
-        print(f"**** Sampling data. sampleSize: [{max_distance}]. sampleSeed: [{sample_seed}]")
-        original_df = original_df.sample(n=sample_size, random_state=sample_seed)
+    travel_distance_interval_in_meters = search_argument("--travelDistanceIntervalInMeters", program_arguments)
+    if travel_distance_interval_in_meters is not None:
+        # travel_distance_interval_in_meters = float(travel_distance_interval_in_meters)
+        travel_distance_values = re.findall("([\d.]+)", travel_distance_interval_in_meters)
+        if len(travel_distance_values) != 2:
+            raise Exception(
+                f"travelDistanceIntervalInMeters({travel_distance_interval_in_meters}) does not contain a valid range")
+        try:
+            travel_distance_start = float(travel_distance_values[0])
+            travel_distance_end = float(travel_distance_values[1])
+            print(f"**** Filtering travelDistanceIntervalInMeters: {travel_distance_interval_in_meters}")
+            original_df = original_df[(original_df['distance'] >= travel_distance_start) &
+                                      (original_df['distance'] <= travel_distance_end)]
+        except ValueError:
+            raise Exception(
+                f"travelDistanceIntervalInMeters({travel_distance_interval_in_meters}) does not contain a valid range")
 
-    max_distance = search_argument("--maxDistance", program_arguments)
-    if max_distance is not None:
-        max_distance = float(max_distance)
-        print(f"**** Filtering maxDistance: [{max_distance}]")
-        original_df = original_df[original_df['distance'] <= max_distance]
-
-    departure_time_range = search_argument("--departureTimeRange", program_arguments)
+    departure_time_range = search_argument("--departureTimeIntervalInSeconds", program_arguments)
     if departure_time_range is not None:
         departure_time_range = departure_time_range[1:-1]
         departure_time_start = float(departure_time_range.split(",")[0])
         departure_time_end = float(departure_time_range.split(",")[1])
-        print(f"**** Filtering departureTimeRange: [{departure_time_start},{departure_time_end}]")
+        print(f"**** Filtering departureTimeIntervalInSeconds: [{departure_time_start},{departure_time_end}]")
         original_df = original_df[(original_df['departure_time'] >= departure_time_start) & (
-                    original_df['departure_time'] <= departure_time_end)]
+                original_df['departure_time'] <= departure_time_end)]
 
     area_bound_box = search_argument("--areaBoundBox", program_arguments)
     if area_bound_box is not None:
         area_bound_box = BoundBox.from_str(area_bound_box)
         print(f"**** Filtering area BoundBox: {area_bound_box.to_string()}")
         original_df = original_df[((original_df['start_x'] >= area_bound_box.topLeft.x)
-                                  & (original_df['start_x'] <= area_bound_box.rightBottom.x)
-                                  & (original_df['start_y'] >= area_bound_box.topLeft.y)
-                                  & (original_df['start_y'] <= area_bound_box.rightBottom.y)) |
+                                   & (original_df['start_x'] <= area_bound_box.rightBottom.x)
+                                   & (original_df['start_y'] >= area_bound_box.topLeft.y)
+                                   & (original_df['start_y'] <= area_bound_box.rightBottom.y)) |
                                   ((original_df['end_x'] >= area_bound_box.topLeft.x)
                                    & (original_df['end_x'] <= area_bound_box.rightBottom.x)
                                    & (original_df['end_y'] >= area_bound_box.topLeft.y)
                                    & (original_df['end_y'] <= area_bound_box.rightBottom.y))
-        ]
+                                  ]
+
+    sample_size = search_argument("--sampleSize", program_arguments)
+    if sample_size is not None:
+        sample_size = int(sample_size)
+        sample_seed = int(search_argument("--sampleSeed", program_arguments))
+        print(f"**** Sampling data. sampleSize: [{sample_size}]. sampleSeed: [{sample_seed}]")
+        original_df = original_df.sample(n=sample_size, random_state=sample_seed)
 
     return original_df
+
+
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+class BoundBox:
+    def __init__(self, topLeft, rightBottom):
+        self.topLeft = topLeft
+        self.rightBottom = rightBottom
+
+    def from_str(value):
+        values = re.findall("([\d.]+)", value)
+        if len(values) != 4:
+            msg = f"Invalid BoundBox input: [{value}]. It must have 4 float values"
+            raise Exception(msg)
+        a = Point(float(values[0]), float(values[1]))
+        b = Point(float(values[2]), float(values[3]))
+        return BoundBox(a, b)
+
+    def to_string(self):
+        return f"[({self.topLeft.x},{self.topLeft.y})({self.rightBottom.x},{self.rightBottom.y})]"
+
 
 if __name__ == "__main__":
     main(sys.argv)
