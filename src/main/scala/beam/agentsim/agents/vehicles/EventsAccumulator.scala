@@ -38,7 +38,7 @@ class EventsAccumulator(scheduler: ActorRef, beamConfig: BeamConfig) extends Act
 
     case t @ TriggerWithId(EventsAccumulatorTrigger(tick), _) =>
       informExternalSystem(tick)
-      sender ! CompletionNotice(t.triggerId, Vector(ScheduleTrigger(EventsAccumulatorTrigger(tick + timeout), self)))
+      sender ! CompletionNotice(t.triggerId, Vector(ScheduleTrigger(EventsAccumulatorTrigger(tick + timeInterval), self)))
 
     case ProcessChargingEvents(e) =>
       chargingEventsBuffer += e

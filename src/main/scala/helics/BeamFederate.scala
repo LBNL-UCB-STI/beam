@@ -1,5 +1,6 @@
 package helics
 
+import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
 import org.matsim.api.core.v01.Coord
@@ -39,8 +40,6 @@ case class BeamFederate(name: String, bin: Int) {
     currenttime.toInt
   }
 
-
-
   def close(): Unit = {
     helics.helicsFederateFinalize(cfed)
     helics.helicsFederateFree(cfed)
@@ -49,7 +48,7 @@ case class BeamFederate(name: String, bin: Int) {
 }
 
 object BeamFederate {
-  System.loadLibrary("JNIhelics")
+  HelicsLoader.load()
   var outGoing: Option[BeamFederate] = None
   def getBeamFederate1(bin: Int): BeamFederate = {
     if (outGoing.isEmpty)
