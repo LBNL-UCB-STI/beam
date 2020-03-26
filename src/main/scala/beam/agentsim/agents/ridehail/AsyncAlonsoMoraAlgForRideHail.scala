@@ -21,10 +21,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class AsyncAlonsoMoraAlgForRideHail(
-                                     spatialDemand: QuadTree[CustomerRequest],
-                                     supply: List[VehicleAndSchedule],
-                                     beamServices: BeamServices
-                                   ) extends RHMatchingAlgorithm {
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices
+) extends RHMatchingAlgorithm {
 
   private val solutionSpaceSizePerVehicle =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
@@ -76,7 +76,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             if (!vertices.contains(v)) vertices append v
             vertices append (r, t)
             edges append ((r, t), (t, v))
-          }
+        }
     )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 to v.getFreeSeats) {
@@ -84,10 +84,10 @@ class AsyncAlonsoMoraAlgForRideHail(
         val kRequestsList = ListBuffer.empty[RideHailTrip]
         for (t1 <- finalRequestsList) {
           for (t2 <- finalRequestsList
-            .drop(finalRequestsList.indexOf(t1))
-            .filter(
-              x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
-            )) {
+                 .drop(finalRequestsList.indexOf(t1))
+                 .filter(
+                   x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
+                 )) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {

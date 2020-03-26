@@ -31,10 +31,10 @@ object AlonsoMoraPoolingAlgForRideHail {
 }
 
 class AlonsoMoraPoolingAlgForRideHail(
-                                       spatialDemand: QuadTree[CustomerRequest],
-                                       supply: List[VehicleAndSchedule],
-                                       beamServices: BeamServices
-                                     ) extends RHMatchingAlgorithm {
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  beamServices: BeamServices
+) extends RHMatchingAlgorithm {
 
   AlonsoMoraPoolingAlgForRideHail.initialize
 
@@ -114,7 +114,7 @@ class AlonsoMoraPoolingAlgForRideHail(
                 rvG.addVertex(v)
                 rvG.addVertex(r)
                 rvG.addEdge(v, r, RideHailTrip(List(r), schedule, Some(v)))
-              }
+            }
         )
     }
     rvG
@@ -142,7 +142,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         val combinations = ListBuffer.empty[String]
         for (t1 <- individualRequestsList) {
           for (t2 <- individualRequestsList
-            .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))) {
+                 .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
@@ -163,11 +163,11 @@ class AlonsoMoraPoolingAlgForRideHail(
           val kRequestsList = ListBuffer.empty[RideHailTrip]
           for (t1 <- finalRequestsList) {
             for (t2 <- finalRequestsList
-              .drop(finalRequestsList.indexOf(t1))
-              .filter(
-                x =>
-                  !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
-              )) {
+                   .drop(finalRequestsList.indexOf(t1))
+                   .filter(
+                     x =>
+                       !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
+                   )) {
               val temp = t1.requests ++ t2.requests
               val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
               if (!combinations.contains(matchId)) {
