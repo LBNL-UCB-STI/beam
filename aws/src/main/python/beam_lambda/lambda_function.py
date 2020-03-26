@@ -218,6 +218,42 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
+def get_spot_instance(volume_size, region_prefix, instance_type, script, shutdown_behaviour):
+    ec2.request_spot_instances(
+        InstanceCount=1,
+        InstanceInterruptionBehavior=shutdown_behaviour,
+        LaunchSpecification={
+            'BlockDeviceMappings': [
+                {
+                    'DeviceName': '/dev/sda1',
+                    'Ebs': {
+                        'VolumeSize': volume_size,
+                        'VolumeType': 'gp2'
+                    }
+                }
+            ],
+            'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
+            'InstanceType': instance_type,
+            'UserData': script,
+            'KeyName': os.environ[region_prefix + 'KEY_NAME'],
+            'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
+            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
+        }
+    )
+TagSpecifications=[ {
+                              'ResourceType': 'instance', //spot-instances-request
+                          'Tags': [ {                                                                                                                                                  'Tags': [ {
+        'Key': 'Name',
+        'Value': instance_name
+    }{
+        'Key': 'GitUserEmail',
+        'Value': git_user_email
+    },{
+        'Key': 'DeployType',
+        'Value': deploy_type_tag
+    } ]
+    } ]
+
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
         {
