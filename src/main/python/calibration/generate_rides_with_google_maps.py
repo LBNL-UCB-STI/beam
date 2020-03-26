@@ -12,16 +12,16 @@ python generate_rides_with_google_maps.py \
 Only inputFile is a mandatory parameter. All others are optional
 """
 
-import pandas as pd
-import getopt, sys
-from pathlib import Path
+import getopt
 import glob
 import random
-import numpy as np
-from tabulate import tabulate
-from urllib.parse import urlparse
 import re
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
 
+import pandas as pd
+from tabulate import tabulate
 
 __author__ = "Carlos Caldas"
 
@@ -93,15 +93,13 @@ def is_url(input_file_arg):
     return urlparse(input_file_arg).scheme != ''
 
 
+def google_link(start_x, start_y, end_x, end_y):
+    return f"https://www.google.com/maps/dir/{start_y}%09{start_x}/{end_y}%09{end_x}"
+
+
 def convert_file(input_file_location, output_file_path, program_arguments):
     df = read_csv_as_dataframe(input_file_location, program_arguments)
-    urls_list = generate_urls_as_list(
-        df['start_x'].values.tolist(),
-        df['start_y'].values.tolist(),
-        df['end_x'].values.tolist(),
-        df['end_y'].values.tolist()
-    )
-    df['google_link'] = pd.Series(data=urls_list, dtype='str', index=df.index)
+    df['google_link'] = df.apply(lambda x: google_link(x.start_x, x.start_y, x.end_x, x.end_y), axis=1)
     print(tabulate(df, headers='keys', tablefmt='psql'))
 
     output_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -124,8 +122,7 @@ def select_file(test_output_folder):
         print("[", idx, "]", val)
     try:
         selected_index = int(input("Type index: "))
-        result = Path(found_files[selected_index])
-        return result
+        return found_files[selected_index]
     except ValueError:
         print("You did not entered a valid integer")
         sys.exit(1)
@@ -140,20 +137,6 @@ def find_output_test_directory(execution_file):
     return Path(src_folder).joinpath("../../output/test").resolve()
 
 
-def url_from_tuple(tuple_value):
-    start_x = tuple_value[0]
-    start_y = tuple_value[1]
-    end_x = tuple_value[2]
-    end_y = tuple_value[3]
-    result = f"https://www.google.com/maps/dir/{start_y}%09{start_x}/{end_y}%09{end_x}"
-    return str(result)
-
-
-def generate_urls_as_list(start_x_list, start_y_list, end_x_list, end_y_list):
-    tuples = list(zip(start_x_list, start_y_list, end_x_list, end_y_list))
-    return np.array(list(map(url_from_tuple, tuples)))
-
-
 def read_csv_as_dataframe(file_path, program_arguments):
     columns = ["vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time", "start_x",
                "start_y", "end_x", "end_y"]
@@ -161,8 +144,7 @@ def read_csv_as_dataframe(file_path, program_arguments):
 
     travel_distance_interval_in_meters = search_argument("--travelDistanceIntervalInMeters", program_arguments)
     if travel_distance_interval_in_meters is not None:
-        # travel_distance_interval_in_meters = float(travel_distance_interval_in_meters)
-        travel_distance_values = re.findall("([\d.]+)", travel_distance_interval_in_meters)
+        travel_distance_values = re.findall("(\d+\.?\d*)", travel_distance_interval_in_meters)
         if len(travel_distance_values) != 2:
             raise Exception(
                 f"travelDistanceIntervalInMeters({travel_distance_interval_in_meters}) does not contain a valid range")
@@ -187,17 +169,16 @@ def read_csv_as_dataframe(file_path, program_arguments):
 
     area_bound_box = search_argument("--areaBoundBox", program_arguments)
     if area_bound_box is not None:
+        def filter_by_bound_box(bound_box):
+            def internal_filter(row):
+                point1 = Point(row.start_x, row.start_y)
+                point2 = Point(row.end_x, row.end_y)
+                return bound_box.contains_point(point1) or bound_box.contains_point(point2)
+            return internal_filter
         area_bound_box = BoundBox.from_str(area_bound_box)
-        print(f"**** Filtering area BoundBox: {area_bound_box.to_string()}")
-        original_df = original_df[((original_df['start_x'] >= area_bound_box.topLeft.x)
-                                   & (original_df['start_x'] <= area_bound_box.rightBottom.x)
-                                   & (original_df['start_y'] >= area_bound_box.topLeft.y)
-                                   & (original_df['start_y'] <= area_bound_box.rightBottom.y)) |
-                                  ((original_df['end_x'] >= area_bound_box.topLeft.x)
-                                   & (original_df['end_x'] <= area_bound_box.rightBottom.x)
-                                   & (original_df['end_y'] >= area_bound_box.topLeft.y)
-                                   & (original_df['end_y'] <= area_bound_box.rightBottom.y))
-                                  ]
+        print(f"**** Filtering area BoundBox: {area_bound_box}.")
+        series_filtered_by_bound_box = original_df.apply(filter_by_bound_box(area_bound_box), axis=1)
+        original_df = original_df.loc[series_filtered_by_bound_box]
 
     sample_size = search_argument("--sampleSize", program_arguments)
     if sample_size is not None:
@@ -214,6 +195,9 @@ class Point:
         self.x = x
         self.y = y
 
+    def __str__(self):
+        return "(" + str(self.x) + "," + str(self.y) + ")"
+
 
 class BoundBox:
     def __init__(self, topLeft, rightBottom):
@@ -221,7 +205,7 @@ class BoundBox:
         self.rightBottom = rightBottom
 
     def from_str(value):
-        values = re.findall("([\d.]+)", value)
+        values = re.findall("(-?\d+\.?\d*)", value)
         if len(values) != 4:
             msg = f"Invalid BoundBox input: [{value}]. It must have 4 float values"
             raise Exception(msg)
@@ -229,7 +213,12 @@ class BoundBox:
         b = Point(float(values[2]), float(values[3]))
         return BoundBox(a, b)
 
-    def to_string(self):
+    def contains_point(self, point):
+        condition1 = self.topLeft.x <= point.x <= self.rightBottom.x
+        condition2 = self.topLeft.y <= point.y <= self.rightBottom.y
+        return condition1 and condition2
+
+    def __str__(self):
         return f"[({self.topLeft.x},{self.topLeft.y})({self.rightBottom.x},{self.rightBottom.y})]"
 
 
