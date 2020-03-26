@@ -287,6 +287,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
     val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
+    val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -296,7 +297,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               vehicleId,
               vehicleTypeId,
               asDriver = true,
-              drivingCost + toll,
+              totalCost,
               unbecomeDriverOnCompletion = true
             )
           )
@@ -310,7 +311,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
   }
 
   private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
-    countOccurrence("r5-plans-count")
+    countOccurrence("r5-plans-count", request.time)
 
     val profileRequest = createProfileRequest
     profileRequest.fromLon = request.from.getX
