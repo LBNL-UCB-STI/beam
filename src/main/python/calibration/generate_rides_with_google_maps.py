@@ -177,7 +177,7 @@ def read_csv_as_dataframe(file_path, program_arguments):
             return internal_filter
         area_bound_box = BoundBox.from_str(area_bound_box)
         print(f"**** Filtering area BoundBox: {area_bound_box}.")
-        series_filtered_by_bound_box = original_df.apply(filter_by_bound_box(area_bound_box), axis=1)
+        series_filtered_by_bound_box = original_df.apply(filter_by_bound_box(area_bound_box), axis=1, reduce = True)
         original_df = original_df.loc[series_filtered_by_bound_box]
 
     sample_size = search_argument("--sampleSize", program_arguments)
