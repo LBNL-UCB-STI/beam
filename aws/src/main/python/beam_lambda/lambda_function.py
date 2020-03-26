@@ -4,6 +4,7 @@ import time
 import uuid
 import os
 import glob
+import base64
 from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
@@ -218,8 +219,8 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def get_spot_instance(volume_size, region_prefix, instance_type, script, shutdown_behaviour):
-    ec2.request_spot_instances(
+def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
+    spot_req = ec2.request_spot_instances(
         InstanceCount=1,
         InstanceInterruptionBehavior=shutdown_behaviour,
         LaunchSpecification={
@@ -228,31 +229,49 @@ def get_spot_instance(volume_size, region_prefix, instance_type, script, shutdow
                     'DeviceName': '/dev/sda1',
                     'Ebs': {
                         'VolumeSize': volume_size,
-                        'VolumeType': 'gp2'
+                        'VolumeType': 'gp2',
+                        'DeleteOnTermination': False
                     }
                 }
             ],
             'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
             'InstanceType': instance_type,
-            'UserData': script,
+            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),#script,
             'KeyName': os.environ[region_prefix + 'KEY_NAME'],
             'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
             'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
         }
     )
-TagSpecifications=[ {
-                              'ResourceType': 'instance', //spot-instances-request
-                          'Tags': [ {                                                                                                                                                  'Tags': [ {
-        'Key': 'Name',
-        'Value': instance_name
-    }{
-        'Key': 'GitUserEmail',
-        'Value': git_user_email
-    },{
-        'Key': 'DeployType',
-        'Value': deploy_type_tag
-    } ]
-    } ]
+    state = 'open'
+    while state == 'open':
+        time.sleep(30)
+        spot = ec2.get_all_spot_instance_requests(spot_req.id)[0]
+        state = spot.state
+    if (state != 'active'):
+        exit(1)
+    bd_count = 0
+    while bd_count < 1:
+        time.sleep(30)
+        instance = ec2.get_only_instances(spot.instance_id)[0]
+        bd_count = len(instance.block_device_mapping)
+    ec2.create_tags(
+        Resources=[spot_req.id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    while instance.state == 'pending':
+        time.sleep(30)
+        instance = ec2.get_only_instances(spot.instance_id)[0]
+    print 'Spot Info + ' + spot_req
+    return spot_req.id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
@@ -273,19 +292,21 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
         SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
         IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
         InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-        TagSpecifications=[ {
-                                'ResourceType': 'instance', //spot-instances-request
-                            'Tags': [ {
-        'Key': 'Name',
-        'Value': instance_name
-    }{
-        'Key': 'GitUserEmail',
-        'Value': git_user_email
-    },{
-        'Key': 'DeployType',
-        'Value': deploy_type_tag
-    } ]
-    } ])
+        TagSpecifications=[
+            {
+                'ResourceType': 'instance',
+                'Tags': [
+                    {
+                        'Key': 'Name',
+                        'Value': instance_name
+                    },{
+                        'Key': 'GitUserEmail',
+                        'Value': git_user_email
+                    },{
+                        'Key': 'DeployType',
+                        'Value': deploy_type_tag
+                    } ]
+            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -347,7 +368,7 @@ def deploy_handler(event):
     run_grafana = event.get('run_grafana', 'false')
 
     git_user_email = get_param('git_user_email')
-    deploy_type_tag = get_param('deploy_type_tag')
+    deploy_type_tag = event.get('deploy_type_tag', '')
     titled = get_param('title')
     instance_type = get_param('instance_type')
     region = get_param('region')
@@ -412,7 +433,13 @@ def deploy_handler(event):
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+            is_spot = event.get('is_spot', False)
+            if is_spot:
+                print 'spot'
+                instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+            else:
+                print 'NOT spot'
+                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
