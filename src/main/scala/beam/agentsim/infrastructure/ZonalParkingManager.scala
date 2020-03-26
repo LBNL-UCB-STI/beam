@@ -30,7 +30,7 @@ class ZonalParkingManager(
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
-) extends Actor
+) extends beam.utils.CriticalActor
     with ActorLogging {
 
   if (maxSearchRadius < minSearchRadius) {

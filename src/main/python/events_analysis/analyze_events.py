@@ -29,7 +29,7 @@ def assignVehicleDayToLocationMatrix(day, timeBins, keys):
             if (idx == (len(day.index) - 2)):
                 chargingOneAfter = False
             else:
-                chargingOneAfter = (day.iloc[idx + 1]['type'] == 'ParkEvent') & (day.iloc[idx + 2]['type'] == 'RefuelSessionEvent')
+                chargingOneAfter = (day.iloc[idx + 1]['type'] == 'ParkingEvent') & (day.iloc[idx + 2]['type'] == 'RefuelSessionEvent')
             chargingNext = chargingDirectlyNext | chargingOneAfter
             pickupNext = (day.iloc[idx + 1]['type'] == 'PathTraversal') & (day.iloc[idx + 1]['numPassengers'] >= 1)
         eventCharacteristics = classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH)
@@ -105,7 +105,7 @@ def classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH):
                 #return {'start': event.time - event.duration, 'end': 30*3600, 'type': 'offline'}
             else:
                 return {'start': event.time, 'end': event.time + event.duration, 'type': 'charging', 'next-type': 'parked'}
-    elif event.type == 'ParkEvent':
+    elif event.type == 'ParkingEvent':
         if isRH == True:
             return {'start': event.time, 'end': 30*3600, 'type': 'idle'}
         else:
@@ -115,7 +115,7 @@ def get_pooling_metrics(filename):
     data = pd.read_csv(filename, sep=",", index_col=None, header=0)
 
 
-    relevantEvents = data.loc[((data['type'] == 'RefuelSessionEvent') & (data['fuel'] > 0)) | (data['type'] == 'PathTraversal') | (data['type'] == 'ParkEvent')].dropna(how='all', axis=1)
+    relevantEvents = data.loc[((data['type'] == 'RefuelSessionEvent') & (data['fuel'] > 0)) | (data['type'] == 'PathTraversal') | (data['type'] == 'ParkingEvent')].dropna(how='all', axis=1)
     cars = set(relevantEvents.loc[(relevantEvents['type'] == 'PathTraversal') & (relevantEvents['mode'] == 'car'), 'vehicle'])
 
     relevantEvents = relevantEvents.loc[relevantEvents['vehicle'].isin(cars), :]

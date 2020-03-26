@@ -1,34 +1,39 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
-import beam.router.BeamSkimmer
+import java.math.BigInteger
+
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
+  CustomerRequest,
+  RHMatchingAlgorithm,
+  RideHailTrip,
+  VehicleAndSchedule
+}
 import beam.router.Modes.BeamMode
+import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtils
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class VehicleCentricMatchingForRideHail(
   demand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  services: BeamServices,
-  skimmer: BeamSkimmer
-) {
+  services: BeamServices
+) extends RHMatchingAlgorithm {
+
   private val solutionSpaceSizePerVehicle =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
   private val waitingTimeInSec =
     services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-  private val searchRadius = waitingTimeInSec * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
-  private implicit val implicitServices = services
+  private val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
+  private implicit val beamServices: BeamServices = services
 
-  type AssignmentKey = (RideHailTrip, VehicleAndSchedule, Double)
-
-  def matchAndAssign(tick: Int): Future[List[AssignmentKey]] = {
+  override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {
     Future
       .sequence(supply.withFilter(_.getFreeSeats >= 1).map { v =>
         Future { vehicleCentricMatching(v) }
@@ -37,91 +42,105 @@ class VehicleCentricMatchingForRideHail(
       .recover {
         case e =>
           println(e.getMessage)
-          List.empty[AssignmentKey]
+          List.empty[RideHailTrip]
       }
   }
 
   private def vehicleCentricMatching(
     v: VehicleAndSchedule
-  ): List[AssignmentKey] = {
+  ): List[(RideHailTrip, Double)] = {
     val requestWithCurrentVehiclePosition = v.getRequestWithCurrentVehiclePosition
     val center = requestWithCurrentVehiclePosition.activity.getCoord
 
     // get all customer requests located at a proximity to the vehicle
-    var customers = MatchmakingUtils.getRequestsWithinGeofence(
+    var customers = RHMatchingToolkit.getRequestsWithinGeofence(
       v,
       demand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     )
 
     // heading same direction
-    customers = MatchmakingUtils.getNearbyRequestsHeadingSameDirection(v, customers)
+    customers = RHMatchingToolkit.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 
     // solution size resizing
-    customers = customers
-      .sortBy(r => GeoUtils.minkowskiDistFormula(center, r.pickup.activity.getCoord))
-      .take(solutionSpaceSizePerVehicle)
+    customers = customers.take(solutionSpaceSizePerVehicle)
 
-    val potentialTrips = mutable.ListBuffer.empty[AssignmentKey]
+    val potentialTrips = mutable.ListBuffer.empty[(RideHailTrip, Double)]
     // consider solo rides as initial potential trips
     customers
-      .flatten(
-        c =>
-          MatchmakingUtils
-            .getRidehailSchedule(v.schedule, List(c.pickup, c.dropoff), v.vehicleRemainingRangeInMeters.toInt, skimmer)
-            .map(schedule => (c, schedule))
-      )
-      .foreach {
-        case (c, schedule) =>
-          val trip = RideHailTrip(List(c), schedule)
-          potentialTrips.append((trip, v, MatchmakingUtils.computeGreedyCost(trip, v)))
-      }
+      .flatten(c => RHMatchingToolkit.getRideHailTrip(v, List(c), services))
+      .foreach(t => potentialTrips.append((t, computeCost(t))))
 
     // if no solo ride is possible, returns
     if (potentialTrips.isEmpty)
-      return List.empty[AssignmentKey]
+      return List.empty[(RideHailTrip, Double)]
 
     // building pooled rides from bottom up
-    val numPassengers = v.getFreeSeats
-    for (k <- 2 to numPassengers) {
-      val tripsWithKPassengers = mutable.ListBuffer.empty[AssignmentKey]
-      potentialTrips.zipWithIndex.foreach {
-        case ((t1, _, _), pt1_index) =>
-          potentialTrips
-            .drop(pt1_index)
-            .filter {
-              case (t2, _, _) =>
-                !(t2.requests exists (s => t1.requests contains s)) && (t1.requests.size + t2.requests.size) == k
-            }
-            .foreach {
-              case (t2, _, _) =>
-                val requests = t1.requests ++ t2.requests
-                MatchmakingUtils.getRidehailSchedule(
-                  v.schedule,
-                  requests.flatMap(x => List(x.pickup, x.dropoff)),
-                  v.vehicleRemainingRangeInMeters.toInt,
-                  skimmer
-                ) match {
-                  case Some(schedule) =>
-                    val t = RideHailTrip(requests, schedule)
-                    val cost = MatchmakingUtils.computeGreedyCost(t, v)
-                    tripsWithKPassengers.append((t, v, cost))
-                  case _ =>
+    val numFreeSeats = v.getFreeSeats
+    for (k <- 2 to numFreeSeats) {
+      val tripsWithKPassengers = mutable.ListBuffer.empty[(RideHailTrip, Double)]
+      val numCombinations = nCr(solutionSpaceSizePerVehicle, k).doubleValue()
+      val solutionSizePerPool = if (numCombinations <= 0) {
+        Int.MaxValue
+      } else {
+        solutionSpaceSizePerVehicle * Math.sqrt(numCombinations)
+      }
+      val combinations = ListBuffer.empty[String]
+      for ((t1, _) <- potentialTrips) {
+        for ((t2, _) <- potentialTrips.filter(
+               t2p => !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
+             )) {
+          val temp = t1.requests ++ t2.requests
+          val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
+          if (!combinations.contains(matchId)) {
+            RHMatchingToolkit.getRideHailTrip(v, temp, services).foreach { t =>
+              combinations.append(t.matchId)
+              val cost = computeCost(t)
+              if (tripsWithKPassengers.size == solutionSizePerPool) {
+                // then replace the trip with highest sum of delays
+                val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
+                if (tripWithHighestCost > cost) {
+                  tripsWithKPassengers.remove(index)
                 }
+              }
+              if (tripsWithKPassengers.size < solutionSizePerPool) {
+                tripsWithKPassengers.append((t, cost))
+              }
             }
+          }
+        }
       }
       potentialTrips.appendAll(tripsWithKPassengers)
     }
     potentialTrips.toList
   }
 
-  private def greedyAssignment(trips: List[AssignmentKey]): List[AssignmentKey] = {
-    val greedyAssignmentList = mutable.ListBuffer.empty[AssignmentKey]
-    var tripsByPoolSize = trips.sortBy(_._3)
+  private def greedyAssignment(trips: List[(RideHailTrip, Double)]): List[RideHailTrip] = {
+    val greedyAssignmentList = mutable.ListBuffer.empty[RideHailTrip]
+    var tripsByPoolSize = trips.sortBy(_._2)
     while (tripsByPoolSize.nonEmpty) {
-      val (trip, vehicle, cost) = tripsByPoolSize.head
-      greedyAssignmentList.append((trip, vehicle, cost))
-      tripsByPoolSize = tripsByPoolSize.filter(t => t._2 != vehicle && !t._1.requests.exists(trip.requests.contains))
+      val (trip, _) = tripsByPoolSize.head
+      greedyAssignmentList.append(trip)
+      tripsByPoolSize =
+        tripsByPoolSize.filter(t => t._1.vehicle != trip.vehicle && !t._1.requests.exists(trip.requests.contains))
     }
     greedyAssignmentList.toList
+  }
+
+  private def computeCost(trip: RideHailTrip): Double = {
+    val passengers = trip.requests.size + trip.vehicle.get.getNoPassengers
+    val delay = trip.sumOfDelays
+    val maximum_delay = trip.upperBoundDelays
+    val cost = passengers + (1 - (delay / maximum_delay.toDouble))
+    -1 * cost
+  }
+
+  def nCr(n: Int, r: Int): BigInteger = fact(n).divide(fact(r).multiply(fact(n - r)))
+
+  def fact(n: Int): BigInteger = {
+    var res: BigInteger = BigInteger.valueOf(1)
+    for (i <- 2 to n) {
+      res = res.multiply(BigInteger.valueOf(i))
+    }
+    res
   }
 }
