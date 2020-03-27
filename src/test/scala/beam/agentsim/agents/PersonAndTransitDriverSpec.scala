@@ -407,7 +407,8 @@ class PersonAndTransitDriverSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

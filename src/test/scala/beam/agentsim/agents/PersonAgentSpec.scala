@@ -203,7 +203,8 @@ class PersonAgentSpec
       lastSender ! RoutingResponse(
         itineraries = Vector(),
         requestId = request1.requestId,
-        None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       // This is the regular routing request.
@@ -238,7 +239,8 @@ class PersonAgentSpec
           )
         ),
         requestId = request2.requestId,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -445,7 +447,8 @@ class PersonAgentSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -735,7 +738,8 @@ class PersonAgentSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -792,7 +796,8 @@ class PersonAgentSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       events.expectMsgType[ModeChoiceEvent]
 

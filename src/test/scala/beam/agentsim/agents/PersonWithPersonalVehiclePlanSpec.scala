@@ -163,7 +163,8 @@ class PersonWithPersonalVehiclePlanSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -225,7 +226,8 @@ class PersonWithPersonalVehiclePlanSpec
           )
         ),
         requestId = parkingRoutingRequest.requestId,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
@@ -265,7 +267,8 @@ class PersonWithPersonalVehiclePlanSpec
           )
         ),
         requestId = parkingRoutingRequest.requestId,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -388,7 +391,8 @@ class PersonWithPersonalVehiclePlanSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -523,7 +527,8 @@ class PersonWithPersonalVehiclePlanSpec
             lastSender ! RoutingResponse(
               itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
               requestId = 1,
-              request = None
+              request = None,
+              isEmbodyWithCurrentTravelTime = false
             )
         }
       }
@@ -648,7 +653,8 @@ class PersonWithPersonalVehiclePlanSpec
           )
         ),
         requestId = routingRequest.requestId,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]

@@ -262,11 +262,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 None
               } else {
                 val routingRequest = RoutingRequest(
-                  orig.activity.getCoord,
-                  dest.activity.getCoord,
-                  origin.time,
+                  originUTM = orig.activity.getCoord,
+                  destinationUTM = dest.activity.getCoord,
+                  departureTime = origin.time,
                   withTransit = false,
-                  IndexedSeq(
+                  streetVehicles = IndexedSeq(
                     StreetVehicle(
                       Id.create(vehicleAndOldSchedule.vehicle.id.toString, classOf[Vehicle]),
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
@@ -274,7 +274,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       CAR,
                       asDriver = true
                     )
-                  )
+                  ),
+                  initiatedFrom = "PoolingAlonsoMora"
                 )
                 scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                 Some(routingRequest)

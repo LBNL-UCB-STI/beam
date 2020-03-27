@@ -188,7 +188,8 @@ class PersonWithVehicleSharingSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -360,7 +361,8 @@ class PersonWithVehicleSharingSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -444,7 +446,8 @@ class PersonWithVehicleSharingSpec
           )
         ),
         requestId = 1,
-        request = None
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -558,7 +561,8 @@ class PersonWithVehicleSharingSpec
           mockRouter.lastSender ! RoutingResponse(
             itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
             requestId = 1,
-            request = None
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -597,7 +601,8 @@ class PersonWithVehicleSharingSpec
           mockRouter.lastSender ! RoutingResponse(
             itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
             requestId = 1,
-            request = None
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -636,7 +641,8 @@ class PersonWithVehicleSharingSpec
           mockRouter.lastSender ! RoutingResponse(
             itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
             requestId = 1,
-            request = None
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
