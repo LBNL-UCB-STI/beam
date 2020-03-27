@@ -1,11 +1,9 @@
-package beam.utils.beam_to_matsim.visualization
+package beam.utils.beam_to_matsim.visualization.via
 
-import beam.utils.beam_to_matsim.io.{Reader, Writer}
 import beam.utils.beam_to_matsim.events.BeamPathTraversal
 import beam.utils.beam_to_matsim.events_filter.{MutableVehiclesFilter, VehicleTrip}
+import beam.utils.beam_to_matsim.io.{Reader, Writer}
 import beam.utils.beam_to_matsim.via_event.ViaEvent
-
-import beam.utils.beam_to_matsim.visualization.{visualization_35_person1_alternatives => person1}
 
 import scala.collection.mutable
 

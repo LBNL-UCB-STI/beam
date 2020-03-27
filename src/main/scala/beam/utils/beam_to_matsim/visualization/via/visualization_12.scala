@@ -1,7 +1,7 @@
-package beam.utils.beam_to_matsim.visualization
+package beam.utils.beam_to_matsim.visualization.via
 
-import beam.utils.beam_to_matsim.io.{HashSetReader, Reader, Writer}
 import beam.utils.beam_to_matsim.events_filter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
+import beam.utils.beam_to_matsim.io.{HashSetReader, Reader, Writer}
 import beam.utils.beam_to_matsim.via_event.ViaEvent
 
 import scala.collection.mutable

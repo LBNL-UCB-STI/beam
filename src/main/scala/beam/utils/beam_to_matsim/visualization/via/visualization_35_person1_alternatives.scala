@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.visualization
+package beam.utils.beam_to_matsim.visualization.via
 
 import beam.utils.beam_to_matsim.events.BeamPathTraversal
 
