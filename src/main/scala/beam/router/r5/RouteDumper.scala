@@ -57,7 +57,8 @@ class RouteDumper(beamServices: BeamServices)
   private var currentIteration: Int = 0
 
   def shouldWrite(iteration: Int): Boolean = {
-    iteration % beamServices.beamConfig.beam.outputs.writeR5RoutesInterval == 0
+    val interval = beamServices.beamConfig.beam.outputs.writeR5RoutesInterval
+    interval > 0 && iteration % interval == 0
   }
 
   override def handleEvent(event: Event): Unit = {
