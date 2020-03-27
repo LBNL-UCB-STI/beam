@@ -223,6 +223,7 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       val db = InfluxDBFactory.connect(cfg.connectionString)
       db.setDatabase(cfg.database)
       db.enableBatch(BatchOptions.DEFAULTS)
+      db.ping()
       logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
       Some(db)
     } catch {
