@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
+import beam.analysis.cartraveltime.EventToHourFrequency;
 import beam.analysis.physsim.*;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
@@ -132,7 +133,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
         EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
+        EventToHourFrequency eventToHourFrequency = new EventToHourFrequency(controlerIO);
         jdeqsimEvents.addHandler(travelTimeCalculator);
+        jdeqsimEvents.addHandler(eventToHourFrequency);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
@@ -178,6 +181,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         finally {
             if (roadCapacityAdjustmentFunction != null) roadCapacityAdjustmentFunction.reset();
         }
+        eventToHourFrequency.notifyIterationEnds(new IterationEndsEvent(beamServices.matsimServices(), iterationNumber));
 
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
