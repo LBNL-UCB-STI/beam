@@ -228,9 +228,8 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       Some(db)
     } catch {
       case NonFatal(t: Throwable) =>
-        logger.error(
-          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}: ${t.getMessage}",
-          t
+        logger.warn(
+          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}. Error: ${t.getMessage}"
         )
         None
     }
