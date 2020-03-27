@@ -147,7 +147,11 @@ class BeamRouter(
 
   private val updateTravelTimeTimeout: Timeout = Timeout(3, TimeUnit.MINUTES)
 
+  private var currentIteration: Int = 0
+
   override def receive: PartialFunction[Any, Unit] = {
+    case IterationStartsMessage(iteration) =>
+      currentIteration = iteration
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
@@ -213,7 +217,9 @@ class BeamRouter(
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
       }
     case routingResp: RoutingResponse =>
-      eventsManager.processEvent(RoutingResponseEvent(routingResp))
+      if (shouldWriteR5Routes(currentIteration))
+        eventsManager.processEvent(RoutingResponseEvent(routingResp))
+
       pipeResponseToOriginalSender(routingResp)
       logIfResponseTookExcessiveTime(routingResp.requestId)
     case routingFailure: RoutingFailure =>
@@ -241,12 +247,14 @@ class BeamRouter(
   }
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
-    work match {
-      case e: EmbodyWithCurrentTravelTime =>
-        eventsManager.processEvent(EmbodyWithCurrentTravelTimeEvent(e))
-      case req: RoutingRequest =>
-        eventsManager.processEvent(RoutingRequestEvent(req))
-      case _ =>
+    if (shouldWriteR5Routes(currentIteration)) {
+      work match {
+        case e: EmbodyWithCurrentTravelTime =>
+          eventsManager.processEvent(EmbodyWithCurrentTravelTimeEvent(e))
+        case req: RoutingRequest =>
+          eventsManager.processEvent(RoutingRequestEvent(req))
+        case _ =>
+      }
     }
   }
 
@@ -408,6 +416,10 @@ class BeamRouter(
       }
   }
 
+  def shouldWriteR5Routes(iteration: Int): Boolean = {
+    val writeInterval = beamScenario.beamConfig.beam.outputs.writeR5RoutesInterval
+    writeInterval > 0 && iteration % writeInterval == 0
+  }
 }
 
 object BeamRouter {
@@ -490,7 +502,7 @@ object BeamRouter {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager
-  ) = {
+  ): Props = {
     checkForConsistentTimeZoneOffsets(beamScenario.dates, transportNetwork)
 
     Props(
@@ -615,4 +627,6 @@ object BeamRouter {
   case object WorkAvailable extends WorkMessage
 
   def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
+
+  case class IterationStartsMessage(iteration: Int)
 }

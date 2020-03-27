@@ -42,22 +42,22 @@ class RouteDumper(beamServices: BeamServices)
     extends BasicEventHandler
     with IterationStartsListener
     with IterationEndsListener {
-  val controllerIO: OutputDirectoryHierarchy = beamServices.matsimServices.getControlerIO
+  private val controllerIO: OutputDirectoryHierarchy = beamServices.matsimServices.getControlerIO
 
   @volatile
-  var routingRequestWriter: Option[ParquetWriter[GenericData.Record]] = None
+  private var routingRequestWriter: Option[ParquetWriter[GenericData.Record]] = None
 
   @volatile
-  var embodyWithCurrentTravelTimeWriter: Option[ParquetWriter[GenericData.Record]] = None
+  private var embodyWithCurrentTravelTimeWriter: Option[ParquetWriter[GenericData.Record]] = None
 
   @volatile
-  var routingResponseWriter: Option[ParquetWriter[GenericData.Record]] = None
+  private var routingResponseWriter: Option[ParquetWriter[GenericData.Record]] = None
 
   @volatile
-  var currentIteration: Int = 0
+  private var currentIteration: Int = 0
 
   def shouldWrite(iteration: Int): Boolean = {
-    iteration % beamServices.beamConfig.beam.outputs.writeEventsInterval == 0
+    iteration % beamServices.beamConfig.beam.outputs.writeR5RoutesInterval == 0
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -81,44 +81,40 @@ class RouteDumper(beamServices: BeamServices)
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     currentIteration = event.getIteration
-    routingRequestWriter = if (shouldWrite(currentIteration)) {
-      Some(
-        AvroParquetWriter
-          .builder[GenericData.Record](
-            new Path(controllerIO.getIterationFilename(event.getIteration, "routingRequest.parquet"))
-          )
-          .withSchema(RouteDumper.routingRequestSchema)
-          .withCompressionCodec(CompressionCodecName.SNAPPY)
-          .build()
+    if (shouldWrite(currentIteration)) {
+      routingRequestWriter = Some(
+        createWriter(
+          controllerIO.getIterationFilename(event.getIteration, "routingRequest.parquet"),
+          RouteDumper.routingRequestSchema
+        )
       )
-    } else { None }
-    embodyWithCurrentTravelTimeWriter = if (shouldWrite(currentIteration)) {
-      Some(
-        AvroParquetWriter
-          .builder[GenericData.Record](
-            new Path(controllerIO.getIterationFilename(event.getIteration, "embodyWithCurrentTravelTime.parquet"))
-          )
-          .withSchema(RouteDumper.embodyWithCurrentTravelTimeSchema)
-          .withCompressionCodec(CompressionCodecName.SNAPPY)
-          .build()
+      embodyWithCurrentTravelTimeWriter = Some(
+        createWriter(
+          controllerIO.getIterationFilename(event.getIteration, "embodyWithCurrentTravelTime.parquet"),
+          RouteDumper.embodyWithCurrentTravelTimeSchema
+        )
+      )
+      routingResponseWriter = Some(
+        createWriter(
+          controllerIO.getIterationFilename(event.getIteration, "routingResponse.parquet"),
+          RouteDumper.routingResponseSchema
+        )
       )
     } else {
-      None
+      routingRequestWriter = None
+      embodyWithCurrentTravelTimeWriter = None
+      routingResponseWriter = None
     }
-    routingResponseWriter = if (shouldWrite(currentIteration)) {
-      Some(
-        AvroParquetWriter
-          .builder[GenericData.Record](
-            new Path(controllerIO.getIterationFilename(event.getIteration, "routingResponse.parquet"))
-          )
-          .withSchema(RouteDumper.routingResponseSchema)
-          .withCompressionCodec(CompressionCodecName.SNAPPY)
-          .build()
-      )
-    } else {
-      None
-    }
+  }
 
+  private def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
+    AvroParquetWriter
+      .builder[GenericData.Record](
+        new Path(path)
+      )
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.SNAPPY)
+      .build()
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

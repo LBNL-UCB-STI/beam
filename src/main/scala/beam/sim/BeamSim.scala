@@ -96,10 +96,10 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
-  val routerDumper: RouteDumper = new RouteDumper(beamServices)
+  val routeDumper: RouteDumper = new RouteDumper(beamServices)
 
   val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
-    List(routerDumper)
+    List(routeDumper)
 
   val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
     new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
@@ -194,6 +194,8 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
+
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
