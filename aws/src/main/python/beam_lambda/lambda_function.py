@@ -243,19 +243,23 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
         }
     )
     state = 'open'
+    spot_req_id = spot_req.get('SpotInstanceRequests')[0].get('SpotInstanceRequestId')
     while state == 'open':
+        print 'Waiting for spot request id to move from open'
         time.sleep(30)
-        spot = ec2.get_all_spot_instance_requests(spot_req.id)[0]
-        state = spot.state
+        spot = ec2.describe_spot_instance_requests(SpotInstanceRequestIds = [spot_req_id]).get('SpotInstanceRequests')[0]
+        state = spot.get('State')
     if (state != 'active'):
         exit(1)
     bd_count = 0
+    instance_id = spot.get('InstanceId')
     while bd_count < 1:
+        print 'Spot request status now ' + state + ' so getting instance using ' + instance_id
         time.sleep(30)
-        instance = ec2.get_only_instances(spot.instance_id)[0]
-        bd_count = len(instance.block_device_mapping)
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+        bd_count = len(instance.get('BlockDeviceMappings'))
     ec2.create_tags(
-        Resources=[spot_req.id],
+        Resources=[instance_id],
         Tags = [
             {
                 'Key': 'Name',
@@ -267,11 +271,27 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
                 'Key': 'DeployType',
                 'Value': deploy_type_tag
             }])
-    while instance.state == 'pending':
+    print 'Created tags on instance'
+    volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
+    ec2.create_tags(
+        Resources=[volume_id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    print 'Created tags on volume'
+    while instance.get('State') == 'pending':
+        print 'Waiting for instance to get to pending'
         time.sleep(30)
-        instance = ec2.get_only_instances(spot.instance_id)[0]
-    print 'Spot Info + ' + spot_req
-    return spot_req.id
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+    return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
@@ -435,10 +455,8 @@ def deploy_handler(event):
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
             is_spot = event.get('is_spot', False)
             if is_spot:
-                print 'spot'
                 instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             else:
-                print 'NOT spot'
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
