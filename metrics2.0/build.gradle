@@ -36,8 +36,26 @@ task GrafanaInfluxDBChmodFolders(type: Exec) {
     executable = "docker"
     args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './chmodfolders.sh']
 
-    doLast{
-        println "Folders prepared to be cleaned."
+    doLast {
+        println "Snapshot folder might be cleaned."
+    }
+}
+
+task GrafanaInfluxDBStopServices(type: Exec) {
+    executable = "docker"
+    args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './stopservices.sh']
+
+    doLast {
+        println "Grafana and InfluxDB services are stopped."
+    }
+}
+
+task GrafanaInfluxDBCreateSnapshot(type: Exec) {
+    executable = "docker"
+    args = ['exec', grafana_influxDB_container_name, 'sh', '-c', './backup.sh']
+
+    doLast {
+        println "InfluxDB snapshot created."
     }
 }
 
@@ -65,36 +83,17 @@ task grafanaClearData {
 
     doFirst {
         // delete only content in dirs
-        ["$projectDir/grafana/log", "$projectDir/grafana/data/png", "$projectDir/influxdb/data", "$projectDir/influxdb/log"].forEach {
-            directory ->
-                delete fileTree(dir: directory, exclude: '.gitignore')
-                println "files and folders under $directory are removed"
-        }
-
-        // delete completely
-        ["$projectDir/influxdb/data/data", "$projectDir/grafana/data/png", "$projectDir/influxdb/data/log"].forEach {
-            dirName ->
-                def directory = new File(dirName)
-                if (directory.deleteDir()) {
-                    println "$dirName deleted"
-                } else {
-                    println "can not delete $dirName"
-                }
-        }
-
-        // delete file completely
-        def path = "$projectDir/grafana/data/grafana.db"
-        delete path
-        println "$path deleted"
+        delete fileTree(dir: "$projectDir/influxdb/snapshot", exclude: '.gitignore')
+        println "files under $projectDir/influxdb/snapshot removed"
     }
 }
 
 task grafanaStop {
-    description 'Stops Grafana and Influx DB docker container.'
+    description 'Stops Grafana and InfluxDB docker container.'
     group 'Grafana'
 
-    // to do chmod on all grafana and influxDB folders
-    // so, one will be able to remove them
+    dependsOn(GrafanaInfluxDBCreateSnapshot)
+    dependsOn(GrafanaInfluxDBStopServices)
     dependsOn(GrafanaInfluxDBChmodFolders)
     dependsOn(GrafanaInfluxDBContainerStop)
     dependsOn(GrafanaInfluxDBContainerRM)
@@ -110,6 +109,7 @@ task grafanaStop {
     }
 }
 
-// to ensure that `docker compose down` called after chmod of folders inside docker image
-GrafanaInfluxDBContainerRM.mustRunAfter GrafanaInfluxDBContainerStop
+GrafanaInfluxDBStopServices.mustRunAfter GrafanaInfluxDBCreateSnapshot
+GrafanaInfluxDBChmodFolders.mustRunAfter GrafanaInfluxDBStopServices
 GrafanaInfluxDBContainerStop.mustRunAfter GrafanaInfluxDBChmodFolders
+GrafanaInfluxDBContainerRM.mustRunAfter GrafanaInfluxDBContainerStop
