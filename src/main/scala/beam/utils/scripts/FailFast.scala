@@ -59,9 +59,9 @@ object FailFast extends LazyLogging {
       )
     }
 
-    if (config.beam.beamskimmer.collectFullCarSkimsInterval > 0 && config.beam.beamskimmer.collectFullCarSkimsInterval % config.beam.beamskimmer.writeObservedSkimsInterval != 0) {
+    if (config.beam.router.skim.collectFullCarSkimsInterval > 0 && config.beam.router.skim.collectFullCarSkimsInterval % config.beam.router.skim.writeSkimsInterval != 0) {
       throw new RuntimeException(
-        s"collectFullCarSkimsInterval won't be written because it doesn't coincide with collectFullCarSkimsInterval: ${config.beam.beamskimmer.collectFullCarSkimsInterval} % ${config.beam.beamskimmer.collectFullCarSkimsInterval} != 0"
+        s"collectFullCarSkimsInterval won't be written because it doesn't coincide with collectFullCarSkimsInterval: ${config.beam.router.skim.collectFullCarSkimsInterval} % ${config.beam.router.skim.collectFullCarSkimsInterval} != 0"
       )
     }
   }

@@ -7,7 +7,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.integration.AgentsimWithMaximallyBadRouterSpec.BadRouterForTest
 import beam.router.Modes.BeamMode
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.RouteHistory
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim}
 import beam.utils.SimRunnerForTest
@@ -38,7 +38,7 @@ class AgentsimWithMaximallyBadRouterSpec
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
 
-  lazy implicit val system: ActorSystem = ActorSystem("AgentSimWithBadRouterSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("AgentsimWithMaximallyBadRouterSpec", config)
 
   "The agentsim" must {
     "not get stuck even if the router only throws exceptions" in {
@@ -56,8 +56,6 @@ class AgentsimWithMaximallyBadRouterSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(beamScenario, services.geo),
-        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )

@@ -4,9 +4,13 @@ import time
 import uuid
 import os
 import glob
+import base64
 from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+
+CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
+  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
 
 EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
 
@@ -22,6 +26,7 @@ S3_PUBLISH_SCRIPT = '''
   -         finalPath="$path2";
   -       done;
   -    done;
+  -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
   -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
@@ -61,12 +66,35 @@ write_files:
           0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
       path: /tmp/slack_notification
 runcmd:
+  - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
-  - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - echo $start_json
   - chmod +x /tmp/slack.sh
   - echo "notification sent..."
   - echo "notification saved..."
@@ -74,13 +102,14 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
-  - echo "git checkout ..."
+  - 'echo "git checkout: $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  - echo "gradlew assemble ..."
+
+  - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
@@ -88,7 +117,8 @@ runcmd:
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
+
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -102,8 +132,30 @@ runcmd:
   - fi
   - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
   - echo "$bye_msg"
+  - stop_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Completed\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"commit\\":\\"$COMMIT\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
   - /tmp/slack.sh "$bye_msg"
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
@@ -167,32 +219,114 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
+    spot_req = ec2.request_spot_instances(
+        InstanceCount=1,
+        InstanceInterruptionBehavior=shutdown_behaviour,
+        LaunchSpecification={
+            'BlockDeviceMappings': [
+                {
+                    'DeviceName': '/dev/sda1',
+                    'Ebs': {
+                        'VolumeSize': volume_size,
+                        'VolumeType': 'gp2',
+                        'DeleteOnTermination': False
+                    }
+                }
+            ],
+            'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
+            'InstanceType': instance_type,
+            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),#script,
+            'KeyName': os.environ[region_prefix + 'KEY_NAME'],
+            'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
+            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
+        }
+    )
+    state = 'open'
+    spot_req_id = spot_req.get('SpotInstanceRequests')[0].get('SpotInstanceRequestId')
+    while state == 'open':
+        print 'Waiting for spot request id to move from open'
+        time.sleep(30)
+        spot = ec2.describe_spot_instance_requests(SpotInstanceRequestIds = [spot_req_id]).get('SpotInstanceRequests')[0]
+        state = spot.get('State')
+    if (state != 'active'):
+        exit(1)
+    bd_count = 0
+    instance_id = spot.get('InstanceId')
+    while bd_count < 1:
+        print 'Spot request status now ' + state + ' so getting instance using ' + instance_id
+        time.sleep(30)
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+        bd_count = len(instance.get('BlockDeviceMappings'))
+    ec2.create_tags(
+        Resources=[instance_id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    print 'Created tags on instance'
+    volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
+    ec2.create_tags(
+        Resources=[volume_id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    print 'Created tags on volume'
+    while instance.get('State') == 'pending':
+        print 'Waiting for instance to get to pending'
+        time.sleep(30)
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+    return instance_id
+
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[
+            {
+                'ResourceType': 'instance',
+                'Tags': [
+                    {
+                        'Key': 'Name',
+                        'Value': instance_name
+                    },{
+                        'Key': 'GitUserEmail',
+                        'Value': git_user_email
+                    },{
+                        'Key': 'DeployType',
+                        'Value': deploy_type_tag
+                    } ]
+            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -224,9 +358,17 @@ def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
 
 def deploy_handler(event):
-    titled = event.get('title', 'hostname-test')
-    if titled is None:
-        return "Unable to start the run, runName is required. Please restart with appropriate runName."
+    missing_parameters = []
+
+    def parameter_wasnt_specified(parameter_value):
+        # in gradle if parameter wasn't specified then project.findProperty return 'null'
+        return parameter_value is None or parameter_value == 'null'
+
+    def get_param(param_name):
+        param_value = event.get(param_name)
+        if parameter_wasnt_specified(param_value):
+            missing_parameters.append(param_name)
+        return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
@@ -237,27 +379,42 @@ def deploy_handler(event):
     execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
     batch = event.get('batch', TRUE)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
-    s3_publish = event.get('s3_publish', 'true')
-    instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
+    s3_publish = event.get('s3_publish', TRUE)
     volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
-    region = event.get('region', os.environ['REGION'])
-    shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
+    run_grafana = event.get('run_grafana', 'false')
+
+    git_user_email = get_param('git_user_email')
+    deploy_type_tag = event.get('deploy_type_tag', '')
+    titled = get_param('title')
+    instance_type = get_param('instance_type')
+    region = get_param('region')
+    shutdown_behaviour = get_param('shutdown_behaviour')
+
+    if missing_parameters:
+        return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
-        #instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
-        shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
+        return "Unable to start run, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
+
+    if region not in regions:
+        return "Unable to start run, {region} region not supported.".format(region=region)
 
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = CONFIG_SCRIPT
+    selected_script = ""
+    if run_grafana == TRUE:
+        selected_script = CONFIG_SCRIPT_WITH_GRAFANA
+    else:
+        selected_script = CONFIG_SCRIPT
+
     params = configs
     if s3_publish == TRUE:
         selected_script += S3_PUBLISH_SCRIPT
@@ -280,9 +437,6 @@ def deploy_handler(event):
 
     txt = ''
 
-    if region not in regions:
-        return "Unable to start run, {region} region not supported.".format(region=region)
-
     init_ec2(region)
 
     if validate(branch) and validate(commit_id):
@@ -292,15 +446,24 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
-                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN'])
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
+                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+                .replace('$SHEET_ID', os.environ['SHEET_ID'])
+            is_spot = event.get('is_spot', False)
+            if is_spot:
+                instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+            else:
+                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+
+            if run_grafana == TRUE:
+                txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
+
             runNum += 1
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
@@ -308,7 +471,7 @@ def deploy_handler(event):
     return txt
 
 def instance_handler(event):
-    region = event.get('region', os.environ['REGION'])
+    region = event.get('region')
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
     system_instances = os.environ['SYSTEM_INSTANCES']

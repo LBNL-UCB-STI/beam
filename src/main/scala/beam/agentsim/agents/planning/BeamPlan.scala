@@ -23,7 +23,7 @@ import scala.collection.mutable
   * is the first Activity of the day, which contains only that activity.
   *
   * In addition, a BeamPlan contains mappings from PlanElements to Strategies. A Strategy
-  * is essentially a label that is assigned during initialization or Replanning and used during the MobSim
+  * is essentially a key that is assigned during initialization or Replanning and used during the MobSim
   * to influence within-day Agent behavior. Strategies can be mapped to a Plan at any level (e.g. the whole plan,
   * to a tour, a trip, etc.) but can be looked up at any level as well (allowing a Tour to have a strategy and a
   * lookup on a Leg within that tour will yield that strategy).

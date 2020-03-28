@@ -12,6 +12,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ODSkimmer
 import beam.sim.BeamServices
 import beam.sim.metrics.MetricsSupport
 import beam.sim.population.AttributesOfIndividual
@@ -21,7 +22,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class PeakSkimObserver(
   val beamServices: BeamServices,
-  val beamSkimmer: BeamSkimmer,
+  val beamSkimmer: ODSkimmer,
   val modeChoiceCalculator: ModeChoiceCalculator,
   val attributesOfIndividual: AttributesOfIndividual
 ) extends Actor
@@ -36,7 +37,7 @@ class PeakSkimObserver(
 
     case "Run!" =>
       log.info("PeakSkimObserver Begin")
-      startSegment("peak-skim-observer", "agentsim")
+
       val requestTime = (3600.0 * 8.5).intValue()
       val dummyCarVehicleType = beamServices.beamScenario.vehicleTypes.values
         .find(theType => theType.vehicleCategory == Car && theType.maxVelocity.isEmpty)
@@ -127,21 +128,22 @@ class PeakSkimObserver(
                     .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
                     .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
                 )
-                beamSkimmer.observeTripForTAZPair(
-                  tazs(orgIdx).tazId,
-                  tazs(dstIdx).tazId,
-                  theTrip,
-                  generalizedTime,
-                  generalizedCost,
-                  energyConsumption
-                )
+
+                // TODO FIXME
+//                beamSkimmer.observeTripForTAZPair(
+//                  tazs(orgIdx).tazId,
+//                  tazs(dstIdx).tazId,
+//                  theTrip,
+//                  generalizedTime,
+//                  generalizedCost,
+//                  energyConsumption
+//                )
                 self ! "success"
               case None =>
                 self ! "failure"
             }
         })
       log.info(s"Total routing requests sent: ${requests.size}")
-      endSegment("peak-skim-observer", "agentsim")
 
     case "success" =>
       successfullRoutes = successfullRoutes + 1
@@ -163,14 +165,14 @@ object PeakSkimObserver {
 
   def props(
     beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer,
+    beamSkimmer: ODSkimmer,
     modeChoiceCalculator: ModeChoiceCalculator,
     attributesOfIndividual: AttributesOfIndividual
   ): Props = {
     Props(
       new PeakSkimObserver(
         beamServices: BeamServices,
-        beamSkimmer: BeamSkimmer,
+        beamSkimmer: ODSkimmer,
         modeChoiceCalculator: ModeChoiceCalculator,
         attributesOfIndividual: AttributesOfIndividual
       )

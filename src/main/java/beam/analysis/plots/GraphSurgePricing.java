@@ -18,6 +18,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.listener.ControlerListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
+import org.matsim.core.utils.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
@@ -88,7 +89,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
         surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv.gz");
         revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
         revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
@@ -445,8 +446,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private void writeTazCsv(Map<String, double[][]> dataset) {
-
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)))) {
+        try (BufferedWriter out = IOUtils.getBufferedWriter(surgePricingAndRevenueWithTaz)) {
             out.write("TazId,DataType,Value,Hour");
             out.newLine();
 

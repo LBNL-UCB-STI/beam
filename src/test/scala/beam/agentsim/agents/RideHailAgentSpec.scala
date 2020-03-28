@@ -29,7 +29,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.FunSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailAgentSpec
     extends FunSpecLike
@@ -53,7 +53,7 @@ class RideHailAgentSpec
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
 
-  lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
+  lazy implicit val system: ActorSystem = ActorSystem("RideHailAgentSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
@@ -128,7 +128,7 @@ class RideHailAgentSpec
             )
           )
         )
-      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
+      rideHailAgent ! Interrupt(1, 30000)
       expectMsgType[InterruptedWhileIdle]
       rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000)
       rideHailAgent ! Resume
@@ -148,7 +148,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -182,7 +182,7 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
+      rideHailAgent ! Interrupt(1, 30000)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
@@ -224,7 +224,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -258,7 +258,7 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
+      rideHailAgent ! Interrupt(1, 30000)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
@@ -294,7 +294,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -341,7 +341,7 @@ class RideHailAgentSpec
           t
       }
 
-      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
+      rideHailAgent ! Interrupt(1, 30000)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)

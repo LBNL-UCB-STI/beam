@@ -1,21 +1,27 @@
 package beam.integration
 
+import beam.utils.LoggingUtil
 import beam.utils.TestConfigUtils.testConfig
+import ch.qos.logback.classic.util.ContextInitializer
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 trait IntegrationSpecCommon {
-  private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
+
+  setLogPathToTemporaryFolderUntilItIsInitializedProperlyByLoggingUtil()
+
+  System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback-test.xml")
 
   protected var totalIterations: Int = 1
 
-  val configFileName = "test/input/beamville/beam.conf"
+  private val configFileName = "test/input/beamville/beam.conf"
 
-  val configLocation = ConfigFactory.parseString("config=" + configFileName)
+  private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 
   lazy val baseConfig: Config = testConfig(configFileName)
     .resolve()
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-    .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .withFallback(configLocation)
     .resolve
 
@@ -25,6 +31,10 @@ trait IntegrationSpecCommon {
     val zip = z2 zip z1
 
     zip.forall { case (a, b) => cf(a, b) }
+  }
+
+  private def setLogPathToTemporaryFolderUntilItIsInitializedProperlyByLoggingUtil(): String = {
+    System.setProperty(LoggingUtil.LOG_OUTPUT_DIRECTORY_KEY, System.getProperty("java.io.tmpdir"))
   }
 
 }

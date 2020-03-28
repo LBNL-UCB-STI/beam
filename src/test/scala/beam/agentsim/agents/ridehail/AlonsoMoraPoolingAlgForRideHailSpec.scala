@@ -1,9 +1,9 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
+import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.router.BeamSkimmer
+import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, Geofence}
 import beam.utils.FileUtils
@@ -53,23 +53,25 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
       }
     )
     implicit val services = injector.getInstance(classOf[BeamServices])
-    implicit val skimmer = injector.getInstance(classOf[BeamSkimmer])
     implicit val actorRef = ActorRef.noSender
+    Skims.setup
     val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
     val alg: AlonsoMoraPoolingAlgForRideHail =
       new AlonsoMoraPoolingAlgForRideHail(
         AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
-        services,
-        skimmer
+        services
       )
 
-    val assignment = alg.matchAndAssign(0)
-    for (row <- assignment) {
-      assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
-      assert(row._2.getId == "v2" || row._2.getId == "v1")
+    val rvGraph = alg.pairwiseRVGraph
+    val rtvGraph = alg.rTVGraph(rvGraph)
+    val assignment = alg.optimalAssignment(rtvGraph)
+
+    assignment.foreach { row =>
+      assert(row.getId == "trip:[p1] -> [p4] -> " || row.vehicle.get.getId == "trip:[p3] -> ")
+      assert(row.getId == "v2" || row.vehicle.get.getId == "v1")
     }
-    val rvGraph: RVGraph = alg.rvG
+
     for (e <- rvGraph.edgeSet.asScala) {
       rvGraph.getEdgeSource(e).getId match {
         case "p1" =>
@@ -107,7 +109,6 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
       }
     }
 
-    val rtvGraph = alg.rTvG
     for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
       v.getId match {
         case "trip:[p3] -> " =>
@@ -159,7 +160,6 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
 
   def scenario1()(
     implicit
-    skimmer: BeamSkimmer,
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -167,11 +167,25 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, None, 4)
+      RHMatchingToolkit.createVehicleAndSchedule(
+        "v1",
+        vehicleType,
+        new Coord(5000, 5000),
+        8.hours.toSeconds.toInt,
+        None,
+        4
+      )
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, None, 4)
+      RHMatchingToolkit.createVehicleAndSchedule(
+        "v2",
+        vehicleType,
+        new Coord(2000, 2000),
+        8.hours.toSeconds.toInt,
+        None,
+        4
+      )
     val p1Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
@@ -179,7 +193,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p4Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
@@ -187,7 +201,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p2Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
@@ -195,7 +209,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p3Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
@@ -207,7 +221,6 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
 
   def scenarioGeoFence()(
     implicit
-    skimmer: BeamSkimmer,
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -215,7 +228,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule(
+      RHMatchingToolkit.createVehicleAndSchedule(
         "v1",
         vehicleType,
         new Coord(5000, 5000),
@@ -224,7 +237,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         4
       )
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule(
+      RHMatchingToolkit.createVehicleAndSchedule(
         "v2",
         vehicleType,
         new Coord(2000, 2000),
@@ -233,7 +246,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         4
       )
     val p1Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
@@ -241,7 +254,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p4Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
@@ -249,7 +262,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p2Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
@@ -257,7 +270,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
         services
       )
     val p3Req: CustomerRequest =
-      createPersonRequest(
+      RHMatchingToolkit.createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,

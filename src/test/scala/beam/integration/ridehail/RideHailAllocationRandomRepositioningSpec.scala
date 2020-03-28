@@ -11,7 +11,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.FlatSpec
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper with MockitoSugar {
 

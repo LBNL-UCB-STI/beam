@@ -10,7 +10,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class RefuelSessionEvent(
+case class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
   val energyInJoules: Double,
@@ -43,7 +43,7 @@ class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
-    attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
     attributes
   }
 }

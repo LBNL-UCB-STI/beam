@@ -8,8 +8,9 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
+import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, PeakSkimObserver, RouteHistory, TravelTimeObserved}
+import beam.router.{PeakSkimObserver, RouteHistory}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -34,8 +35,6 @@ class Population(
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved,
   boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
@@ -52,7 +51,8 @@ class Population(
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      if (beamServices.matsimServices.getIterationNumber > 0 && beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % beamScenario.beamConfig.beam.beamskimmer.collectFullCarSkimsInterval == 0) {
+      val collectFullCarSkimsInterval = beamScenario.beamConfig.beam.router.skim.collectFullCarSkimsInterval
+      if (beamServices.matsimServices.getIterationNumber > 0 && collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % collectFullCarSkimsInterval == 0) {
         val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
           .values()
           .asScala
@@ -82,7 +82,7 @@ class Population(
         context.actorOf(
           PeakSkimObserver.props(
             beamServices,
-            beamSkimmer,
+            null,
             beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes),
             dummyPersonAttributes
           )
@@ -155,8 +155,6 @@ class Population(
           homeCoord,
           sharedVehicleFleets,
           routeHistory,
-          beamSkimmer,
-          travelTimeObserved,
           boundingBox
         ),
         household.getId.toString
@@ -201,8 +199,6 @@ object Population {
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
     boundingBox: Envelope
   ): Props = {
     Props(
@@ -219,8 +215,6 @@ object Population {
         sharedVehicleFleets,
         eventsManager,
         routeHistory,
-        beamSkimmer,
-        travelTimeObserved,
         boundingBox
       )
     )
