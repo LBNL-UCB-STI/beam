@@ -4,6 +4,7 @@ import time
 import uuid
 import os
 import glob
+import base64
 from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
@@ -218,32 +219,114 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
+    spot_req = ec2.request_spot_instances(
+        InstanceCount=1,
+        InstanceInterruptionBehavior=shutdown_behaviour,
+        LaunchSpecification={
+            'BlockDeviceMappings': [
+                {
+                    'DeviceName': '/dev/sda1',
+                    'Ebs': {
+                        'VolumeSize': volume_size,
+                        'VolumeType': 'gp2',
+                        'DeleteOnTermination': False
+                    }
+                }
+            ],
+            'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
+            'InstanceType': instance_type,
+            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),#script,
+            'KeyName': os.environ[region_prefix + 'KEY_NAME'],
+            'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
+            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
+        }
+    )
+    state = 'open'
+    spot_req_id = spot_req.get('SpotInstanceRequests')[0].get('SpotInstanceRequestId')
+    while state == 'open':
+        print 'Waiting for spot request id to move from open'
+        time.sleep(30)
+        spot = ec2.describe_spot_instance_requests(SpotInstanceRequestIds = [spot_req_id]).get('SpotInstanceRequests')[0]
+        state = spot.get('State')
+    if (state != 'active'):
+        exit(1)
+    bd_count = 0
+    instance_id = spot.get('InstanceId')
+    while bd_count < 1:
+        print 'Spot request status now ' + state + ' so getting instance using ' + instance_id
+        time.sleep(30)
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+        bd_count = len(instance.get('BlockDeviceMappings'))
+    ec2.create_tags(
+        Resources=[instance_id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    print 'Created tags on instance'
+    volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
+    ec2.create_tags(
+        Resources=[volume_id],
+        Tags = [
+            {
+                'Key': 'Name',
+                'Value': instance_name
+            }, {
+                'Key': 'GitUserEmail',
+                'Value': git_user_email
+            }, {
+                'Key': 'DeployType',
+                'Value': deploy_type_tag
+            }])
+    print 'Created tags on volume'
+    while instance.get('State') == 'pending':
+        print 'Waiting for instance to get to pending'
+        time.sleep(30)
+        instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+    return instance_id
+
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
     res = ec2.run_instances(BlockDeviceMappings=[
-                                {
-                                    'DeviceName': '/dev/sda1',
-                                    'Ebs': {
-                                        'VolumeSize': volume_size,
-                                        'VolumeType': 'gp2'
-                                    }
-                                }
-                            ],
-                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
-                            InstanceType=instance_type,
-                            UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
-                            MinCount=1,
-                            MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
-                            TagSpecifications=[ {
-                                'ResourceType': 'instance',
-                                'Tags': [ {
-                                    'Key': 'Name',
-                                    'Value': instance_name
-                                } ]
-                            } ])
+        {
+            'DeviceName': '/dev/sda1',
+            'Ebs': {
+                'VolumeSize': volume_size,
+                'VolumeType': 'gp2'
+            }
+        }
+    ],
+        ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+        InstanceType=instance_type,
+        UserData=script,
+        KeyName=os.environ[region_prefix + 'KEY_NAME'],
+        MinCount=1,
+        MaxCount=1,
+        SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
+        IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+        InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+        TagSpecifications=[
+            {
+                'ResourceType': 'instance',
+                'Tags': [
+                    {
+                        'Key': 'Name',
+                        'Value': instance_name
+                    },{
+                        'Key': 'GitUserEmail',
+                        'Value': git_user_email
+                    },{
+                        'Key': 'DeployType',
+                        'Value': deploy_type_tag
+                    } ]
+            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -304,6 +387,8 @@ def deploy_handler(event):
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', 'false')
 
+    git_user_email = get_param('git_user_email')
+    deploy_type_tag = event.get('deploy_type_tag', '')
     titled = get_param('title')
     instance_type = get_param('instance_type')
     region = get_param('region')
@@ -368,7 +453,11 @@ def deploy_handler(event):
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
+            is_spot = event.get('is_spot', False)
+            if is_spot:
+                instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+            else:
+                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
