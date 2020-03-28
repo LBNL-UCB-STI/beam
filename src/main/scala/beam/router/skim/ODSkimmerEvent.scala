@@ -24,7 +24,7 @@ case class ODSkimmerEvent(
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double
-  ) = {
+  ): (ODSkimmerKey, ODSkimmerInternal) = {
     import beamServices._
     val mode = trip.tripClassifier
     val correctedTrip = mode match {

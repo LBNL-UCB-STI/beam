@@ -58,11 +58,5 @@ object FailFast extends LazyLogging {
         "Wrong value of Route History file writing iteration"
       )
     }
-
-    if (config.beam.router.skim.collectFullCarSkimsInterval > 0 && config.beam.router.skim.collectFullCarSkimsInterval % config.beam.router.skim.writeSkimsInterval != 0) {
-      throw new RuntimeException(
-        s"collectFullCarSkimsInterval won't be written because it doesn't coincide with collectFullCarSkimsInterval: ${config.beam.router.skim.collectFullCarSkimsInterval} % ${config.beam.router.skim.collectFullCarSkimsInterval} != 0"
-      )
-    }
   }
 }

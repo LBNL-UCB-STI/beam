@@ -7,11 +7,8 @@ import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.CAR
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.router.{PeakSkimObserver, RouteHistory}
-import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -20,7 +17,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters
 
 class Population(
   val scenario: Scenario,
@@ -51,43 +48,6 @@ class Population(
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      val collectFullCarSkimsInterval = beamScenario.beamConfig.beam.router.skim.collectFullCarSkimsInterval
-      if (beamServices.matsimServices.getIterationNumber > 0 && collectFullCarSkimsInterval > 0 && beamServices.matsimServices.getIterationNumber % collectFullCarSkimsInterval == 0) {
-        val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
-          .values()
-          .asScala
-          .toList
-          .sortBy(_.getIncome.getIncome)
-          .drop(scenario.getHouseholds.getHouseholds.size() / 2)
-          .head
-        val dummyHouseholdAttributes = new HouseholdAttributes(
-          medianHouseholdByIncome.getId.toString,
-          medianHouseholdByIncome.getIncome.getIncome,
-          1,
-          1,
-          1
-        )
-        val personVOTT = PopulationAdjustment
-          .IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
-          .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
-        val dummyPersonAttributes = AttributesOfIndividual(
-          dummyHouseholdAttributes,
-          None,
-          true,
-          Seq(CAR),
-          personVOTT,
-          None,
-          Some(dummyHouseholdAttributes.householdIncome)
-        )
-        context.actorOf(
-          PeakSkimObserver.props(
-            beamServices,
-            null,
-            beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes),
-            dummyPersonAttributes
-          )
-        ) ! "Run!"
-      }
       sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
     // Do nothing
@@ -132,11 +92,13 @@ class Population(
           .asInstanceOf[Double]
       )
 
-      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-        collectionAsScalaIterable(household.getVehicleIds).map { vid =>
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+        .collectionAsScalaIterable(household.getVehicleIds)
+        .map { vid =>
           val bvid = BeamVehicle.createId(vid)
           bvid -> beamScenario.privateVehicles(bvid)
-        }.toMap
+        }
+        .toMap
       val householdActor = context.actorOf(
         HouseholdActor.props(
           beamServices,
@@ -175,7 +137,7 @@ object Population {
     household: Household,
     beamScenario: BeamScenario
   ): Map[Id[BeamVehicle], BeamVehicle] = {
-    val houseHoldVehicles = collectionAsScalaIterable(household.getVehicleIds)
+    val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
     houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamScenario.privateVehicles(i)).toMap
   }
 
