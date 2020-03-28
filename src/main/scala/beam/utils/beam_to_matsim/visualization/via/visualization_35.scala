@@ -54,12 +54,12 @@ object visualization_35 extends App {
       trips.values
     }
 
-    val alt0 = alternativePathToVehiclesTrips(person1.alternative0_ride_hail, "_alt0_")
-    val alt1 = alternativePathToVehiclesTrips(person1.alternative1_ride_hail_pooled, "_alt1_")
-    val alt2 = alternativePathToVehiclesTrips(person1.alternative2_bike, "_alt2_")
-    val alt3 = alternativePathToVehiclesTrips(person1.alternative3_walk_transit_bike_bus, "_alt3_")
-    val alt4 = alternativePathToVehiclesTrips(person1.alternative4_walk, "_alt4_")
-    val alt5 = alternativePathToVehiclesTrips(person1.alternative5_walk_transit_bus, "_alt5_")
+    val alt0 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative0_ride_hail, "_alt0_")
+    val alt1 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative1_ride_hail_pooled, "_alt1_")
+    val alt2 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative2_bike, "_alt2_")
+    val alt3 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative3_walk_transit_bike_bus, "_alt3_")
+    val alt4 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative4_walk, "_alt4_")
+    val alt5 = alternativePathToVehiclesTrips(visualization_35_person1_alternatives.alternative5_walk_transit_bus, "_alt5_")
 
     vehiclesEvents // ++ alt0 ++ alt1 ++ alt2 ++ alt3 ++ alt4 ++ alt5
   }
