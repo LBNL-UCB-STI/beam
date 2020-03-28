@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Generate A CSV file containing Google Maps links and apply filters from the Beam files: {iteration}.personal.CarRideStats.csv.gz
 Example of usage:
 python generate_rides_with_google_maps.py \
@@ -93,13 +93,15 @@ def is_url(input_file_arg):
     return urlparse(input_file_arg).scheme != ''
 
 
-def google_link(start_x, start_y, end_x, end_y):
-    return f"https://www.google.com/maps/dir/{start_y}%09{start_x}/{end_y}%09{end_x}"
+def google_link(row):
+    if not len(row):
+        return None
+    return f"https://www.google.com/maps/dir/{row.start_y}%09{row.start_x}/{row.end_y}%09{row.end_x}"
 
 
 def convert_file(input_file_location, output_file_path, program_arguments):
     df = read_csv_as_dataframe(input_file_location, program_arguments)
-    df['google_link'] = df.apply(lambda x: google_link(x.start_x, x.start_y, x.end_x, x.end_y), axis=1)
+    df['google_link'] = df.apply(lambda x: google_link(x), axis=1)
     print(tabulate(df, headers='keys', tablefmt='psql'))
 
     output_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -171,21 +173,26 @@ def read_csv_as_dataframe(file_path, program_arguments):
     if area_bound_box is not None:
         def filter_by_bound_box(bound_box):
             def internal_filter(row):
+                if not len(row):
+                    return None
                 point1 = Point(row.start_x, row.start_y)
                 point2 = Point(row.end_x, row.end_y)
                 return bound_box.contains_point(point1) or bound_box.contains_point(point2)
             return internal_filter
         area_bound_box = BoundBox.from_str(area_bound_box)
         print(f"**** Filtering area BoundBox: {area_bound_box}.")
-        series_filtered_by_bound_box = original_df.apply(filter_by_bound_box(area_bound_box), axis=1, reduce = True)
-        original_df = original_df.loc[series_filtered_by_bound_box]
+        series_filtered_by_bound_box = original_df.apply(filter_by_bound_box(area_bound_box), axis=1)
+        original_df.index = series_filtered_by_bound_box.index
 
     sample_size = search_argument("--sampleSize", program_arguments)
     if sample_size is not None:
         sample_size = int(sample_size)
         sample_seed = int(search_argument("--sampleSeed", program_arguments))
         print(f"**** Sampling data. sampleSize: [{sample_size}]. sampleSeed: [{sample_seed}]")
-        original_df = original_df.sample(n=sample_size, random_state=sample_seed)
+        if len(original_df) >= sample_size:
+            original_df = original_df.sample(n=sample_size, random_state=sample_seed)
+        else:
+            print(f"**** INFO: The sampleSize is bigger than current size({original_df.size}) of dataframe. SampleSize was ignored.")
 
     return original_df
 
