@@ -35,7 +35,12 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     }
     if (config.origin_destination_skimmer.writeFullSkimsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeFullSkimsInterval == 0) {
       ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", logger.info(_)) {
-        writeFullSkims(event)
+        val filePath = event.getServices.getControlerIO.getIterationFilename(
+          event.getServices.getIterationNumber,
+          skimFileBaseName + "Full.csv.gz"
+        )
+        val uniqueTimeBins: Seq[Int] = 0 to 23
+        writeFullSkims(uniqueTimeBins, event, filePath)
       }
     }
   }
@@ -178,14 +183,9 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     }
   }
 
-  private def writeFullSkims(event: IterationEndsEvent): Unit = {
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
-      event.getServices.getIterationNumber,
-      skimFileBaseName + "Full.csv.gz"
-    )
-    val uniqueModes = currentSkim.map(keyVal => keyVal.asInstanceOf[ODSkimmerKey].mode).toList.distinct
-    val uniqueTimeBins = 0 to 23
-
+  protected def writeFullSkims(uniqueTimeBins: Seq[Int], event: IterationEndsEvent, filePath: String): Unit = {
+    val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
+    require(uniqueModes.nonEmpty, s"Expected to get ODSkimmerKey which contains modes")
     val dummyId = Id.create(
       beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
@@ -235,8 +235,9 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                       }
                     }
 
+                  //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,observations,iterations"
                   writer.write(
-                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}\n"
+                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.count}\n"
                   )
                 }
             }
