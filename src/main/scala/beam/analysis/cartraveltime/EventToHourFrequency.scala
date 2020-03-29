@@ -22,7 +22,8 @@ import scala.util.Try
 class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
     extends BasicEventHandler
     with IterationStartsListener
-    with IterationEndsListener with StrictLogging {
+    with IterationEndsListener
+    with StrictLogging {
   private val eventToHourFreq: mutable.Map[String, mutable.Map[Int, Int]] = mutable.Map[String, mutable.Map[Int, Int]]()
   private var cnt: Int = 0
 
@@ -68,12 +69,15 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
 }
 
 object EventToHourFrequency extends StrictLogging {
+
   def main(args: Array[String]): Unit = {
     val pathToEventXml = args(0)
 
     val eventsManager = EventsUtils.createEventsManager()
 
-    val eventHandler = new EventToHourFrequency(new OutputDirectoryHierarchy("", "", OverwriteFileSetting.failIfDirectoryExists, false))
+    val eventHandler = new EventToHourFrequency(
+      new OutputDirectoryHierarchy("", "", OverwriteFileSetting.failIfDirectoryExists, false)
+    )
     eventsManager.addHandler(eventHandler)
     new MatsimEventsReader(eventsManager).readFile(pathToEventXml)
 
