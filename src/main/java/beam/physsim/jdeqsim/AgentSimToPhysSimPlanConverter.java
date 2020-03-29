@@ -6,7 +6,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.cartraveltime.EventToHourFrequency;
 import beam.analysis.physsim.*;
-import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
@@ -50,6 +49,8 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -245,6 +246,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         if (iterationNumber > 0 && shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
+            writeTravelTimeMap(iterationNumber, map);
             PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, travelTimes);
             psc.write(iterationNumber);
         }
@@ -289,6 +291,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+    }
+
+    private void writeTravelTimeMap(int iteration, Map<String,double[]> map) {
+        String filePath = controlerIO.getIterationFilename(iteration, "travelTime.bin");
+        try (FileOutputStream fos= new FileOutputStream(filePath)) {
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(map);
+            oos.flush();
+            oos.close();
+        } catch (Exception ex) {
+            log.error("Can't write travel time map", ex);
+        }
     }
 
     public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, EventsManager jdeqsimEvents,
