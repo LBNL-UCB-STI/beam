@@ -1,5 +1,7 @@
 package beam.router.skim
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
@@ -23,10 +25,12 @@ import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, val travelTime: TravelTime) extends StrictLogging {
+class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, val travelTime: TravelTime)
+    extends StrictLogging {
   private val scenario: Scenario = beamServices.matsimServices.getScenario
   private val dummyPersonAttributes = createDummyPersonAttribute
-  private val modeChoiceCalculator: ModeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes)
+  private val modeChoiceCalculator: ModeChoiceCalculator =
+    beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes)
 
   private val r5Wrapper: R5Wrapper = createR5Wrapper()
 
@@ -49,7 +53,9 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           val hour = config.beam.urbansim.allTAZSkimsPeakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
           writeFullSkims(uniqueTimeBins, event, filePath)
-          logger.info(s"Written UrbanSim peak skims for hour ${config.beam.urbansim.allTAZSkimsPeakHour} to ${filePath}")
+          logger.info(
+            s"Written UrbanSim peak skims for hour ${config.beam.urbansim.allTAZSkimsPeakHour} to ${filePath}"
+          )
         }
       }
       ProfilingUtils.timed(s"Populate skims for ${tazs.length}", logger.debug(_)) {
@@ -58,8 +64,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       ProfilingUtils.timed("Write skims to disk", logger.debug(_)) {
         skimmer.writeToDisk(new IterationEndsEvent(beamServices.matsimServices, iteration))
       }
-    }
-    catch {
+    } catch {
       case NonFatal(ex) =>
         logger.error(s"Something wrong during skims preparation/writing: ${ex.getMessage}", ex)
     }
@@ -68,23 +73,35 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   private def populateSkimmer(skimmer: ODSkimmer): ODSkimmer = {
     val requestTime = (config.beam.urbansim.allTAZSkimsPeakHour * 3600).toInt
     logger.info(s"There are ${tazs.length} TAZs")
-    tazs.foreach { srcTaz =>
-      tazs.foreach { dstTaz =>
-        val routingReq: RoutingRequest = createRoutingRequest(BeamMode.CAR, requestTime, srcTaz, dstTaz)
-        Try(r5Wrapper.calcRoute(routingReq)) match {
-          case Failure(ex) =>
-            logger.info(s"Routing request failed: ${ex.getMessage}", ex)
-          case Success(response) =>
-            response.itineraries.headOption match {
-              case Some(tripItin) =>
-                val event: ODSkimmerEvent = createSkimEvent(requestTime, tripItin)
-                skimmer.handleEvent(event)
-              case None =>
-                logger.warn(s"Couldn't find itineraries in the response")
+    val failedRoutes = new AtomicInteger(0)
+    val emptyItineraries = new AtomicInteger(0)
+    val skimEvents = ProfilingUtils.timed("Creating skim events", logger.info(_)) {
+      tazs.par
+        .flatMap { srcTaz =>
+          tazs.map { dstTaz =>
+            val routingReq: RoutingRequest = createRoutingRequest(BeamMode.CAR, requestTime, srcTaz, dstTaz)
+            Try(r5Wrapper.calcRoute(routingReq)) match {
+              case Failure(ex) =>
+                failedRoutes.getAndIncrement()
+                None
+              case Success(response) =>
+                response.itineraries.headOption match {
+                  case Some(tripItin) =>
+                    val event: ODSkimmerEvent = createSkimEvent(requestTime, tripItin)
+                    Some(event)
+                  case None =>
+                    emptyItineraries.getAndIncrement()
+                    None
+                }
             }
+          }
         }
-      }
+        .flatten
+        .seq
     }
+    logger.info(s"Total number of skim events: ${skimEvents.size}, failed routes: ${failedRoutes
+      .get()}, empty responses: ${emptyItineraries.get()}")
+    skimEvents.foreach(skimmer.handleEvent)
     skimmer
   }
 
@@ -99,15 +116,15 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
         mode = WALK,
         vehicleTypeId = dummyBodyVehicleType.id
       ) +:
-        actualLegs :+
-        EmbodiedBeamLeg.dummyLegAt(
-          start = actualLegs.last.beamLeg.endTime,
-          vehicleId = Id.createVehicleId("dummy-body"),
-          isLastLeg = true,
-          location = actualLegs.last.beamLeg.travelPath.endPoint.loc,
-          mode = WALK,
-          vehicleTypeId = dummyBodyVehicleType.id
-        )
+      actualLegs :+
+      EmbodiedBeamLeg.dummyLegAt(
+        start = actualLegs.last.beamLeg.endTime,
+        vehicleId = Id.createVehicleId("dummy-body"),
+        isLastLeg = true,
+        location = actualLegs.last.beamLeg.travelPath.endPoint.loc,
+        mode = WALK,
+        vehicleTypeId = dummyBodyVehicleType.id
+      )
     )
     val generalizedTime =
       modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(dummyPersonAttributes), None)
@@ -116,11 +133,9 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       .map(_.beamLeg.travelPath.distanceInM)
       .sum
     logger.debug(
-      s"Observing skim from ${
-        beamServices.beamScenario.tazTreeMap
-          .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
-          .tazId
-      } to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
+      s"Observing skim from ${beamServices.beamScenario.tazTreeMap
+        .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
+        .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
     )
     ODSkimmerEvent(
       requestTime,
