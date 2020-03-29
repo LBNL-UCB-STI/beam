@@ -57,9 +57,9 @@ public class PhyssimCalcLinkSpeedStats {
 
     private int getNumOfBinsFromConfig(BeamConfig beamConfig) {
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-        Double noOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
-        noOfTimeBins = Math.floor(noOfTimeBins);
-        return noOfTimeBins.intValue() + 1;
+        Double numOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
+        numOfTimeBins = Math.floor(numOfTimeBins);
+        return numOfTimeBins.intValue() + 1;
     }
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
