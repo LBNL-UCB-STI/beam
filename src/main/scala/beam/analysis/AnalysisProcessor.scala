@@ -54,7 +54,7 @@ object AnalysisProcessor extends ExponentialLazyLogging {
         }
       )
       logger.info(s"Running python script: $scriptPath with args $args")
-      val str = (Seq("python3", scriptPath) ++ args).mkString(" ")
+      val str = (Seq(processName, scriptPath) ++ args).mkString(" ")
       PythonProcess(Some(str.run(processLogger)))
     } catch {
       case ex: Throwable =>
