@@ -108,12 +108,6 @@ trait NetworkCoordinator extends LazyLogging {
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
-    //scale freeFlow speeds
-    import scala.collection.JavaConversions._
-    for (link <- network.getLinks.values) {
-      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
-    }
-
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 
