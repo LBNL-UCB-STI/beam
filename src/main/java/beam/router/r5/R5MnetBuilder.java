@@ -35,20 +35,21 @@ public class R5MnetBuilder {
     private final GeotoolsTransformation transform;
     private final String osmFile;
     private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final BeamConfig.Beam beamConfig;
 
     private int matsimNetworkNodeId = 0;
 
     /**
-     * @param r5Net     R5 network.
+     * @param r5Net      R5 network.
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
     public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
-        BeamConfig.Beam beam = beamConfig.beam();
+        this.beamConfig = beamConfig.beam();
 
-        osmFile = beam.routing().r5().osmMapdbFile();
+        osmFile = this.beamConfig.routing().r5().osmMapdbFile();
 
-        transform = new GeotoolsTransformation(beam.routing().r5().mNetBuilder().fromCRS(),
-                beam.routing().r5().mNetBuilder().toCRS());
+        transform = new GeotoolsTransformation(this.beamConfig.routing().r5().mNetBuilder().fromCRS(),
+                this.beamConfig.routing().r5().mNetBuilder().toCRS());
 
         r5Network = r5Net;
 
@@ -81,7 +82,7 @@ public class R5MnetBuilder {
             final Set<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
                 String flagString = flagToString(eF);
-                if(!flagString.isEmpty()){
+                if (!flagString.isEmpty()) {
                     flagStrings.add(flagToString(eF));
                 }
             }
@@ -107,13 +108,13 @@ public class R5MnetBuilder {
                 mNetwork.addLink(link);
                 log.debug("Created special link: {}", link);
             } else {
-                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
+                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>) flagStrings);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
             if (fromNode.getId() == toNode.getId()) {
                 cursor.setLengthMm(1);
-                cursor.setSpeed((short)2905); // 65 miles per hour
+                cursor.setSpeed((short) 2905); // 65 miles per hour
                 link.setLength(0.001);
                 link.setCapacity(10000);
                 link.setFreespeed(29.0576);   // 65 miles per hour
@@ -122,6 +123,11 @@ public class R5MnetBuilder {
         }
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
+        }
+
+
+        for (Link link : mNetwork.getLinks().values()) {
+            link.setFreespeed(link.getFreespeed() * this.beamConfig.physsim().speedScalingFactor());
         }
     }
 
