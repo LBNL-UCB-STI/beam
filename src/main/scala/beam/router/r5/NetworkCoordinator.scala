@@ -88,10 +88,10 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def overwriteLinkParams(
-                           overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
-                           transportNetwork: TransportNetwork,
-                           network: Network
-                         ): Unit = {
+    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+    transportNetwork: TransportNetwork,
+    network: Network
+  ): Unit = {
     overwriteLinkParamMap.foreach {
       case (linkId, param) =>
         val link = network.getLinks.get(Id.createLinkId(linkId))
