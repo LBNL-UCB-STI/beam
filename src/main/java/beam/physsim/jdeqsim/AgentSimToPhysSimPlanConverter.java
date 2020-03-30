@@ -20,6 +20,7 @@ import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
+import beam.utils.traveltime.LinkEnterLeaveTimeMobSim;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -38,6 +39,7 @@ import org.matsim.core.mobsim.jdeqsim.Message;
 import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
@@ -53,6 +55,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 
 /**
@@ -112,11 +115,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
-                scenario.getConfig().travelTimeCalculator(),beamConfigChangesObservable);
+                scenario.getConfig().travelTimeCalculator(), beamConfigChangesObservable);
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
-        physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         beamConfigChangesObservable.addObserver(this);
     }
 
@@ -134,6 +137,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
+        jdeqsimEvents.addHandler(new LinkEnterLeaveTimeMobSim.LinkEnterLeaveTimeMobSimHandler(controlerIO
+                .getIterationFilename(iterationNumber, "linkEnterLeaveTimes.csv")));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
             createNetworkFile(jdeqSimScenario.getNetwork());
@@ -143,8 +148,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (shouldWritePhysSimEvents(iterationNumber)) {
             eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
             jdeqsimEvents.addHandler(eventWriter);
-        }
-        else {
+        } else {
             if (beamConfig.beam().physsim().writeEventsInterval() < 1)
                 log.info("There will be no PhysSim events written because `beam.physsim.writeEventsInterval` is set to 0");
             else
@@ -174,8 +178,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
 
             jdeqSimulation.run();
-        }
-        finally {
+            jdeqsimEvents.resetHandlers(0);
+        } finally {
             if (roadCapacityAdjustmentFunction != null) roadCapacityAdjustmentFunction.reset();
         }
 
@@ -283,7 +287,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, EventsManager jdeqsimEvents,
-            int iterationNumber, OutputDirectoryHierarchy controlerIO, RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
+                                                                           int iterationNumber, OutputDirectoryHierarchy controlerIO, RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         double flowCapacityFactor = beamConfig.beam().physsim().flowCapacityFactor();
 
@@ -399,6 +403,48 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
+    private void fixPersonalCarPlans() {
+        Map<Id<Link>, ? extends Link> links = beamServices.matsimServices().getScenario().getNetwork().getLinks();
+        // Fix plans for personal cars
+        jdeqsimPopulation.getPersons().values()
+                .stream()
+                .filter(p -> !p.getId().toString().contains("rideHailVehicle-"))
+                .forEach( person -> {
+                    final List<PlanElement> planElements = person.getSelectedPlan().getPlanElements();
+                    List<Leg> legs = planElements.stream().filter(p -> p instanceof Leg && ((Leg) p).getMode().equals("car")).map(c -> (Leg) c).collect(Collectors.toList());
+                    for (int i = 0; i < legs.size() - 1; i++) {
+                        Leg prev = legs.get(i);
+                        Leg curr = legs.get(i + 1);
+                        NetworkRoute prevRoute = (NetworkRoute) prev.getRoute();
+                        Id<Link> prevEndLinkId = prevRoute.getEndLinkId();
+                        Id<Link> currStartLinkId = curr.getRoute().getStartLinkId();
+                        if (!prevEndLinkId.equals(currStartLinkId)) {
+                            Link prevLink = links.get(prevEndLinkId);
+                            Link currentLink = links.get(currStartLinkId);
+                            if (currentLink.getFromNode().getInLinks().containsKey(prevLink.getId())) {
+                                List<Id<Link>> linkIds = prevRoute.getLinkIds();
+                                List<Id<Link>> newLinkIds = new ArrayList<>(linkIds);
+                                newLinkIds.add(prevRoute.getEndLinkId());
+                                prevRoute.setLinkIds(prevRoute.getStartLinkId(), newLinkIds, currStartLinkId);
+                            }
+                            DebugLib.emptyFunctionForSettingBreakPoint();
+                        }
+                    }
+                    DebugLib.emptyFunctionForSettingBreakPoint();
+                });
+    }
+
+
+    public static NetworkRoute createNetworkRoute(List<Id<Link>> routeLinkIds, final Network network) {
+        Id<Link> startLinkId = routeLinkIds.get(0);
+        List<Id<Link>> linksBetween = routeLinkIds;
+        Id<Link> endLinkId = routeLinkIds.get(routeLinkIds.size() - 1); // what about short routes? single link????
+        NetworkRoute route = RouteUtils.createLinkNetworkRouteImpl(startLinkId, endLinkId);
+        route.setLinkIds(startLinkId, linksBetween, endLinkId);
+        return route;
+    }
+
+
     private void initializePersonAndPlanIfNeeded(Id<Person> personId) {
         if (!jdeqsimPopulation.getPersons().containsKey(personId)) {
             Person person = jdeqsimPopulation.getFactory().createPerson(personId);
@@ -430,6 +476,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
         // end of hack
 
+
+        for (int i = 0; i < linkIds.size() - 1; i++) {
+            Link link = networkLinks.get(linkIds.get(i));
+            Link nextLink = networkLinks.get(linkIds.get(i + 1));
+            if (!link.getToNode().equals(nextLink.getFromNode())) {
+                  log.warn("links not connected linkA:{}, linkB:{}:" , link.toString(), nextLink.toString());
+            } else {
+                  log.info("route link good");
+            }
+        }
+
+
         Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
         Leg leg = jdeqsimPopulation.getFactory().createLeg(mode);
         leg.setDepartureTime(departureTime);
@@ -441,6 +499,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
         //
         createLastActivityOfDayForPopulation();
+
+        fixPersonalCarPlans();
+
         writePhyssimPlans(iterationEndsEvent);
 
         long start = System.currentTimeMillis();

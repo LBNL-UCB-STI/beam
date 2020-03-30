@@ -186,11 +186,15 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
          */
         double nextStuckTime=0;
 
+
+        double squeezeTime=config.getSqueezeTime();//getInverseCapacity(vehicle,simTime)/10;
+        //System.out.println(squeezeTime);
+
         if (getDeadlockPreventionMessages().size() > 0) {
-            nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
+            nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + squeezeTime;
 
         } else {
-            nextStuckTime=simTime + config.getSqueezeTime();
+            nextStuckTime=simTime + squeezeTime;
         }
 
         if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
