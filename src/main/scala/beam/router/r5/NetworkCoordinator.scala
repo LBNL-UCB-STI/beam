@@ -88,10 +88,10 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def overwriteLinkParams(
-    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
-    transportNetwork: TransportNetwork,
-    network: Network
-  ): Unit = {
+                           overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+                           transportNetwork: TransportNetwork,
+                           network: Network
+                         ): Unit = {
     overwriteLinkParamMap.foreach {
       case (linkId, param) =>
         val link = network.getLinks.get(Id.createLinkId(linkId))
@@ -107,6 +107,12 @@ trait NetworkCoordinator extends LazyLogging {
     val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
+
+    //scale freeFlow speeds
+    import scala.collection.JavaConversions._
+    for (link <- network.getLinks.values) {
+      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+    }
 
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
