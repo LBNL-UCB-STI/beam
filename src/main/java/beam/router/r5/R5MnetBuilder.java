@@ -35,9 +35,9 @@ public class R5MnetBuilder {
     private final GeotoolsTransformation transform;
     private final String osmFile;
     private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final BeamConfig.Beam beamConfig;
 
     private int matsimNetworkNodeId = 0;
-    private BeamConfig.Beam beamConfig;
 
     /**
      * @param r5Net      R5 network.
