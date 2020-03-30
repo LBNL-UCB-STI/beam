@@ -68,6 +68,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private static PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
     private static PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
+    private static PhyssimTripStats physsimTripStats;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -117,6 +118,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        physsimTripStats = new PhyssimTripStats(beamConfig);
         beamConfigChangesObservable.addObserver(this);
     }
 
@@ -133,6 +135,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
+        jdeqsimEvents.addHandler(physsimTripStats);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
@@ -257,6 +260,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkLinkLengthDistribution.notifyIterationEnds(iterationNumber)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
+
+        completableFutures.add(CompletableFuture.runAsync(() -> physsimTripStats.reset(iterationNumber)));
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
             assert eventWriter != null;
