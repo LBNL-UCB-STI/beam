@@ -168,34 +168,29 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   }
 
   private def createRoutingRequest(mode: BeamMode, requestTime: Int, srcTaz: TAZ, dstTaz: TAZ): RoutingRequest = {
-    val streetVehicle: StreetVehicle = mode match {
-      case BeamMode.CAR =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-car-for-skim-observations"),
-          dummyCarVehicleType.id,
-          new SpaceTime(srcTaz.coord, requestTime),
-          mode,
-          asDriver = true
-        )
-      case BeamMode.BIKE =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-bike-for-skim-observations"),
-          dummyBikeVehicleType.id,
-          new SpaceTime(srcTaz.coord, requestTime),
-          mode,
-          asDriver = true
-        )
-      case BeamMode.WALK_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-body-for-skim-observations"),
-          dummyBodyVehicleType.id,
-          new SpaceTime(srcTaz.coord, requestTime),
-          WALK,
-          asDriver = true
-        )
-      case x =>
-        throw new IllegalArgumentException(s"Get mode ${x}, but don't know what to do with it.")
-    }
+    val streetVehicles: Vector[StreetVehicle] = Vector(
+      StreetVehicle(
+        Id.createVehicleId("dummy-car-for-skim-observations"),
+        dummyCarVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        BeamMode.CAR,
+        asDriver = true
+      ),
+      StreetVehicle(
+        Id.createVehicleId("dummy-bike-for-skim-observations"),
+        dummyBikeVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        BeamMode.BIKE,
+        asDriver = true
+      ),
+      StreetVehicle(
+        Id.createVehicleId("dummy-body-for-skim-observations"),
+        dummyBodyVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        WALK,
+        asDriver = true
+      )
+    )
     val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
       new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
     } else {
@@ -213,8 +208,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       originUTM = srcCoord,
       destinationUTM = dstCoord,
       departureTime = requestTime,
-      withTransit = mode == BeamMode.WALK_TRANSIT,
-      streetVehicles = Vector(streetVehicle),
+      withTransit = true,
+      streetVehicles = streetVehicles,
       attributesOfIndividual = Some(dummyPersonAttributes)
     )
     routingReq
