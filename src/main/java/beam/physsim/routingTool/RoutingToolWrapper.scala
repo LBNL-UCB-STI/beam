@@ -58,7 +58,7 @@ class InternalRTWrapper (private val pbfPath : String) extends RoutingToolWrappe
         | $toolDockerImage
         | $createODPairs
         | -g $graphPathWithExtension
-        | -n 100
+        | -n 1000
         | -o $odPairsFile -d 10 15 20 25 30 -geom
       """.stripMargin.replace("\n", ""))
 

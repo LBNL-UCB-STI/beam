@@ -17,7 +17,7 @@ RUN  cd fast-cpp-csv-parser && cp *.h /usr/local/include && cd .. && \
      cd stocc && mkdir /usr/local/include/stocc && cp *.cpp *.h $_ && cd .. && \
      cd vectorclass && mkdir /usr/local/include/vectorclass && cp *.h special/* $_ && cd ..
 
-RUN git pull origin exp && echo 6
+RUN git pull origin exp && echo 10
 
 WORKDIR /routing-framework
 
