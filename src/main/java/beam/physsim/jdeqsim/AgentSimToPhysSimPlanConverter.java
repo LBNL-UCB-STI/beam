@@ -16,6 +16,7 @@ import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
+import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
@@ -167,7 +168,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
             log.info("JDEQSim Start");
-            startSegment("jdeqsim-execution", "jdeqsim");
+            startMeasuring("jdeqsim-execution:jdeqsim", Metrics.ShortLevel());
             if (beamConfig.beam().debug().debugEnabled()) {
                 log.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
             }
@@ -182,7 +183,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
         }
 
-        endSegment("jdeqsim-execution", "jdeqsim");
+        stopMeasuring("jdeqsim-execution:jdeqsim");
         log.info("JDEQSim End");
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
@@ -306,8 +307,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     caccVehiclesMap, roadCapacityAdjustmentFunction
             );
             double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
-            double minimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().jdeqsim().cacc().minimumRoadSpeedInMetersPerSecond();
-            jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor, minimumRoadSpeedInMetersPerSecond);
+            double adjustedMinimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().jdeqsim().cacc().adjustedMinimumRoadSpeedInMetersPerSecond();
+            jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor, adjustedMinimumRoadSpeedInMetersPerSecond);
         } else {
             log.info("CACC disabled");
             jdeqSimulation = new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
