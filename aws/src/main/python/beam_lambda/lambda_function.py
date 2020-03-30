@@ -126,7 +126,7 @@ runcmd:
   -    $RUN_SCRIPT
   -  done
   - s3glip=""
-  - if [ "$S3_PUBLISH" = "true" ]
+  - if [ "$S3_PUBLISH" = "True" ]
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
@@ -385,7 +385,7 @@ def deploy_handler(event):
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
-    run_grafana = event.get('run_grafana', 'false')
+    run_grafana = event.get('run_grafana', False)
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
@@ -449,7 +449,7 @@ def deploy_handler(event):
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
+                .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
