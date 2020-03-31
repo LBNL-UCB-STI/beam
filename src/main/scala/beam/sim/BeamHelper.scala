@@ -488,7 +488,9 @@ trait BeamHelper extends LazyLogging {
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
 
     val wrapper = injector.getInstance(classOf[RoutingToolWrapper])
-    wrapper.createCCH()
+    wrapper.generateGraph()
+    wrapper.generateOd()
+    wrapper.assignTraffic()
 
     val services = injector.getInstance(classOf[BeamServices])
 
