@@ -108,7 +108,7 @@ trait NetworkCoordinator extends LazyLogging {
     val rmNetBuilder = new R5MnetBuilder(
       transportNetwork,
       beamConfig,
-      NetworkCoordinator.createHighwaySetting(beamConfig.beam.physsim.network.highwayType)
+      NetworkCoordinator.createHighwaySetting(beamConfig.beam.physsim.network.overwriteRoadTypeProperties)
     )
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
@@ -183,7 +183,7 @@ trait NetworkCoordinator extends LazyLogging {
 }
 
 object NetworkCoordinator {
-  private[r5] def createHighwaySetting(highwayType: Physsim.Network.HighwayType): HighwaySetting = {
+  private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
     if (!highwayType.enabled) {
       HighwaySetting.empty()
     } else {
@@ -195,7 +195,7 @@ object NetworkCoordinator {
   }
 
   private[r5] def getSpeeds(
-    highwayType: Physsim.Network.HighwayType
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
   ): java.util.HashMap[HighwayType, java.lang.Double] = {
     val map = new java.util.HashMap[HighwayType, java.lang.Double]()
     highwayType.motorway.speed.foreach(speed => map.put(HighwayType.Motorway, speed))
@@ -221,7 +221,7 @@ object NetworkCoordinator {
   }
 
   private[r5] def getCapacities(
-    highwayType: Physsim.Network.HighwayType
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
   ): java.util.HashMap[HighwayType, java.lang.Integer] = {
     val map = new java.util.HashMap[HighwayType, java.lang.Integer]()
     highwayType.motorway.capacity.foreach(capacity => map.put(HighwayType.Motorway, capacity))
@@ -247,7 +247,7 @@ object NetworkCoordinator {
   }
 
   private[r5] def getLanes(
-    highwayType: Physsim.Network.HighwayType
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
   ): java.util.HashMap[HighwayType, java.lang.Integer] = {
     val map = new java.util.HashMap[HighwayType, java.lang.Integer]()
     highwayType.motorway.lanes.foreach(lanes => map.put(HighwayType.Motorway, lanes))
