@@ -2,7 +2,7 @@ package beam.router
 
 import java.io.File
 
-import beam.router.r5.R5MnetBuilder
+import beam.router.r5.{HighwaySetting, R5MnetBuilder}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.transit.TransportNetwork
@@ -14,7 +14,7 @@ class R5MnetBuilderSpec extends FlatSpec {
   it should "do something" in {
     val config = testConfig("test/input/beamville/beam.conf").resolve()
     var transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
-    val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config))
+    val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config), HighwaySetting.empty())
     builder.buildMNet()
     val network = builder.getNetwork
     new NetworkWriter(network).write("test/input/beamville/physsim-network.xml")
