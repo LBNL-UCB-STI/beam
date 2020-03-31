@@ -118,9 +118,7 @@ configure them and print URLs to Grafana dashboards after the docker image is ru
 
     ./gradlew grafanaStart
 
-After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in the Grafana dashboards.
-
-
+After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in the Grafana dashboards_ .
 
 Stop Grafana
 ^^^^^^^^^^^^^^^^^
@@ -144,24 +142,29 @@ This command should only be used after Grafana has stopped. ::
 Working with Grafana graphs
 ---------------------------
 
-There are different `views` which are called `dashboards` that allow you to see BEAM results in different ways:
+There are different `views` which are called _`dashboards` that allow you to see BEAM results in different ways:
 
 *
 
-    The **Global View** plots output metrics from the simulation in an iteration-by-iteration format. I.e. this view is good
-    for seeing how the system evolves over the iterations as user equilibrium is established.
+    The `Global view <http://localhost:3003/d/dvib8mbWz/beam-simulation-global-view>`_ plots output metrics from the simulation in an iteration-by-iteration format.
+    I.e. this view is good for seeing how the system evolves over the iterations as user equilibrium is established.
 
 *
 
-    The **Iteration View** shows the output of a single iteration within BEAM and plots metrics on an hourly time scale,
-    this is useful for seeing granular dynamics like the use of charging infrastructure over time.
+    The `Iteration view <http://localhost:3003/d/5oUysNJWz/beam-simulation-iteration-view>`_ shows the output of a single iteration within BEAM and plots
+    metrics on an hourly time scale, this is useful for seeing granular dynamics like the use of charging infrastructure over time.
 
 *
 
-    In both of the previous views, only one BEAM run may be viewed at a time but there are also **Global View Comparison**
-    and **Iteration View Comparison** which allow you to view two BEAM runs at the same time or one BEAM run but with different iterations.
+    In both of the previous views, only one BEAM run may be viewed at a time but there are also
+    `Global view comparison <http://localhost:3003/d/KuiPBbBWz/beam-simulation-global-view-comparison>`_
+    and `Iteration view comparison <http://localhost:3003/d/66mrcxfWz/beam-simulation-iteration-view-comparison>`_
+    which allow you to view two BEAM runs at the same time or one BEAM run but with different iterations.
 
-* The **Iteration Map View** allows you to see various BEAM metrics displayed on a map with the ability to choose any combination of available metrics, hour and iteration to display.
+*
+    The `Iteration MAP view <http://localhost:3003/d/otUGbMyZk/beam-simulation-iteration-map-view>`_ allows you to see various BEAM metrics
+    displayed on a map with the ability to choose any combination of available metrics, hour and iteration to display.
+
 
 Select dashboard
 ^^^^^^^^^^^^^^^^^^^^^^^^^
