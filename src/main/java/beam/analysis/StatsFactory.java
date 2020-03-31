@@ -5,6 +5,8 @@ import beam.analysis.plots.*;
 import beam.analysis.summary.*;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
+import com.conveyal.r5.transit.TransportNetwork;
+import org.apache.commons.lang.ArrayUtils;
 
 import java.beans.Beans;
 import java.util.Arrays;
@@ -38,6 +40,7 @@ public class StatsFactory {
         RideHailSummary,
         LoadOverTimeAnalysis,
         ChargingAnalysis,
+        EVFleetAnalysis,
         PersonAverageTravelTimeAnalysis
     }
 
@@ -73,28 +76,46 @@ public class StatsFactory {
     }
 
     public void createStats() {
-        Arrays.stream(StatsType.values()).forEach(this::getAnalysis);
+        Boolean EVFleetAnalysisEnabled = beamServices.simMetricCollector().metricEnabled("rh-ev-cav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-cav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-nocav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-ev-nocav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-cav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-cav-distance") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-nocav-count") ||
+                beamServices.simMetricCollector().metricEnabled("rh-noev-nocav-distance");
+
+        if (EVFleetAnalysisEnabled) {
+            Arrays.stream(StatsType.values()).forEach(this::getAnalysis);
+        } else {
+            for (StatsType statsType : StatsType.values()) {
+                if (!statsType.equals(StatsType.EVFleetAnalysis)) {
+                    getAnalysis(statsType);
+                }
+            }
+        }
     }
 
     private BeamAnalysis createStats(StatsType statsType) {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
         switch (statsType) {
             case RideHailWaiting:
-                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
+                TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();
+                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector(), beamServices.geo(), transportNetwork);
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
-                return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
+                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
-                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),writeGraphs);
+                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(), writeGraphs);
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
+                return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
             case RealizedMode:
                 return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
-                return new DeadHeadingAnalysis(writeGraphs);
+                return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
                         beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
@@ -123,9 +144,11 @@ public class StatsFactory {
             case RideHailSummary:
                 return new RideHailSummary();
             case LoadOverTimeAnalysis:
-                return new LoadOverTimeAnalysis();
+                return new LoadOverTimeAnalysis(beamServices.geo(), beamServices.simMetricCollector());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
+            case EVFleetAnalysis:
+                return new RideHailFleetAnalysis(beamServices);
             case PersonAverageTravelTimeAnalysis:
                 return new PersonAverageTravelTimeAnalysis(beamConfig);
             default:

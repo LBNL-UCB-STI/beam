@@ -1,0 +1,484 @@
+{
+  "meta": {
+    "type": "db",
+    "canSave": true,
+    "canEdit": true,
+    "canAdmin": true,
+    "canStar": true,
+    "slug": "beam-simulation-iteration-map-view",
+    "url": "/d/otUGbMyZk/beam-simulation-iteration-map-view",
+    "expires": "0001-01-01T00:00:00Z",
+    "created": "2019-11-09T19:25:10Z",
+    "updated": "2019-11-09T19:30:56Z",
+    "updatedBy": "root",
+    "createdBy": "root",
+    "version": 1,
+    "hasAcl": false,
+    "isFolder": false,
+    "folderId": 0,
+    "folderTitle": "General",
+    "folderUrl": "",
+    "provisioned": false,
+    "provisionedExternalId": ""
+  },
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "iteration": 1581507517336,
+    "links": [],
+    "panels": [
+      {
+        "datasource": null,
+        "gridPos": {
+          "h": 21,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "id": 3,
+        "options": {},
+        "pconfig": {
+          "dataColumnNames": {
+            "all": "Time simulation-hour value lat lon",
+            "dataColumn": "count",
+            "xColumn": "lon",
+            "yColumn": "lat"
+          },
+          "fixScale": "",
+          "layout": {
+            "barmode": "stack",
+            "dragmode": "zoom",
+            "font": {
+              "family": "\"Open Sans\", Helvetica, Arial, sans-serif"
+            },
+            "hovermode": "closest",
+            "legend": {
+              "orientation": "v",
+              "traceorder": "normal",
+              "x": "-0.15",
+              "y": ""
+            },
+            "showlegend": true,
+            "xaxis": {
+              "autorange": true,
+              "dtick": "1",
+              "fixedrange": false,
+              "rangemode": "normal",
+              "showgrid": true,
+              "showticklabels": true,
+              "tick0": "0",
+              "type": "auto",
+              "zeroline": false
+            },
+            "yaxis": {
+              "autorange": true,
+              "dtick": "",
+              "fixedrange": false,
+              "rangemode": "normal",
+              "showgrid": true,
+              "showticklabels": true,
+              "tick0": "",
+              "type": "linear",
+              "zeroline": false
+            },
+            "zaxis": {
+              "rangemode": "normal",
+              "showgrid": true,
+              "type": "linear",
+              "zeroline": false
+            }
+          },
+          "loadFromCDN": false,
+          "queries": [
+            {
+              "dataColumnNames": {
+                "dataColumn": "count",
+                "xColumn": "lon",
+                "yColumn": "lat"
+              },
+              "displayName": "count of events",
+              "queryNumber": "0",
+              "queryTitle": "average charging load textextext"
+            },
+            {
+              "dataColumnNames": {
+                "dataColumn": "averageLoad",
+                "xColumn": "lon",
+                "yColumn": "lat"
+              },
+              "displayName": "average charging load",
+              "queryNumber": "1",
+              "queryTitle": "count of events"
+            }
+          ],
+          "queriesDescription": [
+            {
+              "color": "green",
+              "columnNames": {
+                "dataColumn": "averageLoad",
+                "latColumn": "lat",
+                "lonColumn": "lon",
+                "xColumn": "simulation-hour",
+                "yColumn": "",
+                "yaxistext": "Avg. Power (kW)"
+              },
+              "queryNumber": 0,
+              "queryTitle": "Average Charging Load",
+              "yaxistext": "Avg. Power (kW)"
+            },
+            {
+              "color": "blue",
+              "columnNames": {
+                "dataColumn": "count",
+                "latColumn": "lat",
+                "lonColumn": "lon",
+                "xColumn": "simulation-hour",
+                "yColumn": "",
+                "yaxistext": "# of charging events"
+              },
+              "queryNumber": 1,
+              "queryTitle": "Count of Charging Events",
+              "yaxistext": "# of charging ev."
+            },
+            {
+              "color": "red",
+              "columnNames": {
+                "dataColumn": "value",
+                "latColumn": "lat",
+                "lonColumn": "lon",
+                "xColumn": "simulation-hour",
+                "yColumn": "",
+                "yaxistext": "Seconds"
+              },
+              "queryNumber": 2,
+              "queryTitle": "RH Waiting Time",
+              "yaxistext": "Seconds"
+            }
+          ],
+          "settings": {
+            "displayModeBar": true,
+            "fill": "None",
+            "mode": "None",
+            "type": "scattermapbox"
+          },
+          "showAnnotations": true,
+          "traces": [
+            {
+              "mapping": {
+                "color": "Time",
+                "size": null,
+                "text": null,
+                "x": "Time",
+                "y": "Time",
+                "z": null
+              },
+              "name": "Trace 1",
+              "settings": {
+                "color_option": "ramp",
+                "line": {
+                  "color": "#005f81",
+                  "dash": "solid",
+                  "shape": "linear",
+                  "width": 6
+                },
+                "marker": {
+                  "color": "#33B5E5",
+                  "colorscale": "YlOrRd",
+                  "line": {
+                    "color": "#DDD",
+                    "width": 0
+                  },
+                  "showscale": false,
+                  "size": 15,
+                  "sizemin": 3,
+                  "sizemode": "diameter",
+                  "sizeref": 0.2,
+                  "symbol": "circle"
+                }
+              },
+              "show": {
+                "line": true,
+                "lines": false,
+                "markers": false
+              }
+            }
+          ]
+        },
+        "targets": [
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "hide": false,
+            "measurement": "chargingPower",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"averageLoad\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\"",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "averageLoad"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lat"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lon"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          },
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "hide": false,
+            "measurement": "chargingPower",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"count\", \"lat\", \"lon\" FROM \"chargingPower\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\"",
+            "rawQuery": true,
+            "refId": "B",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lat"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lon"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          },
+          {
+            "groupBy": [
+              {
+                "params": [
+                  "simulation-hour"
+                ],
+                "type": "tag"
+              }
+            ],
+            "measurement": "ride-hail-waiting-time-map",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT \"value\", \"lat\", \"lon\" FROM \"ride-hail-waiting-time-map\" WHERE (\"unique-run-name\" =~ /^$run_name$/ AND \"iteration-num\" =~ /^$iteration_num$/) GROUP BY \"simulation-hour\"",
+            "rawQuery": true,
+            "refId": "C",
+            "resultFormat": "table",
+            "select": [
+              [
+                {
+                  "params": [
+                    "value"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lat"
+                  ],
+                  "type": "field"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "lon"
+                  ],
+                  "type": "field"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "unique-run-name",
+                "operator": "=~",
+                "value": "/^$run_name$/"
+              },
+              {
+                "condition": "AND",
+                "key": "iteration-num",
+                "operator": "=~",
+                "value": "/^$iteration_num$/"
+              }
+            ]
+          }
+        ],
+        "timeFrom": null,
+        "timeShift": null,
+        "title": "Iteration Map View graph",
+        "type": "natel-plotly-panel",
+        "version": 1
+      }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 20,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "allValue": null,
+          "current": {
+            "selected": true,
+            "text": "2020-02-11_17-40-10_sf-light-1k-xml",
+            "value": "2020-02-11_17-40-10_sf-light-1k-xml"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
+          "hide": 0,
+          "includeAll": false,
+          "label": "run name",
+          "multi": false,
+          "name": "run_name",
+          "options": [],
+          "query": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 6,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "selected": false,
+            "tags": [],
+            "text": "17",
+            "value": "17"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 0,
+          "includeAll": false,
+          "label": "iteration num",
+          "multi": false,
+          "name": "iteration_num",
+          "options": [],
+          "query": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 4,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ]
+    },
+    "timezone": "",
+    "title": "Beam Simulation. Iteration Map View",
+    "uid": "otUGbMyZk",
+    "version": 3
+  }
+}
