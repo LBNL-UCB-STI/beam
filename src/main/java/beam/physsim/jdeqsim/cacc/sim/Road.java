@@ -12,7 +12,7 @@ import java.util.LinkedList;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
-    private final double INCREASE_TIMESTAMP = 0.0000000001;
+    private static final double INCREASE_TIMESTAMP = 0.0000000001D;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
     private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
     private double speedAdjustmentFactor;
@@ -172,7 +172,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     public void procsessFilledRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
         LinkedList<Double> gap = getGap();
         if (gap == null) {
-            gap = new LinkedList<>();
+            setGap(new LinkedList<>());
         } else {
             gap.clear();
         }
@@ -184,11 +184,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
          * 'stuckTime' the car behind has to wait an additional stuckTime
          * (this logic was adapted to adhere to the C++ implementation)
          */
-        double nextStuckTime=0;
-
+        double nextStuckTime;
         if (getDeadlockPreventionMessages().size() > 0) {
             nextStuckTime= getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
-
         } else {
             nextStuckTime=simTime + config.getSqueezeTime();
         }
