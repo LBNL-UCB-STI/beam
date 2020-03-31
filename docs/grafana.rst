@@ -116,11 +116,11 @@ Start Grafana
 ^^^^^^^^^^^^^^^^^
 
 To run Grafana one should use gradle command ``grafanaStart``. The command will start the Grafana and InfluxDB docker container,
-configure them and print URLs to Grafana dashboards after the docker image is running. ::
+configure them and print URLs to Grafana dashboards_ after the docker image is running. ::
 
     ./gradlew grafanaStart
 
-After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in the Grafana dashboards_ .
+After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database.
 
 Stop Grafana
 ^^^^^^^^^^^^^^^^^
