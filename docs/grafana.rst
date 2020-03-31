@@ -1,3 +1,5 @@
+.. _real-time-graphs:
+
 Real time graphs
 ====================
 
