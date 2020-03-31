@@ -5,14 +5,13 @@ Grafana
 -----------
 
 `Grafana <https://grafana.com/>`_ is the open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
-
-Grafana is a tool to display data from data source. In our case the data source is `InfluxDB <https://www.influxdata.com/products/influxdb-overview/>`_ .
+It is a tool to display data from data source. In our case the data source is `InfluxDB <https://www.influxdata.com/products/influxdb-overview/>`_ .
 
 
 Docker installation and configuration
 --------------------------------------
 
-There is a docker image with configured Grafana and InfluxDB to work with BEAM thus one need to install docker in order to use Grafana.
+There is a docker image with Grafana and InfluxDB preconfigured to work with BEAM, thus docker needs installed in order to use Grafana.
 
 Ubuntu Linux users
 ^^^^^^^^^^^^^^^^^^^
@@ -29,7 +28,7 @@ There is an official `installation guide for Ubuntu Linux users <https://docs.do
 a `Post-installation guide for Linux <https://docs.docker.com/install/linux/linux-postinstall/>`_ with optional procedures
 for configuring Linux hosts to work better with Docker for non-root users.
 
-Otherwise use those commands::
+Otherwise use these commands::
 
     sudo apt-get update
     sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose
@@ -89,16 +88,16 @@ If not, virtualization should be enabled in BIOS:
     a different key but it may show a brief message at boot telling you which one to press. If you miss it the first time, reboot and try again.
     It helps to tap the key about twice a second when the computer is coming up.
 
-* In the BIOS settings, find the configuration items related to the CPU. These can be in under the headings Processor, Chipset, or Northbridge.
+* In the BIOS settings, find the configuration items related to the CPU. These can be found under the headings Processor, Chipset, or Northbridge.
 * Enable virtualization; the setting may be called VT-x, AMD-V, SVM, or Vanderpool. Enable Intel VT-d or AMD IOMMU if options are available.
 * Save your changes and reboot.
 
-Another `instruction with examples for different computer manufacturers <https://2nwiki.2n.cz/pages/viewpage.action?pageId=75202968>`_.
+Another instruction with examples for different computer manufacturers can be found `here <https://2nwiki.2n.cz/pages/viewpage.action?pageId=75202968>`_.
 
 Verify docker installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Verify that docker is installed correctly by typing in terminal or in a command window::
+Verify that docker is installed correctly by typing in a terminal or in a command window::
 
     docker run hello-world
 
@@ -114,33 +113,35 @@ Control Grafana using gradle commands
 Start Grafana
 ^^^^^^^^^^^^^^^^^
 
-To run Grafana one should use gradle command grafanaStart without any parameters. The command will start Grafana and InfluxDB docker container,
+To run Grafana one should use gradle command ``grafanaStart``. The command will start the Grafana and InfluxDB docker container,
 configure them and print URLs to Grafana dashboards after the docker image is running. ::
 
     ./gradlew grafanaStart
 
-After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in Grafana dashboards.
+After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in the Grafana dashboards.
+
+
 
 Stop Grafana
 ^^^^^^^^^^^^^^^^^
 
-While Grafana is stopping all collected by InfluxDB data will be stored in snapshot on a file system.
-The snapshot will be used next time when Grafana start thus data won't be lost.
+When Grafana is stopped, all collected InfluxDB data will be stored in snapshots on the file system.
+The snapshot will be used next time Grafana starts, thus data won't be lost.
 
-To stop Grafana one should use gradle command grafanaStop without any parameters. ::
+To stop Grafana one should use the gradle command ``grafanaStop``. ::
 
     ./gradlew grafanaStop
 
 Clear collected data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To clear all collected by InfluxDB data from BEAM runs one should use gradle command grafanaClearData.
-This command should be used after Grafana was stopped. ::
+To clear all the BEAM run data collected by InfluxDB one should use the gradle command ``grafanaClearData``.
+This command should only be used after Grafana has stopped. ::
 
     ./gradlew grafanaClearData
 
 
-Work with Grafana graphs
+Working with Grafana graphs
 ---------------------------
 
 There are different `views` which are called `dashboards` that allow you to see BEAM results in different ways:
@@ -157,10 +158,10 @@ There are different `views` which are called `dashboards` that allow you to see 
 
 *
 
-    In both of the previous views, only one BEAM run may be viewed at one time but there are also the **Global View Comparison**
+    In both of the previous views, only one BEAM run may be viewed at a time but there are also **Global View Comparison**
     and **Iteration View Comparison** which allow you to view two BEAM runs at the same time or one BEAM run but with different iterations.
 
-* The **Iteration Map View** allows you to see various BEAM metrics displayed on a map with ability to choose any combination of available metrics, hour and iteration to display.
+* The **Iteration Map View** allows you to see various BEAM metrics displayed on a map with the ability to choose any combination of available metrics, hour and iteration to display.
 
 Select dashboard
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -175,7 +176,7 @@ Select BEAM run
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To select which BEAM run graphs should be displayed one can use the switch ``run name``. A BEAM run name has the format: *date_time_simulation-name*
-where *date* and *time* are local date and time for pc where BEAM is running and the simulation name is taken from ``beam.agentsim.simulationName``
+where *date* and *time* are local date and time for the pc where BEAM is running, and the simulation name is taken from the ``beam.agentsim.simulationName``
 config value. The BEAM run list containing the ``run name`` switch is updated after a page refresh. So make sure to refresh your browser after
 a new BEAM run is started and output from the simulation have begun to accumulate. If there are no active BEAM runs in the local history then one will see no choice for ‘run_name’:
 
@@ -186,7 +187,7 @@ a new BEAM run is started and output from the simulation have begun to accumulat
 Disable and enable data traces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to disable and enable some of value traces on a graph by clicking on the name of a trace.
+It is possible to disable and enable some of the value traces on a graph by clicking on the name of a trace.
 
 .. figure:: _static/figs/grafana-enable-disable-traces.png
 
@@ -204,8 +205,8 @@ On Iteration View it is possible to select the iteration to see through the ‘i
 Select data update frequency
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There is a switch to choose how frequent grafana should gather data from the output DB. The switch is in the top right corner in all dashboards.
-In the example below the switch is set up to update every 30 seconds. Also, there is a refresh button near the switch, this button
+There is a switch to choose how frequently grafana should gather data from the output DB. The switch is in the top right corner of all dashboards.
+In the example below the switch is set to update every 10 seconds. Also, there is a refresh button near the switch, this button
 does not refresh the entire page, run name or iteration num switch, *only the graphs*.
 
 .. figure:: _static/figs/grafana-update-frequency-switch.png
@@ -215,8 +216,8 @@ does not refresh the entire page, run name or iteration num switch, *only the gr
 Iteration Map View
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-On the **Iteration Map View** one may choose which data trace displaying as bars graph **(1)**, which data traces are displaying on a map **(2)**
-and for what hour data traces are displaying on a map **(3)**. Map is functional too, so, one may zoom in and out and move around with mouse controls.
+On the **Iteration Map View** oone may choose which data trace are displayed as bar graphs **(1)**, which data traces are displayed on a map **(2)**
+and for what hour data traces are displayed on a map **(3)**. Map is functional too, so, one may zoom in and out and move around with mouse controls.
 
 .. figure:: _static/figs/grafana-iteration-map-view.png
 
@@ -230,16 +231,16 @@ Existing metrics
 
 To configure which metrics will be written one should use BEAM configuration files.
 
-There is a configuration entry ``beam.sim.metric.collector.metrics`` which contains names of enabled metrics
+There is a configuration entry ``beam.sim.metric.collector.metrics`` which contains the names of enabled metrics
 and thus controls which metrics will be written during BEAM execution.
 
 By default metrics which do not affect performance are enabled globally in “test/input/common/metrics.conf” file.
 
-To configure metrics for specific BEAM configuration one may add the configuration entry in that specific configuration file.
+To configure metrics for a specific BEAM configuration one may add the configuration entry in that specific configuration file.
 
 **Metrics description:**
 
-Metrics which contain a run name and an iteration number, **necessary for displaying any metric**::
+Metrics which contain a run name and an iteration number and are **necessary for displaying any metric**::
 
     beam-run,
     beam-iteration
@@ -261,7 +262,7 @@ Metrics which contain a single number with a count of different types of ride ha
     beam-run-RH-ev-non-cav,
     beam-run-RH-non-ev-non-cav
 
-Ride hail EV (electric vehicle) CAV (connected and automated vehicle) metrics::
+Ride hail EV (electric vehicle), CAV (connected and automated vehicle) metrics::
 
     rh-ev-cav-count,
     rh-ev-cav-distance,
@@ -299,8 +300,8 @@ In order to write and display a new metric one should do two things:
 
 **How to write a new metric into storage**
 
-To write a new metric into storage during BEAM execution one needs to use an appropriate method from trait ``SimulationMetricCollector``:
-there are methods to write iteration-level metrics with hours on X axis or to be displayed on a map
+To write a new metric into storage during a BEAM execution one needs to use an appropriate method from trait ``SimulationMetricCollector``.
+There are methods to write iteration-level metrics with hours on X axis or to be displayed on a map
 and methods to write global-level metrics with iteration on X axis. There is also a method to check if a metric is enabled.
 
 
@@ -312,8 +313,8 @@ Troubleshooting
     for docker-influxdb-grafana Cannot create container for service docker-influxdb-grafana: Conflict. The container
     name "/docker-influxdb-grafana" is already in use by container "<CONTAINER ID>”. You have to remove (or rename) that container to be able to reuse that name.
 
-This error means that one already has a container with name ‘docker-influxdb-grafana’ in docker.
-To coupe with that one may remove that container::
+This error means that one already has a container with the name ‘docker-influxdb-grafana’ in docker.
+To handle that one may remove that container::
 
     docker container stop docker-influxdb-grafana
     docker rm docker-influxdb-grafana
