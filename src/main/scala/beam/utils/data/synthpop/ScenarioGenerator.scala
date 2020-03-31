@@ -329,10 +329,12 @@ class SimpleScenarioGenerator(
       .map {
         case (blockGroupGeoId, blockGroupGeom) =>
           // Intersect with all TAZ
-          val allIntersections = geoSvc.tazGeoIdToGeom.map {
+          val allIntersections = geoSvc.tazGeoIdToGeom.flatMap {
             case (tazGeoId, tazGeo) =>
               val intersection = blockGroupGeom.intersection(tazGeo)
-              (intersection, blockGroupGeoId, tazGeoId)
+              if (intersection.isEmpty)
+                None
+              else Some((intersection, blockGroupGeoId, tazGeoId))
           }
           blockGroupGeoId -> allIntersections.map(_._3).toList
       }
