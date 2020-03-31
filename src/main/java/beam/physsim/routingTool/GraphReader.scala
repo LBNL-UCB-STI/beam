@@ -6,57 +6,83 @@ import com.google.common.io.Files
 
 import scala.collection.mutable
 
-object GraphReader extends App {
-  val graphBinary = new File("/tmp/rt/beamville_graph.gr.bin")
+case class LatLong(lat: Double, lon: Double)
+case class Vertex(id: Long, latLong: LatLong)
+case class RoutingToolGraph(vertexes: Seq[Vertex])
 
-  val source = Files.asByteSource(graphBinary).openStream()
+trait RoutingToolsGraphReader {
+  def read(graph: File): RoutingToolGraph
+}
 
-  val vertices = readInt()
-  val edges = readInt()
+object RoutingToolsGraphReaderImpl extends RoutingToolsGraphReader {
+  override def read(graph: File): RoutingToolGraph = {
 
-  val outEdgesFirst = (0 until vertices).map(_ => readInt())
+    val source = Files.asByteSource(graph).openStream()
 
-  val outEdgesEnd = (0 until edges).map(_ => readInt())
-
-  val numOfAttributes = readInt()
-
-  (0 until numOfAttributes).foreach { _ =>
-    val attributeName = readString()
-    val size = readInt()
-
-    if (attributeName == "lat_lng") {
-      readInt() // skip list size
-      val index2LatLng = (0 until vertices)
-        .map(i => i -> (readInt() / 1000000.0 -> readInt()/1000000.0))
-      println()
-    } else {
-      source.skip(size)
+    def readString(): String = {
+      val b = mutable.ArrayBuffer[Byte]()
+      Stream
+        .continually(source.read())
+        .takeWhile(_ != -1)
+        .map(_.toByte)
+        .takeWhile(_ != '\u0000')
+        .foreach(b += _)
+      new String(b.toArray)
     }
+
+    def readInt(): Int = {
+      readLittleEndianBuffer(4).getInt
+    }
+
+    def readLittleEndianBuffer(size: Int): ByteBuffer = {
+      val bytes = new Array[Byte](size)
+      source.read(bytes)
+      ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+    }
+
+    val vertices = readInt()
+    val edges = readInt()
+
+    val outEdgesFirst = (0 until vertices).map(_ => readInt())
+
+    val outEdgesEnd = (0 until edges).map(_ => readInt())
+
+    val numOfAttributes = readInt()
+
+    val vertexId2Attribute = (0 until numOfAttributes)
+      .flatMap { _ =>
+        val attributeName = readString()
+        val size = readInt()
+
+        if (attributeName == "lat_lng") {
+          readInt() // skip list size
+          (0 until vertices)
+            .map(i => i -> LatLong(readInt() / 1000000.0, readInt() / 1000000.0))
+        } else {
+          source.skip(size)
+          Nil
+        }
+      }
+      .groupBy { case (vertexId, _) => vertexId }
+      .mapValues(_.map { case (_, attribute) => attribute })
+
+    val vertexes = vertexId2Attribute.map {
+      case (vertexId, attributes) =>
+        val latLong: LatLong = attributes
+          .find(_.isInstanceOf[LatLong])
+          .getOrElse(throw new RuntimeException("lat_lng attribute not found in graph"))
+
+        Vertex(vertexId, latLong)
+    }.toSeq
+
+    source.close()
+
+    RoutingToolGraph(vertexes)
   }
+}
 
-  throw new RuntimeException("lat_lng attribute not found in graph")
-
-  println()
-
-  //------------------------
-  private def readString(): String = {
-    val b = mutable.ArrayBuffer[Byte]()
-    Stream
-      .continually(source.read())
-      .takeWhile(_ != -1)
-      .map(_.toByte)
-      .takeWhile(_ != '\u0000')
-      .foreach(b += _)
-    new String(b.toArray)
-  }
-
-  private def readInt(): Int = {
-    readLittleEndianBuffer(4).getInt
-  }
-
-  private def readLittleEndianBuffer(size: Int): ByteBuffer = {
-    val bytes = new Array[Byte](size)
-    source.read(bytes)
-    ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-  }
+object GraphReaderApp extends App {
+  val graphBinary = new File("/tmp/rt/beamville_graph.gr.bin")
+  val reader: RoutingToolsGraphReader = RoutingToolsGraphReaderImpl
+  reader.read(graphBinary)
 }

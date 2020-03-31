@@ -13,16 +13,15 @@ trait RoutingToolWrapper {
 }
 
 class RoutingToolWrapperImpl1 @Inject()(beamServices: BeamServices)
-      extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile)
+    extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile)
 
-class InternalRTWrapper (private val pbfPath : String) extends RoutingToolWrapper {
+class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper {
   private val toolDockerImage = "rooting-tool"
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraph = s"$basePath/RawData/ConvertGraph"
   private val createODPairs = s"$basePath/RawData/GenerateODPairs"
   private val assignTraffic = s"$basePath/Launchers/AssignTraffic"
 
-  private val tempDirPath = System.getProperty("java.io.tmpdir")
   private val tempDir = new File("/tmp/rt")
   tempDir.mkdirs()
 
@@ -49,6 +48,10 @@ class InternalRTWrapper (private val pbfPath : String) extends RoutingToolWrappe
       """.stripMargin.replace("\n", ""))
 
     println(convertGraphOutput.!!)
+
+    val graph = RoutingToolsGraphReaderImpl.read(
+      Paths.get(tempDir.getAbsolutePath, pbfNameWithoutExtension + "_graph.gr.bin").toFile
+    )
 
     val odPairsFile = pbfInTempDirPath + "_odpairs"
 
@@ -83,6 +86,6 @@ class InternalRTWrapper (private val pbfPath : String) extends RoutingToolWrappe
 
 }
 
-object Starter extends App{
+object Starter extends App {
   new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf").createCCH()
 }
