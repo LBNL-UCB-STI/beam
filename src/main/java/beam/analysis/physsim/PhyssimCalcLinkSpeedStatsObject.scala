@@ -16,7 +16,7 @@ object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
     */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val freeSpeedDistOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, PhyssimCalcLinkSpeedStats.outputFileName + ".csv")
+      .getIterationFilename(0, PhyssimCalcLinkSpeedStats.OUTPUT_FILE_NAME + ".csv")
     val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
     val freeSpeedDistRelativePath: String = freeSpeedDistOutputFilePath.replace(outputDirPath, "")
     val list: util.List[OutputDataDescription] = new util.ArrayList[OutputDataDescription]
