@@ -1,26 +1,27 @@
 package beam.router.r5
 
 import beam.sim.config.BeamConfig.Beam.Physsim.Network
-import beam.sim.config.BeamConfig.Beam.Physsim.Network.HighwayType.LivingStreet
+import beam.sim.config.BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties
+import beam.sim.config.BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties._
 import org.scalatest.{FunSuite, Matchers}
 
 class NetworkCoordinatorTest extends FunSuite with Matchers {
-  private val highwayType: Network.HighwayType = Network.HighwayType(
+  private val highwayType: Network.OverwriteRoadTypeProperties = Network.OverwriteRoadTypeProperties(
     enabled = true,
-    livingStreet = LivingStreet(capacity = Some(1), lanes = Some(2), speed = Some(3)),
-    minor = Network.HighwayType.Minor(capacity = Some(4), lanes = Some(5), speed = Some(6)),
-    motorway = Network.HighwayType.Motorway(capacity = Some(7), lanes = Some(8), speed = Some(9)),
-    motorwayLink = Network.HighwayType.MotorwayLink(capacity = Some(10), lanes = Some(11), speed = Some(12)),
-    primary = Network.HighwayType.Primary(capacity = Some(13), lanes = Some(14), speed = Some(15)),
-    primaryLink = Network.HighwayType.PrimaryLink(capacity = Some(16), lanes = Some(17), speed = Some(18)),
-    residential = Network.HighwayType.Residential(capacity = Some(19), lanes = Some(20), speed = Some(21)),
-    secondary = Network.HighwayType.Secondary(capacity = Some(22), lanes = Some(23), speed = Some(24)),
-    secondaryLink = Network.HighwayType.SecondaryLink(capacity = Some(25), lanes = Some(26), speed = Some(27)),
-    tertiary = Network.HighwayType.Tertiary(capacity = Some(28), lanes = Some(29), speed = Some(30)),
-    tertiaryLink = Network.HighwayType.TertiaryLink(capacity = Some(31), lanes = Some(32), speed = Some(33)),
-    trunk = Network.HighwayType.Trunk(capacity = Some(34), lanes = Some(35), speed = Some(36)),
-    trunkLink = Network.HighwayType.TrunkLink(capacity = Some(37), lanes = Some(38), speed = Some(39)),
-    unclassified = Network.HighwayType.Unclassified(capacity = Some(40), lanes = Some(41), speed = Some(42))
+    livingStreet = OverwriteRoadTypeProperties.LivingStreet(capacity = Some(1), lanes = Some(2), speed = Some(3)),
+    minor = Minor(capacity = Some(4), lanes = Some(5), speed = Some(6)),
+    motorway = Motorway(capacity = Some(7), lanes = Some(8), speed = Some(9)),
+    motorwayLink = MotorwayLink(capacity = Some(10), lanes = Some(11), speed = Some(12)),
+    primary = Primary(capacity = Some(13), lanes = Some(14), speed = Some(15)),
+    primaryLink = PrimaryLink(capacity = Some(16), lanes = Some(17), speed = Some(18)),
+    residential = Residential(capacity = Some(19), lanes = Some(20), speed = Some(21)),
+    secondary = Secondary(capacity = Some(22), lanes = Some(23), speed = Some(24)),
+    secondaryLink = SecondaryLink(capacity = Some(25), lanes = Some(26), speed = Some(27)),
+    tertiary = Tertiary(capacity = Some(28), lanes = Some(29), speed = Some(30)),
+    tertiaryLink = TertiaryLink(capacity = Some(31), lanes = Some(32), speed = Some(33)),
+    trunk = Trunk(capacity = Some(34), lanes = Some(35), speed = Some(36)),
+    trunkLink = TrunkLink(capacity = Some(37), lanes = Some(38), speed = Some(39)),
+    unclassified = Unclassified(capacity = Some(40), lanes = Some(41), speed = Some(42))
   )
 
   test("getSpeeds should work properly") {
