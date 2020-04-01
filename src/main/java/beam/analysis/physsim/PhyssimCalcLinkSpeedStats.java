@@ -18,7 +18,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -32,53 +33,48 @@ import java.util.stream.IntStream;
  */
 public class PhyssimCalcLinkSpeedStats {
 
-    private static final List<Color> colors = new ArrayList<>();
-    private static int noOfBins = 24;
-    private static int binSize = 3600;
+    static final String OUTPUT_FILE_NAME = "physsimLinkAverageSpeedPercentage";
+    private static final int BIN_SIZE = 3600;
+    private static final List<Color> COLORS = Collections.unmodifiableList(
+            Arrays.asList(Color.GREEN, Color.BLUE)
+    );
+    private static final int NUM_OF_BIN_TEST_MODE = 24;
 
-    // Static initialization of colors
-    static {
-        colors.add(Color.GREEN);
-        colors.add(Color.BLUE);
-    }
+    private final int numOfBins;
+    private final BeamConfig beamConfig;
+    private final Network network;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
 
-    private BeamConfig beamConfig;
-    private Network network;
-    private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    static String outputFileName = "physsimLinkAverageSpeedPercentage";
-
-    //Public constructor for the PhyssimCalcLinkSpeedStats class
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
 
-        // If not test mode pick up bin count from the beam configuration.
-        if (isNotTestMode()) {
-            Double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-            Double noOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
-            noOfTimeBins = Math.floor(noOfTimeBins);
-            noOfBins = noOfTimeBins.intValue() + 1;
-        }
+        numOfBins = isTestMode()
+                ? NUM_OF_BIN_TEST_MODE
+                : getNumOfBinsFromConfig(beamConfig);
     }
 
-    // implement the iteration start notification class
+    private int getNumOfBinsFromConfig(BeamConfig beamConfig) {
+        double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
+        Double numOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
+        numOfTimeBins = Math.floor(numOfTimeBins);
+        return numOfTimeBins.intValue() + 1;
+    }
+
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
         Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
         CategoryDataset dataSet = generateGraphCategoryDataSet(processedData);
         if (this.outputDirectoryHierarchy != null) {
-            //If not running in test mode , write output to a csv file
-            if (isNotTestMode()) {
-                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName + ".csv"));
+            if (!isTestMode()) {
+                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, OUTPUT_FILE_NAME + ".csv"));
             }
-            //generate the requiredGraph
             if (beamConfig.beam().outputs().writeGraphs()) {
                 generateAverageLinkSpeedGraph(dataSet, iteration);
             }
         }
     }
 
-    // helper method to write output to a csv file
     private void writeCSV(Map<Integer, Double> processedData, String path) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(path));
@@ -94,23 +90,21 @@ public class PhyssimCalcLinkSpeedStats {
         }
     }
 
-    // A helper method to test if the application is running in test mode or not
-    private boolean isNotTestMode() {
-        return beamConfig != null;
+    private boolean isTestMode() {
+        return beamConfig == null;
     }
 
-    // generate the data required as input to generate a graph
     private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
 
-        return IntStream.range(0, noOfBins).parallel().boxed()
+        return IntStream.range(0, numOfBins).parallel().boxed()
                 .collect(Collectors.toMap(Function.identity(),
                         idx -> calcLinkAvgSpeedPercentage(travelTime, idx)));
     }
 
     private double calcLinkAvgSpeedPercentage(TravelTime travelTime, int idx) {
         List<Double> avgSpeeds = this.network.getLinks().values().parallelStream()
-                .filter(link -> IntStream.range(0, noOfBins).parallel() // filter links with average speed >= freeSpeed
+                .filter(link -> IntStream.range(0, numOfBins).parallel() // filter links with average speed >= freeSpeed
                         .anyMatch(i -> calcSpeedRatio(i, link, travelTime) >= 1))
                 .map(link -> calcSpeedRatio(idx, link, travelTime))
                 .collect(Collectors.toList());
@@ -119,22 +113,20 @@ public class PhyssimCalcLinkSpeedStats {
 
     private double calcSpeedRatio(int idx, Link link, TravelTime travelTime) {
 
-        double freeSpeed = link.getFreespeed(idx * binSize);
+        double freeSpeed = link.getFreespeed(idx * BIN_SIZE);
         double linkLength = link.getLength();
-        double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
+        double averageTime = travelTime.getLinkTravelTime(link, idx * BIN_SIZE, null, null);
         double averageSpeed = linkLength / averageTime;
         return averageSpeed / freeSpeed;
     }
 
-    //create the Category Data set
     private CategoryDataset generateGraphCategoryDataSet(Map<Integer, Double> processedData) {
         double[][] dataSet = buildDataSetFromProcessedData(processedData);
         return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataSet);
     }
 
-    //build a matrix data set from the processed Data
     private double[][] buildDataSetFromProcessedData(Map<Integer, Double> processedData) {
-        double[][] dataSet = new double[100][noOfBins];
+        double[][] dataSet = new double[100][numOfBins];
         for (int i = 0; i < processedData.size(); i++) {
             dataSet[0][i] = processedData.get(i);
         }
@@ -149,15 +141,12 @@ public class PhyssimCalcLinkSpeedStats {
         int width = 800;
         int height = 600;
 
-        // Setting orientation for the ploteStackedBarChart
         PlotOrientation orientation = PlotOrientation.VERTICAL;
 
-        // Create the chart
         final JFreeChart chart = ChartFactory
                 .createStackedBarChart(plotTitle, x_axis, y_axis, dataSet, orientation, false, true, true);
         chart.setBackgroundPaint(new Color(255, 255, 255));
 
-        //Get the category plot from the chart
         CategoryPlot plot = chart.getCategoryPlot();
 
         //add the sorted frequencies to the legend
@@ -166,7 +155,7 @@ public class PhyssimCalcLinkSpeedStats {
         plot.getRenderer().setSeriesPaint(0, getColor(0));
         plot.setFixedLegendItems(legendItems);
         //Save the chart as image
-        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputFileName + ".png");
+        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, OUTPUT_FILE_NAME + ".png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
@@ -176,15 +165,14 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     private Color getColor(int i) {
-        if (i < colors.size()) {
-            return colors.get(i);
+        if (i < COLORS.size()) {
+            return COLORS.get(i);
         } else {
             return getRandomColor();
         }
     }
 
     private Color getRandomColor() {
-
         Random rand = new Random();
 
         float r = rand.nextFloat();
@@ -193,7 +181,6 @@ public class PhyssimCalcLinkSpeedStats {
 
         return new Color(r, g, b);
     }
-
 
     public double getAverageSpeedPercentageOfBin(int bin, TravelTimeCalculator travelTimeCalculator) {
         try {
@@ -214,6 +201,6 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     public int getNumberOfBins() {
-        return noOfBins;
+        return numOfBins;
     }
 }
