@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -15,13 +16,14 @@ import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
-import beam.utils.{DebugLib, ProfilingUtils}
+import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -80,18 +82,35 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     logger.info(s"There are ${tazs.length} TAZs")
     val failedRoutes = new AtomicInteger(0)
     val emptyItineraries = new AtomicInteger(0)
+
+    val modeToComputationTime: Map[BeamMode, ArrayBuffer[Long]] = Map(BeamMode.CAR -> ArrayBuffer[Long](),
+      BeamMode.BIKE -> ArrayBuffer[Long](),
+      BeamMode.WALK_TRANSIT -> ArrayBuffer[Long]())
+
+    val computedRoutes = new AtomicInteger(0)
     val skimEvents = ProfilingUtils.timed("Creating skim events", logger.info(_)) {
       // The most outer loop will be executed in parallel `.par`
-      tazs.par
+      tazs
         .flatMap { srcTaz =>
           tazs.map { dstTaz =>
             beamModes.flatMap { beamMode =>
+              computedRoutes.getAndIncrement()
               val routingReq: RoutingRequest = createRoutingRequest(beamMode, requestTime, srcTaz, dstTaz)
+              val s = System.nanoTime()
               Try(r5Wrapper.calcRoute(routingReq)) match {
                 case Failure(ex) =>
                   failedRoutes.getAndIncrement()
                   None
                 case Success(response) =>
+                  val e = System.nanoTime()
+                  modeToComputationTime(beamMode) += TimeUnit.NANOSECONDS.toMillis(e - s)
+                  if (computedRoutes.get() % 1000 == 0) {
+                    logger.info(s"Computed ${computedRoutes.get()}")
+                    modeToComputationTime.foreach { case (mode, xs) =>
+                        logger.info(s"$mode => ${Statistics(xs.map(_.toDouble))}")
+                    }
+                  }
+
                   val maybeRightTrip = response.itineraries.find(trip => trip.tripClassifier == beamMode)
                   maybeRightTrip match {
                     case Some(trip) =>
@@ -165,6 +184,54 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       generalizedCost,
       energyConsumption
     )
+  }
+
+  private def createRoutingRequestOneShot(mode: BeamMode, requestTime: Int, srcTaz: TAZ, dstTaz: TAZ): RoutingRequest = {
+    val streetVehicles: Vector[StreetVehicle] = Vector(
+      StreetVehicle(
+        Id.createVehicleId("dummy-car-for-skim-observations"),
+        dummyCarVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        BeamMode.CAR,
+        asDriver = true
+      ),
+      StreetVehicle(
+        Id.createVehicleId("dummy-bike-for-skim-observations"),
+        dummyBikeVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        BeamMode.BIKE,
+        asDriver = true
+      ),
+      StreetVehicle(
+        Id.createVehicleId("dummy-body-for-skim-observations"),
+        dummyBodyVehicleType.id,
+        new SpaceTime(srcTaz.coord, requestTime),
+        WALK,
+        asDriver = true
+      )
+    )
+    val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
+      new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
+    } else {
+      srcTaz.coord
+    }
+    val dstCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
+      new Coord(
+        dstTaz.coord.getX - Math.sqrt(dstTaz.areaInSquareMeters) / 3.0,
+        dstTaz.coord.getY
+      )
+    } else {
+      dstTaz.coord
+    }
+    val routingReq = RoutingRequest(
+      originUTM = srcCoord,
+      destinationUTM = dstCoord,
+      departureTime = requestTime,
+      withTransit = true,
+      streetVehicles = streetVehicles,
+      attributesOfIndividual = Some(dummyPersonAttributes)
+    )
+    routingReq
   }
 
   private def createRoutingRequest(mode: BeamMode, requestTime: Int, srcTaz: TAZ, dstTaz: TAZ): RoutingRequest = {

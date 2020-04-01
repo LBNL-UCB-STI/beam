@@ -1104,8 +1104,18 @@ trait ChoosesMode {
       val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
+      var isCurrentPersonalVehicleVoided = false
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
+          data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
+            if (currentVehicle == vehicle.id) {
+              logError(
+                s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
+              )
+              isCurrentPersonalVehicleVoided = true
+            }
+          }
+          beamVehicles.remove(vehicle.id)
           vehicle.getManager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
@@ -1123,7 +1133,11 @@ trait ChoosesMode {
         currentTourMode = data.personData.currentTourMode
           .orElse(Some(chosenTrip.tripClassifier)),
         currentTourPersonalVehicle =
-          data.personData.currentTourPersonalVehicle.orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+          if (isCurrentPersonalVehicleVoided)
+            vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
+          else
+            data.personData.currentTourPersonalVehicle
+              .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
       )
   }
 }
