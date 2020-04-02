@@ -115,14 +115,15 @@ class JDEQSimRunner(
         )
         val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
         val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-        val minimumRoadSpeedInMetersPerSecond = beamConfig.beam.physsim.jdeqsim.cacc.minimumRoadSpeedInMetersPerSecond
+        val adjustedMinimumRoadSpeedInMetersPerSecond =
+          beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
         new JDEQSimulation(
           config,
           jdeqSimScenario,
           jdeqsimEvents,
           caccSettings,
           speedAdjustmentFactor,
-          minimumRoadSpeedInMetersPerSecond
+          adjustedMinimumRoadSpeedInMetersPerSecond
         )
 
       case None =>

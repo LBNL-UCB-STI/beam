@@ -5,7 +5,7 @@ import java.nio.file.Paths
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.analysis.cartraveltime.{CarRideStatsFromPathTraversalEventHandler, CarType, SingleRideStat}
+import beam.analysis.cartraveltime.{CarTripStat, CarTripStatsFromPathTraversalEventHandler, CarType}
 import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.model.RoutingModel
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
@@ -61,7 +61,7 @@ object AverageCarTravelTimeAnalysis {
     println(msg)
   }
 
-  def showStats(eventsFile: String, rideStats: Seq[SingleRideStat]): Unit = {
+  def showStats(eventsFile: String, rideStats: Seq[CarTripStat]): Unit = {
     val travelTimeStats = Statistics(rideStats.map(_.travelTime))
     val freeFlowTravelTimeStats = Statistics(rideStats.map(_.freeFlowTravelTime))
     val length = Statistics(rideStats.map(_.distance))
@@ -81,7 +81,7 @@ object AverageCarTravelTimeAnalysis {
     val pathToNetwork = "D:/Work/beam/MultipleJDEQSim/baseline_more_events/outputNetwork.xml.gz"
     val eventsFile0 = "C:/temp/15.events.csvh.gz"
 
-    val carRideStatsFromPathTraversal = CarRideStatsFromPathTraversalEventHandler(pathToNetwork, eventsFile0)
+    val carRideStatsFromPathTraversal = CarTripStatsFromPathTraversalEventHandler(pathToNetwork, eventsFile0)
 
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)

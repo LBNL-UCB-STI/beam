@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -8,7 +9,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(true);
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$, true);
 
     @BeforeClass
     public static void setUpClass() {

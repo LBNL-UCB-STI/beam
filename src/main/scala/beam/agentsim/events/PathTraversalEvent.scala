@@ -4,7 +4,6 @@ import java.util
 import java.util.concurrent.atomic.AtomicReference
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
@@ -37,10 +36,7 @@ case class PathTraversalEvent(
   secondaryFuelConsumed: Double,
   endLegPrimaryFuelLevel: Double,
   endLegSecondaryFuelLevel: Double,
-  amountPaid: Double,
-  request: Option[RoutingRequest]
-  /*,
-
+  amountPaid: Double /*,
   linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
   linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
   linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
@@ -156,10 +152,7 @@ object PathTraversalEvent {
     secondaryFuelConsumed: Double,
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
-    amountPaid: Double,
-    request: Option[RoutingRequest]
-
-    /*,
+    amountPaid: Double /*,
     linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
     linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
     linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
@@ -193,8 +186,7 @@ object PathTraversalEvent {
       secondaryFuelConsumed = secondaryFuelConsumed,
       endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel = endLegSecondaryFuelLevel,
-      amountPaid = amountPaid,
-      request /*,
+      amountPaid = amountPaid /*,
       linkIdsToLaneOptions = linkIdsToLaneOptions,
       linkIdsToSpeedOptions = linkIdsToSpeedOptions,
       linkIdsToGradientOptions = linkIdsToGradientOptions,
@@ -296,8 +288,7 @@ object PathTraversalEvent {
       secondaryFuelConsumed,
       endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel,
-      amountPaid,
-      None /*,
+      amountPaid /*,
       linkIdsToLaneOptions,
       linkIdsToSpeedOptions,
       linkIdsToGradientOptions,

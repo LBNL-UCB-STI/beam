@@ -197,7 +197,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
         }
 
-        endSegment("jdeqsim-execution", "jdeqsim");
         log.info("JDEQSim End");
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();

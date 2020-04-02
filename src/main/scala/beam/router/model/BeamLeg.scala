@@ -1,7 +1,7 @@
 package beam.router.model
 
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{Location, RoutingRequest}
+import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.sim.common.GeoUtils
@@ -14,13 +14,7 @@ import beam.utils.{NetworkHelper, TravelTimeUtils}
   * @param duration   period in seconds
   * @param travelPath BeamPath
   */
-case class BeamLeg(
-  startTime: Int,
-  mode: BeamMode,
-  duration: Int,
-  travelPath: BeamPath,
-  request: Option[RoutingRequest] = None
-) {
+case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: BeamPath) {
   val endTime: Int = startTime + duration
 
   def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
@@ -98,13 +92,12 @@ case class BeamLeg(
 
 object BeamLeg {
 
-  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK): BeamLeg =
+  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK, duration: Int = 0): BeamLeg =
     new BeamLeg(
       0,
       mode,
-      0,
-      BeamPath(Vector(), Vector(), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0),
-      null
+      duration,
+      BeamPath(Vector(), Vector(), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0)
     ).updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {

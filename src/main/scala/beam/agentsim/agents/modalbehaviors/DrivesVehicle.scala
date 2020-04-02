@@ -141,11 +141,11 @@ object DrivesVehicle {
 
   case class AlightVehicleTrigger(
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     fuelConsumed: Option[FuelConsumed] = None
   ) extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -158,9 +158,9 @@ object DrivesVehicle {
     vehicle: BeamVehicle
   ) extends Trigger
 
-  case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
+  case class BeamVehicleStateUpdate(id: Id[BeamVehicle], vehicleState: BeamVehicleState)
 
-  def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+  def processLinkEvents(eventsManager: EventsManager, beamVehicleId: Id[BeamVehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       val links = path.linkIds
@@ -173,6 +173,7 @@ object DrivesVehicle {
         val to = links(i + 1)
         val timeAtNode = math.round(linkTravelTime(i).toFloat)
         curTime = curTime + timeAtNode
+        val vehicleId = Id.create(beamVehicleId.toString, classOf[Vehicle])
         eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
         eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
         i += 1
@@ -222,7 +223,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
-//      log.debug("state(DrivesVehicle.Driving): {}", ev)
+      //      log.debug("state(DrivesVehicle.Driving): {}", ev)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -310,8 +311,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg,
-          currentLeg.request /*,
+          tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -473,8 +473,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             fuelConsumed.secondaryFuel,
             currentBeamVehicle.primaryFuelLevelInJoules,
             currentBeamVehicle.secondaryFuelLevelInJoules,
-            tollOnCurrentLeg,
-            currentLeg.request /*,
+            tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -533,8 +532,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg,
-          currentLeg.request /*,
+          tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -586,7 +584,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
-//      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
+      //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {

@@ -353,7 +353,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
-    countOccurrence("r5-plans-count")
+    countOccurrence("r5-plans-count", request.time)
 
     val profileRequest = createProfileRequest
     profileRequest.fromLon = request.from.getX
@@ -933,8 +933,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                   SpaceTime(fromStop.lon, fromStop.lat, startTime),
                   SpaceTime(toStop.lon, toStop.lat, endTime),
                   stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
-                ),
-                Some(request)
+                )
               )
               embodiedBeamLegs += EmbodiedBeamLeg(
                 segmentLeg,
@@ -1129,8 +1128,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       tripStartTime,
       mapLegMode(legMode),
       theTravelPath.duration,
-      travelPath = theTravelPath,
-      Some(request)
+      travelPath = theTravelPath
     )
     beamLeg
   }
@@ -1345,7 +1343,7 @@ object R5RoutingWorker {
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
       distanceInMeters
     )
-    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path, request)
+    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
 
   def createBushwackingTrip(
