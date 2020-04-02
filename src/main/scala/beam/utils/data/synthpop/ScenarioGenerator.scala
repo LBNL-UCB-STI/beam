@@ -31,7 +31,7 @@ trait ScenarioGenerator {
   def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
 }
 
-case class PersonWithExtraInfo(person: Models.Person, workDest: TazGeoId, timeLeavingHomeRange: Range)
+case class PersonWithExtraInfo(person: Models.Person, homeLoc: TazGeoId, workDest: TazGeoId, timeLeavingHomeRange: Range)
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
@@ -224,7 +224,7 @@ class SimpleScenarioGenerator(
 
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
+                  case ((xs, nextPersonId), PersonWithExtraInfo(person, homeLocGeoId, workDestPumaGeoId, timeLeavingHomeRange)) =>
                     val workLocations = tazGeoIdToWorkingLocations(workDestPumaGeoId)
                     val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
@@ -365,6 +365,7 @@ class SimpleScenarioGenerator(
               Some(
                 PersonWithExtraInfo(
                   person = person,
+                  homeLoc = tazGeoId,
                   workDest = tazWorkDest,
                   timeLeavingHomeRange = timeLeavingHomeRange
                 )
