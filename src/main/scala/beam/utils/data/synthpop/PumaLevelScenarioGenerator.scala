@@ -9,7 +9,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, GenericGeoId, PowPumaGeoId, PumaGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
@@ -137,7 +137,7 @@ class PumaLevelScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
+  override def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId, (Int, Int)]) = {
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -303,7 +303,7 @@ class PumaLevelScenarioGenerator(
         blockGroupGeoId -> res
     }
 
-    finalResult.values.flatten
+    (finalResult.values.flatten, Map.empty[GenericGeoId, (Int, Int)])
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
@@ -469,7 +469,7 @@ object PumaLevelScenarioGenerator {
         42
       )
 
-    val generatedData = gen.generate
+    val (generatedData, tazCounts) = gen.generate
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 

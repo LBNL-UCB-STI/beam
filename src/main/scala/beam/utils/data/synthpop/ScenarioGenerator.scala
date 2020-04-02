@@ -9,14 +9,9 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.synthpop.generators.{
-  RandomWorkDestinationGenerator,
-  TimeLeavingHomeGenerator,
-  TimeLeavingHomeGeneratorImpl,
-  WorkedDurationGeneratorImpl
-}
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, GenericGeoId, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
@@ -28,7 +23,7 @@ import scala.collection.mutable
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
-  def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
+  def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId,(Int, Int)])
 }
 
 case class PersonWithExtraInfo(person: Models.Person, homeLoc: TazGeoId, workDest: TazGeoId, timeLeavingHomeRange: Range)
@@ -144,13 +139,27 @@ class SimpleScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
+  override def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId,(Int, Int)]) = {
     var globalPersonId: Int = 0
 
     logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
       assignWorkingLocations
     }
+
+    val tazGeoIdToResidentsAndWorkers = blockGroupGeoIdToHouseholds.values.flatMap { x =>
+      x.flatMap { hh =>
+        hh._2.map {
+          y => (y.homeLoc, y.workDest)
+        }
+      }
+    }.foldLeft(mutable.Map.empty[GenericGeoId, (Int, Int)].withDefaultValue((0,0)))((acc, tazs) => {
+      acc.put(tazs._1, (acc(tazs._1)._1 + 1, acc(tazs._1)._2))
+      acc.put(tazs._2, (acc(tazs._2)._1, acc(tazs._2)._2 + 1))
+      acc
+    }).toMap
+
+    logger.info(s"Finished taz mapping")
 
     // Build work destination to the number of occurrences
     // We need this to be able to generate random work destinations inside geometry.
@@ -320,7 +329,7 @@ class SimpleScenarioGenerator(
       logger.warn(
         s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box ${geoSvc.mapBoundingBox}"
       )
-    finalResult.values.flatten.flatten
+    (finalResult.values.flatten.flatten, tazGeoIdToResidentsAndWorkers)
   }
 
   private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
@@ -510,7 +519,7 @@ object SimpleScenarioGenerator {
 
     gen.writeTazCenters(pathToOutput)
 
-    val generatedData = gen.generate
+    val (generatedData, tazGeoIdToResidentsAndWorkers) = gen.generate
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 
