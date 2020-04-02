@@ -6,7 +6,7 @@ import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.sim.config.BeamConfig
@@ -27,7 +27,7 @@ class RideHailModifyPassengerScheduleManager(
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Int, RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
-    mutable.Map[Id[Vehicle], RideHailModifyPassengerScheduleStatus]()
+    mutable.Map[Id[BeamVehicle], RideHailModifyPassengerScheduleStatus]()
   private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
   var ignoreErrorPrint = false
@@ -35,9 +35,9 @@ class RideHailModifyPassengerScheduleManager(
 
   // We can change this to be Set[Id[Vehicle]], but then in case of terminated actor, we have to map it back to Id[Vehicle]
   //
-  var waitingToReposition: Set[Id[Vehicle]] = Set.empty
+  var waitingToReposition: Set[Id[BeamVehicle]] = Set.empty
 
-  def setRepositioningsToProcess(toReposition: Set[Id[Vehicle]]): Unit = {
+  def setRepositioningsToProcess(toReposition: Set[Id[BeamVehicle]]): Unit = {
     waitingToReposition = toReposition
   }
 
@@ -332,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
     interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
   }
 
-  def setStatusToIdle(vehicleId: Id[Vehicle]) = {
+  def setStatusToIdle(vehicleId: Id[BeamVehicle]) = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
       case Some(status) =>
         val newStatus =

@@ -201,6 +201,61 @@ Steps to add a new configuration :
 
 To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
+Using grafana to view BEAM metrics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`Grafana <https://grafana.com/>`_ is the open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
+There are various grafana dashboards which include:
+
+* dashboards with per-hour metrics
+* dashboards with per-iteration metrics
+* dashboards to compare two different BEAM iterations or two runs
+* dashboard with a metrics displayed on a map
+
+**Setting up**
+
+Grafana is controlled with gradle commands, those commands under hood are using docker and docker-compose, so, one should have docker installed and running.
+
+* For Windows and Mac users it is enough to install `docker-desktop <https://www.docker.com/products/docker-desktop>`_
+* Ubuntu/Debian users should install those packages: docker-ce docker-ce-cli containerd.io docker-compose
+
+**Start Grafana**
+
+To run Grafana one should use gradle command grafanaStart without any parameters. The command will start Grafana and InfluxDB docker container, configure them and print all five URLs to Grafana dashboards after the docker image is running. ::
+
+    ./gradlew grafanaStart
+
+After that command execution one may run BEAM multiple times, all data will be stored in the InfluxDB database. And all data may be viewed in Grafana dashboards.
+
+**Stop Grafana**
+
+To stop Grafana one should use gradle command grafanaStop without any parameters. ::
+
+    ./gradlew grafanaStop
+
+**Clean collected data**
+
+To clear all collected by Grafana and InfluxDB data from BEAM runs one should use gradle command grafanaClearData ::
+
+    ./gradlew grafanaClearData
+
+**Troubleshooting**
+
+ERROR: for docker-influxdb-grafana  Cannot create container for service docker-influxdb-grafana: Conflict. The container name "/docker-influxdb-grafana" is already in use by container "<CONTAINER ID>”. You have to remove (or rename) that container to be able to reuse that name.
+
+This error means that one already has a container with name ‘philhawthorne/docker-influxdb-grafana’ in docker. To coupe with that one may remove that container.
+
+Solution:
+
+* Run command to get a container ID for docker-influxdb-grafana container ::
+
+    docker ps -a
+
+* Run ::
+
+    docker container stop <container ID>
+    docker rm <container ID>
+
+
 Scenarios
 ^^^^^^^^^
 We have provided two scenarios for you to explore under the `test/input` directory.

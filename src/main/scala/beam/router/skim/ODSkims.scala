@@ -80,7 +80,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
     val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.numObservations > 5 =>
+      case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
         val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
@@ -91,12 +91,12 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
           distanceInM = travelDistance.toDouble,
           cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
           energy = 0.0,
-          numObservations = 0,
-          numIteration = beamServices.matsimServices.getIterationNumber
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber
         )
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.numObservations > 5 =>
+      case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
         ODSkimmerInternal(
@@ -106,8 +106,8 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
           distanceInM = solo.distanceInM,
           cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distanceInM, solo.travelTimeInS, beamConfig),
           energy = 0.0,
-          numObservations = 0,
-          numIteration = beamServices.matsimServices.getIterationNumber
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber
         )
     }
     val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS } else { 1.0 }

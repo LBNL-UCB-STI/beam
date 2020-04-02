@@ -22,8 +22,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
     network.getNodes.values().asScala.map(n => transformToH3Proj.transform(n.getCoord))
   )
-  private val resolution = beamConfig.beam.h3.resolution
-  private val lowerBoundResolution = beamConfig.beam.h3.lowerBoundResolution
+  private val resolution = beamConfig.beam.router.skim.h3Resolution
   private val fillBoxResult: Iterable[String] =
     ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $resolution", x => logger.info(x)) {
       fillBox(boundingBox, resolution)

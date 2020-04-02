@@ -3,6 +3,7 @@ package beam.analysis
 //import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent}
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.sim.metrics.MetricsSupport
 import beam.utils.logging.ExponentialLazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
@@ -12,7 +13,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging {
+class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging with MetricsSupport {
 
   private val vehicleChargingFileBaseName = "chargingNumberVehicles"
 
@@ -23,10 +24,26 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
     val hourOfEvent = (event.getTime / 3600).toInt
     event match {
       case pluginEvent: ChargingPlugInEvent =>
+        countOccurrence(
+          "charging-plug-in",
+          pluginEvent.getTime.toInt,
+          tags =
+            Map("pricing_model" -> pluginEvent.pricingModelString, "charging_point" -> pluginEvent.chargingPointString)
+        )
+
         val vehicle = pluginEvent.getAttributes().get(ChargingPlugInEvent.ATTRIBUTE_VEHICLE_ID)
         vehicleChargingTime.update(vehicle, hourOfEvent)
 
       case plugoutEvent: ChargingPlugOutEvent =>
+        countOccurrence(
+          "charging-plug-out",
+          plugoutEvent.getTime.toInt,
+          tags = Map(
+            "pricing_model"  -> plugoutEvent.pricingModelString,
+            "charging_point" -> plugoutEvent.chargingPointString
+          )
+        )
+
         val vehicle = plugoutEvent.getAttributes().get(ChargingPlugOutEvent.ATTRIBUTE_VEHICLE_ID)
         val pluginTime = vehicleChargingTime.remove(vehicle)
         pluginTime match {

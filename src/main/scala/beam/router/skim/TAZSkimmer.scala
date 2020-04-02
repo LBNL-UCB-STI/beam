@@ -16,7 +16,7 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
   override protected val skimName: String = config.taz_skimmer.name
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
   override protected val skimFileHeader: String =
-    "time,taz,hex,groupId,label,sumValue,meanValue,numObservations,numIteration"
+    "time,taz,hex,actor,key,value,observations,iterations"
 
   override def fromCsv(
     line: immutable.Map[String, String]
@@ -26,14 +26,13 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
         line("time").toInt,
         Id.create(line("taz"), classOf[TAZ]),
         line("hex"),
-        line("groupId"),
-        line("label")
+        line("actor"),
+        line("key")
       ),
       TAZSkimmerInternal(
-        line("sumValue").toDouble,
-        line("meanValue").toDouble,
-        line("numObservations").toInt,
-        line("numIteration").toInt
+        line("value").toDouble,
+        line("observations").toInt,
+        line("iterations").toInt
       )
     )
   }
@@ -44,31 +43,33 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[TAZSkimmerInternal])
-      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 0)) // no skim means no observation
+      .getOrElse(TAZSkimmerInternal(0)) // no skim means no observation
     val currSkim = currIteration
       .map(_.asInstanceOf[TAZSkimmerInternal])
-      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 1)) // no current skim means 0 observation
+      .getOrElse(
+        TAZSkimmerInternal(0, observations = 0, iterations = beamServices.matsimServices.getIterationNumber + 1)
+      ) // no current skim means 0 observation
     TAZSkimmerInternal(
-      sumValue = (prevSkim.sumValue * prevSkim.numIteration + currSkim.sumValue * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      meanValue = (prevSkim.meanValue * prevSkim.numIteration + currSkim.meanValue * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      numObservations = (prevSkim.numObservations * prevSkim.numIteration + currSkim.numObservations * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      numIteration = prevSkim.numIteration + currSkim.numIteration
+      value = (prevSkim.value * prevSkim.iterations + currSkim.value * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      iterations = prevSkim.iterations + currSkim.iterations
     )
   }
 
-  override protected def aggregateWithinAnIteration(
+  override protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
       .map(_.asInstanceOf[TAZSkimmerInternal])
-      .getOrElse(TAZSkimmerInternal(0, 0, numObservations = 0, numIteration = 0))
+      .getOrElse(
+        TAZSkimmerInternal(0, observations = 0, iterations = beamServices.matsimServices.getIterationNumber + 1)
+      )
     val currSkim = currObservation.asInstanceOf[TAZSkimmerInternal]
     TAZSkimmerInternal(
-      sumValue = prevSkim.sumValue + currSkim.sumValue,
-      meanValue = (prevSkim.meanValue * prevSkim.numObservations + currSkim.meanValue * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      numObservations = prevSkim.numObservations + currSkim.numObservations,
-      numIteration = beamServices.matsimServices.getIterationNumber + 1
+      value = (prevSkim.value * prevSkim.observations + currSkim.value * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      observations = prevSkim.observations + currSkim.observations,
+      iterations = prevSkim.iterations
     )
   }
 }
@@ -78,13 +79,13 @@ object TAZSkimmer extends LazyLogging {
     time: Int,
     taz: Id[TAZ],
     hex: String,
-    groupId: String,
-    label: String
+    actor: String,
+    key: String
   ) extends AbstractSkimmerKey {
-    override def toCsv: String = time + "," + taz + "," + hex + "," + groupId + "," + label
+    override def toCsv: String = time + "," + taz + "," + hex + "," + actor + "," + key
   }
-  case class TAZSkimmerInternal(sumValue: Double, meanValue: Double, numObservations: Int, numIteration: Int = 0)
+  case class TAZSkimmerInternal(value: Double, observations: Int = 0, iterations: Int = 0)
       extends AbstractSkimmerInternal {
-    override def toCsv: String = sumValue + "," + meanValue + "," + numObservations + "," + numIteration
+    override def toCsv: String = value + "," + observations + "," + iterations
   }
 }

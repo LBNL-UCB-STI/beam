@@ -24,7 +24,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
   override protected val skimFileHeader: String =
-    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,numObservations,numIteration"
+    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,observations,iterations"
 
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
@@ -57,8 +57,8 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        numObservations = row("numObservations").toInt,
-        numIteration = row("numIteration").toInt
+        observations = row("observations").toInt,
+        iterations = row("iterations").toInt
       )
     )
   }
@@ -69,40 +69,40 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, numObservations = 0, numIteration = 0))
+      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 0))
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ODSkimmerInternal])
-        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, numObservations = 0, numIteration = 1))
+        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 1))
     ODSkimmerInternal(
-      travelTimeInS = (prevSkim.travelTimeInS * prevSkim.numIteration + currSkim.travelTimeInS * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      generalizedTimeInS = (prevSkim.generalizedTimeInS * prevSkim.numIteration + currSkim.generalizedTimeInS * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      generalizedCost = (prevSkim.generalizedCost * prevSkim.numIteration + currSkim.generalizedCost * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      distanceInM = (prevSkim.distanceInM * prevSkim.numIteration + currSkim.distanceInM * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      cost = (prevSkim.cost * prevSkim.numIteration + currSkim.cost * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      energy = (prevSkim.energy * prevSkim.numIteration + currSkim.energy * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      numObservations = (prevSkim.numObservations * prevSkim.numIteration + currSkim.numObservations * currSkim.numIteration) / (prevSkim.numIteration + currSkim.numIteration),
-      numIteration = prevSkim.numIteration + currSkim.numIteration
+      travelTimeInS = (prevSkim.travelTimeInS * prevSkim.iterations + currSkim.travelTimeInS * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      generalizedTimeInS = (prevSkim.generalizedTimeInS * prevSkim.iterations + currSkim.generalizedTimeInS * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      generalizedCost = (prevSkim.generalizedCost * prevSkim.iterations + currSkim.generalizedCost * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      distanceInM = (prevSkim.distanceInM * prevSkim.iterations + currSkim.distanceInM * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      cost = (prevSkim.cost * prevSkim.iterations + currSkim.cost * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      energy = (prevSkim.energy * prevSkim.iterations + currSkim.energy * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      iterations = prevSkim.iterations + currSkim.iterations
     )
   }
 
-  override protected def aggregateWithinAnIteration(
+  override protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
       .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, numObservations = 0, numIteration = 0))
+      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 0))
     val currSkim = currObservation.asInstanceOf[ODSkimmerInternal]
     ODSkimmerInternal(
-      travelTimeInS = (prevSkim.travelTimeInS * prevSkim.numObservations + currSkim.travelTimeInS * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      generalizedTimeInS = (prevSkim.generalizedTimeInS * prevSkim.numObservations + currSkim.generalizedTimeInS * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      generalizedCost = (prevSkim.generalizedCost * prevSkim.numObservations + currSkim.generalizedCost * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      distanceInM = (prevSkim.distanceInM * prevSkim.numObservations + currSkim.distanceInM * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      cost = (prevSkim.cost * prevSkim.numObservations + currSkim.cost * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      energy = (prevSkim.energy * prevSkim.numObservations + currSkim.energy * currSkim.numObservations) / (prevSkim.numObservations + currSkim.numObservations),
-      numObservations = prevSkim.numObservations + currSkim.numObservations,
-      numIteration = beamServices.matsimServices.getIterationNumber + 1
+      travelTimeInS = (prevSkim.travelTimeInS * prevSkim.observations + currSkim.travelTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      generalizedTimeInS = (prevSkim.generalizedTimeInS * prevSkim.observations + currSkim.generalizedTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      generalizedCost = (prevSkim.generalizedCost * prevSkim.observations + currSkim.generalizedCost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      distanceInM = (prevSkim.distanceInM * prevSkim.observations + currSkim.distanceInM * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      cost = (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      energy = (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      observations = prevSkim.observations + currSkim.observations,
+      iterations = beamServices.matsimServices.getIterationNumber + 1
     )
   }
 
@@ -114,7 +114,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
     val modes = BeamMode.allModes
     val fileHeader =
-      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
+      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,observations,energy"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       skimFileBaseName + "Excerpt.csv.gz"
@@ -328,15 +328,15 @@ object ODSkimmer extends LazyLogging {
     distanceInM: Double,
     cost: Double,
     energy: Double,
-    numObservations: Int = 1,
-    numIteration: Int = 0
+    observations: Int = 1,
+    iterations: Int = 0
   ) extends AbstractSkimmerInternal {
 
     //NOTE: All times in seconds here
     def toSkimExternal: Skim =
-      Skim(travelTimeInS.toInt, generalizedTimeInS, generalizedCost, distanceInM, cost, numObservations, energy)
+      Skim(travelTimeInS.toInt, generalizedTimeInS, generalizedCost, distanceInM, cost, observations, energy)
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + numObservations + "," + numIteration
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + observations + "," + iterations
   }
 
   case class Skim(

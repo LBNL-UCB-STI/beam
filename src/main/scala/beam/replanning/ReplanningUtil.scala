@@ -99,10 +99,13 @@ object ReplanningUtil {
 
   def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    val tripsLength = trips.length
     for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
       newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
-      val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
-      newPlan.getPlanElements.add(newLeg)
+      if (tripsLength > i) {
+        val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
+        newPlan.getPlanElements.add(newLeg)
+      }
     }
     newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
     newPlan

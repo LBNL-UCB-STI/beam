@@ -40,7 +40,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(iterationNumber, "CarRideStats.csv.gz")
+    outputDirectoryHierarchy.getIterationFilename(iterationNumber, "personal.CarRideStats.csv.gz")
   }
 
 }
