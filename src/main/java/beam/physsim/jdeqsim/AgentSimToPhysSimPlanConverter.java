@@ -245,7 +245,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimes = previousTravelTime;
         }
 
-        if (iterationNumber > 0 && shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
+        if (shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
             writeTravelTimeMap(iterationNumber, map);
             PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, travelTimes);
             psc.write(iterationNumber);
