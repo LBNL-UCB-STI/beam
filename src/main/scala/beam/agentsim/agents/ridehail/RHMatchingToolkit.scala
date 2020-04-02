@@ -125,8 +125,7 @@ object RHMatchingToolkit {
       Id.create(
         beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
-      ),
-      beamServices
+      )
     )
   }
 
@@ -246,8 +245,7 @@ object RHMatchingToolkit {
         Id.create(
           beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
-        ),
-        beamServices
+        )
       )
     CustomerRequest(
       vehiclePersonId,
