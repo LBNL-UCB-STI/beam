@@ -146,7 +146,9 @@ dependencies {
 
     compile "org.jgrapht:jgrapht-core:1.3.0"
 
-    compile 'com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'
+    compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }
     compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1'
 
     // GPLv3

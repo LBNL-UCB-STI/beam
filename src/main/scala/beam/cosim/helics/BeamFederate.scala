@@ -30,7 +30,6 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   private val beamConfig = beamServices.beamScenario.beamConfig
   private val tazTreeMap = beamServices.beamScenario.tazTreeMap
   private val registeredEvents = mutable.HashMap.empty[String, SWIGTYPE_p_void]
-  private var currentTime: Double = 0.0
   private val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
   private val fedName = beamConfig.beam.cosim.helics.federateName
   private val fedInfo = helics.helicsCreateFederateInfo()
@@ -51,13 +50,13 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   helics.helicsFederateEnterExecutingMode(fedComb)
 
   // publish
-  def publish(event: Event) = {
+  def publish(event: Event, currentTime: Double) = {
     if (registeredEvents.contains(event.getEventType)) {
       event match {
         case e: ChargingPlugInEvent =>
-          publishChargingEvent(e.getEventType, e.vehId.toString, e.primaryFuelLevel, e.stall.locationUTM)
+          publishChargingEvent(currentTime, e.getEventType, e.vehId.toString, e.primaryFuelLevel, e.stall.locationUTM)
         case e: ChargingPlugOutEvent =>
-          publishChargingEvent(e.getEventType, e.vehId.toString, e.primaryFuelLevel, e.stall.locationUTM)
+          publishChargingEvent(currentTime, e.getEventType, e.vehId.toString, e.primaryFuelLevel, e.stall.locationUTM)
         case _: RefuelSessionEvent =>
         case _                     =>
       }
@@ -67,6 +66,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   }
 
   def syncAndMoveToNextTimeStep(time: Int): Int = {
+    var currentTime = -1.0
     while (currentTime < time) currentTime = helics.helicsFederateRequestTime(fedComb, time)
     fedTimeStep * (1 + (currentTime / fedTimeStep).toInt)
   }
@@ -77,7 +77,13 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     helics.helicsCloseLibrary()
   }
 
-  private def publishChargingEvent(eventType: String, vehId: String, socInJoules: Double, location: Coord): Unit = {
+  private def publishChargingEvent(
+    currentTime: Double,
+    eventType: String,
+    vehId: String,
+    socInJoules: Double,
+    location: Coord
+  ): Unit = {
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val pubVar = s"$vehId,$socInJoules,${taz.coord.getY},${taz.coord.getX}" // VEHICLE,SOC,LAT,LONG
     helics.helicsPublicationPublishString(registeredEvents(eventType), pubVar)

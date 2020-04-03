@@ -28,6 +28,7 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import helics.BeamFederate.BeamFederateTrigger
 import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -301,11 +302,13 @@ class BeamMobsimIteration(
     "taz-skims-collector"
   )
   context.watch(tazSkimmer)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
   val eventsAccumulator: Option[ActorRef] =
     if (beamConfig.beam.agentsim.collectEvents) {
       val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
       context.watch(eventsAccumulator)
+      scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
       Some(eventsAccumulator)
     } else None
   eventsManager match {
@@ -346,11 +349,13 @@ class BeamMobsimIteration(
       tazSkimmer ! Finish
       if (eventsAccumulator.isDefined) {
         eventsAccumulator.get ! Finish
+        context.stop(eventsAccumulator.get)
       }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
+      context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)

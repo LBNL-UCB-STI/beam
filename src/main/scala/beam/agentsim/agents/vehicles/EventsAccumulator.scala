@@ -22,22 +22,19 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
   import EventsAccumulator._
   import beamServices._
 
-  private val EOT: Int = DateUtils.getEndOfTime(beamConfig)
+  private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
   private val beamFederate = BeamFederate.getInstance(beamServices)
   private val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]
 
-  // init
-  scheduler ! ScheduleTrigger(BeamFederateTrigger(0), self)
-
   override def receive: Receive = {
     case t @ TriggerWithId(BeamFederateTrigger(tick), _) =>
       val nextTick = beamFederate.syncAndMoveToNextTimeStep(tick)
-      chargingEventsBuffer.foreach(beamFederate.publish)
+      chargingEventsBuffer.foreach(beamFederate.publish(_, tick))
       clearStates()
       sender ! CompletionNotice(
         t.triggerId,
-        if (tick < EOT)
+        if (tick < endOfSimulationTime)
           Vector(ScheduleTrigger(BeamFederateTrigger(nextTick), self))
         else
           Vector()
@@ -49,7 +46,6 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
     case Finish =>
       clearStates()
       beamFederate.close()
-      context.stop(self)
   }
 
   private def clearStates(): Unit = {
