@@ -4,13 +4,13 @@ import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
@@ -42,7 +42,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
     var allocResponses: Vector[VehicleAllocation] = Vector()
-    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toPool += request
@@ -206,7 +206,7 @@ object Pooling {
   def serveOneRequest(
     request: RideHailRequest,
     pickUpTime: Int,
-    alreadyAllocated: Set[Id[Vehicle]],
+    alreadyAllocated: Set[Id[BeamVehicle]],
     rideHailManager: RideHailManager,
     beamServices: BeamServices
   ) = {
