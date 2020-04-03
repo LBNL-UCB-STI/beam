@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.*;
-import beam.analysis.via.EventWriterXML_viaCompatible;
+import beam.analysis.plots.LegHistogramChart;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
@@ -21,6 +21,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import org.matsim.analysis.LegHistogram;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -43,6 +44,7 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -68,11 +70,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private static PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
     private static PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
-    private static PhyssimTripStats physsimTripStats;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private final Scenario agentSimScenario;
+    private LegHistogram legHistogram;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
     private BeamServices beamServices;
@@ -82,7 +84,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private BeamConfig beamConfig;
     private final Random rand = MatsimRandom.getRandom();
-
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
@@ -118,10 +119,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
-        physsimTripStats = new PhyssimTripStats(beamConfig);
         beamConfigChangesObservable.addObserver(this);
     }
-
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
@@ -133,9 +132,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
         EventsManager jdeqsimEvents = new EventsManagerImpl();
+
+        int binSize = beamConfig.beam().outputs().stats().binSize();
+        int noOfBins = getNoOfBins(binSize);
+        legHistogram = new LegHistogram(jdeqsimPopulation, jdeqsimEvents, binSize, noOfBins);
+
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
-        jdeqsimEvents.addHandler(physsimTripStats);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
@@ -260,8 +263,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkLinkLengthDistribution.notifyIterationEnds(iterationNumber)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
-
-        completableFutures.add(CompletableFuture.runAsync(() -> physsimTripStats.reset(iterationNumber)));
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
             assert eventWriter != null;
@@ -447,11 +448,29 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
-
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+        writePhyssimHistogram(iterationEndsEvent);
+
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
+    }
+
+    private void writePhyssimHistogram(IterationEndsEvent event) {
+
+        int binSize = beamConfig.beam().outputs().stats().binSize();
+        String fileName = "physsimTripHistogram";
+        legHistogram.getLegModes().forEach(mode -> {
+            LegHistogramChart.writeGraphic(legHistogram, controlerIO, fileName, mode, event.getIteration(), binSize);
+        });
+    }
+
+    private int getNoOfBins(int binSize){
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        double _endTime = Time.parseTime(endTime);
+        double _numOfTimeBins = _endTime / binSize;
+        _numOfTimeBins = Math.floor(_numOfTimeBins);
+        return  (int) _numOfTimeBins + 1;
     }
 
     private void createLastActivityOfDayForPopulation() {
@@ -479,9 +498,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             return currentTravelTimeMap;
         } else {
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-            TravelTime averageTravelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
-
-            previousTravelTime = averageTravelTimes;
+            previousTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
             return map;
         }
     }
