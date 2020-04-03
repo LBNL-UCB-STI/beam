@@ -52,6 +52,10 @@ runcmd:
   - sudo apt-get install curl
   - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
   - sudo apt-get install nodejs -y
+  - sudo apt-get install docker-ce docker-ce-cli containerd.io -y
+  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - sudo chmod +x /usr/local/bin/docker-compose
+  - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
   - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
   - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
   - sudo apt-get install xvfb -y
