@@ -25,6 +25,8 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
   private val eos: Int = DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
   private val timeBin: Int = beamServices.beamConfig.beam.router.skim.taz_skimmer.timeBin
 
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), self)
+
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       Future(scheduler ? ScheduleTrigger(TAZSkimsCollectionTrigger(timeBin), self))
@@ -41,6 +43,7 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
 
     case Finish =>
       context.children.foreach(_ ! Finish)
+      context.stop(self)
   }
 }
 

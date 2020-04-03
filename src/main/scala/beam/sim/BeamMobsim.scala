@@ -17,7 +17,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -187,19 +186,6 @@ class BeamMobsimIteration(
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
-  val eventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.collectEvents)
-      Some(
-        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
-      )
-    else None
-
-  eventsManager match {
-    case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
-    case _ =>
-  }
-
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
 
@@ -315,7 +301,18 @@ class BeamMobsimIteration(
     "taz-skims-collector"
   )
   context.watch(tazSkimmer)
-  scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
+
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents) {
+      val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
+      context.watch(eventsAccumulator)
+      Some(eventsAccumulator)
+    } else None
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
 
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
@@ -354,7 +351,6 @@ class BeamMobsimIteration(
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
-      context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)
