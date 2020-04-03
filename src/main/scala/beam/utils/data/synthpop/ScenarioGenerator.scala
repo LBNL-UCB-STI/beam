@@ -14,7 +14,7 @@ import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, GenericGeoId, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
-import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
+import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvParkingInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
@@ -147,7 +147,7 @@ class SimpleScenarioGenerator(
       assignWorkingLocations
     }
 
-    val tazGeoIdToResidentsAndWorkers = blockGroupGeoIdToHouseholds.values.flatMap { x =>
+    val tazGeoIdToAreaResidentsAndWorkers = blockGroupGeoIdToHouseholds.values.flatMap { x =>
       x.flatMap { hh =>
         hh._2.map {
           y => (y.homeLoc, y.workDest)
@@ -329,7 +329,7 @@ class SimpleScenarioGenerator(
       logger.warn(
         s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box ${geoSvc.mapBoundingBox}"
       )
-    (finalResult.values.flatten.flatten, tazGeoIdToResidentsAndWorkers)
+    (finalResult.values.flatten.flatten, tazGeoIdToAreaResidentsAndWorkers)
   }
 
   private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
@@ -522,6 +522,9 @@ object SimpleScenarioGenerator {
     val (generatedData, tazGeoIdToResidentsAndWorkers) = gen.generate
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+
+    val parkingFilePath = s"$pathToOutput/parking.csv"
+    CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, tazGeoIdToResidentsAndWorkers)
 
     val households = generatedData.map(_._1).toVector
     val householdFilePath = s"$pathToOutput/households.csv"
