@@ -6,7 +6,7 @@ Real time graphs
 Grafana
 -----------
 
-`Grafana <https://grafana.com/>`_ is the open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
+`Grafana <https://grafana.com/>`_ is an open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
 It is a tool to display data from data source. In our case the data source is `InfluxDB <https://www.influxdata.com/products/influxdb-overview/>`_ .
 
 
