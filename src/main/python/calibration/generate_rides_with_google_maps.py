@@ -123,7 +123,7 @@ def select_input(execution_file):
     return select_file(test_output_folder)
 
 
-    def select_file(test_output_folder):
+def select_file(test_output_folder):
     found_files = list(glob.iglob(f'{test_output_folder}/**/*.personal.CarRideStats.csv.gz', recursive=True))
     if len(found_files) == 0:
         return None
