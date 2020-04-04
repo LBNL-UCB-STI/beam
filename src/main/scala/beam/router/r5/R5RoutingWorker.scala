@@ -240,6 +240,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 }
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends MetricsSupport {
+  private val maxDistanceForBikeMeters: Int =
+    workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
   private val WorkerParameters(
     beamConfig,
@@ -261,7 +263,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
     embodyRequestId: Int
-  ) = {
+  ): RoutingResponse = {
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -335,6 +337,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
+        if (request.accessMode == LegMode.BICYCLE) {
+          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+        }
         streetRouter.profileRequest = profileRequest
         streetRouter.streetMode = toR5StreetMode(mode)
         streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -609,6 +614,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
       )
+      if (vehicle.mode == BeamMode.BIKE) {
+        streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+      }
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
@@ -649,6 +657,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                   turnCostCalculator,
                   travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
                 )
+                if (vehicle.mode == BeamMode.BIKE) {
+                  streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+                }
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -706,6 +717,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
+        if (vehicle.mode == BeamMode.BIKE) {
+          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+        }
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
         streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
@@ -888,7 +902,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                 .toInt
               if (transitSegment.middle != null) {
                 val body = request.streetVehicles.find(_.mode == WALK).get
-                embodiedBeamLegs += buildStreetBasedLegs(transitSegment.middle, arrivalTime, body, false)
+                embodiedBeamLegs += buildStreetBasedLegs(
+                  transitSegment.middle,
+                  arrivalTime,
+                  body,
+                  unbecomeDriverOnCompletion = false
+                )
                 arrivalTime = arrivalTime + transitSegment.middle.duration
               }
           }
@@ -896,7 +915,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
-            embodiedBeamLegs += buildStreetBasedLegs(egress, arrivalTime, vehicle, true)
+            embodiedBeamLegs += buildStreetBasedLegs(egress, arrivalTime, vehicle, unbecomeDriverOnCompletion = true)
             val body = request.streetVehicles.find(_.mode == WALK).get
             if (isRouteForPerson && egress.mode != LegMode.WALK) {
               embodiedBeamLegs += EmbodiedBeamLeg(
@@ -905,7 +924,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
                 body.vehicleTypeId,
                 body.asDriver,
                 0.0,
-                true
+                unbecomeDriverOnCompletion = true
               )
             }
           }
@@ -924,7 +943,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends 
               body.vehicleTypeId,
               body.asDriver,
               0.0,
-              true
+              unbecomeDriverOnCompletion = true
             )
           }
           EmbodiedBeamTrip(embodiedBeamLegs)
@@ -1171,7 +1190,7 @@ object R5RoutingWorker {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles
-  ) = Props(
+  ): Props = Props(
     new R5RoutingWorker(
       WorkerParameters(
         beamScenario.beamConfig,
