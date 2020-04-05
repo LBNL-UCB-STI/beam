@@ -48,7 +48,7 @@ def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.5.22"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
-def kamonVersion = "0.6.7"
+def kamonVersion = "2.0.3"
 def tscfgVersion = "0.9.4"
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
@@ -105,7 +105,7 @@ allprojects {
 
 dependencies {
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.4') {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.10') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -185,11 +185,11 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:2.12.10"
+    compile "org.scala-lang:scala-library:2.12.11"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:2.12.10"
+    compile "org.scala-lang:scala-compiler:2.12.11"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.8'
@@ -229,12 +229,16 @@ dependencies {
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
 
-    compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
-    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
+    // compile("io.kamon:kamon-bundle_${scalaBinaryVersion}:${kamonVersion}")
+    compile("io.kamon:kamon-core_${scalaBinaryVersion}:2.0.1")
+    // compile("io.kamon:kamon-influxdb_2.12:2.0.0")
+
+    compile("org.influxdb:influxdb-java:2.16")
+
+//    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:${kamonVersion}")
+//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
+//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
+//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
     /////////////
     // Akka Dependencies
@@ -412,7 +416,7 @@ mainClassName = "beam.sim.RunBeam"
 
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
-
+def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
@@ -441,7 +445,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
            "-Djava.net.preferIPv4Stack=true", "-Djava.rmi.server.hostname=127.0.0.1"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
                              "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
 
@@ -535,7 +539,6 @@ And that would only happen if the committed code is not formatted as expected.""
 }
 
 docker{
-
     registryCredentials {
         url = 'https://index.docker.io/v1/'
         username = System.getenv("DOCKER_USER")
@@ -550,13 +553,18 @@ docker{
 }
 
 dockerDistTar {
-    instruction 'RUN apt-get update'
+    instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
+    instruction 'RUN pip3 install --upgrade setuptools'
+    instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
+    addFile 'src/main/python/events_analysis/', 'src/main/python/events_analysis/'
     addFile 'test/', 'test/'
 }
 
 dockerCopyDistResources {
+    from('src/main/python/events_analysis/') {
+        into('src/main/python/events_analysis/')
+    }
     from('test/') {
         into('test/')
     }
 }
-

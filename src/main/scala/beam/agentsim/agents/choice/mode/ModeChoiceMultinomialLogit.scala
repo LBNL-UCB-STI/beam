@@ -4,23 +4,21 @@ import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
-import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Random
 
 /**
   * BEAM
@@ -168,7 +166,7 @@ class ModeChoiceMultinomialLogit(
       val numTransfers = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
           var nVeh = -1
-          var vehId = Id.create("dummy", classOf[Vehicle])
+          var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
             if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
               vehId = leg.beamVehicleId

@@ -4,7 +4,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RHMatchingAlgorithm}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
@@ -13,7 +13,6 @@ import beam.router.skim.Skims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -70,7 +69,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     var toAllocate: Set[RideHailRequest] = Set()
     var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: Vector[VehicleAllocation] = Vector()
-    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toAllocate += request
@@ -268,7 +267,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   withTransit = false,
                   IndexedSeq(
                     StreetVehicle(
-                      Id.create(vehicleAndOldSchedule.vehicle.id.toString, classOf[Vehicle]),
+                      vehicleAndOldSchedule.vehicle.id,
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                       origin,
                       CAR,
