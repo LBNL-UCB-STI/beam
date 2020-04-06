@@ -105,7 +105,7 @@ allprojects {
 
 dependencies {
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.10') {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.11') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -158,7 +158,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-11') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-13') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -171,7 +171,6 @@ dependencies {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
-
     compile "com.sigopt:sigopt-java:4.9.0"
 
     compile("com.uber:h3:3.4.1")
