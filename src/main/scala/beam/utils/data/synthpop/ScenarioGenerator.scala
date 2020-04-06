@@ -9,12 +9,22 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
-import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
+import beam.utils.data.synthpop.generators.{
+  RandomWorkDestinationGenerator,
+  TimeLeavingHomeGenerator,
+  TimeLeavingHomeGeneratorImpl,
+  WorkedDurationGeneratorImpl
+}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, GenericGeoId, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
-import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvParkingInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
+import beam.utils.scenario.generic.writers.{
+  CsvHouseholdInfoWriter,
+  CsvParkingInfoWriter,
+  CsvPersonInfoWriter,
+  CsvPlanElementWriter
+}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
@@ -23,10 +33,15 @@ import scala.collection.mutable
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
-  def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId,(Int, Int)])
+  def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId, (Int, Int)])
 }
 
-case class PersonWithExtraInfo(person: Models.Person, homeLoc: TazGeoId, workDest: TazGeoId, timeLeavingHomeRange: Range)
+case class PersonWithExtraInfo(
+  person: Models.Person,
+  homeLoc: TazGeoId,
+  workDest: TazGeoId,
+  timeLeavingHomeRange: Range
+)
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
@@ -138,7 +153,7 @@ class SimpleScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId,(Int, Int)]) = {
+  override def generate: (Iterable[(HouseholdInfo, List[PersonWithPlans])], Map[GenericGeoId, (Int, Int)]) = {
     var globalPersonId: Int = 0
 
     logger.info(s"Generating BlockGroupId to Households and their people")
@@ -146,17 +161,20 @@ class SimpleScenarioGenerator(
       assignWorkingLocations
     }
 
-    val tazGeoIdToAreaResidentsAndWorkers = blockGroupGeoIdToHouseholds.values.flatMap { x =>
-      x.flatMap { hh =>
-        hh._2.map {
-          y => (y.homeLoc, y.workDest)
+    val tazGeoIdToAreaResidentsAndWorkers = blockGroupGeoIdToHouseholds.values
+      .flatMap { x =>
+        x.flatMap { hh =>
+          hh._2.map { y =>
+            (y.homeLoc, y.workDest)
+          }
         }
       }
-    }.foldLeft(mutable.Map.empty[GenericGeoId, (Int, Int)].withDefaultValue((0,0)))((acc, tazs) => {
-      acc.put(tazs._1, (acc(tazs._1)._1 + 1, acc(tazs._1)._2))
-      acc.put(tazs._2, (acc(tazs._2)._1, acc(tazs._2)._2 + 1))
-      acc
-    }).toMap
+      .foldLeft(mutable.Map.empty[GenericGeoId, (Int, Int)].withDefaultValue((0, 0)))((acc, tazs) => {
+        acc.put(tazs._1, (acc(tazs._1)._1 + 1, acc(tazs._1)._2))
+        acc.put(tazs._2, (acc(tazs._2)._1, acc(tazs._2)._2 + 1))
+        acc
+      })
+      .toMap
 
     logger.info(s"Finished taz mapping")
 
@@ -232,7 +250,10 @@ class SimpleScenarioGenerator(
 
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case ((xs, nextPersonId), PersonWithExtraInfo(person, homeLocGeoId, workDestPumaGeoId, timeLeavingHomeRange)) =>
+                  case (
+                      (xs, nextPersonId),
+                      PersonWithExtraInfo(person, homeLocGeoId, workDestPumaGeoId, timeLeavingHomeRange)
+                      ) =>
                     val workLocations = tazGeoIdToWorkingLocations(workDestPumaGeoId)
                     val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
