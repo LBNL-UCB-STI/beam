@@ -5,6 +5,9 @@ import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.{GenericGeoId, TazGeoId}
 import beam.utils.scenario.HouseholdInfo
 import com.vividsolutions.jts.geom.Geometry
+import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
+import org.opengis.referencing.operation.MathTransform
 
 import scala.util.Try
 
@@ -14,27 +17,32 @@ trait ParkingInfoWriter {
 
 object CsvParkingInfoWriter extends ParkingInfoWriter {
   private val headers: Array[String] = Array("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents", "reservedFor")
+  val destinationCoordSystem = CRS.decode("EPSG:3395", true)
+  val sourceCoordSystem = CRS.decode("EPSG:4326", true)
+  val mt: MathTransform = CRS.findMathTransform(sourceCoordSystem, destinationCoordSystem, true)
 
   override def write(path: String, geoService: GeoService, tazCounts: Map[GenericGeoId, (Int, Int)]): Unit = {
     val csvWriter = new CsvWriter(path, headers)
     try {
       tazCounts.foreach { case (tazGeoId, (numberPersons, numberWorkers)) =>
         val scaledTazArea = geoService.tazGeoIdToGeom.get(tazGeoId.asInstanceOf[TazGeoId]) match {
-          case Some(geometry: Geometry) => geometry.getArea * 1000
-          case _ => 100000.0
+          case Some(geometry: Geometry) => JTS.transform(geometry, mt).getArea / 1000
+          case _ => 100000
         }
         val parkingInfo = getNumberOfSpaces( scaledTazArea, numberPersons, numberWorkers)
         parkingInfo.foreach {
           case (parkingType, (spots, cost)) =>
-            csvWriter.write(
-              tazGeoId.asInstanceOf[TazGeoId].taz,
-              parkingType,
-              "Block",
-              "None",
-              spots.toString,
-              cost.toString,
-              "Any"
-            )
+            if (spots > 0) {
+              csvWriter.write(
+                tazGeoId.asInstanceOf[TazGeoId].taz,
+                parkingType,
+                "Block",
+                "None",
+                spots.toString,
+                cost.toString,
+                "Any"
+              )
+            }
         }
       }
     } finally {
@@ -45,12 +53,12 @@ object CsvParkingInfoWriter extends ParkingInfoWriter {
   private def getNumberOfSpaces(scaledTazArea: Double, numberPersons: Int, numberWorkers: Int): Map[String, (Int, Double)] = {
     val populationDensity = numberPersons.toDouble / scaledTazArea
     val employmentDensity = numberWorkers.toDouble / scaledTazArea
-    val offStreetParking = math.exp(-1.974 + 1.002 * math.log(employmentDensity)) * scaledTazArea
-    val onStreetParking = math.exp(-0.204 + -0.886 * math.log(employmentDensity + populationDensity)) * (numberPersons + numberWorkers)
-    val offStreetCost = 28.6894 + 114.7287 * math.log(employmentDensity) - 7.3747 * math.log(populationDensity)
-    val onStreetCost = 1.4301 + 38.2084 * math.log(employmentDensity) + 5.2333 * math.log(populationDensity)
-    val residentialParking = if (populationDensity + employmentDensity < 100) {
-      numberPersons / 2 * (100 - (populationDensity + employmentDensity )).toInt
+    val offStreetParking = (math.exp(-1.974 + 1.002 * math.log(employmentDensity)) * scaledTazArea).max(0).min(numberWorkers)
+    val onStreetParking = ((numberPersons + numberWorkers) * (0.5559 - 0.1454 * (populationDensity + employmentDensity) )).max(0).min(numberPersons + numberWorkers)
+    val offStreetCost = (-35.9285 + 5.2970 * employmentDensity + 15.7921 * populationDensity).max(0).min(2000)
+    val onStreetCost = (-22.6038  + 1.6954  * employmentDensity + 7.5305 * populationDensity).max(0).min(2000)
+    val residentialParking = if (populationDensity + employmentDensity < 50) {
+      (numberPersons / 2 * (50 - (populationDensity + employmentDensity )) / 50).toInt
     } else {
       0
     }

@@ -55,7 +55,6 @@ class SimpleScenarioGenerator(
     //-47.74 86.46
     override def localCRS: String = "epsg:26910"
   }
-
   private val defaultTimeLeavingHomeRange: Range = Range(6 * 3600, 7 * 3600)
 
   private val congestionLevelData: CsvCongestionLevelData = new CsvCongestionLevelData(pathToCongestionLevelDataFile)
@@ -523,8 +522,9 @@ object SimpleScenarioGenerator {
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 
-    val parkingFilePath = s"$pathToOutput/parking.csv"
+    val parkingFilePath = s"$pathToOutput/taz-parking.csv"
     CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, tazGeoIdToResidentsAndWorkers)
+    println(s"Wrote parking information to $parkingFilePath")
 
     val households = generatedData.map(_._1).toVector
     val householdFilePath = s"$pathToOutput/households.csv"
