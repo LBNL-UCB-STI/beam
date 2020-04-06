@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.*;
-import beam.analysis.plots.LegHistogramChart;
+import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
@@ -65,6 +65,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String CAR = "car";
     public static final String BUS = "bus";
     private static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static final String fileName = "physsimTripHistogram";
+    private static final String xAxisLabel = "time (binSize=<?> sec)";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
@@ -88,6 +90,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
+    private final PlotGraph plotGraph = new PlotGraph();
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
@@ -459,9 +462,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void writePhyssimHistogram(IterationEndsEvent event) {
 
         int binSize = beamConfig.beam().outputs().stats().binSize();
-        String fileName = "physsimTripHistogram";
+
         legHistogram.getLegModes().forEach(mode -> {
-            LegHistogramChart.writeGraphic(legHistogram, controlerIO, fileName, mode, event.getIteration(), binSize);
+            plotGraph.writeGraphic(legHistogram, controlerIO, fileName, xAxisLabel, mode, event.getIteration(), binSize);
         });
     }
 
