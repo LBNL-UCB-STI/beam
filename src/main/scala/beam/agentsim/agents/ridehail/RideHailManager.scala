@@ -273,7 +273,7 @@ class RideHailManager(
   def fleetSize: Int = resources.size
 
   val radiusInMeters
-    : Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec * SkimsUtils
+    : Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec * SkimsUtils
     .speedMeterPerSec(BeamMode.CAV)
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()

@@ -42,7 +42,7 @@ class AlonsoMoraPoolingAlgForRideHail(
   private def solutionSpaceSizePerVehicle: Int =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
   private def waitingTimeInSec: Int =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.maxWaitingTimeInSec
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
   private implicit val services = beamServices
 
   // a greedy assignment using a cost function
