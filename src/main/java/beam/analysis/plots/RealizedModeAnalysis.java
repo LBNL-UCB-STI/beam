@@ -158,7 +158,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         hourModeFrequency.clear();
         personIdList.clear();
         hourPerson.clear();
-        personIdList.clear();
         personHourModeCount.clear();
         affectedModeCount.clear();
         personReplanningChain.clear();
@@ -201,10 +200,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             hourData.merge(mode, 1.0, Double::sum);
             hourModeFrequency.put(hour, hourData);
             ModeHour modeHour = new ModeHour(mode, hour);
-            Stack<ModeHour> modeHours = hourPerson.get(personId);
-            if (modeHours == null) {
-                modeHours = new Stack<>();
-            }
+            Stack<ModeHour> modeHours = hourPerson.getOrDefault(personId, new Stack<>());
             modeHours.push(modeHour);
             hourPerson.put(personId, modeHours);
             setHourPersonMode(hour, personId, mode, false);
@@ -253,10 +249,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                 Optional<Integer> optionalHour = hours.stream().findFirst();
                 if (optionalHour.isPresent()) {
                     int hour = optionalHour.get();
-                    Map<String, Double> oldHourData = hourModeFrequency.get(hour);
-                    if (oldHourData == null) {
-                        oldHourData = new HashMap<>();
-                    }
+                    Map<String, Double> oldHourData = hourModeFrequency.getOrDefault(hour, new HashMap<>());
                     Optional<String> optionalMode = modes.stream().findFirst();
                     if (optionalMode.isPresent()) {
                         oldHourData.merge(optionalMode.get(), 1.0, Double::sum);
@@ -277,10 +270,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                         }
                     }
                     if (hour != null) {
-                        Map<String, Double> oldHourData = hourModeFrequency.get(hour);
-                        if (oldHourData == null) {
-                            oldHourData = new HashMap<>();
-                        }
+                        Map<String, Double> oldHourData = hourModeFrequency.getOrDefault(hour, new HashMap<>());
                         oldHourData.merge(mode, 1.0 / sum, Double::sum);
                         hourModeFrequency.put(hour, oldHourData);
                     }
@@ -290,14 +280,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void setHourPersonMode(int hour, String personId, String mode, boolean isUpdateExisting) {
-        Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
-        if (hourModeCount == null) {
-            hourModeCount = new HashMap<>();
-        }
-        Map<String, Integer> modeCnt = hourModeCount.get(hour);
-        if (modeCnt == null) {
-            modeCnt = new HashMap<>();
-        }
+        Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.getOrDefault(personId, new HashMap<>());
+        Map<String, Integer> modeCnt = hourModeCount.getOrDefault(hour, new HashMap<>());
         if (isUpdateExisting) {
             modeCnt.merge(mode, 1, Integer::sum);
         } else {
@@ -310,23 +294,19 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void updatePersonCount() {
-        personHourModeCount.keySet().forEach(person -> updateHourMode(person));
+        personHourModeCount.keySet().forEach(this::updateHourMode);
     }
 
     //    accumulating data for each iteration
     public void updateRealizedModeChoiceInIteration(Integer iteration) {
-        Set<Integer> hours = hourModeFrequency.keySet();
         Map<String, Double> totalModeChoice = new HashMap<>();
-        for (Integer hour : hours) {
-            Map<String, Double> iterationHourData = hourModeFrequency.get(hour);
+        hourModeFrequency.values().forEach(iterationHourData -> {
             if (iterationHourData != null) {
-                Set<String> iterationModes = iterationHourData.keySet();
-                for (String iterationMode : iterationModes) {
-                    Double freq = iterationHourData.get(iterationMode);
-                    totalModeChoice.merge(iterationMode, freq, (a, b) -> b + a);
-                }
+                iterationHourData.forEach((iterationMode, freq) -> {
+                    totalModeChoice.merge(iterationMode, freq, Double::sum);
+                });
             }
-        }
+        });
         iterationTypeSet.add("it." + iteration);
         realizedModeChoiceInIteration.put(iteration, totalModeChoice);
     }
@@ -363,6 +343,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         });
         cumulativeMode.addAll(modes);
         cumulativeReferenceMode.addAll(modes);
+        cumulativeReferenceMode.addAll(benchMarkData.keySet());
         return modes;
     }
 
