@@ -142,6 +142,7 @@ The outputs are written to the 'output' directory, should see results appear in 
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
 
+There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-graphs`.
 
 Running BEAM with Intellij IDE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

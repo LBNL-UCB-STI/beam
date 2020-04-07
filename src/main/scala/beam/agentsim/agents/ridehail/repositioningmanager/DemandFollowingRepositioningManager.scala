@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.{Skims, TAZSkimmerEvent}
@@ -13,7 +14,6 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.{Pair => CPair}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.IndexedSeq
@@ -71,9 +71,9 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"horizon: $horizon")
 
   def repositionVehicles(
-    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
-  ): Vector[(Id[Vehicle], Location)] = {
+  ): Vector[(Id[BeamVehicle], Location)] = {
     val clusters = createHexClusters(tick)
     val nonRepositioningIdleVehicles = idleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
@@ -159,7 +159,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def findWhereToReposition(
     tick: Int,
     vehicleLocation: Coord,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     clusters: Array[ClusterInfo]
   ): Option[Coord] = {
     if (clusters.map(_.size).sum == 0) None

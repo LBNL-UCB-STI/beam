@@ -1,0 +1,35 @@
+{
+  "type": "panel",
+  "name": "Plotly",
+  "id": "natel-plotly-panel",
+
+  "info": {
+    "description": "Scatter plots and more",
+    "author": {
+      "name": "Natel Energy"
+    },
+    "keywords": ["plotly", "scatter", "panel"],
+    "logos": {
+      "small": "img/plotly_logo.svg",
+      "large": "img/plotly_logo.svg"
+    },
+    "links": [
+      {"name": "Plot.ly", "url": "https://plot.ly/javascript/"},
+      {"name": "Project Page", "url": "https://github.com/NatelEnergy/grafana-plotly-panel"},
+      {"name": "Natel Energy", "url": "http://www.natelenergy.com/"}
+    ],
+    "screenshots": [
+      {"name": "Scatter", "path": "img/screenshot-scatter.png"},
+      {"name": "Scatter 2D", "path": "img/screenshot-scatter-1.png"},
+      {"name": "Scatter 3D", "path": "img/screenshot-scatter-3d.png"},
+      {"name": "Options", "path": "img/screenshot-options.png"}
+    ],
+    "version": "0.0.8",
+    "updated": "2020-02-12"
+  },
+
+  "dependencies": {
+    "grafanaVersion": "4.x.x",
+    "plugins": []
+  }
+}

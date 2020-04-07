@@ -3,33 +3,17 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.MetricsSupport;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.CategoryPlot;
+import beam.sim.metrics.Metrics;
+import beam.sim.metrics.SimulationMetricCollector;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.io.*;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
@@ -56,6 +40,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
+    private final SimulationMetricCollector simMetricCollector;
 
     public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 
@@ -87,8 +72,9 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
-    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
+        this.simMetricCollector = simMetricCollector;
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
@@ -100,8 +86,9 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof ModeChoiceEvent)
-            processModeChoice((ModeChoiceEvent)event);
+        if (event instanceof ModeChoiceEvent) {
+            processModeChoice((ModeChoiceEvent) event);
+        }
     }
 
     @Override
@@ -148,10 +135,12 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private void processModeChoice(ModeChoiceEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.mode;
-        Map<String, String> tags = new HashMap<>();
-        tags.put("stats-type", "mode-choice");
-        tags.put("hour", "" + (hour + 1));
-        countOccurrenceJava(mode, 1, ShortLevel(), tags);
+
+        HashMap<String, String> tags = new HashMap<>();
+        tags.put("mode", mode);
+        int time = (int) event.getTime();
+        simMetricCollector.writeIterationJava("mode-choices", time, 1, tags, false);
+
         modesChosen.add(mode);
         cumulativeModeChosenForModeChoice.add(mode);
         cumulativeModeChosenForReference.add(mode);

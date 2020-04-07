@@ -1,0 +1,26 @@
+version: '3.3'
+
+services:
+  influxdb-grafana:
+    image: philhawthorne/docker-influxdb-grafana:latest
+    # container name is using in gradle task
+    container_name: docker-influxdb-grafana
+    volumes:
+      - ./grafana/plugins:/var/lib/grafana/plugins
+      - ./grafana/datasources:/etc/grafana/datasources
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./influxdb/snapshot:/var/lib/influxdb/snapshot
+      - ./setup.sh:/setup.sh
+    entrypoint: /setup.sh
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-root}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-root}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+    restart: unless-stopped
+    ports:
+      - 3003:3003
+      - 3004:8083
+      - 8086:8086

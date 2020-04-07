@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, EventsAccumulator}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -20,7 +20,8 @@ import beam.router.skim.TAZSkimsCollector
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
+import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
@@ -60,19 +61,64 @@ class BeamMobsim @Inject()(
     logger.info("Starting Iteration")
     startMeasuringIteration(beamServices.matsimServices.getIterationNumber)
     logger.info("Preparing new Iteration (Start)")
-    startSegment("iteration-preparation", "mobsim")
+    startMeasuring("iteration-preparation:mobsim")
 
     validateVehicleTypes()
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
+    // This is needed to get all iterations in Grafana. Take a look to variable `$iteration_num` in the dashboard
+    beamServices.simMetricCollector.writeIteration(
+      "beam-iteration",
+      SimulationTime(0),
+      beamServices.matsimServices.getIterationNumber.toLong
+    )
+
+    // to have zero values for graphs even if there are no values calculated during iteration
+    def writeZeros(
+      metricName: String,
+      values: Map[String, Double] = Map(SimulationMetricCollector.defaultMetricName -> 0.0),
+      tags: Map[String, String] = Map()
+    ): Unit = {
+      for (hour <- 0 to 24) {
+        beamServices.simMetricCollector.write(metricName, SimulationTime(60 * 60 * hour), values, tags)
+      }
+    }
+
+    Seq(
+      "car",
+      "walk",
+      "ride_hail",
+      "ride_hail_pooled",
+      "ride_hail_transit",
+      "bike",
+      "walk_transit",
+      "drive_transit"
+    ).foreach(mode => {
+      writeZeros("mode-choices", tags = Map("mode" -> mode))
+    })
+
+    val defaultName = SimulationMetricCollector.defaultMetricName
+    writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
+    writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
+
+    writeZeros("parking", tags = Map("parking-type" -> "Public"))
+    writeZeros("ride-hail-allocation-reserved")
+    writeZeros("ride-hail-inquiry-served")
+    writeZeros(
+      "chargingPower",
+      Map(defaultName   -> 0.0, "averageLoad"        -> 0.0),
+      Map("vehicleType" -> "Personal", "parkingType" -> "Public", "typeOfCharger" -> "None")
+    )
+
     eventsManager.initProcessing()
 
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory
@@ -85,7 +131,7 @@ class BeamMobsim @Inject()(
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
-    endSegment("agentsim-events", "agentsim")
+    stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
   }
@@ -114,6 +160,7 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
   val beamServices: BeamServices,
+  val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory
@@ -139,6 +186,19 @@ class BeamMobsimIteration(
   )
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
+
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents)
+      Some(
+        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
+      )
+    else None
+
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
 
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
@@ -278,15 +338,18 @@ class BeamMobsimIteration(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
-      endSegment("agentsim-execution", "agentsim")
+      stopMeasuring("agentsim-execution:agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")
-      startSegment("agentsim-events", "agentsim")
+      stopMeasuring("agentsim-events:agentsim")
 
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
+      if (eventsAccumulator.isDefined) {
+        eventsAccumulator.get ! Finish
+      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
@@ -307,11 +370,11 @@ class BeamMobsimIteration(
     case "Run!" =>
       runSender = sender
       log.info("Running BEAM Mobsim")
-      endSegment("iteration-preparation", "mobsim")
+      stopMeasuring("iteration-preparation:mobsim")
 
       log.info("Preparing new Iteration (End)")
       log.info("Starting Agentsim")
-      startSegment("agentsim-execution", "agentsim")
+      startMeasuring("agentsim-execution:agentsim")
 
       scheduler ! StartSchedule(matsimServices.getIterationNumber)
   }

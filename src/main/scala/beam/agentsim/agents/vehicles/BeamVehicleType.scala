@@ -29,6 +29,10 @@ case class BeamVehicleType(
   sampleProbabilityString: Option[String] = None
 ) {
 
+  def isEV: Boolean = {
+    primaryFuelType == Electricity || secondaryFuelType.contains(Electricity)
+  }
+
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
   }

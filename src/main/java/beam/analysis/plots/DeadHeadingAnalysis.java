@@ -8,6 +8,7 @@ import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
 import beam.sim.OutputDataDescription;
+import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.OutputDataDescriptor;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
@@ -41,6 +42,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private static int maxPassengersSeenOnGenericCase = 0;
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEventsCache = new HashMap<>();
+    private final SimulationMetricCollector simMetricCollector;
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
@@ -51,8 +53,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
 
 
-    public DeadHeadingAnalysis(boolean writeGraph){
+    public DeadHeadingAnalysis(SimulationMetricCollector simMetricCollector, boolean writeGraph) {
         this.writeGraph = writeGraph;
+        this.simMetricCollector = simMetricCollector;
     }
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
@@ -64,8 +67,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
             if (i == 0) {
                 return "repositioning";
-            }
-            else if(i == 1){
+            } else if (i == 1) {
                 return "deadheading";
             }
             return Integer.toString(i - 1);
@@ -83,7 +85,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent)
-            processDeadHeading((PathTraversalEvent)event);
+            processDeadHeading((PathTraversalEvent) event);
     }
 
     @Override
@@ -92,7 +94,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         //createDeadHeadingPassengerPerTripGraph(event, graphType);
 
         for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
-            if(writeGraph){
+            if (writeGraph) {
                 graph.process(event);
             }
         }
@@ -167,8 +169,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             vehicleEvents.clear();
         }
     }
@@ -215,7 +216,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                         if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
-                            Double length2 =((PathTraversalEvent)oldEvent).legLength();
+                            Double length2 = ((PathTraversalEvent) oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, 0);
                         }
@@ -248,6 +249,13 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
+        // to create appropriate legend with all possible entities on every iteration start
+        if (deadHeadingsTnc0Map.isEmpty() && simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
+            for (int np = -1; np < 7; np++) {
+                writeTripDistanceMetric(0, 0, np);
+            }
+        }
+
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -264,12 +272,33 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         deadHeadingsTnc0Map.put(hour, hourData);
+
+        writeTripDistanceMetric(hour, length, _num_passengers);
     }
+
+    private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
+        if (simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
+            // white spaces in the beginning of tags are required for proper legend items order in graph
+            HashMap<String, String> tags = new HashMap<>();
+            if (_num_passengers == -1) {
+                tags.put("trip-type", "  repositioning");
+            } else if (_num_passengers == 0) {
+                tags.put("trip-type", " deadheading");
+            } else {
+                tags.put("trip-type", _num_passengers.toString());
+            }
+
+            int seconds = hour * 60 * 60;
+            double distanceInMiles = distanceInKilometers * 0.62137119;
+            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
+        }
+    }
+
 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
         CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
-        if(writeGraph){
+        if (writeGraph) {
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
@@ -379,8 +408,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             vehicleEventsCache.clear();
         }
     }
@@ -388,7 +416,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.mode().value();
-        String vehicle_id =  event.vehicleId().toString();
+        String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = event.numberOfPassengers();
         boolean validCase = isValidCase(graphName, _num_passengers);
@@ -776,7 +804,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             return;
         }
 
-        PathTraversalEvent pte = (PathTraversalEvent)event;
+        PathTraversalEvent pte = (PathTraversalEvent) event;
         String mode = pte.mode().value();
         String vehicleId = pte.vehicleId().toString();
 
