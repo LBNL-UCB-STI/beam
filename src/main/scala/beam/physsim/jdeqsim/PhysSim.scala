@@ -26,7 +26,6 @@ class PhysSim(
   isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
-  linkStatsGraph: PhyssimCalcLinkStats,
   shouldWritePhysSimEvents: Boolean,
   javaRnd: java.util.Random
 ) extends StrictLogging {
