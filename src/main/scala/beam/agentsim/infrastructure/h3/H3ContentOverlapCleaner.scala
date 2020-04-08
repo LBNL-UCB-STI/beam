@@ -3,8 +3,6 @@ package beam.agentsim.infrastructure.h3
 class H3ContentOverlapCleaner(originalContent: H3Content) {
 
   def execute(): H3Content = {
-//    val list = Seq(1, 2, 4)
-//    list.foldLeft(Seq("A", "B"))((listStr, intValue) => listStr :+ intValue.toString)
     val bucketsSortedByResolution: Seq[(H3Index, Set[H3Point])] =
       originalContent.buckets.toSeq.groupBy(_._1.resolution).toSeq.sortBy(_._1).flatMap(_._2)
 
