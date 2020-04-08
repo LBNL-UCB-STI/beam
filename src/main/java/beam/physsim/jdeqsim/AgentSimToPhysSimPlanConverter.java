@@ -21,6 +21,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import com.google.common.collect.Lists;
 import org.matsim.analysis.LegHistogram;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -140,8 +141,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int noOfBins = getNoOfBins(binSize);
         legHistogram = new LegHistogram(jdeqsimPopulation, jdeqsimEvents, binSize, noOfBins);
 
+        PhyssimSpeedHandler physsimSpeedHandler = new PhyssimSpeedHandler(jdeqsimPopulation, controlerIO, beamConfig);
+
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
+        jdeqsimEvents.addHandler(physsimSpeedHandler);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
@@ -241,13 +245,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
         }
 
-
         Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
             map = processTravelTime(links, map, maxHour);
             travelTimes = previousTravelTime;
         }
-
 
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
@@ -266,6 +268,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkLinkLengthDistribution.notifyIterationEnds(iterationNumber)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
+
+        completableFutures.add(CompletableFuture.runAsync(() -> physsimSpeedHandler.notifyIterationEnds(iterationNumber)));
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
             assert eventWriter != null;
@@ -353,7 +357,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-
     public static boolean isPhyssimMode(String mode) {
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
@@ -369,6 +372,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             PathTraversalEvent pte = (PathTraversalEvent) event;
             String mode = pte.mode().value();
 
+
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
             // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
@@ -379,7 +383,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
             if (isPhyssimMode(mode)) {
-
                 double departureTime = pte.departureTime();
                 String vehicleId = pte.vehicleId().toString();
 
@@ -427,6 +430,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             linkIds.add(linkId);
         }
 
+
         Map<Id<Link>, ? extends Link> networkLinks = agentSimScenario.getNetwork().getLinks();
         for (Id<Link> linkId : linkIds) {
             if (!networkLinks.containsKey(linkId)) {
@@ -440,6 +444,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // end of hack
 
         Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
+
+        //Removing first and last link
+        linkIds.removeAll(Lists.newArrayList(route.getStartLinkId(), route.getEndLinkId()));
+        double length = linkIds.stream().mapToDouble(linkId -> networkLinks.get(linkId).getLength()).sum();
+        route.setDistance(length);
+
         Leg leg = jdeqsimPopulation.getFactory().createLeg(mode);
         leg.setDepartureTime(departureTime);
         leg.setTravelTime(0);
