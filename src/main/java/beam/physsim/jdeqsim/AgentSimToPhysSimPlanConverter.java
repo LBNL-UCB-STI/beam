@@ -306,10 +306,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     finalMap.put(link.getId().toString(), speedsByHour);
                 }));
 
-//        TravelTime travelTimes = travelTimeCalculator.getLinkTravelTimes();
-
-        Map<String, double[]> oldMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                travelTimes, maxHour);
+        TravelTime travelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
 
         TravelTime freeFlow = new FreeFlowTravelTime();
         int nBins = 0;
