@@ -11,5 +11,4 @@ object H3ContentGenerator {
     H3Content.fromPoints(points, H3Content.MinResolution)
   }
 
-
 }
