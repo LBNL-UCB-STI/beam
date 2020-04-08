@@ -284,6 +284,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport {
+  private val maxDistanceForBikeMeters: Int =
+    workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
   private val WorkerParameters(
     beamConfig,
@@ -383,6 +385,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
+        if (request.accessMode == LegMode.BICYCLE) {
+          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+        }
         streetRouter.profileRequest = profileRequest
         streetRouter.streetMode = toR5StreetMode(mode)
         streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -675,6 +680,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
       )
+      if (vehicle.mode == BeamMode.BIKE) {
+        streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+      }
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
@@ -719,6 +727,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                   turnCostCalculator,
                   travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
                 )
+                if (vehicle.mode == BeamMode.BIKE) {
+                  streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+                }
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -780,6 +791,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
+        if (vehicle.mode == BeamMode.BIKE) {
+          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+        }
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
         streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
@@ -992,7 +1006,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
                 body.vehicleTypeId,
                 body.asDriver,
                 0.0,
-                true
+                unbecomeDriverOnCompletion = true
               )
             }
           }
@@ -1011,7 +1025,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
               body.vehicleTypeId,
               body.asDriver,
               0.0,
-              true
+              unbecomeDriverOnCompletion = true
             )
           }
           EmbodiedBeamTrip(embodiedBeamLegs)
@@ -1297,7 +1311,7 @@ object R5RoutingWorker {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles
-  ) = Props(
+  ): Props = Props(
     new R5RoutingWorker(
       WorkerParameters(
         beamScenario.beamConfig,
