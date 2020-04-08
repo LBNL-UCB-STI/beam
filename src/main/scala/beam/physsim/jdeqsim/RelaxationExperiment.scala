@@ -1,8 +1,12 @@
 package beam.physsim.jdeqsim
 
+import java.util.Random
+import java.{lang, util}
+
 import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -22,6 +26,158 @@ sealed abstract class RelaxationExperiment(
   val javaRnd: java.util.Random
 ) {
   def run(prevTravelTime: TravelTime): TravelTime
+}
+
+object RelaxationExperiment extends LazyLogging {
+
+  def apply(
+    beamConfig: BeamConfig,
+    agentSimScenario: Scenario,
+    population: Population,
+    beamServices: BeamServices,
+    controlerIO: OutputDirectoryHierarchy,
+    isCACCVehicle: util.Map[String, lang.Boolean],
+    beamConfigChangesObservable: BeamConfigChangesObservable,
+    iterationNumber: Int,
+    linkStatsGraph: PhyssimCalcLinkStats,
+    javaRnd: Random
+  ): RelaxationExperiment = {
+    val `type` = beamConfig.beam.physsim.relaxation.`type`
+    val writePhysSimEvents = shouldWritePhysSimEvents(beamConfig.beam.physsim.writeEventsInterval, iterationNumber)
+    `type` match {
+      case "normal" | "consecutive_increase_of_population" =>
+        new Normal(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_2.0" =>
+        new Experiment_2_0(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_2.1" =>
+        new Experiment_2_1(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_3.0" =>
+        new Experiment_3_0(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_4.0" =>
+        new Experiment_4_0(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_5.0" =>
+        new Experiment_5_0(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_5.1" =>
+        new Experiment_5_1(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case "experiment_5.2" =>
+        new Experiment_5_2(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+      case _ =>
+        logger.warn(s"beam.physsim.relaxation.type = '${`type`}' which is unknown. Will use normal")
+        new Normal(
+          beamConfig,
+          agentSimScenario,
+          population,
+          beamServices,
+          controlerIO,
+          isCACCVehicle,
+          beamConfigChangesObservable,
+          iterationNumber,
+          linkStatsGraph,
+          writePhysSimEvents,
+          javaRnd
+        )
+    }
+  }
+
+  private def shouldWritePhysSimEvents(interval: Int, iterationNumber: Int): Boolean = {
+    interval == 1 || (interval > 0 && iterationNumber % interval == 0)
+  }
 }
 
 // Normal. No actual experiment here, just the same way how it used to work, but using `PhysSim` class
