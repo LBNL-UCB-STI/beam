@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim
 
+import beam.analysis.plot.PlotGraph
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -10,6 +11,7 @@ import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
@@ -17,9 +19,9 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
+import org.matsim.core.utils.misc.Time
 
 import scala.util.Try
-
 import scala.collection.JavaConverters._
 
 class JDEQSimRunner(
@@ -37,6 +39,12 @@ class JDEQSimRunner(
     val jdeqsimEvents = new EventsManagerImpl
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
+    val legHistogram = new LegHistogram(
+      population,
+      jdeqsimEvents,
+      beamConfig.beam.outputs.stats.binSize,
+      getNoOfBins(beamConfig.beam.outputs.stats.binSize)
+    );
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
@@ -83,6 +91,18 @@ class JDEQSimRunner(
         Try(wrt.closeFile())
       }
       maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
+
+      legHistogram.getLegModes.forEach(mode => {
+        new PlotGraph().writeGraphic(
+          legHistogram,
+          controlerIO,
+          s"${currentPhysSimIter}.physsimTripHistogram",
+          "time (binSize=<?> sec)",
+          mode,
+          iterationNumber,
+          beamConfig.beam.outputs.stats.binSize
+        )
+      })
     }
     jdeqsimEvents.finishProcessing()
     SimulationResult(
@@ -130,5 +150,13 @@ class JDEQSimRunner(
         logger.info("CACC disabled")
         new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
     }
+  }
+
+  def getNoOfBins(binSize: Int): Int = {
+    val endTimeStr = beamConfig.matsim.modules.qsim.endTime
+    val endTime = Time.parseTime(endTimeStr)
+    var numOfTimeBins = endTime / binSize
+    numOfTimeBins = Math.floor(numOfTimeBins)
+    numOfTimeBins.toInt + 1
   }
 }
