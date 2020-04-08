@@ -4,7 +4,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoi
 import org.scalactic.source
 import org.scalatest.{Matchers, WordSpec}
 
-class ChargingPointTypeSpec extends WordSpec with Matchers {
+class ChargingH3H3PointTypeSpec extends WordSpec with Matchers {
   "ChargingPointType" when {
     "formal charging point types" when {
       "given string names of built-in charging point types" should {
@@ -27,7 +27,7 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
       "given a string describing a valid custom ChargingPointType with correct formatting" should {
         "construct that charging point type" in {
           val input = "test(250|DC)"
-          ChargingPointTypeSpec.expectsACustomChargingPoint(input) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(input) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.id should equal("test")
@@ -39,7 +39,7 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
       "given a string with valid CustomChargingPoint data but extra spaces" should {
         "still correctly parse and construct that ChargingPointType" in {
           val input = "test ( 250 | DC )"
-          ChargingPointTypeSpec.expectsACustomChargingPoint(input) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(input) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.id should equal("test")
@@ -51,13 +51,13 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
       "given strings with invalid installed capacity values" should {
         "throw an exception" in {
           val twoPeriods = "test ( 250.. | DC )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(twoPeriods)
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(twoPeriods)
           val hasLetters = "test ( 25a0 | DC )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(hasLetters)
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(hasLetters)
           val comma = "test ( 250,0 | DC )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(comma)
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(comma)
           val negativeValue = "test ( -250 | DC )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(
             negativeValue
           )
 
@@ -69,22 +69,22 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
           val lowerFirst = "test ( 250 | dC )"
           val lowerSecond = "test ( 250 | Ac )"
           val bothLower = "test ( 250 | dc )"
-          ChargingPointTypeSpec.expectsACustomChargingPoint(bothUpper) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(bothUpper) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.electricCurrentType should equal(ElectricCurrentType.AC)
           }
-          ChargingPointTypeSpec.expectsACustomChargingPoint(lowerFirst) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(lowerFirst) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.electricCurrentType should equal(ElectricCurrentType.DC)
           }
-          ChargingPointTypeSpec.expectsACustomChargingPoint(lowerSecond) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(lowerSecond) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.electricCurrentType should equal(ElectricCurrentType.AC)
           }
-          ChargingPointTypeSpec.expectsACustomChargingPoint(bothLower) match {
+          ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(bothLower) match {
             case Left(e) => fail(e)
             case Right(result) =>
               result.electricCurrentType should equal(ElectricCurrentType.DC)
@@ -94,24 +94,24 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
       "given strings with invalid electricCurrentType values" should {
         "throw an exception" in {
           val badLetters = "test ( 250 | AB )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(badLetters)
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(badLetters)
           val spaceBetweenLetters = "test ( 250 | A C )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(
             spaceBetweenLetters
           )
           val containsValidButTooLong = "test ( 25a0 | aaaDCaaa )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(
             containsValidButTooLong
           )
           val flipped = "test ( DC | 1234 )"
-          an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(flipped)
+          an[IllegalArgumentException] should be thrownBy ChargingH3H3PointTypeSpec.expectsACustomChargingPoint(flipped)
         }
       }
     }
   }
 }
 
-object ChargingPointTypeSpec extends org.scalatest.Assertions {
+object ChargingH3H3PointTypeSpec extends org.scalatest.Assertions {
 
   /**
     * helper test function which handles the common parsing failures
