@@ -15,6 +15,7 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+import beam.physsim.routingTool.RoutingToolWrapper
 import beam.router.osm.TollCalculator
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
@@ -68,7 +69,8 @@ class BeamSim @Inject()(
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val routeHistory: RouteHistory,
   private val rideHailIterationHistory: RideHailIterationHistory,
-  private val configHolder: BeamConfigHolder
+  private val configHolder: BeamConfigHolder,
+  private val routingToolWrapper: RoutingToolWrapper
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -137,7 +139,8 @@ class BeamSim @Inject()(
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable
+        beamConfigChangesObservable,
+        routingToolWrapper
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }

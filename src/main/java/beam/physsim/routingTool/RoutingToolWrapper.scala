@@ -1,5 +1,5 @@
 package beam.physsim.routingTool
-import java.io.File
+import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.Paths
 
 import beam.sim.BeamServices
@@ -11,8 +11,9 @@ import scala.sys.process.Process
 
 trait RoutingToolWrapper {
   def generateGraph(): File
-  def generateOd(): File
-  def assignTraffic(odFile: Option[File] = None): (File, File, File)
+  def generateOd(): Unit
+  def generateOd(ods: java.util.List[akka.japi.Pair[java.lang.Long, java.lang.Long]]): Unit
+  def assignTraffic(): (File, File, File)
 }
 
 class RoutingToolWrapperImpl1 @Inject()(beamServices: BeamServices)
@@ -21,9 +22,9 @@ class RoutingToolWrapperImpl1 @Inject()(beamServices: BeamServices)
 class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper with LazyLogging {
   private val toolDockerImage = "rooting-tool"
   private val basePath = "/routing-framework/Build/Devel"
-  private val convertGraph = s"$basePath/RawData/ConvertGraph"
-  private val createODPairs = s"$basePath/RawData/GenerateODPairs"
-  private val assignTraffic = s"$basePath/Launchers/AssignTraffic"
+  private val convertGraphLauncher = s"$basePath/RawData/ConvertGraph"
+  private val createODPairsLauncher = s"$basePath/RawData/GenerateODPairs"
+  private val assignTrafficLauncher = s"$basePath/Launchers/AssignTraffic"
 
   private val pbfName = pbfPath.split("/").last
   private val pbfNameWithoutExtension = pbfName.replace(".osm.pbf", "")
@@ -43,7 +44,7 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
                                         |docker run --rm
                                         | -v $tempDir:/work
                                         | $toolDockerImage
-                                        | $convertGraph
+                                        | $convertGraphLauncher
                                         | -s osm
                                         | -i $pbfInTempDirPath
                                         | -d binary
@@ -55,27 +56,40 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
     Paths.get(tempDir.getAbsolutePath, pbfNameWithoutExtension + "_graph.gr.bin").toFile
   }
 
-  override def generateOd(): File = {
+  override def generateOd(): Unit = {
     val createODPairsOutput = Process(s"""
                                          |docker run --rm
                                          | -v $tempDir:/work
                                          | $toolDockerImage
-                                         | $createODPairs
+                                         | $createODPairsLauncher
                                          | -g $graphPathWithExtension
                                          | -n 1000
                                          | -o $odPairsFileInTempDir -d 10 15 20 25 30 -geom
       """.stripMargin.replace("\n", ""))
 
     createODPairsOutput.lineStream.foreach(logger.info(_))
-    Paths.get(tempDir.getAbsolutePath, pbfNameWithoutExtension + "_odpairs").toFile
   }
 
-  override def assignTraffic(odFile: Option[File] = None): (File, File, File) = {
+  override def generateOd(ods: java.util.List[akka.japi.Pair[java.lang.Long, java.lang.Long]]): Unit = {
+    val odPairsFile = new File(tempDir + "/" + pbfNameWithoutExtension + "_odpairs.csv")
+    val writer = new BufferedWriter(new FileWriter(odPairsFile))
+    writer.write("origin,destination")
+    writer.newLine()
+
+    ods.forEach { a =>
+      writer.write(s"${a.first},${a.second}")
+      writer.newLine()
+    }
+
+    writer.close()
+  }
+
+  override def assignTraffic(): (File, File, File) = {
     val assignTrafficOutput = Process(s"""
                                          |docker run --rm
                                          | -v $tempDir:/work
                                          | $toolDockerImage
-                                         | $assignTraffic
+                                         | $assignTrafficLauncher
                                          | -g $graphPathWithExtension
                                          | -d $odPairsFileInTempDir.csv
                                          | -p 1 -n 10 -a Dijkstra -o random
@@ -88,9 +102,9 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
     assignTrafficOutput.lineStream.foreach(logger.info(_))
 
     (
-      new File("${pbfInTempDirPath}_flow_10.csv"),
-      new File("${pbfInTempDirPath}_dist_10.csv"),
-      new File("${pbfInTempDirPath}_stat_10.csv")
+      new File(s"$tempDir/${pbfNameWithoutExtension}_flow_10.csv"),
+      new File(s"$tempDir/${pbfNameWithoutExtension}_dist_10.csv"),
+      new File(s"$tempDir/${pbfNameWithoutExtension}_stat_10.csv")
     )
   }
 }

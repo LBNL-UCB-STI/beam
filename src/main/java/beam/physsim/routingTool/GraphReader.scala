@@ -3,12 +3,12 @@ import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
 import com.google.common.io.Files
+import com.vividsolutions.jts.geom.Coordinate
 
 import scala.collection.mutable
 
-case class LatLong(lat: Double, lon: Double)
-case class Vertex(id: Long, latLong: LatLong)
-case class RoutingToolGraph(vertexes: Seq[Vertex])
+case class Vertex(id: Long, coordinate: Coordinate)
+case class RoutingToolGraph(vertices: Seq[Vertex])
 
 trait RoutingToolsGraphReader {
   def read(graph: File): RoutingToolGraph
@@ -40,44 +40,37 @@ object RoutingToolsGraphReaderImpl extends RoutingToolsGraphReader {
       ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
     }
 
-    val vertices = readInt()
-    val edges = readInt()
+    val numOfVertices = readInt()
+    val numOfEdges = readInt()
 
-    val outEdgesFirst = (0 until vertices).map(_ => readInt())
+    val outEdgesFirst = (0 until numOfVertices).map(_ => readInt())
 
-    val outEdgesEnd = (0 until edges).map(_ => readInt())
+    val outEdgesEnd = (0 until numOfEdges).map(_ => readInt())
 
     val numOfAttributes = readInt()
 
-    val vertexId2Attribute = (0 until numOfAttributes)
-      .flatMap { _ =>
+    val vertexId2Coordinate = mutable.HashMap[Long, Coordinate]()
+    (0 until numOfAttributes)
+      .foreach { _ =>
         val attributeName = readString()
         val size = readInt()
 
         if (attributeName == "lat_lng") {
           readInt() // skip list size
-          (0 until vertices)
-            .map(i => i -> LatLong(readInt() / 1000000.0, readInt() / 1000000.0))
+          (0 until numOfVertices)
+            .foreach(i => vertexId2Coordinate.put(i, new Coordinate(readInt() / 1000000.0, readInt() / 1000000.0)))
         } else {
           source.skip(size)
-          Nil
         }
       }
-      .groupBy { case (vertexId, _) => vertexId }
-      .mapValues(_.map { case (_, attribute) => attribute })
 
-    val vertexes = vertexId2Attribute.map {
-      case (vertexId, attributes) =>
-        val latLong: LatLong = attributes
-          .find(_.isInstanceOf[LatLong])
-          .getOrElse(throw new RuntimeException("lat_lng attribute not found in graph"))
-
-        Vertex(vertexId, latLong)
-    }.toSeq
+    val vertices = (0 until numOfVertices).map { id =>
+      Vertex(id, vertexId2Coordinate(id))
+    }
 
     source.close()
 
-    RoutingToolGraph(vertexes)
+    RoutingToolGraph(vertices)
   }
 }
 
