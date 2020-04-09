@@ -202,27 +202,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          val routeWithNoise = r5.calcRoute(request)
-          if (workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction > 0) {
-            val itinerariesWithoutNoise = routeWithNoise.itineraries.map { itinerary =>
-              if (!itinerary.tripClassifier.isTransit) {
-                val newLegs = itinerary.legs.map { leg =>
-                  if (leg.beamLeg.mode == BeamMode.CAR) {
-                    val updatedLeg = r5.createBeamLeg(
-                      leg.beamVehicleTypeId,
-                      leg.beamLeg.travelPath.startPoint,
-                      leg.beamLeg.travelPath.endPoint.loc,
-                      leg.beamLeg.mode.r5Mode.get.left.get,
-                      leg.beamLeg.travelPath.linkIds
-                    )
-                    leg.copy(beamLeg = updatedLeg)
-                  } else leg
-                }
-                itinerary.copy(legs = newLegs)
-              } else itinerary
-            }
-            routeWithNoise.copy(itineraries = itinerariesWithoutNoise)
-          } else routeWithNoise
+          r5.calcRoute(request)
         }
       }
       eventualResponse.recover {
@@ -1101,10 +1081,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     activeLinkIds: IndexedSeq[Int]
   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
+    // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
+    // That trick gives us back diverse route. Now we want to compute travel time per link and we don't want to include that noise
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false),
+      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false),  // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
