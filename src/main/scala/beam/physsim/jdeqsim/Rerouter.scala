@@ -176,7 +176,6 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
           streetVehiclesUseIntermodalUse = Access
         )
         val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
-        verifyResponse(routingRequest, leg, maybeRoutingResponse)
         ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
     }
     person -> idxToResponse
@@ -185,34 +184,5 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
   private def getR5UtmCoord(linkId: Int): Coord = {
     val r5EdgeCoord = beamServices.geo.coordOfR5Edge(beamServices.beamScenario.transportNetwork.streetLayer, linkId)
     beamServices.geo.wgs2Utm(r5EdgeCoord)
-  }
-
-  private def verifyResponse(
-    routingRequest: RoutingRequest,
-    leg: Leg,
-    maybeRoutingResponse: Try[RoutingResponse]
-  ): Unit = {
-    maybeRoutingResponse.fold(
-      _ => (),
-      resp => {
-        val r5Leg = resp.itineraries.head.legs.head
-        val startLinkId = r5Leg.beamLeg.travelPath.linkIds.head
-        val endLinkId = r5Leg.beamLeg.travelPath.linkIds.last
-        val matsimStartLinkId = leg.getRoute.getStartLinkId.toString.toInt
-        val matsimEndLinkId = leg.getRoute.getEndLinkId.toString.toInt
-        if (startLinkId != matsimStartLinkId && shouldLogWhenLinksAreNotTheSame) {
-          logger.info(s"""startLinkId[$startLinkId] != matsimStartLinkId[$matsimStartLinkId].
-                         |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
-                         |MATSim leg: ${leg}""".stripMargin)
-        }
-        if (endLinkId != matsimEndLinkId && shouldLogWhenLinksAreNotTheSame) {
-          logger.info(s"""endLinkId[$endLinkId] != matsimEndLinkId[$matsimEndLinkId].
-                         |r5Leg: $r5Leg. LinkIds=[${r5Leg.beamLeg.travelPath.linkIds.mkString(", ")}]
-                         |MATSim leg: ${leg}""".stripMargin)
-        }
-        // r5Leg
-        ()
-      }
-    )
   }
 }
