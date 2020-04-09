@@ -1086,7 +1086,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false),  // Do not add noise!
+      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false), // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
