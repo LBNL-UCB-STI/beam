@@ -223,7 +223,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
-      //      log.debug("state(DrivesVehicle.Driving): {}", ev)
+//      log.debug("state(DrivesVehicle.Driving): {}", ev)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -584,7 +584,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
-      //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
+//      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
