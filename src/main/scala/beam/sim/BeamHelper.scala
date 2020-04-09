@@ -714,6 +714,15 @@ trait BeamHelper extends LazyLogging {
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    // necessary to be called after population sampling
+    BeamStaticMetricsWriter.calculateAndWriteMetrics(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamConfig
+    )
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
