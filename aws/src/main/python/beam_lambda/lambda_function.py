@@ -217,11 +217,114 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
-    spot_req = ec2.request_spot_instances(
-        InstanceCount=1,
-        InstanceInterruptionBehavior=shutdown_behaviour,
-        LaunchSpecification={
+class AWS_Instance_Spec(object):
+    name = ""
+    cpu = 0
+    mem_in_gb = ""
+
+    def __init__(self, name, cpu, mem_in_gb):
+        self.name = name
+        self.cpu = cpu
+        self.mem_in_gb = mem_in_gb
+
+spot_specs = [
+    AWS_Instance_Spec('t2.small',1,2),
+    AWS_Instance_Spec('t2.micro',1,1),
+    AWS_Instance_Spec('r5dn.large',2,16),
+    AWS_Instance_Spec('m4.large',2,8),
+    AWS_Instance_Spec('t3a.medium',2,4),
+    AWS_Instance_Spec('t3.small',2,2),
+    AWS_Instance_Spec('t3a.small',2,2),
+    AWS_Instance_Spec('r5d.large',2,16),
+    AWS_Instance_Spec('c5n.large',2,5.25),
+    AWS_Instance_Spec('m5d.large',2,8),
+    AWS_Instance_Spec('m5.xlarge',4,16),
+    AWS_Instance_Spec('c5d.xlarge',4,8),
+    AWS_Instance_Spec('r5d.xlarge',4,32),
+    AWS_Instance_Spec('m5dn.xlarge',4,16),
+    AWS_Instance_Spec('c5.xlarge',4,8),
+    AWS_Instance_Spec('g4dn.xlarge',4,16),
+    AWS_Instance_Spec('r5.xlarge',4,32),
+    AWS_Instance_Spec('r4.xlarge',4,30.5),
+    AWS_Instance_Spec('c5d.xlarge',8,16),
+    AWS_Instance_Spec('t2.2xlarge',8,32),
+    AWS_Instance_Spec('t3a.2xlarge',8,32),
+    AWS_Instance_Spec('g4dn.2xlarge',8,32),
+    AWS_Instance_Spec('r3.2xlarge',8,61),
+    AWS_Instance_Spec('i3en.2xlarge',8,64),
+    AWS_Instance_Spec('m4.2xlarge',8,32),
+    AWS_Instance_Spec('r5d.2xlarge',8,64),
+    AWS_Instance_Spec('m5.2xlarge',8,32),
+    AWS_Instance_Spec('t3.2xlarge',8,32),
+    AWS_Instance_Spec('r4.2xlarge',8,61),
+    AWS_Instance_Spec('r5.2xlarge',8,64),
+    AWS_Instance_Spec('m5d.4xlarge',16,64),
+    AWS_Instance_Spec('c5d.4xlarge',16,32),
+    AWS_Instance_Spec('a1.metal',16,32),
+    AWS_Instance_Spec('g4dn.4xlarge',16,64),
+    AWS_Instance_Spec('r5.4xlarge',16,128),
+    AWS_Instance_Spec('c5.4xlarge',16,32),
+    AWS_Instance_Spec('m5n.4xlarge',16,64),
+    AWS_Instance_Spec('r5dn.4xlarge',16,128),
+    AWS_Instance_Spec('i3en.6xlarge',24,192),
+    AWS_Instance_Spec('r3.8xlarge',32,244),
+    AWS_Instance_Spec('r5.8xlarge',32,256),
+    AWS_Instance_Spec('m5.8xlarge',32,128),
+    AWS_Instance_Spec('r4.8xlarge',32,244),
+    AWS_Instance_Spec('m5dn.8xlarge',32,128),
+    AWS_Instance_Spec('r5d.8xlarge',32,256),
+    AWS_Instance_Spec('m5n.8xlarge',32,128),
+    AWS_Instance_Spec('r5dn.8xlarge',32,256),
+    #AWS_Instance_Spec('g4dn.8xlarge',32,128),
+    AWS_Instance_Spec('c5d.9xlarge',36,72),
+    AWS_Instance_Spec('c5n.9xlarge',36,96),
+    AWS_Instance_Spec('m5dn.12xlarge',48,192),
+    #AWS_Instance_Spec('i3en.12xlarge',48,384),
+    AWS_Instance_Spec('c5.12xlarge',48,96),
+    AWS_Instance_Spec('r5.12xlarge',48,384),
+    #AWS_Instance_Spec('g4dn.12xlarge',48,192),
+    AWS_Instance_Spec('m5ad.12xlarge',48,192),
+    AWS_Instance_Spec('r4.16xlarge',64,488),
+    AWS_Instance_Spec('m5.16xlarge',64,256),
+    AWS_Instance_Spec('r5dn.16xlarge',64,512),
+    AWS_Instance_Spec('r5.16xlarge',64,512),
+    AWS_Instance_Spec('m5dn.16xlarge',64,256),
+    AWS_Instance_Spec('r5d.16xlarge',64,512),
+    #AWS_Instance_Spec('g4dn.16xlarge',64,256),
+    AWS_Instance_Spec('c5n.18xlarge',72,192),
+    AWS_Instance_Spec('c5d.18xlarge',72,144),
+    #AWS_Instance_Spec('c5.18xlarge',72,144),
+    AWS_Instance_Spec('r5ad.24xlarge',96,768),
+    AWS_Instance_Spec('r5.24xlarge',96,768),
+    AWS_Instance_Spec('m5n.24xlarge',96,384),
+    #AWS_Instance_Spec('i3en.24xlarge',96,768),
+    AWS_Instance_Spec('m5dn.24xlarge',96,384),
+    #AWS_Instance_Spec('i3en.metal',96,768),
+    AWS_Instance_Spec('m5ad.24xlarge',96,384)
+]
+
+def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, preferred_instance_type):
+    output_instance_types = []
+    for spec in spot_specs:
+        if spec.cpu >= min_cores and spec.cpu <= max_cores and spec.mem_in_gb >= min_memory and spec.mem_in_gb <= max_memory:
+            output_instance_types.append(spec.name)
+    try:
+        output_instance_types.append(preferred_instance_type)
+    except NameError:
+        print 'No preferred spot instance type provided'
+    if not output_instance_types:
+        raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
+    return output_instance_types
+
+def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
+    security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
+    security_group_ids = []
+    for security_group_id in security_group_id_array:
+        security_group_ids.append({'GroupId':security_group_id})
+    spot_instances = get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, instance_type)
+    launch_specifications = []
+    for spot_instance in spot_instances:
+        specification = {
             'BlockDeviceMappings': [
                 {
                     'DeviceName': '/dev/sda1',
@@ -232,44 +335,65 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
                     }
                 }
             ],
+            'SecurityGroups': security_group_ids,
             'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
-            'InstanceType': instance_type,
-            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),#script,
+            'InstanceType': spot_instance,
             'KeyName': os.environ[region_prefix + 'KEY_NAME'],
-            'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
-            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
+            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),
+            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] },
+            'TagSpecifications': [
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': instance_name
+                        }, {
+                            'Key': 'GitUserEmail',
+                            'Value': git_user_email
+                        }, {
+                            'Key': 'DeployType',
+                            'Value': deploy_type_tag
+                        }
+                    ]
+                }
+            ]
+        }
+        launch_specifications.append(specification)
+    spot_fleet_req = ec2.request_spot_fleet(
+        SpotFleetRequestConfig={
+            'AllocationStrategy': 'lowestPrice',
+            'TargetCapacity': 1,
+            'Type': 'request',
+            'InstanceInterruptionBehavior': shutdown_behaviour,
+            'LaunchSpecifications': launch_specifications
         }
     )
-    state = 'open'
-    spot_req_id = spot_req.get('SpotInstanceRequests')[0].get('SpotInstanceRequestId')
-    while state == 'open':
-        print 'Waiting for spot request id to move from open'
+    status = 'pending_fulfillment'
+    state = 'submitted'
+    spot_fleet_req_id = spot_fleet_req.get('SpotFleetRequestId')
+    print 'SpotFleetRequestId is ' + spot_fleet_req_id
+    #Flow as far as I know is that state goes to submitted, then active, but isn't done until status is out of pending_fulfillment
+    #TODO: Handle killing if the lambda dies...othewise it could become online but not used?
+    while status == 'pending_fulfillment' or state == 'submitted':
+        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state
         time.sleep(30)
-        spot = ec2.describe_spot_instance_requests(SpotInstanceRequestIds = [spot_req_id]).get('SpotInstanceRequests')[0]
-        state = spot.get('State')
-    if (state != 'active'):
+        spot = ec2.describe_spot_fleet_requests(SpotFleetRequestIds = [spot_fleet_req_id]).get('SpotFleetRequestConfigs')[0]
+        status = spot.get('ActivityStatus')
+        state = spot.get('SpotFleetRequestState')
+    if (state != 'active' or status != "fulfilled"):
         exit(1)
+    print 'Getting spot fleet instances'
+    fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
+    fleet_instance = fleet_instances.get('ActiveInstances')[0] #TODO: Check if InstanceHealth is healthy vs unhealthy?
     bd_count = 0
-    instance_id = spot.get('InstanceId')
+    instance_id = fleet_instance.get('InstanceId')
     while bd_count < 1:
-        print 'Spot request status now ' + state + ' so getting instance using ' + instance_id
+        print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id
         time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
         bd_count = len(instance.get('BlockDeviceMappings'))
-    ec2.create_tags(
-        Resources=[instance_id],
-        Tags = [
-            {
-                'Key': 'Name',
-                'Value': instance_name
-            }, {
-                'Key': 'GitUserEmail',
-                'Value': git_user_email
-            }, {
-                'Key': 'DeployType',
-                'Value': deploy_type_tag
-            }])
-    print 'Created tags on instance'
+    print 'Instance up with block device ready'
     volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
     ec2.create_tags(
         Resources=[volume_id],
@@ -286,7 +410,7 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
             }])
     print 'Created tags on volume'
     while instance.get('State') == 'pending':
-        print 'Waiting for instance to get to pending'
+        print 'Waiting for instance to leave pending'
         time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
     return instance_id
@@ -453,7 +577,11 @@ def deploy_handler(event):
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
             is_spot = event.get('is_spot', False)
             if is_spot:
-                instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+                min_cores = event.get('min_cores', 0)
+                max_cores = event.get('max_cores', 0)
+                min_memory = event.get('min_memory', 0)
+                max_memory = event.get('max_memory', 0)
+                instance_id = deploy_spot_fleet(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
