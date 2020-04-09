@@ -33,7 +33,7 @@ class JDEQSimRunner(
   val controlerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
-  val iterationNumber: Int
+  val agentSimIterationNumber: Int
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
@@ -75,7 +75,7 @@ class JDEQSimRunner(
       Some(
         new Hao2018CaccRoadCapacityAdjustmentFunction(
           beamConfig,
-          iterationNumber,
+          agentSimIterationNumber,
           controlerIO,
           beamConfigChangesObservable
         )
@@ -110,11 +110,11 @@ class JDEQSimRunner(
           s"${currentPhysSimIter}.physsimTripHistogram",
           "time (binSize=<?> sec)",
           mode,
-          iterationNumber,
+          agentSimIterationNumber,
           beamConfig.beam.outputs.stats.binSize
         )
       })
-      linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator.getLinkTravelTimes);
+      linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes);
     }
     SimulationResult(
       iteration = currentPhysSimIter,
