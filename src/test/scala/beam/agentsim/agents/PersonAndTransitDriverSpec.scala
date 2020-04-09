@@ -70,11 +70,6 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
-    "ParkingManager"
-  )
-
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
@@ -84,6 +79,12 @@ class PersonAndTransitDriverSpec
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
+      val textCtx = getNextTestContext
+      val parkingManager = system.actorOf(
+        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+        textCtx.parkingManagerActorName
+      )
+
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
@@ -285,24 +286,24 @@ class PersonAndTransitDriverSpec
 
               override def receive: Receive = Actor.emptyBehavior
             }),
-            "transit-system"
+            textCtx.transitSystemActorName
           )
 
           override def receive: Receive = Actor.emptyBehavior
         }),
-        "BeamMobsim.iteration"
+        textCtx.iterationActorName
       )
 
       val busDriver = Await.result(
         system
-          .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(busId))
+          .actorSelection(textCtx.transitSystemActorFullPath + "/" + createAgentIdFromVehicleId(busId))
           .resolveOne,
         60.seconds
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), busDriver)
       val tramDriver = Await.result(
         system
-          .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(tramId))
+          .actorSelection(textCtx.transitSystemActorFullPath + "/" + createAgentIdFromVehicleId(tramId))
           .resolveOne,
         60.seconds
       )

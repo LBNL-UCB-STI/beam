@@ -258,6 +258,7 @@ class PersonAgentSpec
     }
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
+      val textCtx = getNextTestContext
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
@@ -270,12 +271,12 @@ class PersonAgentSpec
 
               override def receive: Receive = Actor.emptyBehavior
             }),
-            "transit-system"
+            textCtx.transitSystemActorName
           )
 
           override def receive: Receive = Actor.emptyBehavior
         }),
-        "BeamMobsim.iteration"
+        textCtx.iterationActorName
       )
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
@@ -518,6 +519,7 @@ class PersonAgentSpec
     }
 
     it("should also work when the first bus is late") {
+      val testCtx = getNextTestContext
       val eventsManager = new EventsManagerImpl()
       val events = new TestProbe(system)
       eventsManager.addHandler(new BasicEventHandler {
@@ -541,12 +543,12 @@ class PersonAgentSpec
 
               override def receive: Receive = Actor.emptyBehavior
             }),
-            "transit-system"
+            testCtx.transitSystemActorName
           )
 
           override def receive: Receive = Actor.emptyBehavior
         }),
-        "BeamMobsim.iteration"
+        testCtx.iterationActorName
       )
 
       val busPassengerLeg = EmbodiedBeamLeg(
@@ -643,7 +645,7 @@ class PersonAgentSpec
 
       val parkingManager = system.actorOf(
         ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
-        "ParkingManager"
+        testCtx.parkingManagerActorName
       )
 
       val householdActor = TestActorRef[HouseholdActor](

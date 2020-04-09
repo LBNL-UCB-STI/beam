@@ -1,5 +1,6 @@
 package beam.utils
 import java.io.File
+import java.util.UUID
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
@@ -8,6 +9,10 @@ import com.google.inject.Injector
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.scenario.MutableScenario
 import org.scalatest.{BeforeAndAfterAll, Suite}
+
+case class TestContext(iterationActorName: String, transitSystemActorName: String, parkingManagerActorName: String) {
+  def transitSystemActorFullPath: String = s"/user/$iterationActorName/$transitSystemActorName"
+}
 
 trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =>
   def config: com.typesafe.config.Config
@@ -49,4 +54,19 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     services = null
     super.afterAll()
   }
+
+  def nextIterationActorName: String = {
+    s"BeamMobsim.iteration-${UUID.randomUUID()}"
+  }
+
+  def nextTransitSystemActorName: String = {
+    s"transit-system-${UUID.randomUUID()}"
+  }
+
+  def nextParkingManagerActorName: String = {
+    s"ParkingManager-${UUID.randomUUID()}"
+  }
+
+  def getNextTestContext: TestContext =
+    TestContext(nextIterationActorName, nextTransitSystemActorName, nextParkingManagerActorName)
 }

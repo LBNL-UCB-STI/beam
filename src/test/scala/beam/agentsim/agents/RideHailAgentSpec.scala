@@ -61,7 +61,7 @@ class RideHailAgentSpec
 
   private lazy val zonalParkingManager = system.actorOf(
     ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
-    "ParkingManager"
+    nextParkingManagerActorName
   )
 
   case class TestTrigger(tick: Int) extends Trigger
