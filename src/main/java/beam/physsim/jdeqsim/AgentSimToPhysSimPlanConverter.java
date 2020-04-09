@@ -132,9 +132,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
                 beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
         log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
-        TravelTime travelTimes = sim.run(prevTravelTime);
+        TravelTime travelTimeFromPhysSim = sim.run(prevTravelTime);
         // Safe travel time to reuse it on the next PhysSim iteration
-        prevTravelTime = travelTimes;
+        prevTravelTime = travelTimeFromPhysSim;
 
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
@@ -161,21 +161,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
-        int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
-        // TravelTime travelTimes = travelTimeCalculator.getLinkTravelTimes();
-        Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                travelTimes, maxHour);
+        int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
+
+        Map<String, double[]> travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
+                travelTimeFromPhysSim, maxHour);
 
         TravelTime freeFlow = new FreeFlowTravelTime();
         int nBins = 0;
         int nBinsWithUnexpectedlyLowSpeed = 0;
-        for (Map.Entry<String, double[]> entry : map.entrySet()) {
+        for (Map.Entry<String, double[]> entry : travelTimeMap.entrySet()) {
             int hour = 0;
             Link link = agentSimScenario.getNetwork().getLinks().get(Id.createLinkId(entry.getKey()));
             for (double linkTravelTime : entry.getValue()) {
                 double speed = link.getLength() / linkTravelTime;
                 if (speed < beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond()) {
-                    double linkTravelTime1 = travelTimes.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
+                    double linkTravelTime1 = travelTimeFromPhysSim.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     double freeFlowTravelTime = freeFlow.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     log.debug("{} {} {}", linkTravelTime, linkTravelTime1, freeFlowTravelTime);
                     nBinsWithUnexpectedlyLowSpeed++;
@@ -188,24 +188,22 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
         }
 
-
+        TravelTime travelTimeForR5 = travelTimeFromPhysSim;
         Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
-            map = processTravelTime(links, map, maxHour);
-            travelTimes = previousTravelTime;
+            travelTimeMap = processTravelTime(links, travelTimeMap, maxHour);
+            travelTimeForR5 = previousTravelTime;
         }
 
 
-        router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
-        router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
+        router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
         //################################################################################################################
-        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimes), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
 
-        TravelTime finalTravelTimes = travelTimes;
+        completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
-        completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, finalTravelTimes)));
-
-        completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, finalTravelTimes)));
+        completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkLinkLengthDistribution.notifyIterationEnds(iterationNumber)));
 

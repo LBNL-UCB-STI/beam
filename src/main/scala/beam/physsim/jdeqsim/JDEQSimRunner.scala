@@ -3,7 +3,10 @@ package beam.physsim.jdeqsim
 import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.analysis.plot.PlotGraph
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
@@ -44,8 +47,13 @@ class JDEQSimRunner(
       getNoOfBins(beamConfig.beam.outputs.stats.binSize)
     );
 
-    val linkStatsGraph = new PhyssimCalcLinkStats(jdeqSimScenario.getNetwork, controlerIO, beamServices.beamConfig,
-      jdeqSimScenario.getConfig.travelTimeCalculator, beamConfigChangesObservable);
+    val linkStatsGraph = new PhyssimCalcLinkStats(
+      jdeqSimScenario.getNetwork,
+      controlerIO,
+      beamServices.beamConfig,
+      jdeqSimScenario.getConfig.travelTimeCalculator,
+      beamConfigChangesObservable
+    );
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 
     val eventTypeCounter = new EventTypeCounter
