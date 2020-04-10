@@ -41,7 +41,7 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
         plan.getPerson -> route
       }
 
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime)
+      val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
       // Get new routes
       val result = ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
         personToRoutes.par.map {
