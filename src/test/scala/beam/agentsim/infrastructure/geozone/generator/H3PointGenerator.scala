@@ -1,20 +1,20 @@
-package beam.agentsim.infrastructure.h3.generator
+package beam.agentsim.infrastructure.geozone.generator
 
 import scala.util.Random
 
-import beam.agentsim.infrastructure.h3.H3Point
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
 
 object H3PointGenerator {
 
-  def buildPoint: H3Point = buildPointWithRange()
+  def buildPoint: WgsCoordinate = buildPointWithRange()
 
   def buildPointWithRange(
     latitudeRange: Range.Inclusive = Range.inclusive(-90, 90),
     longitudeRange: Range.Inclusive = Range.inclusive(-180, 180)
-  ): H3Point = {
+  ): WgsCoordinate = {
     val validLatitude = random(latitudeRange)
     val validLongitude = random(longitudeRange)
-    H3Point(validLatitude, validLongitude)
+    WgsCoordinate(validLatitude, validLongitude)
   }
 
   private def random(range: Range.Inclusive): Double = {
@@ -24,8 +24,8 @@ object H3PointGenerator {
     Math.max(range.min.toDouble, Math.min(range.max.toDouble, maybeResult + coefficient))
   }
 
-  def buildSetWithFixedSize(expectedSize: Int): Set[H3Point] = {
-    val result = collection.mutable.Set[H3Point]()
+  def buildSetWithFixedSize(expectedSize: Int): Set[WgsCoordinate] = {
+    val result = collection.mutable.Set[WgsCoordinate]()
     while (result.size < expectedSize) {
       result += buildPoint
     }
@@ -36,8 +36,8 @@ object H3PointGenerator {
     expectedSize: Int,
     latitudeRange: Range.Inclusive = Range.inclusive(-90, 90),
     longitudeRange: Range.Inclusive = Range.inclusive(-180, 180),
-  ): Set[H3Point] = {
-    val result = collection.mutable.Set[H3Point]()
+  ): Set[WgsCoordinate] = {
+    val result = collection.mutable.Set[WgsCoordinate]()
     while (result.size < expectedSize) {
       result += buildPointWithRange(latitudeRange, longitudeRange)
     }
