@@ -27,10 +27,11 @@ object EmbodiedBeamLeg {
     location: Location,
     mode: BeamMode,
     vehicleTypeId: Id[BeamVehicleType],
-    asDriver: Boolean = true
+    asDriver: Boolean = true,
+    duration: Int = 0
   ): EmbodiedBeamLeg = {
     EmbodiedBeamLeg(
-      BeamLeg.dummyLeg(start, location, mode),
+      BeamLeg.dummyLeg(start, location, mode, duration),
       vehicleId,
       vehicleTypeId,
       asDriver,

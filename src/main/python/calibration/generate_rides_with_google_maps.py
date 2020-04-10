@@ -22,9 +22,9 @@ from urllib.parse import urlparse
 
 import pandas as pd
 from tabulate import tabulate
+import datetime
 
 __author__ = "Carlos Caldas"
-
 
 def main(args):
     program_arguments = parse_parameters(args)
@@ -93,21 +93,30 @@ def is_url(input_file_arg):
     return urlparse(input_file_arg).scheme != ''
 
 
-def google_link(row):
+def google_link(row, timeEpochSeconds):
     if not len(row):
         return None
-    return f"https://www.google.com/maps/dir/{row.start_y}%09{row.start_x}/{row.end_y}%09{row.end_x}"
-
+    s = f"https://www.google.com/maps/dir/{row.start_y}%09{row.start_x}/{row.end_y}%09{row.end_x}"
+    return s + f'/data=!3m1!4b1!4m15!4m14!1m3!2m2!1d-97.7584165!2d30.3694661!1m3!2m2!1d-97.7295503!2d30.329807!2m4!2b1!6e0!7e2!8j{timeEpochSeconds}!3e0'
 
 def convert_file(input_file_location, output_file_path, program_arguments):
     df = read_csv_as_dataframe(input_file_location, program_arguments)
-    df['google_link'] = df.apply(lambda x: google_link(x), axis=1)
-    print(tabulate(df, headers='keys', tablefmt='psql'))
 
+    departure_time_range = search_argument("--departureTimeIntervalInSeconds", program_arguments)
+    departure_time_range = departure_time_range[1:-1]
+    departure_time_start = int(departure_time_range.split(",")[0])
+    departure_time_end = int(departure_time_range.split(",")[1])
+    # We have chosen 2019-10-16 (Wednesday) as a day to get the routes from Google. It is 1571184000 in Unix time
+    start_of_the_day = 1571184000
+    google_departure_time = start_of_the_day + int((departure_time_end + departure_time_start) / 2)
+    df['google_link'] = df.apply(lambda x: google_link(x, google_departure_time), axis=1)
+    print(tabulate(df.head(), headers='keys', tablefmt='psql'))
+    print(df.info())
     output_file_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_file_path, header=True, index=False)
+    google_departure_time_datetime = datetime.datetime.utcfromtimestamp(google_departure_time)
+    print(f"Departure time in Google: {google_departure_time_datetime:%Y-%m-%d %H:%M:%S}")
     print(f"File [{output_file_path.absolute()}] created.")
-
 
 def select_input(execution_file):
     test_output_folder = find_output_test_directory(execution_file)

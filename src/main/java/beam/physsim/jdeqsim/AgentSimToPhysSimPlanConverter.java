@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.*;
-import beam.analysis.via.EventWriterXML_viaCompatible;
+import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
@@ -21,6 +21,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import org.matsim.analysis.LegHistogram;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -43,6 +44,7 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -63,6 +65,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String CAR = "car";
     public static final String BUS = "bus";
     private static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static final String fileName = "physsimTripHistogram";
+    private static final String xAxisLabel = "time (binSize=<?> sec)";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
@@ -72,6 +76,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private final Scenario agentSimScenario;
+    private LegHistogram legHistogram;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
     private BeamServices beamServices;
@@ -81,11 +86,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private BeamConfig beamConfig;
     private final Random rand = MatsimRandom.getRandom();
-
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
+    private final PlotGraph plotGraph = new PlotGraph();
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
@@ -120,7 +125,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         beamConfigChangesObservable.addObserver(this);
     }
 
-
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
     }
@@ -131,6 +135,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
         EventsManager jdeqsimEvents = new EventsManagerImpl();
+
+        int binSize = beamConfig.beam().outputs().stats().binSize();
+        int noOfBins = getNoOfBins(binSize);
+        legHistogram = new LegHistogram(jdeqsimPopulation, jdeqsimEvents, binSize, noOfBins);
+
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
@@ -442,11 +451,29 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
-
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+        writePhyssimHistogram(iterationEndsEvent);
+
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
+    }
+
+    private void writePhyssimHistogram(IterationEndsEvent event) {
+
+        int binSize = beamConfig.beam().outputs().stats().binSize();
+
+        legHistogram.getLegModes().forEach(mode -> {
+            plotGraph.writeGraphic(legHistogram, controlerIO, fileName, xAxisLabel, mode, event.getIteration(), binSize);
+        });
+    }
+
+    private int getNoOfBins(int binSize){
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        double _endTime = Time.parseTime(endTime);
+        double _numOfTimeBins = _endTime / binSize;
+        _numOfTimeBins = Math.floor(_numOfTimeBins);
+        return  (int) _numOfTimeBins + 1;
     }
 
     private void createLastActivityOfDayForPopulation() {
@@ -474,9 +501,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             return currentTravelTimeMap;
         } else {
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-            TravelTime averageTravelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
-
-            previousTravelTime = averageTravelTimes;
+            previousTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
             return map;
         }
     }

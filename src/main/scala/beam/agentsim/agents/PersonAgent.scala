@@ -212,12 +212,14 @@ object PersonAgent {
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
           .dummyLegAt(
-            endTime,
+            endTime - trip.legs.last.beamLeg.duration,
             bodyVehicleId,
-            true,
+            isLastLeg = true,
             trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc,
             WALK,
-            bodyVehicleTypeId
+            bodyVehicleTypeId,
+            asDriver = true,
+            trip.legs.last.beamLeg.duration
           )
       )
     } else {
