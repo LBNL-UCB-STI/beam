@@ -3,6 +3,8 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.taz.H3TAZ
+import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.{Skims, TAZSkimmerEvent}
@@ -29,28 +31,27 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   val repositionTimeout: Int =
     rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
-
-  val sensitivityToDistance: Double =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityToDistance
-  private val activitySegment: ActivitySegment = {
-    ProfilingUtils.timed(s"Build ActivitySegment with bin size $repositionTimeout", x => logger.info(x)) {
-      ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, repositionTimeout)
-    }
-  }
-
   // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private val cfg =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
 
+  val sensitivityToDistance: Double = if (cfg.sensitivityToDistance > 0) 1 / cfg.sensitivityToDistance else 0.0
+  private val activitySegment: ActivitySegment = {
+    ProfilingUtils.timed(s"Build ActivitySegment with bin size $repositionTimeout", x => logger.info(x)) {
+      ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, repositionTimeout)
+    }
+  }
+
   val sensitivityOfRepositioningToDemand: Double = cfg.sensitivityOfRepositioningToDemand
   val sensitivityOfRepositioningToDemandForCAVs: Double = cfg.sensitivityOfRepositioningToDemandForCAVs
+  val fractionOfClosestClustersToConsider: Double = cfg.fractionOfClosestClustersToConsider
   val numberOfClustersForDemand: Int = cfg.numberOfClustersForDemand
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 
-  val horizon = cfg.horizon
+  val horizonBin: Int = cfg.horizon / repositionTimeout
 
   val timeBinToActivities: Map[Int, collection.Set[Activity]] =
     Range(0, activitySegment.maxTime + repositionTimeout, repositionTimeout).zipWithIndex.map {
@@ -64,17 +65,20 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
     case (timeBin, acts) => timeBin -> acts.size.toDouble / peakHourNumberOfActivities
   }
+  val h3taz: H3TAZ = beamServices.beamScenario.h3taz
+
   logger.info(s"totalNumberOfActivities: ${activitySegment.sorted.length}")
   logger.info(s"peakHourNumberOfActivities: $peakHourNumberOfActivities")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
-  logger.info(s"horizon: $horizon")
+  logger.info(s"horizonBin: $horizonBin")
 
   def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
   ): Vector[(Id[BeamVehicle], Location)] = {
     val clusters = createHexClusters(tick)
+    logger.debug(s"clusters: ${clusters.length}")
     val nonRepositioningIdleVehicles = idleVehicles.values
     if (nonRepositioningIdleVehicles.nonEmpty) {
       val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
@@ -167,17 +171,24 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       // The probability is proportional to the cluster size per inverse square law -
       // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
       // as higher demands as higher probability
-      val pmf = clusters.map { x =>
-        new CPair[ClusterInfo, java.lang.Double](
-          x,
-          x.size.toDouble / Math.max(
-            1.0,
-            Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
+      val pmf = clusters
+        .map { x =>
+          new CPair[ClusterInfo, java.lang.Double](
+            x,
+            x.size.toDouble / Math.max(
+              1.0,
+              Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
+            )
           )
-        )
-      }.toList
-      val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
-      val sampled = distr.sample()
+        }
+        .toVector
+        .sortBy(-_.getSecond)
+      val distribution = new EnumeratedDistribution[ClusterInfo](
+        rng,
+        pmf.take((pmf.size * fractionOfClosestClustersToConsider).toInt).asJava
+      )
+      val sampled = distribution.sample()
+      //val drawnCoord = chooseActivityLocation(sampled.activitiesLocation)
       // Randomly pick the coordinate of one of activities
       val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
       logger.debug(
@@ -185,6 +196,26 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       )
       Some(drawnCoord)
     }
+  }
+
+  private def chooseActivityLocation(coords: IndexedSeq[Coord]) = {
+    val resCoords = coords
+      .groupBy(beamServices.beamScenario.h3taz.getIndex(_, h3taz.getResolution + 1))
+      .map {
+        case (_, subCoords) =>
+          new CPair[IndexedSeq[Coord], java.lang.Double](
+            subCoords,
+            subCoords.size.toDouble
+          )
+      }
+      .toVector
+      .sortBy(-_.getSecond)
+    val distribution = new EnumeratedDistribution[IndexedSeq[Coord]](
+      rng,
+      resCoords.asJava
+    )
+    val sampled = distribution.sample()
+    rndGen.shuffle(sampled).head
   }
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
@@ -211,6 +242,6 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def getTimeBins(tick: Int): Array[Int] = {
     import scala.language.postfixOps
     val bin = tick / repositionTimeout
-    (bin + 1) to (bin + horizon) toArray
+    (bin + 1) to (bin + horizonBin) toArray
   }
 }

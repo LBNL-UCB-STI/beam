@@ -236,7 +236,7 @@ case class TNCIterationStats(
     result
   }
 
-  // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
+  // #######start algorithm: only look at 20min horizonBin and those vehicles which are located in areas with high scores should be selected for repositioning
   // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
   // e.g. just go through 20min
 

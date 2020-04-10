@@ -49,10 +49,12 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
-  def getIndex(c: Coord): HexIndex = {
+  def getIndex(c: Coord, resolution: Int): HexIndex = {
     val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, resolution)
   }
+  def getIndex(c: Coord): HexIndex = getIndex(c, resolution)
+  def getResolution: Int = resolution
 
 }
 
