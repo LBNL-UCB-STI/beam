@@ -13,11 +13,11 @@ persons_all = pd.read_csv('Data/NHTS/perpub.csv')
 #%%
 
 
-activities = {1:'Home',2:'Home',3:'Work',8:'Work',11:'Shopping',12:'Shopping',13:'Meal',15:'SocRec',16:'SocRec',17:'SocRec',19:'SocRec'}
+actnames = {1:'Home',2:'Home',3:'Work',8:'Work',11:'Shopping',12:'Shopping',13:'Meal',15:'SocRec',16:'SocRec',17:'SocRec',19:'SocRec'}
 
 def getActivities(trips):
     locations = np.append(trips.WHYFROM.values,trips.WHYTO.values[-1])
-    locations = [activities.get(val,'Other') for val in locations]
+    locations = [actnames.get(val,'Other') for val in locations]
     startTimes = np.append([0], trips.endHour.values)
     endTimes = np.append(trips.startHour.values, [24])
     durations = endTimes - startTimes
@@ -35,16 +35,33 @@ def getIntercepts(activities):
         counts = counts / nPeople /3000
         counts[counts < 0.1] = 0.0
         intercepts[location] = counts
-    return pd.DataFrame(intercepts, columns=locations)
+    df = pd.DataFrame(intercepts, columns=locations)
+    df.index.name = 'Hour'
+    return df
     
 
 def getParams(activities):
-    activities.reset_index(inplace=True)
+    #activities.reset_index(inplace=True)
     locations = ['Other','Shopping','Meal','SocRec']
-    intercepts = dict()
-    nPeople = activities['UniquePID'].nunique()
+    params = dict()
+    for location in locations:
+        VOT = 1.0
+        DurationInHours = np.average(activities.loc[activities.location == location,'duration'], weights = activities.loc[activities.location == location,'weight'])
+        params[location] = [VOT, DurationInHours * 3600]
+    df = pd.DataFrame(params, columns=locations, index=['VOT','DurationInSeconds'])
+    return df
+
+
+def getCalibration(trips):
+    trips['whyTo'] = [actnames.get(val,'Other') for val in trips.WHYTO]
+    nPeople = trips.drop_duplicates('UniquePID').WTTRDFIN.sum()
+    means = trips.groupby('whyTo').apply(lambda x: np.average(x.TRPMILES, weights=x.WTTRDFIN))
+    nTrips = trips.groupby('whyTo').apply(lambda x: np.sum(x.WTTRDFIN) / nPeople)
+    df = pd.concat([means,nTrips], axis=1).rename(columns={0:'Mean Distance (mi)',1:'Trips per Capita'})
+    df.index.name = 'Trip Purpose'
+    return df
 #%%
-for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
+for cbsa in persons_all.HH_CBSA.unique():#['12420']:
     trips = trips_all.loc[(trips_all['HH_CBSA'] == cbsa) , :]
 
 
@@ -60,8 +77,14 @@ for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
     trips['fromWork'] = (trips.WHYFROM == 3) | (trips.WHYFROM == 4)
     
     out = trips.groupby('UniquePID').apply(getActivities)
+    out = out[out['startTime'] > 0]
 
     intercepts = getIntercepts(out)
+    intercepts.to_csv('outputs/activity-intercepts-'+cbsa+'.csv')
+    params = getParams(out)
+    params.to_csv('outputs/activity-params-'+cbsa+'.csv')
+    calib = getCalibration(trips)
+    calib.to_csv('outputs/activity-calibration-values-'+cbsa+'.csv')
     # mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
     # binProb = mat2.stack().rename(columns={'WTPERFIN':'probability'})
     # binProb.to_csv('outputs/work_activities_'+cbsa+'.csv')
@@ -70,50 +93,24 @@ for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
 #%%
 trips = trips_all.copy()
 
-
-valid = (trips.TRPMILES > 0) & (trips.TDWKND == 2) & (trips.TRPTRANS != 19)
-
+valid = (trips.TRPMILES > 0) & (trips.TDWKND == 2) & (trips.TRPTRANS != 19) & (trips.ENDTIME > trips.STRTTIME)
 
 
-trips = trips.loc[valid, :] 
+
+trips = trips.loc[valid, :]
 trips['UniquePID'] = trips.HOUSEID * 100 + trips.PERSONID
 trips['startHour'] = np.floor(trips.STRTTIME / 100) + np.mod(trips.STRTTIME, 100) / 60
 trips['endHour'] = np.floor(trips.ENDTIME / 100) + np.mod(trips.ENDTIME, 100) / 60
 trips['toWork'] = (trips.WHYTO == 3) | (trips.WHYTO == 4)
 trips['fromWork'] = (trips.WHYFROM == 3) | (trips.WHYFROM == 4)
 
+out = trips.groupby('UniquePID').apply(getActivities)
+out = out[out['startTime'] > 0]
 
-workInvolved = (trips.TRIPPURP == 'HBW')
-workTrips = trips.loc[workInvolved, :]
+intercepts = getIntercepts(out)
+intercepts.to_csv('outputs/activity-intercepts-all-us.csv')
+params = getParams(out)
+params.to_csv('outputs/activity-params-all-us.csv')
 
-persons = persons_all.copy()
-
-valid = (persons.TRAVDAY > 1) & (persons.TRAVDAY < 7)
-
-persons = persons.loc[valid,:]
-persons['UniquePID'] = persons.HOUSEID * 100 + persons.PERSONID
-
-workPIDs = set(workTrips.UniquePID)
-workerTrips = trips.loc[trips['UniquePID'].isin(workPIDs),:]
-
-starts = workerTrips.loc[workerTrips.toWork].groupby('UniquePID')['startHour'].agg('first')
-ends = workerTrips.loc[workerTrips.fromWork].groupby('UniquePID')['startHour'].agg('last')
-
-workers = persons.loc[persons['UniquePID'].isin(workPIDs),:].set_index('UniquePID')
-toMerge = pd.concat([starts,ends],axis=1,join='inner')
-toMerge.columns = ['startWork','endWork']
-    
-workers = workers.merge(toMerge,left_index=True, right_index=True)
-workers['workDuration'] = workers['endWork'] - workers['startWork']
-
-workers['startTimeIndex'] = pd.cut(workers.startWork,np.arange(4,21,0.25))
-workers['durationIndex'] = pd.cut(workers.workDuration,np.arange(0,15,0.25))
-
-binProb = workers.groupby(['startTimeIndex','durationIndex']).agg({'WTPERFIN':'sum'}).fillna(0)
-binProb = binProb / binProb.sum()
-
-mat = binProb.unstack()
-mat2 = pd.DataFrame(scipy.ndimage.filters.gaussian_filter(mat.values,[1.0,1.0]), index = mat.index, columns = mat.columns)
-binProb = mat2.stack().rename(columns={'WTPERFIN':'probability'})
-binProb.to_csv('outputs/work_activities_all_us.csv')
-
+calib = getCalibration(trips)
+calib.to_csv('outputs/activity-calibration-values-all-us.csv')
