@@ -29,10 +29,10 @@ def getIntercepts(activities):
     activities.reset_index(inplace=True)
     locations = ['Other','Shopping','Meal','SocRec']
     intercepts = dict()
-    nPeople = activities['UniquePID'].nunique()
+    nPeople = trips.drop_duplicates('UniquePID').WTTRDFIN.sum()
     for location in locations:
         counts, bins = np.histogram(activities.loc[activities.location == location,'startTime'],range(26), weights = activities.loc[activities.location == location,'weight'])
-        counts = counts / nPeople /3000
+        counts = counts / nPeople *24
         counts[counts < 0.1] = 0.0
         intercepts[location] = counts
     df = pd.DataFrame(intercepts, columns=locations)
