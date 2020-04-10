@@ -7,7 +7,8 @@ private[geozone] sealed trait Hexagon[+T] {
   def split(bucketsGoal: Int): Seq[HexagonBranch]
 }
 
-private[geozone] case class HexagonBranch(index: GeoIndex, children: IndexedSeq[Hexagon[_]]) extends Hexagon[HexagonBranch] {
+private[geozone] case class HexagonBranch(index: GeoIndex, children: IndexedSeq[Hexagon[_]])
+    extends Hexagon[HexagonBranch] {
   override lazy val totalNumberOfCoordinates: Int = children.map(_.totalNumberOfCoordinates).sum
 
   override lazy val totalNumberOfBuckets: Int = children.map(_.totalNumberOfBuckets).sum
@@ -24,15 +25,18 @@ private[geozone] case class HexagonBranch(index: GeoIndex, children: IndexedSeq[
 
 }
 
-private[geozone] case class HexagonLeaf(index: GeoIndex, points: Set[WgsCoordinate]) extends Hexagon[HexagonLeaf] {
+private[geozone] case class HexagonLeaf(
+  index: GeoIndex,
+  coordinates: Set[WgsCoordinate]
+) extends Hexagon[HexagonLeaf] {
 
-  override lazy val totalNumberOfCoordinates: Int = points.size
+  override lazy val totalNumberOfCoordinates: Int = coordinates.size
 
   override lazy val totalNumberOfBuckets: Int = 1
 
   override def split(bucketsGoal: Int): Seq[HexagonBranch] = {
     val resultIndex = H3Wrapper.getChildren(index)
-    val pointsAndNewIndexes: Map[GeoIndex, Set[WgsCoordinate]] = points.toSeq
+    val pointsAndNewIndexes: Map[GeoIndex, Set[WgsCoordinate]] = coordinates.toSeq
       .map { point =>
         val newIndex = H3Wrapper.getIndex(point, index.resolution + 1)
         newIndex -> point
