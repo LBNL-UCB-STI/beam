@@ -188,9 +188,9 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         pmf.take((pmf.size * fractionOfClosestClustersToConsider).toInt).asJava
       )
       val sampled = distribution.sample()
-      //val drawnCoord = chooseActivityLocation(sampled.activitiesLocation)
+      val drawnCoord = chooseActivityLocation(sampled.activitiesLocation)
       // Randomly pick the coordinate of one of activities
-      val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
+      //val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
       logger.debug(
         s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
       )
