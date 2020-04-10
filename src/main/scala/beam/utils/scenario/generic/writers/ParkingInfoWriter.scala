@@ -17,11 +17,12 @@ trait ParkingInfoWriter {
 object CsvParkingInfoWriter extends ParkingInfoWriter {
   private val headers: Array[String] =
     Array("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents", "reservedFor")
-  val destinationCoordSystem = CRS.decode("EPSG:3395", true)
-  val sourceCoordSystem = CRS.decode("EPSG:4326", true)
-  val mt: MathTransform = CRS.findMathTransform(sourceCoordSystem, destinationCoordSystem, true)
 
   override def write(path: String, geoService: GeoService, tazCounts: Map[GenericGeoId, (Int, Int)]): Unit = {
+
+    val destinationCoordSystem = CRS.decode("EPSG:3395", true)
+    val sourceCoordSystem = CRS.decode(geoService.getCRS(), true)
+    val mt: MathTransform = CRS.findMathTransform(sourceCoordSystem, destinationCoordSystem, true)
     val csvWriter = new CsvWriter(path, headers)
     try {
       tazCounts.foreach {

@@ -11,7 +11,7 @@ object Models {
   case class State(value: String) extends AnyVal
   case class County(value: String) extends AnyVal
 
-  class GenericGeoId()
+  abstract class GenericGeoId()
 
   case class PumaGeoId(state: State, puma: String) extends GenericGeoId {
     def asUniqueKey: String = s"${state.value}${puma}"
