@@ -4,7 +4,6 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.H3TAZ
-import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.{Skims, TAZSkimmerEvent}
@@ -168,29 +167,10 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   ): Option[Coord] = {
     if (clusters.map(_.size).sum == 0) None
     else {
-      // The probability is proportional to the cluster size per inverse square law -
-      // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
-      // as higher demands as higher probability
-      val pmf = clusters
-        .map { x =>
-          new CPair[ClusterInfo, java.lang.Double](
-            x,
-            x.size.toDouble / Math.max(
-              1.0,
-              Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
-            )
-          )
-        }
-        .toVector
-        .sortBy(-_.getSecond)
-      val distribution = new EnumeratedDistribution[ClusterInfo](
-        rng,
-        pmf.take((pmf.size * fractionOfClosestClustersToConsider).toInt).asJava
-      )
-      val sampled = distribution.sample()
-      //val drawnCoord = chooseActivityLocation(sampled.activitiesLocation)
+      val sampled = chooseCluster(vehicleLocation, clusters)
+      val drawnCoord = chooseLocation(sampled.activitiesLocation)
       // Randomly pick the coordinate of one of activities
-      val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
+      //val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
       logger.debug(
         s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
       )
@@ -198,24 +178,35 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     }
   }
 
-  private def chooseActivityLocation(coords: IndexedSeq[Coord]) = {
-    val resCoords = coords
+  private def chooseCluster(vehicleLocation: Coord, clusters: Array[ClusterInfo]): ClusterInfo = {
+    // The probability is proportional to the cluster size per inverse square law -
+    // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
+    // as higher demands as higher probability
+    val pmf = clusters.map { x =>
+      new CPair[ClusterInfo, java.lang.Double](
+        x,
+        x.size.toDouble / Math.max(
+          1.0,
+          Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
+        )
+      )
+    }.toVector
+    new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava).sample()
+  }
+
+  private def chooseLocation(coords: IndexedSeq[Coord]) = {
+    val subHexs = coords
       .groupBy(beamServices.beamScenario.h3taz.getIndex(_, h3taz.getResolution + 1))
       .map {
-        case (_, subCoords) =>
+        case (_, subHex) =>
           new CPair[IndexedSeq[Coord], java.lang.Double](
-            subCoords,
-            subCoords.size.toDouble
+            subHex,
+            subHex.size.toDouble
           )
       }
       .toVector
-      .sortBy(-_.getSecond)
-    val distribution = new EnumeratedDistribution[IndexedSeq[Coord]](
-      rng,
-      resCoords.asJava
-    )
-    val sampled = distribution.sample()
-    rndGen.shuffle(sampled).head
+    val distribution = new EnumeratedDistribution[IndexedSeq[Coord]](rng, subHexs.asJava)
+    rndGen.shuffle(distribution.sample()).head
   }
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
