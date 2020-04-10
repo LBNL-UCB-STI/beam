@@ -10,6 +10,14 @@ trips_all = pd.read_csv('Data/NHTS/trippub.csv',
 
 persons_all = pd.read_csv('Data/NHTS/perpub.csv')
 
+#%%
+
+def getActivities(trips):
+    locations = np.append(trips.WHYFROM.values,trips.WHYTO.values[-1])
+    startTimes = np.append([0], trips.endHour.values)
+    endTimes = np.append(trips.startHour.values, [24])
+    durations = endTimes - startTimes
+    return pd.DataFrame({'location':locations,'startTime':startTimes,'endTime':endTimes,'duration':durations})
 
 #%%
 for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
