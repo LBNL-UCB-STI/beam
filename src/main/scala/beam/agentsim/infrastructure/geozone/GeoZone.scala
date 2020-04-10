@@ -16,12 +16,15 @@ class GeoZone(points: ParSet[WgsCoordinate]) {
     new GeoZone(allPoints)
   }
 
-  def topDownEqualDemandsGenerator(bucketsGoal: Int, initialResolution: Int = 2): TopDownEqualDemandsGeoZoneHexGenerator = {
+  def topDownEqualDemandsGenerator(
+    expectedNumberOfBuckets: Int,
+    initialResolution: Int = 2
+  ): TopDownEqualDemandsGeoZoneHexGenerator = {
     val allContent = GeoZone.generateContent(points, initialResolution)
     val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
       case (index, points) => HexagonLeaf(index, points)
     }.toIndexedSeq
-    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, bucketsGoal)
+    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, expectedNumberOfBuckets)
   }
 
 }

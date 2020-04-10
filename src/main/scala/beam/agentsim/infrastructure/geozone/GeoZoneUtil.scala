@@ -41,6 +41,10 @@ object GeoZoneUtil extends LazyLogging {
     new InputStreamReader(new FileInputStream(filePath.toFile))
   }
 
+  def writeToShapeFile(filePath: Path, content: GeoZoneSummary): Unit = {
+    writeToShapeFile(filePath.toString, content)
+  }
+
   def writeToShapeFile(filename: String, content: GeoZoneSummary): Unit = {
     if (content.items.isEmpty) {
       logger.warn("Content is empty and file was not generated")
