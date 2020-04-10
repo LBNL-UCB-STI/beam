@@ -4,7 +4,7 @@ import scala.util.Random
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 
-object H3PointGenerator {
+object WgsCoordinateGenerator {
 
   def buildPoint: WgsCoordinate = buildPointWithRange()
 
