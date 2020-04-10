@@ -95,6 +95,10 @@ class GeoService(param: GeoServiceInputParam, uniqueStates: Set[State], uniqueGe
     }
     ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
   }
+
+  def getCRS(): String = {
+    crsCode
+  }
 }
 
 object GeoService {
