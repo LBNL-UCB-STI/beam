@@ -41,8 +41,14 @@ private[geozone] case class HexagonLeaf(
         val newIndex = H3Wrapper.getIndex(point, index.resolution + 1)
         newIndex -> point
       }
-      .groupBy(_._1)
-      .mapValues(_.map(_._2).toSet)
+      .groupBy {
+        case (geoIndex: GeoIndex, _) => geoIndex
+      }
+      .mapValues { sequenceOfPairs =>
+        sequenceOfPairs.map {
+          case (_, coordinate) => coordinate
+        }.toSet
+      }
     resultIndex.toSeq.map { index =>
       val leaf: HexagonLeaf = HexagonLeaf(index, pointsAndNewIndexes.getOrElse(index, Set.empty))
       HexagonBranch(index, IndexedSeq(leaf))
