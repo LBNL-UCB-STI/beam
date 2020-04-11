@@ -183,28 +183,20 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     // meaning it is proportional to the demand as it appears at a distance from vehicle point of view
     // as higher demands as higher probability
     val pmf = clusters.map { x =>
-      new CPair[ClusterInfo, java.lang.Double](
-        x,
-        x.size.toDouble / Math.max(
-          1.0,
-          Math.pow(sensitivityToDistance * beamServices.geo.distUTMInMeters(x.coord, vehicleLocation), 2)
-        )
-      )
+      val dist = beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)
+      val inverseSquareLaw = 1.0/Math.max(Math.pow(dist, 2), 1.0)
+      new CPair[ClusterInfo, java.lang.Double](x, x.size * inverseSquareLaw)
     }.toVector
     new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava).sample()
   }
 
-  private def chooseLocation(coords: IndexedSeq[Coord]) = {
+  private def chooseLocation(coords: IndexedSeq[Coord]): Coord = {
     val subHexs = coords
       .groupBy(beamServices.beamScenario.h3taz.getIndex(_, h3taz.getResolution + 1))
       .map {
         case (_, subHex) =>
-          new CPair[IndexedSeq[Coord], java.lang.Double](
-            subHex,
-            subHex.size.toDouble
-          )
-      }
-      .toVector
+          new CPair[IndexedSeq[Coord], java.lang.Double](subHex, subHex.size.toDouble)
+      }.toVector
     val distribution = new EnumeratedDistribution[IndexedSeq[Coord]](rng, subHexs.asJava)
     rndGen.shuffle(distribution.sample()).head
   }
