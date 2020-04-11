@@ -116,7 +116,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       case _ => buildRideHailAndCavTripStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
     }
     logger.info(
-      s"For the iteration $iterationNumber created ${stats.length} ride stats from ${carPtes.size} PathTraversalEvents"
+      s"For the iteration $iterationNumber created ${stats.length} trip stats for $carType from ${carPtes.size} PathTraversalEvents"
     )
     stats
   }
