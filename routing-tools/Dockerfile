@@ -1,6 +1,9 @@
 FROM ubuntu:20.04
 
-RUN apt update && apt --yes install \
+ENV TZ America/New_York
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt update && apt --yes install tzdata \
         git build-essential cmake python3 \
         libboost-all-dev libcairo2-dev \
         libcgal-dev libproj-dev zlib1g-dev
