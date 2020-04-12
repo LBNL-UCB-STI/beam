@@ -10,7 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamServices
@@ -82,7 +82,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   def isDinstanceWithinRange(mode: BeamMode, dist: Double): Boolean = {
     mode match {
-      case BeamMode.CAR => true
+      case BeamMode.CAR          => true
       case BeamMode.WALK_TRANSIT => true
       case BeamMode.BIKE =>
         dist < thresholdDistanceForBikeMeteres
@@ -90,95 +90,151 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     }
   }
 
+  def createStreetVehicle(mode: BeamMode, requestTime: Int, srcCoord: Coord): StreetVehicle = {
+    val streetVehicle: StreetVehicle = mode match {
+      case BeamMode.CAR =>
+        StreetVehicle(
+          Id.createVehicleId("dummy-car-for-skim-observations"),
+          dummyCarVehicleType.id,
+          new SpaceTime(srcCoord, requestTime),
+          mode,
+          asDriver = true
+        )
+      case BeamMode.BIKE =>
+        StreetVehicle(
+          Id.createVehicleId("dummy-bike-for-skim-observations"),
+          dummyBikeVehicleType.id,
+          new SpaceTime(srcCoord, requestTime),
+          mode,
+          asDriver = true
+        )
+      case BeamMode.WALK_TRANSIT =>
+        StreetVehicle(
+          Id.createVehicleId("dummy-body-for-skim-observations"),
+          dummyBodyVehicleType.id,
+          new SpaceTime(srcCoord, requestTime),
+          WALK,
+          asDriver = true
+        )
+      case x =>
+        throw new IllegalArgumentException(s"Get mode ${x}, but don't know what to do with it.")
+    }
+    streetVehicle
+  }
+
+  private def distanceWithMargin(srcCoord: Coord, dstCoord: Coord): Double = {
+    GeoUtils.distFormula(srcCoord, dstCoord) * 1.4
+  }
+
+  private def getCenters(srcTaz: TAZ, dstTaz: TAZ): (Coord, Coord) = {
+    val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
+      new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
+    } else {
+      srcTaz.coord
+    }
+    val dstCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
+      new Coord(
+        dstTaz.coord.getX - Math.sqrt(dstTaz.areaInSquareMeters) / 3.0,
+        dstTaz.coord.getY
+      )
+    } else {
+      dstTaz.coord
+    }
+    (srcCoord, dstCoord)
+  }
+
   private def populateSkimmer(skimmer: ODSkimmer): ODSkimmer = {
     val requestTime = (config.beam.urbansim.allTAZSkimsPeakHour * 3600).toInt
     logger.info(s"There are ${tazs.length} TAZs")
+
+    val processedAtomic = new AtomicInteger(0)
+    val computedRoutes = new AtomicInteger(0)
     val failedRoutes = new AtomicInteger(0)
     val emptyItineraries = new AtomicInteger(0)
 
-    val modeToComputationTime: Map[BeamMode, ConcurrentLinkedQueue[Long]] = Map(
-      BeamMode.CAR          -> new ConcurrentLinkedQueue[Long](),
-      BeamMode.BIKE         -> new ConcurrentLinkedQueue[Long](),
-      BeamMode.WALK_TRANSIT -> new ConcurrentLinkedQueue[Long]()
+    val started = System.currentTimeMillis()
+
+    val tazPairs = tazs.flatMap { srcTaz =>
+      tazs.map { dstTaz =>
+        (srcTaz, dstTaz)
+      }
+    }
+
+    val onePct = (tazPairs.length.toDouble * 0.01).toInt
+    logger.info(s"One percent from ${tazPairs.length} is $onePct")
+    val nonEmptyRoutesPerType = Map[BeamMode, AtomicInteger](
+      BeamMode.CAR          -> new AtomicInteger(0),
+      BeamMode.WALK_TRANSIT -> new AtomicInteger(0),
+      BeamMode.BIKE         -> new AtomicInteger(0)
     )
 
-    val computedRoutes = new AtomicInteger(0)
-    val started = System.currentTimeMillis()
     val skimEvents = ProfilingUtils.timed("Creating skim events", logger.info(_)) {
       // The most outer loop will be executed in parallel `.par`
-      tazs
-        .flatMap { srcTaz =>
-          tazs.map { dstTaz =>
-            val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-              new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
-            } else {
-              srcTaz.coord
-            }
-            val dstCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-              new Coord(
-                dstTaz.coord.getX - Math.sqrt(dstTaz.areaInSquareMeters) / 3.0,
-                dstTaz.coord.getY
-              )
-            } else {
-              dstTaz.coord
-            }
-            val dist = GeoUtils.distFormula(srcCoord, dstCoord) * 1.3
+      tazPairs.par
+        .flatMap {
+          case (srcTaz, dstTaz) =>
+            val (srcCoord, dstCoord) = getCenters(srcTaz, dstTaz)
+            val dist = distanceWithMargin(srcCoord, dstCoord)
             val considerModes = beamModes.filter(mode => isDinstanceWithinRange(mode, dist))
-            considerModes.flatMap { beamMode =>
-              computedRoutes.getAndIncrement()
-              val routingReq: RoutingRequest = createRoutingRequest(beamMode, requestTime, srcCoord, dstCoord)
-              val s = System.nanoTime()
-              Try(r5Wrapper.calcRoute(routingReq)) match {
-                case Failure(ex) =>
-                  failedRoutes.getAndIncrement()
-                  None
-                case Success(response) =>
-                  val e = System.nanoTime()
-                  val diff = TimeUnit.NANOSECONDS.toMillis(e - s)
-                  if (diff > 5000) {
-                    // val onceAgain = r5Wrapper.calcRoute(routingReq)
-                    // logger.info(s"onceAgain: $onceAgain")
-                  }
-                  modeToComputationTime(beamMode).add(diff)
-                  val cnt = computedRoutes.get()
-                  if (cnt % 5000 == 0) {
-                    val diff = System.currentTimeMillis() - started
-                    val avg = cnt.toDouble / diff
-                    logger.info(s"Computed ${cnt} routes in ${diff} ms. Average: ${avg} per ms")
-                    modeToComputationTime.foreach {
-                      case (mode, xs) =>
-                        logger.info(s"$mode => ${Statistics(xs.toArray(Array.empty[java.lang.Long]).map(_.toDouble))}")
-                    }
-                  }
-                  val maybeRightTrip = response.itineraries.find(trip => trip.tripClassifier == beamMode)
-
-                  if (beamMode == BeamMode.WALK_TRANSIT && maybeRightTrip.nonEmpty) {
-                    logger.info(s"maybeRightTrip: ${maybeRightTrip}")
-                  }
-
-                  maybeRightTrip match {
-                    case Some(trip) =>
-                      val maybeEvent = try {
-                        Some(createSkimEvent(beamMode, requestTime, trip))
-                      } catch {
-                        case NonFatal(ex) =>
-                          logger.error(s"Can't create skim event: ${ex.getMessage}", ex)
-                          None
-                      }
-                      maybeEvent
-                    case None =>
-                      emptyItineraries.getAndIncrement()
-                      None
-                  }
+            val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
+            val routingReq = RoutingRequest(
+              originUTM = srcCoord,
+              destinationUTM = dstCoord,
+              departureTime = requestTime,
+              withTransit = true,
+              streetVehicles = streetVehicles,
+              attributesOfIndividual = Some(dummyPersonAttributes)
+            )
+            val processed = processedAtomic.getAndIncrement()
+            if (processed > 0 && processed % onePct == 0) {
+              val diff = System.currentTimeMillis() - started
+              val rps = processed.toDouble / diff * 1000 // Average per second
+              val pct = 100 * processed.toDouble / tazPairs.length
+              logger.info(
+                s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
+                  .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
+              )
+              logger.info(s"Non-empty routes per mode: ")
+              nonEmptyRoutesPerType.foreach {
+                case (mode, counter) =>
+                  logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
               }
             }
-          }
+            Try(r5Wrapper.calcRoute(routingReq)) match {
+              case Failure(ex) =>
+                failedRoutes.getAndIncrement()
+                logger.error(s"Can't get route: ${ex.getMessage}", ex)
+                None
+              case Success(response) =>
+                if (response.itineraries.isEmpty)
+                  emptyItineraries.getAndIncrement()
+                else
+                  computedRoutes.getAndIncrement()
+                response.itineraries.map { trip =>
+                  if (considerModes.contains(trip.tripClassifier)) {
+                    nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
+
+                    val maybeEvent = try {
+                      Some(createSkimEvent(trip.tripClassifier, requestTime, trip))
+                    } catch {
+                      case NonFatal(ex) =>
+                        logger.error(s"Can't create skim event: ${ex.getMessage}", ex)
+                        None
+                    }
+                    maybeEvent
+                  } else None
+                }
+            }
         }
-        .flatten
         .seq
+        .flatten
     }
     logger.info(s"Total number of skim events: ${skimEvents.size}, failed routes: ${failedRoutes
       .get()}, empty responses: ${emptyItineraries.get()}, computed in ${System.currentTimeMillis() - started} ms")
+    nonEmptyRoutesPerType.foreach {
+      case (mode, counter) =>
+        logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
+    }
     skimEvents.foreach(skimmer.handleEvent)
     skimmer
   }
@@ -230,99 +286,6 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     )
   }
 
-  private def createRoutingRequestOneShot(
-    mode: BeamMode,
-    requestTime: Int,
-    srcTaz: TAZ,
-    dstTaz: TAZ
-  ): RoutingRequest = {
-    val streetVehicles: Vector[StreetVehicle] = Vector(
-      StreetVehicle(
-        Id.createVehicleId("dummy-car-for-skim-observations"),
-        dummyCarVehicleType.id,
-        new SpaceTime(srcTaz.coord, requestTime),
-        BeamMode.CAR,
-        asDriver = true
-      ),
-      StreetVehicle(
-        Id.createVehicleId("dummy-bike-for-skim-observations"),
-        dummyBikeVehicleType.id,
-        new SpaceTime(srcTaz.coord, requestTime),
-        BeamMode.BIKE,
-        asDriver = true
-      ),
-      StreetVehicle(
-        Id.createVehicleId("dummy-body-for-skim-observations"),
-        dummyBodyVehicleType.id,
-        new SpaceTime(srcTaz.coord, requestTime),
-        WALK,
-        asDriver = true
-      )
-    )
-    val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-      new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
-    } else {
-      srcTaz.coord
-    }
-    val dstCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-      new Coord(
-        dstTaz.coord.getX - Math.sqrt(dstTaz.areaInSquareMeters) / 3.0,
-        dstTaz.coord.getY
-      )
-    } else {
-      dstTaz.coord
-    }
-    val routingReq = RoutingRequest(
-      originUTM = srcCoord,
-      destinationUTM = dstCoord,
-      departureTime = requestTime,
-      withTransit = true,
-      streetVehicles = streetVehicles,
-      attributesOfIndividual = Some(dummyPersonAttributes)
-    )
-    routingReq
-  }
-
-  private def createRoutingRequest(mode: BeamMode, requestTime: Int, srcCoord: Coord, dstCoord: Coord): RoutingRequest = {
-    val streetVehicle: StreetVehicle = mode match {
-      case BeamMode.CAR =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-car-for-skim-observations"),
-          dummyCarVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          mode,
-          asDriver = true
-        )
-      case BeamMode.BIKE =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-bike-for-skim-observations"),
-          dummyBikeVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          mode,
-          asDriver = true
-        )
-      case BeamMode.WALK_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-body-for-skim-observations"),
-          dummyBodyVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          WALK,
-          asDriver = true
-        )
-      case x =>
-        throw new IllegalArgumentException(s"Get mode ${x}, but don't know what to do with it.")
-    }
-    val routingReq = RoutingRequest(
-      originUTM = srcCoord,
-      destinationUTM = dstCoord,
-      departureTime = requestTime,
-      withTransit = mode == BeamMode.WALK_TRANSIT,
-      streetVehicles = Vector(streetVehicle),
-      attributesOfIndividual = Some(dummyPersonAttributes)
-    )
-    routingReq
-  }
-
   private def createDummyPersonAttribute: AttributesOfIndividual = {
     val medianHouseholdByIncome = scenario.getHouseholds.getHouseholds
       .values()
@@ -345,7 +308,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       householdAttributes = dummyHouseholdAttributes,
       modalityStyle = None,
       isMale = true,
-      availableModes = Seq(CAR),
+      availableModes = Seq(CAR, WALK_TRANSIT, BIKE),
       valueOfTime = personVOTT,
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)
