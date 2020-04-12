@@ -9,7 +9,7 @@ import java.util.stream
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath, deleteDirectory}
+import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
