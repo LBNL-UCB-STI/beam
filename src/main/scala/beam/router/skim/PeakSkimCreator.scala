@@ -1,11 +1,10 @@
 package beam.router.skim
 
-import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.RoutingRequest
@@ -17,14 +16,13 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
-import beam.utils.{DebugLib, ProfilingUtils, Statistics}
+import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
