@@ -5,6 +5,7 @@ import java.io.{File, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
 import beam.sim.RideHailState
@@ -13,7 +14,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
 
@@ -59,7 +59,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   // If you want to make it work, bring that change back :)
   val rhs = new RideHailState // This should be replaces with actual data from prev iteration
 
-  val vehicleAllowedToReposition: mutable.Set[Id[Vehicle]] = {
+  val vehicleAllowedToReposition: mutable.Set[Id[BeamVehicle]] = {
     mutable.HashSet(
       (rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger).toSeq: _*
     )
@@ -139,7 +139,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     }
   }
 
-  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[Vehicle], Coord)], tick: Double) = {
+  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[BeamVehicle], Coord)], tick: Double) = {
     // TODO: write in the output folder graph
 
     // draw all content in quadTree with color blue
@@ -191,12 +191,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
   // Map from tick to the pair of vehicleId (who to reposition) and location (where).
-  var tickToLocation: Map[Int, Vector[(Id[Vehicle], Location)]] = Map.empty
+  var tickToLocation: Map[Int, Vector[(Id[BeamVehicle], Location)]] = Map.empty
 
   override def repositionVehicles(
-    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
-  ): Vector[(Id[Vehicle], Location)] = {
+  ): Vector[(Id[BeamVehicle], Location)] = {
 
 //    VehicleShouldRefuel(Id,Option[RefuelingLocation]) // None -> signal the human to refuel
 
@@ -554,7 +554,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
   }
 
-  def showDistanceStats(result: Vector[(Id[Vehicle], Location)]): Unit = {
+  def showDistanceStats(result: Vector[(Id[BeamVehicle], Location)]): Unit = {
     val distances = result.map {
       case (id, coord) =>
         val vehLoc = rideHailManager.vehicleManager.getRideHailAgentLocation(id).currentLocationUTM.loc
