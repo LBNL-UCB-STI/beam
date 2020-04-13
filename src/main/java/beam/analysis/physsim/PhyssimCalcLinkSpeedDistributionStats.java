@@ -59,13 +59,13 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * Iteration stop notification event listener
      * @param iteration the count of the current iteration
      */
-    public void notifyIterationEnds(int iteration,TravelTimeCalculator travelTimeCalculator) {
+    public void notifyIterationEnds(int iteration, TravelTime travelTime) {
         //generate the graph input for the free flow speed distribution
         Map<Integer, Integer> processedSpeedDistributionData = generateInputDataForFreeFlowSpeedGraph(noOfBins,this.network);
         //generate  data matrix for the free flow speed distribution
         double[][] speedDataMatrix = buildDataSetFromSpeedData(processedSpeedDistributionData);
         //generate the graph input for the link efficiencies
-        Map<Double, Integer> processedSpeedDistributionAsPercentageData = generateInputDataForLinkEfficiencies(travelTimeCalculator);
+        Map<Double, Integer> processedSpeedDistributionAsPercentageData = generateInputDataForLinkEfficiencies(travelTime);
         //generate category data set for free flow speed distribution
         CategoryDataset dataSetForSpeed = DatasetUtilities.createCategoryDataset("Free Speed", "", speedDataMatrix);
         //generate the category data set for link efficiencies
@@ -180,9 +180,8 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * Generates input data used to generate frequencies of link efficiencies
      * @return input generated data as map ( speed in m/s -> frequency )
      */
-    private Map<Double, Integer> generateInputDataForLinkEfficiencies(TravelTimeCalculator travelTimeCalculator) {
+    private Map<Double, Integer> generateInputDataForLinkEfficiencies(TravelTime travelTime) {
         int binSize = 3600;
-        TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
         Map<Double, Integer> frequencyOfEfficiencies = new HashMap<>();
         //for each bin
         for (int idx = 0; idx < noOfBins; idx++) {

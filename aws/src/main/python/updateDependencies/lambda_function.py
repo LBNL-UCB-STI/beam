@@ -52,6 +52,10 @@ runcmd:
   - sudo apt-get install curl
   - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
   - sudo apt-get install nodejs -y
+  - sudo apt-get install docker-ce docker-ce-cli containerd.io -y
+  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - sudo chmod +x /usr/local/bin/docker-compose
+  - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
   - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
   - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
   - sudo apt-get install xvfb -y
@@ -61,6 +65,7 @@ runcmd:
   - sudo git fetch
   - 'echo current git status: "$(date)"'
   - sudo git status
+  - sudo apt install jq -y
   - 'echo invoke create ami lambda after a 5 minute sleep to let the file system settle..."$(date)"'
   - sudo sleep 5m
   - sudo aws lambda invoke --invocation-type RequestResponse --function-name createAMI --region 'us-east-2' --payload '{"instance_id":"'"$(ec2metadata --instance-id)"'","region_id":"us-east-2"}' outputfile.txt
@@ -75,8 +80,8 @@ runcmd:
   - export created_ami_id_us_west_2=$(sed -r 's/"(.*)"/\\1/' outputfile.txt)
   - while ! aws ec2 describe-images --image-ids $created_ami_id_us_east_1 --region us-east-1 | grep "available"; do echo "Waiting 30 seconds for AMI in us-east-1 $created_ami_id_us_east_1 ..."; sleep 30s; done
   - while ! aws ec2 describe-images --image-ids $created_ami_id_us_west_2 --region us-west-2 | grep "available"; do echo "Waiting 30 seconds for AMI in us-west-2 $created_ami_id_us_west_2 ..."; sleep 30s; done
-  - echo "invoke update simulateBeam lambda ..."
-  - sudo aws lambda invoke --invocation-type RequestResponse --function-name updateSimulateBeamEnvVars --region 'us-east-2' --payload '{"ami_id":"'"$created_ami_id"'","ami_id_us_east_1":"'"$created_ami_id_us_east_1"'","ami_id_us_west_2":"'"$created_ami_id_us_west_2"'"}' outputfile.txt
+  - echo "invoke update provided lambda functions environment variables..."
+  - sudo aws lambda invoke --invocation-type RequestResponse --function-name updateEnvVarsForProvidedFunctionNames --region 'us-east-2' --payload '{"function_names":["simulateBeam","runPilates"], "ami_id":"'"$created_ami_id"'","ami_id_us_east_1":"'"$created_ami_id_us_east_1"'","ami_id_us_west_2":"'"$created_ami_id_us_west_2"'"}' outputfile.txt
   - echo "setting up auto shutdown ..."
   - sudo shutdown -h +$SHUTDOWN_WAIT
   - echo "shutdown in $SHUTDOWN_WAIT ..."
