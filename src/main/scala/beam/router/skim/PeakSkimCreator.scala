@@ -262,7 +262,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       fareCalculator = beamServices.fareCalculator,
       tollCalculator = beamServices.tollCalculator
     )
-    new R5Wrapper(workerParams, travelTime)
+    new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction = 0)
   }
 
 }
