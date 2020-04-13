@@ -25,6 +25,19 @@ def getActivities(trips):
     return pd.DataFrame({'location':locations,'startTime':startTimes,'endTime':endTimes,'duration':durations,'weight':weights})
 
 
+def getEndTimes(activities):
+    activities.reset_index(inplace=True)
+    locations = activities.location.unique()
+    intercepts = dict()
+    nPeople = trips.drop_duplicates('UniquePID').WTTRDFIN.sum()
+    for location in locations:
+        counts, bins = np.histogram(activities.loc[activities.location == location,'endTime'],range(26), weights = activities.loc[activities.location == location,'weight'])
+        counts = counts / nPeople
+        intercepts[location] = counts
+    df = pd.DataFrame(intercepts, columns=locations)
+    df.index.name = 'Hour'
+    return df
+    
 def getIntercepts(activities):
     activities.reset_index(inplace=True)
     locations = ['Other','Shopping','Meal','SocRec']
@@ -33,12 +46,12 @@ def getIntercepts(activities):
     for location in locations:
         counts, bins = np.histogram(activities.loc[activities.location == location,'startTime'],range(26), weights = activities.loc[activities.location == location,'weight'])
         counts = counts / nPeople *24
-        counts[counts < 0.1] = 0.0
+        counts[counts < 0.05] = 0.0
         intercepts[location] = counts
     df = pd.DataFrame(intercepts, columns=locations)
     df.index.name = 'Hour'
     return df
-    
+
 
 def getParams(activities):
     #activities.reset_index(inplace=True)
@@ -81,6 +94,8 @@ for cbsa in persons_all.HH_CBSA.unique():#['12420']:
 
     intercepts = getIntercepts(out)
     intercepts.to_csv('outputs/activity-intercepts-'+cbsa+'.csv')
+    endtimes = getEndTimes(out)
+    endtimes.to_csv('outputs/activity-end-times-'+cbsa+'.csv')
     params = getParams(out)
     params.to_csv('outputs/activity-params-'+cbsa+'.csv')
     calib = getCalibration(trips)
@@ -109,6 +124,9 @@ out = out[out['startTime'] > 0]
 
 intercepts = getIntercepts(out)
 intercepts.to_csv('outputs/activity-intercepts-all-us.csv')
+endtimes = getEndTimes(out)
+endtimes.to_csv('outputs/activity-end-times-all-us.csv')
+
 params = getParams(out)
 params.to_csv('outputs/activity-params-all-us.csv')
 
