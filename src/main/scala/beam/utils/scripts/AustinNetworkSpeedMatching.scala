@@ -100,24 +100,52 @@ object AustinNetworkSpeedMatching {
       override def localCRS: String = "epsg:26910"
     }
 
+    //TODO: do coordinate conversion!
     network.getLinks.values().asScala.toVector.foreach{ link =>
       speedVectors += SpeedVector(link.getId,link.getFromNode.getCoord,link.getToNode.getCoord,link.getFreespeed)
       //println(geoUtils.utm2Wgs(link.getFromNode))
     }
 
-    ???
+    speedVectors
   }
 
+
+
   def getReferenceSpeedVector(filePath:String): ArrayBuffer[SpeedVector]={
+    val speedVectors:ArrayBuffer[SpeedVector]=ArrayBuffer()
     val lines=readCSV(filePath)
 
     lines.drop(0)
     for (line <- lines){
-      val columns =line.split(",")
-      val linkId=columns(0)
-      val freeFlowSpeedInMetersPerSecond=columns(2)
+      val columns =line.split("\"")
+      val geometry=columns(0)
+      val remainingColumns=columns(1).split(",")
+      val objectId=remainingColumns(0).toDouble
+      val freeFlowSpeedInMetersPerSecond=remainingColumns(17).toDouble*0.44704
+
+      //MULTILINESTRING ((-97.682173979079 30.311113592404, -97.682016564442 30.311085638311, -97.681829312011 30.311093784592, -97.681515441419 30.311171453739))
 
 
+
+      val numbers = geometry.replace("MULTILINESTRING ((","").replace("))","").split("[ ,]").filterNot(_.isEmpty)
+      val pairs = numbers.sliding(2,2).toList
+      val coordinates = pairs.map { pair => new Coord(pair(0).toDouble, pair(1).toDouble)}
+      val links = coordinates.sliding(2, 1).toList.map(pair => pair(0) -> pair(1))
+
+
+    //  geometry.split(",").foreach{
+     //   coord => val coords=coord.split(" ")
+
+     // }
+
+     // SpeedVector(link.getId,link.getFromNode.getCoord,link.getToNode.getCoord,link.getFreespeed)-97.682173979079 30.311113592404 -> -97.682016564442 30.311085638311
+
+      -97.682016564442 30.311085638311 -> -97.681829312011 30.311093784592
+
+      -97.681829312011 30.311093784592 -> -97.681515441419 30.311171453739
+
+
+      //SPEED_LIMIT
 
       //val startCoordX=geoUtils.utm2Wgs(new Coord(x.))
       //val long=
@@ -125,7 +153,7 @@ object AustinNetworkSpeedMatching {
 
 
     }
-    ???
+    speedVectors
   }
 
 
