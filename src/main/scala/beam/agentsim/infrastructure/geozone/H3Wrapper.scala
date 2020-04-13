@@ -1,8 +1,11 @@
 package beam.agentsim.infrastructure.geozone
 
 import scala.collection.JavaConverters._
-
 import java.util.{Collections => JCollections}
+
+import beam.agentsim.infrastructure.taz.H3TAZ.{toJtsCoordinate, H3}
+import com.uber.h3core.AreaUnit
+import org.matsim.api.core.v01.Coord
 
 object H3Wrapper {
 
@@ -36,6 +39,19 @@ object H3Wrapper {
       .asScala
       .map(GeoIndex.apply)
       .toSet
+  }
+
+  def hexToCoord(index: GeoIndex): Coord = {
+    val coordinate = GeoZoneUtil.toJtsCoordinate(h3Core.h3ToGeo(index.value))
+    new Coord(coordinate.x, coordinate.y)
+  }
+
+  /** Average hexagon area in square meters at the given resolution.
+    * represents a Traffic Analysis Zone
+    * @param resolution Resolution
+    */
+  def hexAreaM2(resolution: Int): Double = {
+    h3Core.hexArea(resolution, AreaUnit.m2)
   }
 
   private[geozone] val h3Core = com.uber.h3core.H3Core.newInstance
