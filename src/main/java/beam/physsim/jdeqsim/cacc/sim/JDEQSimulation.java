@@ -25,14 +25,14 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
     private final CACCSettings caccSettings;
     private final double speedAdjustmentFactor;
-    private final double minimumRoadSpeedInMetersPerSecond;
+    private final double adjustedMinimumRoadSpeedInMetersPerSecond;
 
     @Inject
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings, double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond) {
+    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings, double speedAdjustmentFactor, double adjustedMinimumRoadSpeedInMetersPerSecond) {
         super(config, scenario, events);
         this.caccSettings = caccSettings;
         this.speedAdjustmentFactor = speedAdjustmentFactor;
-        this.minimumRoadSpeedInMetersPerSecond = minimumRoadSpeedInMetersPerSecond;
+        this.adjustedMinimumRoadSpeedInMetersPerSecond = adjustedMinimumRoadSpeedInMetersPerSecond;
         Road.setRoadCapacityAdjustmentFunction(caccSettings.roadCapacityAdjustmentFunction());
     }
 
@@ -75,7 +75,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
         Scheduler scheduler = getScheduler();
         HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
         for (Link link : scenario.getNetwork().getLinks().values()) {
-            allRoads.put(link.getId(), new Road(scheduler, link, speedAdjustmentFactor, minimumRoadSpeedInMetersPerSecond));
+            allRoads.put(link.getId(), new Road(scheduler, link, speedAdjustmentFactor, adjustedMinimumRoadSpeedInMetersPerSecond));
         }
         Road.setAllRoads(allRoads);
     }

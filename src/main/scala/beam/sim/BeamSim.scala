@@ -35,6 +35,11 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
+import org.matsim.core.population.PopulationUtils
+import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.controler.Controler
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
@@ -124,7 +129,20 @@ class BeamSim @Inject()(
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
+  var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
+
   override def notifyStartup(event: StartupEvent): Unit = {
+    maybeConsecutivePopulationLoader =
+      if (beamServices.beamConfig.beam.physsim.relaxation.`type` == "consecutive_increase_of_population") {
+        val consecutivePopulationLoader = new ConsecutivePopulationLoader(
+          scenario,
+          Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0),
+          new java.util.Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+        )
+        consecutivePopulationLoader.cleanScenario()
+        consecutivePopulationLoader.load()
+        Some(consecutivePopulationLoader)
+      } else None
 
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
@@ -216,6 +234,13 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    if (event.getIteration > 0) {
+      maybeConsecutivePopulationLoader.foreach { cpl =>
+        cpl.load()
+        agentSimToPhysSimPlanConverter.buildPersonToHousehold()
+      }
+    }
+
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(

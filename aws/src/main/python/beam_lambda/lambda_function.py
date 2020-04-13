@@ -41,8 +41,6 @@ MAXRAM_DEFAULT = '2g'
 
 SHUTDOWN_DEFAULT = '30'
 
-TRUE = 'true'
-
 EXECUTE_CLASS_DEFAULT = 'beam.sim.RunBeam'
 
 EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
@@ -410,20 +408,20 @@ def deploy_handler(event):
         volume_size = 64
 
     selected_script = ""
-    if run_grafana == TRUE:
+    if run_grafana:
         selected_script = CONFIG_SCRIPT_WITH_GRAFANA
     else:
         selected_script = CONFIG_SCRIPT
 
     params = configs
-    if s3_publish == TRUE:
+    if s3_publish:
         selected_script += S3_PUBLISH_SCRIPT
 
     if deploy_mode == 'experiment':
         selected_script = EXPERIMENT_SCRIPT
         params = experiments
 
-    if batch == TRUE:
+    if batch:
         params = [ params.replace(',', ' ') ]
     else:
         params = params.split(',')
@@ -461,7 +459,7 @@ def deploy_handler(event):
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
-            if run_grafana == TRUE:
+            if run_grafana:
                 txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
 
             runNum += 1
