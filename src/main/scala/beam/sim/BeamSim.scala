@@ -178,7 +178,22 @@ class BeamSim @Inject()(
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
     // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
+    beamServices.simMetricCollector.write("beam-run", SimulationTime(0))
+
+    val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+    val utmMinCoord = new org.matsim.api.core.v01.Coord(envelopeInUTM.getMinX, envelopeInUTM.getMinY)
+    val utmMaxCoord = new org.matsim.api.core.v01.Coord(envelopeInUTM.getMaxX, envelopeInUTM.getMaxY)
+    val wgsMinCoord = beamServices.geo.utm2Wgs(utmMinCoord)
+    val wgsMaxCoord = beamServices.geo.utm2Wgs(utmMaxCoord)
+
+    val values = Map(
+      "Xmax" -> wgsMaxCoord.getX,
+      "Xmin" -> wgsMinCoord.getX,
+      "Ymax" -> wgsMaxCoord.getY,
+      "Ymin" -> wgsMinCoord.getY
+    )
+
+    beamServices.simMetricCollector.write("beam-map-envelope", SimulationTime(0), values)
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)
