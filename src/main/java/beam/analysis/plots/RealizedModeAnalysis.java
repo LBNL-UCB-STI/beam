@@ -642,7 +642,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return benchMarkData;
     }
 
-    public class ModeHour {
+    public static class ModeHour {
         private String mode;
         private Integer hour;
 
