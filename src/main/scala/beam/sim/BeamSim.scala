@@ -20,7 +20,7 @@ import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -177,23 +177,9 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
-    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.write("beam-run", SimulationTime(0))
-
-    val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
-    val utmMinCoord = new org.matsim.api.core.v01.Coord(envelopeInUTM.getMinX, envelopeInUTM.getMinY)
-    val utmMaxCoord = new org.matsim.api.core.v01.Coord(envelopeInUTM.getMaxX, envelopeInUTM.getMaxY)
-    val wgsMinCoord = beamServices.geo.utm2Wgs(utmMinCoord)
-    val wgsMaxCoord = beamServices.geo.utm2Wgs(utmMaxCoord)
-
-    val values = Map(
-      "Xmax" -> wgsMaxCoord.getX,
-      "Xmin" -> wgsMinCoord.getX,
-      "Ymax" -> wgsMaxCoord.getY,
-      "Ymin" -> wgsMinCoord.getY
-    )
-
-    beamServices.simMetricCollector.write("beam-map-envelope", SimulationTime(0), values)
+    // These metric are used to display all other metrics in Grafana.
+    // For example take a look to `run_name` variable in the dashboard
+    BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)
