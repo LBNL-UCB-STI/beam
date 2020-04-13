@@ -83,9 +83,8 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
-        // maven { url 'https://download.osgeo.org/webdav/geotools/' }
-        // maven { url "https://download.osgeo.org/webdav/geotools" }
         maven { url "https://repo.osgeo.org/repository/release/" }
+        maven { url "https://download.osgeo.org/webdav/geotools" }
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
