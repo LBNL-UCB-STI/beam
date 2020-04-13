@@ -49,7 +49,7 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);
-        physsimCalcLinkSpeedDistributionStats.notifyIterationEnds(0, travelTimeCalculator);
+        physsimCalcLinkSpeedDistributionStats.notifyIterationEnds(0, travelTimeCalculator.getLinkTravelTimes());
     }
 
     private int getMaxSpeed(int binCount, Network network) {

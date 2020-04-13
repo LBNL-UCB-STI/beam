@@ -79,10 +79,10 @@ public class PhyssimCalcLinkStats implements Observer {
         linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
 
-    public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
+    public void notifyIterationEnds(int iteration, TravelTime travelTime) {
 
-        linkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes());
-        processData(iteration, travelTimeCalculator);
+        linkStats.addData(volumes, travelTime);
+        processData(iteration, travelTime);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
@@ -109,11 +109,7 @@ public class PhyssimCalcLinkStats implements Observer {
         return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
     }
 
-    private void processData(int iteration, TravelTimeCalculator travelTimeCalculator) {
-
-
-        TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-
+    private void processData(int iteration, TravelTime travelTime) {
         for (int idx = 0; idx < noOfBins; idx++) {
 
 

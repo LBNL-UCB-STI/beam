@@ -457,6 +457,23 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
+    val (
+      beamExecutionConfig: BeamExecutionConfig,
+      scenario: MutableScenario,
+      beamScenario: BeamScenario,
+      services: BeamServices
+    ) = prepareBeamService(config)
+
+    runBeam(
+      services,
+      scenario,
+      beamScenario,
+      beamExecutionConfig.outputDirectory
+    )
+    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+  }
+
+  def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
@@ -486,14 +503,7 @@ trait BeamHelper extends LazyLogging {
 
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
-
-    runBeam(
-      services,
-      scenario,
-      beamScenario,
-      beamExecutionConfig.outputDirectory
-    )
-    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+    (beamExecutionConfig, scenario, beamScenario, services)
   }
 
   def fixDanglingPersons(result: MutableScenario): Unit = {
@@ -688,7 +698,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  private def buildMatsimConfig(
+  def buildMatsimConfig(
     config: TypesafeConfig,
     beamConfig: BeamConfig,
     outputDirectory: String
