@@ -96,8 +96,14 @@ class BeamScoringFunctionFactory @Inject()(
         }
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
+        val personActivities = person.getSelectedPlan.getPlanElements.asScala
+          .collect {
+            case activity: Activity => activity
+          }
+          .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
+        val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
 
-        finalScore = allDayScore + leavingParkingEventScore
+        finalScore = allDayScore + leavingParkingEventScore + activityScore
         finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
 
@@ -109,6 +115,21 @@ class BeamScoringFunctionFactory @Inject()(
         if (modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
           registerLinkCosts(this.trips, attributes, modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit])
         }
+      }
+
+      private def getActivityBenefit(
+        activity: Activity,
+        attributes: AttributesOfIndividual
+      ): Double = {
+        beamServices.beamScenario.destinationChoiceModel.getActivityUtility(activity, attributes)
+      }
+
+      private def getRealStartEndTime(
+        activity: Activity
+      ): (Double, Double) = {
+        val start = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
+        val end = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+        (start, end)
       }
 
       override def handleActivity(activity: Activity): Unit = {}

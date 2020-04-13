@@ -2716,9 +2716,11 @@ object BeamConfig {
         departureWindow: scala.Double,
         directory: java.lang.String,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
+        maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmFile: java.lang.String,
-        osmMapdbFile: java.lang.String
+        osmMapdbFile: java.lang.String,
+        travelTimeNoiseFraction: scala.Double
       )
 
       object R5 {
@@ -2737,6 +2739,19 @@ object BeamConfig {
           }
         }
 
+        case class MaxDistanceLimitByModeInMeters(
+          bike: scala.Int
+        )
+
+        object MaxDistanceLimitByModeInMeters {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters = {
+            BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters(
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 40000
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
@@ -2745,11 +2760,18 @@ object BeamConfig {
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
             ),
+            maxDistanceLimitByModeInMeters = BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters(
+              if (c.hasPathOrNull("maxDistanceLimitByModeInMeters")) c.getConfig("maxDistanceLimitByModeInMeters")
+              else com.typesafe.config.ConfigFactory.parseString("maxDistanceLimitByModeInMeters{}")
+            ),
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
             osmFile =
               if (c.hasPathOrNull("osmFile")) c.getString("osmFile") else "/test/input/beamville/r5/beamville.osm.pbf",
             osmMapdbFile =
-              if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile") else "/test/input/beamville/r5/osm.mapdb"
+              if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
+              else "/test/input/beamville/r5/osm.mapdb",
+            travelTimeNoiseFraction =
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
         }
       }
@@ -2810,10 +2832,7 @@ object BeamConfig {
                     c.getConfig("influxDbSimulationMetricCollector")
                   else com.typesafe.config.ConfigFactory.parseString("influxDbSimulationMetricCollector{}")
                 ),
-              metrics =
-                if (c.hasPathOrNull("metrics")) c.getString("metrics")
-                else
-                  "beam-run-households,beam-run-charging-depots-stalls-cnt,beam-run-charging-depots-cnt,beam-run-private-fleet-size,beam-run,beam-run-public-fast-charge-cnt,beam-run-population-size,beam-run-public-fast-charge-stalls-cnt,beam-run-RH-ev-non-cav,ride-hail-inquiry-served,beam-iteration,rh-ev-cav-count,rh-ev-cav-distance,rh-noev-nocav-distance,beam-run-RH-non-ev-non-cav,average-travel-time,rh-ev-nocav-distance,rh-noev-cav-distance,beam-run-RH-ev-cav,chargingPower,ride-hail-allocation-reserved,ride-hail-waiting-time-map,rh-noev-nocav-count,ride-hail-trip-distance,rh-ev-nocav-count,mode-choices,rh-noev-cav-count,beam-run-RH-non-ev-cav,parking,ride-hail-waiting-time"
+              metrics = if (c.hasPathOrNull("metrics")) c.getString("metrics") else "beam-run, beam-iteration"
             )
           }
         }

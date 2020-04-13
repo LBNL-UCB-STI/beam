@@ -1,15 +1,16 @@
 package beam.agentsim.agents.choice.logit
 
-import scala.collection.immutable.SortedSet
+import beam.utils.MathUtils
+
 import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
 
 /**
   * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *
   * @param utilityFunctions mappings from alternatives to the attributes which can be evaluated against them
   * @param common common attributes of all alternatives
+  * @param scale_factor amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
   * @tparam A the type of alternatives we are choosing between
   * @tparam T the attributes of this multinomial logit function
   */
@@ -109,16 +110,16 @@ class MultinomialLogit[A, T](
   def getExpectedMaximumUtility(
     alternatives: Map[A, Map[T, Double]]
   ): Option[Double] = {
-    val utilityOfAlternatives: Iterable[Double] =
+    val scaledUtilityOfAlternatives: Iterable[Double] =
       for {
         (alt, attributes) <- alternatives
         utility           <- getUtilityOfAlternative(alt, attributes)
       } yield {
-        Math.exp(utility)
+        utility * scale_factor
       }
 
-    if (utilityOfAlternatives.isEmpty) None
-    else Some { Math.log(utilityOfAlternatives.sum) }
+    if (scaledUtilityOfAlternatives.isEmpty) None
+    else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / scale_factor }
   }
 
   /**
