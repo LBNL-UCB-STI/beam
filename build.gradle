@@ -83,11 +83,10 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
-        maven { url 'https://download.osgeo.org/webdav/geotools/' }
+        maven { url "http://maven.icm.edu.pl/artifactory/repo/"}
        // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "https://repo.maven.apache.org/maven2" }
-        maven { url "https://download.osgeo.org/webdav/geotools" }
         maven { url "https://dl.bintray.com/matsim/matsim" }
         maven { url "https://maven.conveyal.com/" }
         maven { url "https://repo1.maven.org/maven2" }
@@ -125,8 +124,8 @@ dependencies {
     compile group: 'com.univocity', name: 'univocity-parsers', version: '2.8.1'
 
     // LGPL
-    compile group: 'org.geotools', name: 'gt-main', version: '13.0'
-    compile group: 'org.geotools', name: 'gt-shapefile', version: '13.0'
+    compile group: 'org.geotools', name: 'gt-main', version: '13.6'
+    compile group: 'org.geotools', name: 'gt-shapefile', version: '13.6'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
     compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
     compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
