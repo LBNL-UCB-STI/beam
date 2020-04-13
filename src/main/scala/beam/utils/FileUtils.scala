@@ -2,18 +2,17 @@ package beam.utils
 
 import java.io._
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
+import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
-
 import scala.language.reflectiveCalls
 import scala.util.Random
 
@@ -88,6 +87,15 @@ object FileUtils extends LazyLogging {
     } finally {
       resource.close()
     }
+
+  def usingTemporaryDirectory[B](f: Path => B): B = {
+    val tmpFolder: Path = Files.createTempDirectory("tempDirectory")
+    try {
+      f(tmpFolder)
+    } finally {
+      deleteDirectory(tmpFolder.toFile)
+    }
+  }
 
   def safeLines(fileLoc: String): stream.Stream[String] = {
     using(readerFromFile(fileLoc))(_.lines)
