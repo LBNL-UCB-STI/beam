@@ -65,6 +65,7 @@ runcmd:
   - sudo git fetch
   - 'echo current git status: "$(date)"'
   - sudo git status
+  - sudo apt install jq -y
   - 'echo invoke create ami lambda after a 5 minute sleep to let the file system settle..."$(date)"'
   - sudo sleep 5m
   - sudo aws lambda invoke --invocation-type RequestResponse --function-name createAMI --region 'us-east-2' --payload '{"instance_id":"'"$(ec2metadata --instance-id)"'","region_id":"us-east-2"}' outputfile.txt

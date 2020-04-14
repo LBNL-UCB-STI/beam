@@ -40,7 +40,7 @@
 
     <gf-form-switch class="gf-form" label="Toolbar" label-class="gf-form-label width-7"
       checked="ctrl.cfg.settings.displayModeBar" on-change="ctrl.editor.onConfigChanged()"></gf-form-switch>
-      
+
   </div>
 
   <div class="section gf-form-group">
@@ -153,5 +153,35 @@
     <gf-form-switch class="gf-form" label="Zero Line:" label-class="gf-form-label width-7"
       checked="axis.layout.zeroline" on-change="ctrl.onConfigChanged()"></gf-form-switch>
   </div>
+
+  <div class="section gf-form-group">
+    <h5 class="section-heading">Map</h5>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">Lat min</label>
+      <input class="gf-form-input width-7" placeholder="lat min variable name" ng-model="ctrl.cfg.settings.map.latMin"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">Lat max</label>
+      <input class="gf-form-input width-7" placeholder="lat min variable name" ng-model="ctrl.cfg.settings.map.latMax"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">Lon min</label>
+      <input class="gf-form-input width-7" placeholder="lat min variable name" ng-model="ctrl.cfg.settings.map.lonMin"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-7">Lon max</label>
+      <input class="gf-form-input width-7" placeholder="lat min variable name" ng-model="ctrl.cfg.settings.map.lonMax"
+        ng-change="ctrl.onConfigChanged();">
+    </div>
+
+  </div>
+
 
 </div>
