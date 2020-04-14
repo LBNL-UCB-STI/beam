@@ -136,9 +136,9 @@ class InverseSquareDemandFollowingRepositioning(val beamServices: BeamServices, 
     if (clusters.map(_.size).sum == 0) None
     else {
       val chosenCluster = chooseCluster(vehicleLocation, clusters)
-      val chosenCoord = chooseLocation(chosenCluster.activitiesLocation)
+      //val chosenCoord = chooseLocation(chosenCluster.activitiesLocation)
       // Randomly pick the coordinate of one of activities
-      //val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
+      val chosenCoord = rndGen.shuffle(chosenCluster.activitiesLocation).head
       logger.debug(
         s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $chosenCluster, drawn coord: $chosenCoord"
       )
