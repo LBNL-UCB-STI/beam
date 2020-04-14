@@ -47,7 +47,6 @@ object H3Wrapper {
   }
 
   /** Average hexagon area in square meters at the given resolution.
-    * represents a Traffic Analysis Zone
     * @param resolution Resolution
     */
   def hexAreaM2(resolution: Int): Double = {
