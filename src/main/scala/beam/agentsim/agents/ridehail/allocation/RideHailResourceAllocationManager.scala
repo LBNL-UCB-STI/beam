@@ -253,6 +253,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           RepositioningManager[DefaultRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case "DEMAND_FOLLOWING_REPOSITIONING_MANAGER" =>
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "INVERSE_SQUARE_DEMAND_FOLLOWING_REPOSITIONING" =>
+          RepositioningManager[InverseSquareDemandFollowingRepositioning](rideHailManager.beamServices, rideHailManager)
         case "REPOSITIONING_LOW_WAITING_TIMES" =>
           RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
         case "THE_SAME_LOCATION_REPOSITIONING_MANAGER" =>
