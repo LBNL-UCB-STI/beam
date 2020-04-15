@@ -168,9 +168,9 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     if (clusters.map(_.size).sum == 0) None
     else {
       val sampled = chooseCluster(vehicleLocation, clusters)
-      val drawnCoord = chooseLocation(sampled.activitiesLocation)
+      // val drawnCoord = chooseLocation(sampled.activitiesLocation)
       // Randomly pick the coordinate of one of activities
-      //val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
+      val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
       logger.debug(
         s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $sampled, drawn coord: $drawnCoord"
       )
