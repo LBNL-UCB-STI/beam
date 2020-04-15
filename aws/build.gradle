@@ -95,10 +95,10 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
-  "min_cores": ${ext.getParameterValue('min_cores') ?: 0},
-  "max_cores": ${ext.getParameterValue('max_cores') ?: 0},
-  "min_memory": ${ext.getParameterValue('min_memory') ?: 0},
-  "max_memory": ${ext.getParameterValue('max_memory') ?: 0}
+  "min_cores": ${ext.getParameterValue('minCores') ?: 0},
+  "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
+  "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
+  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
 }"""
         println pload
         functionName = "simulateBeam"

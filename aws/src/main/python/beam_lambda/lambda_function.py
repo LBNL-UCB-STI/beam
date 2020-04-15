@@ -309,12 +309,13 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         if spec.cpu >= min_cores and spec.cpu <= max_cores and spec.mem_in_gb >= min_memory and spec.mem_in_gb <= max_memory:
             output_instance_types.append(spec.name)
     try:
-        output_instance_types.append(preferred_instance_type)
+        if preferred_instance_type:
+            output_instance_types.append(preferred_instance_type)
     except NameError:
         print 'No preferred spot instance type provided'
     if not output_instance_types:
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
-    return output_instance_types
+    return list(dict.fromkeys(output_instance_types))
 
 def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
     security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
@@ -364,6 +365,7 @@ def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, 
         SpotFleetRequestConfig={
             'AllocationStrategy': 'lowestPrice',
             'TargetCapacity': 1,
+            'IamFleetRole': 'arn:aws:iam::340032650202:role/aws-ec2-spot-fleet-tagging-role',#TODO: Figure what this should be
             'Type': 'request',
             'InstanceInterruptionBehavior': shutdown_behaviour,
             'LaunchSpecifications': launch_specifications
@@ -512,14 +514,18 @@ def deploy_handler(event):
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
     titled = get_param('title')
-    instance_type = get_param('instance_type')
+    instance_type = event.get('instance_type')
     region = get_param('region')
     shutdown_behaviour = get_param('shutdown_behaviour')
+    is_spot = event.get('is_spot', False)
 
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
 
-    if instance_type not in instance_types:
+    if not instance_type and not is_spot:
+        return "Unable to start, missing instance_type AND is NOT a spot request"
+
+    if not is_spot and instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
     if shutdown_behaviour not in shutdown_behaviours:
@@ -575,7 +581,6 @@ def deploy_handler(event):
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
-            is_spot = event.get('is_spot', False)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)
