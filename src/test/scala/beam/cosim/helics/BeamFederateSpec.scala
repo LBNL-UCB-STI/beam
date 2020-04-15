@@ -47,6 +47,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   private def runCosimulationTest(config: Config) = {
+    Thread.sleep(1000)
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)

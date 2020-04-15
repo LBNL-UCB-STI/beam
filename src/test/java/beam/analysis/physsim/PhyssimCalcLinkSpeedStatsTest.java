@@ -47,19 +47,19 @@ public class PhyssimCalcLinkSpeedStatsTest {
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);
-        physsimCalcLinkSpeedStats.notifyIterationEnds(0, travelTimeCalculator);
+        physsimCalcLinkSpeedStats.notifyIterationEnds(0, travelTimeCalculator.getLinkTravelTimes());
     }
 
     @Test
     public void shouldReturnAverageRelativeSpeedPercentageOfSpecificBin() {
         double expectedResult = 96.0;
-        double actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentageOfBin(23,travelTimeCalculator);
+        double actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentageOfBin(23, travelTimeCalculator.getLinkTravelTimes());
         assertEquals(expectedResult, Math.ceil(actualResult),0);
     }
 
     @Test
     public void shouldNotContainAverageRelativeSpeedPercentageOfHundredForAllBins() {
-        double[] actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentagesOfAllBins(travelTimeCalculator);
+        double[] actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentagesOfAllBins(travelTimeCalculator.getLinkTravelTimes());
         long nonHundredPercentages = Arrays.stream(actualResult).filter(f -> f != 100.0).count();
         assertTrue(nonHundredPercentages != 0);
     }
@@ -67,7 +67,7 @@ public class PhyssimCalcLinkSpeedStatsTest {
     @Test
     public void shouldHaveDomainAxisRangeEqualToNumberOfBins() {
         int binCount = physsimCalcLinkSpeedStats.getNumberOfBins();
-        double[] actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentagesOfAllBins(travelTimeCalculator);
+        double[] actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentagesOfAllBins(travelTimeCalculator.getLinkTravelTimes());
         assertEquals(binCount,actualResult.length);
     }
 
