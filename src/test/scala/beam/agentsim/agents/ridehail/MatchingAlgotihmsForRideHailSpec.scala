@@ -20,7 +20,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 
-class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
+class MatchingAlgotihmsForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
 
   "Running Alonso Mora Algorithm" must "creates a consistent plan" in {
     val config = ConfigFactory
@@ -29,10 +29,46 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+                     |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
                      |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
                      |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 4
+        """.stripMargin
+      )
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runConsistentPlanCheck(config)
+  }
+
+  "Running Async Alonso Mora Algorithm" must "creates a consistent plan" in {
+    val config = ConfigFactory
+      .parseString(
+        """
+          |beam.outputs.events.fileOutputFormats = xml
+          |beam.physsim.skipPhysSim = true
+          |beam.agentsim.lastIteration = 0
+          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
+          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+        """.stripMargin
+      )
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runConsistentPlanCheck(config)
+  }
+
+  "Running Vehicle Centric Matching Algorithm" must "creates a consistent plan" in {
+    val config = ConfigFactory
+      .parseString(
+        """
+          |beam.outputs.events.fileOutputFormats = xml
+          |beam.physsim.skipPhysSim = true
+          |beam.agentsim.lastIteration = 0
+          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -58,10 +94,10 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
     implicit val services = injector.getInstance(classOf[BeamServices])
     implicit val actorRef = ActorRef.noSender
     Skims.setup
-    val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
+    val sc = MatchingAlgotihmsForRideHailSpec.scenario1
     val alg: AlonsoMoraPoolingAlgForRideHail =
       new AlonsoMoraPoolingAlgForRideHail(
-        AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
+        MatchingAlgotihmsForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
         services
       )
@@ -159,7 +195,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec extends FlatSpec with Matchers with Be
   }
 }
 
-object AlonsoMoraPoolingAlgForRideHailSpec {
+object MatchingAlgotihmsForRideHailSpec {
 
   def scenario1()(
     implicit
