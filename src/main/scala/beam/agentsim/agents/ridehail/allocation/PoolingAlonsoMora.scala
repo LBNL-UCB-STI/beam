@@ -60,6 +60,31 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
   }
 
+  def createMatchingAlgorithm(availVehicles: List[RHMatchingToolkit.VehicleAndSchedule]): RHMatchingAlgorithm = {
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm match {
+      case "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL" =>
+        new VehicleCentricMatchingForRideHail(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL" =>
+        new AsyncAlonsoMoraAlgForRideHail(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL" =>
+        new AlonsoMoraPoolingAlgForRideHail(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case algoName =>
+        throw new RuntimeException(s"Unknown matching algorithm $algoName for alonsoMora")
+    }
+  }
+
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
@@ -179,32 +204,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       }
 
-      val alg: RHMatchingAlgorithm =
-        rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.matchingAlgorithm match {
-          case "VehicleCentricMatchingForRideHail" =>
-            new VehicleCentricMatchingForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case "AsyncAlonsoMoraAlgForRideHail" =>
-            new AsyncAlonsoMoraAlgForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case "AlonsoMoraPoolingAlgForRideHail" =>
-            new AlonsoMoraPoolingAlgForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case algoName => throw new RuntimeException(s"Unknown matching algorithm $algoName for alonsoMora")
-        }
-
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(alg.matchAndAssign(tick), atMost = 2.minutes)
+        Await.result(createMatchingAlgorithm(availVehicles).matchAndAssign(tick), atMost = 2.minutes)
       } catch {
         case e: TimeoutException =>
           rideHailManager.log.error("timeout of VehicleCentricMatchingForRideHail no allocations made")

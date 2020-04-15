@@ -17,43 +17,40 @@ class AsyncAlonsoMoraAlgForRideHailSpec extends FlatSpec with Matchers with Beam
 
   "Running Async Alonso Mora Algorithm" must "creates a consistent plan" in {
     val config = ConfigFactory
-      .parseString("""
+      .parseString(
+        """
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec = 420
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction= 0.2
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle = 1000
-        """.stripMargin)
+                     |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+                     |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+                     |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val assignment = computeAssignment(config, "scenario1")
-    //assert(assignment.nonEmpty)
-//    assert(assignment(0)._2.getId == "v2")
-//    assignment(0)._1.requests.foreach(r => List("p1", "p2", "p4").contains(r.getId))
-//    assert(assignment(1)._2.getId == "v1")
-//    assert(assignment(1)._1.requests.head.getId == "p3")
+    assert(assignment.nonEmpty)
   }
 
   "Running Async Alonso Mora Algorithm" must "Creates a consistent plan considering a geofence" in {
     val config = ConfigFactory
-      .parseString("""
+      .parseString(
+        """
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec = 420
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.travelTimeDelayAsFraction= 0.2
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.solutionSpaceSizePerVehicle = 1000
-        """.stripMargin)
+                     |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+                     |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+                     |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val assignment = computeAssignment(config, "scenarioGeofence")
-    //assert(assignment.nonEmpty)
-//    assert(assignment(0)._2.getId == "v2")
-//    assert(assignment(0)._1.requests.head.getId == "p4")
-//    assert(assignment(0)._1.requests.last.getId == "p1" || assignment(0)._1.requests.last.getId == "p2")
-//    assert(assignment(1)._2.getId == "v1")
-//    assert(assignment(1)._1.requests.head.getId == "p3")
+    assert(assignment.nonEmpty)
   }
 
   private def computeAssignment(config: Config, scenarioName: String) = {

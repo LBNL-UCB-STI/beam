@@ -19,8 +19,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class InverseSquareDemandFollowingRepositioning(val beamServices: BeamServices, val rideHailManager: RideHailManager)
-    extends RepositioningManager(beamServices, rideHailManager)
+class DemandFollowingPerDistanceSquaredRepositioning(
+  val beamServices: BeamServices,
+  val rideHailManager: RideHailManager
+) extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
 
   val h3taz: H3TAZ = beamServices.beamScenario.h3taz
@@ -29,7 +31,7 @@ class InverseSquareDemandFollowingRepositioning(val beamServices: BeamServices, 
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private val cfg =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.alternativeDemandFollowingRepositioning
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingPerDistanceSquaredRepositioning
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 
@@ -136,9 +138,7 @@ class InverseSquareDemandFollowingRepositioning(val beamServices: BeamServices, 
     if (clusters.map(_.size).sum == 0) None
     else {
       val chosenCluster = chooseCluster(vehicleLocation, clusters)
-      //val chosenCoord = chooseLocation(chosenCluster.activitiesLocation)
-      // Randomly pick the coordinate of one of activities
-      val chosenCoord = rndGen.shuffle(chosenCluster.activitiesLocation).head
+      val chosenCoord = chooseLocation(chosenCluster.activitiesLocation)
       logger.debug(
         s"tick $tick, currentTimeBin: ${tick / repositionTimeout}, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. sampled: $chosenCluster, drawn coord: $chosenCoord"
       )
