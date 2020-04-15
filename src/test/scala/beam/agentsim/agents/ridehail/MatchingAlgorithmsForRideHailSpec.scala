@@ -26,13 +26,13 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
-                     |beam.outputs.events.fileOutputFormats = xml
-                     |beam.physsim.skipPhysSim = true
-                     |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
-                     |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-                     |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-                     |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 4
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
+           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 4
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))

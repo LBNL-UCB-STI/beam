@@ -19,7 +19,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class DemandFollowingPerDistanceSquaredRepositioning(
+class InverseSquareDistanceRepositioningFactor(
   val beamServices: BeamServices,
   val rideHailManager: RideHailManager
 ) extends RepositioningManager(beamServices, rideHailManager)
@@ -31,7 +31,7 @@ class DemandFollowingPerDistanceSquaredRepositioning(
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private val cfg =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingPerDistanceSquaredRepositioning
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 
