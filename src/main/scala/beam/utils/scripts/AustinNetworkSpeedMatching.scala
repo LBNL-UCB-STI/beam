@@ -195,28 +195,20 @@ object AustinNetworkSpeedMatching {
     }
 
 
-    // per link get all reference points (via physsim points)
-    // print linkId, physsim speed, referenceMeanSpeed, road type
-    // analyze df!
-
-
-    // or for each point: linkId,physsimSpeed,roadType,referenceSpeed
-    outputFilePath
-
     val pw = new PrintWriter(new File(outputFilePath))
     pw.write(s"linkId,attributeOrigType,physsimSpeed,referenceSpeed\n")
 
     physsimQuadTreeDP.values().asScala.toVector.toList.foreach { physsimSpeedDataPoint =>
-
-      //val closestReferenceSpeeds = physsimSpeedDataPoint.closestReferenceSpeeds.get
-      //val averageReferenceSpeed = closestReferenceSpeeds.sum / closestReferenceSpeeds.length
-
       physsimSpeedDataPoint.closestReferenceSpeeds.get.foreach{ referenceSpeed =>
-        pw.write(s"${physsimSpeedDataPoint.linkId},${network.getLinks.get(physsimSpeedDataPoint.linkId).getAttributes.getAttribute("attributeOrigType")},${physsimSpeedDataPoint.speedInMetersPerSecond},$referenceSpeed")
+        pw.write(s"${physsimSpeedDataPoint.linkId},${network.getLinks.get(physsimSpeedDataPoint.linkId).getAttributes.getAttribute("type")},${physsimSpeedDataPoint.speedInMetersPerSecond},$referenceSpeed\n")
       }
 
     }
     pw.close
+
+
+
+
 
   }
 
