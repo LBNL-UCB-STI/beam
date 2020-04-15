@@ -20,7 +20,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 
-class MatchingAlgotihmsForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
+class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
 
   "Running Alonso Mora Algorithm" must "creates a consistent plan" in {
     val config = ConfigFactory
@@ -94,10 +94,10 @@ class MatchingAlgotihmsForRideHailSpec extends FlatSpec with Matchers with BeamH
     implicit val services = injector.getInstance(classOf[BeamServices])
     implicit val actorRef = ActorRef.noSender
     Skims.setup
-    val sc = MatchingAlgotihmsForRideHailSpec.scenario1
+    val sc = MatchingAlgorithmsForRideHailSpec.scenario1
     val alg: AlonsoMoraPoolingAlgForRideHail =
       new AlonsoMoraPoolingAlgForRideHail(
-        MatchingAlgotihmsForRideHailSpec.demandSpatialIndex(sc._2),
+        MatchingAlgorithmsForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
         services
       )
@@ -195,7 +195,7 @@ class MatchingAlgotihmsForRideHailSpec extends FlatSpec with Matchers with BeamH
   }
 }
 
-object MatchingAlgotihmsForRideHailSpec {
+object MatchingAlgorithmsForRideHailSpec {
 
   def scenario1()(
     implicit
