@@ -38,7 +38,7 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "iteration": 1581507517336,
+    "iteration": 1586788466886,
     "links": [],
     "panels": [
       {
@@ -172,6 +172,12 @@
           "settings": {
             "displayModeBar": true,
             "fill": "None",
+            "map": {
+              "latMax": "lat_max",
+              "latMin": "lat_min",
+              "lonMax": "lon_max",
+              "lonMin": "lon_min"
+            },
             "mode": "None",
             "type": "scattermapbox"
           },
@@ -406,9 +412,8 @@
         {
           "allValue": null,
           "current": {
-            "selected": true,
-            "text": "2020-02-11_17-40-10_sf-light-1k-xml",
-            "value": "2020-02-11_17-40-10_sf-light-1k-xml"
+            "text": "2020-04-11_17-47-18_sf-light-1k-xml",
+            "value": "2020-04-11_17-47-18_sf-light-1k-xml"
           },
           "datasource": "InfluxDB",
           "definition": "SHOW TAG VALUES ON \"beam\" FROM \"beam-run\" WITH KEY = \"unique-run-name\"",
@@ -432,10 +437,8 @@
         {
           "allValue": null,
           "current": {
-            "selected": false,
-            "tags": [],
-            "text": "17",
-            "value": "17"
+            "text": "0",
+            "value": "0"
           },
           "datasource": "InfluxDB",
           "definition": "SELECT count FROM \"beam\".\"autogen\".\"beam-iteration\" WHERE \"unique-run-name\" = '$run_name'",
@@ -450,6 +453,106 @@
           "regex": "",
           "skipUrlSync": false,
           "sort": 4,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "text": "37.698979400000006",
+            "value": "37.698979400000006"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT Ymin FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 2,
+          "includeAll": false,
+          "label": "lat min",
+          "multi": false,
+          "name": "lat_min",
+          "options": [],
+          "query": "SELECT Ymin FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "text": "37.843627999999995",
+            "value": "37.843627999999995"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT Ymax FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 2,
+          "includeAll": false,
+          "label": "lat max",
+          "multi": false,
+          "name": "lat_max",
+          "options": [],
+          "query": "SELECT Ymax FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "text": "-122.54473360000001",
+            "value": "-122.54473360000001"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT Xmin FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 2,
+          "includeAll": false,
+          "label": "lon min",
+          "multi": false,
+          "name": "lon_min",
+          "options": [],
+          "query": "SELECT Xmin FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "text": "-122.3592068",
+            "value": "-122.3592068"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SELECT Xmax FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "hide": 2,
+          "includeAll": false,
+          "label": "lon max",
+          "multi": false,
+          "name": "lon_max",
+          "options": [],
+          "query": "SELECT Xmax FROM \"beam\".\"autogen\".\"beam-map-envelope\" WHERE \"unique-run-name\" = '$run_name'",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
           "tagValuesQuery": "",
           "tags": [],
           "tagsQuery": "",
@@ -479,6 +582,6 @@
     "timezone": "",
     "title": "Beam Simulation. Iteration Map View",
     "uid": "otUGbMyZk",
-    "version": 3
+    "version": 12
   }
 }
