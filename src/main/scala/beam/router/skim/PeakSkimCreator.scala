@@ -55,10 +55,27 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
 
+  val resolutionToPoints = summary.items
+    .map(x => x.index.resolution -> x.size)
+    .groupBy { case (res, _) => res }
+    .toSeq
+    .map { case (res, xs) => res -> xs.map(_._2).sum }
+    .sortBy { case (_, size) => -size }
+  resolutionToPoints.foreach {
+    case (res, size) =>
+      logger.info(s"Resolution: $res, number of points: $size")
+  }
+
   private val transformation: GeotoolsTransformation =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamServices.beamConfig.matsim.modules.global.coordinateSystem)
 
-  private val h3Indexes = summary.items.sortBy(x => -x.size)
+  private val h3Indexes = summary.items.sortBy(x => -x.size).take(50)
+
+  private val h3IndexPairs = h3Indexes.flatMap { srcGeo =>
+    h3Indexes.map { dstGeo =>
+      (srcGeo.index, dstGeo.index)
+    }
+  }
 
   private val beamModes: Array[BeamMode] = Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT)
 
@@ -74,7 +91,12 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           )
           val hour = config.beam.urbansim.allTAZSkimsPeakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
-          writeFullSkims(uniqueTimeBins, event, filePath)
+          val origins = h3Indexes.map { h3Index =>
+            val center = H3Wrapper.hexToCoord(h3Index.index)
+            val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
+            GeoUnit.H3(h3Index.index.value, center, areaInSquareMeters)
+          }
+          writeFullSkims(origins, origins, uniqueTimeBins, filePath)
           logger.info(
             s"Written UrbanSim peak skims for hour ${config.beam.urbansim.allTAZSkimsPeakHour} to ${filePath}"
           )
@@ -138,23 +160,6 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     GeoUtils.distFormula(srcCoord, dstCoord) * 1.4
   }
 
-  private def getTAZsCenters(srcTaz: TAZ, dstTaz: TAZ): (Coord, Coord) = {
-    val srcCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-      new Coord(srcTaz.coord.getX + Math.sqrt(srcTaz.areaInSquareMeters) / 3.0, srcTaz.coord.getY)
-    } else {
-      srcTaz.coord
-    }
-    val dstCoord = if (srcTaz.tazId.equals(dstTaz.tazId)) {
-      new Coord(
-        dstTaz.coord.getX - Math.sqrt(dstTaz.areaInSquareMeters) / 3.0,
-        dstTaz.coord.getY
-      )
-    } else {
-      dstTaz.coord
-    }
-    (srcCoord, dstCoord)
-  }
-
   private def getGeoIndexCenters(src: GeoIndex, dst: GeoIndex): (Coord, Coord) = {
     val srcGeoCenter = getGeoIndexCenter(src)
     val dstGeoCenter = getGeoIndexCenter(dst)
@@ -181,7 +186,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   private def populateSkimmer(skimmer: ODSkimmer): ODSkimmer = {
     val requestTime = (config.beam.urbansim.allTAZSkimsPeakHour * 3600).toInt
-    logger.info(s"There are ${h3Indexes.length} TAZs")
+    logger.info(s"There are ${h3Indexes.length} H3 indexes")
 
     val processedAtomic = new AtomicInteger(0)
     val computedRoutes = new AtomicInteger(0)
@@ -190,14 +195,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
     val started = System.currentTimeMillis()
 
-    val tazPairs = h3Indexes.flatMap { srcTaz =>
-      h3Indexes.map { dstTaz =>
-        (srcTaz.index, dstTaz.index)
-      }
-    }
-
-    val onePct = (tazPairs.length.toDouble * 0.01).toInt
-    logger.info(s"One percent from ${tazPairs.length} is $onePct")
+    val onePct = (h3IndexPairs.length.toDouble * 0.01).toInt
+    logger.info(s"One percent from ${h3IndexPairs.length} is $onePct")
     val nonEmptyRoutesPerType = Map[BeamMode, AtomicInteger](
       BeamMode.CAR          -> new AtomicInteger(0),
       BeamMode.WALK_TRANSIT -> new AtomicInteger(0),
@@ -206,10 +205,10 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
     val skimEvents = ProfilingUtils.timed("Creating skim events", logger.info(_)) {
       // The most outer loop will be executed in parallel `.par`
-      tazPairs.par
+      h3IndexPairs.par
         .flatMap {
-          case (srcTaz, dstTaz) =>
-            val (srcCoord, dstCoord) = getGeoIndexCenters(srcTaz, dstTaz)
+          case (srcGeoIndex, dstGeoIndex) =>
+            val (srcCoord, dstCoord) = getGeoIndexCenters(srcGeoIndex, dstGeoIndex)
             val dist = distanceWithMargin(srcCoord, dstCoord)
             val considerModes = beamModes.filter(mode => isDinstanceWithinRange(mode, dist))
             val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
@@ -225,7 +224,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
             if (processed > 0 && processed % onePct == 0) {
               val diff = System.currentTimeMillis() - started
               val rps = processed.toDouble / diff * 1000 // Average per second
-              val pct = 100 * processed.toDouble / tazPairs.length
+              val pct = 100 * processed.toDouble / h3IndexPairs.length
               logger.info(
                 s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
                   .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
@@ -251,7 +250,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
                     nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
 
                     val maybeEvent = try {
-                      Some(createSkimEvent(trip.tripClassifier, requestTime, trip))
+                      Some(createSkimEvent(srcGeoIndex, dstGeoIndex, trip.tripClassifier, requestTime, trip))
                     } catch {
                       case NonFatal(ex) =>
                         logger.error(s"Can't create skim event: ${ex.getMessage}", ex)
@@ -275,7 +274,13 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     skimmer
   }
 
-  private def createSkimEvent(beamMode: BeamMode, requestTime: Int, trip: EmbodiedBeamTrip): ODSkimmerEvent = {
+  private def createSkimEvent(
+    origin: GeoIndex,
+    destination: GeoIndex,
+    beamMode: BeamMode,
+    requestTime: Int,
+    trip: EmbodiedBeamTrip
+  ): ODSkimmerEvent = {
     // In case of CAR AND BIKE we have to create two dummy legs: walk to the CAR in the beginning and walk when CAR has arrived
     val theTrip = if (beamMode == BeamMode.CAR || beamMode == BeamMode.BIKE) {
       val actualLegs = trip.legs
@@ -307,18 +312,15 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
       .map(_.beamLeg.travelPath.distanceInM)
       .sum
-    logger.debug(
-      s"Observing skim from ${beamServices.beamScenario.tazTreeMap
-        .getTAZ(theTrip.legs.head.beamLeg.travelPath.startPoint.loc)
-        .tazId} to ${beamServices.beamScenario.tazTreeMap.getTAZ(theTrip.legs.last.beamLeg.travelPath.endPoint.loc).tazId} takes ${generalizedTime} seconds"
-    )
     ODSkimmerEvent(
-      requestTime,
-      beamServices,
-      theTrip,
-      generalizedTime,
-      generalizedCost,
-      energyConsumption
+      origin = origin.value,
+      destination = destination.value,
+      eventTime = requestTime,
+      trip = theTrip,
+      generalizedTimeInHours = generalizedTime,
+      generalizedCost = generalizedCost,
+      energyConsumption = energyConsumption,
+      skimName = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
     )
   }
 

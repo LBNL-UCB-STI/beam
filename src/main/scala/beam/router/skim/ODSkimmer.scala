@@ -40,7 +40,11 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
           skimFileBaseName + "Full.csv.gz"
         )
         val uniqueTimeBins: Seq[Int] = 0 to 23
-        writeFullSkims(uniqueTimeBins, event, filePath)
+        val origins = beamScenario.tazTreeMap.getTAZs
+          .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
+          .toSeq
+        // Yes, we pass origin also as destinations because we want skims between all possible taz pairs
+        writeFullSkims(origins, origins, uniqueTimeBins, filePath)
       }
     }
   }
@@ -52,8 +56,8 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
-        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+        origin = row("origTaz"),
+        destination = row("destTaz")
       ),
       ODSkimmerInternal(
         travelTimeInS = row("travelTimeInS").toDouble,
@@ -183,7 +187,12 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     }
   }
 
-  protected def writeFullSkims(uniqueTimeBins: Seq[Int], event: IterationEndsEvent, filePath: String): Unit = {
+  protected def writeFullSkims(
+    origins: Seq[GeoUnit],
+    destinations: Seq[GeoUnit],
+    uniqueTimeBins: Seq[Int],
+    filePath: String
+  ): Unit = {
     val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
     require(uniqueModes.nonEmpty, s"Expected to get ODSkimmerKey which contains modes")
     val dummyId = Id.create(
@@ -196,53 +205,52 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
       writer.write(skimFileHeader + "\n")
 
-      beamScenario.tazTreeMap.getTAZs
-        .foreach { origin =>
-          beamScenario.tazTreeMap.getTAZs.foreach { destination =>
-            uniqueModes.foreach { mode =>
-              uniqueTimeBins
-                .foreach { timeBin =>
-                  val theSkim: ODSkimmer.Skim = currentSkim
-                    .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
-                    .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
-                    .getOrElse {
-                      if (origin.equals(destination)) {
-                        val newDestCoord = new Coord(
-                          origin.coord.getX,
-                          origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+      origins.foreach { origin =>
+        destinations.foreach { destination =>
+          uniqueModes.foreach { mode =>
+            uniqueTimeBins
+              .foreach { timeBin =>
+                val theSkim: ODSkimmer.Skim = currentSkim
+                  .get(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
+                  .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
+                  .getOrElse {
+                    if (origin.equals(destination)) {
+                      val newDestCoord = new Coord(
+                        origin.center.getX,
+                        origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                      )
+                      readOnlySkim
+                        .asInstanceOf[ODSkims]
+                        .getSkimDefaultValue(
+                          mode,
+                          origin.center,
+                          newDestCoord,
+                          timeBin * 3600,
+                          dummyId,
+                          beamServices
                         )
-                        readOnlySkim
-                          .asInstanceOf[ODSkims]
-                          .getSkimDefaultValue(
-                            mode,
-                            origin.coord,
-                            newDestCoord,
-                            timeBin * 3600,
-                            dummyId,
-                            beamServices
-                          )
-                      } else {
-                        readOnlySkim
-                          .asInstanceOf[ODSkims]
-                          .getSkimDefaultValue(
-                            mode,
-                            origin.coord,
-                            destination.coord,
-                            timeBin * 3600,
-                            dummyId,
-                            beamServices
-                          )
-                      }
+                    } else {
+                      readOnlySkim
+                        .asInstanceOf[ODSkims]
+                        .getSkimDefaultValue(
+                          mode,
+                          origin.center,
+                          destination.center,
+                          timeBin * 3600,
+                          dummyId,
+                          beamServices
+                        )
                     }
+                  }
 
-                  //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,observations,iterations"
-                  writer.write(
-                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.count}\n"
-                  )
-                }
-            }
+                //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,observations,iterations"
+                writer.write(
+                  s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.count}\n"
+                )
+              }
           }
         }
+      }
     } catch {
       case NonFatal(ex) =>
         logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
@@ -263,7 +271,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     import scala.language.implicitConversions
     val individualSkims = hoursIncluded.map { timeBin =>
       currentSkim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -321,9 +329,8 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
 
 object ODSkimmer extends LazyLogging {
   // cases
-  case class ODSkimmerKey(hour: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])
-      extends AbstractSkimmerKey {
-    override def toCsv: String = hour + "," + mode + "," + originTaz + "," + destinationTaz
+  case class ODSkimmerKey(hour: Int, mode: BeamMode, origin: String, destination: String) extends AbstractSkimmerKey {
+    override def toCsv: String = hour + "," + mode + "," + origin + "," + destination
   }
   case class ODSkimmerInternal(
     travelTimeInS: Double,

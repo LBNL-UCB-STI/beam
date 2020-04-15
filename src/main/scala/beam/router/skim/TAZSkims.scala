@@ -5,7 +5,7 @@ import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
+case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
 
   def getLatestSkim(
     time: Int,

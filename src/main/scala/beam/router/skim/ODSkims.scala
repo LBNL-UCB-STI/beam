@@ -23,7 +23,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
+case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly() {
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -149,7 +149,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
   ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -204,9 +204,9 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     pastSkims
-      .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+      .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .headOption
-      .getOrElse(aggregatedSkim.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+      .getOrElse(aggregatedSkim.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .map(_.asInstanceOf[ODSkimmerInternal])
   }
 

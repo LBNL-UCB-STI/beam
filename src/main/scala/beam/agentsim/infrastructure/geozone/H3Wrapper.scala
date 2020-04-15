@@ -41,6 +41,10 @@ object H3Wrapper {
       .toSet
   }
 
+  /**
+    * Find the latitude, longitude (degrees) center point of the cell.
+    * @param index H3 Index
+    */
   def hexToCoord(index: GeoIndex): Coord = {
     val coordinate = GeoZoneUtil.toJtsCoordinate(h3Core.h3ToGeo(index.value))
     new Coord(coordinate.x, coordinate.y)

@@ -1,19 +1,21 @@
 package beam.router.skim
 
+import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 
 case class ODSkimmerEvent(
+  origin: String,
+  destination: String,
   eventTime: Double,
-  beamServices: BeamServices,
   trip: EmbodiedBeamTrip,
   generalizedTimeInHours: Double,
   generalizedCost: Double,
-  energyConsumption: Double
-) extends AbstractSkimmerEvent(eventTime, beamServices) {
-  override protected val skimName: String = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
+  energyConsumption: Double,
+  override val skimName: String
+) extends AbstractSkimmerEvent(eventTime) {
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
@@ -25,29 +27,13 @@ case class ODSkimmerEvent(
     generalizedCost: Double,
     energyConsumption: Double
   ): (ODSkimmerKey, ODSkimmerInternal) = {
-    import beamServices._
     val mode = trip.tripClassifier
-    val correctedTrip = mode match {
-      case WALK =>
-        trip
-      case _ =>
-        val legs = trip.legs.drop(1).dropRight(1)
-        EmbodiedBeamTrip(legs)
-    }
+    val correctedTrip = ODSkimmerEvent.correctTrip(trip, mode)
     val beamLegs = correctedTrip.beamLegs
     val origLeg = beamLegs.head
-    val origCoord = geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
-    val origTaz = beamScenario.tazTreeMap
-      .getTAZ(origCoord.getX, origCoord.getY)
-      .tazId
-    val destLeg = beamLegs.last
-    val destCoord = geo.wgs2Utm(destLeg.travelPath.endPoint.loc)
-    val destTaz = beamScenario.tazTreeMap
-      .getTAZ(destCoord.getX, destCoord.getY)
-      .tazId
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
-    val key = ODSkimmerKey(timeBin, mode, origTaz, destTaz)
+    val key = ODSkimmerKey(timeBin, mode, origin, destination)
     val payload =
       ODSkimmerInternal(
         travelTimeInS = correctedTrip.totalTravelTimeInSecs.toDouble,
@@ -58,5 +44,51 @@ case class ODSkimmerEvent(
         energy = energyConsumption
       )
     (key, payload)
+  }
+}
+
+object ODSkimmerEvent {
+
+  def correctTrip(trip: EmbodiedBeamTrip, mode: Modes.BeamMode): EmbodiedBeamTrip = {
+    val correctedTrip = mode match {
+      case WALK =>
+        trip
+      case _ =>
+        val legs = trip.legs.drop(1).dropRight(1)
+        EmbodiedBeamTrip(legs)
+    }
+    correctedTrip
+  }
+
+  def forTaz(
+    eventTime: Double,
+    beamServices: BeamServices,
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): ODSkimmerEvent = {
+    import beamServices._
+    val beamLegs = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier).beamLegs
+    val origLeg = beamLegs.head
+    val origCoord = geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
+    val origTaz = beamScenario.tazTreeMap
+      .getTAZ(origCoord.getX, origCoord.getY)
+      .tazId
+    val destLeg = beamLegs.last
+    val destCoord = geo.wgs2Utm(destLeg.travelPath.endPoint.loc)
+    val destTaz = beamScenario.tazTreeMap
+      .getTAZ(destCoord.getX, destCoord.getY)
+      .tazId
+    ODSkimmerEvent(
+      origin = origTaz.toString,
+      destination = destTaz.toString,
+      eventTime = eventTime,
+      trip = trip,
+      generalizedTimeInHours = generalizedTimeInHours,
+      generalizedCost = generalizedCost,
+      energyConsumption = energyConsumption,
+      skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
+    )
   }
 }
