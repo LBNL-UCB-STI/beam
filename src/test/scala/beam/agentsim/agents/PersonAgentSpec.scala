@@ -516,7 +516,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
-      expectMsgType[Terminated]
+      expectTerminated(iteration)
     }
 
     it("should also work when the first bus is late") {
@@ -840,7 +840,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
-      expectMsgType[Terminated]
+      expectTerminated(iteration)
     }
 
   }
