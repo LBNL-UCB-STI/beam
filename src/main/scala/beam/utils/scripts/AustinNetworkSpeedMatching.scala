@@ -94,7 +94,7 @@ object AustinNetworkSpeedMatching {
     val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
     speedVectors.foreach {
       speedVector =>
-        speedDataPoints ++= speedVector.produceSpeedDataPointFromSpeedVector(5)
+        speedDataPoints ++= speedVector.produceSpeedDataPointFromSpeedVector(500)
     }
     speedDataPoints
   }
@@ -102,10 +102,6 @@ object AustinNetworkSpeedMatching {
   def getPhyssimSpeedVector(network: Network): ArrayBuffer[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
 
-
-
-
-    //TODO: do coordinate conversion!
     network.getLinks.values().asScala.toVector.foreach { link =>
       //speedVectors += SpeedVector(link.getId, geoUtils.utm2Wgs(link.getFromNode.getCoord), geoUtils.utm2Wgs(link.getToNode.getCoord), link.getFreespeed)
       speedVectors += SpeedVector(link.getId, link.getFromNode.getCoord, link.getToNode.getCoord, link.getFreespeed)
@@ -180,6 +176,7 @@ object AustinNetworkSpeedMatching {
     }
 
     ShapeFileWriter.writeGeometries(features.asJava,outputFile)
+    println(s"shapefile created:$outputFile")
   }
 
   def mapMatchingAlgorithm(physsimSpeedVector: ArrayBuffer[SpeedVector], referenceSpeedVector: ArrayBuffer[SpeedVector], network: Network, outputFilePath: String): Unit = {
@@ -187,8 +184,9 @@ object AustinNetworkSpeedMatching {
     val physsimNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
     val referenceNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
 
-    createShapeFileForDataPoints(physsimNetworkDP,"outputFilePath" + "phySimDataPoints.shp")
-    createShapeFileForDataPoints(referenceNetworkDP,"outputFilePath" + "referenceNetwork.shp")
+   // createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
+
+   // createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
     val physsimQuadTreeDP: QuadTree[SpeedDataPoint] = new QuadTree[SpeedDataPoint](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
@@ -198,7 +196,8 @@ object AustinNetworkSpeedMatching {
 
     val distanceArray: ArrayBuffer[Double] = ArrayBuffer()
 
-
+    val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
+    val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
 
 
     referenceNetworkDP.foreach {
@@ -211,9 +210,13 @@ object AustinNetworkSpeedMatching {
         if (distanceInMeters < 100) {
           closestPhysSimNetworkPoint.closestReferenceSpeeds.get += referenceSpeedDataPoint.speedInMetersPerSecond
         } else {
-
+          selectedPhysSimPointsForDebugging+=closestPhysSimNetworkPoint
+          selectedReferencePointsForDebugging+=referenceSpeedDataPoint
         }
     }
+
+   // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
+   // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
 
     println(Statistics(distanceArray))
     //resolution 10: 3265460, [0.01, 1405.37], median: 12.00, avg: 31.25, p75: 33.21, p95: 121.46, p99: 282.25, p99.95: 638.91, p99.99: 795.56, sum: 102038356.17
@@ -221,14 +224,16 @@ object AustinNetworkSpeedMatching {
     //writeComparisonOSMVsReferenceSpeedsDataPoints(outputFilePath, physsimQuadTreeDP, network)
 
 
+    // TODO: do correction for both directions of same link
+
     writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, network)
 
     //
 
-    // do correction for both directions of same link
 
-
-    //TODO: write link_id,capacity,free_speed,length
+    //
+    //
+    //    //TODO: write link_id,capacity,free_speed,length
 
   }
 
