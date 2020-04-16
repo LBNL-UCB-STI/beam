@@ -19,7 +19,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
-    private static  double matriXDataSet[][] ;
+    private static double[][] matriXDataSet;
 
     final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
