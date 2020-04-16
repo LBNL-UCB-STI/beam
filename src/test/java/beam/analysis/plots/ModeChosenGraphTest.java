@@ -108,8 +108,8 @@ public class ModeChosenGraphTest {
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
-        int expectedResultOfMode[] = {17, 0, 2, 1};
-        int actualResultOfMode[] = new int[4];
+        int[] expectedResultOfMode = {17, 0, 2, 1};
+        int[] actualResultOfMode = new int[4];
         int maxHour = getMaxHour(stats.keySet());
         actualResultOfMode[0] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.CAR, maxHour, 6, stats);
         actualResultOfMode[1] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.DRIVE_TRANS, maxHour, 6, stats);
