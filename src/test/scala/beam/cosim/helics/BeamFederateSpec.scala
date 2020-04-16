@@ -39,7 +39,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
       f2Result <- f2
     } yield (f1Result, f2Result)
     try {
-      Await.result(aggregatedFuture, 2.minutes)
+      Await.result(aggregatedFuture, 5.minutes)
     } catch {
       case _: TimeoutException =>
         assume(false, "something went wrong with the cosimulation")
@@ -47,7 +47,6 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   private def runCosimulationTest(config: Config) = {
-    Thread.sleep(1000)
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)

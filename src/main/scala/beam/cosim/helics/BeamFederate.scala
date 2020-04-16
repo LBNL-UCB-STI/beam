@@ -15,7 +15,6 @@ import scala.collection.mutable
 object BeamFederate {
   case class BeamFederateTrigger(tick: Int) extends Trigger
   var beamFed = Option.empty[BeamFederate]
-
   def getInstance(beamServices: BeamServices): BeamFederate = {
     if (beamFed.isEmpty) {
       HelicsLoader.load()
@@ -38,16 +37,20 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   helics.helicsFederateInfoSetCoreInitString(fedInfo, "--federates=1")
   helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), 1.0)
   helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), 1)
+  logger.debug(s"FederateInfo created")
   private val fedComb = helics.helicsCreateCombinationFederate(fedName, fedInfo)
-
+  logger.debug(s"CombinationFederate created")
   // ******
   // register new BEAM events here
   registerEvent(ChargingPlugInEvent.EVENT_TYPE, "chargingPlugIn")
   registerEvent(ChargingPlugOutEvent.EVENT_TYPE, "chargingPlugOut")
+  registerEvent(RefuelSessionEvent.EVENT_TYPE, "refuelSession")
   // ******
 
   helics.helicsFederateEnterInitializingMode(fedComb)
+  logger.debug(s"Federate initialized and wait for Executing Mode to be granted")
   helics.helicsFederateEnterExecutingMode(fedComb)
+  logger.debug(s"Federate successfully entered the Executing Mode")
 
   // publish
   def publish(event: Event, currentTime: Double) = {
@@ -61,13 +64,15 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
         case _                     =>
       }
     } else {
-      logger.error(s"the event '${event.getEventType}' is not registered in BeamFederate")
+      logger.error(s"the event '${event.getEventType}' was not registered")
     }
   }
 
   def syncAndMoveToNextTimeStep(time: Int): Int = {
     var currentTime = -1.0
+    logger.debug(s"requesting the time $time from the broker")
     while (currentTime < time) currentTime = helics.helicsFederateRequestTime(fedComb, time)
+    logger.debug(s"the time $time granted was $currentTime")
     fedTimeStep * (1 + (currentTime / fedTimeStep).toInt)
   }
 
@@ -75,6 +80,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     helics.helicsFederateFinalize(fedComb)
     helics.helicsFederateFree(fedComb)
     helics.helicsCloseLibrary()
+    logger.debug(s"closing BeamFederate")
   }
 
   private def publishChargingEvent(
@@ -87,7 +93,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val pubVar = s"$vehId,$socInJoules,${taz.coord.getY},${taz.coord.getX}" // VEHICLE,SOC,LAT,LONG
     helics.helicsPublicationPublishString(registeredEvents(eventType), pubVar)
-    logger.info(s"publishing at $currentTime the value $pubVar")
+    logger.debug(s"publishing at $currentTime the value $pubVar")
   }
 
   private def registerEvent(eventType: String, pubName: String): Unit = {
@@ -95,5 +101,6 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
       eventType,
       helics.helicsFederateRegisterPublication(fedComb, pubName, helics_data_type.helics_data_type_string, "")
     )
+    logger.debug(s"registering $pubName to CombinationFederate")
   }
 }
