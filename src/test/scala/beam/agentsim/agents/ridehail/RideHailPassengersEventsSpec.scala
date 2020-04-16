@@ -86,42 +86,28 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
     "keep single seat count" in {
       val events = TrieMap[String, Int]()
-
       initialSetup(new BasicEventHandler {
-
         override def handleEvent(event: Event): Unit = {
           event match {
-            case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
-              val id = enterEvent.getVehicleId.toString
-//              events.get(id) shouldBe None
-              events.put(id, 1)
+            case enterEvent: PersonEntersVehicleEvent =>
+              val vid = enterEvent.getVehicleId.toString
+              val uid = enterEvent.getPersonId.toString
+              if(vid.startsWith("rideHailVehicle") && !uid.startsWith("rideHailAgent")) {
+                events.get(uid) shouldBe None
+                events.put(uid, 1)
+              }
             case leavesEvent: PersonLeavesVehicleEvent =>
-              val id = leavesEvent.getVehicleId.toString
-//              events.contains(id) shouldBe true
-              events.remove(id)
+              val vid = leavesEvent.getVehicleId.toString
+              val uid = leavesEvent.getPersonId.toString
+              if(vid.startsWith("rideHailVehicle") && !uid.startsWith("rideHailAgent")) {
+                events.contains(uid) shouldBe true
+                events.remove(uid)
+              }
             case _ =>
           }
         }
-
         Unit
       })
-      events.isEmpty shouldBe true
-    }
-
-    "all passengers leave" in {
-      val events = mutable.Set[String]()
-
-      initialSetup {
-        case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
-          val vid = enterEvent.getVehicleId.toString
-          val uid = enterEvent.getPersonId.toString
-          events += s"$vid.$uid"
-        case leavesEvent: PersonLeavesVehicleEvent =>
-          val vid = leavesEvent.getVehicleId.toString
-          val uid = leavesEvent.getPersonId.toString
-          events -= s"$vid.$uid"
-        case _ =>
-      }
       events.isEmpty shouldBe true
     }
   }
