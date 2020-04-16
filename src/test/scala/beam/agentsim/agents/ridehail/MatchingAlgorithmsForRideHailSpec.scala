@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
+import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -32,7 +32,7 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
            |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
            |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
            |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 4
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 4
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -50,7 +50,7 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -68,7 +68,7 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle = 1000
+          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -95,8 +95,8 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     implicit val actorRef = ActorRef.noSender
     Skims.setup
     val sc = MatchingAlgorithmsForRideHailSpec.scenario1
-    val alg: AlonsoMoraPoolingAlgForRideHail =
-      new AlonsoMoraPoolingAlgForRideHail(
+    val alg: AlonsoMoraMatchingWithMIPAssignment =
+      new AlonsoMoraMatchingWithMIPAssignment(
         MatchingAlgorithmsForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
         services
@@ -206,7 +206,7 @@ object MatchingAlgorithmsForRideHailSpec {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      RHMatchingToolkit.createVehicleAndSchedule(
+      RideHailMatching.createVehicleAndSchedule(
         "v1",
         vehicleType,
         new Coord(5000, 5000),
@@ -215,7 +215,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4
       )
     val v2: VehicleAndSchedule =
-      RHMatchingToolkit.createVehicleAndSchedule(
+      RideHailMatching.createVehicleAndSchedule(
         "v2",
         vehicleType,
         new Coord(2000, 2000),
@@ -224,7 +224,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4
       )
     val p1Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
@@ -232,7 +232,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p4Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
@@ -240,7 +240,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p2Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
@@ -248,7 +248,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p3Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
@@ -267,7 +267,7 @@ object MatchingAlgorithmsForRideHailSpec {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      RHMatchingToolkit.createVehicleAndSchedule(
+      RideHailMatching.createVehicleAndSchedule(
         "v1",
         vehicleType,
         new Coord(5000, 5000),
@@ -276,7 +276,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4
       )
     val v2: VehicleAndSchedule =
-      RHMatchingToolkit.createVehicleAndSchedule(
+      RideHailMatching.createVehicleAndSchedule(
         "v2",
         vehicleType,
         new Coord(2000, 2000),
@@ -285,7 +285,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4
       )
     val p1Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p1"),
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
@@ -293,7 +293,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p4Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p4"),
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
@@ -301,7 +301,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p2Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p2"),
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
@@ -309,7 +309,7 @@ object MatchingAlgorithmsForRideHailSpec {
         services
       )
     val p3Req: CustomerRequest =
-      RHMatchingToolkit.createPersonRequest(
+      RideHailMatching.createPersonRequest(
         makeVehPersonId("p3"),
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
