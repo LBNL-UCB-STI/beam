@@ -15,6 +15,7 @@ import scala.collection.mutable
 object BeamFederate {
   case class BeamFederateTrigger(tick: Int) extends Trigger
   var beamFed = Option.empty[BeamFederate]
+
   def getInstance(beamServices: BeamServices): BeamFederate = {
     if (beamFed.isEmpty) {
       HelicsLoader.load()
