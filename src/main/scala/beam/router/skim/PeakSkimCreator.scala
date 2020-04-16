@@ -92,9 +92,10 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           val hour = config.beam.urbansim.allTAZSkimsPeakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
           val origins = h3Indexes.map { h3Index =>
-            val center = H3Wrapper.hexToCoord(h3Index.index)
+            val wgsCenter = H3Wrapper.hexToCoord(h3Index.index)
+            val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
             val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
-            GeoUnit.H3(h3Index.index.value, center, areaInSquareMeters)
+            GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
           }
           writeFullSkims(origins, origins, uniqueTimeBins, filePath)
           logger.info(
