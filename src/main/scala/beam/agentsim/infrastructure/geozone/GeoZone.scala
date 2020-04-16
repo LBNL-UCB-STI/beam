@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.geozone
 import scala.collection.parallel.ParSet
 
 import H3Wrapper.geoToH3Address
+import beam.agentsim.infrastructure.geozone.GeoZone.GeoZoneContent
 
 class GeoZone(coordinates: ParSet[WgsCoordinate]) {
 
@@ -20,11 +21,7 @@ class GeoZone(coordinates: ParSet[WgsCoordinate]) {
     expectedNumberOfBuckets: Int,
     initialResolution: Int = 2
   ): TopDownEqualDemandsGeoZoneHexGenerator = {
-    val allContent = GeoZone.generateContent(coordinates, initialResolution)
-    val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
-      case (index, points) => HexagonLeaf(index, points)
-    }.toIndexedSeq
-    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, expectedNumberOfBuckets)
+    TopDownEqualDemandsGeoZoneHexGenerator.from(coordinates, expectedNumberOfBuckets, initialResolution)
   }
 
 }
@@ -51,4 +48,10 @@ object GeoZone {
     }
   }
 
+  private[geozone] def mapCoordinateToIndex(content: GeoZoneContent): Map[WgsCoordinate, GeoIndex] = {
+    content.flatMap {
+      case (index, coordinates) =>
+        coordinates.map(coordinate => (coordinate, index))
+    }
+  }
 }

@@ -1,5 +1,9 @@
 package beam.agentsim.infrastructure.geozone
 
+import scala.collection.parallel.ParSet
+
+import beam.agentsim.infrastructure.geozone.GeoZone.GeoZoneContent
+
 class TopDownEqualDemandsGeoZoneHexGenerator private[geozone] (
   initialContent: IndexedSeq[HexagonLeaf],
   bucketsGoal: Int,
@@ -20,16 +24,43 @@ class TopDownEqualDemandsGeoZoneHexGenerator private[geozone] (
     result
   }
 
-  def numberOfPoints(elements: Seq[Hexagon[_]]): Int = {
+  private def numberOfPoints(elements: Seq[Hexagon[_]]): Int = {
     elements.map(_.totalNumberOfCoordinates).sum
   }
 
-  override def generate(): GeoZoneSummary = {
+  override def generateSummary(): GeoZoneSummary = {
     val elements = generateEqualDemandH3Indexes()
     val onlyLeaf = elements.map { hexagon =>
       GeoZoneSummaryItem(hexagon.index, hexagon.totalNumberOfCoordinates)
     }
     GeoZoneSummary(onlyLeaf)
+  }
+
+  def generateContent(): GeoZoneContent = {
+    val elements = generateEqualDemandH3Indexes()
+    elements
+      .filter(_.isInstanceOf[HexagonLeaf])
+      .map { hexagon =>
+        val leaf = hexagon.asInstanceOf[HexagonLeaf]
+        (hexagon.index, leaf.coordinates)
+      }
+      .toMap
+  }
+
+}
+
+object TopDownEqualDemandsGeoZoneHexGenerator {
+
+  def from(
+    coordinates: ParSet[WgsCoordinate],
+    expectedNumberOfBuckets: Int,
+    initialResolution: Int
+  ): TopDownEqualDemandsGeoZoneHexGenerator = {
+    val allContent: GeoZoneContent = GeoZone.generateContent(coordinates, initialResolution)
+    val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
+      case (index, points) => HexagonLeaf(index, points)
+    }.toIndexedSeq
+    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, expectedNumberOfBuckets)
   }
 
 }

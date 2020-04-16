@@ -12,10 +12,10 @@ class GeoZoneSpec extends WordSpec with Matchers {
     "parse coordinates from austin and properly generate already tested GIS file" in {
       FileUtils.usingTemporaryDirectory { tmpFolder =>
         val csvPath = Paths.get("test", "input", "geozone", "austin.csv")
-        val wgsCoordinates = GeoZoneUtil.readWgsCoordinatesFromCsv(csvPath)
+        val wgsCoordinates: Set[WgsCoordinate] = GeoZoneUtil.readWgsCoordinatesFromCsv(csvPath)
         val summary = new GeoZone(wgsCoordinates).includeBoundBoxPoints
           .topDownEqualDemandsGenerator(1000)
-          .generate()
+          .generateSummary()
 
         val expectedIndexes = 1003
         val expectedIndexAtResolution9 = 28
