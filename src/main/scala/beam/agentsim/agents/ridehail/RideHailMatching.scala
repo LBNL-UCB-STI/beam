@@ -2,14 +2,14 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents._
 import beam.agentsim.agents.planning.Trip
+import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.skim.Skims
+import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
@@ -24,12 +24,17 @@ import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-object RHMatchingToolkit {
+abstract class RideHailMatching(services: BeamServices) extends LazyLogging {
+  // Methods below should be kept as def (instead of val) to allow automatic value updating
+  protected def solutionSpaceSizePerVehicle: Int =
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle
+  protected def waitingTimeInSec: Int =
+    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+  protected def searchRadius: Double = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
+  def matchAndAssign(tick: Int): Future[List[RideHailTrip]]
+}
 
-  trait RHMatchingAlgorithm extends LazyLogging {
-    def matchAndAssign(tick: Int): Future[List[RideHailTrip]]
-  }
-
+object RideHailMatching {
   // ***** Graph Structure *****
   sealed trait RTVGraphNode {
     def getId: String
@@ -144,7 +149,7 @@ object RHMatchingToolkit {
         r =>
           mainTasks
             .filter(_.pickupRequest.isDefined)
-            .exists(m => RHMatchingToolkit.checkAngle(center, m.activity.getCoord, r.dropoff.activity.getCoord))
+            .exists(m => checkAngle(center, m.activity.getCoord, r.dropoff.activity.getCoord))
       )
     } else {
       // if vehicle is empty, prioritize the destination of the current closest customers
@@ -154,9 +159,7 @@ object RHMatchingToolkit {
         .map(
           r1 =>
             r1 +: customers.filter(
-              r2 =>
-                r1 != r2 && RHMatchingToolkit
-                  .checkAngle(center, r1.dropoff.activity.getCoord, r2.dropoff.activity.getCoord)
+              r2 => r1 != r2 && checkAngle(center, r1.dropoff.activity.getCoord, r2.dropoff.activity.getCoord)
           )
         )
         .sortBy(-_.size)
@@ -229,10 +232,9 @@ object RHMatchingToolkit {
     dst: Location,
     beamServices: BeamServices
   ): CustomerRequest = {
-    val alonsoMora: AllocationManager.AlonsoMora =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-    val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.excessRideTimeAsFraction
+    val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+    val travelTimeDelayAsFraction =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
 
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
@@ -293,10 +295,9 @@ object RHMatchingToolkit {
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
 
-    val alonsoMora: AllocationManager.AlonsoMora =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-    val waitingTimeInSec = alonsoMora.waitingTimeInSec
-    val travelTimeDelayAsFraction = alonsoMora.excessRideTimeAsFraction
+    val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+    val travelTimeDelayAsFraction =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
 
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach {

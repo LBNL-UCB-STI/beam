@@ -35,7 +35,7 @@ case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(
     key: String
   ): Option[TAZSkimmerInternal] = {
     beamServices.beamScenario.h3taz
-      .getHRHex(taz)
+      .getIndices(taz)
       .flatMap(hex => getLatestSkim(time, taz, hex, actor, key))
       .foldLeft[Option[TAZSkimmerInternal]](None) {
         case (acc, skimInternal) =>
