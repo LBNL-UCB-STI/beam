@@ -961,7 +961,7 @@ class PersonAgent(
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           eventsManager.processEvent(
-            ODSkimmerEvent(
+            ODSkimmerEvent.forTaz(
               tick,
               beamServices,
               correctedTrip,

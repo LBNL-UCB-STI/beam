@@ -9,6 +9,7 @@ import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
+import beam.router.skim.PeakSkimCreator;
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
@@ -40,6 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -195,6 +199,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
+        if (shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
+            writeTravelTimeMap(iterationNumber, travelTimeMap);
+            PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, travelTimeForR5);
+            psc.write(iterationNumber);
+        }
 
         router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
@@ -224,6 +233,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+    }
+
+    private void writeTravelTimeMap(int iteration, Map<String,double[]> map) {
+        String filePath = controlerIO.getIterationFilename(iteration, "travelTime.bin");
+        try (FileOutputStream fos= new FileOutputStream(filePath)) {
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(map);
+            oos.flush();
+            oos.close();
+        } catch (Exception ex) {
+            log.error("Can't write travel time map", ex);
+        }
     }
 
     private boolean shouldWritePlans(int iterationNumber) {

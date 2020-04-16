@@ -27,16 +27,14 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime)
-    with ScalaEvent {
+abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyLogging {
+abstract class AbstractSkimmerReadOnly extends LazyLogging {
   protected[skim] val pastSkims: mutable.ListBuffer[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()

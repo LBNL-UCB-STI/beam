@@ -35,15 +35,8 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Coord
-import org.matsim.core.controler.Controler
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
-import org.matsim.core.population.PopulationUtils
-import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.utils.objectattributes.attributable.AttributesUtils
 //import com.zaxxer.nuprocess.NuProcess
+import org.matsim.api.core.v01.Coord
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
