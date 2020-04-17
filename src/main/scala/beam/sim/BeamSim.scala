@@ -4,12 +4,12 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Identify}
+import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.CarRideStatsFromPathTraversalEventHandler
+import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -19,8 +19,10 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
-import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
-import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
+import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
+//import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
+//import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
@@ -28,6 +30,11 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
+import org.matsim.core.population.PopulationUtils
+import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -60,6 +67,7 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
+  private val beamScenario: BeamScenario,
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
@@ -85,19 +93,32 @@ class BeamSim @Inject()(
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   val graphFileNameDirectory = mutable.Map[String, Int]()
-  var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
+  // var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
   val runningPythonScripts = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
-  val carTravelTimeFromPte: CarRideStatsFromPathTraversalEventHandler =
-    new CarRideStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+  val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
+    new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+
+  var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   override def notifyStartup(event: StartupEvent): Unit = {
+    maybeConsecutivePopulationLoader =
+      if (beamServices.beamConfig.beam.physsim.relaxation.`type` == "consecutive_increase_of_population") {
+        val consecutivePopulationLoader = new ConsecutivePopulationLoader(
+          scenario,
+          Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0),
+          new java.util.Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+        )
+        consecutivePopulationLoader.cleanScenario()
+        consecutivePopulationLoader.load()
+        Some(consecutivePopulationLoader)
+      } else None
 
-    metricsPrinter ! Subscribe("counter", "**")
-    metricsPrinter ! Subscribe("histogram", "**")
+//    metricsPrinter ! Subscribe("counter", "**")
+//    metricsPrinter ! Subscribe("histogram", "**")
 
     eventsManager.addHandler(rideHailUtilizationCollector)
     eventsManager.addHandler(carTravelTimeFromPte)
@@ -174,11 +195,21 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
+    // These metric are used to display all other metrics in Grafana.
+    // For example take a look to `run_name` variable in the dashboard
+    BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
+
     FailFast.run(beamServices)
     Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    if (event.getIteration > 0) {
+      maybeConsecutivePopulationLoader.foreach { cpl =>
+        cpl.load()
+        agentSimToPhysSimPlanConverter.buildPersonToHousehold()
+      }
+    }
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
@@ -200,6 +231,8 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+
+    beamServices.simMetricCollector.clear()
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -297,12 +330,12 @@ class BeamSim @Inject()(
     }
 
     //    Tracer.currentContext.finish()
-    metricsPrinter ! Print(
-      Seq(
-        "r5-plans-count"
-      ),
-      Nil
-    )
+//    metricsPrinter ! Print(
+//      Seq(
+//        "r5-plans-count"
+//      ),
+//      Nil
+//    )
     //rename output files generated by matsim to follow the standard naming convention of camel case
     renameGeneratedOutputFiles(event)
 
@@ -314,6 +347,9 @@ class BeamSim @Inject()(
     delayMetricAnalysis.generateDelayAnalysis(event)
 
     writeEventsAnalysisUsing(event)
+
+    // Clear the state of private vehicles because they are shared across iterations
+    beamServices.beamScenario.privateVehicles.values.foreach(_.resetState())
   }
 
   private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
@@ -364,6 +400,8 @@ class BeamSim @Inject()(
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
 
+    GraphReadmeGenerator.generateGraphReadme(event.getServices.getControlerIO.getOutputPath)
+
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
     beamOutputDataDescriptionGenerator.generateDescriptors(event)
@@ -401,6 +439,8 @@ class BeamSim @Inject()(
       })
 
     Skims.clear()
+
+    beamServices.simMetricCollector.close()
   }
 
   private def writeSummaryVehicleStats(summaryVehicleStatsFile: File): immutable.HashSet[String] = {

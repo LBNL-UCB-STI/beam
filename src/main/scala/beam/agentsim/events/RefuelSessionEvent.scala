@@ -10,7 +10,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class RefuelSessionEvent(
+case class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
   val energyInJoules: Double,

@@ -307,9 +307,9 @@ def pltLdvRhOccupancy(_plt_setup3, _output_folder):
     #     plt.bar(x=top_labels_xpos, height=data['rh_2p'], bottom=data[['non_rh_ldv', 'rh_1p']].sum(axis=1), hatch='xxx', fill=False, linewidth=0)
     #     plt.bar(x=top_labels_xpos, height=data['rh_3p'], bottom=data[['non_rh_ldv', 'rh_1p', 'rh_2p']].sum(axis=1), hatch='|||', fill=False, linewidth=0)
     #     plt.bar(x=top_labels_xpos, height=data['rh_4p'], bottom=data[['non_rh_ldv', 'rh_1p', 'rh_2p', 'rh_3p']].sum(axis=1), hatch='....', fill=False, linewidth=0)
-    #     shared_2p = mpatches.Patch(facecolor='white', label='The white data', hatch='xxx')
-    #     shared_3p = mpatches.Patch(facecolor='white', label='The white data', hatch='|||')
-    #     shared_4p = mpatches.Patch(facecolor='white', label='The white data', hatch='....')
+    #     shared_2p = mpatches.Patch(facecolor='white', key='The white data', hatch='xxx')
+    #     shared_3p = mpatches.Patch(facecolor='white', key='The white data', hatch='|||')
+    #     shared_4p = mpatches.Patch(facecolor='white', key='The white data', hatch='....')
 
     plt.xticks(bottom_labels_xpos, bottom_labels, rotation=angle, ha=horizontal_align)
     #     plt.legend((plt_non_rh_ldv, plt_rh_1p, plt_rh_shared, shared_2p, shared_3p, shared_4p),

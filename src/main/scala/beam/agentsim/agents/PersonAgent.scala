@@ -42,7 +42,6 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-import org.matsim.vehicles.Vehicle
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
@@ -51,7 +50,7 @@ import scala.concurrent.duration._
   */
 object PersonAgent {
 
-  type VehicleStack = Vector[Id[Vehicle]]
+  type VehicleStack = Vector[Id[BeamVehicle]]
 
   def props(
     scheduler: ActorRef,
@@ -213,12 +212,14 @@ object PersonAgent {
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
           .dummyLegAt(
-            endTime,
+            endTime - trip.legs.last.beamLeg.duration,
             bodyVehicleId,
-            true,
+            isLastLeg = true,
             trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc,
             WALK,
-            bodyVehicleTypeId
+            bodyVehicleTypeId,
+            asDriver = true,
+            trip.legs.last.beamLeg.duration
           )
       )
     } else {
@@ -261,7 +262,7 @@ class PersonAgent(
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType
   )
-  body.manager = Some(self)
+  body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
 
   val attributes: AttributesOfIndividual =
@@ -674,7 +675,7 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.manager.get ! _)
+        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -682,9 +683,9 @@ class PersonAgent(
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
             if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
           }
-          if (!currentBeamVehicle.mustBeDrivenHome) {
+          if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
-            currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
+            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
             beamVehicles -= data.currentVehicle.head
           }
         }
@@ -838,22 +839,21 @@ class PersonAgent(
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
-      val departAt = legSegment.head.beamLeg.startTime
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
         PersonIdWithActorRef(id, self),
         beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
-        departAt,
+        _currentTick.get,
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
         nextLeg.isPooledTrip
       )
 
       eventsManager.processEvent(
         new ReserveRideHailEvent(
-          _currentTick.getOrElse(departAt).toDouble,
+          _currentTick.get.toDouble,
           id,
-          departAt,
+          _currentTick.get,
           nextLeg.beamLeg.travelPath.startPoint.loc,
           legSegment.last.beamLeg.travelPath.endPoint.loc
         )
@@ -1000,7 +1000,7 @@ class PersonAgent(
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
                   beamVehicles -= personalVeh.id
-                  personalVeh.manager.get ! ReleaseVehicle(personalVeh)
+                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
                   None
                 } else {
                   currentTourPersonalVehicle
