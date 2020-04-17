@@ -39,6 +39,8 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
+import beam.router.Modes.BeamMode
+import beam.router.skim.{Skims, SkimsUtils, TAZSkimmerEvent}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -270,8 +272,9 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
+  val radiusInMeters
+    : Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec * SkimsUtils
+    .speedMeterPerSec(BeamMode.CAV)
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
