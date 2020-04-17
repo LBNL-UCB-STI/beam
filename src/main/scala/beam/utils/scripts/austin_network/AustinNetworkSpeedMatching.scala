@@ -1,39 +1,70 @@
-package beam.utils.scripts
+package beam.utils.scripts.austin_network
 
 import java.io.{File, PrintWriter}
-import java.util
-import java.util.Collection
 
-import beam.agentsim.infrastructure.geozone.GeoZoneUtil
 import beam.sim.common.GeoUtils
 import beam.utils.Statistics
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import org.matsim.api.core.v01.{Coord, Id}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.NetworkReaderMatsimV2
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
-import org.matsim.core.utils.gis.{PointFeatureFactory, PolygonFeatureFactory, ShapeFileWriter}
+import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.io.Source
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
 
 object AustinNetworkSpeedMatching {
 
+  /*
+  splitVectorsIntoPices: 50
+  9:02:41.865 INFO  hsqldb.db.HSQLDB4AD417742A.ENGINE - dataFileCache open start
+19:02:44.359 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start produceSpeedDataPointFromSpeedVector.physsimNetworkDP
+19:02:51.491 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start produceSpeedDataPointFromSpeedVector.referenceNetworkDP
+19:03:20.239 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start quadTreeBounds
+19:04:41.218 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start closestPhysSimPointMap
+19:04:50.090 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - end closestPhysSimPointMap
+19:05:02.122 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - end referenceNetworkDP.foreach
+19:05:03.945 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - numOfValues: 15139860, [0.00, 1404.50], median: 8.75, avg: 28.78, p75: 29.93, p95: 118.68, p99: 279.68, p99.95: 636.09, p99.99: 793.99, sum: 435749883.14
+
+
+===
+
+19:08:25.605 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - splitVectorsIntoPices: 100
+19:08:33.671 INFO  hsqldb.db.HSQLDB4AD417742A.ENGINE - dataFileCache open start
+19:08:36.476 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start produceSpeedDataPointFromSpeedVector.physsimNetworkDP
+19:09:53.092 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start produceSpeedDataPointFromSpeedVector.referenceNetworkDP
+19:11:06.336 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start quadTreeBounds
+19:13:23.884 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - start closestPhysSimPointMap
+19:13:52.168 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - end closestPhysSimPointMap
+19:14:23.114 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - end referenceNetworkDP.foreach
+19:14:24.552 INFO  b.u.s.AustinNetworkSpeedMatching$AustinNetworkSpeedMatching - numOfValues: 29982860, [0.00, 1404.27], median: 8.51, avg: 28.60, p75: 29.79, p95: 118.61, p99: 279.57, p99.95: 636.02, p99.99: 793.90, sum: 857458060.88
+
+
+   */
+
+
   def main(args: Array[String]): Unit = {
     // readCSV()
+    val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(200)
+    val network: Network = austinNetworkSpeedMatching.getNetwork("E:\\work\\austin\\output_network.xml.gz")
+    val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network)
+    val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
 
-    val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
-    val physsimSpeedVector: ArrayBuffer[SpeedVector] = getPhyssimSpeedVector(network)
-    val referenceSpeedVector: ArrayBuffer[SpeedVector] = getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
-
-    mapMatchingAlgorithm(physsimSpeedVector, referenceSpeedVector, network, "E:\\work\\austin\\")
+    austinNetworkSpeedMatching.mapMatchingAlgorithm(physsimSpeedVector, referenceSpeedVector, network, "E:\\work\\austin\\")
   }
 
+
+class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging  {
+
+
+  logger.info(s"splitVectorsIntoPices: $splitVectorsIntoPices")
 
   def readCSV(filePath: String): Vector[String] = {
     val bufferedSource = Source.fromFile(filePath)
@@ -42,34 +73,7 @@ object AustinNetworkSpeedMatching {
     lines
   }
 
-  //for (i <- 1 to  bufferedSource.getLines.size) {
-  //    for (i <- 0 to 2) {
-  //      val line = lines(i)
-  //
-  //      line.asInstanceOf[String].split(",").foreach(x =>
-  //        println(x)
-  //      )
-  //
-  //      //line.split(",").map
-  //    }
-
-
-  //     for (var i: 1 to bufferedSource.getLines.size) {
-  //        line.split(",").map()
-  //        //val cols = line.split(",").map(_.trim)
-  //        // do whatever you want with the columns here
-  //        //println(s"${cols(0)}|${cols(1)}|${cols(2)}|${cols(3)}")
-  //       if (i>1) break;
-  //      }
-  //
-  // }
-
-
-  // linkId,SpeedVector ->
-
-
   // TODO: correct opposite direction links,
-
 
   val geoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
@@ -92,11 +96,10 @@ object AustinNetworkSpeedMatching {
 
   def produceSpeedDataPointFromSpeedVector(speedVectors: mutable.ArrayBuffer[SpeedVector]): mutable.ArrayBuffer[SpeedDataPoint] = {
     val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
-    speedVectors.foreach {
-      speedVector =>
-        speedDataPoints ++= speedVector.produceSpeedDataPointFromSpeedVector(500)
+    val dataPoints=speedVectors.par.flatMap{ speedVector =>
+      speedVector.produceSpeedDataPointFromSpeedVector(splitVectorsIntoPices)
     }
-    speedDataPoints
+    collection.mutable.ArrayBuffer(dataPoints.toList: _*)
   }
 
   def getPhyssimSpeedVector(network: Network): ArrayBuffer[SpeedVector] = {
@@ -111,7 +114,7 @@ object AustinNetworkSpeedMatching {
   }
 
 
-  private def getNetwork(filePath: String) = {
+  def getNetwork(filePath: String) = {
     val network = NetworkUtils.createNetwork
     val reader = new NetworkReaderMatsimV2(network)
     reader.readFile(filePath)
@@ -180,14 +183,17 @@ object AustinNetworkSpeedMatching {
   }
 
   def mapMatchingAlgorithm(physsimSpeedVector: ArrayBuffer[SpeedVector], referenceSpeedVector: ArrayBuffer[SpeedVector], network: Network, outputFilePath: String): Unit = {
-
+    logger.info("start produceSpeedDataPointFromSpeedVector.physsimNetworkDP ")
     val physsimNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
+
+    logger.info("start produceSpeedDataPointFromSpeedVector.referenceNetworkDP ")
     val referenceNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
 
    // createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
    // createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
+    logger.info("start quadTreeBounds ")
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
     val physsimQuadTreeDP: QuadTree[SpeedDataPoint] = new QuadTree[SpeedDataPoint](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
     physsimNetworkDP.foreach {
@@ -199,10 +205,17 @@ object AustinNetworkSpeedMatching {
     val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
     val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
 
+    logger.info("start closestPhysSimPointMap ")
+    val closestPhysSimPointMap=referenceNetworkDP.par.map{ referenceSpeedDataPoint =>
+      (referenceSpeedDataPoint -> physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY))
+    }.toMap
+    logger.info("end closestPhysSimPointMap ")
 
     referenceNetworkDP.foreach {
       referenceSpeedDataPoint =>
-        val closestPhysSimNetworkPoint = physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY)
+
+        //val closestPhysSimNetworkPoint = physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY)
+        val closestPhysSimNetworkPoint =closestPhysSimPointMap.get(referenceSpeedDataPoint).get
 
         //val distanceInMeters= geoUtils.distLatLon2Meters(closestPhysSimNetworkPoint.coord,referenceSpeedDataPoint.coord)
         val distanceInMeters = geoUtils.distUTMInMeters(closestPhysSimNetworkPoint.coord, referenceSpeedDataPoint.coord)
@@ -214,11 +227,11 @@ object AustinNetworkSpeedMatching {
           selectedReferencePointsForDebugging+=referenceSpeedDataPoint
         }
     }
-
+    logger.info("end referenceNetworkDP.foreach ")
    // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
    // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
 
-    println(Statistics(distanceArray))
+    logger.info(Statistics(distanceArray).toString)
     //resolution 10: 3265460, [0.01, 1405.37], median: 12.00, avg: 31.25, p75: 33.21, p95: 121.46, p99: 282.25, p99.95: 638.91, p99.99: 795.56, sum: 102038356.17
     //resolution 50: 15139860, [0.00, 1404.50], median: 8.75, avg: 28.78, p75: 29.93, p95: 118.68, p99: 279.68, p99.95: 636.09, p99.99: 793.99, sum: 435749883.14
     //writeComparisonOSMVsReferenceSpeedsDataPoints(outputFilePath, physsimQuadTreeDP, network)
@@ -281,7 +294,7 @@ object AustinNetworkSpeedMatching {
     }
     pw.close
   }
-}
+}}
 
 //case class Coord(val lat: Double, val long: Double)
 
