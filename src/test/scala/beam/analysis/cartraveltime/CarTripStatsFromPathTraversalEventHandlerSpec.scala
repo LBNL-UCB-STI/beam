@@ -14,7 +14,8 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
         this.networkHelper,
         beamServices.matsimServices.getControlerIO,
         TakeAllTripsTripFilter,
-        ""
+        "",
+        treatMismatchAsWarning = true
       )
 
       processHandlers(List(handler))

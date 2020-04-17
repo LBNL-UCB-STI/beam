@@ -112,7 +112,8 @@ class BeamSim @Inject()(
       networkHelper,
       beamServices.matsimServices.getControlerIO,
       TakeAllTripsTripFilter,
-      ""
+      "",
+      treatMismatchAsWarning = true
     )
     val studyAreCarTravelTime = if (beamServices.beamConfig.beam.calibration.studyArea.enabled) {
       Some(
@@ -120,7 +121,8 @@ class BeamSim @Inject()(
           networkHelper,
           beamServices.matsimServices.getControlerIO,
           new StudyAreaTripFilter(beamServices.beamConfig.beam.calibration.studyArea, beamServices.geo),
-          "studyarea"
+          "studyarea",
+          treatMismatchAsWarning = false // It is expected that for study area some PathTraversals will be taken, so do not treat it as warning
         )
       )
     } else {
