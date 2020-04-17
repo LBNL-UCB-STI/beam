@@ -488,7 +488,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
   ): Seq[CarTripStat] = {
     val stats = drivingWithParkingPtes.foldLeft(List.empty[CarTripStat]) {
       case (acc, (driving, parking)) =>
-        if (driving.arrivalTime != parking.departureTime && !treatMismatchAsWarning) {
+        if (driving.arrivalTime != parking.departureTime && treatMismatchAsWarning) {
           val msg = s"arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
           logger.warn(msg)
         }
