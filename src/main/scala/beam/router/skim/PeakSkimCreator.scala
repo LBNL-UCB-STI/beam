@@ -65,7 +65,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
 
-  val resolutionToPoints = summary.items
+  private val resolutionToPoints = summary.items
     .map(x => x.index.resolution -> x.size)
     .groupBy { case (res, _) => res }
     .toSeq
@@ -87,7 +87,6 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
         (srcGeo.index, dstGeo.index)
       }
     }
-
 
   private val beamModes: Array[BeamMode] = Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT)
 
