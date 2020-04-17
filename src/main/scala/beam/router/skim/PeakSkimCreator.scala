@@ -79,7 +79,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   private val transformation: GeotoolsTransformation =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamServices.beamConfig.matsim.modules.global.coordinateSystem)
 
-  private val h3Indexes = summary.items.sortBy(x => -x.size).take(50)
+  private val h3Indexes = summary.items.sortBy(x => -x.size)
 
   private val h3IndexPairs = h3Indexes
     .flatMap { srcGeo =>
