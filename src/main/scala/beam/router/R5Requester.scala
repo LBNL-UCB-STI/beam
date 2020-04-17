@@ -18,15 +18,23 @@ object R5Requester extends BeamHelper {
 
   private val baseRoutingRequest: RoutingRequest = {
     val originUTM = new Location(2961475.272057291, 3623253.4635826824)
-    val personAttribs = AttributesOfIndividual(householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
-      modalityStyle = None, isMale = true, availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
-      valueOfTime = 17.15686274509804, age = None, income = Some(70000.0))
-    RoutingRequest(originUTM = originUTM,
+    val personAttribs = AttributesOfIndividual(
+      householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
+      modalityStyle = None,
+      isMale = true,
+      availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
+      valueOfTime = 17.15686274509804,
+      age = None,
+      income = Some(70000.0)
+    )
+    RoutingRequest(
+      originUTM = originUTM,
       destinationUTM = new Location(2967932.9521744307, 3635449.522501624),
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
-      attributesOfIndividual = Some(personAttribs))
+      attributesOfIndividual = Some(personAttribs)
+    )
   }
 
   def main(args: Array[String]): Unit = {
@@ -34,11 +42,17 @@ object R5Requester extends BeamHelper {
 
     val r5Wrapper = createR5Wrapper(cfg)
 
-    val carStreetVehicle = getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, baseRoutingRequest.originUTM)
-    val bikeStreetVehicle = getStreetVehicle("dummy-bike-for-skim-observations", BeamMode.BIKE, baseRoutingRequest.originUTM)
-    val walkStreetVehicle = getStreetVehicle("dummy-body-for-skim-observations", BeamMode.WALK, baseRoutingRequest.originUTM)
+    val carStreetVehicle =
+      getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, baseRoutingRequest.originUTM)
+    val bikeStreetVehicle =
+      getStreetVehicle("dummy-bike-for-skim-observations", BeamMode.BIKE, baseRoutingRequest.originUTM)
+    val walkStreetVehicle =
+      getStreetVehicle("dummy-body-for-skim-observations", BeamMode.WALK, baseRoutingRequest.originUTM)
 
-    val threeModesReq = baseRoutingRequest.copy(streetVehicles = Vector(carStreetVehicle, bikeStreetVehicle, walkStreetVehicle), withTransit = true)
+    val threeModesReq = baseRoutingRequest.copy(
+      streetVehicles = Vector(carStreetVehicle, bikeStreetVehicle, walkStreetVehicle),
+      withTransit = true
+    )
     val threeModesResp = r5Wrapper.calcRoute(threeModesReq)
     showRouteResponse("Three Modes in one shot", threeModesResp)
     println
@@ -62,10 +76,11 @@ object R5Requester extends BeamHelper {
   private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse) = {
     println(s"######################## $name ##############################")
     println(s"Number of routes: ${threeModesResp.itineraries.length}")
-    threeModesResp.itineraries.zipWithIndex.foreach { case (route, idx) =>
-      println(s"$idx\t$route")
+    threeModesResp.itineraries.zipWithIndex.foreach {
+      case (route, idx) =>
+        println(s"$idx\t$route")
     }
-    println("######################################################" + new String(Array.fill(name.length + 2) { '#'}))
+    println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
@@ -84,7 +99,12 @@ object R5Requester extends BeamHelper {
       case x =>
         throw new IllegalStateException(s"Don't know what to do with BeamMode ${beamMode}")
     }
-    StreetVehicle(id = Id.createVehicleId(id), vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
-      locationUTM = SpaceTime(loc = location, time = 30600), mode = beamMode, asDriver = true)
+    StreetVehicle(
+      id = Id.createVehicleId(id),
+      vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
+      locationUTM = SpaceTime(loc = location, time = 30600),
+      mode = beamMode,
+      asDriver = true
+    )
   }
 }

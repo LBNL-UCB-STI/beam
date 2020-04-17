@@ -69,6 +69,7 @@ case class WorkerParameters(
 )
 
 object WorkerParameters {
+
   def fromConfig(config: Config): WorkerParameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
