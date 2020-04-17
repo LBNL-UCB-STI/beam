@@ -199,16 +199,16 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
-        if (shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
-            writeTravelTimeMap(iterationNumber, travelTimeMap);
-            PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, travelTimeForR5);
-            psc.write(iterationNumber);
-        }
-
         router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
         //################################################################################################################
         router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
+
+        if (shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
+            writeTravelTimeMap(iterationNumber, travelTimeMap);
+            PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, beamServices.beamRouter());
+            psc.write(iterationNumber);
+        }
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
