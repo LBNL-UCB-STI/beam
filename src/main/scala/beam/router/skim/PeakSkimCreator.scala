@@ -92,7 +92,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   private val thresholdDistanceForBikeMeteres: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
-  private implicit val timeout: Timeout = Timeout(1000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(20000, TimeUnit.SECONDS)
 
   private implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
