@@ -17,6 +17,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.vehicles.Vehicle
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -177,7 +178,9 @@ class FastHouseholdCAVSchedulingSpec
     population.addPerson(p)
 
     household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(p.getId)))
-    household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+    household.setVehicleIds(
+      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+    )
     household
   }
 
@@ -216,7 +219,9 @@ class FastHouseholdCAVSchedulingSpec
     population.addPerson(P2)
 
     household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId)))
-    household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+    household.setVehicleIds(
+      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+    )
     household
   }
 
@@ -255,7 +260,9 @@ class FastHouseholdCAVSchedulingSpec
     population.addPerson(P2)
 
     household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId)))
-    household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+    household.setVehicleIds(
+      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+    )
     household
   }
 }

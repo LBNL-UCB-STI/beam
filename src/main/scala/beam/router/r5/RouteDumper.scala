@@ -22,26 +22,12 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 
 import scala.reflect.ClassTag
 
-case class RoutingRequestEvent(routingRequest: RoutingRequest) extends Event(routingRequest.departureTime) {
-  override def getEventType: String = "RoutingRequestEvent"
-}
-
-case class EmbodyWithCurrentTravelTimeEvent(embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime)
-    extends Event(embodyWithCurrentTravelTime.leg.startTime) {
-  override def getEventType: String = "EmbodyWithCurrentTravelTimeEvent"
-}
-
-case class RoutingResponseEvent(routingResponse: RoutingResponse)
-    extends Event(
-      routingResponse.itineraries.headOption.flatMap(_.beamLegs.headOption).map(_.startTime.toDouble).getOrElse(-1.0)
-    ) {
-  override def getEventType: String = "RoutingResponseEvent"
-}
-
 class RouteDumper(beamServices: BeamServices)
     extends BasicEventHandler
     with IterationStartsListener
     with IterationEndsListener {
+  import RouteDumper._
+
   private val controllerIO: OutputDirectoryHierarchy = beamServices.matsimServices.getControlerIO
 
   @volatile
@@ -126,6 +112,22 @@ class RouteDumper(beamServices: BeamServices)
 }
 
 object RouteDumper {
+  case class RoutingRequestEvent(routingRequest: RoutingRequest) extends Event(routingRequest.departureTime) {
+    override def getEventType: String = "RoutingRequestEvent"
+  }
+
+  case class EmbodyWithCurrentTravelTimeEvent(embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime)
+      extends Event(embodyWithCurrentTravelTime.leg.startTime) {
+    override def getEventType: String = "EmbodyWithCurrentTravelTimeEvent"
+  }
+
+  case class RoutingResponseEvent(routingResponse: RoutingResponse)
+      extends Event(
+        routingResponse.itineraries.headOption.flatMap(_.beamLegs.headOption).map(_.startTime.toDouble).getOrElse(-1.0)
+      ) {
+    override def getEventType: String = "RoutingResponseEvent"
+  }
+
   import scala.reflect.classTag
 
   def requestIdField: Schema.Field = {
@@ -144,6 +146,7 @@ object RouteDumper {
     record.put("streetVehicles", routingRequest.streetVehicles.asJson.noSpaces)
     record.put("attributesOfIndividual", routingRequest.attributesOfIndividual.map(_.asJson.noSpaces).orNull)
     record.put("streetVehiclesUseIntermodalUse", routingRequest.streetVehiclesUseIntermodalUse.toString)
+    record.put("initiatedFrom", routingRequest.initiatedFrom)
     record
   }
 
@@ -341,6 +344,9 @@ object RouteDumper {
         null.asInstanceOf[Any]
       )
     }
+    val initiatedFrom = {
+      new Schema.Field("initiatedFrom", Schema.create(Type.STRING), "initiatedFrom", null.asInstanceOf[Any])
+    }
     val fields = List(
       requestIdField,
       originUTM_X,
@@ -351,7 +357,8 @@ object RouteDumper {
       withTransit,
       streetVehicles,
       attributesOfIndividual,
-      streetVehiclesUseIntermodalUse
+      streetVehiclesUseIntermodalUse,
+      initiatedFrom
     )
     Schema.createRecord("routingRequest", "", "", false, fields.asJava)
   }

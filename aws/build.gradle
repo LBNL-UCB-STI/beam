@@ -75,6 +75,8 @@ task deploy(type: AWSLambdaInvokeTask) {
 
         def pload = """{
   "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+  "git_user_email": "${getCurrentGitUserEmail()}",
+  "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
@@ -84,15 +86,17 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_args": "${ext.getParameterValue('executeArgs')}",
   "max_ram": "${ext.getParameterValue('maxRAM') ?: '140g'}",
   "storage_size": ${ext.getParameterValue('storageSize')},
-  "batch": "${ext.getParameterValue('beamBatch')}",
-  "s3_publish": "${ext.getParameterValue('s3Backup') ?: true}",
+  "batch": ${ext.getParameterValue('beamBatch')},
+  "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
   "instance_type": "${ext.getParameterValue('instanceType') ?: defaultInstanceType}",
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
   "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
   "command": "deploy",
-  "run_grafana" : "${ext.getParameterValue('runGrafana') ?: false}"
+  "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
+  "is_spot" : ${ext.getParameterValue('isSpot') ?: false}
 }"""
+        println pload
         functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
         payload = pload

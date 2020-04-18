@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter.Location
@@ -12,7 +13,6 @@ import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.ml.clustering.{Clusterable, KMeansPlusPlusClusterer}
 import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -56,7 +56,7 @@ case class TNCIterationStats(
     tick: Double,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
     beamServices: BeamServices
-  ): Vector[(Id[vehicles.Vehicle], Location)] = {
+  ): Vector[(Id[BeamVehicle], Location)] = {
 
     // logger.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig =
@@ -78,7 +78,7 @@ case class TNCIterationStats(
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
-    val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
+    val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[BeamVehicle]]]()
 
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
@@ -86,11 +86,11 @@ case class TNCIterationStats(
         tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
-        case Some(lov: ListBuffer[Id[vehicles.Vehicle]]) =>
+        case Some(lov: ListBuffer[Id[BeamVehicle]]) =>
           lov += rhaLoc.vehicleId
 
         case None =>
-          val lov = ListBuffer[Id[vehicles.Vehicle]]()
+          val lov = ListBuffer[Id[BeamVehicle]]()
           lov += rhaLoc.vehicleId
           tazVehicleMap.put(vehicleTaz, lov)
       }

@@ -1,7 +1,6 @@
 package beam.analysis
 
 import beam.router.model.EmbodiedBeamLeg
-import beam.router.r5.RoutingResponseEvent
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence, RideHailFleetInitializer}
 import beam.utils.Statistics
@@ -17,6 +16,7 @@ import io.circe.syntax._
 import scala.collection.mutable.ArrayBuffer
 
 class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with IterationEndsListener with LazyLogging {
+  import beam.router.r5.RouteDumper._
   import beam.utils.json.AllNeededFormats._
 
   val errors: ArrayBuffer[PointInfo] = new ArrayBuffer[PointInfo]()

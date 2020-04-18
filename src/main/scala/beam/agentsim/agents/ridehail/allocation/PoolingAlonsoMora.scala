@@ -1,11 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents._
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{CustomerRequest, RHMatchingAlgorithm}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
+import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
@@ -13,7 +13,6 @@ import beam.router.skim.Skims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -61,6 +60,31 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
   }
 
+  def createMatchingAlgorithm(availVehicles: List[RideHailMatching.VehicleAndSchedule]): RideHailMatching = {
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm match {
+      case "ASYNC_GREEDY_VEHICLE_CENTRIC_MATCHING" =>
+        new AsyncGreedyVehicleCentricMatching(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT" =>
+        new AlonsoMoraMatchingWithAsyncGreedyAssignment(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case "ALONSO_MORA_MATCHING_WITH_MIP_ASSIGNMENT" =>
+        new AlonsoMoraMatchingWithMIPAssignment(
+          spatialPoolCustomerReqs,
+          availVehicles,
+          rideHailManager.beamServices
+        )
+      case algorithmName =>
+        throw new RuntimeException(s"Unknown matching algorithm $algorithmName for alonsoMora")
+    }
+  }
+
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
@@ -70,7 +94,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     var toAllocate: Set[RideHailRequest] = Set()
     var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: Vector[VehicleAllocation] = Vector()
-    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toAllocate += request
@@ -143,7 +167,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         (
           vehiclePoolToUse.map { veh =>
             val vehState = rideHailManager.vehicleManager.getVehicleState(veh.vehicleId)
-            val vehAndSched = RHMatchingToolkit.createVehicleAndScheduleFromRideHailAgentLocation(
+            val vehAndSched = RideHailMatching.createVehicleAndScheduleFromRideHailAgentLocation(
               veh,
               Math.max(tick, veh.latestTickExperienced),
               rideHailManager.beamServices,
@@ -160,7 +184,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           }.toList,
           pooledAllocationReqs.map(
             rhr =>
-              RHMatchingToolkit.createPersonRequest(
+              RideHailMatching.createPersonRequest(
                 rhr.customer,
                 rhr.pickUpLocationUTM,
                 tick,
@@ -180,35 +204,12 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
       }
 
-      val alg: RHMatchingAlgorithm =
-        rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.matchingAlgorithm match {
-          case "VehicleCentricMatchingForRideHail" =>
-            new VehicleCentricMatchingForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case "AsyncAlonsoMoraAlgForRideHail" =>
-            new AsyncAlonsoMoraAlgForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case "AlonsoMoraPoolingAlgForRideHail" =>
-            new AlonsoMoraPoolingAlgForRideHail(
-              spatialPoolCustomerReqs,
-              availVehicles,
-              rideHailManager.beamServices
-            )
-          case algoName => throw new RuntimeException(s"Unknown matching algorithm $algoName for alonsoMora")
-        }
-
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(alg.matchAndAssign(tick), atMost = 2.minutes)
+        Await.result(createMatchingAlgorithm(availVehicles).matchAndAssign(tick), atMost = 2.minutes)
       } catch {
         case e: TimeoutException =>
-          rideHailManager.log.error("timeout of VehicleCentricMatchingForRideHail no allocations made")
+          rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
           List()
       }
 
@@ -268,7 +269,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   withTransit = false,
                   streetVehicles = IndexedSeq(
                     StreetVehicle(
-                      Id.create(vehicleAndOldSchedule.vehicle.id.toString, classOf[Vehicle]),
+                      vehicleAndOldSchedule.vehicle.id,
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                       origin,
                       CAR,

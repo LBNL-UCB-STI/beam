@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.{EmbodyWithCurrentTravelTimeEvent, R5RoutingWorker, RoutingRequestEvent, RoutingResponseEvent}
+import beam.router.r5.{R5RoutingWorker, RouteDumper}
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -218,7 +218,7 @@ class BeamRouter(
       }
     case routingResp: RoutingResponse =>
       if (shouldWriteR5Routes(currentIteration))
-        eventsManager.processEvent(RoutingResponseEvent(routingResp))
+        eventsManager.processEvent(RouteDumper.RoutingResponseEvent(routingResp))
 
       pipeResponseToOriginalSender(routingResp)
       logIfResponseTookExcessiveTime(routingResp.requestId)
@@ -250,9 +250,9 @@ class BeamRouter(
     if (shouldWriteR5Routes(currentIteration)) {
       work match {
         case e: EmbodyWithCurrentTravelTime =>
-          eventsManager.processEvent(EmbodyWithCurrentTravelTimeEvent(e))
+          eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
         case req: RoutingRequest =>
-          eventsManager.processEvent(RoutingRequestEvent(req))
+          eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
         case _ =>
       }
     }

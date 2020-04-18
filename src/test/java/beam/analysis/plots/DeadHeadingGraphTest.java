@@ -55,8 +55,8 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnDeadHeadingAllDistanceForSpecificHour() {
-        int expectedResultOfHour[] = {0, 3, 3, 0, 0, 4, 0};
-        int actualResultOfHour[] = new int[7];
+        int[] expectedResultOfHour = {0, 3, 3, 0, 0, 4, 0};
+        int[] actualResultOfHour = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getDeadHeadingTnc0HourDataCount(i, 6);
         }
@@ -65,8 +65,8 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnDeadHeadingPassengerPerTripForSpecificHour() {
-        int expectedResultOfHour[] = {0, 2, 2, 0, 0, 1, 0};
-        int actualResultOfHour[] = new int[7];
+        int[] expectedResultOfHour = {0, 2, 2, 0, 0, 1, 0};
+        int[] actualResultOfHour = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getPassengerPerTripCountForSpecificHour(i, "tnc", 6);
         }
