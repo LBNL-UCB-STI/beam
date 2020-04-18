@@ -159,9 +159,7 @@ trait ChoosesParking extends {
           currentPoint.time,
           withTransit = false,
           Vector(carStreetVeh, bodyStreetVeh),
-          Some(attributes),
-          initiatedFrom =
-            "ChoosesParking: when(ChoosingParkingSpot) Event(ParkingInquiryResponse(stall, _), data). veh2StallRequest"
+          Some(attributes)
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
@@ -180,9 +178,7 @@ trait ChoosesParking extends {
               asDriver = true
             )
           ),
-          Some(attributes),
-          initiatedFrom =
-            "ChoosesParking: when(ChoosingParkingSpot) Event(ParkingInquiryResponse(stall, _), data). futureStall2DestinationResponse"
+          Some(attributes)
         )
 
         val responses = for {

@@ -33,8 +33,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
@@ -59,8 +58,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -100,8 +98,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true
           )
         ),
-        streetVehiclesUseIntermodalUse = Egress,
-        initiatedFrom = "SfLightRouterSpec"
+        streetVehiclesUseIntermodalUse = Egress
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -136,8 +133,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress,
-        initiatedFrom = "SfLightRouterSpec"
+        streetVehiclesUseIntermodalUse = AccessAndEgress
       )
       val response = expectMsgType[RoutingResponse]
       val rideHailTransitOption = response.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT).get
@@ -165,8 +161,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.BIKE,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
@@ -194,8 +189,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -220,8 +214,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -252,8 +245,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
@@ -283,8 +275,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -327,8 +318,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -361,8 +351,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -388,8 +377,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "SfLightRouterSpec"
+        )
       )
       expectMsgType[Failure]
     }

@@ -316,8 +316,7 @@ class RideHailAgent(
         _currentTick.get,
         withTransit = false,
         Vector(carStreetVeh),
-        None,
-        initiatedFrom = "RideHailAgent: when(Offline) Event(ParkingInquiryResponse(stall, _), _). veh2StallRequest"
+        None
       )
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest

@@ -458,11 +458,12 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    requestId: Int = IdGeneratorImpl.nextId,
-    initiatedFrom: String
-  ) {
+    requestId: Int = IdGeneratorImpl.nextId
+  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+
+    val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
   }
 
   sealed trait IntermodalUse

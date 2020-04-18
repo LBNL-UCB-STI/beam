@@ -109,8 +109,7 @@ class TollRoutingSpec
             None,
             None
           )
-        ),
-        initiatedFrom = "TollRoutingSpec"
+        )
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
@@ -175,8 +174,7 @@ class TollRoutingSpec
             None,
             None
           )
-        ),
-        initiatedFrom = "TollRoutingSpec"
+        )
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
@@ -199,8 +197,7 @@ class TollRoutingSpec
             Modes.BeamMode.WALK,
             asDriver = true
           )
-        ),
-        initiatedFrom = "TollRoutingSpec"
+        )
       )
       router ! request
       val response = expectMsgType[RoutingResponse]

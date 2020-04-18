@@ -873,8 +873,7 @@ class RideHailManager(
         destinationUTM = stall.locationUTM,
         departureTime = agentLocation.currentLocationUTM.time,
         withTransit = false,
-        streetVehicles = Vector(agentLocation.toStreetVehicle),
-        initiatedFrom = s"RideHailManager: ParkingInquiryResponse($stall, $requestId)"
+        streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
 
@@ -1317,8 +1316,7 @@ class RideHailManager(
       request.pickUpLocationUTM,
       requestTime,
       withTransit = false,
-      Vector(rideHailVehicleAtOrigin),
-      initiatedFrom = s"RideHailManager: createRoutingRequestsToCustomerAndDestination (rideHailAgent2Customer)"
+      Vector(rideHailVehicleAtOrigin)
     )
 // route from customer to destination
     val rideHail2Destination = RoutingRequest(
@@ -1326,8 +1324,7 @@ class RideHailManager(
       request.destinationUTM,
       requestTime,
       withTransit = false,
-      Vector(rideHailVehicleAtPickup),
-      initiatedFrom = s"RideHailManager: createRoutingRequestsToCustomerAndDestination (rideHail2Destination)"
+      Vector(rideHailVehicleAtPickup)
     )
 
     List(rideHailAgent2Customer, rideHail2Destination)
@@ -1853,9 +1850,7 @@ class RideHailManager(
           destinationUTM = destinationLocation,
           departureTime = tick,
           withTransit = false,
-          streetVehicles = Vector(rideHailVehicleAtOrigin),
-          initiatedFrom =
-            s"RideHailManager: continueRepositioning($tick). vehicleId: ${vehicleId}, destinationLocation: $destinationLocation"
+          streetVehicles = Vector(rideHailVehicleAtOrigin)
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest
         futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])

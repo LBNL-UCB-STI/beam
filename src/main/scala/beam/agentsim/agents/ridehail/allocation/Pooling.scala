@@ -146,8 +146,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.pickUpLocationUTM,
         startTime,
         withTransit = false,
-        Vector(rideHailVehicleAtOrigin),
-        initiatedFrom = "Pooling: createRoutingRequestsForPooledTrip(routeReq2Pickup)"
+        Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
       tempPickDropStore.put(routeReq2Pickup.requestId, MobilityRequest.simpleRequest(Pickup, Some(req.customer), None))
@@ -168,8 +167,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.destinationUTM,
         startTime,
         withTransit = false,
-        Vector(rideHailVehicleAtOrigin),
-        initiatedFrom = "Pooling: createRoutingRequestsForPooledTrip(routeReq2Dropoff)"
+        Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
       tempPickDropStore.put(

@@ -136,8 +136,7 @@ class TimeDependentRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        initiatedFrom = "TimeDependentRoutingSpec"
+        )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
@@ -158,8 +157,7 @@ class TimeDependentRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        initiatedFrom = "TimeDependentRoutingSpec"
+        )
       )
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == CAR))
@@ -189,8 +187,7 @@ class TimeDependentRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        initiatedFrom = "TimeDependentRoutingSpec"
+        )
       )
       var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
 
@@ -225,8 +222,7 @@ class TimeDependentRoutingSpec
               Modes.BeamMode.CAR,
               asDriver = true
             )
-          ),
-          initiatedFrom = "TimeDependentRoutingSpec"
+          )
         )
         carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).getOrElse(carOption)
       }

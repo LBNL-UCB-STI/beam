@@ -275,8 +275,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       CAR,
                       asDriver = true
                     )
-                  ),
-                  initiatedFrom = "PoolingAlonsoMora"
+                  )
                 )
                 scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                 Some(routingRequest)

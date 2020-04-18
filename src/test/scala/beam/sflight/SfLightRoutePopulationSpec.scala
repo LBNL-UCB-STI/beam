@@ -70,8 +70,7 @@ class SfLightRoutePopulationSpec
                       WALK,
                       asDriver = true
                     )
-                  ),
-                  initiatedFrom = "SfLightRoutePopulationSpec"
+                  )
                 )
               )
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))

@@ -310,8 +310,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                     CAV,
                     asDriver = true
                   )
-                ),
-                initiatedFrom = "HouseholdActor"
+                )
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(
                 routingRequestId = Some(routingRequest.requestId)

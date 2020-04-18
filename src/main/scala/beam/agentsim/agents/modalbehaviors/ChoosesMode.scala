@@ -240,8 +240,7 @@ trait ChoosesMode {
           withTransit,
           vehicles,
           Some(attributes),
-          streetVehiclesIntermodalUse,
-          initiatedFrom = s"ChoosesMode: withTransit=$withTransit, withParking=$withParking"
+          streetVehiclesIntermodalUse
         )
         if (withParking) {
           requestParkingCost(
@@ -278,8 +277,7 @@ trait ChoosesMode {
           startWithWaitBuffer,
           withTransit = true,
           Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-          streetVehiclesUseIntermodalUse = AccessAndEgress,
-          initiatedFrom = "ChoosesMode: makeRideHailTransitRoutingRequest"
+          streetVehiclesUseIntermodalUse = AccessAndEgress
         )
         router ! theRequest
         Some(theRequest.requestId)
