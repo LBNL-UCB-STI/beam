@@ -1,18 +1,8 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
-  CustomerRequest,
-  RHMatchingAlgorithm,
-  RTVGraph,
-  RVGraph,
-  RideHailTrip,
-  VehicleAndSchedule
-}
-import beam.router.Modes.BeamMode
-import beam.router.skim.SkimsUtils
+import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import com.github.beam.OrToolsLoader
 import com.google.ortools.linearsolver.{MPSolver, MPVariable}
 import org.jgrapht.graph.DefaultEdge
@@ -24,25 +14,20 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-object AlonsoMoraPoolingAlgForRideHail {
+object AlonsoMoraMatchingWithMIPAssignment {
   private lazy val initialize: Unit = {
     OrToolsLoader.load()
   }
 }
 
-class AlonsoMoraPoolingAlgForRideHail(
+class AlonsoMoraMatchingWithMIPAssignment(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   beamServices: BeamServices
-) extends RHMatchingAlgorithm {
+) extends RideHailMatching(beamServices) {
 
-  AlonsoMoraPoolingAlgForRideHail.initialize
+  AlonsoMoraMatchingWithMIPAssignment.initialize
 
-  // Methods below should be kept as def (instead of val) to allow automatic value updating
-  private def alonsoMora: AllocationManager.AlonsoMora =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora
-  private def solutionSpaceSizePerVehicle: Int = alonsoMora.numRequestsPerVehicle
-  private def waitingTimeInSec: Int = alonsoMora.waitingTimeInSec
   private implicit val services = beamServices
 
   // a greedy assignment using a cost function
@@ -59,15 +44,13 @@ class AlonsoMoraPoolingAlgForRideHail(
   // Request Vehicle Graph
   def pairwiseRVGraph: RVGraph = {
     val rvG = RVGraph(classOf[RideHailTrip])
-    val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
-
     for (r1: CustomerRequest <- spatialDemand.values().asScala) {
       val center = r1.pickup.activity.getCoord
       spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.foreach {
         case r2 if r1 != r2 && !rvG.containsEdge(r1, r2) =>
           val startPoint =
             if (r1.pickup.baselineNonPooledTime <= r2.pickup.baselineNonPooledTime) r1.pickup else r2.pickup
-          RHMatchingToolkit
+          RideHailMatching
             .getRideHailSchedule(
               List.empty[MobilityRequest],
               List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
@@ -89,12 +72,12 @@ class AlonsoMoraPoolingAlgForRideHail(
       val center = requestWithCurrentVehiclePosition.activity.getCoord
 
       // get all customer requests located at a proximity to the vehicle
-      var customers = RHMatchingToolkit.getRequestsWithinGeofence(
+      var customers = RideHailMatching.getRequestsWithinGeofence(
         v,
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
       )
       // heading same direction
-      customers = RHMatchingToolkit.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
+      customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 
       // solution size resizing
       customers = customers.take(solutionSpaceSizePerVehicle)
@@ -102,7 +85,7 @@ class AlonsoMoraPoolingAlgForRideHail(
       customers
         .foreach(
           r =>
-            RHMatchingToolkit
+            RideHailMatching
               .getRideHailSchedule(
                 v.schedule,
                 List(r.pickup, r.dropoff),
@@ -146,7 +129,7 @@ class AlonsoMoraPoolingAlgForRideHail(
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
-              RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+              RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
                 combinations.append(t.matchId)
                 pairRequestsList append t
                 rTvG.addVertex(t)
@@ -171,7 +154,7 @@ class AlonsoMoraPoolingAlgForRideHail(
               val temp = t1.requests ++ t2.requests
               val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
               if (!combinations.contains(matchId)) {
-                RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+                RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
                   combinations.append(t.matchId)
                   kRequestsList.append(t)
                   rTvG.addVertex(t)

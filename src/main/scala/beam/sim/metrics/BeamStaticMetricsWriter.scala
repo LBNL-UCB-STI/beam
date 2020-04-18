@@ -14,7 +14,21 @@ import scala.util.Random
 
 object BeamStaticMetricsWriter {
 
-  def calculateAndWriteMetrics(
+  def writeBaseMetrics(beamScenario: BeamScenario, beamServices: BeamServices): Unit = {
+    beamServices.simMetricCollector.write("beam-run", SimulationTime(0))
+
+    val envelopeInWGS = beamScenario.transportNetwork.streetLayer.envelope
+    val values = Map(
+      "Xmax" -> envelopeInWGS.getMaxX,
+      "Xmin" -> envelopeInWGS.getMinX,
+      "Ymax" -> envelopeInWGS.getMaxY,
+      "Ymin" -> envelopeInWGS.getMinY
+    )
+
+    beamServices.simMetricCollector.write("beam-map-envelope", SimulationTime(0), values)
+  }
+
+  def writeSimulationParameters(
     scenario: MutableScenario,
     beamScenario: BeamScenario,
     beamServices: BeamServices,

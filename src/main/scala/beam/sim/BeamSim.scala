@@ -10,7 +10,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.{CarTripStatsFromPathTraversalEventHandler, StudyAreaTripFilter, TakeAllTripsTripFilter}
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -21,8 +25,7 @@ import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{Metrics, MetricsSupport}
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
+import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -32,8 +35,15 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-//import com.zaxxer.nuprocess.NuProcess
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
+import org.matsim.core.population.PopulationUtils
+import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.controler.Controler
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
+//import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
@@ -102,7 +112,8 @@ class BeamSim @Inject()(
       networkHelper,
       beamServices.matsimServices.getControlerIO,
       TakeAllTripsTripFilter,
-      ""
+      "",
+      treatMismatchAsWarning = true
     )
     val studyAreCarTravelTime = if (beamServices.beamConfig.beam.calibration.studyArea.enabled) {
       Some(
@@ -110,7 +121,8 @@ class BeamSim @Inject()(
           networkHelper,
           beamServices.matsimServices.getControlerIO,
           new StudyAreaTripFilter(beamServices.beamConfig.beam.calibration.studyArea, beamServices.geo),
-          "studyarea"
+          "studyarea",
+          treatMismatchAsWarning = false // It is expected that for study area some PathTraversals will be taken, so do not treat it as warning
         )
       )
     } else {
@@ -216,8 +228,9 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
-    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
+    // These metric are used to display all other metrics in Grafana.
+    // For example take a look to `run_name` variable in the dashboard
+    BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)

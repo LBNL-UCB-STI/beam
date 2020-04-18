@@ -1,6 +1,10 @@
 package beam.physsim.jdeqsim
 
-import beam.analysis.physsim.PhyssimCalcLinkStats
+import java.util
+import java.util.stream.Collectors
+import java.util.{HashMap, List, Map}
+
+import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
@@ -10,8 +14,9 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
-import beam.utils.{DebugLib, ProfilingUtils}
+import beam.utils.{DebugLib, FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.lang3.StringUtils
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
@@ -25,6 +30,8 @@ import org.matsim.core.utils.misc.Time
 
 import scala.util.Try
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
@@ -69,6 +76,10 @@ class JDEQSimRunner(
 
     jdeqsimEvents.addHandler(travelTimeCalculator)
     jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
+
+    val physsimSpeedHandler = new PhyssimSpeedHandler(population, controlerIO, beamConfig)
+    jdeqsimEvents.addHandler(physsimSpeedHandler)
+
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
       jdeqsimEvents.addHandler(writer)
@@ -122,6 +133,8 @@ class JDEQSimRunner(
       eventToHourFrequency.notifyIterationEnds(
         new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
       );
+      linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes)
+      physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber)
     }
     SimulationResult(
       iteration = currentPhysSimIter,

@@ -1,18 +1,21 @@
 package beam.router.skim
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.geozone._
-import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
-import beam.router.BeamRouter.RoutingRequest
+import beam.agentsim.infrastructure.taz.H3TAZ
+import beam.router.BeamRouter.{RoutingFailure, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -22,21 +25,28 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
-class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, val travelTime: TravelTime)
+private case class Container(
+  srcGeoIndex: GeoIndex,
+  dstGeoIndex: GeoIndex,
+  considerModes: Array[BeamMode],
+  request: RoutingRequest,
+  response: RoutingResponse
+)
+
+class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, val r5Router: ActorRef)
     extends StrictLogging {
   private val scenario: Scenario = beamServices.matsimServices.getScenario
   private val dummyPersonAttributes = createDummyPersonAttribute
   private val modeChoiceCalculator: ModeChoiceCalculator =
     beamServices.modeChoiceCalculatorFactory(dummyPersonAttributes)
-
-  private val r5Wrapper: R5Wrapper = createR5Wrapper()
 
   private val dummyCarVehicleType: BeamVehicleType = beamServices.beamScenario.vehicleTypes.values
     .find(theType => theType.vehicleCategory == VehicleCategory.Car && theType.maxVelocity.isEmpty)
@@ -55,7 +65,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
 
-  val resolutionToPoints = summary.items
+  private val resolutionToPoints = summary.items
     .map(x => x.index.resolution -> x.size)
     .groupBy { case (res, _) => res }
     .toSeq
@@ -71,15 +81,20 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   private val h3Indexes = summary.items.sortBy(x => -x.size)
 
-  private val h3IndexPairs = h3Indexes.flatMap { srcGeo =>
-    h3Indexes.map { dstGeo =>
-      (srcGeo.index, dstGeo.index)
+  private val h3IndexPairs = h3Indexes
+    .flatMap { srcGeo =>
+      h3Indexes.map { dstGeo =>
+        (srcGeo.index, dstGeo.index)
+      }
     }
-  }
 
   private val beamModes: Array[BeamMode] = Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT)
 
   private val thresholdDistanceForBikeMeteres: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
+
+  private implicit val timeout: Timeout = Timeout(20000, TimeUnit.SECONDS)
+
+  private implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   def write(iteration: Int): Unit = {
     try {
@@ -92,9 +107,10 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           val hour = config.beam.urbansim.allTAZSkimsPeakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
           val origins = h3Indexes.map { h3Index =>
-            val center = H3Wrapper.hexToCoord(h3Index.index)
+            val wgsCenter = H3Wrapper.hexToCoord(h3Index.index)
+            val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
             val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
-            GeoUnit.H3(h3Index.index.value, center, areaInSquareMeters)
+            GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
           }
           writeFullSkims(origins, origins, uniqueTimeBins, filePath)
           logger.info(
@@ -203,23 +219,30 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       BeamMode.BIKE         -> new AtomicInteger(0)
     )
 
-    val skimEvents = ProfilingUtils.timed("Creating skim events", logger.info(_)) {
+    val requests = ProfilingUtils.timed("Creating routing requests", logger.info(_)) {
       // The most outer loop will be executed in parallel `.par`
-      h3IndexPairs.par
-        .flatMap {
-          case (srcGeoIndex, dstGeoIndex) =>
-            val (srcCoord, dstCoord) = getGeoIndexCenters(srcGeoIndex, dstGeoIndex)
-            val dist = distanceWithMargin(srcCoord, dstCoord)
-            val considerModes = beamModes.filter(mode => isDinstanceWithinRange(mode, dist))
-            val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
-            val routingReq = RoutingRequest(
-              originUTM = srcCoord,
-              destinationUTM = dstCoord,
-              departureTime = requestTime,
-              withTransit = true,
-              streetVehicles = streetVehicles,
-              attributesOfIndividual = Some(dummyPersonAttributes)
-            )
+      h3IndexPairs.par.map {
+        case (srcGeoIndex, dstGeoIndex) =>
+          val (srcCoord, dstCoord) = getGeoIndexCenters(srcGeoIndex, dstGeoIndex)
+          val dist = distanceWithMargin(srcCoord, dstCoord)
+          val considerModes = beamModes.filter(mode => isDinstanceWithinRange(mode, dist))
+          val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
+          val routingReq = RoutingRequest(
+            originUTM = srcCoord,
+            destinationUTM = dstCoord,
+            departureTime = requestTime,
+            withTransit = true,
+            streetVehicles = streetVehicles,
+            attributesOfIndividual = Some(dummyPersonAttributes)
+          )
+          (srcGeoIndex, dstGeoIndex, considerModes, routingReq)
+      }.seq
+    }
+
+    val futures = requests.map {
+      case (src, dst, considerModes, routingReq) =>
+        r5Router.ask(routingReq).map {
+          case resp: RoutingResponse =>
             val processed = processedAtomic.getAndIncrement()
             if (processed > 0 && processed % onePct == 0) {
               val diff = System.currentTimeMillis() - started
@@ -235,42 +258,57 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
                   logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
               }
             }
-            Try(r5Wrapper.calcRoute(routingReq)) match {
-              case Failure(ex) =>
-                failedRoutes.getAndIncrement()
-                logger.error(s"Can't get route: ${ex.getMessage}", ex)
-                None
-              case Success(response) =>
-                if (response.itineraries.isEmpty)
-                  emptyItineraries.getAndIncrement()
-                else
-                  computedRoutes.getAndIncrement()
-                response.itineraries.map { trip =>
-                  if (considerModes.contains(trip.tripClassifier)) {
-                    nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
-
-                    val maybeEvent = try {
-                      Some(createSkimEvent(srcGeoIndex, dstGeoIndex, trip.tripClassifier, requestTime, trip))
-                    } catch {
-                      case NonFatal(ex) =>
-                        logger.error(s"Can't create skim event: ${ex.getMessage}", ex)
-                        None
-                    }
-                    maybeEvent
-                  } else None
-                }
+            resp.itineraries.foreach { trip =>
+              nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
             }
+            Success(Container(src, dst, considerModes, routingReq, resp))
+          case failure: RoutingFailure =>
+            failedRoutes.getAndIncrement()
+            Failure(failure.cause)
+          case x =>
+            Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
         }
-        .seq
-        .flatten
     }
-    logger.info(s"Total number of skim events: ${skimEvents.size}, failed routes: ${failedRoutes
+    val waitDuration = 5.hours
+    val results = ProfilingUtils.timed(s"Computed ${futures.length}", logger.info(_)) {
+      Await.result(Future.sequence(futures), waitDuration)
+    }
+    var nSkimEvents: Int = 0
+    results.foreach {
+      case Success(
+          Container(
+            srcGeoIndex: GeoIndex,
+            dstGeoIndex: GeoIndex,
+            considerModes: Array[BeamMode],
+            routingReq: RoutingRequest,
+            response: RoutingResponse
+          )
+          ) =>
+        if (response.itineraries.isEmpty)
+          emptyItineraries.getAndIncrement()
+        else
+          computedRoutes.getAndIncrement()
+        response.itineraries.foreach { trip =>
+          if (considerModes.contains(trip.tripClassifier) && !isBikeTransit(trip)) {
+            nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
+            try {
+              val event = createSkimEvent(srcGeoIndex, dstGeoIndex, trip.tripClassifier, requestTime, trip)
+              skimmer.handleEvent(event)
+              nSkimEvents += 1
+            } catch {
+              case NonFatal(ex) =>
+                logger.error(s"Can't create skim event: ${ex.getMessage}", ex)
+            }
+          }
+        }
+      case _ =>
+    }
+    logger.info(s"Total number of skim events: $nSkimEvents, failed routes: ${failedRoutes
       .get()}, empty responses: ${emptyItineraries.get()}, computed in ${System.currentTimeMillis() - started} ms")
     nonEmptyRoutesPerType.foreach {
       case (mode, counter) =>
         logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
     }
-    skimEvents.foreach(skimmer.handleEvent)
     skimmer
   }
 
@@ -353,22 +391,6 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     )
   }
 
-  private def createR5Wrapper(): R5Wrapper = {
-    val workerParams: WorkerParameters = WorkerParameters(
-      beamConfig = config,
-      transportNetwork = beamServices.beamScenario.transportNetwork,
-      vehicleTypes = beamServices.beamScenario.vehicleTypes,
-      fuelTypePrices = beamServices.beamScenario.fuelTypePrices,
-      ptFares = beamServices.beamScenario.ptFares,
-      geo = beamServices.geo,
-      dates = beamServices.beamScenario.dates,
-      networkHelper = beamServices.networkHelper,
-      fareCalculator = beamServices.fareCalculator,
-      tollCalculator = beamServices.tollCalculator
-    )
-    new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction = 0)
-  }
-
   private def getAllActivitiesLocations: Iterable[Coord] = {
     beamServices.matsimServices.getScenario.getPopulation.getPersons
       .values()
@@ -380,4 +402,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       }
   }
 
+  private def isBikeTransit(trip: EmbodiedBeamTrip): Boolean = {
+    trip.tripClassifier == BeamMode.WALK_TRANSIT && trip.beamLegs.exists(leg => leg.mode == BeamMode.BIKE)
+  }
 }
