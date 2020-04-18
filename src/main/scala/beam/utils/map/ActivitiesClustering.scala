@@ -3,6 +3,7 @@ package beam.utils.map
 import beam.sim.common.GeoUtils
 import beam.utils.csv.readers.BeamCsvScenarioReader
 import beam.utils.scenario.PlanElement
+import beam.utils.shape.{Attributes, ShapeWriter}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.algorithm.ConvexHull
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Polygon}
@@ -24,6 +25,8 @@ import scala.util.control.NonFatal
 private case class CoordWithLabel(coord: Coord, label: String)
 private case class ClusterInfo(size: Int, coord: Coord, activitiesLocation: IndexedSeq[CoordWithLabel])
 
+private case class ClusterAttributes(size: Int, homes: Int, works: Int) extends Attributes
+
 class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends StrictLogging {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
   private val geoUtils = new GeoUtils {
@@ -39,12 +42,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
       val convexHullGeom = new ConvexHull(coords.toArray, geometryFactory).getConvexHull
       c -> convexHullGeom
     }
-    val attribs = Map(
-      "size"  -> classOf[java.lang.Integer],
-      "homes" -> classOf[java.lang.Integer],
-      "works" -> classOf[java.lang.Integer]
-    )
-    val shapeWriter = ShapeWriter.worldGeodetic[Polygon]("clusters.shp", attribs)
+    val shapeWriter = ShapeWriter.worldGeodetic[Polygon, ClusterAttributes]("clusters.shp")
     clusterWithConvexHull.zipWithIndex.foreach {
       case ((c, geom), idx) =>
         if (geom.getNumPoints > 2) {
@@ -56,8 +54,11 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
             val polygon = geometryFactory.createPolygon(wgsCoords)
             val nHomes = c.activitiesLocation.count(x => x.label == "Home")
             val nWorks = c.activitiesLocation.count(x => x.label == "Work")
-            val attirbValues = Map("size" -> c.size, "homes" -> nHomes, "works" -> nWorks)
-            shapeWriter.add(polygon, idx.toString, attirbValues)
+            shapeWriter.add(
+              polygon,
+              idx.toString,
+              ClusterAttributes(size = c.size, homes = nHomes, works = nWorks)
+            )
           } catch {
             case NonFatal(ex) =>
               logger.error("Can't create or add", ex)
@@ -79,16 +80,16 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
     )
     val result = kmeans.run(db)
     result.getAllClusters.asScala.zipWithIndex.map {
-      case (clu, idx) =>
-        logger.info(s"# $idx: ${clu.getNameAutomatic}")
-        logger.info(s"Size: ${clu.size()}")
-        logger.info(s"Model: ${clu.getModel}")
-        logger.info(s"Center: ${clu.getModel.getMean.toVector}")
-        logger.info(s"getPrototype: ${clu.getModel.getPrototype.toString}")
+      case (cluster, idx) =>
+        logger.info(s"# $idx: ${cluster.getNameAutomatic}")
+        logger.info(s"Size: ${cluster.size()}")
+        logger.info(s"Model: ${cluster.getModel}")
+        logger.info(s"Center: ${cluster.getModel.getMean.toVector}")
+        logger.info(s"getPrototype: ${cluster.getModel.getPrototype.toString}")
         val vectors = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
         val labels = db.getRelation(TypeUtil.STRING)
-        val coords: ArrayBuffer[CoordWithLabel] = new ArrayBuffer(clu.size())
-        var iter: DBIDIter = clu.getIDs.iter()
+        val coords: ArrayBuffer[CoordWithLabel] = new ArrayBuffer(cluster.size())
+        val iter: DBIDIter = cluster.getIDs.iter()
         while (iter.valid()) {
           val o: DoubleVector = vectors.get(iter)
           val arr = o.toArray
@@ -96,7 +97,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
           coords += CoordWithLabel(coord, labels.get(iter))
           iter.advance()
         }
-        ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
+        ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords)
     }.toArray
   }
 
