@@ -52,7 +52,7 @@ object AustinNetworkSpeedMatching {
 
   def main(args: Array[String]): Unit = {
     // readCSV()
-    val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(200)
+    val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(10)
     val network: Network = austinNetworkSpeedMatching.getNetwork("E:\\work\\austin\\output_network.xml.gz")
     val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network)
     val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
@@ -237,6 +237,9 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
     //writeComparisonOSMVsReferenceSpeedsDataPoints(outputFilePath, physsimQuadTreeDP, network)
 
 
+
+
+
     // TODO: do correction for both directions of same link
 
     writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, network)
@@ -269,17 +272,43 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
       }
     }
 
+    val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
+
     linkIdReferenceSpeedGroups.foreach {
       case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
 
         var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
 
         val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
+        linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
+    }
 
-        pw.write(s"${linkId},${network.getLinks.get(linkId).getAttributes.getAttribute("type")},${network.getLinks.get(linkId).getFreespeed},$averageReferenceSpeed\n")
+    linkReferenceSpeeds.foreach{
+      case (linkId,averageReferenceSpeed) =>
+        val link=network.getLinks.get(linkId)
+        getOppositeLink(link) match {
+          case Some(oppositeLink) =>
+            linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
+          case None =>
+        }
+    }
+
+    linkReferenceSpeeds.foreach{
+      case (linkId,averageReferenceSpeed) =>
+        writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
     }
 
     pw.close
+  }
+
+  private def getOppositeLink(link:Link):Option[Link]={
+    val inLinks=link.getFromNode.getInLinks.values()
+    val outLinks=link.getToNode.getOutLinks.values()
+    inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
+  }
+
+  private def writeUpdatedSpeed(network: Network, pw: PrintWriter, linkId: Id[Link], averageReferenceSpeed: Double) = {
+    pw.write(s"${linkId},${network.getLinks.get(linkId).getAttributes.getAttribute("type")},${network.getLinks.get(linkId).getFreespeed},$averageReferenceSpeed\n")
   }
 
   private def writeComparisonOSMVsReferenceSpeedsDataPoints(outputFilePath: String, physsimQuadTreeDP: QuadTree[SpeedDataPoint], network: Network) = {
