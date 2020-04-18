@@ -289,7 +289,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
         else
           computedRoutes.getAndIncrement()
         response.itineraries.foreach { trip =>
-          if (considerModes.contains(trip.tripClassifier)) {
+          if (considerModes.contains(trip.tripClassifier) && !isBikeTransit(trip)) {
             nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
             try {
               val event = createSkimEvent(srcGeoIndex, dstGeoIndex, trip.tripClassifier, requestTime, trip)
@@ -400,5 +400,9 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           case act: Activity => act.getCoord
         }
       }
+  }
+
+  private def isBikeTransit(trip: EmbodiedBeamTrip): Boolean = {
+    trip.tripClassifier == BeamMode.WALK_TRANSIT && trip.beamLegs.exists(leg => leg.mode == BeamMode.BIKE)
   }
 }
