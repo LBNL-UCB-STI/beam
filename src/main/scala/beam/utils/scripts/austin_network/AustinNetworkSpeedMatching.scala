@@ -53,11 +53,18 @@ object AustinNetworkSpeedMatching {
   def main(args: Array[String]): Unit = {
     // readCSV()
     val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(10)
-    val network: Network = austinNetworkSpeedMatching.getNetwork("E:\\work\\austin\\output_network.xml.gz")
+    val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
     val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network)
     val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
 
     austinNetworkSpeedMatching.mapMatchingAlgorithm(physsimSpeedVector, referenceSpeedVector, network, "E:\\work\\austin\\")
+  }
+
+  def getNetwork(filePath: String) = {
+    val network = NetworkUtils.createNetwork
+    val reader = new NetworkReaderMatsimV2(network)
+    reader.readFile(filePath)
+    network
   }
 
 
@@ -114,12 +121,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
   }
 
 
-  def getNetwork(filePath: String) = {
-    val network = NetworkUtils.createNetwork
-    val reader = new NetworkReaderMatsimV2(network)
-    reader.readFile(filePath)
-    network
-  }
+
 
   def getReferenceSpeedVector(filePath: String): ArrayBuffer[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
