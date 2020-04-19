@@ -16,8 +16,6 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.JavaConverters._
-import beam.utils.json.AllNeededFormats._
-import io.circe.syntax._
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -60,7 +58,7 @@ class RouteDumper(beamServices: BeamServices)
           embodyWithCurrentTravelTimeWriter.foreach(_.write(record))
         case event: RoutingResponseEvent =>
           val records =
-            RouteDumper.toRecords(event.routingResponse, event.routingResponse.isEmbodyWithCurrentTravelTime)
+            RouteDumper.toRecords(event.routingResponse)
           routingResponseWriter.foreach { writer =>
             records.forEach(x => writer.write(x))
           }
@@ -212,15 +210,13 @@ object RouteDumper {
     record.put("vehicleId", Option(embodyWithCurrentTravelTime.vehicleId).map(_.toString).orNull)
     record.put("vehicleTypeId", Option(embodyWithCurrentTravelTime.vehicleTypeId).map(_.toString).orNull)
 
+    // We add leg fields to this object - kind of explode it so easier to query the data
     addToRecord(record, embodyWithCurrentTravelTime.leg)
 
     record
   }
 
-  def toRecords(
-    routingResponse: RoutingResponse,
-    isEmbodyWithCurrentTravelTime: Boolean
-  ): java.util.ArrayList[GenericData.Record] = {
+  def toRecords(routingResponse: RoutingResponse): java.util.ArrayList[GenericData.Record] = {
     val records = new java.util.ArrayList[GenericData.Record]
     routingResponse.itineraries.zipWithIndex.foreach {
       case (itinerary, itineraryIndex) =>
@@ -228,10 +224,11 @@ object RouteDumper {
           case (leg, legIndex) =>
             val record = new GenericData.Record(routingResponseSchema)
             record.put("requestId", routingResponse.requestId)
-            record.put("isEmbodyWithCurrentTravelTime", isEmbodyWithCurrentTravelTime)
+            record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
             record.put("itineraryIndex", itineraryIndex)
             record.put("costEstimate", itinerary.costEstimate)
+            record.put("tripClassifier", itinerary.tripClassifier.value)
             record.put("replanningPenalty", itinerary.replanningPenalty)
             record.put("totalTravelTimeInSecs", itinerary.totalTravelTimeInSecs)
 
@@ -247,9 +244,15 @@ object RouteDumper {
     record.put("startTime", beamLeg.startTime)
     record.put("mode", beamLeg.mode.value)
     record.put("duration", beamLeg.duration)
-    record.put("linkIds", beamLeg.travelPath.linkIds.asJavaCollection)
-    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.asJavaCollection)
-    record.put("transitStops", beamLeg.travelPath.transitStops.map(_.asJson.noSpaces).orNull)
+    record.put("linkIds", beamLeg.travelPath.linkIds.toArray)
+    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.toArray)
+    beamLeg.travelPath.transitStops.foreach { transitStop =>
+      record.put("transitStops_agencyId", transitStop.agencyId)
+      record.put("transitStops_routeId", transitStop.routeId)
+      record.put("transitStops_vehicleId", transitStop.vehicleId)
+      record.put("transitStops_fromIdx", transitStop.fromIdx)
+      record.put("transitStops_toIdx", transitStop.toIdx)
+    }
     record.put("startPoint_X", beamLeg.travelPath.startPoint.loc.getX)
     record.put("startPoint_Y", beamLeg.travelPath.startPoint.loc.getY)
     record.put("startPoint_time", beamLeg.travelPath.startPoint.time)
@@ -281,7 +284,13 @@ object RouteDumper {
       )
     }
     val transitStops = {
-      new Schema.Field("transitStops", nullable[String], "transitStops", null.asInstanceOf[Any])
+      List(
+        new Schema.Field("transitStops_agencyId", nullable[String], "transitStops_agencyId", null.asInstanceOf[Any]),
+        new Schema.Field("transitStops_routeId", nullable[String], "transitStops_routeId", null.asInstanceOf[Any]),
+        new Schema.Field("transitStops_vehicleId", nullable[String], "transitStops_vehicleId", null.asInstanceOf[Any]),
+        new Schema.Field("transitStops_fromIdx", nullable[Int], "transitStops_fromIdx", null.asInstanceOf[Any]),
+        new Schema.Field("transitStops_toIdx", nullable[Int], "transitStops_toIdx", null.asInstanceOf[Any])
+      )
     }
     val startPoint_X = {
       new Schema.Field("startPoint_X", Schema.create(Type.DOUBLE), "startPoint_X", null.asInstanceOf[Any])
@@ -310,7 +319,6 @@ object RouteDumper {
       duration,
       linkIds,
       linkTravelTime,
-      transitStops,
       startPoint_X,
       startPoint_Y,
       startPoint_time,
@@ -318,7 +326,7 @@ object RouteDumper {
       endPoint_Y,
       endPoint_time,
       distanceInM
-    )
+    ) ++ transitStops
   }
 
   val routingResponseSchema: Schema = {
@@ -333,6 +341,8 @@ object RouteDumper {
       new Schema.Field("itineraryIndex", Schema.create(Type.INT), "itineraryIndex", null.asInstanceOf[Any])
     val costEstimate =
       new Schema.Field("costEstimate", Schema.create(Type.DOUBLE), "costEstimate", null.asInstanceOf[Any])
+    val tripClassifier =
+      new Schema.Field("tripClassifier", nullable[String], "tripClassifier", null.asInstanceOf[Any])
     val replanningPenalty =
       new Schema.Field("replanningPenalty", Schema.create(Type.DOUBLE), "replanningPenalty", null.asInstanceOf[Any])
     val totalTravelTimeInSecs = new Schema.Field(
@@ -349,6 +359,7 @@ object RouteDumper {
       isEmbodyWithCurrentTravelTime,
       itineraryIndex,
       costEstimate,
+      tripClassifier,
       replanningPenalty,
       totalTravelTimeInSecs,
       legIndex
