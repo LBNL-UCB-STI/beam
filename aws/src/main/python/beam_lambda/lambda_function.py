@@ -447,6 +447,7 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
             else:
                 print 'Waiting for instance to leave pending'
                 time.sleep(30)
+    print 'Spot instance ready to go!'
     return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
