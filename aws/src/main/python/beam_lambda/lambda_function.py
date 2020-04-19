@@ -246,7 +246,7 @@ spot_specs = [
     AWS_Instance_Spec('g4dn.xlarge',4,16),
     AWS_Instance_Spec('r5.xlarge',4,32),
     AWS_Instance_Spec('r4.xlarge',4,30.5),
-    AWS_Instance_Spec('c5d.xlarge',8,16),
+    AWS_Instance_Spec('c5d.xlarge',4,8),
     AWS_Instance_Spec('t2.2xlarge',8,32),
     AWS_Instance_Spec('t3a.2xlarge',8,32),
     AWS_Instance_Spec('g4dn.2xlarge',8,32),
@@ -317,7 +317,7 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
     return list(dict.fromkeys(output_instance_types))
 
-def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
+def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
     security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
     security_group_ids = []
     for security_group_id in security_group_id_array:
@@ -365,7 +365,7 @@ def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, 
         SpotFleetRequestConfig={
             'AllocationStrategy': 'lowestPrice',
             'TargetCapacity': 1,
-            'IamFleetRole': 'arn:aws:iam::340032650202:role/aws-ec2-spot-fleet-tagging-role',#TODO: Figure what this should be
+            'IamFleetRole': 'arn:aws:iam::340032650202:role/aws-ec2-spot-fleet-tagging-role',
             'Type': 'request',
             'InstanceInterruptionBehavior': shutdown_behaviour,
             'LaunchSpecifications': launch_specifications
@@ -376,14 +376,24 @@ def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, 
     spot_fleet_req_id = spot_fleet_req.get('SpotFleetRequestId')
     print 'SpotFleetRequestId is ' + spot_fleet_req_id
     #Flow as far as I know is that state goes to submitted, then active, but isn't done until status is out of pending_fulfillment
-    #TODO: Handle killing if the lambda dies...othewise it could become online but not used?
     while status == 'pending_fulfillment' or state == 'submitted':
-        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state
-        time.sleep(30)
-        spot = ec2.describe_spot_fleet_requests(SpotFleetRequestIds = [spot_fleet_req_id]).get('SpotFleetRequestConfigs')[0]
-        status = spot.get('ActivityStatus')
-        state = spot.get('SpotFleetRequestState')
-    if (state != 'active' or status != "fulfilled"):
+        remaining_time = context.get_remaining_time_in_millis()
+        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time)
+        if remaining_time <= 60000:
+            ec2.cancel_spot_fleet_requests(
+                DryRun=False,
+                SpotFleetRequestIds=[spot_fleet_req_id],
+                TerminateInstances=True
+            )
+            print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+            time.sleep(30)
+            exit(123)
+        else:
+            time.sleep(30)
+            spot = ec2.describe_spot_fleet_requests(SpotFleetRequestIds = [spot_fleet_req_id]).get('SpotFleetRequestConfigs')[0]
+            status = spot.get('ActivityStatus')
+            state = spot.get('SpotFleetRequestState')
+    if state != 'active' or status != "fulfilled":
         exit(1)
     print 'Getting spot fleet instances'
     fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
@@ -391,10 +401,24 @@ def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, 
     bd_count = 0
     instance_id = fleet_instance.get('InstanceId')
     while bd_count < 1:
-        print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id
-        time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
         bd_count = len(instance.get('BlockDeviceMappings'))
+        if bd_count < 1:
+            remaining_time = context.get_remaining_time_in_millis()
+            print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            if remaining_time <= 60000:
+                ec2.cancel_spot_fleet_requests(
+                    DryRun=False,
+                    SpotFleetRequestIds=[spot_fleet_req_id],
+                    TerminateInstances=True
+                )
+                #TODO: Since there is no block device yet then we cannot terminate that instance - this COULD result in orphaned volumes - but they would be named at least...handle with a cloud watch if it becomes an issue
+                print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+                time.sleep(30)
+                exit(123)
+            else:
+                print 'Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)'
+                time.sleep(30)
     print 'Instance up with block device ready'
     volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
     ec2.create_tags(
@@ -412,9 +436,17 @@ def deploy_spot_fleet(script, instance_type, region_prefix, shutdown_behaviour, 
             }])
     print 'Created tags on volume'
     while instance.get('State') == 'pending':
-        print 'Waiting for instance to leave pending'
-        time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+        state = instance.get('State')
+        if state == 'pending':
+            remaining_time = context.get_remaining_time_in_millis()
+            print 'Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            if remaining_time <= 45000:
+                print 'Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel'
+                return instance_id
+            else:
+                print 'Waiting for instance to leave pending'
+                time.sleep(30)
     return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
@@ -481,7 +513,7 @@ def stop_instance(instance_ids):
 def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
 
-def deploy_handler(event):
+def deploy_handler(event, context):
     missing_parameters = []
 
     def parameter_wasnt_specified(parameter_value):
@@ -586,7 +618,7 @@ def deploy_handler(event):
                 max_cores = event.get('max_cores', 0)
                 min_memory = event.get('min_memory', 0)
                 max_memory = event.get('max_memory', 0)
-                instance_id = deploy_spot_fleet(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
+                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
@@ -634,7 +666,7 @@ def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
 
     if command_id == 'deploy':
-        return deploy_handler(event)
+        return deploy_handler(event, context)
 
     if command_id in instance_operations:
         return instance_handler(event)
