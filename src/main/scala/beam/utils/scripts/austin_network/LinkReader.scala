@@ -25,20 +25,25 @@ object LinkReader {
   def main(args: Array[String]): Unit = {
     val detailFilePath = "E:\\work\\austin\\austin.2015_regional_am.public.linkdetails.csv"
     val publicLinkPath = "E:\\work\\austin\\austin.2015_regional_am.public.links.csv"
+    val linkDetails: Vector[LinkDetails] = getLinkDataWithCapacities(detailFilePath, publicLinkPath)
+    createShapeFile(linkDetails,"E:\\work\\austin\\capacityAustin.shp")
+
+    //linkDetails.foreach(linkDetails => println(linkDetails))
+
+  }
+
+  def getLinkDataWithCapacities(detailFilePath: String, publicLinkPath: String) = {
     val publicLinkSource = Source.fromFile(publicLinkPath)
-    val publicLink = publicLinkSource.getLines().drop(skipLine).map(linkGeometry).toMap
+    val publicLink = publicLinkSource.getLines().toVector.drop(skipLine).map(linkGeometry).toMap
     publicLinkSource.close()
 
     val detailLinkSource = Source.fromFile(detailFilePath)
-    val linkDetails = detailLinkSource.getLines().drop(skipLine).map(linkDetail(publicLink))
-
-    createShapeFile(linkDetails,"E:\\work\\austin\\capacityAustin.shp")
-
-    linkDetails.foreach(linkDetails => println(linkDetails))
+    val linkDetails = detailLinkSource.getLines().toVector.drop(skipLine).map(linkDetail(publicLink))
     detailLinkSource.close()
+    linkDetails.filterNot(linkDetails => linkDetails.capacity==100000)
   }
 
-  def createShapeFile(linkDetails: Iterator[LinkDetails],shapeFileOutputPath:String)={
+  def createShapeFile(linkDetails: Vector[LinkDetails], shapeFileOutputPath:String)={
     val features = ArrayBuffer[SimpleFeature]()
 
     val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
@@ -52,7 +57,7 @@ object LinkReader {
 
     linkDetails.foreach{ link =>
       link.geometry.foreach{ wsgCoord=>
-        val coord=new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getY, wsgCoord.getX)
+        val coord=new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
         val feature=pointf.createPoint(coord)
         feature.setAttribute("capacity",link.capacity)
         feature.setAttribute("lanes",link.lanes)

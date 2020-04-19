@@ -5,6 +5,7 @@ import java.io.{File, PrintWriter}
 import beam.sim.common.GeoUtils
 import beam.utils.Statistics
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.scripts.austin_network.LinkReader.getLinkDataWithCapacities
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -56,8 +57,11 @@ object AustinNetworkSpeedMatching {
     val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
     val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network)
     val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
+    val detailFilePath = "E:\\work\\austin\\austin.2015_regional_am.public.linkdetails.csv"
+    val publicLinkPath = "E:\\work\\austin\\austin.2015_regional_am.public.links.csv"
+    val linkCapacityData: Map[Id[Link], LinkDetails] = LinkReader.getLinkDataWithCapacities(detailFilePath, publicLinkPath).map(linkDetails => linkDetails.linkChainId->linkDetails).toMap
 
-    austinNetworkSpeedMatching.mapMatchingAlgorithm(physsimSpeedVector, referenceSpeedVector, network, "E:\\work\\austin\\")
+    austinNetworkSpeedMatching.mapMatchingAlgorithm(physsimSpeedVector, referenceSpeedVector, network, "E:\\work\\austin\\",linkCapacityData)
   }
 
   def getNetwork(filePath: String) = {
@@ -176,7 +180,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 
     dataPoints.foreach{ dataPoint =>
       val wsgCoord=geoUtils.utm2Wgs(dataPoint.coord)
-      val coord=new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getY, wsgCoord.getX)
+      val coord=new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
       features+=pointf.createPoint(coord)
     }
 
@@ -184,7 +188,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
     println(s"shapefile created:$outputFile")
   }
 
-  def mapMatchingAlgorithm(physsimSpeedVector: ArrayBuffer[SpeedVector], referenceSpeedVector: ArrayBuffer[SpeedVector], network: Network, outputFilePath: String): Unit = {
+  def mapMatchingAlgorithm(physsimSpeedVector: ArrayBuffer[SpeedVector], referenceSpeedVector: ArrayBuffer[SpeedVector], network: Network, outputFilePath: String, linkCapacityData: Map[Id[Link], LinkDetails]): Unit = {
     logger.info("start produceSpeedDataPointFromSpeedVector.physsimNetworkDP ")
     val physsimNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
 
@@ -193,7 +197,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 
    // createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
-   // createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
+    createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
     logger.info("start quadTreeBounds ")
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
