@@ -206,7 +206,7 @@ object RideHailMatching {
     processedRequests.appendAll(newRequests)
 
     var isValid = true
-    var agentsPooled = schedule.flatMap(_.person).toVector
+    var agentsPooled = schedule.flatMap(_.person).distinct.toVector
     while (processedRequests.nonEmpty && isValid) {
       val prevReq = newSchedule.last
       val ((curReq, skim), index) = processedRequests
