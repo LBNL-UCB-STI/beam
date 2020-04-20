@@ -394,6 +394,14 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
             status = spot.get('ActivityStatus')
             state = spot.get('SpotFleetRequestState')
     if state != 'active' or status != "fulfilled":
+        ec2.cancel_spot_fleet_requests(
+            DryRun=False,
+            SpotFleetRequestIds=[spot_fleet_req_id],
+            TerminateInstances=True
+        )
+        #TODO: This situation should be ?IMPOSSIBLE? but if it does occur then it could orphan a volume - not worth it unless it becomes an issue
+        print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?'
+        time.sleep(30)
         exit(1)
     print 'Getting spot fleet instances'
     fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
