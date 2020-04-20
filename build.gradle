@@ -151,7 +151,7 @@ dependencies {
     compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
-    compile 'com.github.LBNL-UCB-STI:helics-wrapper:test1-SNAPSHOT'
+    compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1-1'
 
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
