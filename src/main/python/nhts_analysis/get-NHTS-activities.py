@@ -46,7 +46,7 @@ def getIntercepts(activities):
     for location in locations:
         counts, bins = np.histogram(activities.loc[activities.location == location,'startTime'],range(26), weights = activities.loc[activities.location == location,'weight'])
         counts = counts / nPeople *24
-        counts[counts < 0.05] = 0.0
+        counts[counts < 0.025] = 0.0
         intercepts[location] = counts
     df = pd.DataFrame(intercepts, columns=locations)
     df.index.name = 'Hour'
