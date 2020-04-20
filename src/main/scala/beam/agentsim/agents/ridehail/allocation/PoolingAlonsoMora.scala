@@ -258,7 +258,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
                 removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
               }
-              if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+              // If passenger is different but location from previous to current action is the same, don't route it
+              if (!(orig.person.isDefined && dest.person.isDefined && orig.person.get.personId.equals(dest.person.get.personId)) &&
+                rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
                 scheduleToCache = scheduleToCache :+ orig
                 None
               } else {
