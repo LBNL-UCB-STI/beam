@@ -21,7 +21,7 @@ import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
@@ -216,8 +216,9 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
-    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
+    // These metric are used to display all other metrics in Grafana.
+    // For example take a look to `run_name` variable in the dashboard
+    BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)

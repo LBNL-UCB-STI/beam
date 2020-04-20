@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props, Terminated}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
@@ -277,6 +277,7 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
+      watch(iteration)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -515,6 +516,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
+      expectTerminated(iteration)
     }
 
     it("should also work when the first bus is late") {
@@ -548,6 +550,7 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
+      watch(iteration)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -837,6 +840,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
+      expectTerminated(iteration)
     }
 
   }

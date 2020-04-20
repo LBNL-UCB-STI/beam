@@ -18,8 +18,12 @@ import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
 import beam.utils.DebugLib;
+import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import com.google.common.collect.Lists;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -39,6 +43,7 @@ import org.matsim.households.Household;
 import org.matsim.utils.objectattributes.attributable.Attributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.Tuple2;
 
 import java.io.File;
@@ -76,6 +81,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private BeamConfig beamConfig;
+    private EventsManager eventsManager;
     private final Random rand = MatsimRandom.getRandom();
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
@@ -83,7 +89,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final PlotGraph plotGraph = new PlotGraph();
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
-
+    private final Map<Integer, List<Double>> binSpeed = new HashMap<>();
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
 
@@ -112,6 +118,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(beamServices.geo(), transportNetwork);
         }
         preparePhysSimForNewIteration();
+
 
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
@@ -199,12 +206,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
-        if (shouldWriteInIteration(iterationNumber, beamConfig.beam().urbansim().allTAZSkimsWriteInterval())) {
-            writeTravelTimeMap(iterationNumber, travelTimeMap);
-            PeakSkimCreator psc = new PeakSkimCreator(beamServices, beamConfig, travelTimeForR5);
-            psc.write(iterationNumber);
-        }
-
         router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
         //################################################################################################################
@@ -218,6 +219,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
 
+        writeIterationCsv(iterationNumber);
         Road.setAllRoads(null);
         Message.setEventsManager(null);
 
@@ -266,6 +268,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
 
+    private boolean isCarMode(String mode){
+        return mode.equalsIgnoreCase(CAR);
+    }
+
     @Override
     public void handleEvent(Event event) {
         if (agentSimPhysSimInterfaceDebuggerEnabled) {
@@ -276,6 +282,16 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             PathTraversalEvent pte = (PathTraversalEvent) event;
             String mode = pte.mode().value();
 
+            if(isCarMode(mode)) {
+                double departureTime = pte.departureTime();
+                double travelTime = pte.arrivalTime() - departureTime;
+
+                if(travelTime > 0.0){
+                    double speed = pte.legLength() / travelTime;
+                    int bin = (int)departureTime / beamConfig.beam().physsim().linkStatsBinSize();
+                    binSpeed.merge(bin, Lists.newArrayList(speed), ListUtils::union);
+                }
+            }
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
             // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
@@ -310,6 +326,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 plan.addLeg(leg);
             }
         }
+    }
+
+    private void writeIterationCsv(int iteration) {
+        String path = controlerIO.getIterationFilename(iteration, "agentSimAverageSpeed.csv");
+
+        List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .map(entry -> (entry.getKey()+1)+","+entry.getValue().stream().mapToDouble(x -> x).average().getAsDouble())
+                .collect(Collectors.toList());
+
+        FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
+        binSpeed.clear();
     }
 
     private Person initializePersonAndPlanIfNeeded(Id<Person> vehicleId, Id<Person> driverId) {
@@ -367,6 +394,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // end of hack
 
         Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
+        //Removing first and last link
+        linkIds.removeAll(Lists.newArrayList(route.getStartLinkId(), route.getEndLinkId()));
+        double length = linkIds.stream().mapToDouble(linkId -> networkLinks.get(linkId).getLength()).sum();
+        route.setDistance(length);
+
         Leg leg = jdeqsimPopulation.getFactory().createLeg(CAR);
         leg.setDepartureTime(pte.departureTime());
         leg.setTravelTime(0);

@@ -518,7 +518,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         return Math.round(category * 100) / 100.0;
     }
 
-    class RideHailWaitingIndividualStat {
+    static class RideHailWaitingIndividualStat {
         double time;
         String personId;
         String vehicleId;

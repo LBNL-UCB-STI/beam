@@ -740,7 +740,7 @@ trait BeamHelper extends LazyLogging {
 
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
-    BeamStaticMetricsWriter.calculateAndWriteMetrics(
+    BeamStaticMetricsWriter.writeSimulationParameters(
       scenario,
       beamScenario,
       beamServices,

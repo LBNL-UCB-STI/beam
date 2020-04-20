@@ -117,7 +117,7 @@ public class SpatialTemporalTAZVizDataWriter {
         dataMap.put(key, current);
     }
 
-    class TazKey {
+    static class TazKey {
         Long tazId;
         Integer hourOfDay;
 
@@ -145,7 +145,7 @@ public class SpatialTemporalTAZVizDataWriter {
         }
     }
 
-    class TazValue {
+    static class TazValue {
         Double mainValue;
         Double secValue;
         Integer dayOfWeek;
