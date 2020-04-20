@@ -55,8 +55,10 @@ object AustinNetworkSpeedMatching {
     // readCSV()
     val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(10)
     val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
-    val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network)
-    val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv")
+    val wsgShiftPhysSimNetwork: Coord =addCoord(new Coord(-96.59322-(-96.59647),30.87545-(30.87585)),new Coord(-97.774010-(-97.772666),30.306692-(30.306515)))
+    val wsgShiftReferenceNetwork: Coord =new Coord(-97.758288-(-97.759245),30.225124-(30.225251))
+    val physsimSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getPhyssimSpeedVector(network,wsgShiftPhysSimNetwork)
+    val referenceSpeedVector: ArrayBuffer[SpeedVector] = austinNetworkSpeedMatching.getReferenceSpeedVector("E:\\work\\austin\\referenceRoadSpeedsAustin.csv",wsgShiftReferenceNetwork)
     val detailFilePath = "E:\\work\\austin\\austin.2015_regional_am.public.linkdetails.csv"
     val publicLinkPath = "E:\\work\\austin\\austin.2015_regional_am.public.links.csv"
     val linkCapacityData: Map[Id[Link], LinkDetails] = LinkReader.getLinkDataWithCapacities(detailFilePath, publicLinkPath).map(linkDetails => linkDetails.linkChainId->linkDetails).toMap
@@ -71,8 +73,13 @@ object AustinNetworkSpeedMatching {
     network
   }
 
+  def addCoord(coord:Coord,addCoord:Coord):Coord={
+    new Coord(coord.getX+addCoord.getX,coord.getY+addCoord.getY)
+  }
+
 
 class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging  {
+
 
 
   logger.info(s"splitVectorsIntoPices: $splitVectorsIntoPices")
@@ -113,12 +120,15 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
     collection.mutable.ArrayBuffer(dataPoints.toList: _*)
   }
 
-  def getPhyssimSpeedVector(network: Network): ArrayBuffer[SpeedVector] = {
+  def getPhyssimSpeedVector(network: Network,wsgShift: Coord): ArrayBuffer[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
 
     network.getLinks.values().asScala.toVector.foreach { link =>
       //speedVectors += SpeedVector(link.getId, geoUtils.utm2Wgs(link.getFromNode.getCoord), geoUtils.utm2Wgs(link.getToNode.getCoord), link.getFreespeed)
-      speedVectors += SpeedVector(link.getId, link.getFromNode.getCoord, link.getToNode.getCoord, link.getFreespeed)
+      val startCoordWsg=addCoord(geoUtils.utm2Wgs( link.getFromNode.getCoord),wsgShift)
+      val endCoordWsg=addCoord(geoUtils.utm2Wgs( link.getToNode.getCoord),wsgShift)
+
+      speedVectors += SpeedVector(link.getId, geoUtils.wgs2Utm(startCoordWsg),geoUtils.wgs2Utm(endCoordWsg), link.getFreespeed)
     }
 
     speedVectors
@@ -127,7 +137,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 
 
 
-  def getReferenceSpeedVector(filePath: String): ArrayBuffer[SpeedVector] = {
+  def getReferenceSpeedVector(filePath: String,wsgShift: Coord): ArrayBuffer[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
     val lines = readCSV(filePath)
 
@@ -158,12 +168,17 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 
       vetorCoords.foreach { case (startCoord, endCoord) =>
         //speedVectors += SpeedVector(objectId, startCoord,endCoord, freeFlowSpeedInMetersPerSecond)
-        speedVectors += SpeedVector(objectId, geoUtils.wgs2Utm(startCoord), geoUtils.wgs2Utm(endCoord), freeFlowSpeedInMetersPerSecond)
+        val updatedWgsStartCoord=addCoord(startCoord,wsgShift)
+        val updatedWgsEndCoord=addCoord(endCoord,wsgShift)
+
+        speedVectors += SpeedVector(objectId, geoUtils.wgs2Utm(updatedWgsStartCoord), geoUtils.wgs2Utm(updatedWgsEndCoord), freeFlowSpeedInMetersPerSecond)
       }
 
     }
     speedVectors
   }
+
+
 
 
   def createShapeFileForDataPoints(dataPoints: ArrayBuffer[SpeedDataPoint], outputFile:String)  = {
@@ -190,14 +205,15 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 
   def mapMatchingAlgorithm(physsimSpeedVector: ArrayBuffer[SpeedVector], referenceSpeedVector: ArrayBuffer[SpeedVector], network: Network, outputFilePath: String, linkCapacityData: Map[Id[Link], LinkDetails]): Unit = {
     logger.info("start produceSpeedDataPointFromSpeedVector.physsimNetworkDP ")
+
     val physsimNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
 
     logger.info("start produceSpeedDataPointFromSpeedVector.referenceNetworkDP ")
     val referenceNetworkDP: ArrayBuffer[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
 
-   // createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
+    createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
-    createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
+    //createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
     logger.info("start quadTreeBounds ")
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
@@ -334,7 +350,14 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
 //case class Coord(val lat: Double, val long: Double)
 
 case class SpeedVector(val linkId: Id[Link], val startCoord: Coord, val endCoord: Coord, val speedInMetersPerSecond: Double) {
-  def produceSpeedDataPointFromSpeedVector(numberOfPieces: Int): ArrayBuffer[SpeedDataPoint] = {
+  def produceSpeedDataPointFromSpeedVector(splitSizeInMeters: Int): ArrayBuffer[SpeedDataPoint] = {
+
+    val geoUtils = new GeoUtils {
+      override def localCRS: String = "epsg:26910"
+    }
+
+    val numberOfPieces:Int=Math.max((geoUtils.distUTMInMeters(startCoord,endCoord)/splitSizeInMeters).toInt,1)
+
     val xDeltaVector = (endCoord.getX - startCoord.getX) / numberOfPieces
     val yDeltaVector = (endCoord.getY - startCoord.getY) / numberOfPieces
 
