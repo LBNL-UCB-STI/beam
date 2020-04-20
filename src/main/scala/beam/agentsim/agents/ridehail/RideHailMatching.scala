@@ -206,9 +206,11 @@ object RideHailMatching {
     processedRequests.appendAll(newRequests)
 
     var isValid = true
+    var agentsPooled = schedule.flatMap(_.person).toVector
     while (processedRequests.nonEmpty && isValid) {
       val prevReq = newSchedule.last
       val ((curReq, skim), index) = processedRequests
+        .filter(r => r.tag == Pickup || agentsPooled.contains(r.person.get))
         .map(req => (req, getTimeDistanceAndCost(prevReq, req, beamServices)))
         .zipWithIndex
         .minBy(_._1._2.time)
@@ -218,6 +220,9 @@ object RideHailMatching {
       if (isValid) {
         newSchedule.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
         processedRequests.remove(index)
+        if (curReq.tag == Pickup) {
+          agentsPooled = agentsPooled :+ curReq.person.get
+        }
       }
     }
     if (isValid) {
