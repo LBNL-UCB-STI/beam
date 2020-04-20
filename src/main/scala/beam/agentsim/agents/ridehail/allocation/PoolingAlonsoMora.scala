@@ -258,23 +258,28 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
                 removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
               }
-              val routingRequest = RoutingRequest(
-                orig.activity.getCoord,
-                dest.activity.getCoord,
-                origin.time,
-                withTransit = false,
-                IndexedSeq(
-                  StreetVehicle(
-                    vehicleAndOldSchedule.vehicle.id,
-                    vehicleAndOldSchedule.vehicle.beamVehicleType.id,
-                    origin,
-                    CAR,
-                    asDriver = true
+              if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+                scheduleToCache = scheduleToCache :+ orig
+                None
+              } else {
+                val routingRequest = RoutingRequest(
+                  orig.activity.getCoord,
+                  dest.activity.getCoord,
+                  origin.time,
+                  withTransit = false,
+                  IndexedSeq(
+                    StreetVehicle(
+                      vehicleAndOldSchedule.vehicle.id,
+                      vehicleAndOldSchedule.vehicle.beamVehicleType.id,
+                      origin,
+                      CAR,
+                      asDriver = true
+                    )
                   )
                 )
-              )
-              scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
-              Some(routingRequest)
+                scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
+                Some(routingRequest)
+              }
             }
             .toList
           allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(newRideHailRequest.get, rReqs)
