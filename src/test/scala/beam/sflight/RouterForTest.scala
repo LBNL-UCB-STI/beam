@@ -27,7 +27,8 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
         scenario,
         scenario.getTransitVehicles,
         services.fareCalculator,
-        services.tollCalculator
+        services.tollCalculator,
+        eventsManager
       )
     )
     services.beamRouter = router // :-(

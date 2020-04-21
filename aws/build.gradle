@@ -94,9 +94,13 @@ task deploy(type: AWSLambdaInvokeTask) {
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
-  "is_spot" : ${ext.getParameterValue('isSpot') ?: false}
+  "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
+  "min_cores": ${ext.getParameterValue('minCores') ?: 0},
+  "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
+  "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
+  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
 }"""
-        println pload
+        println "Please note that if you set isSpot to true then it could take an excessive time period. In fact it could time out at 15 minutes and still complete later on. ALSO! volumes using spot instances must be MANUALLY deleted. This is done so you do not lose data in the case of a premature shutdown."
         functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
         payload = pload

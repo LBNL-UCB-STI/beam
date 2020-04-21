@@ -162,7 +162,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -193,7 +195,7 @@ class PersonWithPersonalVehiclePlanSpec
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -223,7 +225,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        parkingRoutingRequest.requestId
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
@@ -232,7 +236,7 @@ class PersonWithPersonalVehiclePlanSpec
       assert(walkFromParkingRoutingRequest.destinationUTM.getX === workLocation.getX +- 1)
       assert(walkFromParkingRoutingRequest.destinationUTM.getY === workLocation.getY +- 1)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -262,7 +266,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        parkingRoutingRequest.requestId
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -362,7 +368,7 @@ class PersonWithPersonalVehiclePlanSpec
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.endPoint.loc).getY === workLocation.getY +- 1)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -384,7 +390,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -517,8 +525,10 @@ class PersonWithPersonalVehiclePlanSpec
               unbecomeDriverOnCompletion = true
             )
             lastSender ! RoutingResponse(
-              Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = 1
+              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+              requestId = 1,
+              request = None,
+              isEmbodyWithCurrentTravelTime = false
             )
         }
       }
@@ -596,7 +606,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -642,7 +652,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        routingRequest.requestId
+        requestId = routingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]

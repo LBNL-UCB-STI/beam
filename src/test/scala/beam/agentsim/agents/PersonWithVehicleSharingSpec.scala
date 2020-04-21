@@ -167,7 +167,7 @@ class PersonWithVehicleSharingSpec
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -187,7 +187,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -358,7 +360,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -441,7 +445,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -553,8 +559,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -591,8 +599,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -629,8 +639,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
