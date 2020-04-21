@@ -1457,6 +1457,7 @@ object BeamConfig {
         filePath: java.lang.String,
         parkingCostScalingFactor: scala.Double,
         parkingFilePath: java.lang.String,
+        parkingNumberOfClusters: scala.Int,
         parkingStallCountScalingFactor: scala.Double
       )
 
@@ -1471,6 +1472,9 @@ object BeamConfig {
             parkingFilePath =
               if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath")
               else "/test/input/beamville/taz-parking.csv",
+            parkingNumberOfClusters =
+              if (c.hasPathOrNull("parkingNumberOfClusters")) c.getInt("parkingNumberOfClusters")
+              else 8,
             parkingStallCountScalingFactor =
               if (c.hasPathOrNull("parkingStallCountScalingFactor")) c.getDouble("parkingStallCountScalingFactor")
               else 1.0
