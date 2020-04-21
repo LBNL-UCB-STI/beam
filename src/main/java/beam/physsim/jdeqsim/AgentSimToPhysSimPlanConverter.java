@@ -269,7 +269,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 return new Pair<>(firstId, secondId);
             }).collect(Collectors.toList());
 
+            log.info("Generated {} ods",ods.size());
+
             routingToolWrapper.generateOd(ods);
+
+            log.info("Running for hour {}", hour);
             Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic();
             Map<Long, DoubleSummaryStatistics> wayId2TravelTime;
             try {
