@@ -234,6 +234,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         RoutingToolGraph graph = RoutingToolsGraphReaderImpl.read(routingToolWrapper.generateGraph());
         Map<Coordinate, Long> coordinateToRTVertexId = JavaConverters.asJavaCollection(graph.vertices()).stream()
+                //should not happen in normal world but happens for sf-light
+                .distinct()
                 .collect(Collectors.toMap(Vertex::coordinate, Vertex::id));
         OsmInfoHolder osmInfoHolder = new OsmInfoHolder(beamServices);
 
