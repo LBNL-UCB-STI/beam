@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props, Terminated}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
@@ -202,7 +202,9 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
-        requestId = request1.requestId
+        requestId = request1.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       // This is the regular routing request.
@@ -236,7 +238,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = request2.requestId
+        requestId = request2.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -277,6 +281,7 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
+      watch(iteration)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -442,7 +447,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -515,6 +522,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
+      expectTerminated(iteration)
     }
 
     it("should also work when the first bus is late") {
@@ -548,6 +556,7 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
+      watch(iteration)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -731,7 +740,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -760,7 +771,7 @@ class PersonAgentSpec
       events.expectMsgType[ReplanningEvent]
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             Vector(
               replannedTramLeg,
@@ -787,7 +798,9 @@ class PersonAgentSpec
             )
           )
         ),
-        1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       events.expectMsgType[ModeChoiceEvent]
 
@@ -837,6 +850,7 @@ class PersonAgentSpec
 
       expectMsgType[CompletionNotice]
       iteration ! PoisonPill
+      expectTerminated(iteration)
     }
 
   }

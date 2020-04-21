@@ -30,7 +30,6 @@ class GraphTestUtil {
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
     private static final BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
     private static final BeamServices services = mock(BeamServices.class);
-    private static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents;
     private static final EventsManager events;
 
     static {
@@ -40,7 +39,7 @@ class GraphTestUtil {
     }
 
     synchronized static void createDummySimWithXML() {
-        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services);
+        GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services);
         createDummySimWithXML(graphsFromAgentSimEvents);
     }
 
