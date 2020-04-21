@@ -1,5 +1,6 @@
 package beam.sim
 
+import beam.utils.scenario.ObjectAttributesScala
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Person, Population, PopulationFactory}
@@ -21,6 +22,8 @@ class ConsecutivePopulationLoader(
   private val rnd: Random = new Random(javaRnd)
 
   private val totalSum: Double = percentToSimulate.sum
+
+  //TODO: why do we have such an assertion here?
   if (Math.abs(totalSum - 100) >= 0.01)
     throw new IllegalStateException(
       s"The sum of $percentToSimulate [${percentToSimulate.mkString(" ")}] is $totalSum, but it should be 100"
@@ -161,24 +164,8 @@ class ConsecutivePopulationLoader(
     }
   }
 
-  private def copyPeronAttributes(src: ObjectAttributes, dest: ObjectAttributes, person: Id[Person]): Unit = {
-    copyPeronAttribute(src, dest, person, "excluded-modes")
-    copyPeronAttribute(src, dest, person, "rank")
-    copyPeronAttribute(src, dest, person, "valueOfTime")
-  }
-
-  private def copyPeronAttribute(
-    srcPersonAttributes: ObjectAttributes,
-    dstPersonAttributes: ObjectAttributes,
-    person: Id[Person],
-    name: String
-  ): Unit = {
-    val personIdStr = person.toString
-    val attribValue = srcPersonAttributes.getAttribute(personIdStr, name)
-    if (attribValue != null) {
-      dstPersonAttributes.putAttribute(personIdStr, name, attribValue)
-
-    }
+  private def copyPeronAttributes(src: ObjectAttributes, dest: ObjectAttributes, personId: Id[Person]): Unit = {
+    copyAttributes(src, dest, personId, "excluded-modes", "rank", "valueOfTime")
   }
 
   private def createCopyOfPerson(srcPerson: Person, factory: PopulationFactory) = {
@@ -208,19 +195,20 @@ class ConsecutivePopulationLoader(
     dest: ObjectAttributes,
     householdId: Id[Household]
   ): Unit = {
-    copyHouseholdAttribute(src, dest, householdId, "homecoordx")
-    copyHouseholdAttribute(src, dest, householdId, "homecoordy")
-    copyHouseholdAttribute(src, dest, householdId, "housingtype")
+    copyAttributes(src, dest, householdId, "homecoordx", "homecoordy", "housingtype")
   }
 
-  private def copyHouseholdAttribute(
-    srcHouseholdAttributes: ObjectAttributes,
-    destHouseholdAttributes: ObjectAttributes,
-    householdId: Id[Household],
-    name: String
-  ): Unit = {
-    val personIdStr = householdId.toString
-    val attribValue = srcHouseholdAttributes.getAttribute(personIdStr, name)
-    destHouseholdAttributes.putAttribute(personIdStr, name, attribValue)
+  //TODO: maybe extract to ObjectAcctributesScala companion-object?
+  private def copyAttributes[T, A](
+    src: ObjectAttributesScala,
+    dst: ObjectAttributesScala,
+    id: Id[T],
+    attributeNames: String*
+  ) = {
+    val strId = id.toString
+    for {
+      attributeName <- attributeNames
+      value         <- src.getAttribute[A](strId, attributeName)
+    } yield dst.putAttribute[A](strId, attributeName, value)
   }
 }
