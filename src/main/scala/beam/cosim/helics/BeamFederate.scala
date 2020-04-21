@@ -78,10 +78,14 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   }
 
   def close(): Unit = {
-    helics.helicsFederateFinalize(fedComb)
-    helics.helicsFederateFree(fedComb)
-    helics.helicsCloseLibrary()
-    logger.debug(s"closing BeamFederate")
+    if (helics.helicsFederateIsValid(fedComb) == 1) {
+      helics.helicsFederateFinalize(fedComb)
+      helics.helicsFederateFree(fedComb)
+      helics.helicsCloseLibrary()
+      logger.debug(s"closing BeamFederate")
+    } else {
+      logger.error(s"helics federate is not valid!")
+    }
   }
 
   private def publishChargingEvent(
