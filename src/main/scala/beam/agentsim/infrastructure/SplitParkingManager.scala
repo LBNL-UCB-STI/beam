@@ -131,10 +131,11 @@ object SplitParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope
   ): Props = {
-    val numClusters = if (tazTreeMap.tazQuadTree.size() < 50)
-      1
-    else
-      beamConfig.beam.agentsim.taz.parkingNumberOfClusters
+    val numClusters =
+      if (tazTreeMap.tazQuadTree.size() < 50)
+        1
+      else
+        beamConfig.beam.agentsim.taz.parkingNumberOfClusters
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val filePath: String = beamConfig.beam.agentsim.taz.filePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
