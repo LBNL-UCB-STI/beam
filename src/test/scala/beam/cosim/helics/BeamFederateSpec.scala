@@ -108,11 +108,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     helics.helicsFederateFinalize(fedComb)
     helics.helicsFederateDestroy(fedComb)
     helics.helicsFederateFree(fedComb)
-//    var second = 0
-//    while (helics.helicsBrokerIsConnected(broker) == 1 && second < 1800) {
-//      Thread.sleep(1000)
-//      second += 1
-//    }
+    helics.helicsBrokerFree(broker)
     helics.helicsCloseLibrary()
   }
 }
