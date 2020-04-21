@@ -350,7 +350,7 @@ class AustinNetworkSpeedMatching(splitSizeInMeters:Double) extends LazyLogging  
 //case class Coord(val lat: Double, val long: Double)
 
 case class SpeedVector(val linkId: Id[Link], val startCoord: Coord, val endCoord: Coord, val speedInMetersPerSecond: Double) {
-  def produceSpeedDataPointFromSpeedVector(splitSizeInMeters: Int): ArrayBuffer[SpeedDataPoint] = {
+  def produceSpeedDataPointFromSpeedVector(splitSizeInMeters: Double): ArrayBuffer[SpeedDataPoint] = {
 
     val geoUtils = new GeoUtils {
       override def localCRS: String = "epsg:26910"
