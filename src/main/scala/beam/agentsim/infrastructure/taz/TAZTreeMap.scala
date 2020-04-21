@@ -132,6 +132,21 @@ object TAZTreeMap {
     QuadTreeBounds(minX, minY, maxX, maxY)
   }
 
+  private def quadTreeExtentFromList(lines: Seq[TAZ]): QuadTreeBounds = {
+    var minX: Double = Double.MaxValue
+    var maxX: Double = Double.MinValue
+    var minY: Double = Double.MaxValue
+    var maxY: Double = Double.MinValue
+
+    for (l <- lines) {
+      minX = Math.min(minX, l.coord.getX)
+      minY = Math.min(minY, l.coord.getY)
+      maxX = Math.max(maxX, l.coord.getX)
+      maxY = Math.max(maxY, l.coord.getY)
+    }
+    QuadTreeBounds(minX, minY, maxX, maxY)
+  }
+
   def fromCsv(csvFile: String): TAZTreeMap = {
 
     val lines = readCsvFile(csvFile)
@@ -145,6 +160,24 @@ object TAZTreeMap {
 
     for (l <- lines) {
       val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
+      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    }
+
+    new TAZTreeMap(tazQuadTree)
+
+  }
+
+  def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
+
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
+
+    for (taz <- tazes) {
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
