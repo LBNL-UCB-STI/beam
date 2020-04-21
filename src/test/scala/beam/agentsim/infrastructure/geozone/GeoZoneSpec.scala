@@ -13,8 +13,8 @@ class GeoZoneSpec extends WordSpec with Matchers {
       FileUtils.usingTemporaryDirectory { tmpFolder =>
         val csvPath = Paths.get("test", "input", "geozone", "austin.csv")
         val wgsCoordinates: Set[WgsCoordinate] = GeoZoneUtil.readWgsCoordinatesFromCsv(csvPath)
-        val summary = TopDownEqualDemandsGeoZoneHexMapper
-          .from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, expectedNumberOfBuckets = 100)
+        val summary = TopDownEqualDemandsGeoIndexMapper
+          .from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, expectedNumberOfBuckets = 1000)
           .generateSummary()
 
         val expectedIndexes = 1003

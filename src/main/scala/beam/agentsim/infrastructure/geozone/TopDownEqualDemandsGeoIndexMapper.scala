@@ -4,11 +4,11 @@ import scala.collection.parallel.ParSet
 
 import beam.agentsim.infrastructure.geozone.GeoZone.GeoZoneContent
 
-class TopDownEqualDemandsGeoZoneHexGenerator private[geozone] (
+class TopDownEqualDemandsGeoIndexMapper private[geozone] (
   initialContent: IndexedSeq[HexagonLeaf],
   bucketsGoal: Int,
   iterationsThreshold: Int = 1000
-) extends GeoZoneHexGenerator {
+) extends GeoIndexMapper {
 
   private def generateEqualDemandH3Indexes(): Seq[Hexagon[_]] = {
     var result: IndexedSeq[Hexagon[_]] = initialContent
@@ -49,18 +49,26 @@ class TopDownEqualDemandsGeoZoneHexGenerator private[geozone] (
 
 }
 
-object TopDownEqualDemandsGeoZoneHexGenerator {
+object TopDownEqualDemandsGeoIndexMapper {
+
+  def from(
+    geoZone: GeoZone,
+    expectedNumberOfBuckets: Int,
+    initialResolution: Int = 2
+  ): TopDownEqualDemandsGeoIndexMapper = {
+    from(geoZone.coordinates, expectedNumberOfBuckets, initialResolution)
+  }
 
   def from(
     coordinates: ParSet[WgsCoordinate],
     expectedNumberOfBuckets: Int,
     initialResolution: Int
-  ): TopDownEqualDemandsGeoZoneHexGenerator = {
+  ): TopDownEqualDemandsGeoIndexMapper = {
     val allContent: GeoZoneContent = GeoZone.generateContent(coordinates, initialResolution)
     val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
       case (index, points) => HexagonLeaf(index, points)
     }.toIndexedSeq
-    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, expectedNumberOfBuckets)
+    new TopDownEqualDemandsGeoIndexMapper(allHexagons, expectedNumberOfBuckets)
   }
 
 }
