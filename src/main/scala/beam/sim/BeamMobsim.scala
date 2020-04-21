@@ -286,8 +286,7 @@ class BeamMobsimIteration(
 
   private val parkingManager = context.actorOf(
     SplitParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
-      .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
+      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM),
     "ParkingManager"
   )
   context.watch(parkingManager)

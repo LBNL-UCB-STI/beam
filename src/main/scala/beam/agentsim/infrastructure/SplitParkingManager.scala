@@ -64,8 +64,7 @@ class SplitParkingManager(
               geo,
               rand,
               boundingBox
-            )
-            .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
+            ),
           s"zonal-parking-manager-$i"
         )
         Worker(actor, cluster)
