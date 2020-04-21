@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
+import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters
 
@@ -71,26 +72,41 @@ class Population(
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
-      if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx") == null) {
-        log.error(
-          s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+
+      import scala.language.implicitConversions
+
+      trait ObjectAttributesScala{
+        def putAttributes[T](objectId: String, attributeName: String, value: T): T
+        def getAttribute[T](objectId: String, attributeName: String): Option[T]
+        def getAttribute[T](objectId: String, attributeName: String, defaultValue: T): T
+        def removeAttribute(objectId: String, attributeName: String)
+        def removeAllAttributes(objectId: String)
+        def clear()
+      }
+
+      implicit def objectAttributesScala(objectAttributes: ObjectAttributes): ObjectAttributesScala = new ObjectAttributesScala {
+        override def putAttributes[T](objectId: String, attributeName: String, value: T): T = objectAttributes.putAttribute(objectId, attributeName, value).asInstanceOf[T]
+        override def getAttribute[T](objectId: String, attributeName: String): Option[T] = Option(objectAttributes.getAttribute(objectId, attributeName).asInstanceOf[T])
+        override def getAttribute[T](objectId: String, attributeName: String, defaultValue: T): T = getAttribute(objectId, attributeName).getOrElse{
+          log.error(
+            s"Cannot find $attributeName for object $objectId which will be interpreted as $defaultValue"
+          )
+          defaultValue
+        }
+        override def removeAttribute(objectId: String, attributeName: String): Unit = objectAttributes.removeAttribute(objectId, attributeName)
+        override def clear(): Unit = objectAttributes.clear()
+        override def removeAllAttributes(objectId: String): Unit = objectAttributes.removeAllAttributes(objectId)
+      }
+
+      val houseHoldAttributes: ObjectAttributesScala = scenario.getHouseholds.getHouseholdAttributes
+
+      val homeCoord = {
+        val householdId = household.getId.toString
+        new Coord(
+          houseHoldAttributes.getAttribute(householdId, "homecoordx", 0d),
+          houseHoldAttributes.getAttribute(householdId, "homecoordy", 0d)
         )
       }
-      if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
-        log.error(
-          s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
-        )
-      }
-      val homeCoord = new Coord(
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx")
-          .asInstanceOf[Double],
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy")
-          .asInstanceOf[Double]
-      )
 
       val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
         .collectionAsScalaIterable(household.getVehicleIds)
