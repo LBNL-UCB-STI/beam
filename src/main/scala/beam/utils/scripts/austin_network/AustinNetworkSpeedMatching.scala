@@ -78,11 +78,11 @@ object AustinNetworkSpeedMatching {
   }
 
 
-class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging  {
+class AustinNetworkSpeedMatching(splitSizeInMeters:Double) extends LazyLogging  {
 
 
 
-  logger.info(s"splitVectorsIntoPices: $splitVectorsIntoPices")
+  logger.info(s"splitVectorsIntoPices: $splitSizeInMeters")
 
   def readCSV(filePath: String): Vector[String] = {
     val bufferedSource = Source.fromFile(filePath)
@@ -115,7 +115,7 @@ class AustinNetworkSpeedMatching(splitVectorsIntoPices:Int) extends LazyLogging 
   def produceSpeedDataPointFromSpeedVector(speedVectors: mutable.ArrayBuffer[SpeedVector]): mutable.ArrayBuffer[SpeedDataPoint] = {
     val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
     val dataPoints=speedVectors.par.flatMap{ speedVector =>
-      speedVector.produceSpeedDataPointFromSpeedVector(splitVectorsIntoPices)
+      speedVector.produceSpeedDataPointFromSpeedVector(splitSizeInMeters)
     }
     collection.mutable.ArrayBuffer(dataPoints.toList: _*)
   }
