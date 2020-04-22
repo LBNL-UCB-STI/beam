@@ -190,6 +190,7 @@ class RideHailFleetAnalysisInternal(
   ) {
     class Utilization(
       ) {
+      // DoubleAdder here allows for effective adding values into the array during parallel computation.
       private val timeInternal: Array[Array[DoubleAdder]] =
         Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
           new DoubleAdder()
@@ -216,10 +217,11 @@ class RideHailFleetAnalysisInternal(
 
     val utilization: Utilization = new Utilization()
 
-    vehicleEventTypeMap.values.par.foreach(vehicleEvents => {
+    // 'par' - is a scala built-in way to process collection in a parallel way.
+    vehicleEventTypeMap.values.par.foreach { vehicleEvents =>
       val (timeUtilization, distanceUtilization) = assignVehicleDayToLocationMatrix(vehicleEvents, isRH, isCAV)
       utilization.add(timeUtilization, distanceUtilization)
-    })
+    }
 
     utilization.calculateTime.transpose.zipWithIndex.foreach {
       case (row, index) =>
@@ -269,6 +271,9 @@ class RideHailFleetAnalysisInternal(
     processedHour = 0
   }
 
+  // The efficiency of the function is important
+  // because it is called up to 24 times for events of every RH vehicle during a BEAM iteration.
+  // This is especially important for bigger BEAM runs.
   private def assignVehicleDayToLocationMatrix(
     days: ArrayBuffer[Event],
     isRH: Boolean,
@@ -287,24 +292,25 @@ class RideHailFleetAnalysisInternal(
 
     timeBins.indices.foreach(timeUtilization(_)(idleActionIndex) += 1)
 
-    var eventIndex = 0
-    days.foreach(event => {
-      val lastEvent = eventIndex == days.size - 1
+    // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+    var dayIndex = 0
+    days.foreach { event =>
+      val lastEvent = dayIndex == days.size - 1
 
       var chargingNext = false
       var pickupNext = false
 
       if (!lastEvent) {
-        val chargingDirectlyNext = days(eventIndex + 1).getEventType == "RefuelSessionEvent"
+        val chargingDirectlyNext = days(dayIndex + 1).getEventType == "RefuelSessionEvent"
 
         val chargingOneAfter =
-          if (eventIndex == days.size - 2)
+          if (dayIndex == days.size - 2)
             false
           else
-            days(eventIndex + 1).getEventType == "ParkEvent" && days(eventIndex + 2).getEventType == "RefuelSessionEvent"
+            days(dayIndex + 1).getEventType == "ParkEvent" && days(dayIndex + 2).getEventType == "RefuelSessionEvent"
 
         chargingNext = chargingDirectlyNext || chargingOneAfter
-        pickupNext = days(eventIndex + 1) match {
+        pickupNext = days(dayIndex + 1) match {
           case pte: PathTraversalEvent => pte.numberOfPassengers >= 1
           case _                       => false
         }
@@ -315,31 +321,30 @@ class RideHailFleetAnalysisInternal(
       val afterEventStart = Array.ofDim[Boolean](timeBins.size)
       val duringEvent = Array.ofDim[Boolean](timeBins.size)
 
-      var idx = 0
-      timeBins.foreach(timeBin => {
-        afterEventStart(idx) = timeBin >= eventCharacteristics.start
-        duringEvent(idx) = afterEventStart(idx) && timeBin < eventCharacteristics.end
-        idx += 1
-      })
+      timeBinsWithIndex.foreach {
+        case (timeBin, index) =>
+          afterEventStart(index) = timeBin >= eventCharacteristics.start
+          duringEvent(index) = afterEventStart(index) && timeBin < eventCharacteristics.end
+      }
 
-      idx = 0
-      afterEventStart.foreach(eventWasStarted => {
+      // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+      var eventIndex = 0
+      afterEventStart.foreach { eventWasStarted =>
         if (eventWasStarted) {
-          timeUtilization(idx).indices.foreach(actionIndex => {
-            timeUtilization(idx)(actionIndex) = 0.0
-          })
+          timeUtilization(eventIndex).indices.foreach(actionIndex => timeUtilization(eventIndex)(actionIndex) = 0.0)
         }
-        idx += 1
-      })
+        eventIndex += 1
+      }
 
-      idx = 0
+      // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+      eventIndex = 0
       val eventTypeIdx = keys(eventCharacteristics.eventType)
-      duringEvent.foreach(eventIsContinuous => {
+      duringEvent.foreach { eventIsContinuous =>
         if (eventIsContinuous) {
-          timeUtilization(idx)(eventTypeIdx) += 1.0
+          timeUtilization(eventIndex)(eventTypeIdx) += 1.0
         }
-        idx += 1
-      })
+        eventIndex += 1
+      }
 
       event match {
         case pte: PathTraversalEvent =>
@@ -348,13 +353,14 @@ class RideHailFleetAnalysisInternal(
           if (sum > 0) {
             val meanDistancePerTime = legLength / sum
 
-            idx = 0
-            duringEvent.foreach(eventIsContinuous => {
+            // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+            eventIndex = 0
+            duringEvent.foreach { eventIsContinuous =>
               if (eventIsContinuous) {
-                distanceUtilization(idx)(eventTypeIdx) += meanDistancePerTime / metersInMile
+                distanceUtilization(eventIndex)(eventTypeIdx) += meanDistancePerTime / metersInMile
               }
-              idx += 1
-            })
+              eventIndex += 1
+            }
 
           } else {
             val firstIndex = afterEventStart.indexOf(true)
@@ -364,17 +370,17 @@ class RideHailFleetAnalysisInternal(
         case _ =>
       }
 
-      eventCharacteristics.nextType.foreach(nextType => {
+      eventCharacteristics.nextType.foreach { nextType =>
         timeBinsWithIndex.foreach {
           case (timeBin, index) =>
             if (timeBin >= eventCharacteristics.end) {
               timeUtilization(index)(keys(nextType)) += 1.0
             }
         }
-      })
+      }
 
-      eventIndex += 1
-    })
+      dayIndex += 1
+    }
 
     (timeUtilization, distanceUtilization)
   }
@@ -388,63 +394,63 @@ class RideHailFleetAnalysisInternal(
     isCAV: Boolean
   ): EventStatus = {
     event match {
-      case event: PathTraversalEvent =>
+      case pte: PathTraversalEvent =>
         if (isRH) {
-          if (event.numberOfPassengers >= 1) {
+          if (pte.numberOfPassengers >= 1) {
             if (lastEvent) {
               if (isCAV)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("offline"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("offline"))
             } else {
               if (chargingNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("queuing"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("queuing"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("idle"))
             }
           } else {
             if (lastEvent) {
               if (isCAV)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("offline"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("offline"))
             } else {
               if (chargingNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-tocharger", Some("queuing"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-tocharger", Some("queuing"))
               else if (pickupNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-topickup", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-topickup", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("idle"))
             }
           }
         } else {
           if (chargingNext)
-            EventStatus(event.departureTime, event.arrivalTime, "driving-tocharger", Some("queuing"))
+            EventStatus(pte.departureTime, pte.arrivalTime, "driving-tocharger", Some("queuing"))
           else {
-            if (event.numberOfPassengers >= 1)
-              EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("queuing"))
+            if (pte.numberOfPassengers >= 1)
+              EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("queuing"))
             else
-              EventStatus(event.departureTime, event.arrivalTime, "driving-topickup", Some("idle"))
+              EventStatus(pte.departureTime, pte.arrivalTime, "driving-topickup", Some("idle"))
           }
         }
-      case rsEvent: RefuelSessionEvent =>
-        val duration = rsEvent.sessionDuration
+      case refuelSessionEvent: RefuelSessionEvent =>
+        val duration = refuelSessionEvent.sessionDuration
         if (isRH) {
           if (lastEvent) {
             if (isCAV)
-              EventStatus(rsEvent.getTime, rsEvent.getTime + duration, "charging", Some("idle"))
+              EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
             else
-              EventStatus(rsEvent.getTime, rsEvent.getTime + duration, "charging", Some("offline"))
+              EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("offline"))
           } else
-            EventStatus(rsEvent.getTime, rsEvent.getTime + duration, "charging", Some("idle"))
+            EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
         } else {
-          EventStatus(rsEvent.getTime, rsEvent.getTime + duration, "charging", Some("parked"))
+          EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("parked"))
         }
-      case event: ParkingEvent =>
+      case parkingEvent: ParkingEvent =>
         if (isRH)
-          EventStatus(event.getTime, lastHour * secondsInHour, "idle")
+          EventStatus(parkingEvent.getTime, lastHour * secondsInHour, "idle")
         else
-          EventStatus(event.getTime, lastHour * secondsInHour, "parked")
+          EventStatus(parkingEvent.getTime, lastHour * secondsInHour, "parked")
       case _ =>
         EventStatus(0.0, 0.0, "Unknown")
     }
