@@ -440,7 +440,12 @@ class RideHailFleetAnalysisInternal(
             if (isCAV)
               EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
             else
-              EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("offline"))
+              EventStatus(
+                refuelSessionEvent.getTime,
+                refuelSessionEvent.getTime + duration,
+                "charging",
+                Some("offline")
+              )
           } else
             EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
         } else {
