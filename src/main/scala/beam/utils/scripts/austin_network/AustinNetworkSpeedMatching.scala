@@ -194,7 +194,10 @@ object AustinNetworkSpeedMatching {
       // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
       // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
 
-      writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, physsimNetwork.network)
+
+
+
+      writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, physsimNetwork.network, referenceSpeedData,linkCapacityData)
 
       //    //TODO: write link_id,capacity,free_speed,length
 
@@ -230,7 +233,9 @@ object AustinNetworkSpeedMatching {
     private def writeComparisonOSMVsReferenceSpeedsByLink(
       outputFilePath: String,
       physsimQuadTreeDP: QuadTree[SpeedDataPoint],
-      network: Network // TODO: this variable is not used anywhere
+      network: Network, // TODO: this variable is not used anywhere
+      referenceSpeedData: ReferenceSpeedData,
+      linkCapacityData: LinkCapacityData
     ): Unit = {
       val quadtreeValues = physsimQuadTreeDP.values().asScala.toList
       val linkIdReferenceSpeedGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkReferenceSpeedTuples(quadtreeValues)
@@ -242,6 +247,40 @@ object AustinNetworkSpeedMatching {
         val b = linkIdCapacityGroups.getOrElse(id, List.empty)
         id -> (a, b)
       }.toMap
+
+// Id, speed (._1.median) - data from: referenceSpeedData.speeds,  (._2.median)  linkCapacityData.linkCapacityData.capacity, lanes, speed
+
+Id, (referenceSpeedData.speeds.get(fromFirstList),linkCapacityData.linkCapacityData.get(fromSecondList).get.capacity ,linkCapacityData.linkCapacityData.get(fromSecondList).get.lanes,linkCapacityData.linkCapacityData.get(fromSecondList).get.speedInMetersPerSecond)
+
+      val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
+
+      linkIdReferenceSpeedGroups.foreach {
+        case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
+
+          var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
+
+          val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
+          linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
+      }
+
+      linkReferenceSpeeds.foreach{
+        case (linkId,averageReferenceSpeed) =>
+          val link=network.getLinks.get(linkId)
+          getOppositeLink(link) match {
+            case Some(oppositeLink) =>
+              linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
+            case None =>
+          }
+      }
+
+      linkReferenceSpeeds.foreach{
+        case (linkId,averageReferenceSpeed) =>
+          writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
+      }
+
+      pw.close
+
+
       printComparison(outputFilePath, result)
     }
 
