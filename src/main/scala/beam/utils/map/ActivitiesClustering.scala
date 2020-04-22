@@ -70,7 +70,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
 
   private def cluster(): Array[ClusterInfo] = {
     val activities = readActivities(pathToPlansCsv)
-    val db = createDatabase(activities)
+    val db = createAndInitializeDatabase(activities)
     val kmeans = new KMeansElkan[NumberVector](
       SquaredEuclideanDistanceFunction.STATIC,
       nClusters,
@@ -107,7 +107,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
       .collect { case p if p.planElementType.contains("activity") => p }
   }
 
-  private def createDatabase(acts: scala.collection.Iterable[PlanElement]): Database = {
+  private def createAndInitializeDatabase(acts: scala.collection.Iterable[PlanElement]): Database = {
     val data: Array[Array[Double]] = Array.ofDim[Double](acts.size, 2)
     val labels: Array[String] = Array.ofDim[String](acts.size)
     acts.zipWithIndex.foreach {
@@ -119,9 +119,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
         labels.update(idx, label)
     }
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
-    // Create a database (which may contain multiple relations!)
     val db = new StaticArrayDatabase(dbc, null)
-    // Load the data into the database (do NOT forget to initialize...)
     db.initialize()
     db
   }

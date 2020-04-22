@@ -62,9 +62,7 @@ class ShapeWriterTest extends FunSuite with BeforeAndAfterAll with Matchers {
           val featureIdToFeature = ShapeFileReader
             .getAllFeatures(pointFile.getPath)
             .asScala
-            .map { f =>
-              f.getID -> f
-            }
+            .map(f => f.getID -> f)
             .toMap
           assert(featureIdToFeature.contains(originalToPersistedMap("Lawrence Berkeley National Laboratory")))
           assert(featureIdToFeature.contains(originalToPersistedMap("Java Island")))
