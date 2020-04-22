@@ -598,7 +598,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
             currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId)
+              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId, theStall.tazId)
             }
             currentBeamVehicle.unsetParkingStall()
           case None =>
@@ -905,7 +905,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     eventsManager.processEvent(chargingPlugOutEvent)
     vehicle.stall match {
       case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
+        parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
         vehicle.unsetParkingStall()
       case None =>
         log.error("Vehicle has no stall while ending charging event")

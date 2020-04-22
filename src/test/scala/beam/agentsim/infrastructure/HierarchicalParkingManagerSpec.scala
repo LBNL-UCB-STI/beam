@@ -2,15 +2,15 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.agentsim.infrastructure.taz.TAZ
+import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -49,6 +49,8 @@ class HierarchicalParkingManagerSpec
   val beamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
+  val emergencyId0 = Id.create("emergency-0", classOf[TAZ])
+
   describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -61,7 +63,7 @@ class HierarchicalParkingManagerSpec
           xMax = 833000,
           yMax = 10000000
         ) // one TAZ at agent coordinate
-        splitParkingManager = system.actorOf(
+        parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
@@ -83,10 +85,11 @@ class HierarchicalParkingManagerSpec
             inquiry.destinationUtm.getY + 2000,
             inquiry.destinationUtm.getY - 2000
           ),
-          new Random(randomSeed)
+          new Random(randomSeed),
+          tazId = emergencyId0,
         )
 
-        splitParkingManager ! inquiry
+        parkingManager ! inquiry
 
         expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
       }
@@ -111,7 +114,7 @@ class HierarchicalParkingManagerSpec
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
-        splitParkingManager = system.actorOf(
+        parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
@@ -137,15 +140,15 @@ class HierarchicalParkingManagerSpec
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace
           )
-        splitParkingManager ! firstInquiry
+        parkingManager ! firstInquiry
         expectMsg(ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId))
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        splitParkingManager ! secondInquiry
+        parkingManager ! secondInquiry
         expectMsgPF() {
           case res @ ParkingInquiryResponse(stall, responseId)
-              if stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
+              if stall.tazId == emergencyId0 && responseId == secondInquiry.requestId =>
             res
         }
       }
@@ -170,7 +173,7 @@ class HierarchicalParkingManagerSpec
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
-        splitParkingManager = system.actorOf(
+        parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
@@ -200,15 +203,15 @@ class HierarchicalParkingManagerSpec
           )
 
         // request the stall
-        splitParkingManager ! firstInquiry
+        parkingManager ! firstInquiry
         expectMsg(ParkingInquiryResponse(expectedStall, firstInquiry.requestId))
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId)
-        splitParkingManager ! releaseParkingStall
+        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId, expectedTAZId)
+        parkingManager ! releaseParkingStall
 
         // request the stall again
-        splitParkingManager ! secondInquiry
+        parkingManager ! secondInquiry
         expectMsg(ParkingInquiryResponse(expectedStall, secondInquiry.requestId))
       }
     }
@@ -243,7 +246,7 @@ class HierarchicalParkingManagerSpec
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(parkingConfiguration, random)
-        splitParkingManager = system.actorOf(
+        parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
@@ -260,10 +263,10 @@ class HierarchicalParkingManagerSpec
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
           req = ParkingInquiry(middleOfWorld, "work")
-          _ = splitParkingManager ! req
+          _ = parkingManager ! req
           counted = expectMsgPF[Int]() {
             case res: ParkingInquiryResponse =>
-              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
+              if (res.stall.tazId != emergencyId0) 1 else 0
           }
         } yield {
           counted

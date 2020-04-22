@@ -5,19 +5,14 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams,
-  ZoneSearchTree
-}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams, ZoneSearchTree}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.{Failure, Random, Success, Try}
 
@@ -26,6 +21,7 @@ class ZonalParkingManager(
   geo: GeoUtils,
   parkingZones: Array[ParkingZone],
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
+  emergencyTAZId: Id[TAZ],
   rand: Random,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -258,7 +254,7 @@ class ZonalParkingManager(
               inquiry.destinationUtm.getY + 2000,
               inquiry.destinationUtm.getY - 2000
             )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand)
+            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
@@ -293,7 +289,7 @@ class ZonalParkingManager(
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
 
-    case ReleaseParkingStall(parkingZoneId) =>
+    case ReleaseParkingStall(parkingZoneId, _) =>
       if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
         if (log.isDebugEnabled) {
           // this is an infinitely available resource; no update required
@@ -369,6 +365,7 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     parkingZones: Array[ParkingZone],
     searchTree: ZoneSearchTree[TAZ],
+    emergencyTAZId: Id[TAZ],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
@@ -399,6 +396,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       parkingZones,
       searchTree,
+      emergencyTAZId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -438,6 +436,7 @@ object ZonalParkingManager extends LazyLogging {
       tazTreeMap,
       stalls,
       searchTree,
+      TAZ.EmergencyTAZId,
       geo,
       random,
       boundingBox,
@@ -490,6 +489,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       parking.zones,
       parking.tree,
+      TAZ.EmergencyTAZId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -532,6 +532,7 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     parkingZones: Array[ParkingZone],
     searchTree: ZoneSearchTree[TAZ],
+    emergencyTAZId: Id[TAZ],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
@@ -543,6 +544,7 @@ object ZonalParkingManager extends LazyLogging {
         tazTreeMap,
         parkingZones,
         searchTree,
+        emergencyTAZId,
         geo,
         random,
         boundingBox,

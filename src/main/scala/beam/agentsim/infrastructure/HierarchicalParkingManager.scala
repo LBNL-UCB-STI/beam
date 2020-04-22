@@ -54,6 +54,7 @@ class HierarchicalParkingManager(
   private val workers: Vector[Worker] =
     clusters.zipWithIndex.map {
       case (cluster, i) =>
+        val emergencyId = Id.create(s"emergency-$i", classOf[TAZ])
         val actor = context.actorOf(
           ZonalParkingManager
             .props(
@@ -61,13 +62,14 @@ class HierarchicalParkingManager(
               TAZTreeMap.fromSeq(cluster.tazes),
               zones,
               searchTree,
+              emergencyId,
               geo,
               rand,
               boundingBox
             ),
           s"zonal-parking-manager-$i"
         )
-        Worker(actor, cluster)
+        Worker(actor, cluster, emergencyId)
     }
 
   private val tazToWorker: Map[Id[TAZ], Worker] = mapTazToWorker(workers)
@@ -89,28 +91,18 @@ class HierarchicalParkingManager(
 
       worker.actor.forward(inquiry)
 
-    case release @ ReleaseParkingStall(parkingZoneId) =>
-      val worker = if (parkingZoneId < 0 || zones.length <= parkingZoneId) {
-        //default/error parking zone, random worker is to deal with it
-        randomWorker
-      } else {
-        val parkingZone = zones(parkingZoneId)
-        tazToWorker.getOrElse(
-          parkingZone.tazId,
-          throw new IllegalStateException(s"No TAZ with id ${parkingZone.tazId}, zone id = $parkingZoneId")
+    case release @ ReleaseParkingStall(parkingZoneId, tazId) =>
+      val worker = tazToWorker.getOrElse(
+          tazId,
+          throw new IllegalStateException(s"No TAZ with id $tazId, zone id = $parkingZoneId")
         )
-      }
 
       worker.actor.forward(release)
   }
 
-  private def randomWorker: Worker = {
-    workers(rand.nextInt(workers.size))
-  }
-
   private def mapTazToWorker(clusters: Seq[Worker]): Map[Id[TAZ], Worker] = {
     clusters.flatMap { worker =>
-      worker.cluster.tazes.map(_.tazId -> worker)
+      (worker.cluster.tazes.view.map(_.tazId) :+ worker.emergencyId).map(_ -> worker)
     }.toMap
   }
 }
@@ -174,7 +166,7 @@ object HierarchicalParkingManager extends LazyLogging {
   }
 
   private[infrastructure] case class ParkingCluster(tazes: Vector[TAZ], mean: Coord, convexHull: Geometry)
-  private case class Worker(actor: ActorRef, cluster: ParkingCluster)
+  private case class Worker(actor: ActorRef, cluster: ParkingCluster, emergencyId: Id[TAZ])
 
   private[infrastructure] def createClusters(
     tazTreeMap: TAZTreeMap,
@@ -232,7 +224,7 @@ object HierarchicalParkingManager extends LazyLogging {
             .toList
           ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
         }
-        logger.info("Done clustering")
+        logger.info(s"Done clustering: ${clusters.size}")
         clusters
       } catch {
         case ex: Exception =>

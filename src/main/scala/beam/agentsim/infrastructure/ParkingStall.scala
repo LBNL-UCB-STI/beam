@@ -48,13 +48,14 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars
+    costInDollars: Double = CostOfEmergencyStallInDollars,
+    tazId: Id[TAZ] = TAZ.EmergencyTAZId,
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
 
     ParkingStall(
-      tazId = TAZ.EmergencyTAZId,
+      tazId = tazId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,

@@ -205,7 +205,7 @@ class ZonalParkingManagerSpec
         expectMsg(ParkingInquiryResponse(expectedStall, firstInquiry.requestId))
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId)
+        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId, expectedTAZId)
         zonalParkingManager ! releaseParkingStall
 
         // request the stall again
