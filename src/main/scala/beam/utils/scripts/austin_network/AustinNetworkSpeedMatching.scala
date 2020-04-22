@@ -3,7 +3,7 @@ package beam.utils.scripts.austin_network
 import java.io.{File, PrintWriter}
 
 import beam.sim.common.GeoUtils
-import beam.utils.Statistics
+import beam.utils.{FileUtils, Statistics}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.scripts.austin_network.AustinNetworkSpeedMatching.{addCoord, getNetwork}
 import beam.utils.scripts.austin_network.LinkReader.getLinkDataWithCapacities
@@ -16,7 +16,6 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -52,7 +51,6 @@ object AustinNetworkSpeedMatching {
 
    */
 
-
   def main(args: Array[String]): Unit = {
     // readCSV()
 
@@ -60,20 +58,23 @@ object AustinNetworkSpeedMatching {
       override def localCRS: String = "epsg:26910"
     }
 
-
-    val austinNetworkSpeedMatching=new AustinNetworkSpeedMatching(10,geoUtils)
+    val austinNetworkSpeedMatching = new AustinNetworkSpeedMatching(10, geoUtils)
     //val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
 
-    val physsimNetwork=new PhyssimNetwork("E:\\work\\austin\\output_network.xml.gz",geoUtils)
+    val physsimNetwork = new PhyssimNetwork("E:\\work\\austin\\output_network.xml.gz", geoUtils)
 
-    val referenceSpeedData = new ReferenceSpeedData("E:\\work\\austin\\referenceRoadSpeedsAustin.csv",geoUtils)
-
+    val referenceSpeedData = new ReferenceSpeedData("E:\\work\\austin\\referenceRoadSpeedsAustin.csv", geoUtils)
 
     val detailFilePath = "E:\\work\\austin\\austin.2015_regional_am.public.linkdetails.csv"
     val publicLinkPath = "E:\\work\\austin\\austin.2015_regional_am.public.links.csv"
-    val linkCapacityData = new LinkCapacityData(detailFilePath, publicLinkPath,geoUtils)
+    val linkCapacityData = new LinkCapacityData(detailFilePath, publicLinkPath, geoUtils)
 
-    austinNetworkSpeedMatching.mapMatchingAlgorithm(physsimNetwork, referenceSpeedData, "E:\\work\\austin\\",linkCapacityData)
+    austinNetworkSpeedMatching.mapMatchingAlgorithm(
+      physsimNetwork,
+      referenceSpeedData,
+      "E:\\work\\austin\\",
+      linkCapacityData
+    )
   }
 
   def getNetwork(filePath: String) = {
@@ -83,8 +84,8 @@ object AustinNetworkSpeedMatching {
     network
   }
 
-  def addCoord(coord:Coord,addCoord:Coord):Coord={
-    new Coord(coord.getX+addCoord.getX,coord.getY+addCoord.getY)
+  def addCoord(coord: Coord, addCoord: Coord): Coord = {
+    new Coord(coord.getX + addCoord.getX, coord.getY + addCoord.getY)
   }
 
   def readCSV(filePath: String): Vector[String] = {
@@ -94,266 +95,241 @@ object AustinNetworkSpeedMatching {
     lines
   }
 
+  class AustinNetworkSpeedMatching(splitSizeInMeters: Double, geoUtils: GeoUtils) extends LazyLogging {
 
-class AustinNetworkSpeedMatching(splitSizeInMeters:Double,geoUtils: GeoUtils) extends LazyLogging  {
+    logger.info(s"splitVectorsIntoPices: $splitSizeInMeters")
 
+    // TODO: correct opposite direction links,
 
+    def getQuadTreeBounds(speedDataPoints: Vector[SpeedDataPoint]): QuadTreeBounds = {
+      var minX: Double = Double.MaxValue
+      var maxX: Double = Double.MinValue
+      var minY: Double = Double.MaxValue
+      var maxY: Double = Double.MinValue
 
-  logger.info(s"splitVectorsIntoPices: $splitSizeInMeters")
-
-
-
-  // TODO: correct opposite direction links,
-
-
-
-  def getQuadTreeBounds(speedDataPoints: Vector[SpeedDataPoint]): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-
-    speedDataPoints.foreach { speedDataPoint =>
-      minX = Math.min(minX, speedDataPoint.coord.getX)
-      minY = Math.min(minY, speedDataPoint.coord.getY)
-      maxX = Math.max(maxX, speedDataPoint.coord.getX)
-      maxY = Math.max(maxY, speedDataPoint.coord.getY)
-    }
-    QuadTreeBounds(minX, minY, maxX, maxY)
-  }
-
-  def produceSpeedDataPointFromSpeedVector(speedVectors: Vector[SpeedVector]): Vector[SpeedDataPoint] = {
-    val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
-    val dataPoints=speedVectors.par.flatMap{ speedVector =>
-      speedVector.produceSpeedDataPointFromSpeedVector(splitSizeInMeters)
-    }
-    collection.mutable.ArrayBuffer(dataPoints.toList: _*).toVector
-  }
-
-
-
-
-
-
-
-
-
-
-
-  def createShapeFileForDataPoints(dataPoints: Vector[SpeedDataPoint], outputFile:String)  = {
-   // val features = new util.ArrayList[SimpleFeature]()
-   val features = ArrayBuffer[SimpleFeature]()
-
-    val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
-      .setCrs(MGC.getCRS("EPSG:4326"))
-      .setName("nodes")
-      //.addAttribute("Index", classOf[String])
-      //.addAttribute("Size", classOf[java.lang.Integer])
-      //.addAttribute("Resolution", classOf[java.lang.Integer])
-      .create()
-
-    dataPoints.foreach{ dataPoint =>
-      val wsgCoord=geoUtils.utm2Wgs(dataPoint.coord)
-      val coord=new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
-      features+=pointf.createPoint(coord)
+      speedDataPoints.foreach { speedDataPoint =>
+        minX = Math.min(minX, speedDataPoint.coord.getX)
+        minY = Math.min(minY, speedDataPoint.coord.getY)
+        maxX = Math.max(maxX, speedDataPoint.coord.getX)
+        maxY = Math.max(maxY, speedDataPoint.coord.getY)
+      }
+      QuadTreeBounds(minX, minY, maxX, maxY)
     }
 
-    ShapeFileWriter.writeGeometries(features.asJava,outputFile)
-    println(s"shapefile created:$outputFile")
-  }
-
-  def mapMatchingAlgorithm(physsimNetwork: PhyssimNetwork, referenceSpeedData: ReferenceSpeedData, outputFilePath: String, linkCapacityData: LinkCapacityData): Unit = {
-    val physsimSpeedVector: Vector[SpeedVector] = physsimNetwork.getPhyssimSpeedVector()
-    val referenceSpeedVector: Vector[SpeedVector] = referenceSpeedData.getReferenceSpeedVector()
-    val linkCapacitySpeedVector: Vector[SpeedVector] = linkCapacityData.getReferenceSpeedVector()
-
-    logger.info("start produceSpeedDataPointFromSpeedVector.physsimNetworkDP ")
-
-    val physsimNetworkDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
-
-    logger.info("start produceSpeedDataPointFromSpeedVector.referenceNetworkDP ")
-    val referenceNetworkDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
-
-    val linkCapacityDf: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(linkCapacitySpeedVector)
-
-    //createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
-
-    //createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
-
-    logger.info("start quadTreeBounds ")
-    // TODO: push quadtree into PhyssimNetwork
-    val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
-    val physsimQuadTreeDP: QuadTree[SpeedDataPoint] = new QuadTree[SpeedDataPoint](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
-    physsimNetworkDP.foreach {
-      speedDataPoint => physsimQuadTreeDP.put(speedDataPoint.coord.getX, speedDataPoint.coord.getY, speedDataPoint)
+    def produceSpeedDataPointFromSpeedVector(speedVectors: Vector[SpeedVector]): Vector[SpeedDataPoint] = {
+      val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
+      val dataPoints = speedVectors.par.flatMap { speedVector =>
+        speedVector.produceSpeedDataPointFromSpeedVector(splitSizeInMeters)
+      }
+      collection.mutable.ArrayBuffer(dataPoints.toList: _*).toVector
     }
 
+    def createShapeFileForDataPoints(dataPoints: Vector[SpeedDataPoint], outputFile: String) = {
+      // val features = new util.ArrayList[SimpleFeature]()
+      val features = ArrayBuffer[SimpleFeature]()
 
+      val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
+        .setCrs(MGC.getCRS("EPSG:4326"))
+        .setName("nodes")
+        //.addAttribute("Index", classOf[String])
+        //.addAttribute("Size", classOf[java.lang.Integer])
+        //.addAttribute("Resolution", classOf[java.lang.Integer])
+        .create()
 
+      dataPoints.foreach { dataPoint =>
+        val wsgCoord = geoUtils.utm2Wgs(dataPoint.coord)
+        val coord = new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
+        features += pointf.createPoint(coord)
+      }
 
+      ShapeFileWriter.writeGeometries(features.asJava, outputFile)
+      println(s"shapefile created:$outputFile")
+    }
 
-    logger.info("start closestPhysSimPointMap ")
-    val closestPhysSimPointMap=referenceNetworkDP.par.map{ referenceSpeedDataPoint =>
-      (referenceSpeedDataPoint -> physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY))
-    }.toMap
-    logger.info("end closestPhysSimPointMap ")
+    def mapMatchingAlgorithm(
+      physsimNetwork: PhyssimNetwork,
+      referenceSpeedData: ReferenceSpeedData,
+      outputFilePath: String,
+      linkCapacityData: LinkCapacityData
+    ): Unit = {
+      val physsimSpeedVector: Vector[SpeedVector] = physsimNetwork.getPhyssimSpeedVector()
+      val referenceSpeedVector: Vector[SpeedVector] = referenceSpeedData.getReferenceSpeedVector()
+      val linkCapacitySpeedVector: Vector[SpeedVector] = linkCapacityData.getReferenceSpeedVector()
 
-    matchNetwork(referenceNetworkDP,closestPhysSimPointMap, _.closestReferenceData)
-    matchNetwork(linkCapacityDf,closestPhysSimPointMap, _.closestCapacityData)
+      logger.info("start produceSpeedDataPointFromSpeedVector.physsimNetworkDP ")
 
+      val physsimNetworkDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(physsimSpeedVector)
 
+      logger.info("start produceSpeedDataPointFromSpeedVector.referenceNetworkDP ")
+      val referenceNetworkDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
 
+      val linkCapacityDf: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(linkCapacitySpeedVector)
 
-    logger.info("end referenceNetworkDP.foreach ")
-   // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
-   // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
+      //createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
+      //createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
-    writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, physsimNetwork.network)
+      logger.info("start quadTreeBounds ")
+      // TODO: push quadtree into PhyssimNetwork
+      val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
+      val physsimQuadTreeDP: QuadTree[SpeedDataPoint] =
+        new QuadTree[SpeedDataPoint](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
+      physsimNetworkDP.foreach { speedDataPoint =>
+        physsimQuadTreeDP.put(speedDataPoint.coord.getX, speedDataPoint.coord.getY, speedDataPoint)
+      }
 
-    //    //TODO: write link_id,capacity,free_speed,length
+      logger.info("start closestPhysSimPointMap ")
+      val closestPhysSimPointMap = referenceNetworkDP.par.map { referenceSpeedDataPoint =>
+        (referenceSpeedDataPoint -> physsimQuadTreeDP.getClosest(
+          referenceSpeedDataPoint.coord.getX,
+          referenceSpeedDataPoint.coord.getY
+        ))
+      }.toMap
+      logger.info("end closestPhysSimPointMap ")
 
-  }
+      matchNetwork(referenceNetworkDP, closestPhysSimPointMap, _.closestReferenceData)
+      matchNetwork(linkCapacityDf, closestPhysSimPointMap, _.closestCapacityData)
 
-  //TODO: rename SpeedDataPoint
-  def matchNetwork(dataPoints: scala.Vector[SpeedDataPoint],closestPhysSimPointMap: ParMap[SpeedDataPoint, SpeedDataPoint],attachDataFunction: SpeedDataPoint =>  Option[ArrayBuffer[Id[Link]]])={
-    val distanceArray: ArrayBuffer[Double] = ArrayBuffer()
-    val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
-    val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint]=new ArrayBuffer()
-    dataPoints.foreach {
-      referenceSpeedDataPoint =>
+      logger.info("end referenceNetworkDP.foreach ")
+      // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
+      // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
 
+      writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, physsimNetwork.network)
+
+      //    //TODO: write link_id,capacity,free_speed,length
+
+    }
+
+    //TODO: rename SpeedDataPoint
+    def matchNetwork(
+      dataPoints: scala.Vector[SpeedDataPoint],
+      closestPhysSimPointMap: ParMap[SpeedDataPoint, SpeedDataPoint],
+      attachDataFunction: SpeedDataPoint => Option[ArrayBuffer[Id[Link]]]
+    ) = {
+      val distanceArray: ArrayBuffer[Double] = ArrayBuffer()
+      val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
+      val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
+      dataPoints.foreach { referenceSpeedDataPoint =>
         //val closestPhysSimNetworkPoint = physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY)
-        val closestPhysSimNetworkPoint =closestPhysSimPointMap.get(referenceSpeedDataPoint).get
+        val closestPhysSimNetworkPoint = closestPhysSimPointMap.get(referenceSpeedDataPoint).get
 
         //val distanceInMeters= geoUtils.distLatLon2Meters(closestPhysSimNetworkPoint.coord,referenceSpeedDataPoint.coord)
         val distanceInMeters = geoUtils.distUTMInMeters(closestPhysSimNetworkPoint.coord, referenceSpeedDataPoint.coord)
         distanceArray += distanceInMeters
         if (distanceInMeters < 100) {
-          attachDataFunction(closestPhysSimNetworkPoint).get+= referenceSpeedDataPoint.linkId
+          attachDataFunction(closestPhysSimNetworkPoint).get += referenceSpeedDataPoint.linkId
         } else {
-          selectedPhysSimPointsForDebugging+=closestPhysSimNetworkPoint
-          selectedReferencePointsForDebugging+=referenceSpeedDataPoint
+          selectedPhysSimPointsForDebugging += closestPhysSimNetworkPoint
+          selectedReferencePointsForDebugging += referenceSpeedDataPoint
         }
+      }
+
+      logger.info(Statistics(distanceArray).toString)
     }
 
+    private def writeComparisonOSMVsReferenceSpeedsByLink(
+      outputFilePath: String,
+      physsimQuadTreeDP: QuadTree[SpeedDataPoint],
+      network: Network // TODO: this variable is not used anywhere
+    ): Unit = {
+      val quadtreeValues = physsimQuadTreeDP.values().asScala.toList
+      val linkIdReferenceSpeedGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkReferenceSpeedTuples(quadtreeValues)
+      val linkIdCapacityGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkCapacityTuples(quadtreeValues)
 
-    logger.info(Statistics(distanceArray).toString)
-  }
+      val allIds = linkIdReferenceSpeedGroups.keySet ++ linkIdCapacityGroups.keySet
+      val result: Map[Id[Link], (List[Id[Link]], List[Id[Link]])] = allIds.map { id =>
+        val a = linkIdReferenceSpeedGroups.getOrElse(id, List.empty)
+        val b = linkIdCapacityGroups.getOrElse(id, List.empty)
+        id -> (a, b)
+      }.toMap
+      printComparison(outputFilePath, result)
+    }
 
-  private def writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath: String, physsimQuadTreeDP: QuadTree[SpeedDataPoint], network: Network) = {
-    var pw = new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsByLink.csv"))
-    pw.write(s"linkId,attributeOrigType,physsimSpeed,medianReferenceSpeed\n")
-
-    // physsim, refSpeeds,capacityData
-    val linkIdReferenceSpeedTuples: List[(Id[Link], Id[Link])] = physsimQuadTreeDP.values().asScala.toVector.toList.flatMap { physsimDataPoint =>
-      val closestReferenceSpeeds: ArrayBuffer[Id[Link]] = physsimDataPoint.closestReferenceData.get
-      closestReferenceSpeeds.map { referenceSpeedId =>
-        (physsimDataPoint.linkId, referenceSpeedId)
+    // TODO: this method still missing implementation
+    private def printComparison(
+      outputFilePath: String,
+      value: Map[Id[Link], (List[Id[Link]], List[Id[Link]])]
+    ): Unit = {
+      FileUtils.using(new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsByLink.csv"))) {pw =>
+        pw.write(s"linkId,attributeOrigType,physsimSpeed,medianReferenceSpeed\n")
       }
     }
 
+    private def getOppositeLink(link: Link): Option[Link] = {
+      val inLinks = link.getFromNode.getInLinks.values()
+      val outLinks = link.getToNode.getOutLinks.values()
+      inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
+    }
 
-    val linkIdCapacityTuples: List[(Id[Link], Id[Link])] = physsimQuadTreeDP.values().asScala.toVector.toList.flatMap { physsimDataPoint =>
+    private def writeUpdatedSpeed(
+      network: Network,
+      pw: PrintWriter,
+      linkId: Id[Link],
+      averageReferenceSpeed: Double
+    ) = {
+      pw.write(
+        s"${linkId},${network.getLinks.get(linkId).getAttributes.getAttribute("type")},${network.getLinks.get(linkId).getFreespeed},$averageReferenceSpeed\n"
+      )
+    }
+
+    private def writeComparisonOSMVsReferenceSpeedsDataPoints(
+      outputFilePath: String,
+      physsimQuadTreeDP: QuadTree[SpeedDataPoint],
+      network: Network
+    ) = {
+      var pw = new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsDataPoints.csv"))
+      pw.write(s"linkId,attributeOrigType,physsimSpeed,referenceSpeed\n")
+
+      physsimQuadTreeDP.values().asScala.toVector.toList.foreach { physsimSpeedDataPoint =>
+        physsimSpeedDataPoint.closestReferenceData.get.foreach { referenceSpeed =>
+          val someValueThatIsNotWorking = "physsimSpeedDataPoint.speedInMetersPerSecond"
+          pw.write(
+            s"${physsimSpeedDataPoint.linkId},${network.getLinks.get(physsimSpeedDataPoint.linkId).getAttributes.getAttribute("type")},${someValueThatIsNotWorking},$referenceSpeed\n"
+          )
+        }
+
+      }
+      pw.close
+    }
+  }
+
+  private def calculateLinkCapacityTuples(quadtreeValues: List[SpeedDataPoint]) = {
+    val linkIdCapacityTuples: List[(Id[Link], Id[Link])] = quadtreeValues.flatMap { physsimDataPoint =>
       val closestCapacityData: ArrayBuffer[Id[Link]] = physsimDataPoint.closestCapacityData.get
       closestCapacityData.map { capacityDataId =>
         (physsimDataPoint.linkId, capacityDataId)
       }
     }
-
-    val linkIdReferenceSpeedGroups: Map[Id[Link], List[Id[Link]]] = linkIdReferenceSpeedTuples.groupBy(_._1).mapValues { list =>
-      list.map {
-        case (_, referenceSpeedId) => referenceSpeedId
-      }
-    }
-
-
-    val linkIdCapacityGroups: Map[Id[Link], List[Id[Link]]] = linkIdCapacityTuples.groupBy(_._1).mapValues { list =>
+    linkIdCapacityTuples.groupBy(_._1).mapValues { list =>
       list.map {
         case (_, capacityDataId) => capacityDataId
       }
     }
+  }
 
-    val linkReferenceSpeedsAndCapacity=mutable.HashMap[Id[Link], (List[Id[Link]],List[Id[Link]])]()
-
-    linkIdReferenceSpeedGroups.map{
-      case (linkId, referenceSpeedIds) if referenceSpeedIds.nonEmpty =>
-        linkReferenceSpeedsAndCapacity.put(linkId,(referenceSpeedIds,List.empty))
-    }
-
-    linkIdCapacityGroups.map{
-      case (linkId, referenceCapacityIds) if referenceCapacityIds.nonEmpty =>
-        if (linkReferenceSpeedsAndCapacity.contains(linkId)){
-          val previousTuple=linkReferenceSpeedsAndCapacity.get(linkId)
-
+  private def calculateLinkReferenceSpeedTuples(quadtreeValues: List[SpeedDataPoint]) = {
+    // physsim, refSpeeds,capacityData
+    val linkIdReferenceSpeedTuples: List[(Id[Link], Id[Link])] = {
+      quadtreeValues.flatMap { physsimDataPoint =>
+        val closestReferenceSpeeds = physsimDataPoint.closestReferenceData.getOrElse(ArrayBuffer.empty)
+        closestReferenceSpeeds.map { referenceSpeedId: Id[Link] =>
+          physsimDataPoint.linkId -> referenceSpeedId
         }
-
-        linkReferenceSpeedsAndCapacity.put(linkId,(List.empty,List.empty))
-    }
-
-
-    Map[Id[Link], (List[Id[Link]],List[Id[Link]])]
-
-
-    val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
-
-    linkIdReferenceSpeedGroups.foreach {
-      case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
-
-        var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
-
-        val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
-        linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
-    }
-
-    linkReferenceSpeeds.foreach{
-      case (linkId,averageReferenceSpeed) =>
-        val link=network.getLinks.get(linkId)
-        getOppositeLink(link) match {
-          case Some(oppositeLink) =>
-            linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
-          case None =>
-        }
-    }
-
-    linkReferenceSpeeds.foreach{
-      case (linkId,averageReferenceSpeed) =>
-        writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
-    }
-
-    pw.close
-  }
-
-  private def getOppositeLink(link:Link):Option[Link]={
-    val inLinks=link.getFromNode.getInLinks.values()
-    val outLinks=link.getToNode.getOutLinks.values()
-    inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
-  }
-
-  private def writeUpdatedSpeed(network: Network, pw: PrintWriter, linkId: Id[Link], averageReferenceSpeed: Double) = {
-    pw.write(s"${linkId},${network.getLinks.get(linkId).getAttributes.getAttribute("type")},${network.getLinks.get(linkId).getFreespeed},$averageReferenceSpeed\n")
-  }
-
-  private def writeComparisonOSMVsReferenceSpeedsDataPoints(outputFilePath: String, physsimQuadTreeDP: QuadTree[SpeedDataPoint], network: Network) = {
-    var pw = new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsDataPoints.csv"))
-    pw.write(s"linkId,attributeOrigType,physsimSpeed,referenceSpeed\n")
-
-    physsimQuadTreeDP.values().asScala.toVector.toList.foreach { physsimSpeedDataPoint =>
-      physsimSpeedDataPoint.closestReferenceData.get.foreach { referenceSpeed =>
-        pw.write(s"${physsimSpeedDataPoint.linkId},${network.getLinks.get(physsimSpeedDataPoint.linkId).getAttributes.getAttribute("type")},${physsimSpeedDataPoint.speedInMetersPerSecond},$referenceSpeed\n")
       }
-
     }
-    pw.close
+    linkIdReferenceSpeedTuples.groupBy(_._1).mapValues { list =>
+      list.map {
+        case (_, referenceSpeedId) => referenceSpeedId
+      }
+    }
   }
-}}
+}
 
+case class SpeedVector(linkId: Id[Link], startCoord: Coord, endCoord: Coord, geoUtils: GeoUtils) {
 
-
-case class SpeedVector(val linkId: Id[Link], val startCoord: Coord, val endCoord: Coord,geoUtils: GeoUtils) {
   def produceSpeedDataPointFromSpeedVector(splitSizeInMeters: Double): ArrayBuffer[SpeedDataPoint] = {
 
-    val numberOfPieces:Int=Math.max((geoUtils.distUTMInMeters(startCoord,endCoord)/splitSizeInMeters).toInt,1)
+    val numberOfPieces: Int = Math.max((geoUtils.distUTMInMeters(startCoord, endCoord) / splitSizeInMeters).toInt, 1)
 
     val xDeltaVector = (endCoord.getX - startCoord.getX) / numberOfPieces
     val yDeltaVector = (endCoord.getY - startCoord.getY) / numberOfPieces
@@ -361,30 +337,35 @@ case class SpeedVector(val linkId: Id[Link], val startCoord: Coord, val endCoord
     val resultVector: ArrayBuffer[SpeedDataPoint] = collection.mutable.ArrayBuffer()
 
     for (i <- 0 to numberOfPieces) {
-      resultVector += SpeedDataPoint(linkId, new Coord(startCoord.getX + i * xDeltaVector, startCoord.getY + i * yDeltaVector), Some(ArrayBuffer()))
+      resultVector += SpeedDataPoint(
+        linkId,
+        new Coord(startCoord.getX + i * xDeltaVector, startCoord.getY + i * yDeltaVector),
+        Some(ArrayBuffer()),
+        None // TODO: I added it here to make it compile
+      )
     }
     resultVector
   }
 
-
-
-
 }
 
-case class SpeedDataPoint(val linkId: Id[Link], val coord: Coord, val closestReferenceData: Option[ArrayBuffer[Id[Link]]],val closestCapacityData: Option[ArrayBuffer[Id[Link]]])
-
-
+// TODO: avoid Option[Iterable]
+case class SpeedDataPoint(
+  linkId: Id[Link],
+  coord: Coord,
+  closestReferenceData: Option[ArrayBuffer[Id[Link]]],
+  closestCapacityData: Option[ArrayBuffer[Id[Link]]]
+)
 
 class ReferenceSpeedData(filePath: String, geoUtils: GeoUtils) {
 
-  val wsgShift: Coord =new Coord(-97.758288-(-97.759245),30.225124-(30.225251))
+  val wsgShift: Coord = new Coord(-97.758288 - (-97.759245), 30.225124 - (30.225251))
 
-  val speeds=mutable.HashMap[Id[Link],Double]()
+  val speeds = mutable.HashMap[Id[Link], Double]()
 
   def getReferenceSpeedVector(): Vector[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
     val lines = AustinNetworkSpeedMatching.readCSV(filePath)
-
 
     for (line <- lines.drop(1)) {
       //
@@ -400,37 +381,46 @@ class ReferenceSpeedData(filePath: String, geoUtils: GeoUtils) {
       def getCoordinatesList(linkString: String): List[(Coord, Coord)] = {
         val numbers = linkString.split("[ ,]").filterNot(_.isEmpty)
         val pairs = numbers.sliding(2, 2).toList
-        val coordinates = pairs.map { pair => new Coord(pair(0).toDouble, pair(1).toDouble) }
+        val coordinates = pairs.map { pair =>
+          new Coord(pair(0).toDouble, pair(1).toDouble)
+        }
         val links = coordinates.sliding(2, 1).toList.map(pair => pair(0) -> pair(1))
         links
       }
 
       val vectors = geometry.replace("\"MULTILINESTRING (", "").replace("))", ")").split("\\), \\(")
-      val linkStrings = vectors.map { x => x.replace("(", "").replace(")", "") }
+      val linkStrings = vectors.map { x =>
+        x.replace("(", "").replace(")", "")
+      }
       val vetorCoords = linkStrings.map(x => getCoordinatesList(x)).flatten //.foreach( x => println(x))
 
+      vetorCoords.foreach {
+        case (startCoord, endCoord) =>
+          //speedVectors += SpeedVector(objectId, startCoord,endCoord, freeFlowSpeedInMetersPerSecond)
+          val updatedWgsStartCoord = addCoord(startCoord, wsgShift)
+          val updatedWgsEndCoord = addCoord(endCoord, wsgShift)
 
-      vetorCoords.foreach { case (startCoord, endCoord) =>
-        //speedVectors += SpeedVector(objectId, startCoord,endCoord, freeFlowSpeedInMetersPerSecond)
-        val updatedWgsStartCoord=addCoord(startCoord,wsgShift)
-        val updatedWgsEndCoord=addCoord(endCoord,wsgShift)
-
-        speedVectors += SpeedVector(objectId, geoUtils.wgs2Utm(updatedWgsStartCoord), geoUtils.wgs2Utm(updatedWgsEndCoord),geoUtils)
-        speeds.put(objectId,freeFlowSpeedInMetersPerSecond)
+          speedVectors += SpeedVector(
+            objectId,
+            geoUtils.wgs2Utm(updatedWgsStartCoord),
+            geoUtils.wgs2Utm(updatedWgsEndCoord),
+            geoUtils
+          )
+          speeds.put(objectId, freeFlowSpeedInMetersPerSecond)
       }
 
     }
     speedVectors.toVector
   }
 
-
-
 }
-
 
 class PhyssimNetwork(filePath: String, geoUtils: GeoUtils) {
 
-  val wsgShift: Coord =addCoord(new Coord(-96.59322-(-96.59647),30.87545-(30.87585)),new Coord(-97.774010-(-97.772666),30.306692-(30.306515)))
+  val wsgShift: Coord = addCoord(
+    new Coord(-96.59322 - (-96.59647), 30.87545 - (30.87585)),
+    new Coord(-97.774010 - (-97.772666), 30.306692 - (30.306515))
+  )
 
   val network: Network = getNetwork(filePath)
 
@@ -441,30 +431,27 @@ class PhyssimNetwork(filePath: String, geoUtils: GeoUtils) {
       //speedVectors += SpeedVector(link.getId, geoUtils.utm2Wgs(link.getFromNode.getCoord), geoUtils.utm2Wgs(link.getToNode.getCoord), link.getFreespeed)
       val startCoordWsg = addCoord(geoUtils.utm2Wgs(link.getFromNode.getCoord), wsgShift)
       val endCoordWsg = addCoord(geoUtils.utm2Wgs(link.getToNode.getCoord), wsgShift)
-      SpeedVector(link.getId, geoUtils.wgs2Utm(startCoordWsg), geoUtils.wgs2Utm(endCoordWsg),geoUtils)
+      SpeedVector(link.getId, geoUtils.wgs2Utm(startCoordWsg), geoUtils.wgs2Utm(endCoordWsg), geoUtils)
     }
   }
-
-
-
-
-
-
 
 }
 
 class LinkCapacityData(detailFilePath: String, publicLinkPath: String, geoUtils: GeoUtils) {
 
-  val linkCapacityData: Map[Id[Link], LinkDetails] = LinkReader.getLinkDataWithCapacities(detailFilePath, publicLinkPath).map(linkDetails => linkDetails.linkChainId->linkDetails).toMap
+  val linkCapacityData: Map[Id[Link], LinkDetails] = LinkReader
+    .getLinkDataWithCapacities(detailFilePath, publicLinkPath)
+    .map(linkDetails => linkDetails.linkChainId -> linkDetails)
+    .toMap
 
   def getReferenceSpeedVector(): Vector[SpeedVector] = {
-    linkCapacityData.flatMap { case (linkId, linkDetails) =>
-      val coordPairs = linkDetails.geometry.sliding(2, 2)
-      coordPairs.map { coordPair =>
-        SpeedVector(linkId, geoUtils.wgs2Utm(coordPair(0)), geoUtils.wgs2Utm(coordPair(1)), geoUtils)
-      }
+    linkCapacityData.flatMap {
+      case (linkId, linkDetails) =>
+        val coordPairs = linkDetails.geometry.sliding(2, 2)
+        coordPairs.map { coordPair =>
+          SpeedVector(linkId, geoUtils.wgs2Utm(coordPair(0)), geoUtils.wgs2Utm(coordPair(1)), geoUtils)
+        }
     }.toVector
   }
-
 
 }
