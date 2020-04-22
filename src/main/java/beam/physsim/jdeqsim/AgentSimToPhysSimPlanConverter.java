@@ -141,9 +141,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
-        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
-        jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
-        jdeqSimScenario.setPopulation(jdeqsimPopulation);
+//        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
+//        jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
+//        jdeqSimScenario.setPopulation(jdeqsimPopulation);
 
 //        jdeqSimScenario.getPopulation().getPersons().values().stream().findAny().get().getSelectedPlan().getPlanElements().forEach(p->{
 //            if (p instanceof Activity){
@@ -152,19 +152,19 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 //            }
 //        });
 
-        EventsManager jdeqsimEvents = new EventsManagerImpl();
+//        EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
-        jdeqsimEvents.addHandler(travelTimeCalculator);
-        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
+//        jdeqsimEvents.addHandler(travelTimeCalculator);
+//        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
-            createNetworkFile(jdeqSimScenario.getNetwork());
+            createNetworkFile(agentSimScenario.getNetwork());
         }
 
         PhysSimEventWriter eventWriter = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
-            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
-            jdeqsimEvents.addHandler(eventWriter);
+//            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
+//            jdeqsimEvents.addHandler(eventWriter);
         } else {
             if (beamConfig.beam().physsim().writeEventsInterval() < 1)
                 log.info("There will be no PhysSim events written because `beam.physsim.writeEventsInterval` is set to 0");
@@ -183,18 +183,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         this.beamConfigChangesObservable
                 );
             }
-            org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario,
-                    jdeqsimEvents, iterationNumber, beamServices.matsimServices().getControlerIO(),
-                    roadCapacityAdjustmentFunction);
-            linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
+//            org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario,
+//                    jdeqsimEvents, iterationNumber, beamServices.matsimServices().getControlerIO(),
+//                    roadCapacityAdjustmentFunction);
+//            linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
-            log.info("JDEQSim Start");
-            startMeasuring("jdeqsim-execution:jdeqsim", Metrics.ShortLevel());
-            if (beamConfig.beam().debug().debugEnabled()) {
-                log.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
-            }
+//            log.info("JDEQSim Start");
+//            startMeasuring("jdeqsim-execution:jdeqsim", Metrics.ShortLevel());
+//            if (beamConfig.beam().debug().debugEnabled()) {
+//                log.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
+//            }
 
-            jdeqSimulation.run();
+//            jdeqSimulation.run();
         } finally {
             if (roadCapacityAdjustmentFunction != null) roadCapacityAdjustmentFunction.reset();
         }
@@ -203,8 +203,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
         }
 
-        stopMeasuring("jdeqsim-execution:jdeqsim");
-        log.info("JDEQSim End");
+//        stopMeasuring("jdeqsim-execution:jdeqsim");
+//        log.info("JDEQSim End");
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
@@ -263,8 +263,24 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     destination = secondLinkCoordinates.get(secondLinkCoordinates.size() - 1);
                 }
 
-                long firstId = coordinateToRTVertexId.get(origin);
-                long secondId = coordinateToRTVertexId.get(destination);
+                Long firstId = coordinateToRTVertexId.get(origin);
+                if (firstId == null) {
+                    System.out.println("Failed to find coordinate " + origin.toString());
+                    Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
+                            .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
+                            .get();
+                    System.out.println("Found closest by distance " + closest.getKey().toString());
+                    firstId = closest.getValue();
+                }
+                Long secondId = coordinateToRTVertexId.get(destination);
+                if (secondId == null) {
+                    System.out.println("Failed to find coordinate " + destination.toString());
+                    Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
+                            .min(Comparator.comparingDouble(x -> x.getKey().distance(destination)))
+                            .get();
+                    System.out.println("Found closest by distance " + closest.getKey().toString());
+                    secondId = closest.getValue();
+                }
 
                 return new Pair<>(firstId, secondId);
             }).collect(Collectors.toList());
@@ -367,8 +383,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         Road.setAllRoads(null);
         Message.setEventsManager(null);
-        jdeqSimScenario.setNetwork(null);
-        jdeqSimScenario.setPopulation(null);
+//        jdeqSimScenario.setNetwork(null);
+//        jdeqSimScenario.setPopulation(null);
 
         if (iterationNumber == beamConfig.matsim().modules().controler().lastIteration()) {
             try {
@@ -382,6 +398,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+        traversalEventsForPhysSimulation.clear();
     }
 
     private List<Coordinate> getCoordinatesForWayId(OsmInfoHolder osmInfoHolder, long firstWayId) {

@@ -65,7 +65,7 @@ object RoutingToolsGraphReaderImpl extends RoutingToolsGraphReader {
       }
 
     val vertices = (0 until numOfVertices).map { id =>
-      vertexId2Coordinate -> Vertex(id, vertexId2Coordinate(id))
+      vertexId2Coordinate(id) -> Vertex(id, vertexId2Coordinate(id))
     }
       // there might be duplicates by coordinate in vertices
       .toMap.values.toList
