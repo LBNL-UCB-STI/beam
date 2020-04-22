@@ -274,8 +274,9 @@ class ZonalParkingManagerSpec
 
   describe("ZonalParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val parkingDescription: Iterator[String] = Source.fromResource("data/taz-parking.csv").getLines()
-      val tazMap = taz.TAZTreeMap.fromCsv("src/test/resources/data/taz-centers.csv")
+      val source = Source.fromFile("test/input/beamville/parking/taz-parking.csv")
+      val parkingDescription: Iterator[String] = source.getLines()
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val minSearchRadius = 1000.0
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = system.actorOf(
@@ -297,6 +298,8 @@ class ZonalParkingManagerSpec
       assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
 
       assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
+
+      source.close()
     }
   }
 

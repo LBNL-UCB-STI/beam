@@ -279,9 +279,9 @@ class HierarchicalParkingManagerSpec
 
   describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("src/test/resources/data/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val (zones, searchTree) = ZonalParkingManager.loadParkingZones(
-        "src/test/resources/data/taz-parking.csv",
+        "test/input/beamville/parking/taz-parking.csv",
         "/not_set",
         1.0,
         1.0,
