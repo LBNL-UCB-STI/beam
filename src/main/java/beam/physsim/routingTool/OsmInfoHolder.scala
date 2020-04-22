@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 class OsmInfoHolder @Inject()(beamServices: BeamServices) {
   private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
 
-  val id2Way: Map[java.lang.Long, List[java.lang.Long]] = osm.ways.asScala.map {
+  val id2NodeIds: Map[java.lang.Long, List[java.lang.Long]] = osm.ways.asScala.map {
     case (id, way) =>
       id -> way.nodes.map(_.asInstanceOf[java.lang.Long]).toList
   }.toMap

@@ -17,7 +17,6 @@ import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
@@ -33,7 +32,6 @@ import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
@@ -44,7 +42,6 @@ import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
-import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -397,14 +394,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.error("Error while generating link stats.", e);
             }
         }
-
         traversalEventsForPhysSimulation.clear();
     }
 
     private List<Coordinate> getCoordinatesForWayId(OsmInfoHolder osmInfoHolder, long firstWayId) {
         return JavaConverters.asJavaCollection(
-                osmInfoHolder.id2Way().apply(firstWayId)
-        ).stream().map(x -> osmInfoHolder.id2NodeCoordinate().apply(x)).collect(Collectors.toList());
+                osmInfoHolder.id2NodeIds().apply(firstWayId)
+        ).stream().map(x -> osmInfoHolder.id2NodeCoordinate().getOrElse(x, () -> new Coordinate(0.0, 0.0)))
+                .collect(Collectors.toList());
     }
 
     public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, EventsManager jdeqsimEvents,
