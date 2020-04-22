@@ -172,6 +172,27 @@ def original_with_google_route(original_df, google_df):
     merged_df = pd.merge(original_df, google_df, how='inner', left_on=join_list, right_on = join_list)
     return merged_df
 
+def to_3_am(link):
+  pos = link.rfind('!3e0')
+  # get the position of timestamp which is Unix epoch in seconds
+  time_pos = pos - len('1571185799')
+  # 1571194800 Unix Epoch time in seconds, 2019-10-16 (Wednesday) 03:00 am
+  time_stamp_3am = '1571194800'
+  new_link = link[:time_pos] + time_stamp_3am + link[pos:]
+  return new_link
+
+def create_3am_data(df):
+    size = 10
+    free_flow_links = np.sort(df['google_link'].apply(lambda x: to_3_am(x)).unique())
+    chunks = np.array_split(free_flow_links, size)
+    #list_of_dfs = [free_flow_df.loc[i:i+size-1,:] for i in range(0, len(free_flow_df),size)]
+    for chunk_id in range(0, len(chunks)):
+      chunk = chunks[chunk_id]
+      #print(type(chunk))
+      df = pd.DataFrame(chunk, columns=['url'])
+      file_name = 'austin_%d_3am.txt' % (chunk_id)
+      df.to_csv(file_name, index=False, header=False)
+
 if __name__ == "__main__":
     df_list = []
     for hour in range(0, 24):
@@ -184,3 +205,5 @@ if __name__ == "__main__":
 
     final_df = pd.concat(df_list, ignore_index=True)
     final_df.to_csv('austin_24hours.csv', index=False)
+
+    create_3am_data(final_df)
