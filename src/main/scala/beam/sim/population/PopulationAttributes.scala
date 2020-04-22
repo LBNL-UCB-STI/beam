@@ -7,6 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
 import beam.router.model.EmbodiedBeamLeg
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
@@ -40,7 +41,8 @@ case class AttributesOfIndividual(
     beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
-    isPooledTrip: Boolean = false
+    isPooledTrip: Boolean = false,
+    highIncome: Boolean = false
   ): Double = {
     // NOTE: This is in hours
     val isWorkTrip = destinationActivity match {
@@ -49,16 +51,16 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-
+    val high_income_multiplier = if(highIncome){modeChoiceModel.incomeMultiplier}else{1}
     val multiplier = beamMode match {
       case CAR =>
         val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
-            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
+            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)* high_income_multiplier
           } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
+            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)* high_income_multiplier
           }
         } else {
           getSituationMultiplier(
@@ -68,7 +70,7 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers,
             vehicleAutomationLevel,
             beamServices
-          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
+          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)* high_income_multiplier
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
@@ -82,6 +84,7 @@ case class AttributesOfIndividual(
     beamServices: BeamServices,
     destinationActivity: Option[Activity]
   ): Double = {
+    val highIncome: Boolean = if(householdAttributes.householdIncome >= 100000){true}else{false}
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
@@ -97,7 +100,8 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
-            embodiedBeamLeg.isPooledTrip
+            embodiedBeamLeg.isPooledTrip,
+            highIncome
           )
         )
       case _ =>
@@ -106,6 +110,58 @@ case class AttributesOfIndividual(
     }
   }
 
+  def getGeneralizedOtherOfTripForMNL(beamTrip: EmbodiedBeamTrip,
+                                      destinationActivity: Option[Activity],
+                                      attributesOfIndividual: AttributesOfIndividual,
+                                     ): mutable.Map[String, Double] = {
+
+    val gender = if(attributesOfIndividual.isMale) {0} else {1}
+    val indAge: Int = attributesOfIndividual.age.getOrElse(0)
+    val indIncome: Double = attributesOfIndividual.income.getOrElse(0)
+    val hhdIncome: Double = attributesOfIndividual.householdAttributes.householdIncome
+    val age_30_to_50 = if(attributesOfIndividual.age.getOrElse(0) >= 30) {if (attributesOfIndividual.age.getOrElse(0)< 50){1}else{0}}else{0}
+    val age_50_to_70 = if (attributesOfIndividual.age.getOrElse(0) >= 50){if (attributesOfIndividual.age.getOrElse(0)< 70){1}else{0}}else{0}
+    val age_70_over = if(attributesOfIndividual.age.getOrElse(0) >= 70) {1}else{0}
+    val income_under_35k = if (hhdIncome < 35000){1} else{0}
+    val income_35_to_100k = if(hhdIncome >= 35000.0) {if (indIncome < 100000.0){1}else{0}}else{0}
+    val income_100k_more = if (hhdIncome >= 100000.0){1}else{0}
+    val numHhdCars: Int = attributesOfIndividual.householdAttributes.numCars
+    val car_owner = if(numHhdCars>=1){1} else{0}
+
+    val isWorkTrip = destinationActivity match {
+      case None =>
+        false
+      case Some(activity) =>
+        activity.getType().equalsIgnoreCase("work")
+    }
+    val workTrip = if(isWorkTrip) {1} else {0}
+    val beamMode = beamTrip.determineTripMode(beamTrip.legs)
+    val linksTransit = beamMode match{
+      case RIDE_HAIL_TRANSIT =>
+        true
+      case DRIVE_TRANSIT =>
+        true
+      case WALK_TRANSIT =>
+        true
+      case _ =>
+        false
+    }
+    val linkToTransit = if(linksTransit) {1} else {0}
+    // NEED to add: OriginActivity (boolean: true if home, else false); Employed/Student
+
+    mutable.Map[String,Double](
+      "gender" -> gender,
+      "age_30_to_50"->age_30_to_50,
+      "age_50_to_70"->age_50_to_70,
+      "age_70_over" -> age_70_over,
+      "income_under_35k"->income_under_35k,
+      "income_35_to_100k"->income_35_to_100k,
+      "income_100k_more"->income_100k_more,
+      "workTrip"->workTrip,
+      "linkToTransit"->linkToTransit,
+      "car_owner"->car_owner)
+  }
+  
   def getVOT(generalizedTime: Double): Double = {
     valueOfTime * generalizedTime
   }

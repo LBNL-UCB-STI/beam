@@ -98,7 +98,9 @@ object BeamConfig {
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
           overrideAutomationForVOTT: scala.Boolean,
           overrideAutomationLevel: scala.Int,
-          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier
+          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier,
+          otherMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier,
+          incomeMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.IncomeMultiplier
         )
 
         object ModalBehaviors {
@@ -455,6 +457,344 @@ object BeamConfig {
             }
           }
 
+          case class IncomeMultiplier(
+            inVehTime: scala.Double
+                                     )
+
+          object IncomeMultiplier{
+            def apply(c: com.typesafe.config.Config
+                     ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.IncomeMultiplier= {
+              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.IncomeMultiplier(
+              inVehTime = if(c.hasPathOrNull("inVehTime")) c.getDouble("inVehTime") else 1.0
+            )}
+          }
+          
+          case class OtherMultiplier(
+            CAV: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.CAV,
+            bike: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Bike,
+            drive: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Drive,
+            rideHail: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHail,
+            rideHailPooled: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailPooled,
+            rideHailTransit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailTransit,
+            transit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Transit,
+            waiting: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Waiting,
+            walk: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Walk
+          )
+
+          object OtherMultiplier {
+            case class CAV(
+              gender: scala.Double,
+              age_30_to_50: scala.Double,
+              age_50_to_70: scala.Double,
+              age_70_over: scala.Double,
+              income_under_35k: scala.Double,
+              income_35_to_100k: scala.Double,
+              income_100k_more: scala.Double,
+              workTrip: scala.Double,
+              linkToTransit: scala.Double,
+              car_owner: scala.Double
+                              )
+            object CAV{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.CAV = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.CAV(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class Bike(
+               gender: scala.Double,
+               age_30_to_50: scala.Double,
+               age_50_to_70: scala.Double,
+               age_70_over: scala.Double,
+               income_under_35k: scala.Double,
+               income_35_to_100k: scala.Double,
+               income_100k_more: scala.Double,
+               workTrip: scala.Double,
+               linkToTransit: scala.Double,
+               car_owner: scala.Double
+                          )
+            object Bike{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Bike = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Bike(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class Drive(
+              gender: scala.Double,
+              age_30_to_50: scala.Double,
+              age_50_to_70: scala.Double,
+              age_70_over: scala.Double,
+              income_under_35k: scala.Double,
+              income_35_to_100k: scala.Double,
+              income_100k_more: scala.Double,
+              workTrip: scala.Double,
+              linkToTransit: scala.Double,
+              car_owner: scala.Double
+                          )
+            object Drive{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Drive = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Drive(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class RideHail(
+               gender: scala.Double,
+               age_30_to_50: scala.Double,
+               age_50_to_70: scala.Double,
+               age_70_over: scala.Double,
+               income_under_35k: scala.Double,
+               income_35_to_100k: scala.Double,
+               income_100k_more: scala.Double,
+               workTrip: scala.Double,
+               linkToTransit: scala.Double,
+               car_owner: scala.Double
+                          )
+            object RideHail{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHail = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHail(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class RideHailPooled(
+               gender: scala.Double,
+               age_30_to_50: scala.Double,
+               age_50_to_70: scala.Double,
+               age_70_over: scala.Double,
+               income_under_35k: scala.Double,
+               income_35_to_100k: scala.Double,
+               income_100k_more: scala.Double,
+               workTrip: scala.Double,
+               linkToTransit: scala.Double,
+               car_owner: scala.Double
+                          )
+            object RideHailPooled{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailPooled = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailPooled(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class RideHailTransit(
+              gender: scala.Double,
+              age_30_to_50: scala.Double,
+              age_50_to_70: scala.Double,
+              age_70_over: scala.Double,
+              income_under_35k: scala.Double,
+              income_35_to_100k: scala.Double,
+              income_100k_more: scala.Double,
+              workTrip: scala.Double,
+              linkToTransit: scala.Double,
+              car_owner: scala.Double
+                          )
+            object RideHailTransit{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailTransit = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailTransit(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+            case class Transit(
+              gender: scala.Double,
+              age_30_to_50: scala.Double,
+              age_50_to_70: scala.Double,
+              age_70_over: scala.Double,
+              income_under_35k: scala.Double,
+              income_35_to_100k: scala.Double,
+              income_100k_more: scala.Double,
+              workTrip: scala.Double,
+              linkToTransit: scala.Double,
+              car_owner: scala.Double
+                              )
+            object Transit{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Transit = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Transit(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class Waiting(
+              gender: scala.Double,
+              age_30_to_50: scala.Double,
+              age_50_to_70: scala.Double,
+              age_70_over: scala.Double,
+              income_under_35k: scala.Double,
+              income_35_to_100k: scala.Double,
+              income_100k_more: scala.Double,
+              workTrip: scala.Double,
+              linkToTransit: scala.Double,
+              car_owner: scala.Double
+                          )
+            object Waiting{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Waiting = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Waiting(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            case class Walk(
+               gender: scala.Double,
+               age_30_to_50: scala.Double,
+               age_50_to_70: scala.Double,
+               age_70_over: scala.Double,
+               income_under_35k: scala.Double,
+               income_35_to_100k: scala.Double,
+               income_100k_more: scala.Double,
+               workTrip: scala.Double,
+               linkToTransit: scala.Double,
+               car_owner: scala.Double
+                          )
+            object Walk{
+              def apply(c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Walk = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Walk(
+                  gender = if (c.hasPathOrNull("gender")) c.getDouble("gender") else 0.0,
+                  age_30_to_50 = if (c.hasPathOrNull("age_30_to_50")) c.getDouble("age_30_to_50") else 0.0,
+                  age_50_to_70 = if (c.hasPathOrNull("age_50_to_70")) c.getDouble("age_50_to_70") else 0.0,
+                  age_70_over = if (c.hasPathOrNull("age_70_over")) c.getDouble("age_70_over") else 0.0,
+                  income_under_35k = if (c.hasPathOrNull("income_under_35k")) c.getDouble("income_under_35k") else 0.0,
+                  income_35_to_100k = if (c.hasPathOrNull("income_35_to_100k")) c.getDouble("income_35_to_100k") else 0.0,
+                  income_100k_more = if (c.hasPathOrNull("income_100k_more")) c.getDouble("income_100k_more") else 0.0,
+                  workTrip = if (c.hasPathOrNull("workTrip")) c.getDouble("workTrip") else 0.0,
+                  linkToTransit = if (c.hasPathOrNull("linkToTransit")) c.getDouble("linkToTransit") else 0.0,
+                  car_owner = if(c.hasPathOrNull("car_owner")) c.getDouble("car_owner") else 0.0
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config
+                     ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier = {
+              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier(
+                CAV = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.CAV(
+                  if (c.hasPathOrNull("CAV")) c.getConfig("CAV")
+                  else com.typesafe.config.ConfigFactory.parseString("CAV{}")
+                ),
+                bike = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Bike(
+                  if (c.hasPathOrNull("bike")) c.getConfig("bike")
+                  else com.typesafe.config.ConfigFactory.parseString("bike{}")
+                ),
+                drive = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Drive(
+                  if (c.hasPathOrNull("drive")) c.getConfig("drive")
+                  else com.typesafe.config.ConfigFactory.parseString("drive{}")
+                ),
+                rideHail = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHail(
+                  if (c.hasPathOrNull("rideHail")) c.getConfig("rideHail")
+                  else com.typesafe.config.ConfigFactory.parseString("rideHail{}")
+                ),
+                rideHailPooled = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailPooled(
+                  if (c.hasPathOrNull("rideHailPooled")) c.getConfig("rideHailPooled")
+                  else com.typesafe.config.ConfigFactory.parseString("rideHailPooled{}")
+                ),
+                rideHailTransit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.RideHailTransit(
+                  if (c.hasPathOrNull("rideHailTransit")) c.getConfig("rideHailTransit")
+                  else com.typesafe.config.ConfigFactory.parseString("rideHailTransit{}")
+                ),
+                transit= BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Transit(
+                  if (c.hasPathOrNull("transit")) c.getConfig("transit")
+                  else com.typesafe.config.ConfigFactory.parseString("transit{}")
+                ),
+                waiting= BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Waiting(
+                  if (c.hasPathOrNull("waiting")) c.getConfig("waiting")
+                  else com.typesafe.config.ConfigFactory.parseString("waiting{}")
+                ),
+                walk = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.Walk(
+                  if (c.hasPathOrNull("walk")) c.getConfig("walk")
+                  else com.typesafe.config.ConfigFactory.parseString("walk{}")
+                )
+              )
+            }
+
+          }
+
           case class MulitnomialLogit(
             params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params,
             utility_scale_factor: scala.Double
@@ -574,7 +914,14 @@ object BeamConfig {
               poolingMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier(
                 if (c.hasPathOrNull("poolingMultiplier")) c.getConfig("poolingMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("poolingMultiplier{}")
-              )
+              ),
+              otherMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier(
+              if (c.hasPathOrNull("otherMultiplier")) c.getConfig("otherMultiplier")
+              else com.typesafe.config.ConfigFactory.parseString("otherMultiplier{}")
+              ),
+              incomeMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.IncomeMultiplier(
+                if (c.hasPathOrNull("incomeMultiplier")) c.getConfig("incomeMultiplier")
+                else com.typesafe.config.ConfigFactory.parseString("incomeMultiplier{}"))
             )
           }
         }

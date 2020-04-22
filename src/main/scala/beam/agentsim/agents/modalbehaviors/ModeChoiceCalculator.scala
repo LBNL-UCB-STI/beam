@@ -171,4 +171,7 @@ object ModeChoiceCalculator {
   case object level3 extends automationLevel
   case object level4 extends automationLevel
   case object level5 extends automationLevel
+  sealed trait OtherMultiplier
+  sealed trait IncomeMultiplier
+  case object inVehTime extends IncomeMultiplier
 }
