@@ -10,9 +10,9 @@ import scala.collection.mutable
   *
   * @author Dmitry Openkov
   */
-class SplitParkingManagerUtilSpec extends WordSpecLike with Matchers {
+class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
-  "SplitParkingManager" should {
+  "HierarchicalParkingManager" should {
 
     "split parking zones into clusters" in {
 
@@ -40,8 +40,8 @@ class SplitParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
-      val clusters: mutable.Buffer[SplitParkingManager.ParkingCluster] =
-        SplitParkingManager.createClusters(treeMap, parkingZones, 4)
+      val clusters: mutable.Buffer[HierarchicalParkingManager.ParkingCluster] =
+        HierarchicalParkingManager.createClusters(treeMap, parkingZones, 4)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
     }
 

@@ -21,10 +21,10 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.Random
 
-class SplitParkingManagerSpec
+class HierarchicalParkingManagerSpec
     extends TestKit(
       ActorSystem(
-        "SplitParkingManagerSpec",
+        "HierarchicalParkingManagerSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -49,7 +49,7 @@ class SplitParkingManagerSpec
   val beamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  describe("SplitParkingManager with no parking") {
+  describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
       for {
@@ -62,7 +62,7 @@ class SplitParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         splitParkingManager = system.actorOf(
-          SplitParkingManager.props(
+          HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
             Array.empty[ParkingZone],
@@ -88,16 +88,12 @@ class SplitParkingManagerSpec
 
         splitParkingManager ! inquiry
 
-        // note on the random seed:
-        // since there are no TAZs to search and sample parking locations from,
-        // the random number generator is unused by the [[SplitParkingManager]] search, and we can
-        // therefore rely on the coordinate that is generated when [[SplitParkingManager]] calls [[ParkingStall.emergencyStall]] internally
         expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
       }
     }
   }
 
-  describe("SplitParkingManager with one parking option") {
+  describe("HierarchicalParkingManager with one parking option") {
     it("should first return that only stall, and afterward respond with the default stall") {
 
       for {
@@ -116,7 +112,7 @@ class SplitParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
         splitParkingManager = system.actorOf(
-          SplitParkingManager.props(
+          HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -156,7 +152,7 @@ class SplitParkingManagerSpec
     }
   }
 
-  describe("SplitParkingManager with one parking option") {
+  describe("HierarchicalParkingManager with one parking option") {
     it("should allow us to book and then release that stall") {
 
       for {
@@ -175,7 +171,7 @@ class SplitParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
         splitParkingManager = system.actorOf(
-          SplitParkingManager.props(
+          HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -218,7 +214,7 @@ class SplitParkingManagerSpec
     }
   }
 
-  describe("SplitParkingManager with a known set of parking alternatives") {
+  describe("HierarchicalParkingManager with a known set of parking alternatives") {
     it("should allow us to book all of those options and then provide us emergency stalls after that point") {
 
       val random1 = new Random(1)
@@ -248,7 +244,7 @@ class SplitParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(parkingConfiguration, random)
         splitParkingManager = system.actorOf(
-          SplitParkingManager.props(
+          HierarchicalParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -281,7 +277,7 @@ class SplitParkingManagerSpec
     }
   }
 
-  describe("SplitParkingManager with loaded common data") {
+  describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
       val tazMap = taz.TAZTreeMap.fromCsv("src/test/resources/data/taz-centers.csv")
       val (zones, searchTree) = ZonalParkingManager.loadParkingZones(
@@ -292,7 +288,7 @@ class SplitParkingManagerSpec
         new Random(randomSeed),
       )
       val zpm = system.actorOf(
-        SplitParkingManager.props(
+        HierarchicalParkingManager.props(
           beamConfig,
           tazMap,
           zones,
@@ -329,29 +325,5 @@ class SplitParkingManagerSpec
 
   override def afterAll: Unit = {
     shutdown()
-  }
-}
-
-object SplitParkingManagerSpec {
-
-  def mockSplitParkingManager(
-    beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    geo: GeoUtils,
-    boundingBox: Envelope,
-    random: Random = Random
-  )(implicit system: ActorSystem): ActorRef = {
-    /*val zonalParkingManagerProps = Props(
-      new SplitParkingManager(
-        beamConfig,
-        tazTreeMap,
-        geo,
-        random,
-        minSearchRadius,
-        maxSearchRadius,
-        boundingBox
-      )
-    )*/
-    system.actorOf(Props())
   }
 }

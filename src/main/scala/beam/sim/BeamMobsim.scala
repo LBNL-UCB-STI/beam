@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, EventsAccumulator}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.SplitParkingManager
+import beam.agentsim.infrastructure.HierarchicalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
@@ -285,7 +285,7 @@ class BeamMobsimIteration(
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
   private val parkingManager = context.actorOf(
-    SplitParkingManager
+    HierarchicalParkingManager
       .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM),
     "ParkingManager"
   )

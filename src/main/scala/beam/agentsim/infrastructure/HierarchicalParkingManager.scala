@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.SplitParkingManager.{ParkingCluster, Worker}
+import beam.agentsim.infrastructure.HierarchicalParkingManager.{ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -37,7 +37,7 @@ import scala.util.Random
   *
   * @author Dmitry Openkov
   */
-class SplitParkingManager(
+class HierarchicalParkingManager(
   beamConfig: BeamConfig,
   tazTreeMap: TAZTreeMap,
   clusters: Vector[ParkingCluster],
@@ -75,7 +75,7 @@ class SplitParkingManager(
   override def receive = {
     case inquiry: ParkingInquiry =>
       val foundCluster = workers.find { w =>
-        val point = SplitParkingManager.geometryFactory.createPoint(inquiry.destinationUtm)
+        val point = HierarchicalParkingManager.geometryFactory.createPoint(inquiry.destinationUtm)
         w.cluster.convexHull.contains(point)
       }
 
@@ -115,13 +115,13 @@ class SplitParkingManager(
   }
 }
 
-object SplitParkingManager extends LazyLogging {
+object HierarchicalParkingManager extends LazyLogging {
   private val geometryFactory = new GeometryFactory()
 
   case class ParkingSearchResult(response: ParkingInquiryResponse, originalSender: ActorRef, worker: ActorRef)
 
   /**
-    * builds a SplitParkingManager Actor
+    * builds a HierarchicalParkingManager Actor
     *
     * @return
     */
@@ -160,7 +160,7 @@ object SplitParkingManager extends LazyLogging {
     val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters).toVector
 
     Props(
-      new SplitParkingManager(
+      new HierarchicalParkingManager(
         beamConfig,
         tazTreeMap,
         clusters,
