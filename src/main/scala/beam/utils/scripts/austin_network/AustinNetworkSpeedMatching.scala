@@ -176,7 +176,7 @@ class AustinNetworkSpeedMatching(splitSizeInMeters:Double,geoUtils: GeoUtils) ex
 
     val linkCapacityDf: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(linkCapacitySpeedVector)
 
-    createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
+    //createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
     //createShapeFileForDataPoints(referenceNetworkDP,outputFilePath + "referenceNetwork.shp")
 
@@ -245,18 +245,55 @@ class AustinNetworkSpeedMatching(splitSizeInMeters:Double,geoUtils: GeoUtils) ex
     var pw = new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsByLink.csv"))
     pw.write(s"linkId,attributeOrigType,physsimSpeed,medianReferenceSpeed\n")
 
-    val linkIdReferenceSpeedTuples: List[(Id[Link], Double)] = physsimQuadTreeDP.values().asScala.toVector.toList.flatMap { physsimSpeedDataPoint =>
-      val closestReferenceSpeeds: ArrayBuffer[Double] = physsimSpeedDataPoint.closestReferenceData.get
-      closestReferenceSpeeds.map { referenceSpeed =>
-        (physsimSpeedDataPoint.linkId, referenceSpeed)
+    // physsim, refSpeeds,capacityData
+    val linkIdReferenceSpeedTuples: List[(Id[Link], Id[Link])] = physsimQuadTreeDP.values().asScala.toVector.toList.flatMap { physsimDataPoint =>
+      val closestReferenceSpeeds: ArrayBuffer[Id[Link]] = physsimDataPoint.closestReferenceData.get
+      closestReferenceSpeeds.map { referenceSpeedId =>
+        (physsimDataPoint.linkId, referenceSpeedId)
       }
     }
 
-    val linkIdReferenceSpeedGroups: Map[Id[Link], List[Double]] = linkIdReferenceSpeedTuples.groupBy(_._1).mapValues { list =>
-      list.map {
-        case (_, referenceSpeed) => referenceSpeed
+
+    val linkIdCapacityTuples: List[(Id[Link], Id[Link])] = physsimQuadTreeDP.values().asScala.toVector.toList.flatMap { physsimDataPoint =>
+      val closestCapacityData: ArrayBuffer[Id[Link]] = physsimDataPoint.closestCapacityData.get
+      closestCapacityData.map { capacityDataId =>
+        (physsimDataPoint.linkId, capacityDataId)
       }
     }
+
+    val linkIdReferenceSpeedGroups: Map[Id[Link], List[Id[Link]]] = linkIdReferenceSpeedTuples.groupBy(_._1).mapValues { list =>
+      list.map {
+        case (_, referenceSpeedId) => referenceSpeedId
+      }
+    }
+
+
+    val linkIdCapacityGroups: Map[Id[Link], List[Id[Link]]] = linkIdCapacityTuples.groupBy(_._1).mapValues { list =>
+      list.map {
+        case (_, capacityDataId) => capacityDataId
+      }
+    }
+
+    val linkReferenceSpeedsAndCapacity=mutable.HashMap[Id[Link], (List[Id[Link]],List[Id[Link]])]()
+
+    linkIdReferenceSpeedGroups.map{
+      case (linkId, referenceSpeedIds) if referenceSpeedIds.nonEmpty =>
+        linkReferenceSpeedsAndCapacity.put(linkId,(referenceSpeedIds,List.empty))
+    }
+
+    linkIdCapacityGroups.map{
+      case (linkId, referenceCapacityIds) if referenceCapacityIds.nonEmpty =>
+        if (linkReferenceSpeedsAndCapacity.contains(linkId)){
+          val previousTuple=linkReferenceSpeedsAndCapacity.get(linkId)
+
+        }
+
+        linkReferenceSpeedsAndCapacity.put(linkId,(List.empty,List.empty))
+    }
+
+
+    Map[Id[Link], (List[Id[Link]],List[Id[Link]])]
+
 
     val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
 
