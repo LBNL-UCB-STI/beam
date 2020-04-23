@@ -1,4 +1,4 @@
-package beam.agentsim.infrastructure.geozone.tazcompactor
+package beam.agentsim.infrastructure.geozone.parking
 
 import java.nio.file.{Path, Paths}
 
@@ -12,9 +12,9 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
   "TazToGeoIndexConverter" should {
 
     "convert Taz coordinates to GeoIndex accordingly to csv file" in {
-      val parkingFile: Path = Paths.get("test/input/geozone/tazcompactor/taz-parking.csv")
-      val centersFile = Paths.get("test/input/geozone/tazcompactor/taz-centers.csv")
-      val targetIndexes = Paths.get("test/input/geozone/tazcompactor/target-geoIndexes.csv")
+      val parkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
+      val centersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
+      val targetIndexes = Paths.get("test/input/geozone/parking/target-geoIndexes.csv")
 
       val converter = ParkingGeoIndexConverter.tazParkingToGeoIndex(
         tazParkingFile = parkingFile,
@@ -42,8 +42,8 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
     }
 
     "convert geoIndex-parking coordinates to GeoIndex accordingly to csv file" in {
-      val parkingFile: Path = Paths.get("test/input/geozone/tazcompactor/geoIndex-parking2.csv")
-      val targetIndexes = Paths.get("test/input/geozone/tazcompactor/target-geoIndexes.csv")
+      val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking2.csv")
+      val targetIndexes = Paths.get("test/input/geozone/parking/target-geoIndexes.csv")
 
       val converter = ParkingGeoIndexConverter.geoIndexParkingToGeoIndex(
         geoIndexParkingFile = parkingFile,
