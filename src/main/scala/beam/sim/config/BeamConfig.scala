@@ -13,6 +13,7 @@ object BeamConfig {
     agentsim: BeamConfig.Beam.Agentsim,
     calibration: BeamConfig.Beam.Calibration,
     cluster: BeamConfig.Beam.Cluster,
+    cosim: BeamConfig.Beam.Cosim,
     debug: BeamConfig.Beam.Debug,
     exchange: BeamConfig.Beam.Exchange,
     experimental: BeamConfig.Beam.Experimental,
@@ -35,7 +36,6 @@ object BeamConfig {
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       collectEvents: scala.Boolean,
-      collectEventsIntervalInSeconds: scala.Int,
       endTime: java.lang.String,
       firstIteration: scala.Int,
       lastIteration: scala.Int,
@@ -1528,8 +1528,6 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
           ),
           collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
-          collectEventsIntervalInSeconds =
-            if (c.hasPathOrNull("collectEventsIntervalInSeconds")) c.getInt("collectEventsIntervalInSeconds") else 300,
           endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
           firstIteration = if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
@@ -1678,6 +1676,36 @@ object BeamConfig {
         BeamConfig.Beam.Cluster(
           clusterType = if (c.hasPathOrNull("clusterType")) Some(c.getString("clusterType")) else None,
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
+        )
+      }
+    }
+
+    case class Cosim(
+      helics: BeamConfig.Beam.Cosim.Helics
+    )
+
+    object Cosim {
+      case class Helics(
+        federateName: java.lang.String,
+        timeStep: scala.Int
+      )
+
+      object Helics {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Cosim.Helics = {
+          BeamConfig.Beam.Cosim.Helics(
+            federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "BeamFederate",
+            timeStep = if (c.hasPathOrNull("timeStep")) c.getInt("timeStep") else 300
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Cosim = {
+        BeamConfig.Beam.Cosim(
+          helics = BeamConfig.Beam.Cosim.Helics(
+            if (c.hasPathOrNull("helics")) c.getConfig("helics")
+            else com.typesafe.config.ConfigFactory.parseString("helics{}")
+          )
         )
       }
     }
@@ -3011,6 +3039,10 @@ object BeamConfig {
         cluster = BeamConfig.Beam.Cluster(
           if (c.hasPathOrNull("cluster")) c.getConfig("cluster")
           else com.typesafe.config.ConfigFactory.parseString("cluster{}")
+        ),
+        cosim = BeamConfig.Beam.Cosim(
+          if (c.hasPathOrNull("cosim")) c.getConfig("cosim")
+          else com.typesafe.config.ConfigFactory.parseString("cosim{}")
         ),
         debug = BeamConfig.Beam.Debug(
           if (c.hasPathOrNull("debug")) c.getConfig("debug")
