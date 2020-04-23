@@ -86,19 +86,19 @@ class ConsecutivePopulationLoader(
         peopleWhichCanBeTaken.remove(personToAdd)
         // Add to the population
         scenario.getPopulation.addPerson(personToAdd)
-        copyPeronAttribute(
+        copyAttributes(
           fullPopulation.getPersonAttributes,
           scenario.getPopulation.getPersonAttributes,
           personToAdd.getId,
           "excluded-modes"
         )
-        copyPeronAttribute(
+        copyAttributes(
           fullPopulation.getPersonAttributes,
           scenario.getPopulation.getPersonAttributes,
           personToAdd.getId,
           "rank"
         )
-        copyPeronAttribute(
+        copyAttributes(
           fullPopulation.getPersonAttributes,
           scenario.getPopulation.getPersonAttributes,
           personToAdd.getId,
@@ -198,13 +198,15 @@ class ConsecutivePopulationLoader(
     copyAttributes(src, dest, householdId, "homecoordx", "homecoordy", "housingtype")
   }
 
-  //TODO: maybe extract to ObjectAcctributesScala companion-object?
+  //TODO: maybe extract to ObjectAttributesScala companion-object?
+  //TODO: do we need nullable objects with values?
   private def copyAttributes[T, A](
     src: ObjectAttributesScala,
     dst: ObjectAttributesScala,
     id: Id[T],
     attributeNames: String*
   ) = {
+    //TODO: use Id[_] as key attribute?
     val strId = id.toString
     for {
       attributeName <- attributeNames
