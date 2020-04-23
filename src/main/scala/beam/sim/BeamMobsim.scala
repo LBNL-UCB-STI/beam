@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, EventsAccumulator}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.HierarchicalParkingManager
+import beam.agentsim.infrastructure.{HierarchicalParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
@@ -271,11 +271,23 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  private val parkingManager = context.actorOf(
-    HierarchicalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM),
-    "ParkingManager"
-  )
+  private val parkingManager = {
+    val managerType = beamConfig.beam.agentsim.taz.parkingManager.managerType
+    log.info(s"Starting parking manager of type: $managerType")
+    val pmProps = managerType match {
+      case "default" =>
+        ZonalParkingManager
+            .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+            .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case "hierarchical" =>
+        HierarchicalParkingManager
+            .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
+            .withDispatcher("hierarchical-parking-manager-pinned-dispatcher")
+      case unknown@_ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
+    }
+    context.actorOf(pmProps, "ParkingManager")
+  }
+
   context.watch(parkingManager)
 
   private val rideHailManager = context.actorOf(

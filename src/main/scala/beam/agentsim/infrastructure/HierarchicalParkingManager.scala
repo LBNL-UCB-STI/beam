@@ -123,7 +123,8 @@ object HierarchicalParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope
   ): Props = {
-    val numClusters = Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingNumberOfClusters)
+    val numClusters = Math.min(tazTreeMap.tazQuadTree.size(),
+      beamConfig.beam.agentsim.taz.parkingManager.hierarchical.numberOfClusters)
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val filePath: String = beamConfig.beam.agentsim.taz.filePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
