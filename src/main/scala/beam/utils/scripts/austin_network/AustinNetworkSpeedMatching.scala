@@ -17,7 +17,7 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable.ParMap
 import scala.io.Source
@@ -194,10 +194,13 @@ object AustinNetworkSpeedMatching {
       // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
       // createShapeFileForDataPoints(selectedReferencePointsForDebugging,outputFilePath + "referenceNetworkDebugPoints.shp")
 
-
-
-
-      writeComparisonOSMVsReferenceSpeedsByLink(outputFilePath, physsimQuadTreeDP, physsimNetwork.network, referenceSpeedData,linkCapacityData)
+      writeComparisonOSMVsReferenceSpeedsByLink(
+        outputFilePath,
+        physsimQuadTreeDP,
+        physsimNetwork.network,
+        referenceSpeedData,
+        linkCapacityData
+      )
 
       //    //TODO: write link_id,capacity,free_speed,length
 
@@ -242,46 +245,90 @@ object AustinNetworkSpeedMatching {
       val linkIdCapacityGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkCapacityTuples(quadtreeValues)
 
       val allIds = linkIdReferenceSpeedGroups.keySet ++ linkIdCapacityGroups.keySet
-      val result: Map[Id[Link], (List[Id[Link]], List[Id[Link]])] = allIds.map { id =>
-        val a = linkIdReferenceSpeedGroups.getOrElse(id, List.empty)
-        val b = linkIdCapacityGroups.getOrElse(id, List.empty)
-        id -> (a, b)
-      }.toMap
+      val result: Map[Id[Link], (List[Id[Link]], List[Id[Link]])] = allIds
+        .map { id =>
+          val a = linkIdReferenceSpeedGroups.getOrElse(id, List.empty)
+          val b = linkIdCapacityGroups.getOrElse(id, List.empty)
+          id -> (a, b)
+        }
+        .toMap
+        .withDefaultValue((List.empty, List.empty))
 
-// Id, speed (._1.median) - data from: referenceSpeedData.speeds,  (._2.median)  linkCapacityData.linkCapacityData.capacity, lanes, speed
-
-Id, (referenceSpeedData.speeds.get(fromFirstList),linkCapacityData.linkCapacityData.get(fromSecondList).get.capacity ,linkCapacityData.linkCapacityData.get(fromSecondList).get.lanes,linkCapacityData.linkCapacityData.get(fromSecondList).get.speedInMetersPerSecond)
-
-      val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
-
-      linkIdReferenceSpeedGroups.foreach {
-        case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
-
-          var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
-
-          val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
-          linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
-      }
-
-      linkReferenceSpeeds.foreach{
-        case (linkId,averageReferenceSpeed) =>
-          val link=network.getLinks.get(linkId)
-          getOppositeLink(link) match {
-            case Some(oppositeLink) =>
-              linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
-            case None =>
+      allIds.map { id =>
+        val resultFirstList = result.get(id).get._1
+        val resultSecondList = result.get(id).get._2
+        val speed = calculateMedian(resultFirstList, referenceSpeedData.speeds.toMap)
+        val capacity = calculateMedian(
+          resultSecondList.map { secListId =>
+            linkCapacityData.linkCapacityData.get(secListId).get.capacity
           }
+        )
+        val lanes = calculateMedian(
+          resultSecondList.map { secListId =>
+            linkCapacityData.linkCapacityData.get(secListId).get.lanes
+          }
+        )
+        val speedInMetersPerSecond = calculateMedian(
+          resultSecondList.map { secListId =>
+            linkCapacityData.linkCapacityData.get(secListId).get.lanes
+          }
+        )
+        (id, speed, capacity, lanes, speedInMetersPerSecond)
       }
 
-      linkReferenceSpeeds.foreach{
-        case (linkId,averageReferenceSpeed) =>
-          writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
-      }
+// Id, speed (._1.median) - data from: referenceSpeedData.speeds,
+      // (._2.median)  linkCapacityData.linkCapacityData.capacity, lanes, speed
 
-      pw.close
-
+      //Id, (referenceSpeedData.speeds.get(fromFirstList),linkCapacityData.linkCapacityData.get(fromSecondList).get.capacity ,linkCapacityData.linkCapacityData.get(fromSecondList).get.lanes,linkCapacityData.linkCapacityData.get(fromSecondList).get.speedInMetersPerSecond)
+      //
+      //      val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
+      //
+      //      linkIdReferenceSpeedGroups.foreach {
+      //        case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
+      //
+      //          var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
+      //
+      //          val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
+      //          linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
+      //      }
+      //
+      //      linkReferenceSpeeds.foreach{
+      //        case (linkId,averageReferenceSpeed) =>
+      //          val link=network.getLinks.get(linkId)
+      //          getOppositeLink(link) match {
+      //            case Some(oppositeLink) =>
+      //              linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
+      //            case None =>
+      //          }
+      //      }
+      //
+      //      linkReferenceSpeeds.foreach{
+      //        case (linkId,averageReferenceSpeed) =>
+      //          writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
+      //      }
+      //
+      //      pw.close
 
       printComparison(outputFilePath, result)
+    }
+
+    def calculateMedian(list: List[Int]): Option[Int] = {
+      if (list.isEmpty) {
+        None
+      } else {
+        val sortedList = list.sorted
+        Some(sortedList(list.size / 2))
+      }
+    }
+
+    def calculateMedian(sourceList: List[Id[Link]], lookupList: Map[Id[Link], Double]): Option[Double] = {
+      val newList = sourceList.flatMap(lookupList.get).sorted
+      if (lookupList.isEmpty) {
+        None
+      } else {
+        val middle = lookupList.size / 2
+        Some(newList(middle))
+      }
     }
 
     // TODO: this method still missing implementation
@@ -289,7 +336,7 @@ Id, (referenceSpeedData.speeds.get(fromFirstList),linkCapacityData.linkCapacityD
       outputFilePath: String,
       value: Map[Id[Link], (List[Id[Link]], List[Id[Link]])]
     ): Unit = {
-      FileUtils.using(new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsByLink.csv"))) {pw =>
+      FileUtils.using(new PrintWriter(new File(outputFilePath + "comparisonOSMVsReferenceSpeedsByLink.csv"))) { pw =>
         pw.write(s"linkId,attributeOrigType,physsimSpeed,medianReferenceSpeed\n")
       }
     }
@@ -400,7 +447,7 @@ class ReferenceSpeedData(filePath: String, geoUtils: GeoUtils) {
 
   val wsgShift: Coord = new Coord(-97.758288 - (-97.759245), 30.225124 - (30.225251))
 
-  val speeds = mutable.HashMap[Id[Link], Double]()
+  val speeds: mutable.Map[Id[Link], Double] = mutable.HashMap[Id[Link], Double]()
 
   def getReferenceSpeedVector(): Vector[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
