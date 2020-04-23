@@ -1,13 +1,13 @@
-package beam.agentsim.infrastructure.geozone.taz
+package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.io.Closeable
 import java.nio.file.Path
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import beam.agentsim.infrastructure.geozone.taz.TazCentersReader.TazAndCoordinate
+import beam.agentsim.infrastructure.geozone.aggregation.TazCentersReader.TazAndCoordinate
 import beam.utils.csv.GenericCsvReader
 
-private[taz] class TazCentersReader(
+private[aggregation] class TazCentersReader(
   tazCentersFile: Path,
 ) {
 

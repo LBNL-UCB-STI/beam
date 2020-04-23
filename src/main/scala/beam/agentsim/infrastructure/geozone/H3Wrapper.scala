@@ -38,6 +38,11 @@ object H3Wrapper {
       .toSet
   }
 
+  def wgsCoordinate(index: GeoIndex): WgsCoordinate = {
+    val coord = h3Core.h3ToGeo(index.value)
+    WgsCoordinate(latitude = coord.lat, longitude = coord.lng)
+  }
+
   private[geozone] val h3Core = com.uber.h3core.H3Core.newInstance
 
 }

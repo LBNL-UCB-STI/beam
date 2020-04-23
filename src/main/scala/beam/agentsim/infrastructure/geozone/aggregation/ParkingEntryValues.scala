@@ -1,4 +1,4 @@
-package beam.agentsim.infrastructure.geozone.taz
+package beam.agentsim.infrastructure.geozone.aggregation
 
 case class ParkingEntryValues(
   numStalls: Long,

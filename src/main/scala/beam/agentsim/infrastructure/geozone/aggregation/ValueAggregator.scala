@@ -1,4 +1,4 @@
-package beam.agentsim.infrastructure.geozone.taz
+package beam.agentsim.infrastructure.geozone.aggregation
 
 sealed trait ValueAggregator {
   def aggregate(values: Seq[ParkingEntryValues]): Seq[ParkingEntryValues]

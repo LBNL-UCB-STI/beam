@@ -1,4 +1,4 @@
-package beam.agentsim.infrastructure.geozone.taz
+package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.nio.file.Path
 

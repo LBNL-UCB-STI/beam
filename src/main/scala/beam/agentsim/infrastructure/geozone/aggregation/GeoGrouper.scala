@@ -1,12 +1,13 @@
-package beam.agentsim.infrastructure.geozone.taz
+package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.nio.file.Path
 
-import beam.agentsim.infrastructure.geozone.taz.TazToGeoIndexConverter.{GeoIndexParkingEntry, GeoIndexParkingEntryGroup}
+import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntryGroup
+import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntry
 import beam.utils.csv.CsvWriter
 
 class GeoGrouper(
-  private val parkingGroupEntries: Map[GeoIndexParkingEntryGroup, Seq[ParkingEntryValues]]
+  val parkingGroupEntries: Map[GeoIndexParkingEntryGroup, Seq[ParkingEntryValues]]
 ) {
 
   def groupValues(geoIndexParkingEntryGroup: GeoIndexParkingEntryGroup): Seq[ParkingEntryValues] = {
@@ -31,8 +32,8 @@ class GeoGrouper(
       new CsvWriter(file.toString, headers)
     }
     val rows = parkingGroupEntries.flatMap {
-      case (group, valueses) =>
-        valueses.map { entryValue: ParkingEntryValues =>
+      case (group, values) =>
+        values.map { entryValue: ParkingEntryValues =>
           IndexedSeq(
             group.geoIndex.value,
             group.parkingType,
