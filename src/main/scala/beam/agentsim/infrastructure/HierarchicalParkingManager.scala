@@ -226,6 +226,7 @@ object HierarchicalParkingManager extends LazyLogging {
           ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
         }
         logger.info(s"Done clustering: ${clusters.size}")
+        logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
         clusters
       } catch {
         case ex: Exception =>
