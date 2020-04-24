@@ -272,17 +272,17 @@ class BeamMobsimIteration(
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
   private val parkingManager = {
-    val managerType = beamConfig.beam.agentsim.taz.parkingManager.managerType
-    log.info(s"Starting parking manager of type: $managerType")
-    val pmProps = managerType match {
-      case "default" =>
+    val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
+    log.info(s"Starting parking manager: $managerName")
+    val pmProps = managerName match {
+      case "DEFAULT" =>
         ZonalParkingManager
             .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
             .withDispatcher("zonal-parking-manager-pinned-dispatcher")
-      case "hierarchical" =>
+      case "HIERARCHICAL" =>
         HierarchicalParkingManager
             .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
-            .withDispatcher("hierarchical-parking-manager-pinned-dispatcher")
+            .withDispatcher("hierarchical-parking-manager-dispatcher")
       case unknown@_ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
     context.actorOf(pmProps, "ParkingManager")

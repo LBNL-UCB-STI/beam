@@ -91,12 +91,10 @@ class HierarchicalParkingManager(
       worker.actor.forward(inquiry)
 
     case release @ ReleaseParkingStall(parkingZoneId, tazId) =>
-      val worker = tazToWorker.getOrElse(
-          tazId,
-          throw new IllegalStateException(s"No TAZ with id $tazId, zone id = $parkingZoneId")
-        )
-
-      worker.actor.forward(release)
+      tazToWorker.get(tazId) match {
+        case Some(worker) => worker.actor.forward(release)
+        case None => log.error(s"No TAZ with id $tazId, zone id = $parkingZoneId. Cannot release.")
+      }
   }
 
   private def mapTazToWorker(clusters: Seq[Worker]): Map[Id[TAZ], Worker] = {
@@ -184,53 +182,47 @@ object HierarchicalParkingManager extends LazyLogging {
       )
     } else {
       val db: Database = createDatabase(tazTreeMap, zones)
-      try {
-        val kmeans = new KMeansElkan[NumberVector](
-          SquaredEuclideanDistanceFunction.STATIC,
-          numClusters,
-          2000,
-          new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
-          true
-        )
-        val result = kmeans.run(db)
-        val clusters = result.getAllClusters.asScala.toVector.map { clu =>
-          val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-          val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
-          val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
-          val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
-          val iter: DBIDIter = clu.getIDs.iter()
-          while (iter.valid()) {
-            val o: DoubleVector = rel.get(iter)
-            val id: String = labels.get(iter)
-            clusterZones += zones(id.toInt)
-            coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
-            iter.advance()
-          }
-          val dCoords = coords.distinct
-          if (dCoords.size == 1) {
-            //means a single point which is not allowed by ConvexHull
-            val center = coords(0)
-            dCoords(0) = new Coordinate(center.x - .1, center.y - .1)
-            dCoords += new Coordinate(center.x + .1, center.y - .1)
-            dCoords += new Coordinate(center.x + .1, center.y + .1)
-            dCoords += new Coordinate(center.x - .1, center.y + .1)
-          }
-          val convexHull = new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull
-          val tazes = clusterZones
+      val kmeans = new KMeansElkan[NumberVector](
+        SquaredEuclideanDistanceFunction.STATIC,
+        numClusters,
+        2000,
+        new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+        true
+      )
+      val result = kmeans.run(db)
+      val clusters = result.getAllClusters.asScala.toVector.map { clu =>
+        val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+        val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
+        val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
+        val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
+        val iter: DBIDIter = clu.getIDs.iter()
+        while (iter.valid()) {
+          val o: DoubleVector = rel.get(iter)
+          val id: String = labels.get(iter)
+          clusterZones += zones(id.toInt)
+          coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
+          iter.advance()
+        }
+        val dCoords = coords.distinct
+        if (dCoords.size == 1) {
+          //means a single point which is not allowed by ConvexHull
+          val center = coords(0)
+          dCoords(0) = new Coordinate(center.x - .1, center.y - .1)
+          dCoords += new Coordinate(center.x + .1, center.y - .1)
+          dCoords += new Coordinate(center.x + .1, center.y + .1)
+          dCoords += new Coordinate(center.x - .1, center.y + .1)
+        }
+        val convexHull = new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull
+        val tazes = clusterZones
             .map(_.tazId)
             .distinct
             .map(tazTreeMap.getTAZ(_).get)
             .toList
-          ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
-        }
-        logger.info(s"Done clustering: ${clusters.size}")
-        logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
-        clusters
-      } catch {
-        case ex: Exception =>
-          logger.error("error clustering", ex)
-          throw ex
+        ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
       }
+      logger.info(s"Done clustering: ${clusters.size}")
+      logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
+      clusters
     }
   }
 
