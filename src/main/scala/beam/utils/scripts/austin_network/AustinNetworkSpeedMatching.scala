@@ -246,6 +246,7 @@ object AustinNetworkSpeedMatching {
       referenceSpeedData: ReferenceSpeedData,
       linkCapacityData: LinkCapacityData
     ): Unit = {
+      logger.info("start writeComparisonOSMVsReferenceSpeedsByLink")
       val quadtreeValues = physsimQuadTreeDP.values().asScala.toList
       val linkIdReferenceSpeedGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkReferenceSpeedTuples(quadtreeValues)
       val linkIdCapacityGroups: Map[Id[Link], List[Id[Link]]] = calculateLinkCapacityTuples(quadtreeValues)
@@ -260,30 +261,33 @@ object AustinNetworkSpeedMatching {
         .toMap
         .withDefaultValue((List.empty, List.empty))
 
-      val resultTuples= allIds.map { linkId =>
+      logger.info("start resultTuples")
+
+      val resultTuples= allIds.par.map { linkId =>
         val resultFirstList = result.get(linkId).get._1
         val resultSecondList = result.get(linkId).get._2
         val referenceSpeed = calculateMedian(resultFirstList, referenceSpeedData.speeds.toMap)
         val modelCapacity = calculateMedian(
           resultSecondList.map { secListId =>
-            linkCapacityData.linkCapacityData.get(secListId).get.capacity
+            linkCapacityData.linkCapacityData.get(secListId).get.capacity.toDouble
           }
         )
         val modelLanes = calculateMedian(
           resultSecondList.map { secListId =>
-            linkCapacityData.linkCapacityData.get(secListId).get.lanes
+            linkCapacityData.linkCapacityData.get(secListId).get.lanes.toDouble
           }
         )
         val modelSpeed = calculateMedian(
           resultSecondList.map { secListId =>
-            linkCapacityData.linkCapacityData.get(secListId).get.lanes
+            linkCapacityData.linkCapacityData.get(secListId).get.speedInMetersPerSecond
           }
         )
         (linkId, referenceSpeed, modelCapacity, modelLanes, modelSpeed)
       }
+      logger.info("start writing file")
 
       var pw = new PrintWriter(new File(outputFilePath + "comparisonPhysimNetworkReferenceAndModelData.csv"))
-      pw.write(s"linkId,physsimType,physsimSpeed,physsimLanes,physsimCapacity,referenceSpeed, modelSpeed,modelCapacity,modelLanes\n")
+      pw.write(s"linkId,physsimType,physsimSpeed,physsimLanes,physsimCapacity,referenceSpeed,modelCapacity,modelLanes,modelSpeed\n")
 
       resultTuples.foreach { case (linkId, referenceSpeed, modelCapacity, modelLanes, modelSpeed) =>
         val physsimType=network.getLinks.get(linkId).getAttributes.getAttribute("type")
@@ -302,22 +306,22 @@ object AustinNetworkSpeedMatching {
       //printComparison(outputFilePath, result)
     }
 
-    def calculateMedian(list: List[Int]): Option[Int] = {
+    def calculateMedian(list: List[Double]): Double = {
       if (list.isEmpty) {
-        None
+        -1.0
       } else {
         val sortedList = list.sorted
-        Some(sortedList(list.size / 2))
+        sortedList(list.size / 2)
       }
     }
 
-    def calculateMedian(sourceList: List[Id[Link]], lookupList: Map[Id[Link], Double]): Option[Double] = {
+    def calculateMedian(sourceList: List[Id[Link]], lookupList: Map[Id[Link], Double]): Double = {
       val newList = sourceList.flatMap(lookupList.get).sorted
-      if (lookupList.isEmpty) {
-        None
+      if (newList.isEmpty) {
+        -1.0
       } else {
         val middle = newList.size / 2
-        Some(newList(middle))
+        newList(middle)
       }
     }
 
