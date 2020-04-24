@@ -215,18 +215,18 @@ object AustinNetworkSpeedMatching {
       val distanceArray: ArrayBuffer[Double] = ArrayBuffer()
       val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
       val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
-      dataPoints.foreach { referenceSpeedDataPoint =>
+      dataPoints.foreach { dataPoint =>
         //val closestPhysSimNetworkPoint = physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY)
-        val closestPhysSimNetworkPoint = closestPhysSimPointMap.get(referenceSpeedDataPoint).get
+        val closestPhysSimNetworkPoint = closestPhysSimPointMap.get(dataPoint).get
 
         //val distanceInMeters= geoUtils.distLatLon2Meters(closestPhysSimNetworkPoint.coord,referenceSpeedDataPoint.coord)
-        val distanceInMeters = geoUtils.distUTMInMeters(closestPhysSimNetworkPoint.coord, referenceSpeedDataPoint.coord)
+        val distanceInMeters = geoUtils.distUTMInMeters(closestPhysSimNetworkPoint.coord, dataPoint.coord)
         distanceArray += distanceInMeters
         if (distanceInMeters < 100) {
-          attachDataFunction(closestPhysSimNetworkPoint).get += referenceSpeedDataPoint.linkId
+          attachDataFunction(closestPhysSimNetworkPoint).get += dataPoint.linkId
         } else {
           selectedPhysSimPointsForDebugging += closestPhysSimNetworkPoint
-          selectedReferencePointsForDebugging += referenceSpeedDataPoint
+          selectedReferencePointsForDebugging += dataPoint
         }
       }
 
