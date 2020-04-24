@@ -163,7 +163,7 @@ object AustinNetworkSpeedMatching {
       logger.info("start produceSpeedDataPointFromSpeedVector.referenceNetworkDP ")
       val referenceNetworkDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(referenceSpeedVector)
 
-      val linkCapacityDf: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(linkCapacitySpeedVector)
+      val linkCapacityDP: Vector[SpeedDataPoint] = produceSpeedDataPointFromSpeedVector(linkCapacitySpeedVector)
 
       //createShapeFileForDataPoints(physsimNetworkDP,outputFilePath + "phySimDataPoints.shp")
 
@@ -179,16 +179,11 @@ object AustinNetworkSpeedMatching {
       }
 
       logger.info("start closestPhysSimPointMap ")
-      val closestPhysSimPointMap = referenceNetworkDP.par.map { referenceSpeedDataPoint =>
-        (referenceSpeedDataPoint -> physsimQuadTreeDP.getClosest(
-          referenceSpeedDataPoint.coord.getX,
-          referenceSpeedDataPoint.coord.getY
-        ))
-      }.toMap
+
       logger.info("end closestPhysSimPointMap ")
 
-      matchNetwork(referenceNetworkDP, closestPhysSimPointMap, _.closestReferenceData)
-      matchNetwork(linkCapacityDf, closestPhysSimPointMap, _.closestCapacityData)
+      matchNetwork(referenceNetworkDP,physsimQuadTreeDP, _.closestReferenceData)
+      matchNetwork(linkCapacityDP,physsimQuadTreeDP, _.closestCapacityData)
 
       logger.info("end referenceNetworkDP.foreach ")
       // createShapeFileForDataPoints(selectedPhysSimPointsForDebugging,outputFilePath + "physSimNetworkDebugPoints.shp")
@@ -209,9 +204,16 @@ object AustinNetworkSpeedMatching {
     //TODO: rename SpeedDataPoint
     def matchNetwork(
       dataPoints: scala.Vector[SpeedDataPoint],
-      closestPhysSimPointMap: ParMap[SpeedDataPoint, SpeedDataPoint],
+      physsimQuadTreeDP: QuadTree[SpeedDataPoint],
       attachDataFunction: SpeedDataPoint => Option[ArrayBuffer[Id[Link]]]
     ) = {
+      val closestPhysSimPointMap = dataPoints.par.map { dataPoint =>
+        (dataPoint -> physsimQuadTreeDP.getClosest(
+          dataPoint.coord.getX,
+          dataPoint.coord.getY
+        ))
+      }.toMap
+
       val distanceArray: ArrayBuffer[Double] = ArrayBuffer()
       val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
       val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
