@@ -316,7 +316,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     double[] speedsByHour = new double[31];
                     for (int hour = 0; hour <= 30; hour++) {
                         Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2Speeds.get(hour);
-                        if (way2Speed == null || way2Speed.get(wayId)==null) continue;
+                        if (way2Speed == null || way2Speed.get(wayId) == null) {
+                            System.out.println("Failed to get speed for " + hour + " hour and wayId " + wayId);
+                            continue;
+                        }
                         speedsByHour[hour] = way2Speed
                                 .get(wayId).getSum() / linksInWay.size();
                     }
