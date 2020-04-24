@@ -175,7 +175,6 @@ object HierarchicalParkingManager extends LazyLogging {
     numClusters: Int
   ): mutable.Buffer[ParkingCluster] = {
     logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
-    // Build clusters for every time bin. Number of clusters is configured
     if (zones.isEmpty) {
       mutable.Buffer(
         ParkingCluster(
@@ -197,14 +196,14 @@ object HierarchicalParkingManager extends LazyLogging {
         val result = kmeans.run(db)
         val clusters = result.getAllClusters.asScala.map { clu =>
           val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-          val rel2: Relation[DBIDRef] = db.getRelation(TypeUtil.DBID)
+          val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
           val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
           val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
           val iter: DBIDIter = clu.getIDs.iter()
           while (iter.valid()) {
             val o: DoubleVector = rel.get(iter)
-            val id: DBIDRef = rel2.get(iter)
-            clusterZones += zones(id.internalGetIndex())
+            val id: String = labels.get(iter)
+            clusterZones += zones(id.toInt)
             coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
             iter.advance()
           }
@@ -238,6 +237,7 @@ object HierarchicalParkingManager extends LazyLogging {
 
   private def createDatabase(tazTreeMap: TAZTreeMap, zones: Array[ParkingZone]): Database = {
     val data = Array.ofDim[Double](zones.length, 2)
+    val labels: Array[String] = Array.ofDim[String](zones.length)
     zones.zipWithIndex.foreach {
       case (zone, idx) =>
         val taz = tazTreeMap.getTAZ(zone.tazId)
@@ -246,9 +246,12 @@ object HierarchicalParkingManager extends LazyLogging {
           t <- taz
           x = t.coord.getX
           y = t.coord.getY
-        } yield data.update(idx, Array(x, y))
+        } yield {
+          data.update(idx, Array(x, y))
+          labels.update(idx, idx.toString)
+        }
     }
-    val dbc = new ArrayAdapterDatabaseConnection(data, null, 0)
+    val dbc = new ArrayAdapterDatabaseConnection(data, labels)
     // Create a database (which may contain multiple relations!)
     val db = new StaticArrayDatabase(dbc, null)
     // Load the data into the database (do NOT forget to initialize...)
