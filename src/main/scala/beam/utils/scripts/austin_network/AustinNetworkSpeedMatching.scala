@@ -218,14 +218,18 @@ object AustinNetworkSpeedMatching {
       val selectedPhysSimPointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
       val selectedReferencePointsForDebugging: ArrayBuffer[SpeedDataPoint] = new ArrayBuffer()
       dataPoints.foreach { dataPoint =>
-        //val closestPhysSimNetworkPoint = physsimQuadTreeDP.getClosest(referenceSpeedDataPoint.coord.getX, referenceSpeedDataPoint.coord.getY)
         val closestPhysSimNetworkPoint = closestPhysSimPointMap.get(dataPoint).get
 
         //val distanceInMeters= geoUtils.distLatLon2Meters(closestPhysSimNetworkPoint.coord,referenceSpeedDataPoint.coord)
         val distanceInMeters = geoUtils.distUTMInMeters(closestPhysSimNetworkPoint.coord, dataPoint.coord)
         distanceArray += distanceInMeters
         if (distanceInMeters < 100) {
-          attachDataFunction(closestPhysSimNetworkPoint).get += dataPoint.linkId
+          val tempArrayBuffer=attachDataFunction(closestPhysSimNetworkPoint)
+          if (tempArrayBuffer.isEmpty){
+            println()
+          }
+
+          tempArrayBuffer.get += dataPoint.linkId
         } else {
           selectedPhysSimPointsForDebugging += closestPhysSimNetworkPoint
           selectedReferencePointsForDebugging += dataPoint
@@ -312,7 +316,7 @@ object AustinNetworkSpeedMatching {
       if (lookupList.isEmpty) {
         None
       } else {
-        val middle = lookupList.size / 2
+        val middle = newList.size / 2
         Some(newList(middle))
       }
     }
@@ -413,7 +417,7 @@ case class SpeedVector(linkId: Id[Link], startCoord: Coord, endCoord: Coord, geo
         linkId,
         new Coord(startCoord.getX + i * xDeltaVector, startCoord.getY + i * yDeltaVector),
         Some(ArrayBuffer()),
-        None // TODO: I added it here to make it compile
+        Some(ArrayBuffer())
       )
     }
     resultVector
