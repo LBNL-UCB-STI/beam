@@ -254,62 +254,46 @@ object AustinNetworkSpeedMatching {
         .toMap
         .withDefaultValue((List.empty, List.empty))
 
-      allIds.map { id =>
-        val resultFirstList = result.get(id).get._1
-        val resultSecondList = result.get(id).get._2
-        val speed = calculateMedian(resultFirstList, referenceSpeedData.speeds.toMap)
-        val capacity = calculateMedian(
+      val resultTuples= allIds.map { linkId =>
+        val resultFirstList = result.get(linkId).get._1
+        val resultSecondList = result.get(linkId).get._2
+        val referenceSpeed = calculateMedian(resultFirstList, referenceSpeedData.speeds.toMap)
+        val modelCapacity = calculateMedian(
           resultSecondList.map { secListId =>
             linkCapacityData.linkCapacityData.get(secListId).get.capacity
           }
         )
-        val lanes = calculateMedian(
+        val modelLanes = calculateMedian(
           resultSecondList.map { secListId =>
             linkCapacityData.linkCapacityData.get(secListId).get.lanes
           }
         )
-        val speedInMetersPerSecond = calculateMedian(
+        val modelSpeed = calculateMedian(
           resultSecondList.map { secListId =>
             linkCapacityData.linkCapacityData.get(secListId).get.lanes
           }
         )
-        (id, speed, capacity, lanes, speedInMetersPerSecond)
+        (linkId, referenceSpeed, modelCapacity, modelLanes, modelSpeed)
       }
 
-// Id, speed (._1.median) - data from: referenceSpeedData.speeds,
-      // (._2.median)  linkCapacityData.linkCapacityData.capacity, lanes, speed
+      var pw = new PrintWriter(new File(outputFilePath + "comparisonPhysimNetworkReferenceAndModelData.csv"))
+      pw.write(s"linkId,physsimType,physsimSpeed,physsimLanes,physsimCapacity,referenceSpeed, modelSpeed,modelCapacity,modelLanes\n")
 
-      //Id, (referenceSpeedData.speeds.get(fromFirstList),linkCapacityData.linkCapacityData.get(fromSecondList).get.capacity ,linkCapacityData.linkCapacityData.get(fromSecondList).get.lanes,linkCapacityData.linkCapacityData.get(fromSecondList).get.speedInMetersPerSecond)
-      //
-      //      val linkReferenceSpeeds=mutable.HashMap[Id[Link], Double]()
-      //
-      //      linkIdReferenceSpeedGroups.foreach {
-      //        case (linkId, referenceSpeeds) if referenceSpeeds.nonEmpty =>
-      //
-      //          var sortedReferenceSpeed = referenceSpeeds.sorted.toIndexedSeq
-      //
-      //          val averageReferenceSpeed = sortedReferenceSpeed((sortedReferenceSpeed.size / 2))
-      //          linkReferenceSpeeds.put(linkId,averageReferenceSpeed)
-      //      }
-      //
-      //      linkReferenceSpeeds.foreach{
-      //        case (linkId,averageReferenceSpeed) =>
-      //          val link=network.getLinks.get(linkId)
-      //          getOppositeLink(link) match {
-      //            case Some(oppositeLink) =>
-      //              linkReferenceSpeeds.put(oppositeLink.getId,averageReferenceSpeed)
-      //            case None =>
-      //          }
-      //      }
-      //
-      //      linkReferenceSpeeds.foreach{
-      //        case (linkId,averageReferenceSpeed) =>
-      //          writeUpdatedSpeed(network, pw, linkId, averageReferenceSpeed)
-      //      }
-      //
-      //      pw.close
+      resultTuples.foreach { case (linkId, referenceSpeed, modelCapacity, modelLanes, modelSpeed) =>
+        val physsimType=network.getLinks.get(linkId).getAttributes.getAttribute("type")
+        val physsimSpeed=network.getLinks.get(linkId).getFreespeed
+        val physsimLanes=network.getLinks.get(linkId).getNumberOfLanes
+        val physsimCapacity=network.getLinks.get(linkId).getCapacity
 
-      printComparison(outputFilePath, result)
+
+          pw.write(
+            s"$linkId,$physsimType,$physsimSpeed,$physsimLanes,$physsimCapacity,$referenceSpeed, $modelCapacity, $modelLanes, $modelSpeed\n"
+          )
+
+      }
+      pw.close
+
+      //printComparison(outputFilePath, result)
     }
 
     def calculateMedian(list: List[Int]): Option[Int] = {
@@ -533,7 +517,7 @@ class LinkCapacityData(detailFilePath: String, publicLinkPath: String, geoUtils:
   def getReferenceSpeedVector(): Vector[SpeedVector] = {
     linkCapacityData.flatMap {
       case (linkId, linkDetails) =>
-        val coordPairs = linkDetails.geometry.sliding(2, 2)
+        val coordPairs = linkDetails.geometry.sliding(2, 1)
         coordPairs.map { coordPair =>
           SpeedVector(linkId, geoUtils.wgs2Utm(coordPair(0)), geoUtils.wgs2Utm(coordPair(1)), geoUtils)
         }
