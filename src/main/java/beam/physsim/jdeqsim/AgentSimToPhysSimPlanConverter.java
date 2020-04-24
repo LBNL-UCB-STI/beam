@@ -262,20 +262,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
                 Long firstId = coordinateToRTVertexId.get(origin);
                 if (firstId == null) {
-                    System.out.println("Failed to find coordinate " + origin.toString());
+//                    System.out.println("Failed to find coordinate " + origin.toString());
                     Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
                             .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
                             .get();
-                    System.out.println("Found closest by distance " + closest.getKey().toString());
+//                    System.out.println("Found closest by distance " + closest.getKey().toString());
                     firstId = closest.getValue();
                 }
                 Long secondId = coordinateToRTVertexId.get(destination);
                 if (secondId == null) {
-                    System.out.println("Failed to find coordinate " + destination.toString());
+//                    System.out.println("Failed to find coordinate " + destination.toString());
                     Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
                             .min(Comparator.comparingDouble(x -> x.getKey().distance(destination)))
                             .get();
-                    System.out.println("Found closest by distance " + closest.getKey().toString());
+//                    System.out.println("Found closest by distance " + closest.getKey().toString());
                     secondId = closest.getValue();
                 }
 
