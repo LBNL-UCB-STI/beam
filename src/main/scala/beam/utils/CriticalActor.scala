@@ -13,7 +13,8 @@ trait CriticalActor extends Actor with ActorLogging {
       case ex: Throwable =>
         if (isCriticalExceptionHandler(ex)) {
           log.error(ex, "Critical actor encountered an unrecoverable exception, so killing the entire application.")
-          Thread.sleep(1000) //This makes sure the log is written before crashing out
+          Thread.sleep(5000) //This makes sure the log is written before crashing out
+          ex.printStackTrace(); // just in case the log msg has not been written out
           sys.exit(123)
         }
     }
