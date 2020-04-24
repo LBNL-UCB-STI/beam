@@ -19,7 +19,7 @@ import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
 import de.lmu.ifi.dbs.elki.data.{DoubleVector, NumberVector}
-import de.lmu.ifi.dbs.elki.database.ids.{DBIDIter, DBIDRef}
+import de.lmu.ifi.dbs.elki.database.ids.DBIDIter
 import de.lmu.ifi.dbs.elki.database.relation.Relation
 import de.lmu.ifi.dbs.elki.database.{Database, StaticArrayDatabase}
 import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
@@ -28,7 +28,6 @@ import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -150,7 +149,7 @@ object HierarchicalParkingManager extends LazyLogging {
     rand: Random,
     boundingBox: Envelope
   ) = {
-    val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters).toVector
+    val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters)
 
     Props(
       new HierarchicalParkingManager(
@@ -173,10 +172,10 @@ object HierarchicalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     zones: Array[ParkingZone],
     numClusters: Int
-  ): mutable.Buffer[ParkingCluster] = {
+  ): Vector[ParkingCluster] = {
     logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
     if (zones.isEmpty) {
-      mutable.Buffer(
+      Vector(
         ParkingCluster(
           tazTreeMap.getTAZs.toVector,
           new Coord(0.0, 0.0),
@@ -194,7 +193,7 @@ object HierarchicalParkingManager extends LazyLogging {
           true
         )
         val result = kmeans.run(db)
-        val clusters = result.getAllClusters.asScala.map { clu =>
+        val clusters = result.getAllClusters.asScala.toVector.map { clu =>
           val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
           val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
           val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())

@@ -4,8 +4,6 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import org.matsim.api.core.v01.Coord
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.collection.mutable
-
 /**
   *
   * @author Dmitry Openkov
@@ -40,7 +38,7 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
-      val clusters: mutable.Buffer[HierarchicalParkingManager.ParkingCluster] =
+      val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
         HierarchicalParkingManager.createClusters(treeMap, parkingZones, 4)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
     }
