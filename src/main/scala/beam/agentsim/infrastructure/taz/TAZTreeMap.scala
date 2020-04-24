@@ -4,7 +4,8 @@ import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
-import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, QuadTreeBounds}
+import beam.utils.matsim_conversion.ShapeUtils
+import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -97,39 +98,29 @@ object TAZTreeMap {
   private def quadTreeExtentFromShapeFile(
     features: util.Collection[SimpleFeature]
   ): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-
-    for (f <- features.asScala) {
-      f.getDefaultGeometry match {
-        case g: Geometry =>
-          val ca = g.getEnvelope.getEnvelopeInternal
-          //val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
-          minX = Math.min(minX, ca.getMinX)
-          minY = Math.min(minY, ca.getMinY)
-          maxX = Math.max(maxX, ca.getMaxX)
-          maxY = Math.max(maxY, ca.getMaxY)
-        case _ =>
+    val envelopes = features.asScala
+      .map(_.getDefaultGeometry)
+      .collect {
+        case g: Geometry => g.getEnvelope.getEnvelopeInternal
       }
-    }
-    QuadTreeBounds(minX, minY, maxX, maxY)
+    ShapeUtils.quadTreeBounds(envelopes)
   }
 
   private def quadTreeExtentFromCsvFile(lines: Seq[CsvTaz]): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
+    implicit val hasQuadBounds = new HasQuadBounds[CsvTaz] {
+      override def getMinX(a: CsvTaz) = a.coordX
 
-    for (l <- lines) {
-      minX = Math.min(minX, l.coordX)
-      minY = Math.min(minY, l.coordY)
-      maxX = Math.max(maxX, l.coordX)
-      maxY = Math.max(maxY, l.coordY)
+      override def getMaxX(a: CsvTaz) = a.coordX
+
+      override def getMinY(a: CsvTaz) = a.coordY
+
+      override def getMaxY(a: CsvTaz) = a.coordY
     }
-    QuadTreeBounds(minX, minY, maxX, maxY)
+    ShapeUtils.quadTreeBounds(lines)
+  }
+
+  private def quadTreeExtentFromList(lines: Seq[TAZ]): QuadTreeBounds = {
+    ShapeUtils.quadTreeBounds(lines.map(_.coord))
   }
 
   def fromCsv(csvFile: String): TAZTreeMap = {
@@ -145,6 +136,24 @@ object TAZTreeMap {
 
     for (l <- lines) {
       val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
+      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    }
+
+    new TAZTreeMap(tazQuadTree)
+
+  }
+
+  def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
+
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
+
+    for (taz <- tazes) {
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
