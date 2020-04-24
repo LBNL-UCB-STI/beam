@@ -65,7 +65,7 @@ class HierarchicalParkingManager(
               geo,
               rand,
               boundingBox
-            ),
+            ).withDispatcher("hierarchical-parking-manager-dispatcher"),
           s"zonal-parking-manager-$i"
         )
         Worker(actor, cluster, emergencyId)
