@@ -32,6 +32,7 @@ import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
@@ -57,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -149,7 +151,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 //            }
 //        });
 
-//        EventsManager jdeqsimEvents = new EventsManagerImpl();
+        EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
 //        jdeqsimEvents.addHandler(travelTimeCalculator);
 //        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
@@ -160,7 +162,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         PhysSimEventWriter eventWriter = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
-//            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
+            eventWriter = PhysSimEventWriter.apply(beamServices, jdeqsimEvents);
 //            jdeqsimEvents.addHandler(eventWriter);
         } else {
             if (beamConfig.beam().physsim().writeEventsInterval() < 1)
@@ -306,25 +308,35 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<String, double[]> finalMap = new HashMap<>();
         Map<String, double[]> map = finalMap;
 
-        links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x ->
-                finalMap.put(x.getId().toString(), new double[31])
-        );
+
+        int totalNumberOfLinks = links.size();
+        AtomicInteger linksFailedToResolve = new AtomicInteger(0);
+
+        links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x -> {
+            linksFailedToResolve.incrementAndGet();
+            finalMap.put(x.getId().toString(), new double[31]);
+        });
 
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") != null)
                 .collect(Collectors.groupingBy(x -> linkWayId(x)))
                 .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
                     double[] speedsByHour = new double[31];
+                    boolean atLeastOneHour = false;
                     for (int hour = 0; hour <= 30; hour++) {
                         Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2Speeds.get(hour);
                         if (way2Speed == null || way2Speed.get(wayId) == null) {
-                            System.out.println("Failed to get speed for " + hour + " hour and wayId " + wayId);
+//                            System.out.println("Failed to get speed for " + hour + " hour and wayId " + wayId);
                             continue;
                         }
+                        atLeastOneHour = true;
                         speedsByHour[hour] = way2Speed
                                 .get(wayId).getSum() / linksInWay.size();
                     }
+                    if (!atLeastOneHour) linksFailedToResolve.incrementAndGet();
                     finalMap.put(link.getId().toString(), speedsByHour);
                 }));
+
+        System.out.println("total: " + totalNumberOfLinks + ", failed: " + linksFailedToResolve.get());
 
         TravelTime travelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
 

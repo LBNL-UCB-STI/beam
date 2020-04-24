@@ -87,6 +87,7 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
   override def assignTraffic(): (File, File, File) = {
     val assignTrafficOutput = Process(s"""
                                          |docker run --rm
+                                         | --memory-swap -1
                                          | -v $tempDir:/work
                                          | $toolDockerImage
                                          | $assignTrafficLauncher
