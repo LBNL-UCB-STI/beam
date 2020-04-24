@@ -54,7 +54,7 @@ object VisualizeVolumeStations {
 
     ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
   }
-
+//TODO: rename variables to make generic!
   def getLines(filePath: String): Vector[String] = {
     val trafficDetectorsFilePath = Source.fromFile(filePath)
     var lines = trafficDetectorsFilePath.getLines.toVector
