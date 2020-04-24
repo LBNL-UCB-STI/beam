@@ -119,6 +119,11 @@ trait NetworkCoordinator extends LazyLogging {
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 
+    // Scale the speed after overwriting link params. Important!
+    network.getLinks.values.asScala.foreach { link =>
+      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+    }
+
     logger.info(s"MATSim network created")
     new NetworkWriter(network)
       .write(beamConfig.matsim.modules.network.inputNetworkFile)

@@ -121,10 +121,6 @@ public class R5MnetBuilder {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
 
-
-        for (Link link : mNetwork.getLinks().values()) {
-            link.setFreespeed(link.getFreespeed() * this.beamConfig.physsim().speedScalingFactor());
-        }
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {
