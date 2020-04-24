@@ -630,8 +630,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         try (FileReader fileReader = new FileReader(path)) {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
-            String mode[] = bufferedReader.readLine().split(",");
-            String modeData[] = bufferedReader.readLine().split(",");
+            String[] mode = bufferedReader.readLine().split(",");
+            String[] modeData = bufferedReader.readLine().split(",");
 
             for (int i = 1; i < mode.length; i++) {
                 benchMarkData.put(mode[i], Double.parseDouble(modeData[i]));
@@ -642,7 +642,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return benchMarkData;
     }
 
-    public class ModeHour {
+    public static class ModeHour {
         private String mode;
         private Integer hour;
 

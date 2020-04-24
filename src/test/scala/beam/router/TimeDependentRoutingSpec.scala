@@ -145,11 +145,11 @@ class TimeDependentRoutingSpec
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
@@ -175,11 +175,11 @@ class TimeDependentRoutingSpec
       router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             vehicleId,
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
@@ -210,11 +210,11 @@ class TimeDependentRoutingSpec
         // Now send the router the travel times resulting from that, and try again.
         router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
         router ! RoutingRequest(
-          origin,
-          destination,
-          time,
+          originUTM = origin,
+          destinationUTM = destination,
+          departureTime = time,
           withTransit = false,
-          Vector(
+          streetVehicles = Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
               Id.create("beamVilleCar", classOf[BeamVehicleType]),
