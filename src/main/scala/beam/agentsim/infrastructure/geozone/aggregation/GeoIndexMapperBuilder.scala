@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.geozone.aggregation
 
 import scala.collection.parallel.ParSet
 
-import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoIndexMapper, TopDownEqualDemandsGeoIndexMapper, WgsCoordinate}
+import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoIndexMapper, TopDownEqualDemandGeoIndexMapper, WgsCoordinate}
 
 trait GeoIndexMapperBuilder {
   def buildMapper(wgsCoordinates: ParSet[WgsCoordinate]): GeoIndexMapper
@@ -10,11 +10,11 @@ trait GeoIndexMapperBuilder {
 
 object GeoIndexMapperBuilder {
 
-  def topDownEqualDemands(
+  def topDownEqualDemand(
     bucketsReduceFactor: Double,
     initialResolution: Int = 1
   ): GeoIndexMapperBuilder = {
-    new TopDownEqualDemandsBuilder(
+    new TopDownEqualDemandBuilder(
       bucketsFactor = bucketsReduceFactor,
       initialResolution = initialResolution
     )
@@ -24,13 +24,13 @@ object GeoIndexMapperBuilder {
     new GeoZoneDirectMapperBuilder(targetIndexes)
   }
 
-  class TopDownEqualDemandsBuilder(
+  class TopDownEqualDemandBuilder(
     bucketsFactor: Double,
     initialResolution: Int
   ) extends GeoIndexMapperBuilder {
     override def buildMapper(coordinates: ParSet[WgsCoordinate]): GeoIndexMapper = {
       val expectedNumberOfBuckets = Math.max((coordinates.size * bucketsFactor).toInt, 1)
-      TopDownEqualDemandsGeoIndexMapper.from(coordinates, expectedNumberOfBuckets, initialResolution)
+      TopDownEqualDemandGeoIndexMapper.from(coordinates, expectedNumberOfBuckets, initialResolution)
     }
   }
 

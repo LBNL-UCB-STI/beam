@@ -4,7 +4,7 @@ import scala.collection.parallel.ParSet
 
 import beam.agentsim.infrastructure.geozone.GeoZone.GeoZoneContent
 
-class TopDownEqualDemandsGeoIndexMapper private[geozone] (
+class TopDownEqualDemandGeoIndexMapper private[geozone] (
   initialContent: IndexedSeq[HexagonLeaf],
   bucketsGoal: Int,
   iterationsThreshold: Int = 1000
@@ -16,7 +16,7 @@ class TopDownEqualDemandsGeoIndexMapper private[geozone] (
     var counter = 0
     while (totalSize < bucketsGoal & counter < iterationsThreshold) {
       counter += 1
-      val position = TopDownEqualDemandsSplitter.chooseOneToSplit(result, bucketsGoal, numberOfPoints(result))
+      val position = TopDownEqualDemandSplitter.chooseOneToSplit(result, bucketsGoal, numberOfPoints(result))
       val afterSplit: Seq[HexagonBranch] = result(position).split(bucketsGoal)
       result = result.patch(position, afterSplit, 1)
       totalSize = result.map(_.totalNumberOfBuckets).sum
@@ -49,13 +49,13 @@ class TopDownEqualDemandsGeoIndexMapper private[geozone] (
 
 }
 
-object TopDownEqualDemandsGeoIndexMapper {
+object TopDownEqualDemandGeoIndexMapper {
 
   def from(
     geoZone: GeoZone,
     expectedNumberOfBuckets: Int,
     initialResolution: Int = 2
-  ): TopDownEqualDemandsGeoIndexMapper = {
+  ): TopDownEqualDemandGeoIndexMapper = {
     from(geoZone.coordinates, expectedNumberOfBuckets, initialResolution)
   }
 
@@ -63,12 +63,12 @@ object TopDownEqualDemandsGeoIndexMapper {
     coordinates: ParSet[WgsCoordinate],
     expectedNumberOfBuckets: Int,
     initialResolution: Int
-  ): TopDownEqualDemandsGeoIndexMapper = {
+  ): TopDownEqualDemandGeoIndexMapper = {
     val allContent: GeoZoneContent = GeoZone.generateContent(coordinates, initialResolution)
     val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
       case (index, points) => HexagonLeaf(index, points)
     }.toIndexedSeq
-    new TopDownEqualDemandsGeoIndexMapper(allHexagons, expectedNumberOfBuckets)
+    new TopDownEqualDemandGeoIndexMapper(allHexagons, expectedNumberOfBuckets)
   }
 
 }
