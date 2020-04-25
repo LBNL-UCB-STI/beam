@@ -51,13 +51,12 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
 
   def write(): Try[OriginalToPersistedFeatureIdMap] = {
     if (isWritten) {
-        Failure(
-          new IllegalStateException(
-            "It was already written before. You shouldn't call `write` multiple times, the second call won't do anything"
-          )
+      Failure(
+        new IllegalStateException(
+          "It was already written before. You shouldn't call `write` multiple times, the second call won't do anything"
         )
-    }
-    else {
+      )
+    } else {
       Try {
         val dataStore: ShapefileDataStore = initDataStore(featureFactory)
         val featureStore = dataStore.getFeatureSource.asInstanceOf[SimpleFeatureStore]
