@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable.ParMap
 import scala.io.Source
 
+//TODO: refactor to use AustinUtils code, e.g. get rid of SpeedVector
 object AustinNetworkSpeedMatching {
 
   /*
@@ -83,22 +84,7 @@ object AustinNetworkSpeedMatching {
 
     logger.info(s"splitVectorsIntoPices: $splitSizeInMeters")
 
-    // TODO: correct opposite direction links,
-
-    def getQuadTreeBounds(speedDataPoints: Vector[SpeedDataPoint]): QuadTreeBounds = {
-      var minX: Double = Double.MaxValue
-      var maxX: Double = Double.MinValue
-      var minY: Double = Double.MaxValue
-      var maxY: Double = Double.MinValue
-
-      speedDataPoints.foreach { speedDataPoint =>
-        minX = Math.min(minX, speedDataPoint.coord.getX)
-        minY = Math.min(minY, speedDataPoint.coord.getY)
-        maxX = Math.max(maxX, speedDataPoint.coord.getX)
-        maxY = Math.max(maxY, speedDataPoint.coord.getY)
-      }
-      QuadTreeBounds(minX, minY, maxX, maxY)
-    }
+    // TODO: correct opposite direction links
 
     def produceSpeedDataPointFromSpeedVector(speedVectors: Vector[SpeedVector]): Vector[SpeedDataPoint] = {
       val speedDataPoints = ArrayBuffer[SpeedDataPoint]()
@@ -155,7 +141,7 @@ object AustinNetworkSpeedMatching {
 
       logger.info("start quadTreeBounds ")
       // TODO: push quadtree into PhyssimNetwork
-      val quadTreeBounds: QuadTreeBounds = getQuadTreeBounds(physsimNetworkDP)
+      val quadTreeBounds: QuadTreeBounds = AustinUtils.getQuadTreeBounds(physsimNetworkDP.map{x=>x.coord}.toVector)
       val physsimQuadTreeDP: QuadTree[SpeedDataPoint] =
         new QuadTree[SpeedDataPoint](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
       physsimNetworkDP.foreach { speedDataPoint =>
@@ -514,7 +500,7 @@ class PhyssimNetwork(filePath: String, geoUtils: GeoUtils) {
     new Coord(-97.774010 - (-97.772666), 30.306692 - (30.306515))
   )
 
-  val network: Network = getNetwork(filePath)
+  val network: Network = AustinUtils.getPhysSimNetwork(filePath)
 
   def getPhyssimSpeedVector(): Vector[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
