@@ -16,26 +16,30 @@ object VisualizeVolumeStations {
   }
 
   private def generateTrafficSensorsShapeFile() = {
-    generateTrafficCountsFile("E:\\work\\austin\\Travel_Sensors.csv",
-      2, 3, "E:\\work\\austin\\Travel_Sensors.shp")
+    val coords=getCoordinatesTrafficCountsFile("E:\\work\\austin\\Travel_Sensors.csv",
+      2, 3)
+
+    createShapeFile(coords.map(_._2), "E:\\work\\austin\\Travel_Sensors.shp")
   }
 
   private def generateTrafficDetectorsShapeFile = {
-    generateTrafficCountsFile("E:\\work\\austin\\Traffic_Detectors.csv",
-      0, 1, "E:\\work\\austin\\Traffic_Detectors.shp")
+    val coords=getCoordinatesTrafficCountsFile("E:\\work\\austin\\Traffic_Detectors.csv",
+      0, 1)
+    createShapeFile(coords.map(_._2), "E:\\work\\austin\\Traffic_Detectors.shp")
   }
 
-  private def generateTrafficCountsFile(trafficCountsFile: String, indexLat: Int, indexLong: Int, outputShapeFileName: String) = {
-    val trafficDetectors = getLines(trafficCountsFile)
+  def getCoordinatesTrafficCountsFile(trafficCountsFile: String, indexLat: Int, indexLong: Int) = {
+    val trafficDetectors = AustinUtils.getFileLines(trafficCountsFile)
 
     val coords = trafficDetectors.drop(1).map { line =>
+      val id=line.split(",")(0)
       val tempColumns = line.split("\",")
       val lastCol = tempColumns(tempColumns.length - 1).split(",")
       val wgsCoordinate = new Coord(lastCol(indexLong).toDouble, lastCol(indexLat).toDouble)
-      wgsCoordinate
+      (DataId(id),wgsCoordinate)
     }
 
-    createShapeFile(coords, outputShapeFileName)
+    coords
   }
 
   def createShapeFile(coords: Vector[Coord], shapeFileOutputPath: String) = {
@@ -53,13 +57,6 @@ object VisualizeVolumeStations {
     }
 
     ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
-  }
-//TODO: rename variables to make generic!
-  def getLines(filePath: String): Vector[String] = {
-    val trafficDetectorsFilePath = Source.fromFile(filePath)
-    var lines = trafficDetectorsFilePath.getLines.toVector
-    trafficDetectorsFilePath.close
-    lines
   }
 
 
