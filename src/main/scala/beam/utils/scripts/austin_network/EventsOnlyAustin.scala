@@ -39,20 +39,20 @@ object EventsOnlyAustin {
 
   def main(args: Array[String]): Unit = {
 
-    val network = AustinNetworkSpeedMatching.getNetwork("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-18_12-41-18_obj\\output_network.xml.gz")
+    val network = AustinUtils.getPhysSimNetwork("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\output_network.xml.gz")
 
     val wsgCoordCornerA = new Coord(-97.846119, 30.236527)
     val wsgCoordCornerB = new Coord(-97.585019, 30.468798)
 
     val austinLinks: mutable.HashSet[Link] = getLinksAustin(network, wsgCoordCornerA, wsgCoordCornerB)
 
-    val events: IndexedSeq[Event] = EventReplayer.readEvents("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-18_12-41-18_obj\\ITERS\\it.20\\20.physSimEvents.xml.gz")
+    val events: IndexedSeq[Event] = EventReplayer.readEvents("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\ITERS\\it.20\\20.physSimEvents.xml.gz")
     println(events.size)
     val filteredEvents=events.filter { event =>
       event.getEventType == "entered link" || event.getEventType == "wait2link"
     }.map(_.getTime.toInt/3600).groupBy(a => a).map(key => (key._1,key._2.size)).toVector.sortBy(key => key._1 )
 
-    var pw = new PrintWriter(new File("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-18_12-41-18_obj\\ITERS\\it.20\\20.volumesPerHour.csv"))
+    var pw = new PrintWriter(new File("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\ITERS\\it.20\\20.volumesPerHour.csv"))
     pw.write(s"hour,volume\n")
 
     filteredEvents.foreach { case (hour,volume) =>
