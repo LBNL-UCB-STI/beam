@@ -496,7 +496,8 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
           ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
         // add the computed travel time to the list of travel times tracked during the hour
         val length = driving.legLength + parking.legLength
-        val linkIds = (driving.linkIds ++ parking.linkIds).map(lid => networkHelper.getLinkUnsafe(lid))
+        // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
+        val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
         val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
         val startCoordWGS = new Coord(driving.startX, driving.startY)
         val endCoordWGS = new Coord(parking.endX, parking.endY)
@@ -522,7 +523,8 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       val travelTime = event.arrivalTime - event.departureTime
       val length = event.legLength
       val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+      // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
+      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
       CarTripStat(
         event.vehicleId.toString,
         travelTime,
