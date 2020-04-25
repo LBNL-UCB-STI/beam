@@ -5,7 +5,7 @@ import java.io.{File, PrintWriter}
 import beam.sim.common.GeoUtils
 import beam.utils.{FileUtils, Statistics}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import beam.utils.scripts.austin_network.AustinNetworkSpeedMatching.{addCoord, getNetwork}
+import beam.utils.scripts.austin_network.AustinNetworkSpeedMatching.{addCoord}
 import beam.utils.scripts.austin_network.LinkReader.getLinkDataWithCapacities
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -54,9 +54,7 @@ object AustinNetworkSpeedMatching {
   def main(args: Array[String]): Unit = {
     // readCSV()
 
-    val geoUtils = new GeoUtils {
-      override def localCRS: String = "epsg:26910"
-    }
+    val geoUtils=AustinUtils.getGeoUtils
 
     val austinNetworkSpeedMatching = new AustinNetworkSpeedMatching(10, geoUtils)
     //val network: Network = getNetwork("E:\\work\\austin\\output_network.xml.gz")
@@ -77,22 +75,8 @@ object AustinNetworkSpeedMatching {
     )
   }
 
-  def getNetwork(filePath: String) = {
-    val network = NetworkUtils.createNetwork
-    val reader = new NetworkReaderMatsimV2(network)
-    reader.readFile(filePath)
-    network
-  }
-
   def addCoord(coord: Coord, addCoord: Coord): Coord = {
     new Coord(coord.getX + addCoord.getX, coord.getY + addCoord.getY)
-  }
-
-  def readCSV(filePath: String): Vector[String] = {
-    val bufferedSource = Source.fromFile(filePath)
-    var lines = bufferedSource.getLines.toVector
-    bufferedSource.close
-    lines
   }
 
   class AustinNetworkSpeedMatching(splitSizeInMeters: Double, geoUtils: GeoUtils) extends LazyLogging {
@@ -306,6 +290,34 @@ object AustinNetworkSpeedMatching {
       //printComparison(outputFilePath, result)
     }
 
+
+
+
+    def createShapeFileForDataPoints(dataPoints: Vector[SpeedDataPoint], network:Network, outputFile: String) = {
+      // val features = new util.ArrayList[SimpleFeature]()
+      val features = ArrayBuffer[SimpleFeature]()
+
+      val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
+        .setCrs(MGC.getCRS("EPSG:4326"))
+        .setName("nodes")
+        .addAttribute("linkId", classOf[String])
+        .addAttribute("capacity", classOf[java.lang.Double])
+        .addAttribute("speedInMPS", classOf[java.lang.Double])
+        .addAttribute("numLanes", classOf[java.lang.Integer])
+        .create()
+
+      dataPoints.foreach { dataPoint =>
+        val wsgCoord = geoUtils.utm2Wgs(dataPoint.coord)
+        val coord = new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
+        features += pointf.createPoint(coord)
+      }
+
+      ShapeFileWriter.writeGeometries(features.asJava, outputFile)
+      println(s"shapefile created:$outputFile")
+    }
+
+
+
     def calculateMedian(list: List[Double]): Double = {
       if (list.isEmpty) {
         -1.0
@@ -445,7 +457,7 @@ class ReferenceSpeedData(filePath: String, geoUtils: GeoUtils) {
 
   def getReferenceSpeedVector(): Vector[SpeedVector] = {
     val speedVectors: ArrayBuffer[SpeedVector] = ArrayBuffer()
-    val lines = AustinNetworkSpeedMatching.readCSV(filePath)
+    val lines = AustinUtils.getFileLines(filePath)
 
     for (line <- lines.drop(1)) {
       //
