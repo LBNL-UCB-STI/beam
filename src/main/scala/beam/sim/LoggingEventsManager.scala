@@ -83,7 +83,7 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
     logger.info("Set `isFinished` to true")
     dedicatedHandler.foreach { f =>
       logger.info("Starting to wait dedicatedHandler future to finish...")
-      Await.result(f, 1000.seconds)
+      Await.result(f, 3000.seconds)
       logger.info("dedicatedHandler future finished.")
     }
     tryLog("finishProcessing", eventManager.finishProcessing())
