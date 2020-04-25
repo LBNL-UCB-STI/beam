@@ -1,6 +1,7 @@
 package beam.utils.scripts.austin_network
 
 import beam.sim.common.GeoUtils
+import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.scripts.austin_network.AustinUtils.getGeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
@@ -33,7 +34,20 @@ object AustinUtils {
   }
 
 
+  def getQuadTreeBounds(dataPoints: Vector[Coord]): QuadTreeBounds = {
+    var minX: Double = Double.MaxValue
+    var maxX: Double = Double.MinValue
+    var minY: Double = Double.MaxValue
+    var maxY: Double = Double.MinValue
 
+    dataPoints.foreach { dataPoint =>
+      minX = Math.min(minX, dataPoint.getX)
+      minY = Math.min(minY, dataPoint.getY)
+      maxX = Math.max(maxX, dataPoint.getX)
+      maxY = Math.max(maxY, dataPoint.getY)
+    }
+    QuadTreeBounds(minX, minY, maxX, maxY)
+  }
 
 
 
