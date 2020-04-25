@@ -333,11 +333,7 @@ object AustinNetworkSpeedMatching {
       }
     }
 
-    private def getOppositeLink(link: Link): Option[Link] = {
-      val inLinks = link.getFromNode.getInLinks.values()
-      val outLinks = link.getToNode.getOutLinks.values()
-      inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
-    }
+
 
     private def writeUpdatedSpeed(
       network: Network,
