@@ -35,7 +35,7 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
     GenericFeatureBuilder.create[G, A](crs, evG.runtimeClass.getSimpleName)
   private val features: util.List[SimpleFeature] = new util.ArrayList[SimpleFeature]
   private val featureIds: mutable.Set[String] = mutable.Set[String]()
-  private var isClosed: Boolean = false
+  private var isWritten: Boolean = false
 
   def add(geom: G, id: String, attribute: A): Unit = {
     if (featureIds.contains(id)) {
@@ -50,7 +50,14 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
   }
 
   def write(): Try[OriginalToPersistedFeatureIdMap] = {
-    if (!isClosed) {
+    if (isWritten) {
+        Failure(
+          new IllegalStateException(
+            "It was already written before. You shouldn't call `write` multiple times, the second call won't do anything"
+          )
+        )
+    }
+    else {
       Try {
         val dataStore: ShapefileDataStore = initDataStore(featureFactory)
         val featureStore = dataStore.getFeatureSource.asInstanceOf[SimpleFeatureStore]
@@ -75,16 +82,10 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
         dataStore.dispose()
         features.clear()
         featureIds.clear()
-        isClosed = true
+        isWritten = true
 
         OriginalToPersistedFeatureIdMap(originalToPersistedFid)
       }
-    } else {
-      Failure(
-        new IllegalStateException(
-          "It was already written before. You shouldn't call `write` multiple times, the second call won't do anything"
-        )
-      )
     }
   }
 
