@@ -323,7 +323,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           )
         )
       ),
-      embodyRequestId
+      embodyRequestId,
+      None,
+      isEmbodyWithCurrentTravelTime = true
     )
     response
   }
@@ -1017,16 +1019,20 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
-          request.requestId
+          request.requestId,
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       } else {
         RoutingResponse(
           embodiedTrips,
-          request.requestId
+          request.requestId,
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId)
+      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
     }
   }
 

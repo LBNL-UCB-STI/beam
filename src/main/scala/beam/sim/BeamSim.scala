@@ -24,6 +24,7 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
+import beam.router.r5.RouteDumper
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
@@ -43,6 +44,7 @@ import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.controler.Controler
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
+import org.matsim.core.events.handler.BasicEventHandler
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -107,6 +109,11 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
+  val routeDumper: RouteDumper = new RouteDumper(beamServices)
+
+  val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
+    List(routeDumper)
+
   val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
     val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
       networkHelper,
@@ -151,6 +158,7 @@ class BeamSim @Inject()(
 
     eventsManager.addHandler(rideHailUtilizationCollector)
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
+    startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -162,7 +170,8 @@ class BeamSim @Inject()(
         scenario,
         scenario.getTransitVehicles,
         beamServices.fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager
       ),
       "router"
     )
@@ -244,6 +253,8 @@ class BeamSim @Inject()(
       }
     }
 
+    beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
+
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -264,8 +275,10 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
 
     beamServices.simMetricCollector.clear()
+
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -289,6 +302,7 @@ class BeamSim @Inject()(
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
+    startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {

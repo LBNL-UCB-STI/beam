@@ -151,6 +151,7 @@ dependencies {
     compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
+    compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1-3'
 
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
@@ -286,6 +287,8 @@ dependencies {
         exclude group: 'asm', module: 'asm'
     }
 
+    compile(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
+
     compile 'de.vandermeer:asciitable:0.3.2'
 }
 
@@ -420,7 +423,6 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // ./gradlew :run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
-
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()

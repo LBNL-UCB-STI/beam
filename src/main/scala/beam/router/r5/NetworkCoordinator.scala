@@ -19,7 +19,13 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Double], length: Option[Double], lanes: Option[Int]) {
+case class LinkParam(
+  linkId: Int,
+  capacity: Option[Double],
+  freeSpeed: Option[Double],
+  length: Option[Double],
+  lanes: Option[Int]
+) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
     capacity.foreach(value => link.setCapacity(value))
