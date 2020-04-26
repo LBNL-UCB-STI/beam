@@ -22,8 +22,8 @@ import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.collect.Lists;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -89,7 +89,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final PlotGraph plotGraph = new PlotGraph();
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
-    private final Map<Integer, List<Double>> binSpeed = new HashMap<>();
+    private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
 
@@ -295,7 +295,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 if(travelTime > 0.0){
                     double speed = pte.legLength() / travelTime;
                     int bin = (int)departureTime / beamConfig.beam().physsim().linkStatsBinSize();
-                    binSpeed.merge(bin, Lists.newArrayList(speed), ListUtils::union);
+                    Mean mean = binSpeed.getOrDefault(bin, new Mean());
+                    mean.increment(speed);
                 }
             }
             // pt sampling
@@ -338,7 +339,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         String path = controlerIO.getIterationFilename(iteration, "agentSimAverageSpeed.csv");
 
         List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(entry -> (entry.getKey()+1)+","+entry.getValue().stream().mapToDouble(x -> x).average().getAsDouble())
+                .map(entry -> (entry.getKey()+1)+","+entry.getValue().getResult())
                 .collect(Collectors.toList());
 
         FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
