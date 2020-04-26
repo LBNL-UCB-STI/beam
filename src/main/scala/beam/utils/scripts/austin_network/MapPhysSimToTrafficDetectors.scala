@@ -28,7 +28,7 @@ object MapPhysSimToTrafficDetectors {
 
   }
 
-  private def getPhysSimNetworkIdsWithTrafficDectors(splitSizeInMeters: Int, physsimNetwork: Network) = {
+  def getPhysSimNetworkIdsWithTrafficDectors(splitSizeInMeters: Int, physsimNetwork: Network) = {
     import AustinUtils._
     val trafficDetectors = VisualizeVolumeStations.getCoordinatesTrafficCountsFile("E:\\work\\austin\\Traffic_Detectors.csv", 0, 1)
     val physSimDataPoints = physsimNetwork.getLinks.values().asScala.toVector.flatMap { link =>
