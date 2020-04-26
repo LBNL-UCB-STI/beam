@@ -240,7 +240,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<Integer, List<PathTraversalEvent>> hour2Events = traversalEventsForPhysSimulation.stream()
                 .collect(Collectors.groupingBy(x -> x.departureTime() / 3600));
 
-        Map<Integer, Map<Long, DoubleSummaryStatistics>> hour2Way2Speeds = hour2Events.entrySet().stream().map(mapEntry -> {
+        Map<Integer, Map<Long, DoubleSummaryStatistics>> hour2Way2TravelTimes = hour2Events.entrySet().stream().map(mapEntry -> {
             Integer hour = mapEntry.getKey();
             List<PathTraversalEvent> events = mapEntry.getValue();
 
@@ -315,26 +315,27 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x -> {
             linksFailedToResolve.incrementAndGet();
-            finalMap.put(x.getId().toString(), new double[31]);
+            double[] travelTimes = new double[31];
+            Arrays.fill(travelTimes, x.getLength() / x.getFreespeed());
+            finalMap.put(x.getId().toString(), travelTimes);
         });
 
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") != null)
                 .collect(Collectors.groupingBy(x -> linkWayId(x)))
                 .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
-                    double[] speedsByHour = new double[31];
+                    double[] travelTimeByHour = new double[31];
                     boolean atLeastOneHour = false;
                     for (int hour = 0; hour <= 30; hour++) {
-                        Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2Speeds.get(hour);
+                        Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2TravelTimes.get(hour);
                         if (way2Speed == null || way2Speed.get(wayId) == null) {
-//                            System.out.println("Failed to get speed for " + hour + " hour and wayId " + wayId);
+                            travelTimeByHour[hour] = link.getLength() / link.getFreespeed();
                             continue;
                         }
                         atLeastOneHour = true;
-                        speedsByHour[hour] = way2Speed
+                        travelTimeByHour[hour] = way2Speed
                                 .get(wayId).getSum() / linksInWay.size();
                     }
                     if (!atLeastOneHour) linksFailedToResolve.incrementAndGet();
-                    finalMap.put(link.getId().toString(), speedsByHour);
                 }));
 
         System.out.println("total: " + totalNumberOfLinks + ", failed: " + linksFailedToResolve.get());
