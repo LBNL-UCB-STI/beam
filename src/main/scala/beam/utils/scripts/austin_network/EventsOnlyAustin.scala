@@ -4,7 +4,7 @@ import java.io.{File, PrintWriter}
 
 import beam.sim.common.GeoUtils
 import beam.utils.EventReplayer
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 
@@ -41,21 +41,30 @@ object EventsOnlyAustin {
 
     val network = AustinUtils.getPhysSimNetwork("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\output_network.xml.gz")
 
-    val wsgCoordCornerA = new Coord(-97.846119, 30.236527)
-    val wsgCoordCornerB = new Coord(-97.585019, 30.468798)
+    val linkIdsOfTrafficDetectors = MapPhysSimToTrafficDetectors.getPhysSimNetworkIdsWithTrafficDectors(5, network).toSet
 
-    val austinLinks: mutable.HashSet[Link] = getLinksAustin(network, wsgCoordCornerA, wsgCoordCornerB)
+    //val wsgCoordCornerA = new Coord(-97.846119, 30.236527)
+    //val wsgCoordCornerB = new Coord(-97.585019, 30.468798)
 
-    val events: IndexedSeq[Event] = EventReplayer.readEvents("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\ITERS\\it.20\\20.physSimEvents.xml.gz")
+    //val austinLinks: mutable.HashSet[Link] = getLinksAustin(network, wsgCoordCornerA, wsgCoordCornerB)
+
+    val events: IndexedSeq[Event] = EventReplayer.readEvents("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-26_03-52-50_coo\\ITERS\\it.20\\20.physSimEvents.xml.gz")
     println(events.size)
-    val filteredEvents=events.filter { event =>
-      event.getEventType == "entered link" || event.getEventType == "wait2link"
-    }.map(_.getTime.toInt/3600).groupBy(a => a).map(key => (key._1,key._2.size)).toVector.sortBy(key => key._1 )
+    val filteredEvents = events.filter { event =>
+      (event.getEventType == "entered link" || event.getEventType == "wait2link") && linkIdsOfTrafficDetectors.contains(event.getAttributes.get("link"))
+    }.map(event => (event.getTime.toInt / 3600, 1))
+    val maxHour = filteredEvents.map(_._1).max
+    val ensureAllHoursHaveValues = (filteredEvents ++ (0 to maxHour).map(hour => (hour, 0))).groupBy { case (hour, freq) =>
+      hour
+    }.map { case (hour, volume) =>
+      (hour, volume.map(_._2).sum)
+    }
+    val updatedEvents = ensureAllHoursHaveValues.toVector.sortBy(key => key._1)
 
-    var pw = new PrintWriter(new File("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\ITERS\\it.20\\20.volumesPerHour.csv"))
+    var pw = new PrintWriter(new File("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-26_03-52-50_coo\\ITERS\\it.20\\20.volumesPerHour.csv"))
     pw.write(s"hour,volume\n")
 
-    filteredEvents.foreach { case (hour,volume) =>
+    updatedEvents.foreach { case (hour, volume) =>
       pw.write(s"$hour,$volume\n")
     }
     pw.close()
