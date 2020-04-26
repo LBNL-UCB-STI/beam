@@ -1,9 +1,12 @@
 package beam.utils.scripts.austin_network
 
+import java.io.{File, PrintWriter}
+
 import beam.sim.common.GeoUtils
 import beam.utils.Statistics
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.scripts.austin_network.AustinUtils.getGeoUtils
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
@@ -27,6 +30,13 @@ object AustinUtils {
     var lines = source.getLines.toVector
     source.close
     lines
+  }
+
+  def writeFile(data:Vector[String],outputFilePath:String,header:Option[String]=None)={
+    var pw = new PrintWriter(new File(outputFilePath))
+    header.foreach( line=> pw.write(s"$line\n"))
+    data.foreach( line=> pw.write(s"$line\n"))
+    pw.close
   }
 
   def getPhysSimNetwork(filePath: String) = {
@@ -81,7 +91,7 @@ object AustinUtils {
 
 
   def getBothDirectionsOfSelectedLinks(links: Vector[Link]): Vector[Link] = {
-    val linkSet = mutable.Set()[Link]
+    val linkSet= mutable.Set[Link]()
 
     links.foreach { link =>
       linkSet += link
@@ -132,4 +142,8 @@ case class DataId(id: String) {
   def getLinkId = {
     Id.createLinkId(id)
   }
+}
+
+class Logging extends LazyLogging {
+  def info(message: String)={logger.info(message)}
 }
