@@ -295,6 +295,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 wayId2TravelTime = Files.readLines(assignResult._1(), Charset.defaultCharset()).stream()
                         .skip(2)
                         .map(x -> x.split(","))
+                        // picking only result of 10th iteration
                         .filter(x -> x[0].equals("10"))
                         .map(x -> new Pair<>(Long.parseLong(x[4]), Integer.parseInt(x[3]) / 10.0))
                         .collect(Collectors.groupingBy(Pair::first, Collectors.summarizingDouble(Pair::second)));
