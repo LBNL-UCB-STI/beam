@@ -16,7 +16,7 @@ try running BEAM with our simple [getting started guide](http://beam.readthedocs
 
 or  
 
-check out the [developer guide](http://beam.readthedocs.io/en/latest/developers.html) to start getting serious about power using or contributing.
+check out the [developer guide](http://beam.readthedocs.io/en/latest/developers.html) to get serious about power using or contributing.
 
 ## Project website: 
 http://beam.lbl.gov/

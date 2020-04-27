@@ -19,8 +19,9 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
+import beam.router.r5.RouteDumper
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -35,6 +36,7 @@ import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFa
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
+import org.matsim.core.events.handler.BasicEventHandler
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -99,6 +101,11 @@ class BeamSim @Inject()(
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
+  val routeDumper: RouteDumper = new RouteDumper(beamServices)
+
+  val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
+    List(routeDumper)
+
   val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
     new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
 
@@ -122,6 +129,7 @@ class BeamSim @Inject()(
 
     eventsManager.addHandler(rideHailUtilizationCollector)
     eventsManager.addHandler(carTravelTimeFromPte)
+    startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -133,7 +141,8 @@ class BeamSim @Inject()(
         scenario,
         scenario.getTransitVehicles,
         beamServices.fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager
       ),
       "router"
     )
@@ -195,8 +204,9 @@ class BeamSim @Inject()(
 
     dumpMatsimStuffAtTheBeginningOfSimulation()
 
-    // This metric is used to get all runs in Grafana. Take a look to `run_name` variable in the dashboard
-    beamServices.simMetricCollector.writeGlobal("beam-run", 1.0)
+    // These metric are used to display all other metrics in Grafana.
+    // For example take a look to `run_name` variable in the dashboard
+    BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
     Skims.setup(beamServices)
@@ -209,6 +219,8 @@ class BeamSim @Inject()(
         agentSimToPhysSimPlanConverter.buildPersonToHousehold()
       }
     }
+
+    beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
@@ -230,8 +242,10 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
 
     beamServices.simMetricCollector.clear()
+
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -255,6 +269,7 @@ class BeamSim @Inject()(
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPte.notifyIterationEnds(event)
+    startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {

@@ -33,7 +33,7 @@ trait SimulationMetricCollector {
   def write(
     metricName: String,
     time: SimulationTime,
-    values: Map[String, Double] = Map.empty,
+    values: Map[String, Double] = Map(defaultMetricName -> 0.0),
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit
@@ -41,7 +41,7 @@ trait SimulationMetricCollector {
   def writeStr(
     metricName: String,
     time: SimulationTime,
-    values: Map[String, String] = Map.empty,
+    values: Map[String, String] = Map(defaultMetricName -> ""),
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit

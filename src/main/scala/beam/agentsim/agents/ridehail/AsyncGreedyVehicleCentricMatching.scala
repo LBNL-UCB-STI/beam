@@ -2,14 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import java.math.BigInteger
 
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
-  CustomerRequest,
-  RHMatchingAlgorithm,
-  RideHailTrip,
-  VehicleAndSchedule
-}
-import beam.router.Modes.BeamMode
-import beam.router.skim.SkimsUtils
+import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.sim.BeamServices
 import org.matsim.core.utils.collections.QuadTree
 
@@ -20,17 +13,12 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class VehicleCentricMatchingForRideHail(
+class AsyncGreedyVehicleCentricMatching(
   demand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   services: BeamServices
-) extends RHMatchingAlgorithm {
+) extends RideHailMatching(services) {
 
-  private val solutionSpaceSizePerVehicle =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
-  private val waitingTimeInSec =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
-  private val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
   private implicit val beamServices: BeamServices = services
 
   override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {
@@ -53,13 +41,13 @@ class VehicleCentricMatchingForRideHail(
     val center = requestWithCurrentVehiclePosition.activity.getCoord
 
     // get all customer requests located at a proximity to the vehicle
-    var customers = RHMatchingToolkit.getRequestsWithinGeofence(
+    var customers = RideHailMatching.getRequestsWithinGeofence(
       v,
       demand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     )
 
     // heading same direction
-    customers = RHMatchingToolkit.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
+    customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 
     // solution size resizing
     customers = customers.take(solutionSpaceSizePerVehicle)
@@ -67,7 +55,7 @@ class VehicleCentricMatchingForRideHail(
     val potentialTrips = mutable.ListBuffer.empty[(RideHailTrip, Double)]
     // consider solo rides as initial potential trips
     customers
-      .flatten(c => RHMatchingToolkit.getRideHailTrip(v, List(c), services))
+      .flatten(c => RideHailMatching.getRideHailTrip(v, List(c), services))
       .foreach(t => potentialTrips.append((t, computeCost(t))))
 
     // if no solo ride is possible, returns
@@ -92,7 +80,7 @@ class VehicleCentricMatchingForRideHail(
           val temp = t1.requests ++ t2.requests
           val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
           if (!combinations.contains(matchId)) {
-            RHMatchingToolkit.getRideHailTrip(v, temp, services).foreach { t =>
+            RideHailMatching.getRideHailTrip(v, temp, services).foreach { t =>
               combinations.append(t.matchId)
               val cost = computeCost(t)
               if (tripsWithKPassengers.size == solutionSizePerPool) {
