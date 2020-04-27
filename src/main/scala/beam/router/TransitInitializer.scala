@@ -22,8 +22,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import scala.collection.parallel.immutable.ParMap
 
 class TransitInitializer(
   beamConfig: BeamConfig,
@@ -46,7 +45,7 @@ class TransitInitializer(
    * be used to decide what type of vehicle to assign
    *
    */
-  def initMap: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
+  def initMap: ParMap[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = TrieMap[(Int, Int), Option[StreetPath]]()
@@ -157,22 +156,23 @@ class TransitInitializer(
             }
         }
         .toSeq
+
       tripPattern.tripSchedules.asScala
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
           val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
-          val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
-          tripSchedule.departures.zipWithIndex.sliding(2).foreach {
+          val legs =
+          tripSchedule.departures.zipWithIndex.sliding(2).map {
             case Array((departureTimeFrom, from), (_, to)) =>
               val duration = tripSchedule.arrivals(to) - departureTimeFrom
-              legs += BeamLeg(
+              BeamLeg(
                 departureTimeFrom,
                 mode,
                 duration,
                 transitPaths(from)(departureTimeFrom, duration, tripVehId)
               ).scaleToNewDuration(duration)
-          }
+          }.toSeq
           (tripVehId, (route, legs))
         }
     }
@@ -213,20 +213,13 @@ class TransitInitializer(
     streetRouter.profileRequest = profileRequest
     streetRouter.streetMode = StreetMode.valueOf("CAR")
     streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-    if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-      if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
-        streetRouter.route()
-        val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-        if (lastState != null) {
-          Some(new StreetPath(lastState, transportNetwork, false))
-        } else {
-          None
-        }
-      } else {
-        None
-      }
-    } else {
-      None
+    if (!streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) None
+    else if (!streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) None
+    else {
+      streetRouter.route()
+      val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+      if (lastState == null) None else Some(new StreetPath(lastState, transportNetwork, false))
     }
+
   }
 }
