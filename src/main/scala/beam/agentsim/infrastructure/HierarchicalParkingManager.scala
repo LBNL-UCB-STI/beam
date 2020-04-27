@@ -181,7 +181,7 @@ object HierarchicalParkingManager extends LazyLogging {
         )
       )
     } else {
-      val db: Database = createDatabase(tazTreeMap, zones)
+      val (emptyTAZes, db) = createDatabase(tazTreeMap, zones)
       val kmeans = new KMeansElkan[NumberVector](
         SquaredEuclideanDistanceFunction.STATIC,
         numClusters,
@@ -195,11 +195,16 @@ object HierarchicalParkingManager extends LazyLogging {
         val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
         val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
         val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
+        val empty: ArrayBuffer[TAZ] = new ArrayBuffer[TAZ]()
         val iter: DBIDIter = clu.getIDs.iter()
         while (iter.valid()) {
           val o: DoubleVector = rel.get(iter)
           val id: String = labels.get(iter)
-          clusterZones += zones(id.toInt)
+          if (id.startsWith("taz")) {
+            empty += emptyTAZes(id.substring(3).toInt)
+          } else {
+            clusterZones += zones(id.toInt)
+          }
           coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
           iter.advance()
         }
@@ -216,8 +221,7 @@ object HierarchicalParkingManager extends LazyLogging {
         val tazes = clusterZones
             .map(_.tazId)
             .distinct
-            .map(tazTreeMap.getTAZ(_).get)
-            .toList
+            .map(tazTreeMap.getTAZ(_).get) ++ empty
         ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
       }
       logger.info(s"Done clustering: ${clusters.size}")
@@ -226,28 +230,30 @@ object HierarchicalParkingManager extends LazyLogging {
     }
   }
 
-  private def createDatabase(tazTreeMap: TAZTreeMap, zones: Array[ParkingZone]): Database = {
-    val data = Array.ofDim[Double](zones.length, 2)
-    val labels: Array[String] = Array.ofDim[String](zones.length)
-    zones.zipWithIndex.foreach {
-      case (zone, idx) =>
-        val taz = tazTreeMap.getTAZ(zone.tazId)
-        if (taz.isEmpty) logger.warn(s"No TAZ with id ${zone.tazId} found")
-        for {
-          t <- taz
-          x = t.coord.getX
-          y = t.coord.getY
-        } yield {
-          data.update(idx, Array(x, y))
-          labels.update(idx, idx.toString)
-        }
+  private def createDatabase(tazTreeMap: TAZTreeMap, zones: Array[ParkingZone]): (Array[TAZ], StaticArrayDatabase) = {
+    case class ZoneInfo(coord: Coord, label: String)
+    val zoneInfos = {
+      zones.zipWithIndex.flatMap {
+        case (zone, idx) =>
+          tazTreeMap
+            .getTAZ(zone.tazId)
+            .map(taz => ZoneInfo(taz.coord, idx.toString))
+      }
     }
+    val emptyTAZes = (tazTreeMap.getTAZs.toSet -- zones.flatMap(zone => tazTreeMap.getTAZ(zone.tazId)).toSet).toArray
+    val virtualZones = emptyTAZes.zipWithIndex.map {
+      case (taz, idx) => ZoneInfo(taz.coord, s"taz$idx")
+    }
+    val allZones = zoneInfos ++ virtualZones
+
+    val data = allZones.map(zi => Array(zi.coord.getX, zi.coord.getY))
+    val labels: Array[String] = allZones.map(_.label)
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
     // Create a database (which may contain multiple relations!)
     val db = new StaticArrayDatabase(dbc, null)
     // Load the data into the database (do NOT forget to initialize...)
     db.initialize()
-    db
+    (emptyTAZes, db)
   }
 
 }
