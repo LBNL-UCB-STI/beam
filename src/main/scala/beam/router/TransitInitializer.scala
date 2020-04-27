@@ -163,16 +163,19 @@ class TransitInitializer(
           // First create a unique id for this trip which will become the transit agent and vehicle id
           val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
           val legs =
-          tripSchedule.departures.zipWithIndex.sliding(2).map {
-            case Array((departureTimeFrom, from), (_, to)) =>
-              val duration = tripSchedule.arrivals(to) - departureTimeFrom
-              BeamLeg(
-                departureTimeFrom,
-                mode,
-                duration,
-                transitPaths(from)(departureTimeFrom, duration, tripVehId)
-              ).scaleToNewDuration(duration)
-          }.toSeq
+            tripSchedule.departures.zipWithIndex
+              .sliding(2)
+              .map {
+                case Array((departureTimeFrom, from), (_, to)) =>
+                  val duration = tripSchedule.arrivals(to) - departureTimeFrom
+                  BeamLeg(
+                    departureTimeFrom,
+                    mode,
+                    duration,
+                    transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                  ).scaleToNewDuration(duration)
+              }
+              .toSeq
           (tripVehId, (route, legs))
         }
     }
