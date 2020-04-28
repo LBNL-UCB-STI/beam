@@ -93,7 +93,7 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
                                          | $assignTrafficLauncher
                                          | -g $graphPathWithExtension
                                          | -d $odPairsFileInTempDir.csv
-                                         | -p 1 -n 10 -a Dijkstra -o random
+                                         | -p 1 -n 10 -o random
                                          | -i
                                          | -flow ${pbfInTempDirPath}_flow_10
                                          | -dist ${pbfInTempDirPath}_dist_10
