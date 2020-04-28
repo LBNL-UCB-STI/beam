@@ -38,8 +38,13 @@ object EventsOnlyAustin {
   }
 
   def main(args: Array[String]): Unit = {
+import AustinUtils._
 
-    val network = AustinUtils.getPhysSimNetwork("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\output_network.xml.gz")
+    val networkPath="C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-25_07-21-44_tmc\\output_network.xml.gz"
+    val eventsPath=getFileCachePath("https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-with-sa-flowCap0.17-speedScalingFactor0.75-overwrite-link-params-pre-final__2020-04-26_14-15-58_yem/ITERS/it.20/20.physSimEvents.xml.gz")
+    val volumesOutputPath="E:\\work\\scalaFileCache\\20.volumesPerHour1.csv"
+
+    val network = AustinUtils.getPhysSimNetwork(networkPath)
 
     val linkIdsOfTrafficDetectors = MapPhysSimToTrafficDetectors.getPhysSimNetworkIdsWithTrafficDectors(5, network).toSet
 
@@ -48,7 +53,7 @@ object EventsOnlyAustin {
 
     //val austinLinks: mutable.HashSet[Link] = getLinksAustin(network, wsgCoordCornerA, wsgCoordCornerB)
 
-    val events: IndexedSeq[Event] = EventReplayer.readEvents("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-26_03-52-50_coo\\ITERS\\it.20\\20.physSimEvents.xml.gz")
+    val events: IndexedSeq[Event] = EventReplayer.readEvents(eventsPath)
     println(events.size)
     val filteredEvents = events.filter { event =>
       (event.getEventType == "entered link" || event.getEventType == "wait2link") && linkIdsOfTrafficDetectors.contains(event.getAttributes.get("link"))
@@ -61,7 +66,7 @@ object EventsOnlyAustin {
     }
     val updatedEvents = ensureAllHoursHaveValues.toVector.sortBy(key => key._1)
 
-    var pw = new PrintWriter(new File("C:\\Users\\owner\\IdeaProjects\\beam\\output\\austin\\austin-prod-1k-activities__2020-04-26_03-52-50_coo\\ITERS\\it.20\\20.volumesPerHour.csv"))
+    var pw = new PrintWriter(new File(volumesOutputPath))
     pw.write(s"hour,volume\n")
 
     updatedEvents.foreach { case (hour, volume) =>
