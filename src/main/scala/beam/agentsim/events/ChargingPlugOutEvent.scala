@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class ChargingPlugOutEvent(
+case class ChargingPlugOutEvent(
   tick: Double,
   stall: ParkingStall,
   vehId: Id[Vehicle],
