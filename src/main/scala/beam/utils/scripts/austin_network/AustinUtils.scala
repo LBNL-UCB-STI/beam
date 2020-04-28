@@ -5,7 +5,7 @@ import java.io.{File, PrintWriter}
 import beam.sim.common.GeoUtils
 import beam.utils.Statistics
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import beam.utils.scripts.austin_network.AustinUtils.getGeoUtils
+import beam.utils.scripts.austin_network.AustinUtils.{getFileCachePath, getGeoUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -17,9 +17,34 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import sys.process._
+import java.net.URL
+import java.io.File
+
+import scala.language.postfixOps
 
 //TODO: push some of this out to more general library
 object AustinUtils {
+
+  def main(args: Array[String]): Unit = {
+    val fileCachePath= getFileCachePath("https://beam-outputs.s3.us-east-2.amazonaws.com/analysis/austin/google_travelTime_Austin_200k_4-3-2020-3.csv.gz")
+    println(fileCachePath)
+  }
+
+  val scalaFileCache="E:\\work\\scalaFileCache\\"
+  def getFileCachePath(url: String) = {
+    val fileName=url.split("/").last
+
+    val fullPath=scalaFileCache+url.hashCode+"\\" + fileName
+
+    if (!new File(fullPath).exists()){
+      val file = new File(scalaFileCache+url.hashCode)
+      file.mkdir()
+      new URL(url) #> new File(fullPath) !!
+    }
+
+    fullPath
+  }
 
   val getGeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
@@ -106,6 +131,10 @@ object AustinUtils {
     val outLinks = link.getToNode.getOutLinks.values()
     inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
   }
+
+
+
+
 
 }
 
