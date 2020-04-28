@@ -9,13 +9,14 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -93,6 +94,42 @@ class HierarchicalParkingManagerSpec
 
         expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
       }
+    }
+  }
+
+  describe("HierarchicalParkingManager with no taz") {
+    it("should return a response with an emergency stall") {
+
+      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
+
+      val parkingManager = system.actorOf(
+        HierarchicalParkingManager.props(
+          beamConfig,
+          tazTreeMap,
+          Array.empty[ParkingZone],
+          Map.empty,
+          8,
+          geo,
+          new Random(randomSeed),
+          boundingBox,
+        )
+      )
+
+      val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+      val expectedStall: ParkingStall = ParkingStall.lastResortStall(
+        new Envelope(
+          inquiry.destinationUtm.getX + 2000,
+          inquiry.destinationUtm.getX - 2000,
+          inquiry.destinationUtm.getY + 2000,
+          inquiry.destinationUtm.getY - 2000
+        ),
+        new Random(randomSeed),
+        tazId = emergencyId0,
+      )
+
+      parkingManager ! inquiry
+
+      expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
     }
   }
 
