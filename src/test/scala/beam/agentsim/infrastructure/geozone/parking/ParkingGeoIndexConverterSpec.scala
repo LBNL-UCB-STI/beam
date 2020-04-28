@@ -9,17 +9,17 @@ import org.scalatest.{Matchers, WordSpec}
 
 class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
 
-  "TazToGeoIndexConverter" should {
+  "ParkingGeoIndexConverterSpec" should {
 
     "convert Taz coordinates to GeoIndex accordingly to csv file" in {
       val parkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
       val centersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
-      val targetIndexes = Paths.get("test/input/geozone/parking/target-geoIndexes.csv")
+      val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
 
-      val converter = ParkingGeoIndexConverter.tazParkingToGeoIndex(
+      val converter: ParkingGeoIndexConverter[TazCoordinate] = ParkingGeoIndexConverter.tazParkingToGeoIndex(
         tazParkingFile = parkingFile,
         tazCentersFile = centersFile,
-        targetIndexesFile = targetIndexes
+        targetCentersFile = targetCenters
       )
       val grouper: GeoGrouper = converter
         .grouper()
@@ -43,11 +43,11 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
 
     "convert geoIndex-parking coordinates to GeoIndex accordingly to csv file" in {
       val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking2.csv")
-      val targetIndexes = Paths.get("test/input/geozone/parking/target-geoIndexes.csv")
+      val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
 
       val converter = ParkingGeoIndexConverter.geoIndexParkingToGeoIndex(
         geoIndexParkingFile = parkingFile,
-        targetIndexesFile = targetIndexes
+        targetCentersFile = targetCenters
       )
       val grouper: GeoGrouper = converter
         .grouper()
