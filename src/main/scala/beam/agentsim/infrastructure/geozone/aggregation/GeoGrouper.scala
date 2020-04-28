@@ -2,8 +2,7 @@ package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.nio.file.Path
 
-import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntryGroup
-import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntry
+import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.{GeoIndexParkingEntry, GeoIndexParkingEntryGroup}
 import beam.utils.csv.CsvWriter
 
 class GeoGrouper(
@@ -11,7 +10,7 @@ class GeoGrouper(
 ) {
 
   def groupValues(geoIndexParkingEntryGroup: GeoIndexParkingEntryGroup): Seq[ParkingEntryValues] = {
-    parkingGroupEntries(geoIndexParkingEntryGroup)
+    parkingGroupEntries.getOrElse(geoIndexParkingEntryGroup, Seq.empty)
   }
 
   def this(parkingEntries: Seq[GeoIndexParkingEntry]) = {

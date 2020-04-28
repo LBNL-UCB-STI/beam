@@ -4,7 +4,7 @@ import java.nio.file.{Path, Paths}
 
 import beam.agentsim.infrastructure.geozone.aggregation._
 import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntryGroup
-import beam.agentsim.infrastructure.geozone.{GeoIndex, H3Wrapper}
+import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoIndexMapper, H3Wrapper}
 import org.scalatest.{Matchers, WordSpec}
 
 class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
@@ -12,27 +12,27 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
   "ParkingGeoIndexConverterSpec" should {
 
     "convert Taz coordinates to GeoIndex accordingly to csv file" in {
-      val parkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
-      val centersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
-      val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
+      val tazParkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
+      val tazCentersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
+      val targetCentersFile = Paths.get("test/input/geozone/parking/target-centers.csv")
 
       val converter: ParkingGeoIndexConverter[TazCoordinate] = ParkingGeoIndexConverter.tazParkingToGeoIndex(
-        tazParkingFile = parkingFile,
-        tazCentersFile = centersFile,
-        targetCentersFile = targetCenters
+        tazParkingFile = tazParkingFile,
+        tazCentersFile = tazCentersFile,
+        targetCentersFile = targetCentersFile
       )
       val grouper: GeoGrouper = converter
         .grouper()
         .aggregate(ValueAggregator.StallSummationAndFeeWeightAvg)
 
       val expectedValue = ParkingEntryValues(
-        numStalls = 2,
-        feeInCents = 0D
+        numStalls = 50,
+        feeInCents = 16D
       )
       assertResult(Seq(expectedValue)) {
         val entryGroup = GeoIndexParkingEntryGroup(
           geoIndex = GeoIndex("82bc27fffffffff"),
-          parkingType = "100653",
+          parkingType = "Workplace",
           pricingModel = "Block",
           chargingType = "DCFast(50|DC)",
           reservedFor = "Any"
