@@ -14,14 +14,15 @@ import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.algorithm.ConvexHull
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
+import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory}
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
 import de.lmu.ifi.dbs.elki.data.{DoubleVector, NumberVector}
 import de.lmu.ifi.dbs.elki.database.ids.DBIDIter
 import de.lmu.ifi.dbs.elki.database.relation.Relation
-import de.lmu.ifi.dbs.elki.database.{Database, StaticArrayDatabase}
+import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase
 import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
 import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
@@ -80,13 +81,9 @@ class HierarchicalParkingManager(
         w.cluster.convexHull.contains(point)
       }
 
-      val worker =
-        foundCluster.getOrElse(
-          tazToWorker.getOrElse(
-            tazTreeMap.getTAZ(inquiry.destinationUtm.getX, inquiry.destinationUtm.getY).tazId,
-            throw new IllegalStateException(s"No TAZ around for $inquiry")
-          )
-        )
+      val worker = foundCluster.orElse(
+        tazToWorker.get(findTazId(inquiry))
+      ).get
 
       worker.actor.forward(inquiry)
 
@@ -95,6 +92,13 @@ class HierarchicalParkingManager(
         case Some(worker) => worker.actor.forward(release)
         case None => log.error(s"No TAZ with id $tazId, zone id = $parkingZoneId. Cannot release.")
       }
+  }
+
+  private def findTazId(inquiry: ParkingInquiry): Id[TAZ] = {
+    if (tazTreeMap.tazQuadTree.size() == 0)
+      workers.head.emergencyId
+    else
+      tazTreeMap.getTAZ(inquiry.destinationUtm.getX, inquiry.destinationUtm.getY).tazId
   }
 
   private def mapTazToWorker(clusters: Seq[Worker]): Map[Id[TAZ], Worker] = {
@@ -163,7 +167,7 @@ object HierarchicalParkingManager extends LazyLogging {
     )
   }
 
-  private[infrastructure] case class ParkingCluster(tazes: Vector[TAZ], mean: Coord, convexHull: Geometry)
+  private[infrastructure] case class ParkingCluster(tazes: Vector[TAZ], mean: Coord, convexHull: PreparedGeometry)
   private case class Worker(actor: ActorRef, cluster: ParkingCluster, emergencyId: Id[TAZ])
 
   private[infrastructure] def createClusters(
@@ -172,12 +176,21 @@ object HierarchicalParkingManager extends LazyLogging {
     numClusters: Int
   ): Vector[ParkingCluster] = {
     logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
-    if (zones.isEmpty) {
+    val pgf = new PreparedGeometryFactory
+    if (tazTreeMap.tazQuadTree.size() == 0) {
+      val polygonCoords = Array(
+        new Coordinate(0, 0),
+        new Coordinate(1, 0),
+        new Coordinate(1, 1),
+        new Coordinate(0, 1),
+        new Coordinate(0, 0),
+      )
+      val polygon = geometryFactory.createPolygon(polygonCoords)
       Vector(
         ParkingCluster(
           tazTreeMap.getTAZs.toVector,
           new Coord(0.0, 0.0),
-          new ConvexHull(Array.empty, geometryFactory).getConvexHull
+          pgf.create(polygon)
         )
       )
     } else {
@@ -217,7 +230,7 @@ object HierarchicalParkingManager extends LazyLogging {
           dCoords += new Coordinate(center.x + .1, center.y + .1)
           dCoords += new Coordinate(center.x - .1, center.y + .1)
         }
-        val convexHull = new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull
+        val convexHull = pgf.create(new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull)
         val tazes = clusterZones
             .map(_.tazId)
             .distinct
@@ -249,9 +262,7 @@ object HierarchicalParkingManager extends LazyLogging {
     val data = allZones.map(zi => Array(zi.coord.getX, zi.coord.getY))
     val labels: Array[String] = allZones.map(_.label)
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
-    // Create a database (which may contain multiple relations!)
     val db = new StaticArrayDatabase(dbc, null)
-    // Load the data into the database (do NOT forget to initialize...)
     db.initialize()
     (emptyTAZes, db)
   }

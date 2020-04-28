@@ -1,7 +1,9 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.parking.ParkingZone
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{Matchers, WordSpecLike}
 
 /**
@@ -62,6 +64,16 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
         acc + a.tazes.size
       }
       sumTAZesOverAllClusters should (be(treeMap.tazQuadTree.size()))
+    }
+
+    "Handle empty tazTreeMap" in {
+      val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
+
+      val parkingZones = Array.empty[ParkingZone]
+      val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
+        HierarchicalParkingManager.createClusters(treeMap, parkingZones, 2)
+
+      clusters.size should be(1)
     }
 
   }
