@@ -264,8 +264,7 @@ class RideHailAgent(
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val isTimeForShift = shifts.isEmpty || shifts.get
-        .find(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
-        .isDefined
+        .exists(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
       if (isTimeForShift) {
         rideHailManager ! NotifyVehicleIdle(
           vehicle.id,

@@ -45,7 +45,7 @@ object FailFast extends LazyLogging {
      * We don't expect "Electricity" to be a secondary powertrain type and it can produce unexpected results if set as such. So we fail.
      */
 
-    if (beamServices.beamScenario.vehicleTypes.find(_._2.secondaryFuelType.contains(Electricity)).isDefined) {
+    if (beamServices.beamScenario.vehicleTypes.exists(_._2.secondaryFuelType.contains(Electricity))) {
       throw new RuntimeException(
         s"Found BeamVehicleType ${beamServices.beamScenario.vehicleTypes.find(_._2
           .secondaryFuelType

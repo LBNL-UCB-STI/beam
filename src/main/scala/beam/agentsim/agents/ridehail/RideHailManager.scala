@@ -109,7 +109,7 @@ object RideHailManager {
             asDriver = false,
             estimatedPrice(passenger.personId),
             unbecomeDriverOnCompletion = false,
-            isPooledTrip = passengerSchedule.schedule.values.find(_.riders.size > 1).isDefined
+            isPooledTrip = passengerSchedule.schedule.values.exists(_.riders.size > 1)
           )
         }
         .toVector
