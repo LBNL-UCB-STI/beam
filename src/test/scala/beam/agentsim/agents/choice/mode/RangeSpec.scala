@@ -1,4 +1,5 @@
 package beam.agentsim.agents.choice.mode
+
 import org.scalatest.FlatSpec
 import beam.sim.common.Range
 
@@ -46,4 +47,7 @@ class RangeSpec extends FlatSpec {
     assert(!Range("[1:10)").has(10))
   }
 
+  "lower value that is greater than higher value" should "throw RuntimeException" in {
+    assertThrows[RuntimeException](Range("[10:1]", closeRange = true, isDouble = false))
+  }
 }

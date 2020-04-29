@@ -59,8 +59,8 @@ object ModeIncentive {
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
       BeamMode.fromString(mode).get,
-      Range(age),
-      Range(income),
+      Range(age, closeRange = true, isDouble = false),
+      Range(income, closeRange = true, isDouble = false),
       Try(amount.toDouble).getOrElse(0D)
     )
   }
