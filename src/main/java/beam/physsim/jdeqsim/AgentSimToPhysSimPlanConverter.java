@@ -275,7 +275,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") != null)
                 .collect(Collectors.groupingBy(x -> linkWayId(x)))
                 .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
-                    double[] travelTimeByHour = new double[31];
+                    double[] travelTimeByHour = new double[maxHour];
                     boolean atLeastOneHour = false;
                     for (int hour = 0; hour < maxHour; hour++) {
                         Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2TravelTimes.get(hour);
