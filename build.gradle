@@ -438,7 +438,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 
 def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
-           "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+           "-XX:FlightRecorderOptions=delay=60s,defaultrecording=true,disk=true,maxage=20h,dumponexit=true,loglevel=info"]
 
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
@@ -454,7 +454,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
+                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx + jfr
 
 println(applicationDefaultJvmArgs)
 
