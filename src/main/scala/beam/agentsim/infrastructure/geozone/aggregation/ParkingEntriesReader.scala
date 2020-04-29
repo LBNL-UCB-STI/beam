@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.io.Closeable
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 
 import scala.reflect.ClassTag
 
@@ -15,6 +15,7 @@ class ParkingEntriesReader[T](
 
   def readParkingEntries(): Seq[ParkingEntry[T]] = {
     println(s"@@@@@@@ originalParkingFile: ${parkingFile.toString}")
+    println(Files.isRegularFile(parkingFile))
     println(s"@@@@@@@ originalParkingFile.absolute: ${parkingFile.toAbsolutePath.toString}")
     val (iter: Iterator[ParkingEntry[T]], toClose: Closeable) =
       GenericCsvReader.readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)

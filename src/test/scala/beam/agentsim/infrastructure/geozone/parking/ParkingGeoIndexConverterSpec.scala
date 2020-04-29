@@ -9,7 +9,7 @@ import org.scalatest.{Matchers, WordSpec}
 
 class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
 
-  "ParkingGeoIndexConverterSpec" should {
+  "ParkingGeoIndexConverter" should {
 
     "convert Taz coordinates to GeoIndex accordingly to csv file" in {
       val tazParkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
@@ -45,10 +45,10 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
     }
 
     "convert geoIndex-parking coordinates to GeoIndex accordingly to csv file" in {
-      val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking2.csv")
+      val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking.csv")
       val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
 
-      val converter = ParkingGeoIndexConverter.geoIndexParkingToGeoIndex(
+      val converter = ParkingGeoIndexConverter. geoIndexParkingToGeoIndex(
         geoIndexParkingFile = parkingFile,
         targetCentersFile = targetCenters
       )
