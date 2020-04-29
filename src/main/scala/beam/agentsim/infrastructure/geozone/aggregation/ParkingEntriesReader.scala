@@ -14,7 +14,10 @@ class ParkingEntriesReader[T](
 )(implicit t: ClassTag[T]) {
 
   def readParkingEntries(): Seq[ParkingEntry[T]] = {
+    println(s"@@@@@@@ originalParkingFile: ${parkingFile.toString}")
+    println(s"@@@@@@@ originalParkingFile.absolute: ${parkingFile.toAbsolutePath.toString}")
     val (iter: Iterator[ParkingEntry[T]], toClose: Closeable) =
+
       GenericCsvReader.readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)
     try {
       iter.toList
