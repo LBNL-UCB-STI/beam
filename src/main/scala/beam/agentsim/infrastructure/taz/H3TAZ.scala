@@ -14,6 +14,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
 import scala.collection.JavaConverters._
+import scala.collection._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
   private val toH3CoordSystem =
@@ -55,6 +56,29 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   }
   def getIndex(c: Coord): HexIndex = getIndex(c, resolution)
   def getResolution: Int = resolution
+
+  // inputs: lowestLevel(=startingLevel), maxNumberOfDemandPointsPerHex, maxLevel, coordinates of demands
+  //
+  //Outputs: h3Indexes at different resolution levels
+  def getDemandInferredH3IndexSet(
+    demandPoints: Array[Coord],
+    maxNumberOfDemandPointsPerHex: Int,
+    lowestResolution: Int,
+    highestResolution: Int
+  ): Array[(HexIndex, Array[Coord])] = {
+    val indexing = demandPoints.groupBy(getIndex(_, lowestResolution)).toArray
+    val (a, b) = indexing.partition(_._2.length > maxNumberOfDemandPointsPerHex)
+    if (lowestResolution == highestResolution)
+      indexing
+    else {
+      b ++ getDemandInferredH3IndexSet(
+        a.flatMap(_._2),
+        maxNumberOfDemandPointsPerHex,
+        lowestResolution + 1,
+        highestResolution
+      )
+    }
+  }
 
 }
 
@@ -132,5 +156,4 @@ object H3TAZ {
     val holes = List.empty[java.util.List[GeoCoord]].asJava
     H3.polyfillAddress(points, holes, resolution).asScala
   }
-
 }
