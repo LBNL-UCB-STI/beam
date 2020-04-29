@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
 import beam.agentsim.events.PathTraversalEvent
+import beam.physsim.routingTool.RoutingToolWrapperImpl1
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
 import beam.sim.config.BeamConfig
 import beam.utils.{BeamConfigUtils, EventReader}
@@ -58,7 +59,8 @@ object PhysSimReplayer extends StrictLogging {
         beamSvc.matsimServices.getControlerIO,
         matsimScenario,
         beamSvc,
-        new BeamConfigChangesObservable(execCfg.beamConfig)
+        new BeamConfigChangesObservable(execCfg.beamConfig),
+        new RoutingToolWrapperImpl1(beamSvc)
       )
 
       var nEvents: Int = 0

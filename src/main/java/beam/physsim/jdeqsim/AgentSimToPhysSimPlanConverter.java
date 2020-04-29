@@ -5,13 +5,12 @@ import akka.japi.Pair;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
-import beam.analysis.physsim.*;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
+import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
+import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.physsim.jdeqsim.cacc.CACCSettings;
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
-import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.physsim.routingTool.*;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
@@ -22,15 +21,14 @@ import beam.sim.metrics.MetricsSupport;
 import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
-import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import com.google.common.io.Files;
 import com.vividsolutions.jts.geom.Coordinate;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -48,8 +46,6 @@ import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.households.Household;
 import org.matsim.utils.objectattributes.attributable.Attributes;
-import org.matsim.core.scenario.MutableScenario;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -58,19 +54,18 @@ import scala.Tuple3;
 import scala.collection.JavaConverters;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -113,11 +108,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private Map<Id<Person>, Household> personToHouseHold;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
-
-                                          private final List<PathTraversalEvent> traversalEventsForPhysSimulation = new LinkedList<>();
+    private final List<PathTraversalEvent> traversalEventsForPhysSimulation = new LinkedList<>();
 
     private final RoutingToolWrapper routingToolWrapper;
+
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
@@ -193,17 +188,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
         // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
         //################################################################################################################
-        int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
-
-
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
 
-        Map<String, double[]> travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                travelTimeFromPhysSim, maxHour);
         Map<Integer, ? extends Link> id2Link = links.stream()
                 .collect(Collectors.toMap(x -> Integer.parseInt(x.getId().toString()), x -> x));
-
 
         RoutingToolGraph graph = RoutingToolsGraphReaderImpl.read(routingToolWrapper.generateGraph());
         Map<Coordinate, Long> coordinateToRTVertexId = JavaConverters.asJavaCollection(graph.vertices()).stream()
@@ -238,31 +227,27 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
                 Long firstId = coordinateToRTVertexId.get(origin);
                 if (firstId == null) {
-//                    System.out.println("Failed to find coordinate " + origin.toString());
                     Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
                             .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
                             .get();
-//                    System.out.println("Found closest by distance " + closest.getKey().toString());
                     firstId = closest.getValue();
                 }
                 Long secondId = coordinateToRTVertexId.get(destination);
                 if (secondId == null) {
-//                    System.out.println("Failed to find coordinate " + destination.toString());
                     Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
                             .min(Comparator.comparingDouble(x -> x.getKey().distance(destination)))
                             .get();
-//                    System.out.println("Found closest by distance " + closest.getKey().toString());
                     secondId = closest.getValue();
                 }
 
                 return new Pair<>(firstId, secondId);
             }).collect(Collectors.toList());
 
-            System.out.println("Generated " + ods.size() + "ods");
+            log.info("Generated {} ods", ods.size());
 
             routingToolWrapper.generateOd(ods);
 
-            System.out.println("Running for hour " + hour);
+            log.info("Running for hour {}", hour);
             Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic();
             Map<Long, DoubleSummaryStatistics> wayId2TravelTime;
             try {
@@ -281,15 +266,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }).collect(Collectors.toMap(Pair::first, Pair::second));
 
         Map<String, double[]> finalMap = new HashMap<>();
-        Map<String, double[]> map = finalMap;
-
+        Map<String, double[]> travelTimeMap = finalMap;
 
         int totalNumberOfLinks = links.size();
         AtomicInteger linksFailedToResolve = new AtomicInteger(0);
 
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x -> {
             linksFailedToResolve.incrementAndGet();
-            double[] travelTimes = new double[31];
+            double[] travelTimes = new double[maxHour];
             Arrays.fill(travelTimes, x.getLength() / x.getFreespeed());
             finalMap.put(x.getId().toString(), travelTimes);
         });
@@ -299,7 +283,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
                     double[] travelTimeByHour = new double[31];
                     boolean atLeastOneHour = false;
-                    for (int hour = 0; hour <= 30; hour++) {
+                    for (int hour = 0; hour <= maxHour; hour++) {
                         Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2TravelTimes.get(hour);
                         if (way2Speed == null || way2Speed.get(wayId) == null) {
                             travelTimeByHour[hour] = link.getLength() / link.getFreespeed();
@@ -310,11 +294,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                 .get(wayId).getSum() / linksInWay.size();
                     }
                     if (!atLeastOneHour) linksFailedToResolve.incrementAndGet();
+                    finalMap.put(link.getId().toString(), travelTimeByHour);
                 }));
 
-        System.out.println("total: " + totalNumberOfLinks + ", failed: " + linksFailedToResolve.get());
+        log.warn("total links: {}, failed: {}", totalNumberOfLinks, linksFailedToResolve.get());
 
-        TravelTime travelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
+        TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
 
         TravelTime freeFlow = new FreeFlowTravelTime();
         int nBins = 0;
@@ -350,11 +335,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (iterationNumber == 0 || (iterationNumber + 1) % beamConfig.beam().outputs().writeEventsInterval() == 0) {
             String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
             try {
-                try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
+                try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
                     oos.writeObject(travelTimeMap);
                 }
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 log.error("Can't write travel time map", ex);
             }
         }
@@ -416,7 +400,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
 
-    private boolean isCarMode(String mode){
+    private boolean isCarMode(String mode) {
         return mode.equalsIgnoreCase(CAR);
     }
 
@@ -430,13 +414,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             PathTraversalEvent pte = (PathTraversalEvent) event;
             String mode = pte.mode().value();
 
-            if(isCarMode(mode)) {
+            if (isCarMode(mode)) {
                 double departureTime = pte.departureTime();
                 double travelTime = pte.arrivalTime() - departureTime;
 
-                if(travelTime > 0.0){
+                if (travelTime > 0.0) {
                     double speed = pte.legLength() / travelTime;
-                    int bin = (int)departureTime / beamConfig.beam().physsim().linkStatsBinSize();
+                    int bin = (int) departureTime / beamConfig.beam().physsim().linkStatsBinSize();
                     Mean mean = binSpeed.getOrDefault(bin, new Mean());
                     mean.increment(speed);
                 }
@@ -484,7 +468,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         String path = controlerIO.getIterationFilename(iteration, "agentSimAverageSpeed.csv");
 
         List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(entry -> (entry.getKey()+1)+","+entry.getValue().getResult())
+                .map(entry -> (entry.getKey() + 1) + "," + entry.getValue().getResult())
                 .collect(Collectors.toList());
 
         FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
