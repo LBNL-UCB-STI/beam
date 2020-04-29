@@ -1,9 +1,10 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
+import java.time.temporal.ChronoUnit
+import java.time.{ZoneOffset, ZonedDateTime}
 
-import akka.actor.{ActorLogging, ActorRef, Props}
-import akka.util.Timeout
+import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
+import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.HierarchicalParkingManager.{ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.ParkingZone
@@ -20,9 +21,9 @@ import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
 import de.lmu.ifi.dbs.elki.data.{DoubleVector, NumberVector}
+import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase
 import de.lmu.ifi.dbs.elki.database.ids.DBIDIter
 import de.lmu.ifi.dbs.elki.database.relation.Relation
-import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase
 import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
 import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
@@ -30,7 +31,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.Random
 
 /**
@@ -48,8 +49,10 @@ class HierarchicalParkingManager(
   boundingBox: Envelope
 ) extends beam.utils.CriticalActor
     with ActorLogging {
-  private implicit val timeout: Timeout = Timeout(100, TimeUnit.SECONDS)
-  private implicit val executionContext: ExecutionContext = context.dispatcher
+  private var inquiryCounter = 0
+  private var countTimeStart: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
+  private val tickTask: Cancellable =
+    context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
   private val workers: Vector[Worker] =
     clusters.zipWithIndex.map {
@@ -76,6 +79,7 @@ class HierarchicalParkingManager(
 
   override def receive = {
     case inquiry: ParkingInquiry =>
+      inquiryCounter += 1
       val foundCluster = workers.find { w =>
         val point = HierarchicalParkingManager.geometryFactory.createPoint(inquiry.destinationUtm)
         w.cluster.convexHull.contains(point)
@@ -92,6 +96,18 @@ class HierarchicalParkingManager(
         case Some(worker) => worker.actor.forward(release)
         case None => log.error(s"No TAZ with id $tazId, zone id = $parkingZoneId. Cannot release.")
       }
+
+    case "tick" =>
+      val now = ZonedDateTime.now(ZoneOffset.UTC)
+      val millis = ChronoUnit.MILLIS.between(countTimeStart, now)
+      val rate = if (millis > 0) inquiryCounter * 1000.0 / millis else -1
+      if (rate > 0) {
+        val displayPerformanceTimings = beamConfig.beam.agentsim.taz.parkingManager.displayPerformanceTimings
+        val logLevel = if (displayPerformanceTimings) Logging.InfoLevel else Logging.DebugLevel
+        log.log(logLevel, "Receiving {} per seconds of ParkingInquiry", rate)
+      }
+      inquiryCounter = 0
+      countTimeStart = now
   }
 
   private def findTazId(inquiry: ParkingInquiry): Id[TAZ] = {
@@ -105,6 +121,10 @@ class HierarchicalParkingManager(
     clusters.flatMap { worker =>
       (worker.cluster.tazes.view.map(_.tazId) :+ worker.emergencyId).map(_ -> worker)
     }.toMap
+  }
+
+  override def postStop(): Unit = {
+    tickTask.cancel()
   }
 }
 
