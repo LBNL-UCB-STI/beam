@@ -282,7 +282,7 @@ class BeamMobsimIteration(
       case "HIERARCHICAL" =>
         HierarchicalParkingManager
             .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
-            .withDispatcher("hierarchical-parking-manager-dispatcher")
+            .withDispatcher("zonal-parking-manager-pinned-dispatcher")
       case unknown@_ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
     context.actorOf(pmProps, "ParkingManager")
