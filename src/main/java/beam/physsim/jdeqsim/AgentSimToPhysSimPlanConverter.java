@@ -227,17 +227,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
                 Long firstId = coordinateToRTVertexId.get(origin);
                 if (firstId == null) {
-                    Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
-                            .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
-                            .get();
-                    firstId = closest.getValue();
+                    firstId = getRoutingToolVertexId(coordinateToRTVertexId, origin);
                 }
                 Long secondId = coordinateToRTVertexId.get(destination);
                 if (secondId == null) {
-                    Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
-                            .min(Comparator.comparingDouble(x -> x.getKey().distance(destination)))
-                            .get();
-                    secondId = closest.getValue();
+                    secondId = getRoutingToolVertexId(coordinateToRTVertexId, destination);
                 }
 
                 return new Pair<>(firstId, secondId);
@@ -283,7 +277,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
                     double[] travelTimeByHour = new double[31];
                     boolean atLeastOneHour = false;
-                    for (int hour = 0; hour <= maxHour; hour++) {
+                    for (int hour = 0; hour < maxHour; hour++) {
                         Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2TravelTimes.get(hour);
                         if (way2Speed == null || way2Speed.get(wayId) == null) {
                             travelTimeByHour[hour] = link.getLength() / link.getFreespeed();
@@ -372,6 +366,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         traversalEventsForPhysSimulation.clear();
+    }
+
+    private Long getRoutingToolVertexId(Map<Coordinate, Long> coordinateToRTVertexId, Coordinate origin) {
+        Long firstId;
+        Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
+                .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
+                .get();
+        firstId = closest.getValue();
+        return firstId;
     }
 
     private List<Coordinate> getCoordinatesForWayId(OsmInfoHolder osmInfoHolder, long firstWayId) {
