@@ -123,22 +123,23 @@ object RideHailAgent {
 
   sealed trait InterruptReply {
     val interruptId: Int
-    val vehicleId: Id[Vehicle]
+    val vehicleId: Id[BeamVehicle]
     val tick: Int
   }
 
   case class InterruptedWhileDriving(
     interruptId: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     tick: Int,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
 
-  case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
-  case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -321,7 +322,7 @@ class RideHailAgent(
       beamServices.beamRouter ! veh2StallRequest
 //      }
       stay
-    case Event(RoutingResponse(itineraries, _), data) =>
+    case Event(RoutingResponse(itineraries, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
@@ -409,7 +410,7 @@ class RideHailAgent(
     case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _, _), _) =>
       stash()
       stay()
   }

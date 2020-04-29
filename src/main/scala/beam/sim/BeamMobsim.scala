@@ -17,7 +17,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -29,7 +28,8 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
+import helics.BeamFederate.BeamFederateTrigger
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -114,6 +114,8 @@ class BeamMobsim @Inject()(
 
     eventsManager.initProcessing()
 
+    clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
+
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
@@ -134,6 +136,78 @@ class BeamMobsim @Inject()(
     stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
+    val experimentType = beamServices.beamConfig.beam.physsim.relaxation.`type`
+    if (experimentType == "experiment_2.0") {
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_0.clearRoutesEveryIteration) {
+        clearRoutes()
+        logger.info(s"Experiment_2.0: Clear all routes at iteration ${iteration}")
+      }
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_0.clearModesEveryIteration) {
+        clearModes()
+        logger.info(s"Experiment_2.0: Clear all modes at iteration ${iteration}")
+      }
+    } else if (experimentType == "experiment_2.1") {
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_1.clearRoutesEveryIteration) {
+        clearRoutes()
+        logger.info(s"Experiment_2.1: Clear all routes at iteration ${iteration}")
+      }
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_1.clearModesEveryIteration) {
+        clearModes()
+        logger.info(s"Experiment_2.1: Clear all modes at iteration ${iteration}")
+      }
+    } else if (experimentType == "experiment_3.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_3.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_3.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_4.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_4.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_4.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.1" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.1: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.1: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.2" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.2: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.2: Clear all modes at iteration ${iteration}")
+    }
+  }
+
+  private def clearRoutes(): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+      p.getPlans.asScala.foreach { plan =>
+        plan.getPlanElements.asScala.foreach {
+          case leg: Leg =>
+            leg.setRoute(null)
+          case _ =>
+        }
+      }
+    }
+  }
+
+  private def clearModes(): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+      p.getPlans.asScala.foreach { plan =>
+        plan.getPlanElements.asScala.foreach {
+          case leg: Leg =>
+            leg.setMode("")
+          case _ =>
+        }
+      }
+    }
   }
 
   def validateVehicleTypes(): Unit = {
@@ -186,19 +260,6 @@ class BeamMobsimIteration(
   )
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
-
-  val eventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.collectEvents)
-      Some(
-        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
-      )
-    else None
-
-  eventsManager match {
-    case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
-    case _ =>
-  }
 
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
@@ -317,6 +378,19 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents) {
+      val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
+      context.watch(eventsAccumulator)
+      scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
+      Some(eventsAccumulator)
+    } else None
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
+
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
     system: ActorSystem,
@@ -349,6 +423,7 @@ class BeamMobsimIteration(
       tazSkimmer ! Finish
       if (eventsAccumulator.isDefined) {
         eventsAccumulator.get ! Finish
+        context.stop(eventsAccumulator.get)
       }
       context.stop(scheduler)
       context.stop(errorListener)

@@ -16,6 +16,7 @@ Contents:
    about
    users
    developers
+   grafana
    agents
    behaviors
    events

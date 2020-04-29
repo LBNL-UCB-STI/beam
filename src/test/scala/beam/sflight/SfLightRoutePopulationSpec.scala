@@ -35,7 +35,8 @@ class SfLightRoutePopulationSpec
           services.fareCalculator,
           services.tollCalculator
         ),
-        new FreeFlowTravelTime
+        new FreeFlowTravelTime,
+        travelTimeNoiseFraction = 0
       )
       var numFailedCarRoutes = 0
       scenario.getPopulation.getPersons
@@ -50,11 +51,11 @@ class SfLightRoutePopulationSpec
               val time = pair(0).getEndTime.toInt
               val response = router.calcRoute(
                 RoutingRequest(
-                  origin,
-                  destination,
-                  time,
+                  originUTM = origin,
+                  destinationUTM = destination,
+                  departureTime = time,
                   withTransit = true,
-                  Vector(
+                  streetVehicles = Vector(
                     StreetVehicle(
                       Id.createVehicleId("116378-2"),
                       Id.create("Car", classOf[BeamVehicleType]),

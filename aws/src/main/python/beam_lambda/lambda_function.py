@@ -41,8 +41,6 @@ MAXRAM_DEFAULT = '2g'
 
 SHUTDOWN_DEFAULT = '30'
 
-TRUE = 'true'
-
 EXECUTE_CLASS_DEFAULT = 'beam.sim.RunBeam'
 
 EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
@@ -219,11 +217,115 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
-    spot_req = ec2.request_spot_instances(
-        InstanceCount=1,
-        InstanceInterruptionBehavior=shutdown_behaviour,
-        LaunchSpecification={
+class AWS_Instance_Spec(object):
+    name = ""
+    cpu = 0
+    mem_in_gb = ""
+
+    def __init__(self, name, cpu, mem_in_gb):
+        self.name = name
+        self.cpu = cpu
+        self.mem_in_gb = mem_in_gb
+
+spot_specs = [
+    AWS_Instance_Spec('t2.small',1,2),
+    AWS_Instance_Spec('t2.micro',1,1),
+    AWS_Instance_Spec('r5dn.large',2,16),
+    AWS_Instance_Spec('m4.large',2,8),
+    AWS_Instance_Spec('t3a.medium',2,4),
+    AWS_Instance_Spec('t3.small',2,2),
+    AWS_Instance_Spec('t3a.small',2,2),
+    AWS_Instance_Spec('r5d.large',2,16),
+    AWS_Instance_Spec('c5n.large',2,5.25),
+    AWS_Instance_Spec('m5d.large',2,8),
+    AWS_Instance_Spec('m5.xlarge',4,16),
+    AWS_Instance_Spec('c5d.xlarge',4,8),
+    AWS_Instance_Spec('r5d.xlarge',4,32),
+    AWS_Instance_Spec('m5dn.xlarge',4,16),
+    AWS_Instance_Spec('c5.xlarge',4,8),
+    AWS_Instance_Spec('g4dn.xlarge',4,16),
+    AWS_Instance_Spec('r5.xlarge',4,32),
+    AWS_Instance_Spec('r4.xlarge',4,30.5),
+    AWS_Instance_Spec('c5d.xlarge',4,8),
+    AWS_Instance_Spec('t2.2xlarge',8,32),
+    AWS_Instance_Spec('t3a.2xlarge',8,32),
+    AWS_Instance_Spec('g4dn.2xlarge',8,32),
+    AWS_Instance_Spec('r3.2xlarge',8,61),
+    AWS_Instance_Spec('i3en.2xlarge',8,64),
+    AWS_Instance_Spec('m4.2xlarge',8,32),
+    AWS_Instance_Spec('r5d.2xlarge',8,64),
+    AWS_Instance_Spec('m5.2xlarge',8,32),
+    AWS_Instance_Spec('t3.2xlarge',8,32),
+    AWS_Instance_Spec('r4.2xlarge',8,61),
+    AWS_Instance_Spec('r5.2xlarge',8,64),
+    AWS_Instance_Spec('m5d.4xlarge',16,64),
+    AWS_Instance_Spec('c5d.4xlarge',16,32),
+    AWS_Instance_Spec('a1.metal',16,32),
+    AWS_Instance_Spec('g4dn.4xlarge',16,64),
+    AWS_Instance_Spec('r5.4xlarge',16,128),
+    AWS_Instance_Spec('c5.4xlarge',16,32),
+    AWS_Instance_Spec('m5n.4xlarge',16,64),
+    AWS_Instance_Spec('r5dn.4xlarge',16,128),
+    AWS_Instance_Spec('i3en.6xlarge',24,192),
+    AWS_Instance_Spec('r3.8xlarge',32,244),
+    AWS_Instance_Spec('r5.8xlarge',32,256),
+    AWS_Instance_Spec('m5.8xlarge',32,128),
+    AWS_Instance_Spec('r4.8xlarge',32,244),
+    AWS_Instance_Spec('m5dn.8xlarge',32,128),
+    AWS_Instance_Spec('r5d.8xlarge',32,256),
+    AWS_Instance_Spec('m5n.8xlarge',32,128),
+    AWS_Instance_Spec('r5dn.8xlarge',32,256),
+    #AWS_Instance_Spec('g4dn.8xlarge',32,128),
+    AWS_Instance_Spec('c5d.9xlarge',36,72),
+    AWS_Instance_Spec('c5n.9xlarge',36,96),
+    AWS_Instance_Spec('m5dn.12xlarge',48,192),
+    #AWS_Instance_Spec('i3en.12xlarge',48,384),
+    AWS_Instance_Spec('c5.12xlarge',48,96),
+    AWS_Instance_Spec('r5.12xlarge',48,384),
+    #AWS_Instance_Spec('g4dn.12xlarge',48,192),
+    AWS_Instance_Spec('m5ad.12xlarge',48,192),
+    AWS_Instance_Spec('r4.16xlarge',64,488),
+    AWS_Instance_Spec('m5.16xlarge',64,256),
+    AWS_Instance_Spec('r5dn.16xlarge',64,512),
+    AWS_Instance_Spec('r5.16xlarge',64,512),
+    AWS_Instance_Spec('m5dn.16xlarge',64,256),
+    AWS_Instance_Spec('r5d.16xlarge',64,512),
+    #AWS_Instance_Spec('g4dn.16xlarge',64,256),
+    AWS_Instance_Spec('c5n.18xlarge',72,192),
+    AWS_Instance_Spec('c5d.18xlarge',72,144),
+    #AWS_Instance_Spec('c5.18xlarge',72,144),
+    AWS_Instance_Spec('r5ad.24xlarge',96,768),
+    AWS_Instance_Spec('r5.24xlarge',96,768),
+    AWS_Instance_Spec('m5n.24xlarge',96,384),
+    #AWS_Instance_Spec('i3en.24xlarge',96,768),
+    AWS_Instance_Spec('m5dn.24xlarge',96,384),
+    #AWS_Instance_Spec('i3en.metal',96,768),
+    AWS_Instance_Spec('m5ad.24xlarge',96,384)
+]
+
+def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, preferred_instance_type):
+    output_instance_types = []
+    for spec in spot_specs:
+        if spec.cpu >= min_cores and spec.cpu <= max_cores and spec.mem_in_gb >= min_memory and spec.mem_in_gb <= max_memory:
+            output_instance_types.append(spec.name)
+    try:
+        if preferred_instance_type:
+            output_instance_types.append(preferred_instance_type)
+    except NameError:
+        print 'No preferred spot instance type provided'
+    if not output_instance_types:
+        raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
+    return list(dict.fromkeys(output_instance_types))
+
+def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
+    security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
+    security_group_ids = []
+    for security_group_id in security_group_id_array:
+        security_group_ids.append({'GroupId':security_group_id})
+    spot_instances = get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, instance_type)
+    launch_specifications = []
+    for spot_instance in spot_instances:
+        specification = {
             'BlockDeviceMappings': [
                 {
                     'DeviceName': '/dev/sda1',
@@ -234,44 +336,98 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
                     }
                 }
             ],
+            'SecurityGroups': security_group_ids,
             'ImageId': os.environ[region_prefix + 'IMAGE_ID'],
-            'InstanceType': instance_type,
-            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),#script,
+            'InstanceType': spot_instance,
             'KeyName': os.environ[region_prefix + 'KEY_NAME'],
-            'SecurityGroupIds': [os.environ[region_prefix + 'SECURITY_GROUP']],
-            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] }
+            'UserData': base64.b64encode(script.encode("ascii")).decode('ascii'),
+            'IamInstanceProfile': {'Name': os.environ['IAM_ROLE'] },
+            'TagSpecifications': [
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': instance_name
+                        }, {
+                            'Key': 'GitUserEmail',
+                            'Value': git_user_email
+                        }, {
+                            'Key': 'DeployType',
+                            'Value': deploy_type_tag
+                        }
+                    ]
+                }
+            ]
+        }
+        launch_specifications.append(specification)
+    spot_fleet_req = ec2.request_spot_fleet(
+        SpotFleetRequestConfig={
+            'AllocationStrategy': 'lowestPrice',
+            'TargetCapacity': 1,
+            'IamFleetRole': 'arn:aws:iam::340032650202:role/aws-ec2-spot-fleet-tagging-role',
+            'Type': 'request',
+            'InstanceInterruptionBehavior': shutdown_behaviour,
+            'LaunchSpecifications': launch_specifications
         }
     )
-    state = 'open'
-    spot_req_id = spot_req.get('SpotInstanceRequests')[0].get('SpotInstanceRequestId')
-    while state == 'open':
-        print 'Waiting for spot request id to move from open'
+    status = 'pending_fulfillment'
+    state = 'submitted'
+    spot_fleet_req_id = spot_fleet_req.get('SpotFleetRequestId')
+    print 'SpotFleetRequestId is ' + spot_fleet_req_id
+    #Flow as far as I know is that state goes to submitted, then active, but isn't done until status is out of pending_fulfillment
+    while status == 'pending_fulfillment' or state == 'submitted':
+        remaining_time = context.get_remaining_time_in_millis()
+        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time)
+        if remaining_time <= 60000:
+            ec2.cancel_spot_fleet_requests(
+                DryRun=False,
+                SpotFleetRequestIds=[spot_fleet_req_id],
+                TerminateInstances=True
+            )
+            print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+            time.sleep(30)
+            exit(123)
+        else:
+            time.sleep(30)
+            spot = ec2.describe_spot_fleet_requests(SpotFleetRequestIds = [spot_fleet_req_id]).get('SpotFleetRequestConfigs')[0]
+            status = spot.get('ActivityStatus')
+            state = spot.get('SpotFleetRequestState')
+    if state != 'active' or status != "fulfilled":
+        ec2.cancel_spot_fleet_requests(
+            DryRun=False,
+            SpotFleetRequestIds=[spot_fleet_req_id],
+            TerminateInstances=True
+        )
+        #TODO: This situation should be ?IMPOSSIBLE? but if it does occur then it could orphan a volume - not worth it unless it becomes an issue
+        print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?'
         time.sleep(30)
-        spot = ec2.describe_spot_instance_requests(SpotInstanceRequestIds = [spot_req_id]).get('SpotInstanceRequests')[0]
-        state = spot.get('State')
-    if (state != 'active'):
         exit(1)
+    print 'Getting spot fleet instances'
+    fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
+    fleet_instance = fleet_instances.get('ActiveInstances')[0] #TODO: Check if InstanceHealth is healthy vs unhealthy?
     bd_count = 0
-    instance_id = spot.get('InstanceId')
+    instance_id = fleet_instance.get('InstanceId')
     while bd_count < 1:
-        print 'Spot request status now ' + state + ' so getting instance using ' + instance_id
-        time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
         bd_count = len(instance.get('BlockDeviceMappings'))
-    ec2.create_tags(
-        Resources=[instance_id],
-        Tags = [
-            {
-                'Key': 'Name',
-                'Value': instance_name
-            }, {
-                'Key': 'GitUserEmail',
-                'Value': git_user_email
-            }, {
-                'Key': 'DeployType',
-                'Value': deploy_type_tag
-            }])
-    print 'Created tags on instance'
+        if bd_count < 1:
+            remaining_time = context.get_remaining_time_in_millis()
+            print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            if remaining_time <= 60000:
+                ec2.cancel_spot_fleet_requests(
+                    DryRun=False,
+                    SpotFleetRequestIds=[spot_fleet_req_id],
+                    TerminateInstances=True
+                )
+                #TODO: Since there is no block device yet then we cannot terminate that instance - this COULD result in orphaned volumes - but they would be named at least...handle with a cloud watch if it becomes an issue
+                print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+                time.sleep(30)
+                exit(123)
+            else:
+                print 'Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)'
+                time.sleep(30)
+    print 'Instance up with block device ready'
     volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
     ec2.create_tags(
         Resources=[volume_id],
@@ -288,9 +444,18 @@ def deploy_spot_instance(script, instance_type, region_prefix, shutdown_behaviou
             }])
     print 'Created tags on volume'
     while instance.get('State') == 'pending':
-        print 'Waiting for instance to get to pending'
-        time.sleep(30)
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
+        state = instance.get('State')
+        if state == 'pending':
+            remaining_time = context.get_remaining_time_in_millis()
+            print 'Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            if remaining_time <= 45000:
+                print 'Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel'
+                return instance_id
+            else:
+                print 'Waiting for instance to leave pending'
+                time.sleep(30)
+    print 'Spot instance ready to go!'
     return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
@@ -357,7 +522,7 @@ def stop_instance(instance_ids):
 def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
 
-def deploy_handler(event):
+def deploy_handler(event, context):
     missing_parameters = []
 
     def parameter_wasnt_specified(parameter_value):
@@ -377,9 +542,9 @@ def deploy_handler(event):
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
     execute_class = event.get('execute_class', EXECUTE_CLASS_DEFAULT)
     execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
-    batch = event.get('batch', TRUE)
+    batch = event.get('batch', True)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
-    s3_publish = event.get('s3_publish', TRUE)
+    s3_publish = event.get('s3_publish', True)
     volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
@@ -390,14 +555,18 @@ def deploy_handler(event):
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
     titled = get_param('title')
-    instance_type = get_param('instance_type')
+    instance_type = event.get('instance_type')
     region = get_param('region')
     shutdown_behaviour = get_param('shutdown_behaviour')
+    is_spot = event.get('is_spot', False)
 
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
 
-    if instance_type not in instance_types:
+    if not instance_type and not is_spot:
+        return "Unable to start, missing instance_type AND is NOT a spot request"
+
+    if not is_spot and instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
     if shutdown_behaviour not in shutdown_behaviours:
@@ -410,20 +579,20 @@ def deploy_handler(event):
         volume_size = 64
 
     selected_script = ""
-    if run_grafana == TRUE:
+    if run_grafana:
         selected_script = CONFIG_SCRIPT_WITH_GRAFANA
     else:
         selected_script = CONFIG_SCRIPT
 
     params = configs
-    if s3_publish == TRUE:
+    if s3_publish:
         selected_script += S3_PUBLISH_SCRIPT
 
     if deploy_mode == 'experiment':
         selected_script = EXPERIMENT_SCRIPT
         params = experiments
 
-    if batch == TRUE:
+    if batch:
         params = [ params.replace(',', ' ') ]
     else:
         params = params.split(',')
@@ -453,15 +622,18 @@ def deploy_handler(event):
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
-            is_spot = event.get('is_spot', False)
             if is_spot:
-                instance_id = deploy_spot_instance(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+                min_cores = event.get('min_cores', 0)
+                max_cores = event.get('max_cores', 0)
+                min_memory = event.get('min_memory', 0)
+                max_memory = event.get('max_memory', 0)
+                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
-            if run_grafana == TRUE:
+            if run_grafana:
                 txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
 
             runNum += 1
@@ -503,7 +675,7 @@ def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
 
     if command_id == 'deploy':
-        return deploy_handler(event)
+        return deploy_handler(event, context)
 
     if command_id in instance_operations:
         return instance_handler(event)
