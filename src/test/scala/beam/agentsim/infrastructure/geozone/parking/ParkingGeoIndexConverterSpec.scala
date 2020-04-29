@@ -48,7 +48,7 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
       val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking.csv")
       val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
 
-      val converter = ParkingGeoIndexConverter. geoIndexParkingToGeoIndex(
+      val converter = ParkingGeoIndexConverter.geoIndexParkingToGeoIndex(
         geoIndexParkingFile = parkingFile,
         targetCentersFile = targetCenters
       )
