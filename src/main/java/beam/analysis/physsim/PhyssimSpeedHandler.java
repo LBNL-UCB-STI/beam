@@ -7,6 +7,7 @@ import beam.utils.FileUtils;
 import com.google.common.collect.Lists;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -29,7 +30,7 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
     private final String fileName = "MultiJDEQSim_speed";
     private final Map<Id<Person>,? extends Person> persons;
     private final Map<String, PersonDepartureEvent> personsDepartureTime = new HashMap<>();
-    private final Map<Integer, List<Double>> binSpeed = new HashMap<>();
+    private final Map<Integer, Mean> binSpeed = new HashMap<>();
     private final OutputDirectoryHierarchy controlerIO;
     private final int binSize;
 
@@ -76,7 +77,8 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                                         if(travelTime > 0.0) {
                                             double speed = distance / travelTime;
                                             int bin = (int) departureEvent.getTime() / binSize;
-                                            binSpeed.merge(bin, Lists.newArrayList(speed), ListUtils::union);
+                                            Mean mean = binSpeed.getOrDefault(bin, new Mean());
+                                            mean.increment(speed);
                                         }
                                         return;
                                     }
@@ -110,12 +112,12 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
     }
 
     private void writeIterationGraph(int iteration) {
-        int maxHour = Collections.max(binSpeed.keySet());
+        int maxHour = binSpeed.isEmpty() ? 24 : Collections.max(binSpeed.keySet());
         double[][] data = new double[1][maxHour + 1];
 
         for(int bin=0; bin <= maxHour; bin++){
             if(binSpeed.containsKey(bin)){
-                data[0][bin] = binSpeed.get(bin).stream().mapToDouble(x -> x).average().getAsDouble();
+                data[0][bin] = binSpeed.get(bin).getResult();
             }else {
                 data[0][bin] = 0.0;
             }
@@ -156,7 +158,7 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
         String path = controlerIO.getIterationFilename(iteration, fileName+".csv");
 
         List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(entry -> (entry.getKey()+1)+","+entry.getValue().stream().mapToDouble(x -> x).average().getAsDouble())
+                .map(entry -> (entry.getKey()+1)+","+entry.getValue().getResult())
                 .collect(Collectors.toList());
 
         FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
