@@ -21,7 +21,11 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
   "test demand inferred H3 Index set" must "H3 Indexes" in {
     val config = ConfigFactory
       .parseString("""
-                     |beam.outputs.events.fileOutputFormats = xml
+                     |beam.agentsim.h3taz = {
+                     |  lowerBoundResolution = 6
+                     |  upperBoundResolution = 9
+                     |  maxNumberOfDemandPointsPerHexagon = 100
+                     |}
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
         """.stripMargin)
@@ -52,9 +56,9 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
       .flatMap(_._2.getPlans.get(0).getPlanElements.asScala.filter(_.isInstanceOf[Activity]))
       .map(_.asInstanceOf[Activity].getCoord)
       .toArray
-    val indexes = services.beamScenario.h3taz.getDemandInferredH3IndexSet(demandPoints, 10, 6, 10)
+    val indexes = services.beamScenario.h3taz.getDataPointsInferredH3IndexSet(demandPoints)
     assert(indexes.nonEmpty, "Set of H3 indexes should not be empty.")
-    assert(indexes.flatMap(_._2).length == demandPoints.length, "Not all coordinates were matched to an H3 Index")
+    assert(indexes.map(_._2.length).sum == demandPoints.length, "Not all coordinates were matched to an H3 Index")
   }
 
 }

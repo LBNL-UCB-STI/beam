@@ -30,7 +30,7 @@ class InverseSquareDistanceRepositioningFactor(
   // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
-  private val cfg =
+  private def cfg =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
@@ -161,7 +161,7 @@ class InverseSquareDistanceRepositioningFactor(
   private def chooseLocation(coords: IndexedSeq[Coord]): Coord = {
     // create a probability distribution based on number of activities by sub clusters (sub hexagons)
     val subClusters = coords
-      .groupBy(h3taz.getIndex(_, h3taz.getResolution + 1))
+      .groupBy(h3taz.getSubIndices)
       .map {
         case (_, subHex) =>
           new CPair[IndexedSeq[Coord], java.lang.Double](subHex, subHex.size.toDouble)
