@@ -45,7 +45,7 @@ class HierarchicalParkingManager(
   zones: Array[ParkingZone],
   searchTree: ZoneSearchTree[TAZ],
   geo: GeoUtils,
-  rand: Random,
+  seed: Int,
   boundingBox: Envelope
 ) extends beam.utils.CriticalActor
     with ActorLogging {
@@ -67,9 +67,10 @@ class HierarchicalParkingManager(
               searchTree,
               emergencyId,
               geo,
-              rand,
+              new Random(seed),
               boundingBox
-            ).withDispatcher("hierarchical-parking-manager-dispatcher"),
+            )
+            .withDispatcher("hierarchical-parking-manager-dispatcher"),
           s"zonal-parking-manager-$i"
         )
         Worker(actor, cluster, emergencyId)
@@ -85,16 +86,18 @@ class HierarchicalParkingManager(
         w.cluster.convexHull.contains(point)
       }
 
-      val worker = foundCluster.orElse(
-        tazToWorker.get(findTazId(inquiry))
-      ).get
+      val worker = foundCluster
+        .orElse(
+          tazToWorker.get(findTazId(inquiry))
+        )
+        .get
 
       worker.actor.forward(inquiry)
 
     case release @ ReleaseParkingStall(parkingZoneId, tazId) =>
       tazToWorker.get(tazId) match {
         case Some(worker) => worker.actor.forward(release)
-        case None => log.error(s"No TAZ with id $tazId, zone id = $parkingZoneId. Cannot release.")
+        case None         => log.error(s"No TAZ with id $tazId, zone id = $parkingZoneId. Cannot release.")
       }
 
     case "tick" =>
@@ -144,13 +147,14 @@ object HierarchicalParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope
   ): Props = {
-    val numClusters = Math.min(tazTreeMap.tazQuadTree.size(),
-      beamConfig.beam.agentsim.taz.parkingManager.hierarchical.numberOfClusters)
+    val numClusters =
+      Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingManager.hierarchical.numberOfClusters)
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val filePath: String = beamConfig.beam.agentsim.taz.filePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
     val random = new Random(beamConfig.matsim.modules.global.randomSeed)
+    val seed = beamConfig.matsim.modules.global.randomSeed
     val (zones, searchTree) = ZonalParkingManager.loadParkingZones(
       parkingFilePath,
       filePath,
@@ -158,7 +162,7 @@ object HierarchicalParkingManager extends LazyLogging {
       parkingCostScalingFactor,
       random
     )
-    props(beamConfig, tazTreeMap, zones, searchTree, numClusters, geo, random, boundingBox)
+    props(beamConfig, tazTreeMap, zones, searchTree, numClusters, geo, seed, boundingBox)
   }
 
   def props(
@@ -168,7 +172,7 @@ object HierarchicalParkingManager extends LazyLogging {
     searchTree: ZoneSearchTree[TAZ],
     numClusters: Int,
     geo: GeoUtils,
-    rand: Random,
+    seed: Int,
     boundingBox: Envelope
   ) = {
     val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters)
@@ -181,7 +185,7 @@ object HierarchicalParkingManager extends LazyLogging {
         zones,
         searchTree,
         geo,
-        rand,
+        seed,
         boundingBox
       )
     )
@@ -252,9 +256,9 @@ object HierarchicalParkingManager extends LazyLogging {
         }
         val convexHull = pgf.create(new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull)
         val tazes = clusterZones
-            .map(_.tazId)
-            .distinct
-            .map(tazTreeMap.getTAZ(_).get) ++ empty
+          .map(_.tazId)
+          .distinct
+          .map(tazTreeMap.getTAZ(_).get) ++ empty
         ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
       }
       logger.info(s"Done clustering: ${clusters.size}")

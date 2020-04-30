@@ -42,7 +42,7 @@ class HierarchicalParkingManagerSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
-  val randomSeed: Long = 0
+  val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
@@ -72,7 +72,7 @@ class HierarchicalParkingManagerSpec
             Map.empty,
             8,
             geo,
-            new Random(randomSeed),
+            randomSeed,
             boundingBox,
           )
         )
@@ -110,7 +110,7 @@ class HierarchicalParkingManagerSpec
           Map.empty,
           8,
           geo,
-          new Random(randomSeed),
+          randomSeed,
           boundingBox,
         )
       )
@@ -159,7 +159,7 @@ class HierarchicalParkingManagerSpec
             parking.tree,
             8,
             geo,
-            random,
+            randomSeed,
             boundingBox,
           )
         )
@@ -218,7 +218,7 @@ class HierarchicalParkingManagerSpec
             parking.tree,
             8,
             geo,
-            random,
+            randomSeed,
             boundingBox,
           )
         )
@@ -291,7 +291,7 @@ class HierarchicalParkingManagerSpec
             parking.tree,
             1, // this test will work only in a single cluster because clusters are fully separated
             geo,
-            random,
+            randomSeed,
             boundingBox,
           )
         )
@@ -335,16 +335,16 @@ class HierarchicalParkingManagerSpec
           searchTree,
           8,
           geo,
-          new Random(randomSeed),
+          randomSeed,
           boundingBox,
         )
       )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
 
-      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
 
-      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 80, FlatFee(0.0), ParkingType.Public)
+      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
     }
   }
 

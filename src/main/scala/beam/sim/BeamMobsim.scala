@@ -277,13 +277,13 @@ class BeamMobsimIteration(
     val pmProps = managerName match {
       case "DEFAULT" =>
         ZonalParkingManager
-            .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
-            .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
       case "HIERARCHICAL" =>
         HierarchicalParkingManager
-            .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
-            .withDispatcher("zonal-parking-manager-pinned-dispatcher")
-      case unknown@_ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
     context.actorOf(pmProps, "ParkingManager")
   }
