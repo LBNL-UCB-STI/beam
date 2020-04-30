@@ -1,8 +1,9 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorNotFound, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
+import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
@@ -34,15 +35,17 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfterEach, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
+import scala.concurrent.Await
 
 class PersonAgentSpec
     extends FunSpecLike
     with TestKitBase
     with SimRunnerForTest
+    with BeforeAndAfterEach
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -281,7 +284,6 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
-      watch(iteration)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -521,8 +523,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
-      expectTerminated(iteration)
     }
 
     it("should also work when the first bus is late") {
@@ -556,7 +556,6 @@ class PersonAgentSpec
         }),
         "BeamMobsim.iteration"
       )
-      watch(iteration)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -849,8 +848,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
-      expectTerminated(iteration)
     }
 
   }
@@ -858,6 +855,24 @@ class PersonAgentSpec
   override def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  override def afterEach(): Unit = {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    import system.dispatcher
+    implicit val timeout = Timeout(10 seconds)
+    val actorRef = system.actorSelection("user/BeamMobsim.iteration")
+        .resolveOne()
+        .map(ref => Some(ref))
+        .recover { case _: ActorNotFound => None }
+    val maybeIteration = Await.result(actorRef, 10 seconds)
+    maybeIteration.foreach { iteration =>
+      val probe = TestProbe()
+      probe.watch(iteration)
+      iteration ! PoisonPill
+      probe.expectTerminated(iteration)
+    }
   }
 
 }
