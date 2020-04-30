@@ -152,7 +152,7 @@ object H3TAZ {
     val indexing =
       dataPoints.groupBy(coord => H3TAZ.H3.geoToH3Address(coord.getX, coord.getY, lowestResolution)).toArray
     val (a, b) = indexing.partition(_._2.length > maxNumberOfDataPoints)
-    if (lowestResolution == highestResolution)
+    if (lowestResolution == highestResolution || a.isEmpty)
       indexing
     else
       b ++ getDataPointsInferredH3IndexSet(

@@ -55,13 +55,18 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
       .flatMap(_._2.getPlans.get(0).getPlanElements.asScala.filter(_.isInstanceOf[Activity]))
       .map(_.asInstanceOf[Activity].getCoord)
       .toArray
-    val maxDemandPoints = 100
+    val maxDemandPoints = 10
     val lowestResolution = 6
     val highestResolution = 9
     val indexes =
       H3TAZ.getDataPointsInferredH3IndexSet(demandPoints, maxDemandPoints, lowestResolution, highestResolution)
     assert(indexes.nonEmpty, "Set of H3 indexes should not be empty.")
     assert(indexes.map(_._2.length).sum == demandPoints.length, "Not all coordinates were matched to an H3 Index")
+    assert(indexes.map(_._2.length).max <= 55,
+      "number of data points should be lower than or equal to 59"
+    )
+
+    // the following tests are unnecessary
     assert(
       indexes.map(_._2.length).max <= maxDemandPoints,
       "number of data points should be lower than or equal to 100"
