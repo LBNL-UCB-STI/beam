@@ -58,7 +58,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
-  def getSubIndices(c: Coord): Option[HexIndex] = {
+  def getSubIndex(c: Coord): Option[HexIndex] = {
     if (getResolution + 1 <= cfg.upperBoundResolution) {
       val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
       Some(H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution + 1))

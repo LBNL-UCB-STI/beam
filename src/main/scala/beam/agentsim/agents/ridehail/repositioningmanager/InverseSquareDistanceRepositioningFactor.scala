@@ -161,7 +161,7 @@ class InverseSquareDistanceRepositioningFactor(
   private def chooseLocation(coords: IndexedSeq[Coord]): Coord = {
     // create a probability distribution based on number of activities by sub clusters (sub hexagons)
     val subClusters = coords
-      .groupBy(h3taz.getSubIndices)
+      .groupBy(h3taz.getSubIndex)
       .map {
         case (_, subHex) =>
           new CPair[IndexedSeq[Coord], java.lang.Double](subHex, subHex.size.toDouble)
