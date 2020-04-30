@@ -134,7 +134,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
-        
+
         writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv"), realizedModeChoiceInIteration, cumulativeMode);
         writeToCSV(event);
         writeToReferenceCSV();
@@ -453,7 +453,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             out.newLine();
 
             StringBuilder builder = new StringBuilder("benchmark");
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             for (String d : cumulativeReferenceMode) {
                 if (benchMarkData.get(d) == null) {
                     builder.append(",0.0");
