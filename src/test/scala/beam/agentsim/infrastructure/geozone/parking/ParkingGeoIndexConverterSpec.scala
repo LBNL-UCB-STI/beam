@@ -13,11 +13,8 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
 
     "convert Taz coordinates to GeoIndex accordingly to csv file" in {
       val tazParkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
-      println(s"@@@@@@@@@ tazParkingFile: ${Files.isRegularFile(tazParkingFile)}")
       val tazCentersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
-      println(s"@@@@@@@@@ tazCentersFile: ${Files.isRegularFile(tazCentersFile)}")
       val targetCentersFile = Paths.get("test/input/geozone/parking/target-centers.csv")
-      println(s"@@@@@@@@@ targetCentersFile: ${Files.isRegularFile(targetCentersFile)}")
 
       val converter: ParkingGeoIndexConverter[TazCoordinate] = ParkingGeoIndexConverter.tazParkingToGeoIndex(
         tazParkingFile = tazParkingFile,
