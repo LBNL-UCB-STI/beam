@@ -107,7 +107,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         updatePersonCount();
 
         hourModeFrequency.values().stream().filter(Objects::nonNull).flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Double::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count.longValue(), ShortLevel(), tags));
 
         updateRealizedModeChoiceInIteration(event.getIteration());
