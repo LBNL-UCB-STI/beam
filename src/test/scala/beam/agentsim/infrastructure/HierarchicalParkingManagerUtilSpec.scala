@@ -56,12 +56,14 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
       val numZones = List(1, 2, 3, 4)
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
-      val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
-          .drop(1)
+      val parkingZones = ZonalParkingManagerSpec
+        .makeParkingZones(treeMap, numZones)
+        .drop(1)
       val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
         HierarchicalParkingManager.createClusters(treeMap, parkingZones, 2)
-      val sumTAZesOverAllClusters = clusters.foldLeft(0) { case (acc, a) =>
-        acc + a.tazes.size
+      val sumTAZesOverAllClusters = clusters.foldLeft(0) {
+        case (acc, a) =>
+          acc + a.tazes.size
       }
       sumTAZesOverAllClusters should (be(treeMap.tazQuadTree.size()))
     }

@@ -5,7 +5,12 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams, ZoneSearchTree}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
+  ParkingAlternative,
+  ParkingZoneSearchConfiguration,
+  ParkingZoneSearchParams,
+  ZoneSearchTree
+}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
