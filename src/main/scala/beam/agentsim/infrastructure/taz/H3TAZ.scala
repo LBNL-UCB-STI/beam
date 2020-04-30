@@ -18,12 +18,7 @@ import scala.collection._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
   private def cfg = beamConfig.beam.agentsim.h3taz
-  if (cfg.lowerBoundResolution > cfg.upperBoundResolution) {
-    logger.error("lowerBoundResolution > upperBoundResolution")
-  }
-  if (cfg.maxNumberOfDemandPointsPerHexagon < 1) {
-    logger.error("maxNumberOfDemandPointsPerHexagon should be non null positive number")
-  }
+  if (cfg.lowerBoundResolution > cfg.upperBoundResolution) logger.error("lowerBoundResolution > upperBoundResolution")
   private val toH3CoordSystem =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
   private val toScenarioCoordSystem =
@@ -74,9 +69,9 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   // inputs: lowestLevel(=startingLevel), maxNumberOfDemandPointsPerHex, maxLevel, coordinates of demands
   //
   //Outputs: h3Indexes at different resolution levels
-  def getDemandPointsInferredH3IndexSet(dataPoints: Array[Coord]): Iterable[HexIndex] = {
-    val res = getDataPointsInferredH3IndexSet(dataPoints).toMap
-    if (res.exists(_._2.length > cfg.maxNumberOfDemandPointsPerHexagon)) {
+  def getDataPointsInferredH3IndexSet(dataPoints: Array[Coord], maxNumberOfDataPoints: Int): Iterable[HexIndex] = {
+    val res = getDataPointsInferredH3IndexSet(dataPoints, maxNumberOfDataPoints, cfg.lowerBoundResolution).toMap
+    if (res.exists(_._2.length > maxNumberOfDataPoints)) {
       logger.warn(
         "Due to the limit imposed by the upperBoundResolution, some hexagons have number of data points higher than maxNumberOfDataPoints"
       )
@@ -86,12 +81,12 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
 
   def getDataPointsInferredH3IndexSet(
     dataPoints: Array[Coord],
-    maxNumberOfDataPoints: Int = cfg.maxNumberOfDemandPointsPerHexagon,
-    lowestResolution: Int = cfg.lowerBoundResolution
+    maxNumberOfDataPoints: Int,
+    lowestResolution: Int
   ): Array[(HexIndex, Array[Coord])] = {
-    if (lowestResolution > cfg.upperBoundResolution) {
-      logger.error("lowestResolution > upperBoundResolution")
-    }
+    if (lowestResolution < cfg.lowerBoundResolution) logger.error("lowestResolution < lowerBoundResolution")
+    if (lowestResolution > cfg.upperBoundResolution) logger.error("lowestResolution > upperBoundResolution")
+    if (maxNumberOfDataPoints < 1) logger.error("maxNumberOfDataPoints < 1")
     val indexing = dataPoints.groupBy(getIndex).toArray
     val (a, b) = indexing.partition(_._2.length > maxNumberOfDataPoints)
     if (lowestResolution == cfg.upperBoundResolution)

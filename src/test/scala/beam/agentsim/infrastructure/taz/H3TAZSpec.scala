@@ -24,7 +24,6 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
                      |beam.agentsim.h3taz = {
                      |  lowerBoundResolution = 6
                      |  upperBoundResolution = 9
-                     |  maxNumberOfDemandPointsPerHexagon = 100
                      |}
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
@@ -56,7 +55,8 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
       .flatMap(_._2.getPlans.get(0).getPlanElements.asScala.filter(_.isInstanceOf[Activity]))
       .map(_.asInstanceOf[Activity].getCoord)
       .toArray
-    val indexes = services.beamScenario.h3taz.getDataPointsInferredH3IndexSet(demandPoints)
+    val indexes = services.beamScenario.h3taz
+      .getDataPointsInferredH3IndexSet(demandPoints, 100, beamConfig.beam.agentsim.h3taz.lowerBoundResolution)
     assert(indexes.nonEmpty, "Set of H3 indexes should not be empty.")
     assert(indexes.map(_._2.length).sum == demandPoints.length, "Not all coordinates were matched to an H3 Index")
   }
