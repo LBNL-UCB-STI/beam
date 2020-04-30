@@ -458,7 +458,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                 if (benchMarkData.get(d) == null) {
                     builder.append(",0.0");
                 } else {
-                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                    builder.append(",").append(benchMarkData.get(d) * 100 / sum);
                 }
             }
             out.write(builder.toString());
