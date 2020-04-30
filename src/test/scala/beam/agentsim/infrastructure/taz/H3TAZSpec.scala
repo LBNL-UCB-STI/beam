@@ -62,15 +62,26 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
       H3TAZ.getDataPointsInferredH3IndexSet(demandPoints, maxDemandPoints, lowestResolution, highestResolution)
     assert(indexes.nonEmpty, "Set of H3 indexes should not be empty.")
     assert(indexes.map(_._2.length).sum == demandPoints.length, "Not all coordinates were matched to an H3 Index")
-    assert(indexes.map(_._2.length).max <= 55,
-      "number of data points should be lower than or equal to 59"
+    val groups = indexes.groupBy(_._2.length)
+    assert(groups.size == 33, "number of different size of clusters should be 33")
+    assert(
+      (1 to 22).forall(groups.contains) && List(24, 25, 28, 29, 30, 32, 33, 34, 37, 52, 55).forall(groups.contains),
+      "something went wrong with the algorithm"
     )
+    indexes.foreach {
+      case (h3Index, _) =>
+        val resolution = H3TAZ.getResolution(h3Index)
+        require(
+          resolution >= lowestResolution && resolution <= highestResolution,
+          s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
+        )
+    }
 
     // the following tests are unnecessary
-    assert(
-      indexes.map(_._2.length).max <= maxDemandPoints,
-      "number of data points should be lower than or equal to 100"
-    )
+//    assert(
+//      indexes.map(_._2.length).max <= maxDemandPoints,
+//      "number of data points should be lower than or equal to 100"
+//    )
     assert(
       lowestResolution >= beamConfig.beam.agentsim.h3taz.lowerBoundResolution,
       "lowestResolution < lowerBoundResolution"

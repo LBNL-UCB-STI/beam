@@ -162,4 +162,5 @@ object H3TAZ {
         highestResolution
       )
   }
+  def getResolution(h3Index: HexIndex) = H3TAZ.H3.h3GetResolution(h3Index)
 }
