@@ -29,8 +29,8 @@ S3_PUBLISH_SCRIPT = '''
   -    for file in /home/ubuntu/git/beam/*.jfr; do
   -      echo "Zipping $file"
   -      zip "$file.zip" "$file"
+  -      sudo cp "$file.zip" "$finalPath"
   -    done;
-  -    sudo cp /home/ubuntu/git/beam/*.zip "$finalPath"
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
