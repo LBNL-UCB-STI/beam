@@ -65,35 +65,6 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
   }
   def getResolution: Int = cfg.lowerBoundResolution
-
-  // inputs: lowestLevel(=startingLevel), maxNumberOfDemandPointsPerHex, maxLevel, coordinates of demands
-  //
-  //Outputs: h3Indexes at different resolution levels
-  def getDataPointsInferredH3IndexSet(dataPoints: Array[Coord], maxNumberOfDataPoints: Int): Iterable[HexIndex] = {
-    val res = getDataPointsInferredH3IndexSet(dataPoints, maxNumberOfDataPoints, cfg.lowerBoundResolution).toMap
-    if (res.exists(_._2.length > maxNumberOfDataPoints)) {
-      logger.warn(
-        "Due to the limit imposed by the upperBoundResolution, some hexagons have number of data points higher than maxNumberOfDataPoints"
-      )
-    }
-    res.keys
-  }
-
-  def getDataPointsInferredH3IndexSet(
-    dataPoints: Array[Coord],
-    maxNumberOfDataPoints: Int,
-    lowestResolution: Int
-  ): Array[(HexIndex, Array[Coord])] = {
-    if (lowestResolution < cfg.lowerBoundResolution) logger.error("lowestResolution < lowerBoundResolution")
-    if (lowestResolution > cfg.upperBoundResolution) logger.error("lowestResolution > upperBoundResolution")
-    if (maxNumberOfDataPoints < 1) logger.error("maxNumberOfDataPoints < 1")
-    val indexing = dataPoints.groupBy(getIndex).toArray
-    val (a, b) = indexing.partition(_._2.length > maxNumberOfDataPoints)
-    if (lowestResolution == cfg.upperBoundResolution)
-      indexing
-    else
-      b ++ getDataPointsInferredH3IndexSet(a.flatMap(_._2), maxNumberOfDataPoints, lowestResolution + 1)
-  }
 }
 
 object H3TAZ {
@@ -169,5 +140,26 @@ object H3TAZ {
     ).asJava
     val holes = List.empty[java.util.List[GeoCoord]].asJava
     H3.polyfillAddress(points, holes, resolution).asScala
+  }
+
+  // coords are expected to be WGS84
+  def getDataPointsInferredH3IndexSet(
+    dataPoints: Array[Coord],
+    maxNumberOfDataPoints: Int,
+    lowestResolution: Int,
+    highestResolution: Int
+  ): Array[(HexIndex, Array[Coord])] = {
+    val indexing =
+      dataPoints.groupBy(coord => H3TAZ.H3.geoToH3Address(coord.getX, coord.getY, lowestResolution)).toArray
+    val (a, b) = indexing.partition(_._2.length > maxNumberOfDataPoints)
+    if (lowestResolution == highestResolution)
+      indexing
+    else
+      b ++ getDataPointsInferredH3IndexSet(
+        a.flatMap(_._2),
+        maxNumberOfDataPoints,
+        lowestResolution + 1,
+        highestResolution
+      )
   }
 }
