@@ -862,10 +862,11 @@ class PersonAgentSpec
     import scala.language.postfixOps
     import system.dispatcher
     implicit val timeout = Timeout(10 seconds)
-    val actorRef = system.actorSelection("user/BeamMobsim.iteration")
-        .resolveOne()
-        .map(ref => Some(ref))
-        .recover { case _: ActorNotFound => None }
+    val actorRef = system
+      .actorSelection("user/BeamMobsim.iteration")
+      .resolveOne()
+      .map(ref => Some(ref))
+      .recover { case _: ActorNotFound => None }
     val maybeIteration = Await.result(actorRef, 10 seconds)
     maybeIteration.foreach { iteration =>
       val probe = TestProbe()
