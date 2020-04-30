@@ -6,6 +6,7 @@ To generate new scenario for Beam we need to provide the following information:
 3. Shape files for:
     1. Traffic Analysis Zone (TAZ) shape file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/
     2. Block Group file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2019/BG/
+    3. County shape file from https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/ (in case if you want to crop the OSM map using counties' boundaries)
 4. Congestion level data for the area in CSV format
 5. Conditional work duration (can be created using [NHTS data](https://nhts.ornl.gov/))
 6. OSM PB map of area
