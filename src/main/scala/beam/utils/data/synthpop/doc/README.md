@@ -1,13 +1,13 @@
 #Beam scenario generator
 ## Data sources
-To generate new scenario for Beam we need to provide the following information:
-1. household.csv and people.csv as an output of SynthPop. How to run it: https://github.com/LBNL-UCB-STI/synthpop#how-to-run-it
-2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)), link to FTP: ftp://data5.ctpp.transportation.org/
+To generate new scenario for Beam by [beam.utils.data.synthpop.SimpleScenarioGenerator](../ScenarioGenerator.scala) we need to provide the following information:
+1. For every county, two files: household_STATE_COUNTY.csv and people_STATE_COUNTY.csv as an output of SynthPop. How to run it: https://github.com/LBNL-UCB-STI/synthpop#how-to-run-it
+2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)) for the state, link to FTP: ftp://data5.ctpp.transportation.org/
 3. Shape files for:
     1. Traffic Analysis Zone (TAZ) shape file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/
     2. Block Group file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2019/BG/
     3. County shape file from https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/ (in case if you want to crop the OSM map using counties' boundaries)
-4. Congestion level data for the area in CSV format
+4. Congestion level data for the area in CSV format, for example, from https://www.tomtom.com/en_gb/traffic-index/austin-traffic/
 5. Conditional work duration (can be created using [NHTS data](https://nhts.ornl.gov/))
 6. OSM PB map of area
 7. US state code

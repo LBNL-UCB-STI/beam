@@ -39,12 +39,12 @@ class SimpleScenarioGenerator(
   val pathToCTPPFolder: String,
   val pathToTazShapeFile: String,
   val pathToBlockGroupShapeFile: String,
-  val pathToCongestionLevelDataFile: String,
+  val pathToCongestionLevelDataFile: String,          // One can create it manually https://www.tomtom.com/en_gb/traffic-index/austin-traffic/
   val pathToWorkedHours: String,
-  val pathToOsmMap: String,
+  val pathToOsmMap: String,                           // Conditional work duration
   val stateCode: String,
   val randomSeed: Int,
-  val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
+  val offPeakSpeedMetersPerSecond: Double = 20.5638,  // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
