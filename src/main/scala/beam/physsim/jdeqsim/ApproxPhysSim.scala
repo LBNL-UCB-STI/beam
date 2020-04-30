@@ -12,6 +12,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.core.utils.misc.Time
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.annotation.tailrec
@@ -252,6 +253,8 @@ class ApproxPhysSim(
     val jdeqSimScenario = ScenarioUtils.createScenario(agentSimScenario.getConfig).asInstanceOf[MutableScenario]
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(finalPopulation)
+    val endTimeInSeconds = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt
+    jdeqSimScenario.getConfig.travelTimeCalculator().setMaxTime(endTimeInSeconds)
     jdeqSimScenario
   }
 
