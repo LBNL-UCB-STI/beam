@@ -1,8 +1,5 @@
 package beam.agentsim.infrastructure
 
-import java.time.temporal.ChronoUnit
-import java.time.{ZoneOffset, ZonedDateTime}
-
 import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
 import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
@@ -13,6 +10,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
+import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.algorithm.ConvexHull
 import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
@@ -49,8 +47,11 @@ class HierarchicalParkingManager(
   boundingBox: Envelope
 ) extends beam.utils.CriticalActor
     with ActorLogging {
-  private var inquiryCounter = 0
-  private var countTimeStart: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
+  private val counter = {
+    val displayPerformanceTimings = beamConfig.beam.agentsim.taz.parkingManager.displayPerformanceTimings
+    val logLevel = if (displayPerformanceTimings) Logging.InfoLevel else Logging.DebugLevel
+    new SimpleCounter(log, logLevel, "Receiving {} per seconds of ParkingInquiry for {}")
+  }
   private val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
@@ -60,7 +61,7 @@ class HierarchicalParkingManager(
         val emergencyId = Id.create(s"emergency-$i", classOf[TAZ])
         val actor = context.actorOf(
           ZonalParkingManager
-            .props(
+              .props(
               beamConfig,
               TAZTreeMap.fromSeq(cluster.tazes),
               zones,
@@ -80,7 +81,7 @@ class HierarchicalParkingManager(
 
   override def receive = {
     case inquiry: ParkingInquiry =>
-      inquiryCounter += 1
+      counter.count("all")
       val foundCluster = workers.find { w =>
         val point = HierarchicalParkingManager.geometryFactory.createPoint(inquiry.destinationUtm)
         w.cluster.convexHull.contains(point)
@@ -92,6 +93,7 @@ class HierarchicalParkingManager(
         )
         .get
 
+      counter.count(worker.cluster.presentation)
       worker.actor.forward(inquiry)
 
     case release @ ReleaseParkingStall(parkingZoneId, tazId) =>
@@ -101,16 +103,7 @@ class HierarchicalParkingManager(
       }
 
     case "tick" =>
-      val now = ZonedDateTime.now(ZoneOffset.UTC)
-      val millis = ChronoUnit.MILLIS.between(countTimeStart, now)
-      val rate = if (millis > 0) inquiryCounter * 1000.0 / millis else -1
-      if (rate > 0) {
-        val displayPerformanceTimings = beamConfig.beam.agentsim.taz.parkingManager.displayPerformanceTimings
-        val logLevel = if (displayPerformanceTimings) Logging.InfoLevel else Logging.DebugLevel
-        log.log(logLevel, "Receiving {} per seconds of ParkingInquiry", rate)
-      }
-      inquiryCounter = 0
-      countTimeStart = now
+      counter.tick()
   }
 
   private def findTazId(inquiry: ParkingInquiry): Id[TAZ] = {
@@ -191,14 +184,20 @@ object HierarchicalParkingManager extends LazyLogging {
     )
   }
 
-  private[infrastructure] case class ParkingCluster(tazes: Vector[TAZ], mean: Coord, convexHull: PreparedGeometry)
+  private[infrastructure] case class ParkingCluster(
+                                                       tazes: Vector[TAZ],
+                                                       mean: Coord,
+                                                       convexHull: PreparedGeometry,
+                                                       presentation: String
+                                                   )
+
   private case class Worker(actor: ActorRef, cluster: ParkingCluster, emergencyId: Id[TAZ])
 
   private[infrastructure] def createClusters(
-    tazTreeMap: TAZTreeMap,
-    zones: Array[ParkingZone],
-    numClusters: Int
-  ): Vector[ParkingCluster] = {
+                                                tazTreeMap: TAZTreeMap,
+                                                zones: Array[ParkingZone],
+                                                numClusters: Int
+                                            ): Vector[ParkingCluster] = {
     logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
     val pgf = new PreparedGeometryFactory
     if (tazTreeMap.tazQuadTree.size() == 0) {
@@ -214,7 +213,8 @@ object HierarchicalParkingManager extends LazyLogging {
         ParkingCluster(
           tazTreeMap.getTAZs.toVector,
           new Coord(0.0, 0.0),
-          pgf.create(polygon)
+          pgf.create(polygon),
+          "single-empty-cluster"
         )
       )
     } else {
@@ -227,39 +227,43 @@ object HierarchicalParkingManager extends LazyLogging {
         true
       )
       val result = kmeans.run(db)
-      val clusters = result.getAllClusters.asScala.toVector.map { clu =>
-        val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-        val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
-        val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
-        val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
-        val empty: ArrayBuffer[TAZ] = new ArrayBuffer[TAZ]()
-        val iter: DBIDIter = clu.getIDs.iter()
-        while (iter.valid()) {
-          val o: DoubleVector = rel.get(iter)
-          val id: String = labels.get(iter)
-          if (id.startsWith("taz")) {
-            empty += emptyTAZes(id.substring(3).toInt)
-          } else {
-            clusterZones += zones(id.toInt)
+      val clusters = result.getAllClusters.asScala.toVector.zipWithIndex.map {
+        case (clu, idx) =>
+          val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+          val labels: Relation[String] = db.getRelation(TypeUtil.STRING)
+          val coords: ArrayBuffer[Coordinate] = new ArrayBuffer(clu.size())
+          val clusterZones: ArrayBuffer[ParkingZone] = new ArrayBuffer(clu.size())
+          val empty: ArrayBuffer[TAZ] = new ArrayBuffer[TAZ]()
+          val iter: DBIDIter = clu.getIDs.iter()
+          while (iter.valid()) {
+            val o: DoubleVector = rel.get(iter)
+            val id: String = labels.get(iter)
+            if (id.startsWith("taz")) {
+              empty += emptyTAZes(id.substring(3).toInt)
+            } else {
+              clusterZones += zones(id.toInt)
+            }
+            coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
+            iter.advance()
           }
-          coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
-          iter.advance()
-        }
-        val dCoords = coords.distinct
-        if (dCoords.size == 1) {
-          //means a single point which is not allowed by ConvexHull
-          val center = coords(0)
-          dCoords(0) = new Coordinate(center.x - .1, center.y - .1)
-          dCoords += new Coordinate(center.x + .1, center.y - .1)
-          dCoords += new Coordinate(center.x + .1, center.y + .1)
-          dCoords += new Coordinate(center.x - .1, center.y + .1)
-        }
-        val convexHull = pgf.create(new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull)
-        val tazes = clusterZones
-          .map(_.tazId)
-          .distinct
-          .map(tazTreeMap.getTAZ(_).get) ++ empty
-        ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull)
+          val dCoords = coords.distinct
+          if (dCoords.size == 1) {
+            //means a single point which is not allowed by ConvexHull
+            val center = coords(0)
+            dCoords(0) = new Coordinate(center.x - .1, center.y - .1)
+            dCoords += new Coordinate(center.x + .1, center.y - .1)
+            dCoords += new Coordinate(center.x + .1, center.y + .1)
+            dCoords += new Coordinate(center.x - .1, center.y + .1)
+          }
+          val ch = new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull
+          val convexHull = pgf.create(ch)
+          val tazes = clusterZones
+              .map(_.tazId)
+              .distinct
+              .map(tazTreeMap.getTAZ(_).get) ++ empty
+          val centroid = ch.getCentroid
+          val clusterMeanStr = String.format("(%.2f, %.2f)", Double.box(centroid.getX), Double.box(centroid.getY))
+          ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull, s"$idx-$clusterMeanStr")
       }
       logger.info(s"Done clustering: ${clusters.size}")
       logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
