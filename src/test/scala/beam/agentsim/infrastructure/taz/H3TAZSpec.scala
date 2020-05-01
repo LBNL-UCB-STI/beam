@@ -76,19 +76,5 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
           s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
         )
     }
-
-    // the following tests are unnecessary
-//    assert(
-//      indexes.map(_._2.length).max <= maxDemandPoints,
-//      "number of data points should be lower than or equal to 100"
-//    )
-    assert(
-      lowestResolution >= beamConfig.beam.agentsim.h3taz.lowerBoundResolution,
-      "lowestResolution < lowerBoundResolution"
-    )
-    assert(
-      highestResolution <= beamConfig.beam.agentsim.h3taz.upperBoundResolution,
-      "highestResolution > upperBoundResolution"
-    )
   }
 }
