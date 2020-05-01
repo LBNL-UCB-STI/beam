@@ -390,12 +390,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
             hourToCategories.forEach((hour, catToCnt) -> {
                 catToCnt.forEach((category, count) -> {
-                    String categoryName = "";
-                    if (category.equals(categoryValueMax)) {
-                        categoryName = df.format(categoryValueBeforeMax) + "+";
-                    } else {
-                        categoryName = df.format(category);
-                    }
+                    final String categoryName = category.equals(categoryValueMax)
+                            ? df.format(categoryValueBeforeMax) + "+"
+                            : df.format(category);
 
                     HashMap<String, String> tags = new HashMap<>(1);
                     tags.put("category", categoryName);
