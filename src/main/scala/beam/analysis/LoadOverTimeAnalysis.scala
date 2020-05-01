@@ -134,7 +134,7 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
     hourlyLoadData: mutable.Map[String, mutable.Map[Int, (Double, Int)]]
   ): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
-    val allHours = hourlyLoadData.flatMap(tup => tup._2.map(_._1)).toList.distinct.sorted
+    val allHours = hourlyLoadData.flatMap(tup => tup._2.keys).toList.distinct.sorted
     hourlyLoadData.foreach {
       case (loadType, hourlyLoadMap) =>
         allHours.foreach { hour =>
