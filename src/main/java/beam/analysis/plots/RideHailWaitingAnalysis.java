@@ -189,11 +189,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private int calculateNumOfTimeBins(BeamConfig beamConfig) {
         final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
-        Double _endTime = Time.parseTime(endTime);
-        Double _noOfTimeBins = _endTime / timeBinSize;
+        double _endTime = Time.parseTime(endTime);
+        double _noOfTimeBins = _endTime / timeBinSize;
         _noOfTimeBins = Math.floor(_noOfTimeBins);
 
-        return _noOfTimeBins.intValue() + 1;
+        return (int) _noOfTimeBins + 1;
     }
 
     @Override
