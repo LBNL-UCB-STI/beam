@@ -262,11 +262,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 None
               } else {
                 val routingRequest = RoutingRequest(
-                  orig.activity.getCoord,
-                  dest.activity.getCoord,
-                  origin.time,
+                  originUTM = orig.activity.getCoord,
+                  destinationUTM = dest.activity.getCoord,
+                  departureTime = origin.time,
                   withTransit = false,
-                  IndexedSeq(
+                  streetVehicles = IndexedSeq(
                     StreetVehicle(
                       vehicleAndOldSchedule.vehicle.id,
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
