@@ -391,17 +391,15 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             DecimalFormat df = new DecimalFormat("##");
             df.setRoundingMode(RoundingMode.FLOOR);
 
-            hourToCategories.forEach((hour, catToCnt) -> {
-                catToCnt.forEach((category, count) -> {
-                    final String categoryName = category.equals(categoryValueMax)
-                            ? df.format(categoryValueBeforeMax) + "+"
-                            : df.format(category);
+            hourToCategories.forEach((hour, catToCnt) -> catToCnt.forEach((category, count) -> {
+                final String categoryName = category.equals(categoryValueMax)
+                        ? df.format(categoryValueBeforeMax) + "+"
+                        : df.format(category);
 
-                    HashMap<String, String> tags = new HashMap<>(1);
-                    tags.put("category", categoryName);
-                    simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
-                });
-            });
+                HashMap<String, String> tags = new HashMap<>(1);
+                tags.put("category", categoryName);
+                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
+            }));
         }
     }
 
