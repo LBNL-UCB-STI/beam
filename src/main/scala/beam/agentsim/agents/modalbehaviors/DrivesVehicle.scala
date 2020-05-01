@@ -54,8 +54,8 @@ object DrivesVehicle {
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
     if (updatedLegsInSchedule
-      .sliding(2)
-      .exists(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)) {
+          .sliding(2)
+          .exists(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)) {
       val i = 0
     }
     val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
