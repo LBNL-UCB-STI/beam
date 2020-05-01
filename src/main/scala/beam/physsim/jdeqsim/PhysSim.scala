@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -209,6 +210,8 @@ class PhysSim(
     val jdeqSimScenario = ScenarioUtils.createScenario(agentSimScenario.getConfig).asInstanceOf[MutableScenario]
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(population)
+    val endTimeInSeconds = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt
+    jdeqSimScenario.getConfig.travelTimeCalculator().setMaxTime(endTimeInSeconds)
     jdeqSimScenario
   }
 }
