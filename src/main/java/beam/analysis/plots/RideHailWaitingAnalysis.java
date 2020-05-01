@@ -181,16 +181,19 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         this.simMetricCollector = simMetricCollector;
-        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
-
         this.geo = geo;
         this.transportNetwork = transportNetwork;
+        numberOfTimeBins = calculateNumOfTimeBins(beamConfig);
+    }
 
+    private int calculateNumOfTimeBins(BeamConfig beamConfig) {
+        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
         Double _noOfTimeBins = _endTime / timeBinSize;
         _noOfTimeBins = Math.floor(_noOfTimeBins);
-        numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+
+        return _noOfTimeBins.intValue() + 1;
     }
 
     @Override
