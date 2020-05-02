@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure.geozone
 
 import scala.collection.JavaConverters._
-
 import java.util.{Collections => JCollections}
+
+import com.uber.h3core.AreaUnit
 
 object H3Wrapper {
 
@@ -12,6 +13,10 @@ object H3Wrapper {
 
   def getIndex(point: WgsCoordinate, resolution: Int): GeoIndex = {
     GeoIndex(h3Core.geoToH3Address(point.latitude, point.longitude, resolution))
+  }
+
+  def areaInM2(index: GeoIndex): Double = {
+    h3Core.hexArea(index.resolution, AreaUnit.m2)
   }
 
   def geoToH3Address(point: WgsCoordinate, resolution: Int): String = {
@@ -36,6 +41,11 @@ object H3Wrapper {
       .asScala
       .map(GeoIndex.apply)
       .toSet
+  }
+
+  def wgsCoordinate(index: GeoIndex): WgsCoordinate = {
+    val coord = h3Core.h3ToGeo(index.value)
+    WgsCoordinate(latitude = coord.lat, longitude = coord.lng)
   }
 
   private[geozone] val h3Core = com.uber.h3core.H3Core.newInstance
