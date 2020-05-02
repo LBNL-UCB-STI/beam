@@ -68,9 +68,9 @@ object ParkingGeoIndexConverter {
   def tazParkingToGeoIndex(
     tazParkingFile: Path,
     tazCentersFile: Path,
-    targetIndexesFile: Path
+    targetCentersFile: Path
   ): ParkingGeoIndexConverter[TazCoordinate] = {
-    val targetIndexes = GeoIndexFileReader.readIndexes(targetIndexesFile)
+    val targetIndexes = GeoIndexFileReader.readIndexes(targetCentersFile)
     new ParkingGeoIndexConverter(
       parkingEntriesContainer = ParkingEntriesContainer.fromTaz(tazParkingFile, tazCentersFile),
       indexMapperBuilder = GeoIndexMapperBuilder.wgsCoordinate(targetIndexes.par)
@@ -79,9 +79,9 @@ object ParkingGeoIndexConverter {
 
   def geoIndexParkingToGeoIndex(
     geoIndexParkingFile: Path,
-    targetIndexesFile: Path
+    targetCentersFile: Path
   ): ParkingGeoIndexConverter[GeoIndex] = {
-    val targetIndexes = GeoIndexFileReader.readIndexes(targetIndexesFile)
+    val targetIndexes = GeoIndexFileReader.readIndexes(targetCentersFile)
     val container = ParkingEntriesContainer.fromGeoIndex(geoIndexParkingFile)
     new ParkingGeoIndexConverter(
       parkingEntriesContainer = container,
