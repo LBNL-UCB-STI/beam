@@ -17,20 +17,20 @@ import scala.util.Try
 object OsmosisPolygonFilterGenerator extends StrictLogging {
 
   // How to run
-  // ./gradlew execute -PmainClass=beam.utils.map.OsmosisPolygonFilterGenerator -PappArgs="['D:/Work/beam/Austin/input/tl_2017_us_county/tl_2017_us_county.shp', '48', 'williamson,bastrop,burnet,caldwell,hays,travis', 'D:/Work/beam/Austin/results']" -PmaxRAM=4g
+  // ./gradlew execute -PmainClass=beam.utils.map.OsmosisPolygonFilterGenerator -PappArgs="['D:/Work/beam/Austin/input/tl_2017_us_county/tl_2017_us_county.shp', '48209,48055', 'D:/Work/beam/Austin/results']" -PmaxRAM=4g
+  // 48209 - is geo id for the county. First two digits represent state code, in this case it is 48 which is Texas. Last three digits represent county code, in this case it is 209 which is Hays county
   def main(args: Array[String]): Unit = {
-    require(args.length == 4)
+    require(args.length == 3)
     val pathToCountyShapeFile = args(0)
-    val stateCodes = args(1).split(",").map(_.toLowerCase).toSet
-    val counties = args(2).split(",").map(_.toLowerCase).toSet
-    val pathToOutputFolder = args(3)
+    val geoIds = if (args(1) == "") Set.empty[String] else args(1).split(",").map(_.trim.toLowerCase).toSet
+    val pathToOutputFolder = args(2)
 
     logger.info(s"pathToCountyShapeFile: ${pathToCountyShapeFile}")
-    logger.info(s"counties to take: ${counties}")
+    logger.info(s"geoIds to take: ${geoIds}")
     logger.info(s"pathToOutputFolder: ${pathToOutputFolder}")
 
-    val countyWithGeom: Array[(String, Geometry)] = readShape(pathToCountyShapeFile, stateCodes, counties)
-    logger.info(s"countyWithGeom: ${countyWithGeom.size}")
+    val countyWithGeom: Array[(String, Geometry)] = readShape(pathToCountyShapeFile, geoIds)
+    logger.info(s"countyWithGeom: ${countyWithGeom.length}")
 
     // You can use QGis to see how does the result geometry look
     writeWktForDebuggingPurpose(pathToOutputFolder, countyWithGeom)
@@ -63,6 +63,7 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     Files.write(
       new File(path).toPath,
       sb.toString.getBytes(StandardCharsets.UTF_8),
+      StandardOpenOption.CREATE,
       StandardOpenOption.TRUNCATE_EXISTING
     )
 
@@ -70,11 +71,10 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     // `D:\Work\beam\Austin\osmosis\bin\osmosis.bat --read-pbf file="D:\Work\beam\Austin\texas-latest.osm.pbf" --log-progress --bounding-polygon file="D:\Work\beam\Austin\results\counties.poly" completeWays=yes completeRelations=yes clipIncompleteEntities=true --tf reject-ways highway=service,proposed,construction,abandoned,platform,raceway --write-pbf file="d:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"`
   }
 
-  private def readShape(path: String, stateCodes: Set[String], counties: Set[String]): Array[(String, Geometry)] = {
+  private def readShape(path: String, geoIds: Set[String]): Array[(String, Geometry)] = {
     def filter(feature: SimpleFeature): Boolean = {
-      val state = feature.getAttribute("STATEFP").toString
-      val countyName = feature.getAttribute("NAME").toString.toLowerCase
-      stateCodes.contains(state) && counties.contains(countyName)
+      val geoId = feature.getAttribute("GEOID").toString
+      geoIds.contains(geoId)
     }
     def map(mt: MathTransform, feature: SimpleFeature): (String, Geometry) = {
       val countyName = feature.getAttribute("NAME").toString.toLowerCase
