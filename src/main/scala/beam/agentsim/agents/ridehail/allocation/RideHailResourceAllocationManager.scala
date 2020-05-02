@@ -150,7 +150,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(requestWithUpdatedLoc)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
+      case (request, routingResponses) if routingResponses.exists(_.itineraries.isEmpty) =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         val requestUpdated = RideHailRequest.handleImpression(request, beamServices)
