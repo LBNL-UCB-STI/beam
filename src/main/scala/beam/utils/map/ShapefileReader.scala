@@ -3,12 +3,14 @@ package beam.utils.map
 import java.io.File
 
 import org.geotools.data.shapefile.ShapefileDataStore
+import org.geotools.data.shapefile.shp.ShapefileException
 import org.geotools.referencing.CRS
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
 import scala.reflect.ClassTag
 import scala.util.Try
+import scala.util.control.NonFatal
 
 object ShapefileReader {
 
@@ -30,7 +32,12 @@ object ShapefileReader {
           override def next(): SimpleFeature = fe.next()
         }
         it.filter(filter).map(mapper(mt, _)).toArray
-      } finally {
+      }
+      catch {
+        case NonFatal(ex) =>
+          throw new ShapefileException(s"Error during reading shape file '${path}'", ex)
+      }
+      finally {
         Try(fe.close())
       }
     } finally {
