@@ -33,8 +33,11 @@ object TotalHouseholdsTableReader {
 
   def main(args: Array[String]): Unit = {
     val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
-    val rdr = new TotalHouseholdsTableReader(databaseInfo, ResidenceGeography.TAZ)
+    val rdr = new TotalHouseholdsTableReader(databaseInfo, ResidenceGeography.State)
     val readData = rdr.read()
-    println(s"Total number of households: ${readData.values.sum}")
+    readData.foreach {
+      case (geoId, count) =>
+        println(s"$geoId: $count")
+    }
   }
 }

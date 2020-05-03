@@ -44,7 +44,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
   }
 
   private val ageMapF = Future {
-    new AgeTableReader(dbInfo, residenceGeography).read()
+    new AgeTableReader(dbInfo, ResidenceGeography.State).read()
   }
 
   private val vehiclesAvailableMapF = Future {

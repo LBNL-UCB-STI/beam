@@ -37,7 +37,10 @@ object TotalPopulationTableReader {
 
     println(s"Number of keys: ${readData.size}")
     val totalNumberOfPeopleInAllGeoIds = readData.map(_._2).sum
+    readData.foreach {
+      case (geoId, count) =>
+        println(s"$geoId: $count")
+    }
     println(s"totalNumberOfPeopleInAllGeoIds: $totalNumberOfPeopleInAllGeoIds")
-
   }
 }

@@ -1,6 +1,5 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{AgeRange, ResidenceGeoParser, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
@@ -60,7 +59,7 @@ object AgeTableReader {
   def main(args: Array[String]): Unit = {
     val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
     val rdr =
-      new AgeTableReader(databaseInfo, ResidenceGeography.TAZ)
+      new AgeTableReader(databaseInfo, ResidenceGeography.State)
     val readData = rdr.read()
     val ageToTotalNumberOfWorkers = readData.values.flatten
       .groupBy { case (age, cnt) => age }

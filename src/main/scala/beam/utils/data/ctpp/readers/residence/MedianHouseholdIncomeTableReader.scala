@@ -2,7 +2,7 @@ package beam.utils.data.ctpp.readers.residence
 
 import beam.utils.data.ctpp.models.ResidenceGeography
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
 
 class MedianHouseholdIncomeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)

@@ -2,7 +2,7 @@ package beam.utils.data.ctpp.readers.residence
 
 import beam.utils.data.ctpp.models.{HouseholdSize, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class HouseholdSizeByUnitsInStructureTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
     extends BaseTableReader(dbInfo, Table.HouseholdSizeByUnitsInStructure, Some(residenceGeography.level)) {
@@ -34,5 +34,24 @@ class HouseholdSizeByUnitsInStructureTableReader(dbInfo: CTPPDatabaseInfo, val r
           geoId -> householdTypeToFreq
       }
     map
+  }
+}
+
+object HouseholdSizeByUnitsInStructureTableReader {
+
+  def main(args: Array[String]): Unit = {
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
+    val rdr =
+      new HouseholdSizeByUnitsInStructureTableReader(databaseInfo, ResidenceGeography.State)
+    val readData = rdr.read()
+    readData.foreach {
+      case (geoId, map) =>
+        println(s"geoId: $geoId")
+        map.foreach {
+          case (size, count) =>
+            println(s"$size: $count")
+
+        }
+    }
   }
 }
