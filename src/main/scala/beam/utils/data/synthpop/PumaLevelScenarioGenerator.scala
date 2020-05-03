@@ -119,7 +119,6 @@ class PumaLevelScenarioGenerator(
 
   private val geoSvc: GeoService = new GeoService(
     GeoServiceInputParam("", pathToBlockGroupShapeFile, pathToOsmMap),
-    uniqueStates,
     uniqueGeoIds
   )
 

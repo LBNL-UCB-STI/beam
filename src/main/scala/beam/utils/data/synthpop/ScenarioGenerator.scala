@@ -1,5 +1,6 @@
 package beam.utils.data.synthpop
 
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.sim.common.GeoUtils
@@ -9,12 +10,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
-import beam.utils.data.synthpop.generators.{
-  RandomWorkDestinationGenerator,
-  TimeLeavingHomeGenerator,
-  TimeLeavingHomeGeneratorImpl,
-  WorkedDurationGeneratorImpl
-}
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
@@ -130,7 +126,6 @@ class SimpleScenarioGenerator(
 
   private val geoSvc: GeoService = new GeoService(
     GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile, pathToOsmMap),
-    uniqueStates,
     uniqueGeoIds
   )
 
@@ -484,7 +479,7 @@ object SimpleScenarioGenerator {
     /*
     Args:
       "D:\Work\beam\Austin\input\"
-      "D:\Work\beam\Austin\input\CTPP\48"
+      "D:\Work\beam\Austin\input\CTPP\"
       "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
       "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
       "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
@@ -494,6 +489,8 @@ object SimpleScenarioGenerator {
       "D:\Work\beam\Austin\results"
      * */
     val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPPFolder), stateCodes)
+
+    require(new File(pathToOutput).mkdirs(), s"$pathToOutput exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(
