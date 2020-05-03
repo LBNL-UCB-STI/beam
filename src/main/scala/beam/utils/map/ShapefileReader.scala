@@ -32,12 +32,10 @@ object ShapefileReader {
           override def next(): SimpleFeature = fe.next()
         }
         it.filter(filter).map(mapper(mt, _)).toArray
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           throw new ShapefileException(s"Error during reading shape file '${path}'", ex)
-      }
-      finally {
+      } finally {
         Try(fe.close())
       }
     } finally {

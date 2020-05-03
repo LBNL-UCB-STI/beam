@@ -174,8 +174,7 @@ object GeoService {
   private def search(file: File, filter: FileFilter, result: Set[File], visited: Set[File]): Set[File] = {
     if (visited.contains(file)) {
       result
-    }
-    else {
+    } else {
       val files = file.listFiles()
       val folders = files.filter(f => f.isDirectory && f.canRead)
       val respectFilter = files.filter(f => filter.accept(f))
