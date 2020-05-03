@@ -41,11 +41,16 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
       0
     }
 
-    // Read geoid
-    val state = State(GenericCsvReader.getIfNotNull(rec, "state").toString)
-    val county = County(GenericCsvReader.getIfNotNull(rec, "county").toString)
-    val tract = GenericCsvReader.getIfNotNull(rec, "tract").toString
-    val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group").toString
+    // Read attributes for BlockGroupGeoId
+    val state = State(GenericCsvReader.getIfNotNull(rec, "state"))
+    val countyAsInt = GenericCsvReader.getIfNotNull(rec, "county").toInt
+    // In order to match with Shape file we need to format it. In shape file COUNTYFP attribute consist of 3 digits (possibly zeros)
+    val county = County(countyAsInt.formatted("%03d"))
+
+    // In order to match with Shape file we need to format it. In shape file TRACTCE attribute consist of 6 digits (possibly zeros)
+    val tract = GenericCsvReader.getIfNotNull(rec, "tract").toInt.formatted("%06d")
+
+    val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group")
     val geoId = BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroupId)
 
     Household(
