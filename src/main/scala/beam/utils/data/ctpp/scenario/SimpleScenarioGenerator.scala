@@ -3,7 +3,7 @@ package beam.utils.data.ctpp.scenario
 import java.util.Random
 
 import beam.utils.data.ctpp.models._
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.residence.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
 import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
 import beam.utils.data.ctpp.readers.residence.TotalHouseholdsTableReader.TotalHouseholds
@@ -26,7 +26,7 @@ import org.matsim.households.Households
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class SimpleScenarioGenerator(val pathToDoc: String, val pathToData: String, val javaRnd: Random)(
+class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInfo, val javaRnd: Random)(
   implicit val ex: ExecutionContext
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -36,38 +36,38 @@ class SimpleScenarioGenerator(val pathToDoc: String, val pathToData: String, val
   // We read data in parallel. Not very smart, but better than sequential
 
   private val totalHouseholdsMapF = Future {
-    new TotalHouseholdsTableReader(PathToData(pathToData), residenceGeography).read()
+    new TotalHouseholdsTableReader(dbInfo, residenceGeography).read()
   }
 
   private val totalPopulationMapF = Future {
-    new TotalPopulationTableReader(PathToData(pathToData), residenceGeography).read()
+    new TotalPopulationTableReader(dbInfo, residenceGeography).read()
   }
 
   private val ageMapF = Future {
-    new AgeTableReader(PathToData(pathToData), residenceGeography).read()
+    new AgeTableReader(dbInfo, residenceGeography).read()
   }
 
   private val vehiclesAvailableMapF = Future {
-    new VehiclesAvailableTableReader(PathToData(pathToData), residenceGeography).read()
+    new VehiclesAvailableTableReader(dbInfo, residenceGeography).read()
   }
 
   private val sexMapF = Future {
-    new SexTableReader(PathToData(pathToData), residenceGeography).read()
+    new SexTableReader(dbInfo, residenceGeography).read()
   }
 
   private val medianHouseholdIncomeMapF = Future {
-    new MedianHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography).read()
+    new MedianHouseholdIncomeTableReader(dbInfo, residenceGeography).read()
   }
 
   private val meanHouseholdIncomeMapF = Future {
-    new MeanHouseholdIncomeTableReader(PathToData(pathToData), residenceGeography).read()
+    new MeanHouseholdIncomeTableReader(dbInfo, residenceGeography).read()
   }
 
   private val householdSizeMapF = Future {
-    new HouseholdSizeByUnitsInStructureTableReader(PathToData(pathToData), residenceGeography).read()
+    new HouseholdSizeByUnitsInStructureTableReader(dbInfo, residenceGeography).read()
   }
   private val usualHoursWorkedPerWeekMapF = Future {
-    new UsualHoursWorkedPerWeekTableReader(PathToData(pathToData), residenceGeography).read()
+    new UsualHoursWorkedPerWeekTableReader(dbInfo, residenceGeography).read()
   }
 //
 //  // Wait when data is read
@@ -208,12 +208,10 @@ object SimpleScenarioGenerator {
 
   def main(args: Array[String]): Unit = {
     implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
 
-    val scenarioGenerator = new SimpleScenarioGenerator(
-      "D:/Work/beam/Austin/2012-2016 CTPP documentation",
-      "D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48",
-      new Random(42)
-    )
+    val scenarioGenerator =
+      new SimpleScenarioGenerator("D:/Work/beam/Austin/2012-2016 CTPP documentation", databaseInfo, new Random(42))
     val f = scenarioGenerator.generate
     val result = Await.result(f, 5.minutes)
     println(s"result: ${result}")

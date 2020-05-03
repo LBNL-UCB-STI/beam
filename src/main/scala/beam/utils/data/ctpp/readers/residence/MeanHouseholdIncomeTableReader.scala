@@ -1,17 +1,15 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.ResidenceGeography
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import beam.utils.data.ctpp.readers.residence.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
 
-class MeanHouseholdIncomeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.MeanHouseholdIncome, Some(residenceGeography.level)) {
+class MeanHouseholdIncomeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.MeanHouseholdIncome, Some(residenceGeography.level)) {
 
   def read(): MeanHouseholdIncome = {
-    val map = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val map = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>

@@ -1,7 +1,7 @@
 package beam.utils.data.synthpop.generators
 
 import beam.utils.data.ctpp.models.{HouseholdIncome, OD, ResidenceToWorkplaceFlowGeography}
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
 import beam.utils.data.synthpop.ODSampler
 import com.typesafe.scalalogging.StrictLogging
@@ -11,11 +11,9 @@ trait WorkDestinationGenerator {
   def next(homeLocation: String, income: Double, rndGen: RandomGenerator): Option[String]
 }
 
-class RandomWorkDestinationGenerator(val pathToCTPPData: PathToData)
-    extends WorkDestinationGenerator
-    with StrictLogging {
-  private val householdGeoIdToIncomeOD: Map[String, Seq[OD[HouseholdIncome]]] =
-    new HouseholdIncomeTableReader(pathToCTPPData, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
+class RandomWorkDestinationGenerator(val dbInfo: CTPPDatabaseInfo) extends WorkDestinationGenerator with StrictLogging {
+  private val householdGeoIdToIncomeOD: Map[String, Iterable[OD[HouseholdIncome]]] =
+    new HouseholdIncomeTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
       .read()
       .groupBy(x => x.source)
 

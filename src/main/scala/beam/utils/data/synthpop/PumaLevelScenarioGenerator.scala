@@ -5,7 +5,7 @@ import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
 import beam.utils.ProfilingUtils
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.TimeLeavingHomeTableReader
 import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
@@ -27,7 +27,7 @@ case class PersonWithExtraInfoPuma(person: Models.Person, workDest: PowPumaGeoId
 class PumaLevelScenarioGenerator(
   val pathToHouseholdFile: String,
   val pathToPopulationFile: String,
-  val pathToCTPPFolder: String,
+  val dbInfo: CTPPDatabaseInfo,
   val pathToPumaShapeFile: String,
   val pathToPowPumaShapeFile: String,
   val pathToBlockGroupShapeFile: String,
@@ -80,15 +80,14 @@ class PumaLevelScenarioGenerator(
     legRouteLinks = Seq.empty
   )
 
-  private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData)
+    new RandomWorkDestinationGenerator(dbInfo)
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
   private val sourceToTimeLeavingOD =
-    new TimeLeavingHomeTableReader(pathToCTPPData, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
+    new TimeLeavingHomeTableReader(dbInfo, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
   private val households: Map[String, Models.Household] =
@@ -455,11 +454,13 @@ object PumaLevelScenarioGenerator {
       "D:\Work\beam\Austin\results"
      * */
 
+    val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPPFolder), Set("48"))
+
     val gen =
       new PumaLevelScenarioGenerator(
         pathToHouseholdFile,
         pathToPopulationFile,
-        pathToCTPPFolder,
+        databaseInfo,
         pathToPumaShapeFile,
         pathToPowPumaShapeFile,
         pathToBlockGroupShapeFile,

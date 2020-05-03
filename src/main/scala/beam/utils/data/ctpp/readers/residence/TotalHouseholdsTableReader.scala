@@ -1,17 +1,15 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.ResidenceGeography
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 import beam.utils.data.ctpp.readers.residence.TotalHouseholdsTableReader.TotalHouseholds
 
-class TotalHouseholdsTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.TotalHouseholds, Some(residenceGeography.level)) {
+class TotalHouseholdsTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.TotalHouseholds, Some(residenceGeography.level)) {
 
   def read(): TotalHouseholds = {
-    val map = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val map = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>
@@ -34,10 +32,8 @@ object TotalHouseholdsTableReader {
   }
 
   def main(args: Array[String]): Unit = {
-    val rdr = new TotalHouseholdsTableReader(
-      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
-      ResidenceGeography.TAZ
-    )
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
+    val rdr = new TotalHouseholdsTableReader(databaseInfo, ResidenceGeography.TAZ)
     val readData = rdr.read()
     println(s"Total number of households: ${readData.values.sum}")
   }

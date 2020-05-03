@@ -1,15 +1,14 @@
 package beam.utils.data.ctpp.readers.flow
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{AgeRange, FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class AgeOfWorkerTableReader(
-  pathToData: PathToData,
+  dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
-      pathToData,
+      dbInfo,
       Table.AgeOfWorker,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
@@ -37,26 +36,22 @@ class AgeOfWorkerTableReader(
     8 -> AgeRange(Range.inclusive(75, 100))
   ) // 75 years and over
 
-  def read(): Seq[OD[AgeRange]] = {
-    CTPPParser
-      .readTable(pathToCsvTable, x => geographyLevelFilter(x))
-      .flatMap { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
-        lineNumberToAge.get(entry.lineNumber).map { ageRange =>
-          OD(fromGeoId, toGeoId, ageRange, entry.estimate)
-        }
+  def read(): Iterable[OD[AgeRange]] = {
+    readRaw().flatMap { entry =>
+      val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+      lineNumberToAge.get(entry.lineNumber).map { ageRange =>
+        OD(fromGeoId, toGeoId, ageRange, entry.estimate)
       }
+    }
   }
 }
 
 object AgeOfWorkerTableReader {
 
   def main(args: Array[String]): Unit = {
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
     val rdr =
-      new AgeOfWorkerTableReader(
-        PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
-        ResidenceToWorkplaceFlowGeography.`State To State`
-      )
+      new AgeOfWorkerTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`State To State`)
     val readData = rdr.read()
     readData.foreach { od =>
       println(od)

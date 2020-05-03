@@ -3,10 +3,10 @@ package beam.utils.data.ctpp.readers.residence
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{AgeRange, ResidenceGeoParser, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
-class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.Age, Some(residenceGeography.level)) {
+class AgeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.Age, Some(residenceGeography.level)) {
 
   private val lineNumberToAge: Map[Int, AgeRange] = Map(
     2  -> AgeRange(Range(0, 16)),
@@ -22,8 +22,7 @@ class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGe
   )
 
   def read(): Map[String, Map[AgeRange, Double]] = {
-    val seq = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val seq = readRaw()
       .filter(x => x.geoId.startsWith("C0200US")) // `00` => Not a geographic component
     val ageMap = seq
       .flatMap { entry =>
@@ -59,8 +58,9 @@ class AgeTableReader(pathToData: PathToData, val residenceGeography: ResidenceGe
 object AgeTableReader {
 
   def main(args: Array[String]): Unit = {
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
     val rdr =
-      new AgeTableReader(PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"), ResidenceGeography.TAZ)
+      new AgeTableReader(databaseInfo, ResidenceGeography.TAZ)
     val readData = rdr.read()
     val ageToTotalNumberOfWorkers = readData.values.flatten
       .groupBy { case (age, cnt) => age }

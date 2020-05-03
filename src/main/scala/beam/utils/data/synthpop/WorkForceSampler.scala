@@ -1,7 +1,7 @@
 package beam.utils.data.synthpop
 
 import beam.utils.data.ctpp.models.{AgeRange, OD, ResidenceGeography, ResidenceToWorkplaceFlowGeography}
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.AgeOfWorkerTableReader
 import beam.utils.data.ctpp.readers.residence.AgeTableReader
 import com.typesafe.scalalogging.StrictLogging
@@ -9,13 +9,13 @@ import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 
 private case class PeopleAndWorkers(totalPeople: Int, totalWorkers: Int)
 
-class WorkForceSampler(val pathToCTPPData: PathToData, val stateCode: String, randomGenerator: RandomGenerator)
+class WorkForceSampler(val dbInfo: CTPPDatabaseInfo, val stateCode: String, val randomGenerator: RandomGenerator)
     extends StrictLogging {
-  private val workersAgesOD: Seq[OD[AgeRange]] =
-    new AgeOfWorkerTableReader(pathToCTPPData, ResidenceToWorkplaceFlowGeography.`State To State`)
+  private val workersAgesOD: Iterable[OD[AgeRange]] =
+    new AgeOfWorkerTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`State To State`)
       .read()
       .filter(od => od.source == stateCode && od.destination == stateCode)
-  private val populationAge = new AgeTableReader(pathToCTPPData, ResidenceGeography.State)
+  private val populationAge = new AgeTableReader(dbInfo, ResidenceGeography.State)
     .read()
   require(populationAge.contains(stateCode), s"Can't find state ${stateCode} in ${populationAge.keySet}")
   private val stateAges = populationAge(stateCode).filter { case (ageRng, _) => ageRng.range.start >= 16 }
@@ -66,8 +66,8 @@ class WorkForceSampler(val pathToCTPPData: PathToData, val stateCode: String, ra
 object WorkForceSampler {
 
   def main(args: Array[String]): Unit = {
-    val pathToCTPPData = PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48")
-    val wfs = new WorkForceSampler(pathToCTPPData, "48", new MersenneTwister(42))
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
+    val wfs = new WorkForceSampler(databaseInfo, "48", new MersenneTwister(42))
 
     verfiyProbability(wfs, 16, 0.148)
     verfiyProbability(wfs, 17, 0.148)
