@@ -2,7 +2,7 @@
 ## Data sources
 To generate new scenario for Beam by [beam.utils.data.synthpop.SimpleScenarioGenerator](../ScenarioGenerator.scala) we need to provide the following information:
 1. For every county, two files: household_STATE_COUNTY.csv and people_STATE_COUNTY.csv as an output of SynthPop. How to run it: https://github.com/LBNL-UCB-STI/synthpop#how-to-run-it
-2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)) for the state, link to FTP: ftp://data5.ctpp.transportation.org/
+2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)) for the state, link to FTP: ftp://data5.ctpp.transportation.org/. Mirrored data on our S3: https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#new_city/ctpp/
 3. Shape files for:
     1. Traffic Analysis Zone (TAZ) shape file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/
     2. Block Group file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2019/BG/
