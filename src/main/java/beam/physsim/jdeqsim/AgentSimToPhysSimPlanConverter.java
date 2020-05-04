@@ -276,6 +276,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int totalNumberOfLinks = links.size();
         AtomicInteger linksFailedToResolve = new AtomicInteger(0);
 
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+
         links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x -> {
             linksFailedToResolve.incrementAndGet();
             double[] travelTimes = new double[maxHour];
@@ -302,6 +305,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     finalMap.put(link.getId().toString(), travelTimeByHour);
                 }));
 
+        System.out.println(String.format("Filled traveltime array %d",stopWatch.getTime()));
         log.warn("total links: {}, failed: {}", totalNumberOfLinks, linksFailedToResolve.get());
 
         TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
