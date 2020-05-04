@@ -28,32 +28,35 @@ class R5RouterSpec extends FlatSpec with Matchers {
 
   private val stopEdge2 = edgeById(46525) //This link doesn't have mode ALLOWS_CAR
 
-  it should "not fail with start edge" in {
+  it should "fail with start edge" in {
     val path = routeV1(startEdge1, stopEdge1)
-    check(path)
+    pathModeCheck(path) shouldBe false
   }
 
-  it should "not fail with stop edge" in {
+  it should "fail with stop edge" in {
     val path = routeV1(startEdge1, stopEdge2)
-    check(path)
+    pathModeCheck(path) shouldBe false
   }
 
   it should "not fail with start edge with different setOrigin" in {
     val path = routeV2(startEdge1, stopEdge1)
-    check(path)
+    pathModeCheck(path) shouldBe true
   }
 
   it should "not fail with stop edge with different setDestination" in {
     val path = routeV2(startEdge1, stopEdge2)
-    check(path)
+    pathModeCheck(path) shouldBe true
   }
 
-  private def check(path: Iterable[EdgeStore#Edge]): Assertion = {
+  private def pathModeCheck(path: Iterable[EdgeStore#Edge]): Boolean = {
     val checkFlag = path.forall(_.getFlag(mode))
     if (!checkFlag) {
-      logger.error("Failed with path where edges are: {}", path.map(e => s"${e.getEdgeIndex} - ${e.getFlags}").mkString("\n", "\n", "\n"))
+      logger.error(
+        "Failed with path where edges are: {}",
+        path.map(e => s"${e.getEdgeIndex} - ${e.getFlags}").mkString("\n", "\n", "\n")
+      )
     }
-    checkFlag shouldBe true
+    checkFlag
   }
 
   private def routeV1(startEdge: Option[EdgeStore#Edge], stopEdge: Option[EdgeStore#Edge]): Iterable[EdgeStore#Edge] = {
@@ -80,9 +83,9 @@ class R5RouterSpec extends FlatSpec with Matchers {
 
   private def routeV2(startEdge: Option[EdgeStore#Edge], stopEdge: Option[EdgeStore#Edge]): Iterable[EdgeStore#Edge] = {
     val result = for {
-      startSplit <- startEdge.flatMap(splitByEdge(_ , true))
+      startSplit <- startEdge.flatMap(splitByEdge(_, true))
       stopSplit  <- stopEdge.flatMap(splitByEdge(_, false))
-      streetPath  <- calculateRouteV2(startSplit, stopSplit)
+      streetPath <- calculateRouteV2(startSplit, stopSplit)
     } yield streetPath
 
     result.map(_.getEdges.asScala).getOrElse(Iterable.empty[Integer]).flatMap(eid => edgeById(eid))
@@ -115,15 +118,14 @@ class R5RouterSpec extends FlatSpec with Matchers {
       edge.getToVertex
     }
 
-    vertexById(vertex).flatMap{
-      vertex =>
-        Option(Split.find(
+    vertexById(vertex).flatMap { vertex =>
+      Option(
+        Split.findOnEdge(
           vertex.getLat,
           vertex.getLon,
-          StreetLayer.LINK_RADIUS_METERS,
-          transportNetwork.streetLayer,
-          streetMode
-        ))
+          edge
+        )
+      )
     }
   }
 
