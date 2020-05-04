@@ -5,7 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocatio
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.{ODSkims, Skims}
+import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -28,16 +28,12 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-case class ClusterInfo(size: Int, coord: Coord, activitiesLocation: IndexedSeq[Coord])
-
 // To start using it you should set `beam.agentsim.agents.rideHail.repositioningManager.name="DEMAND_FOLLOWING_REPOSITIONING_MANAGER"` in configuration
 // Check `beam-template.conf` to see the configurable parameters
 class DemandFollowingRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
 
-  val repositionTimeout: Int =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
   private val activitySegment: ActivitySegment = {
     ProfilingUtils.timed(s"Build ActivitySegment with bin size $repositionTimeout", x => logger.info(x)) {
       ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, repositionTimeout)
@@ -168,7 +164,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val topNClosest = clusters.sortBy(x => beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)).take(N)
         val pmf = topNClosest.map { x =>
           new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble)
-        }.toList
+        }.toVector
 
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()

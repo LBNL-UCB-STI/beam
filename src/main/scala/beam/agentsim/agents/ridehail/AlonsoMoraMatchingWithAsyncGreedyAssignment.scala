@@ -1,13 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.RHMatchingToolkit.{
-  CustomerRequest,
-  RHMatchingAlgorithm,
-  RTVGraph,
-  RTVGraphNode,
-  RideHailTrip,
-  VehicleAndSchedule
-}
+import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
@@ -20,16 +13,11 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class AsyncAlonsoMoraAlgForRideHail(
+class AlonsoMoraMatchingWithAsyncGreedyAssignment(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   beamServices: BeamServices
-) extends RHMatchingAlgorithm {
-
-  private val solutionSpaceSizePerVehicle =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.numRequestsPerVehicle
-  private val waitingTimeInSec =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.waitingTimeInSec
+) extends RideHailMatching(beamServices) {
 
   private implicit val implicitServices = beamServices
 
@@ -46,23 +34,22 @@ class AsyncAlonsoMoraAlgForRideHail(
     val finalRequestsList = ListBuffer.empty[RideHailTrip]
     val requestWithCurrentVehiclePosition = v.getRequestWithCurrentVehiclePosition
     val center = requestWithCurrentVehiclePosition.activity.getCoord
-    val searchRadius = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
 
     // get all customer requests located at a proximity to the vehicle
-    var customers = RHMatchingToolkit.getRequestsWithinGeofence(
+    var customers = RideHailMatching.getRequestsWithinGeofence(
       v,
       spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     )
 
     // heading same direction
-    customers = RHMatchingToolkit.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
+    customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 
     // solution size resizing
     customers = customers.take(solutionSpaceSizePerVehicle)
 
     customers.foreach(
       r =>
-        RHMatchingToolkit
+        RideHailMatching
           .getRideHailSchedule(
             v.schedule,
             List(r.pickup, r.dropoff),
@@ -91,7 +78,7 @@ class AsyncAlonsoMoraAlgForRideHail(
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
-              RHMatchingToolkit.getRideHailTrip(v, temp, beamServices).foreach { t =>
+              RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
                 combinations.append(t.matchId)
                 kRequestsList append t
                 vertices append t
