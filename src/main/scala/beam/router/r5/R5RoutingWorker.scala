@@ -56,60 +56,67 @@ import scala.language.postfixOps
 import scala.util.Try
 
 case class WorkerParameters(
-  beamConfig: BeamConfig,
-  transportNetwork: TransportNetwork,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  fuelTypePrices: Map[FuelType, Double],
-  ptFares: PtFares,
-  geo: GeoUtils,
-  dates: DateUtils,
-  networkHelper: NetworkHelper,
-  fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator
-)
+                             beamConfig: BeamConfig,
+                             transportNetwork: TransportNetwork,
+                             vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+                             fuelTypePrices: Map[FuelType, Double],
+                             ptFares: PtFares,
+                             geo: GeoUtils,
+                             dates: DateUtils,
+                             networkHelper: NetworkHelper,
+                             fareCalculator: FareCalculator,
+                             tollCalculator: TollCalculator
+                           )
+
+object WorkerParameters {
+
+  def fromConfig(config: Config): WorkerParameters = {
+    val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator.init()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+    LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    matsimConfig.controler.setOutputDirectory(outputDirectory)
+    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(networkCoordinator.network)
+    val dates: DateUtils = DateUtils(
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+    )
+    val geo = new GeoUtilsImpl(beamConfig)
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+    val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
+    val fareCalculator = new FareCalculator(beamConfig)
+    val tollCalculator = new TollCalculator(beamConfig)
+    BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
+    WorkerParameters(
+      beamConfig,
+      networkCoordinator.transportNetwork,
+      vehicleTypes,
+      fuelTypePrices,
+      ptFares,
+      geo,
+      dates,
+      new NetworkHelperImpl(networkCoordinator.network),
+      fareCalculator,
+      tollCalculator
+    )
+  }
+}
 
 class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
 
   def this(config: Config) {
     this(workerParams = {
-      val beamConfig = BeamConfig(config)
-      val outputDirectory = FileUtils.getConfigOutputFile(
-        beamConfig.beam.outputs.baseOutputDirectory,
-        beamConfig.beam.agentsim.simulationName,
-        beamConfig.beam.outputs.addTimestampToOutputDirectory
-      )
-      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-      networkCoordinator.init()
-      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
-      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-      LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
-      matsimConfig.controler.setOutputDirectory(outputDirectory)
-      matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      scenario.setNetwork(networkCoordinator.network)
-      val dates: DateUtils = DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-      val geo = new GeoUtilsImpl(beamConfig)
-      val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
-      val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
-      val fareCalculator = new FareCalculator(beamConfig)
-      val tollCalculator = new TollCalculator(beamConfig)
-      BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
-      WorkerParameters(
-        beamConfig,
-        networkCoordinator.transportNetwork,
-        vehicleTypes,
-        fuelTypePrices,
-        ptFares,
-        geo,
-        dates,
-        new NetworkHelperImpl(networkCoordinator.network),
-        fareCalculator,
-        tollCalculator
-      )
+      WorkerParameters.fromConfig(config)
     })
   }
 
@@ -235,11 +242,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
-        leg: BeamLeg,
-        vehicleId: Id[Vehicle],
-        vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int
-        ) =>
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
+    embodyRequestId: Int
+    ) =>
       val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
       sender ! response
       askForMoreWork()
@@ -250,31 +257,31 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 }
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
-    extends MetricsSupport {
+  extends MetricsSupport {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
   private val WorkerParameters(
-    beamConfig,
-    transportNetwork,
-    vehicleTypes,
-    fuelTypePrices,
-    ptFares,
-    geo,
-    dates,
-    networkHelper,
-    fareCalculator,
-    tollCalculator
+  beamConfig,
+  transportNetwork,
+  vehicleTypes,
+  fuelTypePrices,
+  ptFares,
+  geo,
+  dates,
+  networkHelper,
+  fareCalculator,
+  tollCalculator
   ) = workerParams
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
   def embodyWithCurrentTravelTime(
-    leg: BeamLeg,
-    vehicleId: Id[Vehicle],
-    vehicleTypeId: Id[BeamVehicleType],
-    embodyRequestId: Int
-  ): RoutingResponse = {
+                                   leg: BeamLeg,
+                                   vehicleId: Id[Vehicle],
+                                   vehicleTypeId: Id[BeamVehicleType],
+                                   embodyRequestId: Int
+                                 ): RoutingResponse = {
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -798,7 +805,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
-          ),
+            ),
           null
         )
         Try(router.getPaths.asScala).getOrElse(Nil) // Catch IllegalStateException in R5.StatsCalculator
@@ -1034,11 +1041,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   private def buildStreetBasedLegs(
-    segment: StreetSegment,
-    tripStartTime: Int,
-    vehicle: StreetVehicle,
-    unbecomeDriverOnCompletion: Boolean
-  ): EmbodiedBeamLeg = {
+                                    segment: StreetSegment,
+                                    tripStartTime: Int,
+                                    vehicle: StreetVehicle,
+                                    unbecomeDriverOnCompletion: Boolean
+                                  ): EmbodiedBeamLeg = {
     val startPoint = SpaceTime(
       segment.geometry.getStartPoint.getX,
       segment.geometry.getStartPoint.getY,
@@ -1080,12 +1087,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   def createBeamLeg(
-    vehicleTypeId: Id[BeamVehicleType],
-    startPoint: SpaceTime,
-    endCoord: Coord,
-    legMode: LegMode,
-    activeLinkIds: IndexedSeq[Int]
-  ): BeamLeg = {
+                     vehicleTypeId: Id[BeamVehicleType],
+                     startPoint: SpaceTime,
+                     endCoord: Coord,
+                     legMode: LegMode,
+                     activeLinkIds: IndexedSeq[Int]
+                   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
     // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
     // That trick gives us back diverse route. Now we want to compute travel time per link and we don't want to include that noise
@@ -1121,8 +1128,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     * @return a collection of FareSegments for an itinerary.
     */
   private def getFareSegments(
-    segments: IndexedSeq[(TransitSegment, TransitJourneyID)]
-  ): IndexedSeq[BeamFareSegment] = {
+                               segments: IndexedSeq[(TransitSegment, TransitJourneyID)]
+                             ): IndexedSeq[BeamFareSegment] = {
     segments
       .groupBy(s => getRoute(s._1, s._2).agency_id)
       .flatMap(t => {
@@ -1157,10 +1164,10 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   private def getFareSegments(
-    transitSegment: TransitSegment,
-    transitJourneyID: TransitJourneyID,
-    fromTime: ZonedDateTime
-  ): IndexedSeq[BeamFareSegment] = {
+                               transitSegment: TransitSegment,
+                               transitJourneyID: TransitJourneyID,
+                               fromTime: ZonedDateTime
+                             ): IndexedSeq[BeamFareSegment] = {
     val pattern = getPattern(transitSegment, transitJourneyID)
     val route = getRoute(pattern)
     val routeId = route.route_id
@@ -1181,12 +1188,12 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   private def getFareSegments(
-    agencyId: String,
-    routeId: String,
-    fromId: String,
-    toId: String,
-    containsIds: Set[String] = null
-  ): IndexedSeq[BeamFareSegment] =
+                               agencyId: String,
+                               routeId: String,
+                               fromId: String,
+                               toId: String,
+                               containsIds: Set[String] = null
+                             ): IndexedSeq[BeamFareSegment] =
     fareCalculator.getFareSegments(agencyId, routeId, fromId, toId, containsIds)
 
   private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
@@ -1202,15 +1209,15 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
   private def travelTimeCalculator(
-    vehicleType: BeamVehicleType,
-    startTime: Int,
-    shouldAddNoise: Boolean
-  ): TravelTimeCalculator = {
+                                    vehicleType: BeamVehicleType,
+                                    startTime: Int,
+                                    shouldAddNoise: Boolean
+                                  ): TravelTimeCalculator = {
     val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
-      {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
-      }
+    {
+      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
+    }
   }
 
   private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction == 0.0) {
@@ -1223,32 +1230,33 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
   private def travelTimeByLinkCalculator(
-    vehicleType: BeamVehicleType,
-    shouldAddNoise: Boolean
-  ): (Double, Int, StreetMode) => Double = {
+                                          vehicleType: BeamVehicleType,
+                                          shouldAddNoise: Boolean
+                                        ): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
     (time: Double, linkId: Int, streetMode: StreetMode) =>
-      {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-        val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
-        val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-        val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
-        if (streetMode != StreetMode.CAR) {
-          minTravelTime
-        } else {
-          val link = networkHelper.getLinkUnsafe(linkId)
-          assert(link != null)
-          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
-          val physSimTravelTimeWithNoise =
-            (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) { physSimTravelTime } else {
-               val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
-               physSimTravelTime * travelTimeNoises(idx)
-             }).ceil.toInt
-          val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
-          Math.min(linkTravelTime, maxTravelTime)
-        }
+    {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+      val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
+      val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+      val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+      if (streetMode != StreetMode.CAR) {
+        minTravelTime
+      } else {
+        val link = networkHelper.getLinkUnsafe(linkId)
+        assert(link != null)
+        val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
+        val physSimTravelTimeWithNoise =
+          (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) { physSimTravelTime } else {
+            val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
+            physSimTravelTime * travelTimeNoises(idx)
+          }).ceil.toInt
+        val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
+        Math.min(linkTravelTime, maxTravelTime)
+
       }
+    }
   }
 
   private val turnCostCalculator: TurnCostCalculator =
@@ -1270,15 +1278,15 @@ object R5RoutingWorker {
 
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
-    beamScenario: BeamScenario,
-    transportNetwork: TransportNetwork,
-    network: Network,
-    networkHelper: NetworkHelper,
-    scenario: Scenario,
-    fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    transitVehicles: Vehicles
-  ): Props = Props(
+             beamScenario: BeamScenario,
+             transportNetwork: TransportNetwork,
+             network: Network,
+             networkHelper: NetworkHelper,
+             scenario: Scenario,
+             fareCalculator: FareCalculator,
+             tollCalculator: TollCalculator,
+             transitVehicles: Vehicles
+           ): Props = Props(
     new R5RoutingWorker(
       WorkerParameters(
         beamScenario.beamConfig,
@@ -1296,23 +1304,23 @@ object R5RoutingWorker {
   )
 
   case class R5Request(
-    from: Coord,
-    to: Coord,
-    time: Int,
-    directMode: LegMode,
-    accessMode: LegMode,
-    withTransit: Boolean,
-    egressMode: LegMode,
-    timeValueOfMoney: Double,
-    beamVehicleTypeId: Id[BeamVehicleType]
-  )
+                        from: Coord,
+                        to: Coord,
+                        time: Int,
+                        directMode: LegMode,
+                        accessMode: LegMode,
+                        withTransit: Boolean,
+                        egressMode: LegMode,
+                        timeValueOfMoney: Double,
+                        beamVehicleTypeId: Id[BeamVehicleType]
+                      )
 
   def createBushwackingBeamLeg(
-    atTime: Int,
-    startUTM: Location,
-    endUTM: Location,
-    geo: GeoUtils
-  ): BeamLeg = {
+                                atTime: Int,
+                                startUTM: Location,
+                                endUTM: Location,
+                                geo: GeoUtils
+                              ): BeamLeg = {
     val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
@@ -1327,12 +1335,12 @@ object R5RoutingWorker {
   }
 
   def createBushwackingTrip(
-    originUTM: Location,
-    destUTM: Location,
-    atTime: Int,
-    body: StreetVehicle,
-    geo: GeoUtils
-  ): EmbodiedBeamTrip = {
+                             originUTM: Location,
+                             destUTM: Location,
+                             atTime: Int,
+                             body: StreetVehicle,
+                             geo: GeoUtils
+                           ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
@@ -1348,12 +1356,12 @@ object R5RoutingWorker {
   }
 
   class StopVisitor(
-    val streetLayer: StreetLayer,
-    val dominanceVariable: StreetRouter.State.RoutingVariable,
-    val maxStops: Int,
-    val minTravelTimeSeconds: Int,
-    val destinationSplit: Split
-  ) extends RoutingVisitor {
+                     val streetLayer: StreetLayer,
+                     val dominanceVariable: StreetRouter.State.RoutingVariable,
+                     val maxStops: Int,
+                     val minTravelTimeSeconds: Int,
+                     val destinationSplit: Split
+                   ) extends RoutingVisitor {
     private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
     val stops: TIntIntMap = new TIntIntHashMap
     private var s0: StreetRouter.State = _
