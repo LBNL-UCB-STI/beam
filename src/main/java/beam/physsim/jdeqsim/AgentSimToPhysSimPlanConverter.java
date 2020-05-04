@@ -27,6 +27,7 @@ import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.vividsolutions.jts.geom.Coordinate;
+import org.apache.commons.lang.time.StopWatch;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.matsim.api.core.v01.Id;
@@ -204,6 +205,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 .collect(Collectors.groupingBy(x -> x.departureTime() / 3600));
 
         Map<Integer, Map<Long, DoubleSummaryStatistics>> hour2Way2TravelTimes = hour2Events.entrySet().stream().map(mapEntry -> {
+            StopWatch stopWatch = new StopWatch();
+            stopWatch.start();
+
             Integer hour = mapEntry.getKey();
             List<PathTraversalEvent> events = mapEntry.getValue();
 
@@ -237,7 +241,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 return new Pair<>(firstId, secondId);
             }).collect(Collectors.toList());
 
-            log.info("Generated {} ods", ods.size());
+            System.out.println(String.format("Generated %d ods, for hour %d, spent %d", ods.size(), hour, stopWatch.getTime()));
+            log.warn("Generated {} ods, for hour {}, spent {}", ods.size(), hour, stopWatch.getTime());
 
             routingToolWrapper.generateOd(ods);
 
