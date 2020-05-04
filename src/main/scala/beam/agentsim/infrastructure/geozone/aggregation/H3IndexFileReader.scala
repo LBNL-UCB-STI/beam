@@ -3,15 +3,15 @@ package beam.agentsim.infrastructure.geozone.aggregation
 import java.io.Closeable
 import java.nio.file.Path
 
-import beam.agentsim.infrastructure.geozone.{GeoIndex, WgsCoordinate}
+import beam.agentsim.infrastructure.geozone.{H3Index, WgsCoordinate}
 import beam.utils.csv.GenericCsvReader
 
-object GeoIndexFileReader {
+object H3IndexFileReader {
   case class CenterEntry(id: String, wgsCoordinate: WgsCoordinate, areaInM2: Double)
 
-  def readIndexes(path: Path): Set[GeoIndex] = {
+  def readIndexes(path: Path): Set[H3Index] = {
     readCenterEntries(path)
-      .flatMap(entry => GeoIndex.tryCreate(entry.id))
+      .flatMap(entry => H3Index.tryCreate(entry.id))
       .toSet
   }
 
