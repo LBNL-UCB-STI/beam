@@ -2,6 +2,7 @@ package beam.utils
 import java.io.File
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import com.google.inject.Injector
@@ -41,6 +42,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
       services,
       injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
     )
+    Skims.setup(services)
   }
 
   override protected def afterAll(): Unit = {
@@ -52,6 +54,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     injector = null
     services = null
     eventsManager = null
+    Skims.clear()
     super.afterAll()
   }
 }
