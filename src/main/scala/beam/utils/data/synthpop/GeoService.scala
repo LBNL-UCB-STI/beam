@@ -143,8 +143,8 @@ object GeoService {
       var maxY = Double.MinValue
 
       osm.nodes.values().forEach { x =>
-        val lon = x.fixedLon / 10000000.0
-        val lat = x.fixedLat / 10000000.0
+        val lon = x.getLon
+        val lat = x.getLat
 
         if (lon < minX) minX = lon
         if (lon > maxX) maxX = lon
