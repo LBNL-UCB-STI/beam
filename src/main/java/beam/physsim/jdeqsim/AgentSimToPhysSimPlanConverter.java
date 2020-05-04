@@ -244,10 +244,16 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             System.out.println(String.format("Generated %d ods, for hour %d, spent %d", ods.size(), hour, stopWatch.getTime()));
             log.warn("Generated {} ods, for hour {}, spent {}", ods.size(), hour, stopWatch.getTime());
 
+            stopWatch.reset();
+            stopWatch.start();
+
             routingToolWrapper.generateOd(ods);
 
             log.info("Running for hour {}", hour);
             Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic();
+
+            System.out.println(String.format("Assigned traffic in %d", stopWatch.getTime()));
+
             Map<Long, DoubleSummaryStatistics> wayId2TravelTime;
             try {
                 wayId2TravelTime = Files.readLines(assignResult._1(), Charset.defaultCharset()).stream()
