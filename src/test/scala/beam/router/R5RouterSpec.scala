@@ -43,10 +43,15 @@ class R5RouterSpec extends FlatSpec with Matchers {
     check(path)
   }
 
+  it should "not fail with stop edge with different setDestination" in {
+    val path = routeV2(startEdge1, stopEdge2)
+    check(path)
+  }
+
   private def check(path: Iterable[EdgeStore#Edge]): Assertion = {
     val checkFlag = path.forall(_.getFlag(mode))
     if (!checkFlag) {
-      path.map(e => e.getEdgeIndex + " - " + e.getFlags).foreach(msg => logger.error("Failed with stop: {}", msg))
+      logger.error("Failed with path where edges are: {}", path.map(e => s"${e.getEdgeIndex} - ${e.getFlags}").mkString("\n", "\n", "\n"))
     }
     checkFlag shouldBe true
   }
@@ -75,8 +80,8 @@ class R5RouterSpec extends FlatSpec with Matchers {
 
   private def routeV2(startEdge: Option[EdgeStore#Edge], stopEdge: Option[EdgeStore#Edge]): Iterable[EdgeStore#Edge] = {
     val result = for {
-      startSplit <- startEdge.flatMap(splitByEdge)
-      stopSplit  <- stopEdge.flatMap(splitByEdge)
+      startSplit <- startEdge.flatMap(splitByEdge(_ , true))
+      stopSplit  <- stopEdge.flatMap(splitByEdge(_, false))
       streetPath  <- calculateRouteV2(startSplit, stopSplit)
     } yield streetPath
 
@@ -103,15 +108,23 @@ class R5RouterSpec extends FlatSpec with Matchers {
     }
   }
 
-  private def splitByEdge(edge: EdgeStore#Edge): Option[Split] = vertexById(edge.getFromVertex).flatMap{
-    vertex =>
-    Option(Split.find(
-      vertex.getLat,
-      vertex.getLon,
-      StreetLayer.LINK_RADIUS_METERS,
-      transportNetwork.streetLayer,
-      streetMode
-    ))
+  private def splitByEdge(edge: EdgeStore#Edge, isStartEdge: Boolean): Option[Split] = {
+    val vertex = if (isStartEdge) {
+      edge.getFromVertex
+    } else {
+      edge.getToVertex
+    }
+
+    vertexById(vertex).flatMap{
+      vertex =>
+        Option(Split.find(
+          vertex.getLat,
+          vertex.getLon,
+          StreetLayer.LINK_RADIUS_METERS,
+          transportNetwork.streetLayer,
+          streetMode
+        ))
+    }
   }
 
   private def edgeById(edgeId: Int): Option[EdgeStore#Edge] = {
