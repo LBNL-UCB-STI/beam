@@ -251,7 +251,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
     }
     val maxHour = hourAverageSpeed.keys.max
-    val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
+    val averageSpeed = (0 to maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 
     // generate the category dataset using the average travel times data
     val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
@@ -288,7 +288,7 @@ class CarTripStatsFromPathTraversalEventHandler(
         val avgFreeFlowSpeed = statsList.map(_.freeFlowSpeed).sum / statsList.size
         hour -> 100 * (avgSpeed / avgFreeFlowSpeed)
     }
-    val arr = (0 until hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
+    val arr = (0 to hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
     val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(arr.toArray))
     val fileName = s"${prefix}AverageSpeedPercentage.$mode.png"
     val graphTitle = s"Average Speed Percentage [ $mode ]"
