@@ -1,9 +1,8 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorNotFound, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
-import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
@@ -39,7 +38,6 @@ import org.scalatest.{BeforeAndAfterEach, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.Await
 
 class PersonAgentSpec
     extends FunSpecLike
@@ -71,6 +69,8 @@ class PersonAgentSpec
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
+
+  private var iteration: ActorRef = _
 
   describe("A PersonAgent") {
 
@@ -268,7 +268,7 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
+      iteration = TestActorRef(
         Props(new Actor() {
           context.actorOf(
             Props(new Actor() {
@@ -540,7 +540,7 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
+      iteration = TestActorRef(
         Props(new Actor() {
           context.actorOf(
             Props(new Actor() {
@@ -858,21 +858,12 @@ class PersonAgentSpec
   }
 
   override def afterEach(): Unit = {
-    import scala.concurrent.duration._
     import scala.language.postfixOps
-    import system.dispatcher
-    implicit val timeout = Timeout(10 seconds)
-    val actorRef = system
-      .actorSelection("user/BeamMobsim.iteration")
-      .resolveOne()
-      .map(ref => Some(ref))
-      .recover { case _: ActorNotFound => None }
-    val maybeIteration = Await.result(actorRef, 10 seconds)
-    maybeIteration.foreach { iteration =>
-      val probe = TestProbe()
-      probe.watch(iteration)
+    if (iteration != null) {
+      watch(iteration)
       iteration ! PoisonPill
-      probe.expectTerminated(iteration)
+      expectTerminated(iteration)
+      iteration = null
     }
   }
 
