@@ -10,7 +10,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.{CarTripStatsFromPathTraversalEventHandler, StudyAreaTripFilter, TakeAllTripsTripFilter}
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
