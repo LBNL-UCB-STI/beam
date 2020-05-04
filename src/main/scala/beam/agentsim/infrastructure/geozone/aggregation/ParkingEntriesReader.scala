@@ -5,7 +5,7 @@ import java.nio.file.{Files, Path}
 
 import scala.reflect.ClassTag
 
-import beam.agentsim.infrastructure.geozone.GeoIndex
+import beam.agentsim.infrastructure.geozone.H3Index
 import beam.utils.csv.GenericCsvReader
 
 class ParkingEntriesReader[T](
@@ -31,8 +31,8 @@ object ParkingEntriesReader {
     new ParkingEntriesReader(parkingFile, toTazParkingEntry)
   }
 
-  def geoIndexReader(parkingFile: Path): ParkingEntriesReader[GeoIndex] = {
-    new ParkingEntriesReader(parkingFile, toGeoIndexParkingEntry)
+  def geoIndexReader(parkingFile: Path): ParkingEntriesReader[H3Index] = {
+    new ParkingEntriesReader(parkingFile, toH3IndexParkingEntry)
   }
 
   private def toTazParkingEntry(rec: java.util.Map[String, String]): ParkingEntry[TazCoordinate] = {
@@ -47,9 +47,9 @@ object ParkingEntriesReader {
     )
   }
 
-  private def toGeoIndexParkingEntry(rec: java.util.Map[String, String]): ParkingEntry[GeoIndex] = {
-    CsvGeoIndexParkingEntry(
-      geoIndex = GeoIndex(rec.get("geoIndex")),
+  private def toH3IndexParkingEntry(rec: java.util.Map[String, String]): ParkingEntry[H3Index] = {
+    CsvH3IndexParkingEntry(
+      geoIndex = H3Index(rec.get("geoIndex")),
       parkingType = rec.get("parkingType"),
       pricingModel = rec.get("pricingModel"),
       chargingType = rec.get("chargingType"),
