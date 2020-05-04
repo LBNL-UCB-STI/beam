@@ -44,7 +44,7 @@ class SimpleScenarioGenerator(
   val pathToWorkedHours: String,
   val pathToOsmMap: String, // Conditional work duration
   val randomSeed: Int,
-  val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
+  val offPeakSpeedMetersPerSecond: Double,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -203,7 +203,7 @@ class SimpleScenarioGenerator(
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     val finalResult = blockGroupGeoIdToHouseholds.map {
       case (blockGroupGeoId, householdsWithPersonData) =>
-        logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
+        logger.info(s"$blockGroupGeoId contains ${householdsWithPersonData.size} households")
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
           logger.warn(
@@ -465,51 +465,41 @@ class SimpleScenarioGenerator(
 }
 
 object SimpleScenarioGenerator {
-  /*
-    How to run it through gradle:
-    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs="['D:/Work/beam/Austin/input', 'D:/Work/beam/Austin/input/CTPP/48', 'D:/Work/beam/Austin/input/tl_2011_48_taz10/tl_2011_48_taz10.shp', 'D:/Work/beam/Austin/input/tl_2019_48_bg/tl_2019_48_bg.shp', 'D:/Work/beam/Austin/input/CongestionLevel_Austin.csv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv', 'D:/Work/beam/Austin/input/texas-six-counties-simplified.osm.pbf', '48', 'D:/Work/beam/Austin/results']"
-   */
+  case class Arguments(
+    sythpopDataFolder: String,
+    ctppFolder: String,
+    stateCodes: Set[String],
+    tazShapeFolder: String,
+    blockGroupShapeFolder: String,
+    congestionLevelDataFile: String,
+    workDurationCsv: String,
+    osmMap: String,
+    randomSeed: Int,
+    offPeakSpeedMetersPerSecond: Double,
+    defaultValueOfTime: Double,
+    outputFolder: String
+  )
 
-  def main(args: Array[String]): Unit = {
-    require(args.length == 9, s"Expecting 9 arguments, but got ${args.length}")
-    val pathToSythpopDataFolder = args(0)
-    val pathToCTPPFolder = args(1)
-    val pathToTazShapeFile = args(2)
-    val pathToBlockGroupShapeFile = args(3)
-    val pathToCongestionLevelDataFile = args(4)
-    val pathToWorkedHours = args(5)
-    val pathToOsmMap = args(6)
-    val stateCodes = args(7).split(",").toSet
-    val pathToOutput = args(8)
-    /*
-    Args:
-      "D:\Work\beam\Austin\input\"
-      "D:\Work\beam\Austin\input\CTPP\"
-      "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
-      "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
-      "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
-      "D:\Work\beam\Austin\input\work_activities_all_us.csv"
-      "D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"
-      "48"
-      "D:\Work\beam\Austin\results"
-     * */
-    val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPPFolder), stateCodes)
-
-    require(new File(pathToOutput).mkdirs(), s"$pathToOutput exists, stopping...")
+  def run(parsedArgs: Arguments): Unit = {
+    val pathToOutput = parsedArgs.outputFolder
+    val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
+    require(new File(parsedArgs.outputFolder).mkdirs(), s"${pathToOutput} exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(
-        pathToSythpopDataFolder = pathToSythpopDataFolder,
+        pathToSythpopDataFolder = parsedArgs.sythpopDataFolder,
         dbInfo = databaseInfo,
-        pathToTazShapeFile = pathToTazShapeFile,
-        pathToBlockGroupShapeFile = pathToBlockGroupShapeFile,
-        pathToCongestionLevelDataFile = pathToCongestionLevelDataFile,
-        pathToWorkedHours = pathToWorkedHours,
-        pathToOsmMap = pathToOsmMap,
-        randomSeed = 42,
+        pathToTazShapeFile = parsedArgs.tazShapeFolder,
+        pathToBlockGroupShapeFile = parsedArgs.blockGroupShapeFolder,
+        pathToCongestionLevelDataFile = parsedArgs.congestionLevelDataFile,
+        pathToWorkedHours = parsedArgs.workDurationCsv,
+        pathToOsmMap = parsedArgs.osmMap,
+        randomSeed = parsedArgs.randomSeed,
+        offPeakSpeedMetersPerSecond = parsedArgs.offPeakSpeedMetersPerSecond,
+        defaultValueOfTime = parsedArgs.defaultValueOfTime
       )
 
-    gen.writeTazCenters(pathToOutput)
+    gen.writeTazCenters(parsedArgs.outputFolder)
 
     val generatedData = gen.generate
     println(s"Number of households: ${generatedData.size}")
@@ -538,5 +528,33 @@ object SimpleScenarioGenerator {
     val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
+  }
+
+  def main(args: Array[String]): Unit = {
+    /*
+
+    How to run it through gradle:
+    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs=["
+    '--sythpopDataFolder', 'D:/Work/beam/NewYork/input/syntpop',
+    '--ctppFolder', 'D:/Work/beam/CTPP/',
+    '--stateCodes', '34,36',
+    '--tazShapeFolder', 'D:/Work/beam/NewYork/input/Shape/TAZ/',
+    '--blockGroupShapeFolder', 'D:/Work/beam/NewYork/input/Shape/BlockGroup/',
+    '--congestionLevelDataFile', 'D:/Work/beam/NewYork/input/CongestionLevel_NewYork.csv',
+    '--workDurationCsv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv',
+    '--osmMap', 'D:/Work/beam/NewYork/input/OSM/newyork-simplified.osm.pbf',
+    '--randomSeed', '42',
+    '--offPeakSpeedMetersPerSecond', '12.5171',
+    '--defaultValueOfTime', '8.0',
+    '--outputFolder', 'D:/Work/beam/NewYork/results'
+    "] -PlogbackCfg=logback.xml
+     */
+    SimpleScenarioGeneratorArgParser.parseArguments(args) match {
+      case None =>
+        throw new IllegalStateException("Unable to parse arguments. Check the logs")
+      case Some(parsedArgs: Arguments) =>
+        run(parsedArgs)
+
+    }
   }
 }
