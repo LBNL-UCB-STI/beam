@@ -312,7 +312,7 @@ class BeamVehicle(
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
 
   def isBEV: Boolean =
-    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)

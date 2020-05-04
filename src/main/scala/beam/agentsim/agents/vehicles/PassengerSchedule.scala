@@ -73,7 +73,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
   def numLegsWithPassengersAfter(legIndex: Int): Int =
-    schedule.slice(legIndex, schedule.size).values.filter(_.riders.size > 0).size
+    schedule.slice(legIndex, schedule.size).values.count(_.riders.nonEmpty)
 
   def linkAtTime(tick: Int): Int = {
     if (tick < schedule.keys.head.startTime) {
