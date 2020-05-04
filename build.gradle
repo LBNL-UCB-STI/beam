@@ -320,7 +320,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
-build.dependsOn spec
+//build.dependsOn spec
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
@@ -420,7 +420,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // Note: colon preceding "run" is necessary to only run the main project and not launch the GUI as well.
 // ./gradlew :run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-mainClassName = "beam.sim.RunBeam"
+mainClassName = "beam.utils.scripts.austin_network.od.R5Requester"
 
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
