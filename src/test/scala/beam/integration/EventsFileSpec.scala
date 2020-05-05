@@ -179,7 +179,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
         }
       }
     }
-    logger.info("nCarTrips = {}, nBikeTrips = {}", nCarTrips, nBikeTrips)
+    logger.debug("nCarTrips = {}, nBikeTrips = {}", nCarTrips, nBikeTrips)
     assert(nCarTrips != 0, "At least some people must go by car")
     assert(nBikeTrips != 0, "At least some people must go by bike")
   }
