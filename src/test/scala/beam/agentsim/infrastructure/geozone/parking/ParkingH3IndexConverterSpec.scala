@@ -3,20 +3,20 @@ package beam.agentsim.infrastructure.geozone.parking
 import java.nio.file.{Files, Path, Paths}
 
 import beam.agentsim.infrastructure.geozone.aggregation._
-import beam.agentsim.infrastructure.geozone.aggregation.ParkingGeoIndexConverter.GeoIndexParkingEntryGroup
-import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoIndexMapper, H3Wrapper}
+import beam.agentsim.infrastructure.geozone.aggregation.ParkingH3IndexConverter.H3IndexParkingEntryGroup
+import beam.agentsim.infrastructure.geozone.{H3Index, H3IndexMapper, H3Wrapper}
 import org.scalatest.{Matchers, WordSpec}
 
-class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
+class ParkingH3IndexConverterSpec extends WordSpec with Matchers {
 
-  "ParkingGeoIndexConverter" should {
+  "ParkingH3IndexConverter" should {
 
-    "convert Taz coordinates to GeoIndex accordingly to csv file" in {
+    "convert Taz coordinates to H3Index accordingly to csv file" in {
       val tazParkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
       val tazCentersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
       val targetCentersFile = Paths.get("test/input/geozone/parking/target-centers.csv")
 
-      val converter: ParkingGeoIndexConverter[TazCoordinate] = ParkingGeoIndexConverter.tazParkingToGeoIndex(
+      val converter: ParkingH3IndexConverter[TazCoordinate] = ParkingH3IndexConverter.tazParkingToH3Index(
         tazParkingFile = tazParkingFile,
         tazCentersFile = tazCentersFile,
         targetCentersFile = targetCentersFile
@@ -30,8 +30,8 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
         feeInCents = 16D
       )
       assertResult(Seq(expectedValue)) {
-        val entryGroup = GeoIndexParkingEntryGroup(
-          geoIndex = GeoIndex("82bc27fffffffff"),
+        val entryGroup = H3IndexParkingEntryGroup(
+          h3Index = H3Index("82bc27fffffffff"),
           parkingType = "Workplace",
           pricingModel = "Block",
           chargingType = "DCFast(50|DC)",
@@ -41,11 +41,11 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
       }
     }
 
-    "convert geoIndex-parking coordinates to GeoIndex accordingly to csv file" in {
+    "convert geoIndex-parking coordinates to H3Index accordingly to csv file" in {
       val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking.csv")
       val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
 
-      val converter = ParkingGeoIndexConverter.geoIndexParkingToGeoIndex(
+      val converter = ParkingH3IndexConverter.geoIndexParkingToH3Index(
         geoIndexParkingFile = parkingFile,
         targetCentersFile = targetCenters
       )
@@ -57,8 +57,8 @@ class ParkingGeoIndexConverterSpec extends WordSpec with Matchers {
         feeInCents = 18D
       )
       assertResult(Seq(expectedValue)) {
-        val entryGroup = GeoIndexParkingEntryGroup(
-          geoIndex = GeoIndex("820eb7fffffffff"),
+        val entryGroup = H3IndexParkingEntryGroup(
+          h3Index = H3Index("820eb7fffffffff"),
           parkingType = "100821",
           pricingModel = "Block",
           chargingType = "DCFast(50|DC)",

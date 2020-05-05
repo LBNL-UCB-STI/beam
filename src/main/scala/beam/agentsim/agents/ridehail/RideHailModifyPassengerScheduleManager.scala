@@ -143,7 +143,7 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    if (allTriggersInWave.size > 0)
+    if (allTriggersInWave.nonEmpty)
       rideHailManager.log.debug(
         "Earliest tick in triggers to schedule is {} and latest is {}",
         allTriggersInWave.map(_.trigger.tick).min,
