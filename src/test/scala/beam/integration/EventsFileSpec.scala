@@ -27,14 +27,14 @@ import scala.util.Try
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
-      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
-      .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
-        ConfigValueFactory.fromAnyRef("6")
-      )
+    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+    .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+    .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+    .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
+    .withValue(
+      "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+      ConfigValueFactory.fromAnyRef("6")
+    )
     .resolve()
 
   private var scenario: MutableScenario = _
