@@ -47,6 +47,7 @@ object SpeedStatistics {
 case class WeightedSpeedStatistics(stat: Statistics)
 
 object WeightedSpeedStatistics {
+
   def apply(rideStats: Seq[CarTripStat]): SpeedStatistics = {
     new SpeedStatistics(Statistics(rideStats.map(_.speed), rideStats.map(_.distance)))
   }
