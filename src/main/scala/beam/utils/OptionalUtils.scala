@@ -19,7 +19,7 @@ object OptionalUtils {
     /**
       * Transform this Option to an equivalent Java Optional
       */
-    def toOptional: Optional[T] = Optional.ofNullable(opt.orNull.asInstanceOf[T])
+    def toOptional: Optional[T] = Optional.ofNullable(opt.getOrElse(null).asInstanceOf[T])
   }
 
   class RichOptional[T](opt: Optional[T]) {
