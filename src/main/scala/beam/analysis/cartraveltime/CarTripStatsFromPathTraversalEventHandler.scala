@@ -485,7 +485,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     rideStats: Seq[CarTripStat]
   ): IterationCarTripStats = {
     val travelTimeStas = TravelTimeStatistics(rideStats)
-    val speedStats = SpeedStatistics(rideStats)
+    val speedStats = WeightedSpeedStatistics(rideStats)
     val distanceStats = DistanceStatistics(Statistics(rideStats.map(_.distance)))
     val freeFlowTravelTimeStats = FreeFlowTravelTimeStatistics(rideStats)
     val freeFlowSpeedStats = FreeFlowSpeedStatistics(rideStats)
