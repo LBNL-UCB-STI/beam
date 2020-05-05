@@ -107,7 +107,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         updatePersonCount();
 
         hourModeFrequency.values().stream().filter(Objects::nonNull).flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Double::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count.longValue(), ShortLevel(), tags));
 
         updateRealizedModeChoiceInIteration(event.getIteration());
@@ -134,7 +134,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
-        
+
         writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv"), realizedModeChoiceInIteration, cumulativeMode);
         writeToCSV(event);
         writeToReferenceCSV();
@@ -453,12 +453,12 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             out.newLine();
 
             StringBuilder builder = new StringBuilder("benchmark");
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             for (String d : cumulativeReferenceMode) {
                 if (benchMarkData.get(d) == null) {
                     builder.append(",0.0");
                 } else {
-                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                    builder.append(",").append(benchMarkData.get(d) * 100 / sum);
                 }
             }
             out.write(builder.toString());
