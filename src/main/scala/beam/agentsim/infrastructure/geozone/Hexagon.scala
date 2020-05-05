@@ -14,7 +14,7 @@ private[geozone] case class HexagonBranch(index: GeoIndex, children: IndexedSeq[
   override lazy val totalNumberOfBuckets: Int = children.map(_.totalNumberOfBuckets).sum
 
   def chooseOneToSplit(bucketsGoal: Int): Int = {
-    TopDownEqualDemandsSplitter.chooseOneToSplit(children, bucketsGoal, totalNumberOfBuckets)
+    TopDownEqualDemandSplitter.chooseOneToSplit(children, bucketsGoal, totalNumberOfBuckets)
   }
 
   override def split(bucketsGoal: Int): Seq[HexagonBranch] = {
