@@ -20,7 +20,12 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
   private[synthpop] def toHousehold(rec: java.util.Map[String, String]): Household = {
     // Get the details of columns from https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2017.pdf?
 
-    val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+    val compoundId = {
+      val serialNo = GenericCsvReader.getIfNotNull(rec, "serialno").toString
+      val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+      HouseholdReader.getCompoundHouseholdId(serialNo, id)
+    }
+
     val numOfPersons = Option(rec.get("NP")).map(_.toInt).getOrElse {
       logger.warn(s"Could not find `NP` field in ${rec.toString}")
       0
@@ -52,9 +57,8 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
 
     val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group")
     val geoId = BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroupId)
-
     Household(
-      id = id,
+      id = compoundId,
       geoId = geoId,
       numOfPersons = numOfPersons,
       numOfVehicles = numOfVehicles,
@@ -67,8 +71,14 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
 
 object HouseholdReader {
 
+  def getCompoundHouseholdId(serialNo: String, householdId: String): String = {
+    // This is needed because only the pair of (serialNo, id) represents unique household
+    // Check how SynthPop generates it: https://github.com/UDST/synthpop/blob/master/synthpop/draw.py#L121
+    s"$serialNo:$householdId"
+  }
+
   def main(args: Array[String]): Unit = {
-    require(args.size == 1, "Provide the path to CSV file as first argument")
+    require(args.length == 1, "Provide the path to CSV file as first argument")
 
     val pathToFile = args(0)
     val rdr = new HouseholdReader(pathToFile)
