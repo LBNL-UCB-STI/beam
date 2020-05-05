@@ -2,10 +2,13 @@ package beam.utils
 import java.io.File
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import com.google.inject.Injector
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.MutableScenario
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
@@ -25,6 +28,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   var scenario: MutableScenario = _
   var injector: Injector = _
   var services: BeamServices = _
+  var eventsManager: EventsManager = _
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -32,11 +36,13 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
     services = new BeamServicesImpl(injector)
+    eventsManager = new EventsManagerImpl
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services,
       injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
     )
+    Skims.setup(services)
   }
 
   override protected def afterAll(): Unit = {
@@ -47,6 +53,8 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     scenario = null
     injector = null
     services = null
+    eventsManager = null
+    Skims.clear()
     super.afterAll()
   }
 }

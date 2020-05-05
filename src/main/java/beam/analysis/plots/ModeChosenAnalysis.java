@@ -363,7 +363,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         return benchmarkData;
     }
 
-    class ModeChosenAvailableAlternatives {
+    static class ModeChosenAvailableAlternatives {
         String mode;
         String availableModes;
 

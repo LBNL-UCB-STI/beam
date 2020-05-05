@@ -33,7 +33,7 @@ trait SimulationMetricCollector {
   def write(
     metricName: String,
     time: SimulationTime,
-    values: Map[String, Double] = Map.empty,
+    values: Map[String, Double] = Map(defaultMetricName -> 0.0),
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit
@@ -41,7 +41,7 @@ trait SimulationMetricCollector {
   def writeStr(
     metricName: String,
     time: SimulationTime,
-    values: Map[String, String] = Map.empty,
+    values: Map[String, String] = Map(defaultMetricName -> ""),
     tags: Map[String, String] = Map.empty,
     overwriteIfExist: Boolean = false
   ): Unit
@@ -223,13 +223,13 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
       val db = InfluxDBFactory.connect(cfg.connectionString)
       db.setDatabase(cfg.database)
       db.enableBatch(BatchOptions.DEFAULTS)
+      db.ping()
       logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
       Some(db)
     } catch {
       case NonFatal(t: Throwable) =>
-        logger.error(
-          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}: ${t.getMessage}",
-          t
+        logger.warn(
+          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}. Error: ${t.getMessage}"
         )
         None
     }

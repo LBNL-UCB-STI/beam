@@ -92,11 +92,11 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
 object BeamLeg {
 
-  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK): BeamLeg =
+  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK, duration: Int = 0): BeamLeg =
     new BeamLeg(
       0,
       mode,
-      0,
+      duration,
       BeamPath(Vector(), Vector(), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0)
     ).updateStartTime(startTime)
 
@@ -112,35 +112,33 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsTrip(legs: List[BeamLeg]): List[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var runningStartTime = legs.head.startTime
-        for (leg <- legs) yield {
-          val newLeg = leg.updateStartTime(runningStartTime)
-          runningStartTime = newLeg.endTime
-          newLeg
-        }
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var runningStartTime = legs.head.startTime
+      for (leg <- legs) yield {
+        val newLeg = leg.updateStartTime(runningStartTime)
+        runningStartTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var latestEndTime = legs.head.startTime - 1
-        var newLeg = legs.head
-        for (leg <- legs) yield {
-          if (leg.startTime < latestEndTime) {
-            newLeg = leg.updateStartTime(latestEndTime)
-          } else {
-            newLeg = leg
-          }
-          latestEndTime = newLeg.endTime
-          newLeg
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var latestEndTime = legs.head.startTime - 1
+      var newLeg = legs.head
+      for (leg <- legs) yield {
+        if (leg.startTime < latestEndTime) {
+          newLeg = leg.updateStartTime(latestEndTime)
+        } else {
+          newLeg = leg
         }
+        latestEndTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 }

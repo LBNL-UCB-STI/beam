@@ -104,7 +104,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
         }
     }
 
-    private void registerClass(Class cla) {
+    private void registerClass(Class<?> cla) {
         // ScalaEvent classes are from scala, so we have to have special treatment for them
         // scala's val and var are not actual fields, but methods (getters and setters)
         if (ScalaEvent.class.isAssignableFrom(cla)) {

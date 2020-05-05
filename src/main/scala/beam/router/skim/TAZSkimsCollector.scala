@@ -12,6 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
+import beam.utils.DateUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -21,7 +22,7 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
   import TAZSkimsCollector._
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
-  private val eos: Int = getTimeInSeconds(beamServices.beamScenario.beamConfig.beam.agentsim.endTime)
+  private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
   private val timeBin: Int = beamServices.beamConfig.beam.router.skim.taz_skimmer.timeBin
 
   override def receive: Receive = {
@@ -32,19 +33,13 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
 
     case TriggerWithId(TAZSkimsCollectionTrigger(tick), triggerId) =>
       vehicleManagers.foreach(_ ! TAZSkimsCollectionTrigger(tick))
-      if (tick + timeBin <= eos) {
+      if (tick + timeBin <= endOfSimulationTime) {
         sender ! CompletionNotice(triggerId, Vector(ScheduleTrigger(TAZSkimsCollectionTrigger(tick + timeBin), self)))
       } else {
         sender ! CompletionNotice(triggerId)
       }
 
     case Finish =>
-      context.children.foreach(_ ! Finish)
-  }
-
-  private def getTimeInSeconds(time: String): Int = {
-    val timeAr = time.split(":")
-    timeAr(0).toInt * 3600 + timeAr(1).toInt * 60 + timeAr(2).toInt
   }
 }
 

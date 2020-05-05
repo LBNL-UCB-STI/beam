@@ -13,15 +13,19 @@ These key features are summarized here and described in further detail below:
 
 * **MATSim Integration** BEAM leverages the MATSim modeling framework[1], an open source simulation tool with a vibrant community of global developers. MATSim is extensible (BEAM is one of those extensions) which allows modelers to utilize a large suite of tools and plug-ins to serve their research and analytical interests.
 
-* **Resource Markets** While BEAM can be used as a tool for modeling and analyzing the detailed operations of a transportation system, it is designed primarily as an approach to modeling resource markets in the transportation sector. The transportation system is composed of several sets of mobility resources that are in limited supply (e.g. road capacities, vehicle seating, TNC fleet availability, refueling infrastructure). By adopting the MATSim utility maximization approach to achieving user equilibrium for traffic modeling, BEAM is able to find the corresponding equilibrium point across all resource markets of interest.
+* **Resource Markets** While BEAM can be used as a tool for modeling and analyzing the detailed operations of a transportation system, it is designed primarily as an approach to modeling resource markets in the transportation sector. The transportation system is composed of several sets of mobility resources that are in limited supply (e.g. road capacities, vehicle seating, ride hail fleet availability, refueling infrastructure). By adopting the MATSim utility maximization approach to achieving user equilibrium for traffic modeling, BEAM is able to find the corresponding equilibrium point across all resource markets of interest.
 
 * **Dynamic Within-Day Planning** Because BEAM places a heavy emphasis on within-day planning, it is possible to simulate modern mobility services in a manner that reflects the emerging transportation system. For example, a virtual TNC in BEAM responds to customer inquiries by reporting the wait time for a ride, which the BEAM agents consider in their decision on what service or mode to use. 
 
-* **Rich Modal Choice** BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “TNC”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard TNC versus pooled, etc.).  BEAM currently supports a simple multinomial logit choice model and a more advanced model is under development and will be fully supported by Spring 2018. 
+* **Rich Modal Choice** BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  
 
-* **Transportation Network Companies** TNCs are already changing the mobility landscape and as driverless vehicles come online, the economics of these services will improve substantially. In BEAM, TNCs are modeled as a fleet of taxis controlled by a centralized manager that responds to requests from customers and dispatches vehicles accordingly. In 2018, BEAM will be extended to simulate the behavioral processes of TNC drivers as well as implement control algorithms designed to optimize fleets of fully automated vehicles.
+* **Transportation Network Companies** TNCs are already changing the mobility landscape and as driverless vehicles come online, the economics of these services will improve substantially. In BEAM, TNCs are modeled as a fleet of ride hail vehicles controlled by a centralized manager that responds to requests from customers and dispatches vehicles accordingly. The fleet can be composed of human drivers, autonomous vehicles, or a hybrid of both human and driverless. The management of the fleet has been developed as an API that can be implemented using mutliple algorithms, allowing users of BEAM to test their own fleet control strategies. Finally, we have implemented a scalable pooling algorithm that efficiency matches customers and pools them into vehicles. Pooled ride hail is treated as a distinct mode and therefore only customers who request such a ride are considered for pooling.
 
-* **Designed for Scale** BEAM is written primarily in Scala and leverages the Akka_ library for currency which implements the [Actor Model of Computation](https://en.wikipedia.org/wiki/Actor_model). This approach simplifies the process of deploying transportation simulations at full scale and utilizing high performance computing resources. BEAM has been designed to integrate with Amazon Web Services including a framework to automatically deploy simulation runs to the cloud. 
+* **Parallel Within Day Dynamics** BEAM is written primarily in Scala and leverages the Akka_ library for currency which implements the [Actor Model of Computation](https://en.wikipedia.org/wiki/Actor_model). These tools enable the model to run as a parallel discrete event simulation. This capability is critical to simulate a transportation system that is more dynamic (primarily via on-demand forms of mobility) in a manner than can still achieve non-trivial scales. In addition, this approach allows BEAM to continue to use parallel processing while also simulating resource competition, e.g. agents are accessing finite resources like parking spaces, charging infrastructure, or micromobility vehicles in a manner that is still parallelized but nevertheless disallows one resource to be used by two agents simultaneously. 
+  
+* **Open Source Code and Data** BEAM is released under a permissive open source license. The code can be copied, modified, and/or used for any purpose. In addition, we publish all of the data necessary to do production runs of BEAM. In other words, anyone can run the same BEAM scenarios that we use for our own projects and research activities. At the moment this consists of a San Francisco Bay Area application that has been calibrated and validated for use by the U.S. DOE's SMART Mobility Consortium. 
+
+* **Cloud Deployable** BEAM has been designed to integrate with Amazon Web Services including a framework to automatically deploy simulation runs to the cloud, to monitor those runs in real-time, and then upload results to S3 for permanent storage. An amazon EC2 snapshot capable of running BEAM can be made available to interested users upon request.
 
 .. _Akka: https://akka.io/
 
@@ -58,7 +62,7 @@ The PhysSim simulates traffic on the road network. The underlying simulation eng
 
 JDEQSim was designed as a MobSim engine for MATSim, so it is capable of simulating activities and movements through the network. In BEAM, we use JDEQSim within PhysSim as purely a **vehicle** movement simulator.  As PathTraversalEvents are received by the PhysSim, a set of MATSim Plans are created, with one plan for each vehicle in the AgentSim. These plans include "Activities" but they are just dummy activities that bracket the movement of each vehicle.
 
-Currently, PhySim and AgentSim run serially, one after another. This is due to the fact that the PhySim is substantially faster to run than the AgentSim, because the PhysSim does not need to do any routing calculations. As improvements to AgentSim reduce run times, future versions of BEAM will likely allow AgentSim and PhysSim to run concurrently, or even be run in a tightly coupled manner where each teleportation in AgentSim is replaced with a direct simulation of the propagation of vehicles through the network by the PhysSim.
+Currently, PhysSim and AgentSim run serially, one after another. This is due to the fact that the PhysSim is substantially faster to run than the AgentSim, because the PhysSim does not need to do any routing calculations. As improvements to AgentSim reduce run times, future versions of BEAM will likely allow AgentSim and PhysSim to run concurrently, or even be run in a tightly coupled manner where each teleportation in AgentSim is replaced with a direct simulation of the propagation of vehicles through the network by the PhysSim.
 
 R5 Router
 ^^^^^^^^^
@@ -72,7 +76,7 @@ BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents fro
 MATSim Events
 ^^^^^^^^^^^^^
 
-BEAM adopts the MATSim convention of throwing events that correspond to key moments in the agent's day. But in BEAM, there are two separate event managers, one for the ActorSim and another for the PhySim. 
+BEAM adopts the MATSim convention of throwing events that correspond to key moments in the agent's day. But in BEAM, there are two separate event managers, one for the ActorSim and another for the PhysSim. 
 
 The standard events output file (e.g. `0.events.csv`) comes from the AgentSim, but in the outputs directory, you will also find an events file from the PhysSim (e.g. `0.physSimEvents.xml.gz`).  The events from AgentSim pertain to agents while the events in PhysSim pertain to vehicles. This is an important distinction.
 
@@ -110,17 +114,17 @@ Resource Markets
 
 While BEAM can be used as a tool for modeling and analyzing the detailed operations of a transportation system, it is designed primarily as an approach to modeling resource markets in the transportation sector. 
 
-The transportation system is composed of several sets of mobility resources that are in limited supply (e.g. road capacities, vehicle seating, TNC fleet availability, refueling infrastructure). With the exception of road capacities, all resources in BEAM are explicitly modeled. For example, there are a finite number of seats available on transit vehicles and there are a finite number of TNC drivers. 
+The transportation system is composed of several sets of mobility resources that are in limited supply (e.g. road capacities, vehicle seating, ride hail fleet availability, refueling infrastructure). With the exception of road capacities, all resources in BEAM are explicitly modeled. For example, there are a finite number of seats available on transit vehicles and there are a finite number of ride hail drivers. 
 
 As resources are utilized by travelers, they become unavailable to other travelers. This resource competition is resolved dynamically within the AgentSim, making it impossible for multiple agents to simultaneously utilize the same resource.
 
-The degree to which agents use resources is determined both by resource availability and traveler behavior. As the supply of TNC drivers becomes limited, the wait times for hailing a ride increase, which leads to lower utility scores in the mode choice process and therefore reduced consumption of that resource.
+The degree to which agents use resources is determined both by resource availability and traveler behavior. As the supply of ride hail drivers becomes limited, the wait times for hailing a ride increase, which leads to lower utility scores in the mode choice process and therefore reduced consumption of that resource.
 
 By adopting the MATSim utility maximization approach to achieving user equilibrium for traffic modeling, BEAM is able to find the corresponding equilibrium point across all resource markets of interest. Each agent maximizes her utility through the replanning process (which occurs outside the simulation day) as well as within the day through dynamic choice processes (e.g. choosing mode based on with-in day evaluation of modal alternatives).
 
 Ultimately, the combined outcome of running BEAM over successive iterations is a system equilibrium that balances the trade-offs between all resources in the system.
 
-In the figure above, the resource markets that are functioning in BEAM v0.5 are boxed in blue. Future versions of BEAM (planned for 2018) will include the additional resources boxed in red.
+In the figure above, the resource markets that are functioning in BEAM v0.8.0 are listed. 
 
 Dynamic Within-Day Planning
 ---------------------------
@@ -130,8 +134,7 @@ For example, a virtual TNC in BEAM responds to customer inquiries by reporting t
 
 Rich Modal Choice
 -----------------
-BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “TNC”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard TNC versus pooled, etc.).  BEAM currently supports a simple multinomial logit choice model and a more advanced model is under development and will be fully supported by Spring 2018. 
-
+BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  BEAM currently supports a simple multinomial logit choice model and a more advanced model is under development and will be fully supported by Spring 2018. 
 
 
 Plug-in Electric Vehicle Modeling with BEAM
@@ -139,7 +142,7 @@ Plug-in Electric Vehicle Modeling with BEAM
 
 In 2016, BEAM was originally developed to simulate personally-owned plug-in electric vehicles (PEVs), with an emphasis on detailed representation of charging infrastructure and driver behavior around charging. 
 
-In 2017, BEAM underwent a major revision, designed to simulate all modes of travel and to prepare the software for scalability and extensibility. We therefore no longer support the "PEV Only" version of BEAM, though the codebase is still available on the BEAM Github repository under the branch pev-only_. In 2018, PEVs will be re-implemented in BEAM following the new framework. In addition, BEAM will support modeling the refueling of fleets of electrified TNCs. 
+In 2017, BEAM underwent a major revision, designed to simulate all modes of travel and to prepare the software for scalability and extensibility. We therefore no longer support the "PEV Only" version of BEAM, though the codebase is still available on the BEAM Github repository under the branch pev-only_. In 2018, PEVs were re-implemented in BEAM following the new framework. In addition, BEAM supports modeling the refueling of fleets of electrified ride hail vehicles. 
  
 .. _pev-only: https://github.com/LBNL-UCB-STI/beam/tree/pev-only
 
@@ -159,11 +162,6 @@ colin.sheppard@lbl.gov
 
 Rashid Waraich
 rwaraich@lbl.gov
-
-Reports and Papers
-------------------
-
-“Modeling Plug-in Electric Vehicle Trips, Charging Demand and Infrastructure”.
 
 References
 ----------

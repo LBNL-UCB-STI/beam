@@ -10,7 +10,7 @@ Resources:
       CodeUri: .
       Description: BEAM Sim
       MemorySize: 128
-      Timeout: 59
+      Timeout: 899
       Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
       Environment:
         Variables:

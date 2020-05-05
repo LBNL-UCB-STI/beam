@@ -297,17 +297,16 @@ trait BeamHelper extends LazyLogging {
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): TrieMap[Id[BeamVehicle], BeamVehicle] =
-    beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
-      case true =>
-        TrieMap[Id[BeamVehicle], BeamVehicle]()
-      case false =>
-        TrieMap(
-          readVehiclesFile(
-            beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-            vehicleTypes,
-            beamConfig.matsim.modules.global.randomSeed
-          ).toSeq: _*
-        )
+    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
+      TrieMap[Id[BeamVehicle], BeamVehicle]()
+    } else {
+      TrieMap(
+        readVehiclesFile(
+          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+          vehicleTypes,
+          beamConfig.matsim.modules.global.randomSeed
+        ).toSeq: _*
+      )
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
@@ -455,6 +454,23 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
+    val (
+      beamExecutionConfig: BeamExecutionConfig,
+      scenario: MutableScenario,
+      beamScenario: BeamScenario,
+      services: BeamServices
+    ) = prepareBeamService(config)
+
+    runBeam(
+      services,
+      scenario,
+      beamScenario,
+      beamExecutionConfig.outputDirectory
+    )
+    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+  }
+
+  def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
@@ -484,14 +500,7 @@ trait BeamHelper extends LazyLogging {
 
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
-
-    runBeam(
-      services,
-      scenario,
-      beamScenario,
-      beamExecutionConfig.outputDirectory
-    )
-    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+    (beamExecutionConfig, scenario, beamScenario, services)
   }
 
   def fixDanglingPersons(result: MutableScenario): Unit = {
@@ -675,7 +684,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  private def buildMatsimConfig(
+  def buildMatsimConfig(
     config: TypesafeConfig,
     beamConfig: BeamConfig,
     outputDirectory: String
@@ -714,6 +723,15 @@ trait BeamHelper extends LazyLogging {
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    // necessary to be called after population sampling
+    BeamStaticMetricsWriter.writeSimulationParameters(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamConfig
+    )
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {

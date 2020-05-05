@@ -55,8 +55,7 @@ object DrivesVehicle {
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
     if (updatedLegsInSchedule
           .sliding(2)
-          .filter(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)
-          .size > 0) {
+          .exists(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)) {
       val i = 0
     }
     val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
@@ -141,11 +140,11 @@ object DrivesVehicle {
 
   case class AlightVehicleTrigger(
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     fuelConsumed: Option[FuelConsumed] = None
   ) extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -158,9 +157,9 @@ object DrivesVehicle {
     vehicle: BeamVehicle
   ) extends Trigger
 
-  case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
+  case class BeamVehicleStateUpdate(id: Id[BeamVehicle], vehicleState: BeamVehicleState)
 
-  def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+  def processLinkEvents(eventsManager: EventsManager, beamVehicleId: Id[BeamVehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       val links = path.linkIds
@@ -173,6 +172,7 @@ object DrivesVehicle {
         val to = links(i + 1)
         val timeAtNode = math.round(linkTravelTime(i).toFloat)
         curTime = curTime + timeAtNode
+        val vehicleId = Id.create(beamVehicleId.toString, classOf[Vehicle])
         eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
         eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
         i += 1

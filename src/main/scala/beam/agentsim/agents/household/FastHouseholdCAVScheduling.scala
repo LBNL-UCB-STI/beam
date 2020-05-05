@@ -17,7 +17,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
@@ -268,7 +267,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
           None
         } else {
           val theVehicle = StreetVehicle(
-            Id.create(cav.id.toString, classOf[Vehicle]),
+            cav.id,
             cav.beamVehicleType.id,
             origin,
             CAV,
@@ -305,7 +304,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 withTransit = false,
                 IndexedSeq(
                   StreetVehicle(
-                    Id.create(cav.id.toString, classOf[Vehicle]),
+                    cav.id,
                     cav.beamVehicleType.id,
                     origin,
                     CAV,

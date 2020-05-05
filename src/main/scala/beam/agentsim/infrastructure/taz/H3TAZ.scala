@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, HexIndex}
+import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -14,53 +14,57 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
 import scala.collection.JavaConverters._
+import scala.collection._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
-  private val transformToH3Proj =
+  private def cfg = beamConfig.beam.agentsim.h3taz
+  if (cfg.lowerBoundResolution > cfg.upperBoundResolution) logger.error("lowerBoundResolution > upperBoundResolution")
+  private val toH3CoordSystem =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
+  private val toScenarioCoordSystem =
+    new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
 
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
-    network.getNodes.values().asScala.map(n => transformToH3Proj.transform(n.getCoord))
+    network.getNodes.values().asScala.map(n => toH3CoordSystem.transform(n.getCoord))
   )
-  private val resolution = beamConfig.beam.router.skim.h3Resolution
   private val fillBoxResult: Iterable[String] =
-    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $resolution", x => logger.info(x)) {
-      fillBox(boundingBox, resolution)
+    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $getResolution", x => logger.info(x)) {
+      fillBox(boundingBox, getResolution)
     }
-  logger.info(s"fillBox for boundingBox $boundingBox with resolution $resolution gives ${fillBoxResult.size} elemets")
+  logger.info(
+    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
+  )
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
     ProfilingUtils.timed(s"Constructed tazToH3TAZMapping", str => logger.info(str)) {
-      val transformation =
-        new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
       fillBoxResult.par
         .map { hex =>
-          val hexCentroid = H3TAZ.hexToCoord(hex)
-          val hexCentroidBis = transformation.transform(hexCentroid)
-          val tazId = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY).tazId
+          val centroid = getCentroid(hex)
+          val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
           (hex, tazId)
         }
         .toMap
         .seq
     }
 
-  def getAll: Iterable[HexIndex] = {
-    tazToH3TAZMapping.keys
+  def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
+  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
+  def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
+  def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
+  def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
+
+  def getSubIndex(c: Coord): Option[HexIndex] = {
+    if (getResolution + 1 <= cfg.upperBoundResolution) {
+      val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
+      Some(H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution + 1))
+    } else None
   }
 
-  def getHRHex(x: Double, y: Double): HexIndex = {
-    val coord = H3TAZ.toGeoCoord(transformToH3Proj.transform(new Coord(x, y)))
-    H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, resolution)
+  def getIndex(c: Coord): HexIndex = {
+    val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
+    H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
   }
-
-  def getHRHex(tazId: Id[TAZ]): Iterable[HexIndex] = {
-    tazToH3TAZMapping.filter(_._2 == tazId).keys
-  }
-
-  def getTAZ(hex: HexIndex): Id[TAZ] = {
-    tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
-  }
-
+  def getResolution: Int = cfg.lowerBoundResolution
 }
 
 object H3TAZ {
@@ -90,15 +94,14 @@ object H3TAZ {
   }
 
   // private utilities
-  private def hexToCoord(hexAddress: String): Coord = {
-    val coordinate = toJtsCoordinate(H3.h3ToGeo(hexAddress))
-    new Coord(coordinate.x, coordinate.y)
-  }
   private def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
     new com.vividsolutions.jts.geom.Coordinate(in.lng, in.lat)
   }
   private def toGeoCoord(in: Coord): GeoCoord = {
     new GeoCoord(in.getY, in.getX)
+  }
+  private def toCoord(in: GeoCoord): Coord = {
+    new Coord(in.lng, in.lat)
   }
 
   private def quadTreeExtentFromShapeFile(coords: Iterable[Coord]): QuadTreeBounds = {
@@ -139,4 +142,25 @@ object H3TAZ {
     H3.polyfillAddress(points, holes, resolution).asScala
   }
 
+  // coords are expected to be WGS84
+  def getDataPointsInferredH3IndexSet(
+    dataPoints: Array[Coord],
+    maxNumberOfDataPoints: Int,
+    lowestResolution: Int,
+    highestResolution: Int
+  ): Array[(HexIndex, Array[Coord])] = {
+    val indexing =
+      dataPoints.groupBy(coord => H3TAZ.H3.geoToH3Address(coord.getX, coord.getY, lowestResolution)).toArray
+    val (a, b) = indexing.partition(_._2.length > maxNumberOfDataPoints)
+    if (lowestResolution == highestResolution || a.isEmpty)
+      indexing
+    else
+      b ++ getDataPointsInferredH3IndexSet(
+        a.flatMap(_._2),
+        maxNumberOfDataPoints,
+        lowestResolution + 1,
+        highestResolution
+      )
+  }
+  def getResolution(h3Index: HexIndex) = H3TAZ.H3.h3GetResolution(h3Index)
 }

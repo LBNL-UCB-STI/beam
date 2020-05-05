@@ -181,16 +181,19 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         this.simMetricCollector = simMetricCollector;
-        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
-
         this.geo = geo;
         this.transportNetwork = transportNetwork;
+        numberOfTimeBins = calculateNumOfTimeBins(beamConfig);
+    }
 
+    private int calculateNumOfTimeBins(BeamConfig beamConfig) {
+        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
-        Double _endTime = Time.parseTime(endTime);
-        Double _noOfTimeBins = _endTime / timeBinSize;
+        double _endTime = Time.parseTime(endTime);
+        double _noOfTimeBins = _endTime / timeBinSize;
         _noOfTimeBins = Math.floor(_noOfTimeBins);
-        numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+
+        return (int) _noOfTimeBins + 1;
     }
 
     @Override
@@ -388,20 +391,15 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             DecimalFormat df = new DecimalFormat("##");
             df.setRoundingMode(RoundingMode.FLOOR);
 
-            hourToCategories.forEach((hour, catToCnt) -> {
-                catToCnt.forEach((category, count) -> {
-                    String categoryName = "";
-                    if (category.equals(categoryValueMax)) {
-                        categoryName = df.format(categoryValueBeforeMax) + "+";
-                    } else {
-                        categoryName = df.format(category);
-                    }
+            hourToCategories.forEach((hour, catToCnt) -> catToCnt.forEach((category, count) -> {
+                final String categoryName = category.equals(categoryValueMax)
+                        ? df.format(categoryValueBeforeMax) + "+"
+                        : df.format(category);
 
-                    HashMap<String, String> tags = new HashMap<>(1);
-                    tags.put("category", categoryName);
-                    simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
-                });
-            });
+                HashMap<String, String> tags = new HashMap<>(1);
+                tags.put("category", categoryName);
+                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
+            }));
         }
     }
 
@@ -518,7 +516,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         return Math.round(category * 100) / 100.0;
     }
 
-    class RideHailWaitingIndividualStat {
+    static class RideHailWaitingIndividualStat {
         double time;
         String personId;
         String vehicleId;
