@@ -17,7 +17,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -29,6 +28,7 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import helics.BeamFederate.BeamFederateTrigger
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -261,19 +261,6 @@ class BeamMobsimIteration(
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
-  val eventsAccumulator: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.collectEvents)
-      Some(
-        context.actorOf(EventsAccumulator.props(scheduler, beamServices.beamConfig))
-      )
-    else None
-
-  eventsManager match {
-    case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
-    case _ =>
-  }
-
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
 
@@ -391,6 +378,19 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents) {
+      val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
+      context.watch(eventsAccumulator)
+      scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
+      Some(eventsAccumulator)
+    } else None
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
+
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
     system: ActorSystem,
@@ -423,6 +423,7 @@ class BeamMobsimIteration(
       tazSkimmer ! Finish
       if (eventsAccumulator.isDefined) {
         eventsAccumulator.get ! Finish
+        context.stop(eventsAccumulator.get)
       }
       context.stop(scheduler)
       context.stop(errorListener)

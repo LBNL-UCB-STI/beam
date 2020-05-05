@@ -1,18 +1,16 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{ResidenceGeography, Vehicles}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
 import scala.util.{Failure, Success}
 
-class VehiclesAvailableTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.VehiclesAvailable, Some(residenceGeography.level)) {
+class VehiclesAvailableTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.VehiclesAvailable, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Vehicles, Double]] = {
-    val vehiclesAvailableMap = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val vehiclesAvailableMap = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>

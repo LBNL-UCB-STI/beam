@@ -7,7 +7,7 @@ object PopulationCorrection extends StrictLogging {
 
   def adjust(
     input: Seq[(Models.Household, Seq[Models.Person])],
-    workForceSampler: WorkForceSampler
+    stateCodeToWorkForceSampler: Map[String, WorkForceSampler]
   ): Map[Models.Household, Seq[Models.Person]] = {
     // Take only with age is >= 16
     val elderThan16Years = input
@@ -28,7 +28,8 @@ object PopulationCorrection extends StrictLogging {
     //    showAgeCounts(elderThan16Years)
 
     val finalResult = elderThan16Years.foldLeft(Map[Models.Household, Seq[Models.Person]]()) {
-      case (acc, (hh, people)) =>
+      case (acc, (hh: Models.Household, people)) =>
+        val workForceSampler = stateCodeToWorkForceSampler(hh.geoId.state.value)
         val workers = people.collect { case person if workForceSampler.isWorker(person.age) => person }
         if (workers.isEmpty) acc
         else {
@@ -37,7 +38,7 @@ object PopulationCorrection extends StrictLogging {
     }
     val removedEmptyHh = elderThan16Years.size - finalResult.size
     val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - finalResult.values.map(x => x.size).sum
-    logger.info(s"""After applying work force sampler them got ${finalResult.size} households with ${finalResult.values
+    logger.info(s"""After applying work force sampler got ${finalResult.size} households with ${finalResult.values
                      .map(x => x.size)
                      .sum} people.
          |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin)

@@ -3,17 +3,17 @@ package beam.utils.data.ctpp.readers.flow
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{FlowGeoParser, MeansOfTransportation, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class MeansOfTransportationTableReader(
-  pathToData: PathToData,
+  dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(pathToData, Table.MeanOfTransportation, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.MeanOfTransportation, Some(residenceToWorkplaceFlowGeography.level)) {
   private val interestedLineNumber: Set[Int] = MeansOfTransportation.all.map(_.lineNumber).toSet
 
-  def read(): Seq[OD[MeansOfTransportation]] = {
-    CTPPParser
-      .readTable(pathToCsvTable, x => geographyLevelFilter(x) && interestedLineNumber.contains(x.lineNumber))
+  def read(): Iterable[OD[MeansOfTransportation]] = {
+    readRaw()
+      .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
         val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
         val mode = MeansOfTransportation(entry.lineNumber).get
@@ -25,10 +25,9 @@ class MeansOfTransportationTableReader(
 object MeansOfTransportationTableReader {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 1, "Provide the path to the data folder CTPP")
-    val pathToData = args(0)
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
     val ods =
-      new MeansOfTransportationTableReader(PathToData(pathToData), ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
+      new MeansOfTransportationTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
         .read()
     println(s"Read ${ods.size} OD pairs")
   }

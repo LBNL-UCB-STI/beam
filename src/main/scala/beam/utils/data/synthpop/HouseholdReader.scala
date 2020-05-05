@@ -20,7 +20,12 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
   private[synthpop] def toHousehold(rec: java.util.Map[String, String]): Household = {
     // Get the details of columns from https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2017.pdf?
 
-    val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+    val compoundId = {
+      val serialNo = GenericCsvReader.getIfNotNull(rec, "serialno").toString
+      val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+      HouseholdReader.getCompoundHouseholdId(serialNo, id)
+    }
+
     val numOfPersons = Option(rec.get("NP")).map(_.toInt).getOrElse {
       logger.warn(s"Could not find `NP` field in ${rec.toString}")
       0
@@ -41,15 +46,19 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
       0
     }
 
-    // Read geoid
-    val state = State(GenericCsvReader.getIfNotNull(rec, "state").toString)
-    val county = County(GenericCsvReader.getIfNotNull(rec, "county").toString)
-    val tract = GenericCsvReader.getIfNotNull(rec, "tract").toString
-    val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group").toString
-    val geoId = BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroupId)
+    // Read attributes for BlockGroupGeoId
+    val state = State(GenericCsvReader.getIfNotNull(rec, "state"))
+    val countyAsInt = GenericCsvReader.getIfNotNull(rec, "county").toInt
+    // In order to match with Shape file we need to format it. In shape file COUNTYFP attribute consist of 3 digits (possibly zeros)
+    val county = County(countyAsInt.formatted("%03d"))
 
+    // In order to match with Shape file we need to format it. In shape file TRACTCE attribute consist of 6 digits (possibly zeros)
+    val tract = GenericCsvReader.getIfNotNull(rec, "tract").toInt.formatted("%06d")
+
+    val blockGroupId = GenericCsvReader.getIfNotNull(rec, "block group")
+    val geoId = BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroupId)
     Household(
-      id = id,
+      id = compoundId,
       geoId = geoId,
       numOfPersons = numOfPersons,
       numOfVehicles = numOfVehicles,
@@ -62,8 +71,14 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
 
 object HouseholdReader {
 
+  def getCompoundHouseholdId(serialNo: String, householdId: String): String = {
+    // This is needed because only the pair of (serialNo, id) represents unique household
+    // Check how SynthPop generates it: https://github.com/UDST/synthpop/blob/master/synthpop/draw.py#L121
+    s"$serialNo:$householdId"
+  }
+
   def main(args: Array[String]): Unit = {
-    require(args.size == 1, "Provide the path to CSV file as first argument")
+    require(args.length == 1, "Provide the path to CSV file as first argument")
 
     val pathToFile = args(0)
     val rdr = new HouseholdReader(pathToFile)

@@ -1,5 +1,6 @@
 package beam.utils.data.synthpop
 
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.sim.common.GeoUtils
@@ -8,7 +9,7 @@ import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
 import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.generators.{
   RandomWorkDestinationGenerator,
   TimeLeavingHomeGenerator,
@@ -46,15 +47,14 @@ case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 class SimpleScenarioGenerator(
   val pathToSythpopDataFolder: String,
-  val pathToCTPPFolder: String,
+  val dbInfo: CTPPDatabaseInfo,
   val pathToTazShapeFile: String,
   val pathToBlockGroupShapeFile: String,
-  val pathToCongestionLevelDataFile: String,
+  val pathToCongestionLevelDataFile: String, // One can create it manually https://www.tomtom.com/en_gb/traffic-index/austin-traffic/
   val pathToWorkedHours: String,
-  val pathToOsmMap: String,
-  val stateCode: String,
+  val pathToOsmMap: String, // Conditional work duration
   val randomSeed: Int,
-  val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
+  val offPeakSpeedMetersPerSecond: Double,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -96,18 +96,19 @@ class SimpleScenarioGenerator(
     legRouteLinks = Seq.empty
   )
 
-  private val pathToCTPPData = PathToData(pathToCTPPFolder)
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
-    new RandomWorkDestinationGenerator(pathToCTPPData)
+    new RandomWorkDestinationGenerator(dbInfo)
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
 
   private val timeLeavingHomeGenerator: TimeLeavingHomeGenerator =
-    new TimeLeavingHomeGeneratorImpl(pathToCTPPData, residenceToWorkplaceFlowGeography)
+    new TimeLeavingHomeGeneratorImpl(dbInfo, residenceToWorkplaceFlowGeography)
 
-  private val workForceSampler = new WorkForceSampler(pathToCTPPData, stateCode, new MersenneTwister(randomSeed))
+  private val stateCodeToWorkForceSampler: Map[String, WorkForceSampler] = dbInfo.states.map { stateCode =>
+    stateCode -> new WorkForceSampler(dbInfo, stateCode, new MersenneTwister(randomSeed))
+  }.toMap
 
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
@@ -115,7 +116,7 @@ class SimpleScenarioGenerator(
     // Read households and people
     val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
     // Adjust population
-    PopulationCorrection.adjust(temp, workForceSampler)
+    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -139,7 +140,6 @@ class SimpleScenarioGenerator(
 
   private val geoSvc: GeoService = new GeoService(
     GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile, pathToOsmMap),
-    uniqueStates,
     uniqueGeoIds
   )
 
@@ -229,7 +229,7 @@ class SimpleScenarioGenerator(
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     val finalResult = blockGroupGeoIdToHouseholds.map {
       case (blockGroupGeoId, householdsWithPersonData) =>
-        logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
+        logger.info(s"$blockGroupGeoId contains ${householdsWithPersonData.size} households")
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
           logger.warn(
@@ -495,49 +495,41 @@ class SimpleScenarioGenerator(
 }
 
 object SimpleScenarioGenerator {
-  /*
-    How to run it through gradle:
-    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs="['D:/Work/beam/Austin/input', 'D:/Work/beam/Austin/input/CTPP/48', 'D:/Work/beam/Austin/input/tl_2011_48_taz10/tl_2011_48_taz10.shp', 'D:/Work/beam/Austin/input/tl_2019_48_bg/tl_2019_48_bg.shp', 'D:/Work/beam/Austin/input/CongestionLevel_Austin.csv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv', 'D:/Work/beam/Austin/input/texas-six-counties-simplified.osm.pbf', '48', 'D:/Work/beam/Austin/results']"
-   */
+  case class Arguments(
+    sythpopDataFolder: String,
+    ctppFolder: String,
+    stateCodes: Set[String],
+    tazShapeFolder: String,
+    blockGroupShapeFolder: String,
+    congestionLevelDataFile: String,
+    workDurationCsv: String,
+    osmMap: String,
+    randomSeed: Int,
+    offPeakSpeedMetersPerSecond: Double,
+    defaultValueOfTime: Double,
+    outputFolder: String
+  )
 
-  def main(args: Array[String]): Unit = {
-    require(args.length == 9, s"Expecting 9 arguments, but got ${args.length}")
-    val pathToSythpopDataFolder = args(0)
-    val pathToCTPPFolder = args(1)
-    val pathToTazShapeFile = args(2)
-    val pathToBlockGroupShapeFile = args(3)
-    val pathToCongestionLevelDataFile = args(4)
-    val pathToWorkedHours = args(5)
-    val pathToOsmMap = args(6)
-    val stateCode = args(7)
-    val pathToOutput = args(8)
-    /*
-    Args:
-      "D:\Work\beam\Austin\input\"
-      "D:\Work\beam\Austin\input\CTPP\48"
-      "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
-      "D:\Work\beam\Austin\input\tl_2019_48_bg\tl_2019_48_bg.shp"
-      "D:\Work\beam\Austin\input\CongestionLevel_Austin.csv"
-      "D:\Work\beam\Austin\input\work_activities_all_us.csv"
-      "D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"
-      "48"
-      "D:\Work\beam\Austin\results"
-     * */
+  def run(parsedArgs: Arguments): Unit = {
+    val pathToOutput = parsedArgs.outputFolder
+    val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
+    require(new File(parsedArgs.outputFolder).mkdirs(), s"${pathToOutput} exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(
-        pathToSythpopDataFolder = pathToSythpopDataFolder,
-        pathToCTPPFolder = pathToCTPPFolder,
-        pathToTazShapeFile = pathToTazShapeFile,
-        pathToBlockGroupShapeFile = pathToBlockGroupShapeFile,
-        pathToCongestionLevelDataFile = pathToCongestionLevelDataFile,
-        pathToWorkedHours = pathToWorkedHours,
-        pathToOsmMap = pathToOsmMap,
-        stateCode = stateCode,
-        randomSeed = 42,
+        pathToSythpopDataFolder = parsedArgs.sythpopDataFolder,
+        dbInfo = databaseInfo,
+        pathToTazShapeFile = parsedArgs.tazShapeFolder,
+        pathToBlockGroupShapeFile = parsedArgs.blockGroupShapeFolder,
+        pathToCongestionLevelDataFile = parsedArgs.congestionLevelDataFile,
+        pathToWorkedHours = parsedArgs.workDurationCsv,
+        pathToOsmMap = parsedArgs.osmMap,
+        randomSeed = parsedArgs.randomSeed,
+        offPeakSpeedMetersPerSecond = parsedArgs.offPeakSpeedMetersPerSecond,
+        defaultValueOfTime = parsedArgs.defaultValueOfTime
       )
 
-    gen.writeTazCenters(pathToOutput)
+    gen.writeTazCenters(parsedArgs.outputFolder)
 
     val (generatedData, tazGeoIdToResidentsAndWorkers) = gen.generate
     println(s"Number of households: ${generatedData.size}")
@@ -570,5 +562,33 @@ object SimpleScenarioGenerator {
     val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
+  }
+
+  def main(args: Array[String]): Unit = {
+    /*
+
+    How to run it through gradle:
+    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs=["
+    '--sythpopDataFolder', 'D:/Work/beam/NewYork/input/syntpop',
+    '--ctppFolder', 'D:/Work/beam/CTPP/',
+    '--stateCodes', '34,36',
+    '--tazShapeFolder', 'D:/Work/beam/NewYork/input/Shape/TAZ/',
+    '--blockGroupShapeFolder', 'D:/Work/beam/NewYork/input/Shape/BlockGroup/',
+    '--congestionLevelDataFile', 'D:/Work/beam/NewYork/input/CongestionLevel_NewYork.csv',
+    '--workDurationCsv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv',
+    '--osmMap', 'D:/Work/beam/NewYork/input/OSM/newyork-simplified.osm.pbf',
+    '--randomSeed', '42',
+    '--offPeakSpeedMetersPerSecond', '12.5171',
+    '--defaultValueOfTime', '8.0',
+    '--outputFolder', 'D:/Work/beam/NewYork/results'
+    "] -PlogbackCfg=logback.xml
+     */
+    SimpleScenarioGeneratorArgParser.parseArguments(args) match {
+      case None =>
+        throw new IllegalStateException("Unable to parse arguments. Check the logs")
+      case Some(parsedArgs: Arguments) =>
+        run(parsedArgs)
+
+    }
   }
 }

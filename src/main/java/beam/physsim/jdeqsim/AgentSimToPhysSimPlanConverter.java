@@ -206,6 +206,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
+        // We write travel time map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel time will be used in the next iteration
+        // It's needed to be in sync with `RouteDumper` and allow us to reproduce routes calculation
+        if (iterationNumber == 0 || (iterationNumber + 1) % beamConfig.beam().outputs().writeEventsInterval() == 0) {
+            String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
+            try {
+                try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
+                    oos.writeObject(travelTimeMap);
+                }
+            }
+            catch (Exception ex) {
+                log.error("Can't write travel time map", ex);
+            }
+        }
+
         router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
         //################################################################################################################

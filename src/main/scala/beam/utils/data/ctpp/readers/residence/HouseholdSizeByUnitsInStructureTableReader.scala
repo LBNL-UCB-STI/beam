@@ -1,12 +1,11 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{HouseholdSize, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
-class HouseholdSizeByUnitsInStructureTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.HouseholdSizeByUnitsInStructure, Some(residenceGeography.level)) {
+class HouseholdSizeByUnitsInStructureTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.HouseholdSizeByUnitsInStructure, Some(residenceGeography.level)) {
   private val `1-person household-lineNumber`: Int = 10
   private val `2-person household-lineNumber`: Int = 19
   private val `3-person household-lineNumber`: Int = 28
@@ -14,8 +13,7 @@ class HouseholdSizeByUnitsInStructureTableReader(pathToData: PathToData, val res
 
   def read(): Map[String, Map[HouseholdSize, Double]] = {
     // A112210 - Household size (5) by Units in Structure (9) (Households)  is 2-D data, but we use it only to get the size of households
-    val map: Map[String, Map[HouseholdSize, Double]] = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val map: Map[String, Map[HouseholdSize, Double]] = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>
@@ -36,5 +34,24 @@ class HouseholdSizeByUnitsInStructureTableReader(pathToData: PathToData, val res
           geoId -> householdTypeToFreq
       }
     map
+  }
+}
+
+object HouseholdSizeByUnitsInStructureTableReader {
+
+  def main(args: Array[String]): Unit = {
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
+    val rdr =
+      new HouseholdSizeByUnitsInStructureTableReader(databaseInfo, ResidenceGeography.State)
+    val readData = rdr.read()
+    readData.foreach {
+      case (geoId, map) =>
+        println(s"geoId: $geoId")
+        map.foreach {
+          case (size, count) =>
+            println(s"$size: $count")
+
+        }
+    }
   }
 }

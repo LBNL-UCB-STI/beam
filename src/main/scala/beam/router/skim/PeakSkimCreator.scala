@@ -59,9 +59,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   private val wgsCoordinates = getAllActivitiesLocations.map(beamServices.geo.utm2Wgs(_)).map(WgsCoordinate.apply).toSet
 
-  private val summary: GeoZoneSummary = new GeoZone(wgsCoordinates).includeBoundBoxPoints
-    .topDownEqualDemandsGenerator(1000)
-    .generate()
+  private val summary: GeoZoneSummary =
+    TopDownEqualDemandGeoIndexMapper.from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, 1000).generateSummary()
 
   logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
 

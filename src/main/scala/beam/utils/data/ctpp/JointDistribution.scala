@@ -85,7 +85,7 @@ class JointDistribution(
         value =>
           new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
       )
-      .toList
+      .toVector
 
     val values = pmf.map(_.getValue)
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {

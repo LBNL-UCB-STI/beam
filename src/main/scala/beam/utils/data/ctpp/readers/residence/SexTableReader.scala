@@ -1,18 +1,16 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{Gender, ResidenceGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
 import scala.util.{Failure, Success}
 
-class SexTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.Sex, Some(residenceGeography.level)) {
+class SexTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.Sex, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Gender, Double]] = {
-    val map = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val map = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>

@@ -1,12 +1,11 @@
 package beam.utils.data.ctpp.readers.residence
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{ResidenceGeography, WorkedHours}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
-class UsualHoursWorkedPerWeekTableReader(pathToData: PathToData, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(pathToData, Table.UsualHoursWorkedPerWeek, Some(residenceGeography.level)) {
+class UsualHoursWorkedPerWeekTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
+    extends BaseTableReader(dbInfo, Table.UsualHoursWorkedPerWeek, Some(residenceGeography.level)) {
 
   private val `Usually worked 1 to 14 hours per week-lineNumber`: Int = 2
   private val `Usually worked 15 to 20 hours per week-lineNumber`: Int = 3
@@ -16,8 +15,7 @@ class UsualHoursWorkedPerWeekTableReader(pathToData: PathToData, val residenceGe
   private val `Usually worked 56 or more hours per week-lineNumber`: Int = 7
 
   def read(): Map[String, Map[WorkedHours, Double]] = {
-    val map: Map[String, Map[WorkedHours, Double]] = CTPPParser
-      .readTable(pathToCsvTable, geographyLevelFilter)
+    val map: Map[String, Map[WorkedHours, Double]] = readRaw()
       .groupBy(x => x.geoId)
       .map {
         case (geoId, xs) =>

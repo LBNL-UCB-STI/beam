@@ -151,6 +151,7 @@ dependencies {
     compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
+    compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1-3'
 
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
@@ -285,6 +286,8 @@ dependencies {
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
     }
+
+    compile(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
 
     compile 'de.vandermeer:asciitable:0.3.2'
 }
@@ -421,7 +424,6 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-
 def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
@@ -451,11 +453,12 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
            "-Dcom.sun.management.jmxremote.local.only=true", "-Dcom.sun.management.jmxremote.authenticate=false", "-Dcom.sun.management.jmxremote.ssl=false",
            "-Djava.net.preferIPv4Stack=true", "-Djava.rmi.server.hostname=127.0.0.1"]
 
+def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
+
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
-
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
