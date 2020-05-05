@@ -112,35 +112,33 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsTrip(legs: List[BeamLeg]): List[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var runningStartTime = legs.head.startTime
-        for (leg <- legs) yield {
-          val newLeg = leg.updateStartTime(runningStartTime)
-          runningStartTime = newLeg.endTime
-          newLeg
-        }
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var runningStartTime = legs.head.startTime
+      for (leg <- legs) yield {
+        val newLeg = leg.updateStartTime(runningStartTime)
+        runningStartTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var latestEndTime = legs.head.startTime - 1
-        var newLeg = legs.head
-        for (leg <- legs) yield {
-          if (leg.startTime < latestEndTime) {
-            newLeg = leg.updateStartTime(latestEndTime)
-          } else {
-            newLeg = leg
-          }
-          latestEndTime = newLeg.endTime
-          newLeg
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var latestEndTime = legs.head.startTime - 1
+      var newLeg = legs.head
+      for (leg <- legs) yield {
+        if (leg.startTime < latestEndTime) {
+          newLeg = leg.updateStartTime(latestEndTime)
+        } else {
+          newLeg = leg
         }
+        latestEndTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 }

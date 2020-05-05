@@ -109,7 +109,7 @@ object RideHailManager {
             asDriver = false,
             estimatedPrice(passenger.personId),
             unbecomeDriverOnCompletion = false,
-            isPooledTrip = passengerSchedule.schedule.values.find(_.riders.size > 1).isDefined
+            isPooledTrip = passengerSchedule.schedule.values.exists(_.riders.size > 1)
           )
         }
         .toVector
@@ -1178,7 +1178,7 @@ class RideHailManager(
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (!refuelingQueue.isEmpty) =>
+      case refuelingQueue if (refuelingQueue.nonEmpty) =>
         val toReturn = refuelingQueue.dequeue
         log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn
@@ -1663,7 +1663,7 @@ class RideHailManager(
       .filter(tup => tup._1.isDefined && tup._2.size == 1)
       .map(_._2.head._1.person.get)
     var passengersToAdd = noPickupPassengers
-    if (!passengersToAdd.isEmpty) {
+    if (passengersToAdd.nonEmpty) {
       val i = 0
     }
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()

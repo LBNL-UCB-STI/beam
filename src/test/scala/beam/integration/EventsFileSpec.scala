@@ -31,6 +31,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
+    .withValue(
+      "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+      ConfigValueFactory.fromAnyRef("6")
+    )
     .resolve()
 
   private var scenario: MutableScenario = _
@@ -175,6 +179,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
         }
       }
     }
+    logger.debug("nCarTrips = {}, nBikeTrips = {}", nCarTrips, nBikeTrips)
     assert(nCarTrips != 0, "At least some people must go by car")
     assert(nBikeTrips != 0, "At least some people must go by bike")
   }
