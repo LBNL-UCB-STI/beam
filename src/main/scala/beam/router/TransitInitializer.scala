@@ -186,7 +186,7 @@ class TransitInitializer(
       transitScheduleToCreate.values.size
     )
     transitScheduleToCreate
-  }.toList.toMap
+  }.seq
 
   private def routeTransitPathThroughStreets(
     fromStopIdx: Int,
