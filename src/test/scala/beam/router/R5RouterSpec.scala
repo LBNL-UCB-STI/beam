@@ -3,12 +3,11 @@ package beam.router
 import java.io.File
 import java.time.OffsetDateTime
 
-import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -30,12 +29,12 @@ class R5RouterSpec extends FlatSpec with Matchers {
 
   it should "fail with start edge" in {
     val path = routeV1(startEdge1, stopEdge1)
-    pathModeCheck(path) shouldBe false
+    pathModeCheck(path) shouldBe true //means this one fails
   }
 
   it should "fail with stop edge" in {
     val path = routeV1(startEdge1, stopEdge2)
-    pathModeCheck(path) shouldBe false
+    pathModeCheck(path) shouldBe true //means this one fails
   }
 
   it should "not fail with start edge with different setOrigin" in {
@@ -120,10 +119,12 @@ class R5RouterSpec extends FlatSpec with Matchers {
 
     vertexById(vertex).flatMap { vertex =>
       Option(
-        Split.findOnEdge(
+        Split.find(
           vertex.getLat,
           vertex.getLon,
-          edge
+          StreetLayer.LINK_RADIUS_METERS,
+          transportNetwork.streetLayer,
+          streetMode
         )
       )
     }
@@ -195,6 +196,8 @@ class R5RouterSpec extends FlatSpec with Matchers {
     profileRequest.toLat = stopVertex.getLat
     profileRequest.fromTime = 1500
     profileRequest.toTime = profileRequest.fromTime + 61
+
+    profileRequest.reverseSearch = false
 
     profileRequest
   }
