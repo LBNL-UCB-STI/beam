@@ -21,8 +21,6 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable.ParMap
 
 class TransitInitializer(
   beamConfig: BeamConfig,
@@ -45,7 +43,7 @@ class TransitInitializer(
    * be used to decide what type of vehicle to assign
    *
    */
-  def initMap: ParMap[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
+  def initMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = TrieMap[(Int, Int), Option[StreetPath]]()
@@ -188,7 +186,7 @@ class TransitInitializer(
       transitScheduleToCreate.values.size
     )
     transitScheduleToCreate
-  }
+  }.toList.toMap
 
   private def routeTransitPathThroughStreets(
     fromStopIdx: Int,
