@@ -6,16 +6,16 @@ import beam.agentsim.infrastructure.geozone._
 import beam.agentsim.infrastructure.geozone.GeoZone.GeoZoneContent
 import beam.utils.map.SequenceUtil
 
-class WgsCoordinateGeoIndexMapper(
+class WgsCoordinateH3IndexMapper(
   wgsCoordinates: ParSet[WgsCoordinate],
-  targetIndexes: ParSet[GeoIndex]
-) extends GeoIndexMapper {
+  targetIndexes: ParSet[H3Index]
+) extends H3IndexMapper {
 
   private val resolutionsDescendingOrdered: Seq[Int] =
     targetIndexes.map(_.resolution).seq.toSeq.sorted(Ordering.Int.reverse)
 
   override lazy val generateContent: GeoZoneContent = {
-    val result: ParSeq[(GeoIndex, WgsCoordinate)] = wgsCoordinates.toSeq.flatMap { coordinate =>
+    val result: ParSeq[(H3Index, WgsCoordinate)] = wgsCoordinates.toSeq.flatMap { coordinate =>
       findIndex(coordinate).map { index =>
         index -> coordinate
       }
@@ -30,7 +30,7 @@ class WgsCoordinateGeoIndexMapper(
     GeoZoneSummary(items)
   }
 
-  def findIndex(coordinate: WgsCoordinate): Option[GeoIndex] = {
+  def findIndex(coordinate: WgsCoordinate): Option[H3Index] = {
     resolutionsDescendingOrdered.toIterator
       .map(resolution => H3Wrapper.getIndex(coordinate, resolution))
       .find(targetIndexes.contains)
