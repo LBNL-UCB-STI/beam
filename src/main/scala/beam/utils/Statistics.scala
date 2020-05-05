@@ -22,7 +22,7 @@ case class Statistics(
 
 object Statistics {
 
-  def apply(pq: Seq[Double]): Statistics = {
+  def apply(pq: Seq[Double], weights: Seq[Double] = Seq.empty): Statistics = {
     if (pq.nonEmpty) {
       val min = pq.min
       val max = pq.max
@@ -40,7 +40,7 @@ object Statistics {
         minValue = min,
         maxValue = max,
         median = median,
-        avg = sum / pq.size,
+        avg = average(pq, weights),
         p75 = p75,
         p95 = p95,
         p99 = p99,
@@ -62,6 +62,21 @@ object Statistics {
         `p99.99` = Double.NaN,
         sum = 0.0
       )
+    }
+  }
+
+  /***
+   * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
+   * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
+   */
+  private def average(values: Seq[Double], weights: Seq[Double]): Double = {
+    if (weights.isEmpty){
+      values.sum / values.length
+    } else {
+      val counter = values.view.zip(weights).foldLeft((0d, 0d)) {
+        case ((accValue, sum), (value, weight)) => (value * weight + accValue) -> (sum + weight)
+      }
+      counter._1 / counter._2
     }
   }
 }
