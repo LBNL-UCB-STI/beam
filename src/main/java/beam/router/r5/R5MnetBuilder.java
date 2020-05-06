@@ -60,9 +60,12 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true, highwaySetting.speedsMeterPerSecondMap, highwaySetting.capacityMap, highwaySetting.lanesMap);
 
+
+
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
+      //  System.out.println("roadType,defaultSpeed,overwriteCustomSpeed");
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
@@ -105,6 +108,19 @@ public class R5MnetBuilder {
                 log.debug("Created special link: {}", link);
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>) flagStrings);
+
+              /*  if (way.getTag("maxspeed")!=null)
+                {
+                                Object typeObj=link.getAttributes().getAttribute("type");
+                    if (typeObj!=null){
+                        String type=typeObj.toString();
+                        if (OTM.highwayDefaults.get(type)!=null){
+                            System.out.println(type + "," + OTM.highwayDefaults.get(type).freespeed + "," + link.getFreespeed());
+                        }
+
+                    }
+                }*/
+
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
@@ -121,10 +137,27 @@ public class R5MnetBuilder {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
 
-
+       // System.out.println("roadType,defaultSpeed,overwriteCustomSpeed");
         for (Link link : mNetwork.getLinks().values()) {
             link.setFreespeed(link.getFreespeed() * this.beamConfig.physsim().speedScalingFactor());
+
+            /*Object typeObj=link.getAttributes().getAttribute("type");
+
+            if (typeObj!=null){
+                String type=typeObj.toString();
+                if (OTM.highwayDefaults.get(type)!=null){
+                    System.out.println(type + "," + OTM.highwayDefaults.get(type).freespeed + "," + link.getFreespeed());
+                }
+
+            }*/
+
+
+
+
         }
+
+
+
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {

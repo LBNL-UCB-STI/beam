@@ -1253,7 +1253,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
             physSimTravelTime * travelTimeNoises(idx)
           }).ceil.toInt
         val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
-        Math.min(linkTravelTime, maxTravelTime)
+        val freeFlowTT=link.getLength/link.getFreespeed
+        Math.min( Math.min(linkTravelTime, maxTravelTime), freeFlowTT)
 
       }
     }
