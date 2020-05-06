@@ -299,17 +299,16 @@ trait BeamHelper extends LazyLogging {
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): TrieMap[Id[BeamVehicle], BeamVehicle] =
-    beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
-      case true =>
-        TrieMap[Id[BeamVehicle], BeamVehicle]()
-      case false =>
-        TrieMap(
-          readVehiclesFile(
-            beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-            vehicleTypes,
-            beamConfig.matsim.modules.global.randomSeed
-          ).toSeq: _*
-        )
+    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
+      TrieMap[Id[BeamVehicle], BeamVehicle]()
+    } else {
+      TrieMap(
+        readVehiclesFile(
+          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+          vehicleTypes,
+          beamConfig.matsim.modules.global.randomSeed
+        ).toSeq: _*
+      )
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
@@ -740,7 +739,7 @@ trait BeamHelper extends LazyLogging {
 
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
-    BeamStaticMetricsWriter.calculateAndWriteMetrics(
+    BeamStaticMetricsWriter.writeSimulationParameters(
       scenario,
       beamScenario,
       beamServices,

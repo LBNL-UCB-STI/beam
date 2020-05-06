@@ -1,15 +1,35 @@
 #Beam scenario generator
 ## Data sources
-To generate new scenario for Beam we need to provide the following information:
-1. household.csv and people.csv as an output of SynthPop. How to run it: https://github.com/LBNL-UCB-STI/synthpop#how-to-run-it
-2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)), link to FTP: ftp://data5.ctpp.transportation.org/
-3. Shape files for:
-    1. Traffic Analysis Zone (TAZ) shape file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/
-    2. Block Group file for specific state from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2019/BG/
-4. Congestion level data for the area in CSV format
-5. Conditional work duration (can be created using [NHTS data](https://nhts.ornl.gov/))
-6. OSM PB map of area
-7. US state code
+To generate a new scenario for Beam by [beam.utils.data.synthpop.SimpleScenarioGenerator](../ScenarioGenerator.scala) we need to provide the following information:
+1. For every county, two files: household_STATE_COUNTY.csv and people_STATE_COUNTY.csv as an output of SynthPop. How to run it: https://github.com/LBNL-UCB-STI/synthpop#how-to-run-it
+2. Census Transportation Planning Products Program data ([CTPP](https://ctpp.transportation.org/2012-2016-5-year-ctpp/)) for the state, link to FTP: ftp://data5.ctpp.transportation.org/. Mirrored data on our S3: https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#new_city/ctpp/
+3. List of state codes for CTPP
+4. Shape files for:
+    1. Traffic Analysis Zone (TAZ) shape file for specific states from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/
+    2. Block Group file for specific states from Census Bureau: https://www2.census.gov/geo/tiger/TIGER2019/BG/
+    3. County shape file from https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/ (in case if you want to crop the OSM map using counties' boundaries)
+5. Congestion level data for the area in CSV format, for example, from https://www.tomtom.com/en_gb/traffic-index/austin-traffic/
+6. Conditional work duration (can be created using [NHTS data](https://nhts.ornl.gov/))
+7. OSM PB map of area
+
+Example of run:
+```bash
+./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs=["
+'--sythpopDataFolder', 'D:/Work/beam/NewYork/input/syntpop', 
+'--ctppFolder', 'D:/Work/beam/CTPP/',
+'--stateCodes', '34,36',
+'--tazShapeFolder', 'D:/Work/beam/NewYork/input/Shape/TAZ/',
+'--blockGroupShapeFolder', 'D:/Work/beam/NewYork/input/Shape/BlockGroup/',
+'--congestionLevelDataFile', 'D:/Work/beam/NewYork/input/CongestionLevel_NewYork.csv',
+'--workDurationCsv', 'D:/Work/beam/Austin/input/work_activities_all_us.csv',
+'--osmMap', 'D:/Work/beam/NewYork/input/OSM/newyork-simplified.osm.pbf',
+'--randomSeed', '42',
+'--offPeakSpeedMetersPerSecond', '12.5171',
+'--defaultValueOfTime', '8.0',
+'--outputFolder', 'D:/Work/beam/NewYork/results'
+"] \
+-Dlogback.configurationFile=logback.xml
+```
 
 ![Data source](data_sources.svg)
 

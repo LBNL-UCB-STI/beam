@@ -2,37 +2,54 @@ package beam.utils.data.ctpp.readers
 
 import java.io.{File, FileFilter}
 
+import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.Models.CTPPEntry
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 import com.typesafe.scalalogging.StrictLogging
 
 abstract class BaseTableReader(
-  protected val pathToData: PathToData,
+  protected val dbInfo: CTPPDatabaseInfo,
   protected val table: Table,
   maybeGeographyLevelFilter: Option[String]
 ) extends StrictLogging {
   import BaseTableReader._
 
-  protected val pathToCsvTable: String = findTablePath()
-  logger.info(s"Path to table $table is '$pathToCsvTable'")
+  protected val stateToCsvTablePath: Map[String, String] =
+    dbInfo.states.map(stateCode => stateCode -> findTablePath(stateCode)).toMap
+  logger.info(s"Path to table $table for states ${dbInfo.states}")
+  stateToCsvTablePath.foreach {
+    case (state, fullPath) =>
+      logger.info(s"   $state: $fullPath")
+  }
 
   def geographyLevelFilter(x: CTPPEntry): Boolean = {
     maybeGeographyLevelFilter.forall(level => x.geoId.startsWith(level))
   }
 
-  protected def findTablePath(): String = findFile(pathToData.path, table.name)
+  protected def findTablePath(stateCode: String): String = {
+    val fullStatePath = s"${dbInfo.pathToData.path}/$stateCode/"
+    findFile(fullStatePath, table.name)
+  }
 
-  protected def findEstimateByLineNumberOr0(xs: Seq[CTPPEntry], lineNumber: Int, what: String): Double = {
+  protected def findEstimateByLineNumberOr0(xs: Iterable[CTPPEntry], lineNumber: Int, what: String): Double = {
     xs.find(x => x.lineNumber == lineNumber).map(_.estimate).getOrElse {
       // TODO better data missing handling
       // logger.warn(s"Could not find total count for '$what' in input ${xs.mkString(" ")}")
       0
     }
   }
+
+  protected def readRaw(): Iterable[CTPPEntry] = {
+    stateToCsvTablePath.values.flatMap { path =>
+      CTPPParser
+        .readTable(path, geographyLevelFilter)
+    }
+  }
 }
 
 object BaseTableReader {
   case class PathToData(path: String) extends AnyVal
+  case class CTPPDatabaseInfo(pathToData: PathToData, states: Set[String])
 
   sealed abstract class Table(val name: String, val desc: String)
 

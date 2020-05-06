@@ -7,6 +7,8 @@ import beam.agentsim.infrastructure.taz.H3TAZ.{toJtsCoordinate, H3}
 import com.uber.h3core.AreaUnit
 import org.matsim.api.core.v01.Coord
 
+import com.uber.h3core.AreaUnit
+
 object H3Wrapper {
 
   def getResolution(index: String): Int = {
@@ -15,6 +17,10 @@ object H3Wrapper {
 
   def getIndex(point: WgsCoordinate, resolution: Int): GeoIndex = {
     GeoIndex(h3Core.geoToH3Address(point.latitude, point.longitude, resolution))
+  }
+
+  def areaInM2(index: GeoIndex): Double = {
+    h3Core.hexArea(index.resolution, AreaUnit.m2)
   }
 
   def geoToH3Address(point: WgsCoordinate, resolution: Int): String = {
@@ -55,6 +61,11 @@ object H3Wrapper {
     */
   def hexAreaM2(resolution: Int): Double = {
     h3Core.hexArea(resolution, AreaUnit.m2)
+  }
+
+  def wgsCoordinate(index: GeoIndex): WgsCoordinate = {
+    val coord = h3Core.h3ToGeo(index.value)
+    WgsCoordinate(latitude = coord.lat, longitude = coord.lng)
   }
 
   private[geozone] val h3Core = com.uber.h3core.H3Core.newInstance

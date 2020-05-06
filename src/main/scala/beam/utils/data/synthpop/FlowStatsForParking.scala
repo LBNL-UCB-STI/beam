@@ -1,7 +1,7 @@
 package beam.utils.data.synthpop
 
 import beam.utils.data.ctpp.models.{OD, ResidenceGeography, ResidenceToWorkplaceFlowGeography}
-import beam.utils.data.ctpp.readers.BaseTableReader.PathToData
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.TravelTimeTableReader
 import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader
 import beam.utils.data.synthpop.GeoService.{defaultTazMapper, getTazMap}
@@ -11,7 +11,7 @@ import com.vividsolutions.jts.geom.Geometry
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
-class FlowStatsForParking(val pathToData: PathToData, val tazGeoIdToGeomAndLandArea: Map[TazGeoId, (Geometry, Long)])
+class FlowStatsForParking(val dbInfo: CTPPDatabaseInfo, val tazGeoIdToGeomAndLandArea: Map[TazGeoId, (Geometry, Long)])
     extends StrictLogging {
   case class Row(
     sourceTaz: String,
@@ -22,8 +22,8 @@ class FlowStatsForParking(val pathToData: PathToData, val tazGeoIdToGeomAndLandA
     destinationArea: Long
   )
 
-  private val travelTimeOD: Seq[OD[Range]] =
-    new TravelTimeTableReader(pathToData, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
+  private val travelTimeOD: Iterable[OD[Range]] =
+    new TravelTimeTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
 
   private val odToNumberOfWorkers: Map[(String, String), Double] = travelTimeOD
     .map { x =>
@@ -36,7 +36,7 @@ class FlowStatsForParking(val pathToData: PathToData, val tazGeoIdToGeomAndLandA
         key -> xs.map(_._2).sum
     }
 
-  private val totalPopulation = new TotalPopulationTableReader(pathToData, ResidenceGeography.TAZ).read()
+  private val totalPopulation = new TotalPopulationTableReader(dbInfo, ResidenceGeography.TAZ).read()
 
   private val allRows: Iterable[Row] = odToNumberOfWorkers.map {
     case ((src, dst), numberOfWorkers) =>
@@ -55,6 +55,7 @@ object FlowStatsForParking {
 //    "D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"
     val pathToCTTPData = """D:\Work\beam\Austin\input\CTPP\48"""
     val pathToTazShapeFile = """D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"""
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
 
     def mapper(mathTransform: MathTransform, feature: SimpleFeature) = {
       val (tazGeoId, geom) = defaultTazMapper(mathTransform, feature)
@@ -64,7 +65,7 @@ object FlowStatsForParking {
 
     val tazGeoIdToGeomAndLandArea: Map[TazGeoId, (Geometry, Long)] =
       getTazMap("EPSG:4326", pathToTazShapeFile, x => true, mapper).toMap
-    val flowStatsForParking = new FlowStatsForParking(PathToData(pathToCTTPData), tazGeoIdToGeomAndLandArea)
+    val flowStatsForParking = new FlowStatsForParking(databaseInfo, tazGeoIdToGeomAndLandArea)
 
     val rows = flowStatsForParking.allRows
     println(s"flowStatsForParking rows size: ${rows.size}")

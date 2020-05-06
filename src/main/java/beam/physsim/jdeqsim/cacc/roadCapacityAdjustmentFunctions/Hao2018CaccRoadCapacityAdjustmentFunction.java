@@ -50,7 +50,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int currentIterationNumber;
     private int writeInterval;
     private boolean writeGraphs;
-    private int binSize;
     private OutputDirectoryHierarchy controllerIO;
 
     private int nonCACCCategoryRoadsTravelled = 0;
@@ -70,7 +69,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         this.currentIterationNumber = iterationNumber;
         this.controllerIO = controllerIO;
         this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
-        this.binSize = beamConfig.beam().outputs().stats().binSize();
         this.writeGraphs = beamConfig.beam().outputs().writeGraphs();
         beamConfigChangesObservable.addObserver(this);
 

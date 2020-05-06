@@ -19,7 +19,13 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Double], length: Option[Double]) {
+case class LinkParam(
+  linkId: Int,
+  capacity: Option[Double],
+  freeSpeed: Option[Double],
+  length: Option[Double],
+  lanes: Option[Int]
+) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
     capacity.foreach(value => link.setCapacity(value))
@@ -32,6 +38,9 @@ case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Do
       // Provided length is in meters, convert them to millimeters
       cursor.setLengthMm((value * 1000).toInt)
       link.setLength(value)
+    }
+    lanes.foreach { value =>
+      link.setNumberOfLanes(value)
     }
   }
 }
@@ -116,6 +125,11 @@ trait NetworkCoordinator extends LazyLogging {
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 
+    // Scale the speed after overwriting link params. Important!
+    network.getLinks.values.asScala.foreach { link =>
+      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+    }
+
     logger.info(s"MATSim network created")
     new NetworkWriter(network)
       .write(beamConfig.matsim.modules.network.inputNetworkFile)
@@ -167,7 +181,8 @@ trait NetworkCoordinator extends LazyLogging {
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length)
+            val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
+            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
             z += ((linkId, lp))
         }
       } catch {

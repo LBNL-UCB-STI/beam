@@ -68,48 +68,55 @@ case class WorkerParameters(
   tollCalculator: TollCalculator
 )
 
+object WorkerParameters {
+
+  def fromConfig(config: Config): WorkerParameters = {
+    val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator.init()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+    LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    matsimConfig.controler.setOutputDirectory(outputDirectory)
+    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(networkCoordinator.network)
+    val dates: DateUtils = DateUtils(
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+    )
+    val geo = new GeoUtilsImpl(beamConfig)
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+    val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
+    val fareCalculator = new FareCalculator(beamConfig)
+    val tollCalculator = new TollCalculator(beamConfig)
+    BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
+    WorkerParameters(
+      beamConfig,
+      networkCoordinator.transportNetwork,
+      vehicleTypes,
+      fuelTypePrices,
+      ptFares,
+      geo,
+      dates,
+      new NetworkHelperImpl(networkCoordinator.network),
+      fareCalculator,
+      tollCalculator
+    )
+  }
+}
+
 class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
 
   def this(config: Config) {
     this(workerParams = {
-      val beamConfig = BeamConfig(config)
-      val outputDirectory = FileUtils.getConfigOutputFile(
-        beamConfig.beam.outputs.baseOutputDirectory,
-        beamConfig.beam.agentsim.simulationName,
-        beamConfig.beam.outputs.addTimestampToOutputDirectory
-      )
-      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-      networkCoordinator.init()
-      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
-      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-      LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
-      matsimConfig.controler.setOutputDirectory(outputDirectory)
-      matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      scenario.setNetwork(networkCoordinator.network)
-      val dates: DateUtils = DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-      val geo = new GeoUtilsImpl(beamConfig)
-      val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
-      val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
-      val fareCalculator = new FareCalculator(beamConfig)
-      val tollCalculator = new TollCalculator(beamConfig)
-      BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
-      WorkerParameters(
-        beamConfig,
-        networkCoordinator.transportNetwork,
-        vehicleTypes,
-        fuelTypePrices,
-        ptFares,
-        geo,
-        dates,
-        new NetworkHelperImpl(networkCoordinator.network),
-        fareCalculator,
-        tollCalculator
-      )
+      WorkerParameters.fromConfig(config)
     })
   }
 
@@ -316,7 +323,9 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           )
         )
       ),
-      embodyRequestId
+      embodyRequestId,
+      None,
+      isEmbodyWithCurrentTravelTime = true
     )
     response
   }
@@ -1010,16 +1019,20 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
-          request.requestId
+          request.requestId,
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       } else {
         RoutingResponse(
           embodiedTrips,
-          request.requestId
+          request.requestId,
+          Some(request),
+          isEmbodyWithCurrentTravelTime = false
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId)
+      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
     }
   }
 

@@ -35,7 +35,8 @@ class CarTripStatsFromPathTraversalEventHandler(
   val networkHelper: NetworkHelper,
   val controlerIO: OutputDirectoryHierarchy,
   val tripFilter: TripFilter,
-  val filePrefix: String
+  val filePrefix: String,
+  val treatMismatchAsWarning: Boolean
 ) extends LazyLogging
     with IterationEndsListener
     with BasicEventHandler
@@ -46,8 +47,6 @@ class CarTripStatsFromPathTraversalEventHandler(
   private val secondsInHour = 3600
 
   private val freeFlowTravelTimeCalc: FreeFlowTravelTime = new FreeFlowTravelTime
-  private val averageTravelTimePerIteration: collection.mutable.MutableList[Long] =
-    collection.mutable.MutableList.empty
 
   private val averageCarSpeedPerIterationByType: collection.mutable.MutableList[Map[CarType, Double]] =
     collection.mutable.MutableList.empty
@@ -117,12 +116,17 @@ class CarTripStatsFromPathTraversalEventHandler(
 
     val stats = carType match {
       case CarType.Personal =>
-        val drivingWithParkingPtes = buildDrivingParking(carPtes)
-        buildPersonalTripStats(networkHelper, freeFlowTravelTimeCalc, drivingWithParkingPtes)
+        val drivingWithParkingPtes = buildDrivingParking(carPtes, treatMismatchAsWarning = treatMismatchAsWarning)
+        buildPersonalTripStats(
+          networkHelper,
+          freeFlowTravelTimeCalc,
+          drivingWithParkingPtes,
+          treatMismatchAsWarning = treatMismatchAsWarning
+        )
       case _ => buildRideHailAndCavTripStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
     }
     logger.info(
-      s"For the iteration $iterationNumber created ${stats.length} trip stats for $carType from ${carPtes.size} PathTraversalEvents"
+      s"$prefix For the iteration $iterationNumber created ${stats.length} trip stats for $carType from ${carPtes.size} PathTraversalEvents"
     )
     stats
   }
@@ -251,7 +255,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
     }
     val maxHour = hourAverageSpeed.keys.max
-    val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
+    val averageSpeed = (0 to maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 
     // generate the category dataset using the average travel times data
     val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
@@ -288,7 +292,7 @@ class CarTripStatsFromPathTraversalEventHandler(
         val avgFreeFlowSpeed = statsList.map(_.freeFlowSpeed).sum / statsList.size
         hour -> 100 * (avgSpeed / avgFreeFlowSpeed)
     }
-    val arr = (0 until hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
+    val arr = (0 to hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
     val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(arr.toArray))
     val fileName = s"${prefix}AverageSpeedPercentage.$mode.png"
     val graphTitle = s"Average Speed Percentage [ $mode ]"
@@ -413,7 +417,8 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     eventsFilePath: String,
     controlerIO: OutputDirectoryHierarchy,
     studyAreaTripFilter: StudyAreaTripFilter,
-    prefix: String
+    prefix: String,
+    treatMismatchAsWarning: Boolean
   ): CarTripStatsFromPathTraversalEventHandler = {
     val network: Network = {
       val n = NetworkUtils.createNetwork()
@@ -435,7 +440,8 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
         new NetworkHelperImpl(network),
         controlerIO,
         studyAreaTripFilter,
-        prefix
+        prefix,
+        treatMismatchAsWarning = treatMismatchAsWarning
       )
     try {
       ptesIter.foreach(r.handleEvent)
@@ -477,11 +483,12 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
   private def buildPersonalTripStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
-    drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)]
+    drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)],
+    treatMismatchAsWarning: Boolean
   ): Seq[CarTripStat] = {
     val stats = drivingWithParkingPtes.foldLeft(List.empty[CarTripStat]) {
       case (acc, (driving, parking)) =>
-        if (driving.arrivalTime != parking.departureTime) {
+        if (driving.arrivalTime != parking.departureTime && treatMismatchAsWarning) {
           val msg = s"arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
           logger.warn(msg)
         }
@@ -489,7 +496,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
           ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
         // add the computed travel time to the list of travel times tracked during the hour
         val length = driving.legLength + parking.legLength
-        // drop first links from each activity because we don't consider first link in path traversal
+        // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
         val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
         val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
         val startCoordWGS = new Coord(driving.startX, driving.startY)
@@ -516,7 +523,8 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       val travelTime = event.arrivalTime - event.departureTime
       val length = event.legLength
       val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+      // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
+      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
       CarTripStat(
         event.vehicleId.toString,
         travelTime,
@@ -529,27 +537,29 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     }
   }
 
-  private def buildDrivingParking(ptes: Seq[PathTraversalEvent]): Iterable[(PathTraversalEvent, PathTraversalEvent)] = {
-    val drivingWithParkingPtes = ptes
+  private def buildDrivingParking(
+    ptes: Seq[PathTraversalEvent],
+    treatMismatchAsWarning: Boolean
+  ): Iterable[(PathTraversalEvent, PathTraversalEvent)] = {
+    val grouped = ptes
       .groupBy(x => (x.vehicleId, x.driverId))
-      .map {
-        case ((vehId, driverId), xs) =>
-          val sorted = xs.sortBy(x => x.departureTime)
-          if (sorted.length % 2 == 1) {
-            logger.warn(
-              s"Vehicle $vehId with driver $driverId has ${sorted.length} events, but expected to have odd number of events (1 driving PathTraversalEvent and 1 parking PathTraversalEvent)"
-            )
-          }
-          sorted.sliding(2, 2).flatMap { ptes =>
-            val maybeDriving = ptes.lift(0)
-            val maybeParking = ptes.lift(1)
-            for {
-              driving <- maybeDriving
-              parking <- maybeParking
-            } yield (driving, parking)
-          }
-      }
-      .flatten
+    val drivingWithParkingPtes = grouped.map {
+      case ((vehId, driverId), xs) =>
+        val sorted = xs.sortBy(x => x.departureTime)
+        if (sorted.length % 2 == 1 && treatMismatchAsWarning) {
+          logger.warn(
+            s"Vehicle $vehId with driver $driverId has ${sorted.length} events, but expected to have odd number of events (1 driving PathTraversalEvent and 1 parking PathTraversalEvent)"
+          )
+        }
+        sorted.sliding(2, 2).flatMap { ptes =>
+          val maybeDriving = ptes.lift(0)
+          val maybeParking = ptes.lift(1)
+          for {
+            driving <- maybeDriving
+            parking <- maybeParking
+          } yield (driving, parking)
+        }
+    }.flatten
     drivingWithParkingPtes
   }
 
@@ -572,11 +582,12 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       new OutputDirectoryHierarchy("", OverwriteFileSetting.failIfDirectoryExists)
 
     val c = CarTripStatsFromPathTraversalEventHandler(
-      pathToNetwork,
-      eventsFilePath,
-      controlerIO,
-      studyAreaTripFilter,
-      "studyarea"
+      pathToNetwork = pathToNetwork,
+      eventsFilePath = eventsFilePath,
+      controlerIO = controlerIO,
+      studyAreaTripFilter = studyAreaTripFilter,
+      prefix = "studyarea",
+      treatMismatchAsWarning = true
     )
     val rideStats = c.calcRideStats(iterationNumber, CarType.Personal)
     val iterationCarRideStats = c.getIterationCarRideStats(iterationNumber, rideStats)

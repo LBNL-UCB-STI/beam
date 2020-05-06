@@ -264,8 +264,7 @@ class RideHailAgent(
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val isTimeForShift = shifts.isEmpty || shifts.get
-        .find(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
-        .isDefined
+        .exists(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
       if (isTimeForShift) {
         rideHailManager ! NotifyVehicleIdle(
           vehicle.id,
@@ -322,7 +321,7 @@ class RideHailAgent(
       beamServices.beamRouter ! veh2StallRequest
 //      }
       stay
-    case Event(RoutingResponse(itineraries, _), data) =>
+    case Event(RoutingResponse(itineraries, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
@@ -410,7 +409,7 @@ class RideHailAgent(
     case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _, _), _) =>
       stash()
       stay()
   }
@@ -721,16 +720,15 @@ class RideHailAgent(
     data: RideHailAgentData
   ): FSM.State[BeamAgentState, RideHailAgentData] = {
     log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
-    data.remainingShifts.isEmpty match {
-      case true =>
-        completeHandleNotifyVehicleResourceIdleReply(ev.triggerId, ev.newTriggers)
-        stay
-      case false =>
-        completeHandleNotifyVehicleResourceIdleReply(
-          ev.triggerId,
-          ev.newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
-        )
-        stay using data.copy(remainingShifts = data.remainingShifts.tail)
+    if (data.remainingShifts.isEmpty) {
+      completeHandleNotifyVehicleResourceIdleReply(ev.triggerId, ev.newTriggers)
+      stay
+    } else {
+      completeHandleNotifyVehicleResourceIdleReply(
+        ev.triggerId,
+        ev.newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
+      )
+      stay using data.copy(remainingShifts = data.remainingShifts.tail)
     }
   }
 

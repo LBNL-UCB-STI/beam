@@ -5,12 +5,12 @@ import java.util.concurrent.TimeUnit
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
-import beam.utils.data.ctpp.readers.BaseTableReader.{PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class TimeLeavingHomeTableReader(
-  pathToData: PathToData,
+  dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(pathToData, Table.TimeLeavingHome, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.TimeLeavingHome, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302104,1,0,Total)
     TableShell(B302104,2,1,Did not work at home:)
@@ -32,14 +32,15 @@ class TimeLeavingHomeTableReader(
    */
   private val interestedLineNumber: Set[Int] = (3 to 16).toSet
 
-  def read(): Seq[OD[Range]] = {
-    CTPPParser
-      .readTable(pathToCsvTable, x => geographyLevelFilter(x) && interestedLineNumber.contains(x.lineNumber))
+  def read(): Iterable[OD[Range]] = {
+    readRaw()
+      .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
         val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
         OD(fromGeoId, toGeoId, toRange(entry.lineNumber), entry.estimate)
       }
   }
+
   private def toRange(lineNumber: Int): Range = {
     val (start, end) = lineNumber match {
       case 16 =>
@@ -106,10 +107,9 @@ class TimeLeavingHomeTableReader(
 object TimeLeavingHomeTableReader {
 
   def main(args: Array[String]): Unit = {
-    val timeLeavingHomeReader = new TimeLeavingHomeTableReader(
-      PathToData("D:/Work/beam/Austin/2012-2016 CTPP documentation/tx/48"),
-      ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
-    )
+    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
+    val timeLeavingHomeReader =
+      new TimeLeavingHomeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = timeLeavingHomeReader.read()
 
     val nonZeros = readData.filter(x => x.value != 0.0)

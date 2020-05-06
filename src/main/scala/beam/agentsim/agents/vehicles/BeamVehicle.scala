@@ -315,7 +315,7 @@ class BeamVehicle(
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
 
   def isPHEV: Boolean =
-    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
 
   def initializeFuelLevels(meanSOCoption: Option[Double] = None) = {
     val startingSOC: Double = beamVehicleType.primaryFuelType match {
