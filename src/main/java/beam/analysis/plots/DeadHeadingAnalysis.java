@@ -276,7 +276,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         writeTripDistanceMetric(hour, length, _num_passengers);
     }
 
-    private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
+    private void writeTripDistanceMetric(int hour, double distanceInMeters, Integer _num_passengers) {
         if (simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
             // white spaces in the beginning of tags are required for proper legend items order in graph
             HashMap<String, String> tags = new HashMap<>();
@@ -289,8 +289,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
 
             int seconds = hour * 60 * 60;
-            double distanceInMiles = distanceInKilometers / 1000;;
-            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
+            double distanceInKilometers = distanceInMeters / 1000;;
+            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInKilometers, tags, false);
         }
     }
 
