@@ -29,13 +29,13 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 class CarTripStatsFromPathTraversalEventHandler(
-                                                 val networkHelper: NetworkHelper,
-                                                 val maybeControlerIO: Option[OutputDirectoryHierarchy],
-                                                 val lastIterationNumber: Int
-                                               ) extends LazyLogging
-  with IterationEndsListener
-  with BasicEventHandler
-  with ShutdownListener {
+  val networkHelper: NetworkHelper,
+  val maybeControlerIO: Option[OutputDirectoryHierarchy],
+  val lastIterationNumber: Int
+) extends LazyLogging
+    with IterationEndsListener
+    with BasicEventHandler
+    with ShutdownListener {
 
   import CarTripStatsFromPathTraversalEventHandler._
 
@@ -189,8 +189,8 @@ class CarTripStatsFromPathTraversalEventHandler(
   }
 
   private def createPercentageFreeSpeedGraph(
-                                              outputFileName: String
-                                            ): Unit = {
+    outputFileName: String
+  ): Unit = {
     val dataset = createPercentageFreeSpeedDataset()
 
     val chart = ChartFactory.createBarChart(
@@ -225,10 +225,10 @@ class CarTripStatsFromPathTraversalEventHandler(
   }
 
   /**
-   * Create graph for average car speed for every type + average of all in root folder
-   *
-   * @param event IterationEndsEvent
-   */
+    * Create graph for average car speed for every type + average of all in root folder
+    *
+    * @param event IterationEndsEvent
+    */
   private def createRootGraphForAverageCarSpeedByType(event: IterationEndsEvent): Unit = {
     val dataset = new DefaultCategoryDataset
 
@@ -504,10 +504,10 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
   }
 
   def apply(
-             pathToNetwork: String,
-             eventsFilePath: String,
-             lastIterationNumber: Int
-           ): CarTripStatsFromPathTraversalEventHandler = {
+    pathToNetwork: String,
+    eventsFilePath: String,
+    lastIterationNumber: Int
+  ): CarTripStatsFromPathTraversalEventHandler = {
     val network: Network = {
       val n = NetworkUtils.createNetwork()
       new MatsimNetworkReader(n)

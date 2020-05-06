@@ -19,7 +19,7 @@ object CarType {
 
   def rank(ct: CarType): Int = ct match {
     case Personal => 0
-    case CAV => 1
+    case CAV      => 1
     case RideHail => 2
   }
 
