@@ -289,7 +289,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
 
             int seconds = hour * 60 * 60;
-            double distanceInMiles = distanceInKilometers * 0.62137119;
+            double distanceInMiles = distanceInKilometers / 1000;;
             simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
         }
     }
@@ -654,8 +654,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-
-                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
+                    double vktInKm = vkt/1000;
+                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
             }
