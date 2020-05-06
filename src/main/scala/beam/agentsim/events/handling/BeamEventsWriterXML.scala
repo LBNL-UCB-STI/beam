@@ -1,6 +1,5 @@
 package beam.agentsim.events.handling
 
-import beam.sim.BeamServices
 import org.matsim.api.core.v01.events.Event
 
 /**
@@ -8,15 +7,13 @@ import org.matsim.api.core.v01.events.Event
   * Helper class to write BEAM events to an external file.
   * @param outFileName writer instance to write to external file
   * @param beamEventLogger beam events logger
-  * @param beamServices beam services
   * @param eventTypeToLog type of event to log
   */
 class BeamEventsWriterXML(
   var outFileName: String,
   beamEventLogger: BeamEventsLogger,
-  beamServices: BeamServices,
   eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
+) extends BeamEventsWriterBase(outFileName, beamEventLogger, eventTypeToLog) {
 
   val specialCharToEscape: Map[Char, String] = Map('<' -> "&lt;", '>' -> "&gt;", '"' -> "&quot;", '&' -> "&amp;")
   val specialChars: Array[Char] = specialCharToEscape.keys.toArray
