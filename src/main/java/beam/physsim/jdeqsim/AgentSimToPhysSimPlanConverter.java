@@ -212,6 +212,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             List<PathTraversalEvent> events = mapEntry.getValue();
 
             List<Pair<Long, Long>> ods = events.stream().map(e -> {
+                if (e.linkIds().isEmpty()) {
+                    log.info("Path traversal event doesn't have any related links");
+                    return null;
+                }
                 Link firstLink = id2Link.get(e.linkIds().head());
                 Link secondLink = id2Link.get(e.linkIds().last());
                 long firstWayId = linkWayId(firstLink);
