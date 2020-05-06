@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 import scala.util.Try
 
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
@@ -12,7 +13,7 @@ import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   RoadCapacityAdjustmentFunction
 }
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
-import beam.sim.{BeamConfigChangesObservable, BeamServices}
+import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
@@ -32,7 +33,6 @@ class JDEQSimRunner(
   val beamConfig: BeamConfig,
   val jdeqSimScenario: Scenario,
   val population: Population,
-  val beamServices: BeamServices,
   val controlerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
@@ -53,7 +53,7 @@ class JDEQSimRunner(
     val linkStatsGraph = new PhyssimCalcLinkStats(
       jdeqSimScenario.getNetwork,
       controlerIO,
-      beamServices.beamConfig,
+      beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
       beamConfigChangesObservable
     )
@@ -73,7 +73,7 @@ class JDEQSimRunner(
     jdeqsimEvents.addHandler(physsimSpeedHandler)
 
     val maybeEventWriter = if (writeEvents) {
-      val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
+      val writer = PhysSimEventWriter(beamConfig, controlerIO, jdeqsimEvents, currentPhysSimIter)
       jdeqsimEvents.addHandler(writer)
       Some(writer)
     } else None
@@ -95,7 +95,9 @@ class JDEQSimRunner(
         jdeqSimulation.run()
         logger.info(s"PhysSim iteration $currentPhysSimIter finished")
       }
-
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Failed in JDEQSim: ${ex.getMessage}", ex)
     } finally {
       Try(jdeqsimEvents.finishProcessing())
       maybeEventWriter.foreach { wrt =>

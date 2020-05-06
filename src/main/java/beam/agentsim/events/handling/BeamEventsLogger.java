@@ -1,11 +1,11 @@
 package beam.agentsim.events.handling;
 
 import beam.agentsim.events.*;
-import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 
 import java.util.*;
 
@@ -14,26 +14,26 @@ import java.util.*;
  * Logger class for BEAM events
  */
 public class BeamEventsLogger {
-
+    private final BeamConfig beamConfig;
     private final EventsManager eventsManager;
-    private final MatsimServices matsimServices;
-    private final BeamServices beamServices;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
     private final List<BeamEventsWriterBase> writers = new ArrayList<>();
     private final Set<Class<?>> eventsToLog = new HashSet<>();
     private final List<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
-    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, String eventsToWrite) {
-        this.beamServices = beamServices;
-        this.matsimServices = matsimServices;
+    public BeamEventsLogger(BeamConfig beamConfig, OutputDirectoryHierarchy outputDirectoryHierarchy, EventsManager eventsManager, String eventsToWrite) {
+        this.beamConfig = beamConfig;
+        this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.eventsManager = eventsManager;
         overrideDefaultLoggerSetup(eventsToWrite);
     }
 
-    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager, String eventsToWrite, Boolean shouldInitialize) {
-        this(beamServices, matsimServices, eventsManager, eventsToWrite);
+    public BeamEventsLogger(BeamConfig beamConfig, OutputDirectoryHierarchy outputDirectoryHierarchy, EventsManager eventsManager, String eventsToWrite,
+                            boolean shouldInitialize, int iterationNumber) {
+        this(beamConfig, outputDirectoryHierarchy, eventsManager, eventsToWrite);
         if (shouldInitialize) {
             setEventsFileFormats();
-            createEventsWriters();
+            createEventsWriters(iterationNumber);
         }
     }
 
@@ -45,13 +45,12 @@ public class BeamEventsLogger {
         writers.clear();
     }
 
-    protected void createEventsWriters() {
-        int iterationNumber = matsimServices.getIterationNumber();
-        final int writeEventsInterval = beamServices.beamConfig().beam().outputs().writeEventsInterval();
+    protected void createEventsWriters(int iterationNumber) {
+        final int writeEventsInterval = beamConfig.beam().outputs().writeEventsInterval();
         final boolean writeThisIteration = (writeEventsInterval > 0) && (iterationNumber % writeEventsInterval == 0);
         if (writeThisIteration) {
-            matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
-            String eventsFileBasePath = matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+            outputDirectoryHierarchy.createIterationDirectory(iterationNumber);
+            String eventsFileBasePath = outputDirectoryHierarchy.getIterationFilename(iterationNumber, "events");
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter;
                 newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, null, fmt);
@@ -66,11 +65,11 @@ public class BeamEventsLogger {
                                                                     BeamEventsFileFormats fmt) {
         final String path = eventsFilePathBase + "." + fmt.getSuffix();
         if (fmt == BeamEventsFileFormats.XML || fmt == BeamEventsFileFormats.XML_GZ) {
-            return new BeamEventsWriterXML(path, this, beamServices, theClass);
+            return new BeamEventsWriterXML(path, this, theClass);
         } else if (fmt == BeamEventsFileFormats.CSV || fmt == BeamEventsFileFormats.CSV_GZ) {
-            return new BeamEventsWriterCSV(path, this, beamServices, theClass);
+            return new BeamEventsWriterCSV(path, this, theClass);
         } else if (fmt == BeamEventsFileFormats.PARQUET) {
-            return new BeamEventsWriterParquet(path, this, beamServices, theClass);
+            return new BeamEventsWriterParquet(path, this, theClass);
         }
 
         return null;
@@ -90,7 +89,7 @@ public class BeamEventsLogger {
      */
     protected void setEventsFileFormats() {
         eventsFileFormatsArray.clear();
-        String eventsFileFormats = beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
+        String eventsFileFormats = beamConfig.beam().outputs().events().fileOutputFormats();
         for (String format : eventsFileFormats.split(",")) {
             BeamEventsFileFormats.from(format).ifPresent(eventsFileFormatsArray::add);
         }

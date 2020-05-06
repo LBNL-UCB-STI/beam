@@ -1,7 +1,6 @@
 package beam.agentsim.events.handling
 
 import beam.agentsim.events.ScalaEvent
-import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
@@ -18,9 +17,8 @@ import scala.collection.mutable
 class BeamEventsWriterParquet(
   var outFileName: String,
   beamEventLogger: BeamEventsLogger,
-  beamServices: BeamServices,
   eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog)
+) extends BeamEventsWriterBase(beamEventLogger, eventTypeToLog)
     with LazyLogging {
 
   sealed trait ParquetType

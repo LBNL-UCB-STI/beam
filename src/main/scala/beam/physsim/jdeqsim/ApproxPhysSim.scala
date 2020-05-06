@@ -146,7 +146,6 @@ class ApproxPhysSim(
         beamConfig,
         jdeqSimScenario,
         finalPopulation,
-        beamServices,
         controllerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
