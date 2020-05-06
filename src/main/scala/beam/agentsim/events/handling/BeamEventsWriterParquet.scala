@@ -1,9 +1,6 @@
 package beam.agentsim.events.handling
 
-import java.io.IOException
-
 import beam.agentsim.events.ScalaEvent
-import beam.sim.BeamServices
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
@@ -19,9 +16,8 @@ import scala.collection.mutable
 class BeamEventsWriterParquet(
   var outFileName: String,
   beamEventLogger: BeamEventsLogger,
-  beamServices: BeamServices,
   eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog) {
+) extends BeamEventsWriterBase(beamEventLogger, eventTypeToLog) {
 
   sealed trait ParquetType
   final object PDouble extends ParquetType
@@ -81,7 +77,7 @@ class BeamEventsWriterParquet(
       .withCompressionCodec(CompressionCodecName.GZIP)
       .withValidation(false)
       .withDictionaryEncoding(false)
-      .build();
+      .build()
   }
 
   override protected def writeEvent(event: Event): Unit = {

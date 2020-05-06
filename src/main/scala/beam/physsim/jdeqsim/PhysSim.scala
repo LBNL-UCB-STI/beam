@@ -93,7 +93,6 @@ class PhysSim(
         beamConfig,
         jdeqSimScenario,
         population,
-        beamServices,
         controlerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
