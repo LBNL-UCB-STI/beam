@@ -3,14 +3,27 @@ package beam.analysis.cartraveltime
 import beam.utils.Statistics
 import org.matsim.api.core.v01.Coord
 
-sealed trait CarType {
+sealed trait CarType extends Comparable[CarType] {
   override def toString: String = this.getClass.getSimpleName.replace("$", "")
+
+  override def compareTo(o: CarType): Int = CarType.compare(this, o)
 }
 
 object CarType {
+
   object Personal extends CarType
+
   object CAV extends CarType
+
   object RideHail extends CarType
+
+  def rank(ct: CarType): Int = ct match {
+    case Personal => 0
+    case CAV => 1
+    case RideHail => 2
+  }
+
+  private def compare(a: CarType, b: CarType): Int = rank(a) - rank(b)
 }
 
 case class CarTripStat(

@@ -11,7 +11,8 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
     "write speed statistics files" in {
       val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
-        Some(beamServices.matsimServices.getControlerIO)
+        Some(beamServices.matsimServices.getControlerIO),
+        0
       )
 
       processHandlers(List(handler))
@@ -22,6 +23,7 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
       checkFileExistenceInRoot("CarTravelDistance.csv")
       checkFileExistenceInRoot("CarSpeed.csv")
       checkFileExistenceInRoot("FreeFlowCarSpeed.csv")
+      checkFileExistenceInRoot("percentageFreeSpeed.png")
 
       // If those start to fail, someone changed vehicle types for beamville or `CarTripStatsFromPathTraversalEventHandler` is changed
       checkFileExistenceInIterFolder("ridehail.CarRideStats.csv.gz", 0)
