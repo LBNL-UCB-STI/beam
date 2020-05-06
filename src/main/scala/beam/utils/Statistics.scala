@@ -1,5 +1,6 @@
 package beam.utils
 
+import org.apache.commons.math3.stat.descriptive.moment.Mean
 import org.apache.commons.math3.stat.descriptive.rank.Percentile
 
 case class Statistics(
@@ -40,7 +41,7 @@ object Statistics {
         minValue = min,
         maxValue = max,
         median = median,
-        avg = average(pq, weights),
+        avg = average(pq.toArray, weights.toArray),
         p75 = p75,
         p95 = p95,
         p99 = p99,
@@ -65,18 +66,17 @@ object Statistics {
     }
   }
 
-  /***
-    * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
-    * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
-    */
-  private def average(values: Seq[Double], weights: Seq[Double]): Double = {
+  /** *
+   * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
+   * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
+   */
+  private def average(values: Array[Double], weights: Array[Double]): Double = {
+    val mean = new Mean()
+
     if (weights.isEmpty) {
-      values.sum / values.length
+      mean.evaluate(values)
     } else {
-      val counter = values.view.zip(weights).foldLeft((0d, 0d)) {
-        case ((accValue, sum), (value, weight)) => (value * weight + accValue) -> (sum + weight)
-      }
-      counter._1 / counter._2
+      mean.evaluate(values, weights)
     }
   }
 }
