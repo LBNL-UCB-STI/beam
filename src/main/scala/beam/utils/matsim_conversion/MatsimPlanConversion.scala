@@ -65,16 +65,16 @@ object MatsimPlanConversion {
 
   def safeGzip(filename: String, node: Node, enc: String, xmlDecl: Boolean = false, doctype: DocType = null) = {
 
-    val output = new FileOutputStream(filename);
+    val output = new FileOutputStream(filename)
     try {
       val writer = new OutputStreamWriter(new GZIPOutputStream(output), "UTF-8")
       try {
         XML.write(writer, node, enc, xmlDecl, doctype)
       } finally {
-        writer.close();
+        writer.close()
       }
     } finally {
-      output.close();
+      output.close()
     }
 
   }
