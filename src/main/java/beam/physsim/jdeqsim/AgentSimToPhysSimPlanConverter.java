@@ -217,6 +217,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 long firstWayId = linkWayId(firstLink);
                 long secondWayId = linkWayId(secondLink);
 
+                //skip current event if way id is not present
+                if (firstWayId == -1 || secondWayId == -1) return null;
+
                 List<Coordinate> firstLinkCoordinates = getCoordinatesForWayId(osmInfoHolder, firstWayId);
 
                 Coordinate origin = firstLinkCoordinates.get(0);
@@ -239,9 +242,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 }
 
                 return new Pair<>(firstId, secondId);
-            }).collect(Collectors.toList());
+            })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
-            System.out.println(String.format("Generated %d ods, for hour %d, spent %d", ods.size(), hour, stopWatch.getTime()));
             log.warn("Generated {} ods, for hour {}, spent {}", ods.size(), hour, stopWatch.getTime());
 
             stopWatch.reset();
@@ -252,7 +256,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info("Running for hour {}", hour);
             Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic();
 
-            System.out.println(String.format("Assigned traffic in %d", stopWatch.getTime()));
+            log.info("Assigned traffic in {}", stopWatch.getTime());
 
             Map<Long, DoubleSummaryStatistics> wayId2TravelTime;
             try {
@@ -305,7 +309,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     finalMap.put(link.getId().toString(), travelTimeByHour);
                 }));
 
-        System.out.println(String.format("Filled traveltime array %d",stopWatch.getTime()));
+        System.out.println(String.format("Filled traveltime array %d", stopWatch.getTime()));
         log.warn("total links: {}, failed: {}", totalNumberOfLinks, linksFailedToResolve.get());
 
         TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
@@ -609,6 +613,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private static long linkWayId(Link link) {
-        return Long.parseLong(link.getAttributes().getAttribute("origid").toString());
+        Object origid = link.getAttributes().getAttribute("origid");
+        if (origid == null) return -1;
+        return Long.parseLong(origid.toString());
     }
 }
