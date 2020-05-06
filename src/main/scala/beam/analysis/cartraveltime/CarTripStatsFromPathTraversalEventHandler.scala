@@ -33,9 +33,9 @@ class CarTripStatsFromPathTraversalEventHandler(
                                                  val maybeControlerIO: Option[OutputDirectoryHierarchy],
                                                  val lastIterationNumber: Int
                                                ) extends LazyLogging
-    with IterationEndsListener
-    with BasicEventHandler
-    with ShutdownListener {
+  with IterationEndsListener
+  with BasicEventHandler
+  with ShutdownListener {
 
   import CarTripStatsFromPathTraversalEventHandler._
 
@@ -503,7 +503,11 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     event.getEventType == "PathTraversal"
   }
 
-  def apply(pathToNetwork: String, eventsFilePath: String, lastIterationNumber: Int): CarTripStatsFromPathTraversalEventHandler = {
+  def apply(
+             pathToNetwork: String,
+             eventsFilePath: String,
+             lastIterationNumber: Int
+           ): CarTripStatsFromPathTraversalEventHandler = {
     val network: Network = {
       val n = NetworkUtils.createNetwork()
       new MatsimNetworkReader(n)
