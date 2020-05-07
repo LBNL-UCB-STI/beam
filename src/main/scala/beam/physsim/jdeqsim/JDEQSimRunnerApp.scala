@@ -4,6 +4,7 @@ import beam.sim.{BeamConfigChangesObservable, BeamHelper}
 import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.network.NetworkUtils
@@ -21,7 +22,7 @@ object JDEQSimRunnerApp extends StrictLogging {
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
     val networkFile = "d:/Work/beam/GPU/network-output.xml"
-    val populationFile = "d:/Work/beam/GPU/population_sampled.xml"
+    val populationFile = "d:/Work/beam/GPU/population-output.xml"
     val pathToOutput = "d:/Work/beam/GPU/result"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
@@ -32,8 +33,20 @@ object JDEQSimRunnerApp extends StrictLogging {
     val scenario = ProfilingUtils.timed(s"Read population and plans from ${populationFile}", x => logger.info(x)) {
       readPopulation(execCfg.matsimConfig, populationFile)
     }
+    val maxEndTime = scenario.getPopulation.getPersons
+      .values()
+      .asScala
+      .map { p =>
+        val endTimes = p.getPlans.asScala.flatMap { plan =>
+          plan.getPlanElements.asScala.collect { case act: Activity => act.getEndTime }
+        }
+        if (endTimes.isEmpty) 0 else endTimes.max
+      }
+      .max
+
     val totalPlans = scenario.getPopulation.getPersons.values().asScala.map(_.getPlans.size()).sum
     logger.info(s"Read scenario with ${scenario.getPopulation.getPersons.size()} people and $totalPlans plans")
+    logger.info(s"Max end time for the activity is ${maxEndTime} seconds = ${maxEndTime / 3600} hours")
     scenario.setNetwork(network)
 
     val outputDirectoryHierarchy =
