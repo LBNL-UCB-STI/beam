@@ -347,7 +347,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             Set<String> modes = personLastDepartureEvents.keySet();
             for (String mode : modes) {
                 Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
-                out.write(mode + "," + personDepartureEventMap.size());
+                out.append(mode).append(",").append(String.valueOf(personDepartureEventMap.size()));
                 out.newLine();
             }
             out.flush();
