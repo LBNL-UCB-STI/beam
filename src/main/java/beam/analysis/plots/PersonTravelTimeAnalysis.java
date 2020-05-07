@@ -97,7 +97,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // save the average value to the array
             for (int i = 0; i <= maxHour; i++) {
                 List<Double> hourData = travelTimesByHour.get(i);
-                Double average = 0d;
+                double average = 0d;
                 if (hourData != null) {
                     average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
                 }
