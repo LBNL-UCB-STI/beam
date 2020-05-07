@@ -5,7 +5,7 @@ import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import play.api.libs.json.{JsArray, JsObject, Json, JsValue}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.libs.ws.StandaloneWSClient
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
@@ -44,12 +44,15 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     import collection.JavaConverters._
 
     val points = PolylineEncoderDecoder.decode(encodedPolyLines).asScala
-    points.map { value =>
-      WgsCoordinate(
-        latitude = value.lat,
-        longitude = value.lng
-      )
-    }.distinct.toList
+    points
+      .map { value =>
+        WgsCoordinate(
+          latitude = value.lat,
+          longitude = value.lng
+        )
+      }
+      .distinct
+      .toList
   }
 
   def toHerePath(jsObject: JsObject): HerePath = {
