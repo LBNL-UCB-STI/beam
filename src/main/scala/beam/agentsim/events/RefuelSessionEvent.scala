@@ -28,7 +28,7 @@ case class RefuelSessionEvent(
   override def getEventType: String = EVENT_TYPE
 
   val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  val chargingPointString: String = stall.chargingPointType.map { _.toString }.getOrElse("None")
   val parkingType: String = stall.parkingType.toString
 
   override def getAttributes: util.Map[String, String] = {
