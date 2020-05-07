@@ -338,14 +338,14 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) throws IOException {
+    private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "modes,count";
             out.write(heading);
             out.newLine();
             Set<String> modes = personLastDepartureEvents.keySet();
-            for(String mode: modes){
+            for (String mode: modes){
                 Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
                 out.write(mode+","+personDepartureEventMap.size());
                 out.newLine();
@@ -354,7 +354,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         } catch (IOException e) {
             log.error("Error in Non Arrival Agent CSV generation", e);
         }
-
     }
 
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {

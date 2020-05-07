@@ -246,7 +246,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     //    dataset for root graph
-    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException {
+    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForReference));
 
