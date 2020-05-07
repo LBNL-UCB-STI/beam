@@ -297,11 +297,12 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     /**
      * Processes the current person departure event and tracks the departure details for further processing.
+     *
      * @param event Person Departure Event
      */
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
-        if(!personDepartureEvent.getLegMode().equalsIgnoreCase("car")){
+        if (!personDepartureEvent.getLegMode().equalsIgnoreCase("car")) {
             // Extract the mode of the departure event
             String mode = personDepartureEvent.getLegMode();
             // Get the list of previous departures tracked for this mode
@@ -346,9 +347,9 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             out.write(heading);
             out.newLine();
             Set<String> modes = personLastDepartureEvents.keySet();
-            for (String mode: modes){
+            for (String mode : modes) {
                 Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
-                out.write(mode+","+personDepartureEventMap.size());
+                out.write(mode + "," + personDepartureEventMap.size());
                 out.newLine();
             }
             out.flush();
@@ -359,7 +360,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
-
     }
 
 }
