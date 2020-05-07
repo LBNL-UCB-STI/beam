@@ -12,7 +12,7 @@ import scala.io.Source
 
 object GPUTransformer extends App {
 
-  val personsFilePath = "/Users/crixal/work/2566/gpu/od_demand_5to12_with_dep_times.csv"
+  val personsFilePath = "/Users/crixal/work/2566/gpu/od_demand_5to12_with_dep_times_based_on_routes.csv"
   val networkPath = "/Users/crixal/work/2566/gpu/nodes.csv"
   val edgesPath = "/Users/crixal/work/2566/gpu/edges.csv"
   val routesPath = "/Users/crixal/work/2566/gpu/0_route_with_edges.csv"
@@ -23,6 +23,10 @@ object GPUTransformer extends App {
   val network = NetworkUtils.createNetwork()
   val population = PopulationUtils.createPopulation(ConfigUtils.createConfig(), network)
 
+  val geoUtils = new beam.sim.common.GeoUtils {
+    override def localCRS: String = "epsg:26910"
+  }
+
   private def fillNetwork(): Unit = {
     val (iter, toClose) = GenericCsvReader.readAs(
       networkPath,
@@ -31,12 +35,14 @@ object GPUTransformer extends App {
           m.get("osmid").toLong,
           m.get("x").toDouble,
           m.get("y").toDouble
-        )
+      ), { _: NodeGPU =>
+        true
+      }
     )
 
     try {
       iter.foreach { n =>
-        network.addNode(NetworkUtils.createNode(Id.createNodeId(n.id), new Coord(n.x, n.y)))
+        network.addNode(NetworkUtils.createNode(Id.createNodeId(n.id), geoUtils.wgs2Utm(new Coord(n.x, n.y))))
       }
     } finally {
       toClose.close()
@@ -54,7 +60,9 @@ object GPUTransformer extends App {
           m.get("length").toDouble,
           m.get("lanes").toDouble,
           m.get("speed_mph").toDouble
-        )
+      ), { _: EdgeGPU =>
+        true
+      }
     )
 
     try {
@@ -78,15 +86,23 @@ object GPUTransformer extends App {
   private def fillPopulation(): Unit = {
     val (pIter, pToClose) = GenericCsvReader.readAs(
       personsFilePath,
-      (m: java.util.Map[String, String]) =>
-        new PersonGPU(
-          m.get("id").toLong,
-          m.get("SAMPN").toLong,
-          m.get("PERNO").toInt,
-          m.get("origin").toLong,
-          m.get("destination").toLong,
-          m.get("dep_time").toDouble
-        )
+      (m: java.util.Map[String, String]) => {
+        val origin = m.get("origin")
+        if (origin == null) {
+          None
+        } else {
+          Some(
+            new DemandGPU(
+              m.get("SAMPN").toLong,
+              m.get("origin").toDouble.toLong,
+              m.get("destination").toDouble.toLong,
+              m.get("dep_time").toDouble
+            )
+          )
+        }
+      }, { _: Option[DemandGPU] =>
+        true
+      }
     )
 
     val routePattern = ":\\[(.*),]".r
@@ -94,51 +110,61 @@ object GPUTransformer extends App {
     // skip first line
     routesBuffer.readLine()
 
+    var counter = 0L
+
     try {
       while (pIter.hasNext) {
-        val personGPU = pIter.next()
         val line = routesBuffer.readLine()
-        val routesGPU = routePattern.findFirstMatchIn(line) match {
-          case Some(m) => m.group(1).split(',').map(Id.createLinkId)
-          case None => throw new IllegalStateException(s"No routes found '$line'")
+
+        pIter.next() match {
+          case Some(demandGPU) =>
+            val routesGPU = routePattern.findFirstMatchIn(line) match {
+              case Some(m) => m.group(1).split(',').map(Id.createLinkId)
+              case None    => throw new IllegalStateException(s"No routes found '$line'")
+            }
+
+            val personId = Id.createPersonId(demandGPU.rowId)
+            val person = if (population.getPersons.containsKey(personId)) {
+              population.getPersons.get(personId)
+            } else {
+              val newPerson = PopulationUtils.getFactory.createPerson(Id.createPersonId(demandGPU.rowId))
+              newPerson.addPlan(population.getFactory.createPlan())
+              population.addPerson(newPerson)
+              newPerson
+            }
+
+            val activity = population.getFactory
+              .createActivityFromLinkId("DummyActivity", Id.createLinkId(demandGPU.originId))
+            activity.setEndTime(demandGPU.depTime)
+            person.getSelectedPlan.addActivity(activity)
+
+            val leg = population.getFactory.createLeg("car")
+            leg.setDepartureTime(demandGPU.depTime)
+            leg.getAttributes.putAttribute(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, demandGPU.depTime.toInt)
+            person.getSelectedPlan.addLeg(leg)
+
+            val links = routesGPU.map { Id.createLinkId }
+            val startLinkId = links.head
+            val endLinkId = links.last
+
+            if (network.getLinks.get(startLinkId).getFromNode.getId != Id.createNodeId(demandGPU.originId) ||
+                network.getLinks.get(endLinkId).getToNode.getId != Id.createNodeId(demandGPU.destinationId)) {
+              throw new IllegalStateException(
+                s"Nodes from routes are not equals to nodes from person (${demandGPU.rowId})"
+              )
+            }
+
+            leg.setRoute(RouteUtils.createLinkNetworkRouteImpl(startLinkId, links, endLinkId))
+
+            counter+=1
+            if (counter % 10000 == 0) {
+              println(s"Processed rows: $counter")
+            }
+
+          case None =>
         }
-
-        val personId = Id.createPersonId(personGPU.id)
-        val person = if (population.getPersons.containsKey(personId)) {
-          population.getPersons.get(personId)
-        } else {
-          val newPerson = PopulationUtils.getFactory.createPerson(Id.createPersonId(personGPU.id))
-          newPerson.addPlan(population.getFactory.createPlan())
-          population.addPerson(newPerson)
-          newPerson
-        }
-
-        val activity = population.getFactory.createActivityFromLinkId("DummyActivity", Id.createLinkId(personGPU.originId))
-        activity.setEndTime(personGPU.depTime)
-        person.getSelectedPlan.addActivity(activity)
-
-        val leg = population.getFactory.createLeg("car")
-        leg.setDepartureTime(personGPU.depTime)
-        leg.getAttributes.putAttribute(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, personGPU.depTime.toInt)
-        leg.getAttributes.putAttribute(PathTraversalEvent.ATTRIBUTE_NUM_PASS, personGPU.perno)
-        person.getSelectedPlan.addLeg(leg)
-
-        val links = routesGPU.map {
-          Id.createLinkId
-        }
-        val startLinkId = links.head
-        val endLinkId = links.last
-
-        if (network.getLinks.get(startLinkId).getFromNode.getId != Id.createNodeId(personGPU.originId) ||
-          network.getLinks.get(endLinkId).getToNode.getId != Id.createNodeId(personGPU.destinationId)) {
-          throw new IllegalStateException(s"Nodes from routes are not equals to nodes from person (${personGPU.rowId})")
-        }
-
-        val route = RouteUtils.createLinkNetworkRouteImpl(startLinkId, links, endLinkId)
-        // FIXME calculate links and real distance
-        route.setDistance(10)
-        leg.setRoute(route)
       }
+      println(s"Processed rows: $counter")
     } finally {
       pToClose.close()
       routesBuffer.close()
@@ -153,7 +179,7 @@ object GPUTransformer extends App {
   NetworkUtils.writeNetwork(network, networkOutputFile)
 }
 
-class PersonGPU(val rowId: Long, val id: Long, val perno: Int, val originId: Long, val destinationId: Long, val depTime: Double)
+class DemandGPU(val rowId: Long, val originId: Long, val destinationId: Long, val depTime: Double)
 
 class NodeGPU(val id: Long, val x: Double, val y: Double)
 
