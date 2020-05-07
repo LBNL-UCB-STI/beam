@@ -55,6 +55,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         /**
          * Computes the required stats from the given input.
+         *
          * @param stat A mapping that maps travel mode -> ( mapping from hour of the day -> list of travel times recorded during that hour)
          * @return tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
          */
@@ -82,6 +83,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         /**
          * Builds array data set with average travel time computed for each hour.
+         *
          * @param travelTimesByHour A mapping from hour of the day -> list of travel times recorded during that hour
          * @return array representing average times for each hour (array index = hour of the day)
          */
@@ -97,17 +99,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // save the average value to the array
             for (int i = 0; i <= maxHour; i++) {
                 List<Double> hourData = travelTimesByHour.get(i);
-                double average = 0d;
-                if (hourData != null) {
-                    average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
-                }
-                averageTravelTimesWithHourIndex[i] = average;
+                averageTravelTimesWithHourIndex[i] = hourData == null
+                        ? 0d
+                        : hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
             }
             return averageTravelTimesWithHourIndex;
         }
 
         /**
          * Calculates the average of travel times during the day
+         *
          * @param travelTimesByHour Map that maps from hour of the day -> travel times during that hour
          * @return average travel time
          */
