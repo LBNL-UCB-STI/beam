@@ -96,7 +96,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
         hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Integer::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
         updateModeChoiceInIteration(event.getIteration());
@@ -274,7 +274,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             out.write("iterations," + heading);
             out.newLine();
 
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             StringBuilder builder = new StringBuilder("benchmark");
             for (String mode : modes) {
                 if (benchMarkData.get(mode) != null) {
