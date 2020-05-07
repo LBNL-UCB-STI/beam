@@ -148,7 +148,7 @@ dependencies {
 
     compile "org.jgrapht:jgrapht-core:1.3.0"
 
-    compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
+    compile('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
     compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1-3'
@@ -223,6 +223,8 @@ dependencies {
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+    compile group: 'com.typesafe.play', name: 'play-ahc-ws-standalone_2.12', version: '2.0.3'
+
     compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
@@ -261,10 +263,6 @@ dependencies {
 
     compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
-
-    // Http request
-    compile group: 'com.typesafe.play', name: 'play-ahc-ws-standalone_2.12', version: '2.0.3'
-    compile group: 'com.typesafe.play', name: 'play-json_2.12', version: '2.8.1'
 
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
