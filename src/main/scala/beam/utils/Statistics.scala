@@ -67,9 +67,9 @@ object Statistics {
   }
 
   /** *
-   * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
-   * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
-   */
+    * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
+    * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
+    */
   private def average(values: Array[Double], weights: Array[Double]): Double = {
     val mean = new Mean()
 
