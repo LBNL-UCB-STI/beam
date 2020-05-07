@@ -13,11 +13,11 @@ import org.matsim.vehicles.Vehicle
 case class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
-  val energyInJoules: Double,
-  val sessionStartingFuelLevelInJoules: Double,
-  val sessionDuration: Double,
+  energyInJoules: Double,
+  sessionStartingFuelLevelInJoules: Double,
+  sessionDuration: Double,
   vehId: Id[Vehicle],
-  val vehicleType: BeamVehicleType
+  vehicleType: BeamVehicleType
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
