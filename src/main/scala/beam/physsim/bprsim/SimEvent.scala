@@ -18,13 +18,13 @@ abstract class SimEvent(val time: Double, val person: Person, val legIdx: Int, v
   def previousActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx - 1).asInstanceOf[Activity]
   def nextActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx + 1).asInstanceOf[Activity]
   val leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
-  def firstLink = linkIdx == 0
+  val isLegStart = linkIdx < 0
   val (linkId, lastLink): (Id[Link], Boolean) =
       leg.getRoute match {
         case route: NetworkRoute =>
-          val lastLink = linkIdx >= route.getLinkIds.size()
-          val lid = if (lastLink) route.getEndLinkId else route.getLinkIds.get(linkIdx)
-          (lid, lastLink)
+          val isLastLink = linkIdx + 1 >= route.getLinkIds.size()
+          val lid = if (isLegStart) route.getStartLinkId else route.getLinkIds.get(linkIdx)
+          (lid, isLastLink)
         case _                   => throw new RuntimeException(s"Only network route supported $leg")
       }
   def execute(implicit eventManager: EventsManager, scenario: Scenario): Option[SimEvent]
@@ -41,7 +41,7 @@ object SimEvent {
 }
 
 class StartLegSimEvent(time: Double, person: Person, legIdx: Int)
-    extends SimEvent(time, person, legIdx, 0) {
+    extends SimEvent(time, person, legIdx, -1) {
   override def execute(implicit eventManager: EventsManager, scenario: Scenario) = {
     generateEvents(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
@@ -62,7 +62,6 @@ class StartLegSimEvent(time: Double, person: Person, legIdx: Int)
           Some(new EndLegSimEvent(time, person, legIdx, linkIdx))
         } else {
           // car trying to enter traffic
-//          road.enterRequest(vehicle, getMessageArrivalTime)
           Some(new EnteringLinkSimEvent(time, person, legIdx, linkIdx))
         }
       case _ =>
@@ -78,10 +77,11 @@ class EndLegSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     val nextAct = nextActivity
 
     val actStartEventTime = Math.max(time, nextAct.getStartTime)
+    val activityLinkId = nextAct.getLinkId
     generateEvents(
-      new VehicleLeavesTrafficEvent(time, person.getId, linkId, createVehicleId(person), leg.getMode, 1.0),
-      new PersonArrivalEvent(time, person.getId, linkId, leg.getMode),
-      new ActivityStartEvent(actStartEventTime, person.getId, linkId, nextAct.getFacilityId, nextAct.getType),
+      new VehicleLeavesTrafficEvent(time, person.getId, activityLinkId, createVehicleId(person), leg.getMode, 1.0),
+      new PersonArrivalEvent(time, person.getId, activityLinkId, leg.getMode),
+      new ActivityStartEvent(actStartEventTime, person.getId, activityLinkId, nextAct.getFacilityId, nextAct.getType),
     )
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
@@ -102,7 +102,7 @@ class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: I
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
     val event =
-      if (firstLink) new VehicleEntersTrafficEvent(time, person.getId, linkId, vehicleId, null, 1.0)
+      if (isLegStart) new VehicleEntersTrafficEvent(time, person.getId, linkId, vehicleId, null, 1.0)
       else new LinkEnterEvent(time, vehicleId, linkId)
     generateEvents(event)
 
@@ -114,6 +114,17 @@ class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: I
   }
 }
 
+class EnteringActivityLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
+    extends SimEvent(time, person, legIdx, linkIdx) {
+  override def execute(implicit eventManager: EventsManager, scenario: Scenario) = {
+    //simplification: When a vehicle is entering road it enters road immediately
+    val vehicleId = createVehicleId(person)
+    generateEvents(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
+
+    Some(new EndLegSimEvent(time, person, legIdx, linkIdx))
+  }
+}
+
 class EndLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, person, legIdx, linkIdx) {
 
@@ -121,7 +132,8 @@ class EndLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     val vehicleId = createVehicleId(person)
     generateEvents(new LinkLeaveEvent(time, vehicleId, linkId))
     if (lastLink) {
-      Some(new EndLegSimEvent(time, person, legIdx, linkIdx))
+      //one needs to enter the next activity link, and then finish the leg
+      Some(new EnteringActivityLinkSimEvent(time, person, legIdx, linkIdx))
     } else {
       Some(new EnteringLinkSimEvent(time, person, legIdx, linkIdx + 1))
     }
