@@ -279,10 +279,8 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                             List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                             if (travelTimes == null) {
                                 travelTimes = new ArrayList<>();
-                                travelTimes.add(travelTime);
-                            } else {
-                                travelTimes.add(travelTime);
                             }
+                            travelTimes.add(travelTime);
                             hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                         }
                         hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
