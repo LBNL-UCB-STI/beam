@@ -67,7 +67,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
   def passengersWhoNeverBoard: Set[PersonIdWithActorRef] = {
     val allBoarders = schedule.values.flatMap(_.boarders).toSet
-    uniquePassengers.filterNot(allBoarders.contains(_))
+    uniquePassengers.diff(allBoarders)
   }
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
