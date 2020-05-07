@@ -133,8 +133,11 @@ object GPUTransformer extends App {
               newPerson
             }
 
-            val activity = population.getFactory
-              .createActivityFromLinkId("DummyActivity", Id.createLinkId(demandGPU.originId))
+            val links = routesGPU.map { Id.createLinkId }
+            val startLinkId = links.head
+            val endLinkId = links.last
+
+            val activity = population.getFactory.createActivityFromLinkId("DummyActivity", startLinkId)
             activity.setEndTime(demandGPU.depTime)
             person.getSelectedPlan.addActivity(activity)
 
@@ -143,9 +146,6 @@ object GPUTransformer extends App {
             leg.getAttributes.putAttribute(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, demandGPU.depTime.toInt)
             person.getSelectedPlan.addLeg(leg)
 
-            val links = routesGPU.map { Id.createLinkId }
-            val startLinkId = links.head
-            val endLinkId = links.last
 
             if (network.getLinks.get(startLinkId).getFromNode.getId != Id.createNodeId(demandGPU.originId) ||
                 network.getLinks.get(endLinkId).getToNode.getId != Id.createNodeId(demandGPU.destinationId)) {
