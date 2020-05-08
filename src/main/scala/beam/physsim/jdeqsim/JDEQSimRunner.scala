@@ -15,7 +15,7 @@ import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
+import org.matsim.core.mobsim.jdeqsim.{JDEQSimConfigGroup, Scheduler}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
@@ -30,7 +30,8 @@ class JDEQSimRunner(
   val controlerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
-  val agentSimIterationNumber: Int
+  val agentSimIterationNumber: Int,
+  val scheduler: Scheduler
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
@@ -88,7 +89,7 @@ class JDEQSimRunner(
         s"JDEQSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
         x => logger.info(x)
       ) {
-        val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
+        val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction, scheduler)
         logger.info(s"JDEQSim iteration $currentPhysSimIter start")
         if (beamConfig.beam.debug.debugEnabled) {
           logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "))
@@ -131,13 +132,10 @@ class JDEQSimRunner(
   private def getJDEQSimulation(
     jdeqSimScenario: Scenario,
     jdeqsimEvents: EventsManager,
-    maybeRoadCapacityAdjustmentFunction: Option[RoadCapacityAdjustmentFunction]
+    maybeRoadCapacityAdjustmentFunction: Option[RoadCapacityAdjustmentFunction],
+    scheduler: Scheduler
   ): org.matsim.core.mobsim.jdeqsim.JDEQSimulation = {
-    val config = new JDEQSimConfigGroup
-    val flowCapacityFactor = beamConfig.beam.physsim.flowCapacityFactor
-    config.setFlowCapacityFactor(flowCapacityFactor)
-    config.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)
-    config.setSimulationEndTime(beamConfig.matsim.modules.qsim.endTime)
+    val config = JDEQSimRunner.getJDEQSimConfig(beamConfig)
     maybeRoadCapacityAdjustmentFunction match {
       case Some(roadCapacityAdjustmentFunction) =>
         logger.info("CACC enabled")
@@ -158,7 +156,8 @@ class JDEQSimRunner(
           jdeqsimEvents,
           caccSettings,
           speedAdjustmentFactor,
-          adjustedMinimumRoadSpeedInMetersPerSecond
+          adjustedMinimumRoadSpeedInMetersPerSecond,
+          scheduler
         )
 
       case None =>
@@ -173,5 +172,17 @@ class JDEQSimRunner(
     var numOfTimeBins = endTime / binSize
     numOfTimeBins = Math.floor(numOfTimeBins)
     numOfTimeBins.toInt + 1
+  }
+
+}
+
+object JDEQSimRunner {
+  def getJDEQSimConfig(beamConfig: BeamConfig): JDEQSimConfigGroup = {
+    val config = new JDEQSimConfigGroup
+    val flowCapacityFactor = beamConfig.beam.physsim.flowCapacityFactor
+    config.setFlowCapacityFactor(flowCapacityFactor)
+    config.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)
+    config.setSimulationEndTime(beamConfig.matsim.modules.qsim.endTime)
+    config
   }
 }

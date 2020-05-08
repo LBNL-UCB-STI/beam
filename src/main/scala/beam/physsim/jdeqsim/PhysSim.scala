@@ -9,6 +9,7 @@ import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.mobsim.jdeqsim.{MessageQueue, Scheduler}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
@@ -96,7 +97,8 @@ class PhysSim(
         controlerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
-        agentSimIterationNumber
+        agentSimIterationNumber,
+        new Scheduler(new MessageQueue(), JDEQSimRunner.getJDEQSimConfig(beamConfig).getSimulationEndTime)
       )
       val simulationResult =
         jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)

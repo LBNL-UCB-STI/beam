@@ -7,10 +7,10 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.mobsim.jdeqsim.*;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
+import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
 import javax.inject.Inject;
-
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,8 +28,10 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
     private final double adjustedMinimumRoadSpeedInMetersPerSecond;
 
     @Inject
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings, double speedAdjustmentFactor, double adjustedMinimumRoadSpeedInMetersPerSecond) {
-        super(config, scenario, events);
+    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings,
+                          double speedAdjustmentFactor, double adjustedMinimumRoadSpeedInMetersPerSecond,
+                          Scheduler scheduler) {
+        super(config, scenario, events, scheduler);
         this.caccSettings = caccSettings;
         this.speedAdjustmentFactor = speedAdjustmentFactor;
         this.adjustedMinimumRoadSpeedInMetersPerSecond = adjustedMinimumRoadSpeedInMetersPerSecond;

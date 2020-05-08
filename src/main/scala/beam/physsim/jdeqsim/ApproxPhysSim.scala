@@ -9,6 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population._
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.mobsim.jdeqsim.{MessageQueue, Scheduler}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -149,7 +150,8 @@ class ApproxPhysSim(
         controlerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
-        currentIter
+        currentIter,
+        new Scheduler(new MessageQueue(), JDEQSimRunner.getJDEQSimConfig(beamConfig).getSimulationEndTime)
       )
       val simulationResult =
         jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
