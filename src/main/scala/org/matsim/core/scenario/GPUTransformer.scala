@@ -146,6 +146,7 @@ object GPUTransformer extends App {
             leg.getAttributes.putAttribute(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, demandGPU.depTime.toInt)
             person.getSelectedPlan.addLeg(leg)
 
+            person.getSelectedPlan.addActivity(population.getFactory.createActivityFromLinkId("DummyActivity", endLinkId))
 
             if (network.getLinks.get(startLinkId).getFromNode.getId != Id.createNodeId(demandGPU.originId) ||
                 network.getLinks.get(endLinkId).getToNode.getId != Id.createNodeId(demandGPU.destinationId)) {
