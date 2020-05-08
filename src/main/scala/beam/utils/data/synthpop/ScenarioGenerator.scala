@@ -1,6 +1,8 @@
 package beam.utils.data.synthpop
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
 
 import beam.sim.common.GeoUtils
@@ -10,12 +12,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
-import beam.utils.data.synthpop.generators.{
-  RandomWorkDestinationGenerator,
-  TimeLeavingHomeGenerator,
-  TimeLeavingHomeGeneratorImpl,
-  WorkedDurationGeneratorImpl
-}
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
@@ -480,10 +477,14 @@ object SimpleScenarioGenerator {
     outputFolder: String
   )
 
+  def getCurrentDateTime: String = {
+    DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss").format(LocalDateTime.now)
+  }
+
   def run(parsedArgs: Arguments): Unit = {
-    val pathToOutput = parsedArgs.outputFolder
+    val pathToOutput = parsedArgs.outputFolder + "_" + getCurrentDateTime
     val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
-    require(new File(parsedArgs.outputFolder).mkdirs(), s"${pathToOutput} exists, stopping...")
+    require(new File(pathToOutput).mkdirs(), s"${pathToOutput} exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(
