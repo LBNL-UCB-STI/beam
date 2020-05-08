@@ -15,14 +15,12 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.physsim.routingTool.RoutingToolWrapper
 import beam.router.osm.TollCalculator
+import beam.router.r5.RouteDumper
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
-import beam.router.r5.RouteDumper
-import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -32,11 +30,6 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
-import org.matsim.core.population.PopulationUtils
-import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.matsim.core.events.handler.BasicEventHandler
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
@@ -49,12 +42,7 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.corelisteners.DumpDataAtEnd
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -76,8 +64,7 @@ class BeamSim @Inject()(
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val routeHistory: RouteHistory,
   private val rideHailIterationHistory: RideHailIterationHistory,
-  private val configHolder: BeamConfigHolder,
-  private val routingToolWrapper: RoutingToolWrapper
+  private val configHolder: BeamConfigHolder
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -166,8 +153,7 @@ class BeamSim @Inject()(
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable,
-        routingToolWrapper
+        beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }

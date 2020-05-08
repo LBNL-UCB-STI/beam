@@ -4,7 +4,6 @@ import java.nio.file.Paths
 
 import beam.sim.BeamServices
 import com.google.common.io.Files
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.sys.process.Process
@@ -16,10 +15,13 @@ trait RoutingToolWrapper {
   def assignTraffic(): (File, File, File)
 }
 
-class RoutingToolWrapperImpl1 @Inject()(beamServices: BeamServices)
-    extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile)
+class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp/rt")
+    extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile, tempDir)
 
-class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper with LazyLogging {
+class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: String)
+    extends RoutingToolWrapper
+    with LazyLogging {
+
   private val toolDockerImage = "rooting-tool"
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraphLauncher = s"$basePath/RawData/ConvertGraph"
@@ -30,7 +32,7 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
   private val pbfNameWithoutExtension = pbfName.replace(".osm.pbf", "")
   private val pbfInTempDirPath = Paths.get("/work", pbfNameWithoutExtension).toString
 
-  private val tempDir = new File("/tmp/rt")
+  private val tempDir = new File(tempDirPath)
   tempDir.mkdirs()
   Files.copy(new File(pbfPath), new File(tempDir + "/" + pbfName))
 
@@ -111,7 +113,7 @@ class InternalRTWrapper(private val pbfPath: String) extends RoutingToolWrapper 
 }
 
 object Starter extends App {
-  val wrapper = new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf")
+  val wrapper = new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf", "/tmp/rt")
   wrapper.generateGraph()
   wrapper.generateOd()
   wrapper.assignTraffic()
