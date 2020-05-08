@@ -7,20 +7,22 @@ import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
 
 object HereMain extends App {
-  if (args.size != 3) {
+  if (args.length != 3) {
     println("Expected arguments: [API-KEY] [ORIGIN] [DESTINATION]")
     println("Example: KqkuBonCHeDLytZwdGfKcUH9N287H-lOdqu 37.705687,-122.461096 37.724113,-122.447652")
     System.exit(1)
   }
+  val originCoordinate = toWgsCoordinate(args(1))
+  val destinationCoordinate = toWgsCoordinate(args(2))
+  println(originCoordinate, destinationCoordinate)
 
   val result = FileUtils.using(new HereAdapter(args(0))) { adapter =>
-    val pathFuture = adapter.findPath(
-      origin = toWgsCoordinate(args(1)),
-      destination = toWgsCoordinate(args(2))
-    )
-    Await.result(pathFuture, Duration("5 seconds"))
+    val service = new HereService(adapter)
+    val segFuture = service.findSegments(origin = originCoordinate, destination = destinationCoordinate)
+    Await.result(segFuture, Duration("5 seconds"))
   }
-  println(result)
+
+  println(result.mkString(System.lineSeparator()))
 
   private def toWgsCoordinate(str: String) = {
     val tmp = str.split(",")
