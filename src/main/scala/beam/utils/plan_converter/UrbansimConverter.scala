@@ -15,9 +15,9 @@ object UrbansimConverter {
 
   def main(args: Array[String]): Unit = {
     transform(
-      "/Users/alex/Documents/Projects/Simultion/csv/trips.csv",
-      "/Users/alex/Documents/Projects/Simultion/csv/plans.csv",
-      "/Users/alex/Documents/Projects/Simultion/csv/plans.out.csv"
+      "/Users/alex/Documents/Projects/Simultion/newCsv/trips.csv",
+      "/Users/alex/Documents/Projects/Simultion/newCsv/plans.csv",
+      "/Users/alex/Documents/Projects/Simultion/newCsv/plans.out.csv"
     )
   }
 
@@ -53,17 +53,6 @@ object UrbansimConverter {
     merger.merge(inputPlans)
   }
 
-  private def toActivityAndLeg(
-    inputPlan: Iterator[InputPlanElement]
-  ): Iterator[(Option[InputPlanElement], Option[InputPlanElement])] = Iterator.continually {
-    val activity = Option(inputPlan.next())
-    assert(activity.forall(_.activityElement != Leg), "Element should start with Activity")
-    val maybeLeg = Option(inputPlan.next())
-    val leg = maybeLeg.filter(_.activityElement == Leg)
-
-    activity -> leg
-  }
-
   private def readPlan(reader: BufferedReader): (Iterator[InputPlanElement], Closeable) = {
     val csvReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
     val headers = csvReader.getHeader(true)
@@ -76,7 +65,7 @@ object UrbansimConverter {
   }
 
   private def writePlans(writer: BufferedWriter, iter: Iterator[OutputPlanElement]): Closeable = {
-    val csvWriter = new CsvMapWriter(writer, CsvPreference.EXCEL_PREFERENCE)
+    val csvWriter = new CsvMapWriter(writer, CsvPreference.STANDARD_PREFERENCE)
     csvWriter.writeHeader(OutputPlanElement.headers: _*)
     iter.foreach(out => csvWriter.write(out.toRow().asJava, OutputPlanElement.headers: _*))
 
