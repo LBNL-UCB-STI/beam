@@ -30,8 +30,7 @@ import scala.util.control.NonFatal
 
 class CarTripStatsFromPathTraversalEventHandler(
   val networkHelper: NetworkHelper,
-  val maybeControlerIO: Option[OutputDirectoryHierarchy],
-  val lastIterationNumber: Int
+  val maybeControlerIO: Option[OutputDirectoryHierarchy]
 ) extends LazyLogging
     with IterationEndsListener
     with BasicEventHandler
@@ -148,7 +147,6 @@ class CarTripStatsFromPathTraversalEventHandler(
     createIterationGraphForAverageSpeed(dataSet, iterationNumber, mode)
   }
 
-  //TODO: maybe collect all Iteration end events and then at the end compute an info for all iterations
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys.map { carType =>
       carType -> calcRideStats(event.getIteration, carType)
@@ -170,12 +168,8 @@ class CarTripStatsFromPathTraversalEventHandler(
 
     averageCarSpeedPerIterationByType += type2Statistics.mapValues(_.speed.stats.avg)
 
-    //FIXME: create chart and store the image every time iteration ends... Why so?
     createRootGraphForAverageCarSpeedByType(event)
-
-    if (event.getIteration == lastIterationNumber) {
-      createPercentageFreeSpeedGraph(event.getServices.getControlerIO.getOutputFilename("percentageFreeSpeed.png"))
-    }
+    createPercentageFreeSpeedGraph(event.getServices.getControlerIO.getOutputFilename("percentageFreeSpeed.png"))
 
     // write the iteration level car ride stats to output file
     type2Statistics.foreach {
@@ -523,7 +517,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
         c
       )
     }
-    val r = new CarTripStatsFromPathTraversalEventHandler(new NetworkHelperImpl(network), None, 0)
+    val r = new CarTripStatsFromPathTraversalEventHandler(new NetworkHelperImpl(network), None)
     try {
       ptesIter.foreach(r.handleEvent)
       r

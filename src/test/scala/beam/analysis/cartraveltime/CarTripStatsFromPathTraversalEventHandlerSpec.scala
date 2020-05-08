@@ -11,8 +11,7 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
     "write speed statistics files" in {
       val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
-        Some(beamServices.matsimServices.getControlerIO),
-        0
+        Some(beamServices.matsimServices.getControlerIO)
       )
 
       processHandlers(List(handler))
