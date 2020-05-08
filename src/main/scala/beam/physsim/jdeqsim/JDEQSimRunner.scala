@@ -6,7 +6,7 @@ import java.util.{HashMap, List, Map}
 
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
-import beam.physsim.bprsim.BPRSimulation
+import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -152,9 +152,12 @@ class JDEQSimRunner(
     config.setFlowCapacityFactor(flowCapacityFactor)
     config.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)
     config.setSimulationEndTime(beamConfig.matsim.modules.qsim.endTime)
+    logger.info(s"Physsim name = $simName, qsim.endTime = ${config.getSimulationEndTimeAsString}")
     simName match {
       case "BPRSIM" =>
-        new BPRSimulation(jdeqSimScenario, jdeqsimEvents)
+        val bprCfg =
+          BPRSimConfig(config.getSimulationEndTime, (time, link, _) => link.getLength / link.getFreespeed(time))
+        new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "JDEQSIM" =>
         maybeRoadCapacityAdjustmentFunction match {
           case Some(roadCapacityAdjustmentFunction) =>

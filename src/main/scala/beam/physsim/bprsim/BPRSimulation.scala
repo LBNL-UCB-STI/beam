@@ -16,7 +16,7 @@ import scala.collection.mutable
   *
   * @author Dmitry Openkov
   */
-class BPRSimulation(scenario: Scenario, events: EventsManager) extends Mobsim {
+class BPRSimulation(scenario: Scenario, config: BPRSimConfig, events: EventsManager) extends Mobsim {
   private val queue = mutable.PriorityQueue.empty[SimEvent](Ordering.by((_: SimEvent).time).reverse)
 
   override def run(): Unit = {
@@ -33,8 +33,10 @@ class BPRSimulation(scenario: Scenario, events: EventsManager) extends Mobsim {
   private def processEvents(): Unit = {
     if (queue.nonEmpty) {
       val simulationEvent = queue.dequeue()
-      simulationEvent.execute(events, scenario).foreach(queue += _)
-      processEvents()
+      if (simulationEvent.time < config.simEndTime) {
+        simulationEvent.execute(events, scenario, config).foreach(queue += _)
+        processEvents()
+      }
     }
   }
 
