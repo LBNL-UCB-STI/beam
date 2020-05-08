@@ -153,7 +153,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
     }
 
-    private void setupActorsAndRunPhysSim(int iterationNumber) {
+    private void setupActorsAndRunPhysSim(IterationEndsEvent iterationEndsEvent) {
+        int iterationNumber = iterationEndsEvent.getIteration();
 //        RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
 //                beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
 //        log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
@@ -188,7 +189,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
 
-        Map<String, double[]> travelTimeMap = getLink2TravelTimes(iterationNumber, links, maxHour);
+        Map<String, double[]> travelTimeMap = getLink2TravelTimes(iterationEndsEvent, links, maxHour);
 
         TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
 
@@ -266,12 +267,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private Map<String, double[]> getLink2TravelTimes(
-            int iterationNumber,
+            IterationEndsEvent iterationEndsEvent,
             Collection<? extends Link> links,
             int maxHour) {
+        int iterationNumber = iterationEndsEvent.getIteration();
+
+        String routingToolDirectory = iterationEndsEvent.getServices().getControlerIO().getOutputFilename("routing-tool");
 
         long startTime = System.currentTimeMillis();
-        RoutingToolWrapper routingToolWrapper = new RoutingToolWrapperImpl(beamServices, "/tmp/rt");
+        RoutingToolWrapper routingToolWrapper = new RoutingToolWrapperImpl(beamServices, routingToolDirectory);
         log.info("Finished creation of graph {}", System.currentTimeMillis() - startTime);
 
         Map<Integer, ? extends Link> id2Link = links.stream()
@@ -351,6 +355,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         .map(x -> x.split(","))
                         // picking only result of 10th iteration
                         .filter(x -> x[0].equals("10"))
+                        // way id into bpr
                         .map(x -> new Pair<>(Long.parseLong(x[4]), Double.parseDouble(x[5]) / 10.0))
                         .collect(Collectors.groupingBy(Pair::first, Collectors.summarizingDouble(Pair::second)));
             } catch (IOException e) {
@@ -580,7 +585,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
-        setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+        setupActorsAndRunPhysSim(iterationEndsEvent);
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
     }

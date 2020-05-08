@@ -17,10 +17,10 @@ trait RoutingToolWrapper {
 
 class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp/rt")
     extends InternalRTWrapper(
-      new File(beamServices.beamConfig.beam.routing.r5.directory)
-        .list()
-        .filter(_.endsWith("osm.pbf"))
-        .head,
+      beamServices.beamConfig.beam.routing.r5.directory + "/" +
+      new File(
+        beamServices.beamConfig.beam.routing.r5.directory
+      ).list().filter(_.endsWith("osm.pbf")).head,
       tempDir
     )
 
