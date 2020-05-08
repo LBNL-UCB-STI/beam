@@ -37,13 +37,6 @@ object UrbansimConverter {
     val outputHeader = Seq("personId", "planElement", "planElementIndex", "activityType", "x", "y", "endTime", "mode")
     planCsvWriter.writeHeader()
 
-    Iterator
-      .continually(planCsvReader.read(inputHeaders: _*))
-      .takeWhile(data => data != null)
-      .map(transformToTripElement)
-      .map(tripElement => tripElement.tripId -> tripElement)
-      .toMap
-
     planCsvReader.close()
 
     planCsvWriter.flush()
@@ -56,36 +49,9 @@ object UrbansimConverter {
       Iterator
         .continually(csvRdr.read(header: _*))
         .takeWhile(data => data != null)
-        .map(transformToTripElement)
+        .map(TripElement.transform)
         .map(tripElement => tripElement.tripId -> tripElement)
         .toMap
     }
 
-  private def transformToTripElement(rec: java.util.Map[String, String]): TripElement = {
-    val tripId = getIfNotNull(rec, "trip_id").toInt
-    val personId = getIfNotNull(rec, "person_id").toInt
-    val householdId = getIfNotNull(rec, "household_id").toInt
-    val depart = getIfNotNull(rec, "depart").toDouble
-    val tripMode = getIfNotNull(rec, "trip_mode")
-
-    TripElement(tripId, personId, householdId, depart, tripMode)
-  }
-
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
-    val v = rec.get(column)
-    assert(v != null, s"Value in column '$column' is null")
-    v
-  }
-
-  case class TripElement(tripId: Int, personId: Int, householdId: Int, depart: Double, trip_mode: String)
-
-  case class PlanElement(
-    personId: Int,
-    planElementIndex: Int,
-    activityElement: String,
-    ActivityType: String,
-    x: Double,
-    y: Double,
-    departureTime: Double
-  )
 }
