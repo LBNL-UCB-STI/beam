@@ -18,6 +18,7 @@ import scala.collection.mutable
   */
 class BPRSimulation(scenario: Scenario, config: BPRSimConfig, events: EventsManager) extends Mobsim {
   private val queue = mutable.PriorityQueue.empty[SimEvent](Ordering.by((_: SimEvent).time).reverse)
+  private val params = BPRSimParams(config, new VolumeCalculator)
 
   override def run(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
@@ -27,6 +28,7 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, events: EventsMana
       .foreach(queue.enqueue(_))
 
     processEvents()
+    println("unfinished = " + params.volumeCalculator.linkToVolume.filter(_._2 > 0))
   }
 
   @tailrec
@@ -34,7 +36,7 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, events: EventsMana
     if (queue.nonEmpty) {
       val simulationEvent = queue.dequeue()
       if (simulationEvent.time < config.simEndTime) {
-        simulationEvent.execute(events, scenario, config).foreach(queue += _)
+        simulationEvent.execute(events, scenario, params).foreach(queue += _)
         processEvents()
       }
     }
