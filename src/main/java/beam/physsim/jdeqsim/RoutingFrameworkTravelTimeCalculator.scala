@@ -19,16 +19,15 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversionsToScala._
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices
 ) extends LazyLogging {
 
-  private val numOfThreads: Int =
-    if (Runtime.getRuntime.availableProcessors() <= 2) 1 else Runtime.getRuntime.availableProcessors() - 2
   private val execSvc: ExecutorService = Executors.newFixedThreadPool(
-    numOfThreads,
+    Runtime.getRuntime.availableProcessors(),
     new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
   )
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
@@ -56,71 +55,64 @@ class RoutingFrameworkTravelTimeCalculator(
       .groupBy(_._1)
       .mapValues(_.map(_._2).toList)
 
-    val hour2Way2TravelTimes: Map[Int, Map[Long, Double]] = hour2Events.toList
-      .sortBy(_._1)
+    val futures: Iterable[Future[(Int, Map[Long, Double])]] = hour2Events
       .map {
-        case (hour, events) => {
-          val stopWatch: StopWatch = new StopWatch
-          stopWatch.start()
-          val ods: List[(Long, Long)] = events
-            .filter { x =>
-              if (x.linkIds.isEmpty) {
-                logger.info("Path traversal event doesn't have any related links")
-                false
-              } else true
-            }
-            .map(event => linkWayId(id2Link(event.linkIds.head)) -> linkWayId(id2Link(event.linkIds.last)))
-            //skip current event if way id is not present
-            .filter(x => x._1 != -1 && x._2 != -1)
-            .map {
-              case (firstWayId, secondWayId) =>
-                val firstLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(firstWayId)
-                val origin: Coordinate = firstLinkCoordinates.head
-                var destination: Coordinate = null
-                if (firstWayId == secondWayId) {
-                  destination = firstLinkCoordinates.last
-                } else {
-                  val secondLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(secondWayId)
-                  destination = secondLinkCoordinates.last
-                }
-                val firstId: Long = coordinateToRTVertexId
-                  .getOrElse(origin, getRoutingToolVertexId(coordinateToRTVertexId, origin))
-                val secondId: Long = coordinateToRTVertexId
-                  .getOrElse(destination, getRoutingToolVertexId(coordinateToRTVertexId, destination))
+        case (hour, events) =>
+          Future {
+            val stopWatch: StopWatch = new StopWatch
+            stopWatch.start()
 
-                (firstId, secondId)
-            }
+            val ods: List[(Long, Long)] = events
+              .filter(_.linkIds.nonEmpty)
+              .map { event =>
+                linkWayId(id2Link(event.linkIds.head)) -> linkWayId(id2Link(event.linkIds.last))
+              }
+              .filter { case (firstWayId, secondWayId) => firstWayId != -1 && secondWayId != -1 }
+              .map {
+                case (firstWayId, secondWayId) =>
+                  val firstLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(firstWayId)
+                  val origin: Coordinate = firstLinkCoordinates.head
+                  var destination: Coordinate = null
+                  if (firstWayId == secondWayId) {
+                    destination = firstLinkCoordinates.last
+                  } else {
+                    val secondLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(secondWayId)
+                    destination = secondLinkCoordinates.last
+                  }
+                  val firstId: Long = coordinateToRTVertexId
+                    .getOrElse(origin, getRoutingToolVertexId(coordinateToRTVertexId, origin))
+                  val secondId: Long = coordinateToRTVertexId
+                    .getOrElse(destination, getRoutingToolVertexId(coordinateToRTVertexId, destination))
 
-          logger.warn("Generated {} ods, for hour {} in {}", ods.size, hour, stopWatch.getTime)
-          stopWatch.reset()
-          stopWatch.start()
-          routingToolWrapper.generateOd(iterationNumber, hour, ods)
-          logger.info("Running for hour {}", hour)
-          val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
-          logger.info("Assigned traffic in {}", stopWatch.getTime)
-          var wayId2TravelTime: Map[Long, Double] = null
-          wayId2TravelTime = Files
-            .readLines(assignResult._1, Charset.defaultCharset)
-            .toStream
-            .drop(2)
-            .map((x: String) => x.split(","))
-            // picking only result of 10th iteration
-            .filter(x => x(0) == "10")
-            // way id into bpr
-            .map(x => x(4).toLong -> x(5).toDouble / 10.0)
-            .groupBy(_._1)
-            .mapValues(x => x.map(_._2).sum / x.size)
-          (hour, wayId2TravelTime)
-        }
+                  (firstId, secondId)
+              }
+            logger.warn("Generated {} ods, for hour {} in {}", ods.size, hour, stopWatch.getTime)
+            stopWatch.reset()
+            stopWatch.start()
+            routingToolWrapper.generateOd(iterationNumber, hour, ods)
+            val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
+            logger.info("Assigned traffic for hour {} in {}", hour, stopWatch.getTime)
+            var wayId2TravelTime: Map[Long, Double] = null
+            wayId2TravelTime = Files
+              .readLines(assignResult._1, Charset.defaultCharset)
+              .toStream
+              .drop(2)
+              .map((x: String) => x.split(","))
+              // picking only result of 10th iteration
+              .filter(x => x(0) == "10")
+              // way id into bpr
+              .map(x => x(4).toLong -> x(5).toDouble / 10.0)
+              .groupBy(_._1)
+              .mapValues(x => x.map(_._2).sum / x.size)
+            (hour, wayId2TravelTime)
+          }
       }
-      .toMap
+
+    val hour2Way2TravelTimes = Await.result(Future.sequence(futures), 1.hour).toMap
 
     val travelTimeMap: mutable.Map[String, Array[Double]] = new mutable.HashMap[String, Array[Double]]
     val totalNumberOfLinks: Int = links.size
     val linksFailedToResolve: AtomicInteger = new AtomicInteger(0)
-
-    val stopWatch: StopWatch = new StopWatch
-    stopWatch.start()
 
     links.toStream
       .filter(_.getAttributes.getAttribute("origid") == null)
