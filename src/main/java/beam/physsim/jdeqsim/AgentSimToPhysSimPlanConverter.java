@@ -306,7 +306,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 //skip current event if way id is not present
                 if (firstWayId == -1 || secondWayId == -1) return null;
 
-                List<Coordinate> firstLinkCoordinates = getCoordinatesForWayId(osmInfoHolder, firstWayId);
+                List<Coordinate> firstLinkCoordinates = osmInfoHolder.getCoordinatesForWayId(firstWayId);
 
                 Coordinate origin = firstLinkCoordinates.get(0);
                 Coordinate destination;
@@ -314,7 +314,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 if (firstWayId == secondWayId) {
                     destination = firstLinkCoordinates.get(firstLinkCoordinates.size() - 1);
                 } else {
-                    List<Coordinate> secondLinkCoordinates = getCoordinatesForWayId(osmInfoHolder, secondWayId);
+                    List<Coordinate> secondLinkCoordinates = osmInfoHolder.getCoordinatesForWayId(secondWayId);
                     destination = secondLinkCoordinates.get(secondLinkCoordinates.size() - 1);
                 }
 
@@ -409,13 +409,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 .get();
         firstId = closest.getValue();
         return firstId;
-    }
-
-    private List<Coordinate> getCoordinatesForWayId(OsmInfoHolder osmInfoHolder, long firstWayId) {
-        return JavaConverters.asJavaCollection(
-                osmInfoHolder.id2NodeIds().apply(firstWayId)
-        ).stream().map(x -> osmInfoHolder.id2NodeCoordinate().getOrElse(x, () -> new Coordinate(0.0, 0.0)))
-                .collect(Collectors.toList());
     }
 
     private boolean shouldWritePlans(int iterationNumber) {

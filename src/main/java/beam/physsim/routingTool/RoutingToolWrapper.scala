@@ -16,7 +16,13 @@ trait RoutingToolWrapper {
 }
 
 class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp/rt")
-    extends InternalRTWrapper(beamServices.beamConfig.beam.routing.r5.osmFile, tempDir)
+    extends InternalRTWrapper(
+      new File(beamServices.beamConfig.beam.routing.r5.directory)
+        .list()
+        .filter(_.endsWith("osm.pbf"))
+        .head,
+      tempDir
+    )
 
 class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: String)
     extends RoutingToolWrapper

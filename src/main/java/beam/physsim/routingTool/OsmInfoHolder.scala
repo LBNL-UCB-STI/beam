@@ -21,4 +21,9 @@ class OsmInfoHolder @Inject()(beamServices: BeamServices) {
   }.toMap
 
   osm.close()
+
+  def getCoordinatesForWayId(firstWayId: Long): java.util.List[Coordinate] =
+    id2NodeIds(firstWayId)
+      .map(x => id2NodeCoordinate.getOrElse(x, new Coordinate(0.0, 0.0)))
+      .asJava
 }
