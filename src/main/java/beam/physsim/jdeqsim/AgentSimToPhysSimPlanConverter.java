@@ -337,10 +337,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             stopWatch.reset();
             stopWatch.start();
 
-            routingToolWrapper.generateOd(ods);
+            routingToolWrapper.generateOd(iterationNumber, hour, ods);
 
             log.info("Running for hour {}", hour);
-            Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic();
+            Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic(iterationNumber, hour);
 
             log.info("Assigned traffic in {}", stopWatch.getTime());
 
