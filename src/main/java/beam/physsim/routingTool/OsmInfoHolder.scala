@@ -10,20 +10,19 @@ import scala.collection.JavaConverters._
 class OsmInfoHolder @Inject()(beamServices: BeamServices) {
   private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
 
-  val id2NodeIds: Map[java.lang.Long, List[java.lang.Long]] = osm.ways.asScala.map {
+  private val id2NodeIds: Map[Long, Seq[Long]] = osm.ways.asScala.map {
     case (id, way) =>
-      id -> way.nodes.map(_.asInstanceOf[java.lang.Long]).toList
+      id.toLong -> way.nodes.toSeq
   }.toMap
 
-  val id2NodeCoordinate = osm.nodes.asScala.map {
+  private val id2NodeCoordinate = osm.nodes.asScala.map {
     case (id, node) =>
       id -> new Coordinate(node.getLat, node.getLon)
   }.toMap
 
   osm.close()
 
-  def getCoordinatesForWayId(firstWayId: Long): java.util.List[Coordinate] =
+  def getCoordinatesForWayId(firstWayId: Long): Seq[Coordinate] =
     id2NodeIds(firstWayId)
       .map(x => id2NodeCoordinate.getOrElse(x, new Coordinate(0.0, 0.0)))
-      .asJava
 }

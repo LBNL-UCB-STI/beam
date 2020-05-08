@@ -1,7 +1,6 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
-import akka.japi.Pair;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
@@ -11,7 +10,6 @@ import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.physsim.routingTool.*;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
@@ -25,9 +23,6 @@ import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-import com.vividsolutions.jts.geom.Coordinate;
-import org.apache.commons.lang.time.StopWatch;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.matsim.api.core.v01.Id;
@@ -51,20 +46,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
-import scala.Tuple3;
-import scala.collection.JavaConverters;
 
-import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -91,6 +80,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
+    private final RoutingFrameworkTravelTimeCalculator routingFrameworkTravelTimeCalculator;
 
     private BeamConfig beamConfig;
     private EventsManager eventsManager;
@@ -133,13 +123,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
         preparePhysSimForNewIteration();
 
-
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         beamConfigChangesObservable.addObserver(this);
         rnd = new Random(beamConfig.matsim().modules().global().randomSeed());
+
+        routingFrameworkTravelTimeCalculator = new RoutingFrameworkTravelTimeCalculator(beamServices);
     }
 
 
@@ -189,7 +180,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
 
-        Map<String, double[]> travelTimeMap = getLink2TravelTimes(iterationEndsEvent, links, maxHour);
+        Map<String, double[]> travelTimeMap = routingFrameworkTravelTimeCalculator.getLink2TravelTimes(traversalEventsForPhysSimulation, iterationEndsEvent, links, maxHour);
 
         TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
 
@@ -264,156 +255,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         traversalEventsForPhysSimulation.clear();
-    }
-
-    private Map<String, double[]> getLink2TravelTimes(
-            IterationEndsEvent iterationEndsEvent,
-            Collection<? extends Link> links,
-            int maxHour) {
-        int iterationNumber = iterationEndsEvent.getIteration();
-
-        String routingToolDirectory = iterationEndsEvent.getServices().getControlerIO().getOutputFilename("routing-tool");
-
-        long startTime = System.currentTimeMillis();
-        RoutingToolWrapper routingToolWrapper = new RoutingToolWrapperImpl(beamServices, routingToolDirectory);
-        log.info("Finished creation of graph {}", System.currentTimeMillis() - startTime);
-
-        Map<Integer, ? extends Link> id2Link = links.stream()
-                .collect(Collectors.toMap(x -> Integer.parseInt(x.getId().toString()), x -> x));
-
-        RoutingToolGraph graph = RoutingToolsGraphReaderImpl.read(routingToolWrapper.generateGraph());
-        Map<Coordinate, Long> coordinateToRTVertexId = JavaConverters.asJavaCollection(graph.vertices()).stream()
-                .collect(Collectors.toMap(Vertex::coordinate, Vertex::id));
-
-        OsmInfoHolder osmInfoHolder = new OsmInfoHolder(beamServices);
-
-        Map<Integer, List<PathTraversalEvent>> hour2Events = traversalEventsForPhysSimulation.stream()
-                .collect(Collectors.groupingBy(x -> x.departureTime() / 3600));
-
-        Map<Integer, Map<Long, DoubleSummaryStatistics>> hour2Way2TravelTimes = hour2Events.entrySet().stream().map(mapEntry -> {
-            StopWatch stopWatch = new StopWatch();
-            stopWatch.start();
-
-            Integer hour = mapEntry.getKey();
-            List<PathTraversalEvent> events = mapEntry.getValue();
-
-            List<Pair<Long, Long>> ods = events.stream().map(e -> {
-                if (e.linkIds().isEmpty()) {
-                    log.info("Path traversal event doesn't have any related links");
-                    return null;
-                }
-                Link firstLink = id2Link.get(e.linkIds().head());
-                Link secondLink = id2Link.get(e.linkIds().last());
-                long firstWayId = linkWayId(firstLink);
-                long secondWayId = linkWayId(secondLink);
-
-                //skip current event if way id is not present
-                if (firstWayId == -1 || secondWayId == -1) return null;
-
-                List<Coordinate> firstLinkCoordinates = osmInfoHolder.getCoordinatesForWayId(firstWayId);
-
-                Coordinate origin = firstLinkCoordinates.get(0);
-                Coordinate destination;
-
-                if (firstWayId == secondWayId) {
-                    destination = firstLinkCoordinates.get(firstLinkCoordinates.size() - 1);
-                } else {
-                    List<Coordinate> secondLinkCoordinates = osmInfoHolder.getCoordinatesForWayId(secondWayId);
-                    destination = secondLinkCoordinates.get(secondLinkCoordinates.size() - 1);
-                }
-
-                Long firstId = coordinateToRTVertexId.get(origin);
-                if (firstId == null) {
-                    firstId = getRoutingToolVertexId(coordinateToRTVertexId, origin);
-                }
-                Long secondId = coordinateToRTVertexId.get(destination);
-                if (secondId == null) {
-                    secondId = getRoutingToolVertexId(coordinateToRTVertexId, destination);
-                }
-
-                return new Pair<>(firstId, secondId);
-            })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-
-            log.warn("Generated {} ods, for hour {} in {}", ods.size(), hour, stopWatch.getTime());
-
-            stopWatch.reset();
-            stopWatch.start();
-
-            routingToolWrapper.generateOd(iterationNumber, hour, ods);
-
-            log.info("Running for hour {}", hour);
-            Tuple3<File, File, File> assignResult = routingToolWrapper.assignTraffic(iterationNumber, hour);
-
-            log.info("Assigned traffic in {}", stopWatch.getTime());
-
-            Map<Long, DoubleSummaryStatistics> wayId2TravelTime;
-            try {
-                wayId2TravelTime = Files.readLines(assignResult._1(), Charset.defaultCharset()).stream()
-                        .skip(2)
-                        .map(x -> x.split(","))
-                        // picking only result of 10th iteration
-                        .filter(x -> x[0].equals("10"))
-                        // way id into bpr
-                        .map(x -> new Pair<>(Long.parseLong(x[4]), Double.parseDouble(x[5]) / 10.0))
-                        .collect(Collectors.groupingBy(Pair::first, Collectors.summarizingDouble(Pair::second)));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            return new Pair<>(hour, wayId2TravelTime);
-        }).collect(Collectors.toMap(Pair::first, Pair::second));
-
-        Map<String, double[]> finalMap = new HashMap<>();
-        Map<String, double[]> travelTimeMap = finalMap;
-
-        int totalNumberOfLinks = links.size();
-        AtomicInteger linksFailedToResolve = new AtomicInteger(0);
-
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-
-        links.stream().filter(x -> x.getAttributes().getAttribute("origid") == null).forEach(x -> {
-            linksFailedToResolve.incrementAndGet();
-            double[] travelTimes = new double[maxHour];
-            Arrays.fill(travelTimes, x.getLength() / x.getFreespeed());
-            finalMap.put(x.getId().toString(), travelTimes);
-        });
-
-        links.stream().filter(x -> x.getAttributes().getAttribute("origid") != null)
-                .collect(Collectors.groupingBy(x -> linkWayId(x)))
-                .forEach((wayId, linksInWay) -> linksInWay.forEach(link -> {
-                    double[] travelTimeByHour = new double[maxHour];
-                    boolean atLeastOneHour = false;
-                    for (int hour = 0; hour < maxHour; hour++) {
-                        Map<Long, DoubleSummaryStatistics> way2Speed = hour2Way2TravelTimes.get(hour);
-                        if (way2Speed == null || way2Speed.get(wayId) == null) {
-                            travelTimeByHour[hour] = link.getLength() / link.getFreespeed();
-                            continue;
-                        }
-                        atLeastOneHour = true;
-                        travelTimeByHour[hour] = way2Speed
-                                .get(wayId).getSum() / linksInWay.size();
-                    }
-                    if (!atLeastOneHour) linksFailedToResolve.incrementAndGet();
-                    finalMap.put(link.getId().toString(), travelTimeByHour);
-                }));
-
-        log.info("Total links: {}, failed to assign travel time: {}", totalNumberOfLinks, linksFailedToResolve.get());
-
-        log.info("Created travel times in {}", System.currentTimeMillis() - startTime);
-
-        return travelTimeMap;
-    }
-
-    private Long getRoutingToolVertexId(Map<Coordinate, Long> coordinateToRTVertexId, Coordinate origin) {
-        Long firstId;
-        Map.Entry<Coordinate, Long> closest = coordinateToRTVertexId.entrySet().stream()
-                .min(Comparator.comparingDouble(x -> x.getKey().distance(origin)))
-                .get();
-        firstId = closest.getValue();
-        return firstId;
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -623,11 +464,5 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public void update(Observable observable, Object o) {
         Tuple2 t = (Tuple2) o;
         this.beamConfig = (BeamConfig) t._2;
-    }
-
-    private static long linkWayId(Link link) {
-        Object origid = link.getAttributes().getAttribute("origid");
-        if (origid == null) return -1;
-        return Long.parseLong(origid.toString());
     }
 }

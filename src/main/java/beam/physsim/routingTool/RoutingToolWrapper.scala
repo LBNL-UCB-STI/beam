@@ -11,7 +11,7 @@ import scala.sys.process.Process
 trait RoutingToolWrapper {
   def generateGraph(): File
   def generateOd(): Unit
-  def generateOd(iteration: Int, hour: Int, ods: java.util.List[akka.japi.Pair[java.lang.Long, java.lang.Long]]): Unit
+  def generateOd(iteration: Int, hour: Int, ods: Seq[(Long, Long)]): Unit
   def assignTraffic(iteration: Int, hour: Int): (File, File, File)
 }
 
@@ -83,11 +83,7 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
     createODPairsOutput.lineStream.foreach(logger.info(_))
   }
 
-  override def generateOd(
-    iteration: Int,
-    hour: Int,
-    ods: java.util.List[akka.japi.Pair[java.lang.Long, java.lang.Long]]
-  ): Unit = {
+  def generateOd(iteration: Int, hour: Int, ods: Seq[(Long, Long)]): Unit = {
     Paths.get(tempDirPath, iteration.toString, hour.toString).toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
 
@@ -95,9 +91,10 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
     writer.write("origin,destination")
     writer.newLine()
 
-    ods.forEach { a =>
-      writer.write(s"${a.first},${a.second}")
-      writer.newLine()
+    ods.foreach {
+      case (first, second) =>
+        writer.write(s"$first,$second")
+        writer.newLine()
     }
 
     writer.close()
