@@ -16,13 +16,14 @@ import scala.collection.JavaConverters._
 
 object JDEQSimRunnerApp extends StrictLogging {
 
+  // Run it using gradle: `./gradlew :execute -PmaxRAM=20 -PmainClass=beam.physsim.jdeqsim.JDEQSimRunnerApp -PappArgs=["'--config', 'test/input/sf-light/sf-light-1k.conf'"] -PlogbackCfg=logback.xml
   def main(args: Array[String]): Unit = {
     val beamHelper = new BeamHelper {}
     val (_, config) = beamHelper.prepareConfig(args, true)
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
     val networkFile = "d:/Work/beam/GPU/network-output.xml"
-    val populationFile = "d:/Work/beam/GPU/population-output.xml"
+    val populationFile = "d:/Work/beam/GPU/population_sampled.xml"
     val pathToOutput = "d:/Work/beam/GPU/result"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
