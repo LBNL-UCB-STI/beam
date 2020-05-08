@@ -451,11 +451,12 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
            "-Dcom.sun.management.jmxremote.local.only=true", "-Dcom.sun.management.jmxremote.authenticate=false", "-Dcom.sun.management.jmxremote.ssl=false",
            "-Djava.net.preferIPv4Stack=true", "-Djava.rmi.server.hostname=127.0.0.1"]
 
+def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
+
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
-
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
