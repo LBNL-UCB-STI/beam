@@ -3,8 +3,12 @@ package beam.utils.plan_converter
 import scala.annotation.switch
 
 sealed trait ActivityType
-case object Activity extends ActivityType
-case object Leg extends ActivityType
+case object Activity extends ActivityType {
+  override def toString: String = "activity"
+}
+case object Leg extends ActivityType {
+  override def toString: String = "leg"
+}
 
 object ActivityType {
 
