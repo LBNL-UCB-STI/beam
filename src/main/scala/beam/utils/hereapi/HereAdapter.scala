@@ -13,10 +13,10 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
   import scala.concurrent.ExecutionContext.Implicits._
 
   private implicit val system: ActorSystem = ActorSystem()
-  private implicit val materializer = ActorMaterializer()
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val wsClient: StandaloneWSClient = StandaloneAhcWSClient()
 
-  def findPath(origin: WgsCoordinate, destination: WgsCoordinate): Future[HerePath] = {
+  private[hereapi] def findPath(origin: WgsCoordinate, destination: WgsCoordinate): Future[HerePath] = {
     val originStr = s"${origin.latitude},${origin.longitude}"
     val destinationStr = s"${destination.latitude},${destination.longitude}"
     val params = Seq(
@@ -35,6 +35,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
 
   private def toSpan(x: JsValue): HereSpan = {
     HereSpan(
+      offset = (x \ "offset").as[Int],
       lengthInMeters = (x \ "length").as[Int],
       speedLimitInKph = (x \ "speedLimit").asOpt[Double].map(_.toInt)
     )
