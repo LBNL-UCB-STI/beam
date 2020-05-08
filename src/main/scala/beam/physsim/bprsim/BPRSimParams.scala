@@ -8,3 +8,5 @@ import org.matsim.api.core.v01.network.Link
   * @author Dmitry Openkov
   */
 case class BPRSimConfig(simEndTime: Double, travelTime: (Double, Link, Int) => Double)
+
+case class BPRSimParams(config: BPRSimConfig, volumeCalculator: VolumeCalculator)
