@@ -77,13 +77,11 @@ class RoutingFrameworkTravelTimeCalculator(
                 case (firstWayId, secondWayId) =>
                   val firstLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(firstWayId)
                   val origin: Coordinate = firstLinkCoordinates.head
-                  var destination: Coordinate = null
-                  if (firstWayId == secondWayId) {
-                    destination = firstLinkCoordinates.last
-                  } else {
-                    val secondLinkCoordinates: Seq[Coordinate] = osmInfoHolder.getCoordinatesForWayId(secondWayId)
-                    destination = secondLinkCoordinates.last
-                  }
+
+                  val destination: Coordinate =
+                    if (firstWayId == secondWayId) firstLinkCoordinates.last
+                    else osmInfoHolder.getCoordinatesForWayId(secondWayId).last
+
                   val firstId: Long = coordinateToRTVertexId
                     .getOrElse(
                       origin,
@@ -107,10 +105,9 @@ class RoutingFrameworkTravelTimeCalculator(
 
             val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
             logger.info("Assigned traffic for hour {} in {}", hour, stopWatch.getTime)
-            var wayId2TravelTime: Map[Long, Double] = null
-            wayId2TravelTime = Files
+
+            val wayId2TravelTime: Map[Long, Double] = Files
               .readLines(assignResult._1, Charset.defaultCharset)
-              .toStream
               .drop(2)
               .map((x: String) => x.split(","))
               // picking only result of 10th iteration
