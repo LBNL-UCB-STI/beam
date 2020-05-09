@@ -49,6 +49,11 @@ class RoutingFrameworkTravelTimeCalculator(
     val coordinateToRTVertexId: Map[Coordinate, Long] =
       graph.vertices.map(x => x.coordinate -> x.id).toMap
 
+    val coordinateKey2Coordinates: Map[(Int, Int), Seq[Vertex]] = graph.vertices
+      .map(v => ((v.coordinate.x * 10).toInt -> (v.coordinate.y * 10).toInt) -> v)
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+
     val osmInfoHolder: OsmInfoHolder = new OsmInfoHolder(beamServices)
     val hour2Events: Map[Int, List[PathTraversalEvent]] = pathTraversalEvents.toStream
       .map(x => x.departureTime / 3600 -> x)
@@ -80,9 +85,15 @@ class RoutingFrameworkTravelTimeCalculator(
                     destination = secondLinkCoordinates.last
                   }
                   val firstId: Long = coordinateToRTVertexId
-                    .getOrElse(origin, getRoutingToolVertexId(coordinateToRTVertexId, origin))
+                    .getOrElse(
+                      origin,
+                      getRoutingToolVertexId(coordinateKey2Coordinates, coordinateToRTVertexId, origin)
+                    )
                   val secondId: Long = coordinateToRTVertexId
-                    .getOrElse(destination, getRoutingToolVertexId(coordinateToRTVertexId, destination))
+                    .getOrElse(
+                      destination,
+                      getRoutingToolVertexId(coordinateKey2Coordinates, coordinateToRTVertexId, destination)
+                    )
 
                   (firstId, secondId)
               }
@@ -159,8 +170,19 @@ class RoutingFrameworkTravelTimeCalculator(
     if (origid == null) -1 else origid.toString.toLong
   }
 
-  private def getRoutingToolVertexId(coordinateToRTVertexId: Map[Coordinate, Long], origin: Coordinate): Long = {
-    coordinateToRTVertexId.minBy(x => x._1.distance(origin))._2
+  private def getRoutingToolVertexId(
+    coordinateKey2Coordinates: Map[(Int, Int), Seq[Vertex]],
+    coordinateToRTVertexId: Map[Coordinate, Long],
+    coordinate: Coordinate
+  ): Long = {
+    val vertexes =
+      coordinateKey2Coordinates.getOrElse((coordinate.x * 10).toInt -> (coordinate.y * 10).toInt, Seq.empty[Vertex])
+
+    if (vertexes.nonEmpty) {
+      vertexes.minBy(x => x.coordinate.distance(coordinate)).id
+    } else {
+      coordinateToRTVertexId.minBy(x => x._1.distance(coordinate))._2
+    }
   }
 
 }
