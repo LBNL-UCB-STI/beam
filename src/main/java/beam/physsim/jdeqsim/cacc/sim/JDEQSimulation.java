@@ -30,8 +30,8 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
     @Inject
     public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings,
                           double speedAdjustmentFactor, double adjustedMinimumRoadSpeedInMetersPerSecond,
-                          Scheduler scheduler) {
-        super(config, scenario, events, scheduler);
+                          Map<Id<Link>, Scheduler> linkIdToScheduler) {
+        super(config, scenario, events, linkIdToScheduler);
         this.caccSettings = caccSettings;
         this.speedAdjustmentFactor = speedAdjustmentFactor;
         this.adjustedMinimumRoadSpeedInMetersPerSecond = adjustedMinimumRoadSpeedInMetersPerSecond;

@@ -1,15 +1,19 @@
 package beam.physsim.jdeqsim
 
+import java.util
+
 import beam.router.r5.WorkerParameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.Statistics
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.matsim.core.mobsim.jdeqsim.{MessageQueue, Scheduler}
+import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.mobsim.jdeqsim.Scheduler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -151,10 +155,14 @@ class ApproxPhysSim(
         isCACCVehicle,
         beamConfigChangesObservable,
         currentIter,
-        new Scheduler(new MessageQueue(), JDEQSimRunner.getJDEQSimConfig(beamConfig).getSimulationEndTime)
+        new util.HashMap[Id[Link], Scheduler]()
       )
       val simulationResult =
-        jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+        jdeqSimRunner.simulate(
+          currentIter,
+          writeEvents = shouldWritePhysSimEvents && currentIter == nIterations,
+          new EventsManagerImpl
+        )
       carTravelTimeWriter.writeRow(
         Vector(
           currentIter,

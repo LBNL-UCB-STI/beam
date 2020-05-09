@@ -1,9 +1,13 @@
 package beam.physsim.jdeqsim
 
+import java.util
+import java.util.concurrent.{ExecutorService, Executors}
+
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamConfigChangesObservable, BeamHelper}
+import beam.sim.{BeamConfigChangesObservable, BeamHelper, LoggingEventsManager}
 import beam.utils.ProfilingUtils
 import beam.utils.shape.{Attributes, ShapeWriter}
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.algorithm.ConvexHull
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, Polygon}
@@ -21,7 +25,7 @@ import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.matsim.core.mobsim.jdeqsim.{MessageQueue, Scheduler}
+import org.matsim.core.mobsim.jdeqsim.Scheduler
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
@@ -29,6 +33,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -59,14 +64,32 @@ object JDEQSimRunnerApp extends StrictLogging {
     writeClusters(clusters, s"network_cluster_${nClusters}.shp")
     logger.info("Written clusters")
 
-    val linkIdToClusterIndex: Map[Id[Link], Int] = clusters.zipWithIndex.flatMap { case (c, idx) =>
-      c.linkIds.toSeq.map(linkId => (linkId, idx))
+    val linkIdToClusterIndex: Map[Id[Link], Int] = clusters.zipWithIndex.flatMap {
+      case (c, idx) =>
+        c.linkIds.toSeq.map(linkId => (linkId, idx))
     }.toMap
 
-    val scheduler =
-      new Scheduler(new MessageQueue(), JDEQSimRunner.getJDEQSimConfig(execCfg.beamConfig).getSimulationEndTime)
+    val numOfThreads: Int = clusters.size
+    val execSvc: ExecutorService = Executors.newFixedThreadPool(
+      numOfThreads,
+      new ThreadFactoryBuilder().setDaemon(true).setNameFormat("ParallelScheduler-%d").build()
+    )
+    implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
+    val simulationEndTime = JDEQSimRunner.getJDEQSimConfig(execCfg.beamConfig).getSimulationEndTime
+    val linkIdToScheduler: Map[Id[Link], ParallelScheduler] = clusters.flatMap { cluster =>
+      val scheduler = new ParallelScheduler(new LockingMessageQueue(), simulationEndTime)
+      cluster.linkIds.map(lid => (lid, scheduler))
+    }.toMap
 
+    val javaLinkIdToScheduler: util.Map[Id[Link], Scheduler] = new util.HashMap[Id[Link], Scheduler](
+      linkIdToScheduler.map { case (lid, s) => (lid, s.asInstanceOf[Scheduler]) }.asJava
+    )
 
+    linkIdToScheduler.values.foreach { s =>
+      s.setSchedulers(linkIdToScheduler)
+    }
+
+    val schedulers = linkIdToScheduler.values.toArray
 
     logger.info(s"Read network with ${network.getNodes.size()} nodes and ${network.getLinks.size()} links")
 
@@ -93,6 +116,7 @@ object JDEQSimRunnerApp extends StrictLogging {
       new OutputDirectoryHierarchy(pathToOutput, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
     outputDirectoryHierarchy.createIterationDirectory(0)
 
+    val loggingParallelEventsManager = new LoggingEventsManager(execCfg.matsimConfig)
 
     val physSim = new JDEQSimRunner(
       execCfg.beamConfig,
@@ -102,9 +126,27 @@ object JDEQSimRunnerApp extends StrictLogging {
       new java.util.HashMap[String, java.lang.Boolean](),
       new BeamConfigChangesObservable(execCfg.beamConfig),
       agentSimIterationNumber = 0,
-      scheduler
+      javaLinkIdToScheduler
     )
-    physSim.simulate(currentPhysSimIter = 0, writeEvents = false)
+    physSim.simulate(currentPhysSimIter = 0, writeEvents = false, loggingParallelEventsManager)
+
+    var shouldStop: Boolean = false
+    while (!shouldStop) {
+      val statuses = schedulers.map { s =>
+        s.getSimTime >= simulationEndTime
+      }
+      val messagesInTheQueue = schedulers.filter(x => !x.isFinished).map(s => s.queuedMessages.toLong)
+      val nMessagesInTheQueue = messagesInTheQueue.sum
+      val haveNotEvenStarted = schedulers.count(s => s.getSimTime == 0.0)
+      val haveNotFinished = schedulers.count(s => s.getSimTime >= 0.0 && s.getSimTime < simulationEndTime)
+      val finished = statuses.count(x => x)
+      val total = finished + haveNotEvenStarted + haveNotFinished
+      logger.info(
+        s"Finished ${finished}, HaveNotEvenStarted ${haveNotEvenStarted}, haveNotFinished: $haveNotFinished, Total: $total, nMessagesInTheQueue: $nMessagesInTheQueue"
+      )
+      Thread.sleep(5000)
+    }
+    logger.info("Done")
   }
 
   private def readNetwork(path: String): Network = {
@@ -133,10 +175,12 @@ object JDEQSimRunnerApp extends StrictLogging {
         val start = link.getFromNode.getCoord
         val end = link.getToNode.getCoord
         val middle = new Coord((start.getX + end.getX) / 2, (start.getY + end.getY) / 2)
-        if (boundingBox.contains(middle.getX, middle.getY))
-          Some((middle, lid))
-        else
-          None
+        Some((middle, lid))
+
+//        if (boundingBox.contains(middle.getX, middle.getY))
+//          Some((middle, lid))
+//        else
+//          None
       }
       .toArray
 
