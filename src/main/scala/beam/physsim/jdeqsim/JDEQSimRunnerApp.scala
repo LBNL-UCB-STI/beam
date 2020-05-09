@@ -49,15 +49,15 @@ object JDEQSimRunnerApp extends StrictLogging {
     val (_, config) = beamHelper.prepareConfig(args, true)
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
-    val networkFile = "d:/Work/beam/ParallelJDEQSim/outputNetwork.xml.gz"
-    val populationFile = "d:/Work/beam/ParallelJDEQSim/0.physsimPlans.xml.gz"
-    val pathToOutput = "d:/Work/beam/ParallelJDEQSim/"
+    val networkFile = "d:/Work/beam/ParallelJDEQSim/Beamville/output_network.xml.gz"
+    val populationFile = "d:/Work/beam/ParallelJDEQSim/Beamville/0.physsimPlans.xml.gz"
+    val pathToOutput = "d:/Work/beam/ParallelJDEQSim/Beamville/"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
       readNetwork(networkFile)
     }
 
-    val nClusters: Int = 20
+    val nClusters: Int = 3
     val clusters = ProfilingUtils.timed(s"Clustering the network: $nClusters", x => logger.info(x)) {
       clusterNetwork(network, nClusters)
     }
@@ -76,20 +76,22 @@ object JDEQSimRunnerApp extends StrictLogging {
     )
     implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
     val simulationEndTime = JDEQSimRunner.getJDEQSimConfig(execCfg.beamConfig).getSimulationEndTime
-    val linkIdToScheduler: Map[Id[Link], ParallelScheduler] = clusters.flatMap { cluster =>
-      val scheduler = new ParallelScheduler(new LockingMessageQueue(), simulationEndTime)
-      cluster.linkIds.map(lid => (lid, scheduler))
+    val clusterToScheduler: Map[ClusterInfo, ParallelScheduler] = clusters.zipWithIndex.map { case (cluster, idx) =>
+      val scheduler = new ParallelScheduler(simulationEndTime, s"cluster-${cluster.size}-$idx")
+      cluster -> scheduler
     }.toMap
+
+    val linkIdToScheduler: Map[Id[Link], ParallelScheduler] = clusterToScheduler.flatMap { case (cluster, scheduler) =>
+      cluster.linkIds.map(lid => (lid, scheduler))
+    }
+
+    clusterToScheduler.values.foreach(s => s.setSchedulers(linkIdToScheduler))
 
     val javaLinkIdToScheduler: util.Map[Id[Link], Scheduler] = new util.HashMap[Id[Link], Scheduler](
       linkIdToScheduler.map { case (lid, s) => (lid, s.asInstanceOf[Scheduler]) }.asJava
     )
 
-    linkIdToScheduler.values.foreach { s =>
-      s.setSchedulers(linkIdToScheduler)
-    }
-
-    val schedulers = linkIdToScheduler.values.toArray
+    val schedulers = clusterToScheduler.values.toArray
 
     logger.info(s"Read network with ${network.getNodes.size()} nodes and ${network.getLinks.size()} links")
 
