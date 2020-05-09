@@ -11,7 +11,7 @@ import scala.sys.process.Process
 trait RoutingToolWrapper {
   def generateGraph(): File
   def generateOd(): Unit
-  def generateOd(iteration: Int, hour: Int, ods: Seq[(Long, Long)]): Unit
+  def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit
   def assignTraffic(iteration: Int, hour: Int): (File, File, File)
 }
 
@@ -83,7 +83,7 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
     createODPairsOutput.lineStream.foreach(logger.info(_))
   }
 
-  def generateOd(iteration: Int, hour: Int, ods: Seq[(Long, Long)]): Unit = {
+  def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit = {
     Paths.get(tempDirPath, iteration.toString, hour.toString).toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
 

@@ -100,7 +100,11 @@ class RoutingFrameworkTravelTimeCalculator(
             logger.warn("Generated {} ods, for hour {} in {}", ods.size, hour, stopWatch.getTime)
             stopWatch.reset()
             stopWatch.start()
-            routingToolWrapper.generateOd(iterationNumber, hour, ods)
+            val congestionFactor = beamServices.beamConfig.beam.physsim.routingFramework.congestionFactor
+
+            val odStream = ods.toStream.flatMap(od => (1 to congestionFactor).toStream.map(_ => od))
+            routingToolWrapper.generateOd(iterationNumber, hour, odStream)
+
             val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
             logger.info("Assigned traffic for hour {} in {}", hour, stopWatch.getTime)
             var wayId2TravelTime: Map[Long, Double] = null
