@@ -94,12 +94,12 @@ object R5Requester extends BeamHelper {
     println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
   }
 
-  private def createR5Wrapper(cfg: Config): R5Wrapper = {
+  def createR5Wrapper(cfg: Config): R5Wrapper = {
     val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
     new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = travelTimeNoiseFraction)
   }
 
-  private def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
+  def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
     val vehicleTypeId = beamMode match {
       case BeamMode.CAR | BeamMode.CAV =>
         "CAV"
