@@ -25,7 +25,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.replanning.SupplementaryTripGenerator
+import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
@@ -39,6 +39,7 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
@@ -178,6 +179,12 @@ object HouseholdActor {
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
             fleetManager
         }
+
+        if (beamServices.matsimServices.getIterationNumber == 0) {
+          val addSupplementaryTrips = new AddSupplementaryTrips()
+          pop.getPersons.forEach { case (_, person) => addSupplementaryTrips.run(person) }
+        }
+
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
 
