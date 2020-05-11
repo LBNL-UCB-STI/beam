@@ -5,7 +5,6 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario, TransportMode}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.qsim.agents.ActivityDurationUtils
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
@@ -28,13 +27,10 @@ abstract class SimEvent(val time: Double, val person: Person, val legIdx: Int, v
         (lid, isLastLink)
       case _ => throw new RuntimeException(s"Only network route supported $leg")
     }
-  def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams): Option[SimEvent]
+  def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent])
 }
 
 object SimEvent {
-  private[bprsim] def generateEvents(events: Event*)(implicit eventManager: EventsManager): Unit = {
-    events.foreach(eventManager.processEvent)
-  }
 
   private[bprsim] def createVehicleId(person: Person) = {
     Id.create(person.getId, classOf[Vehicle])
@@ -42,13 +38,13 @@ object SimEvent {
 }
 
 class StartLegSimEvent(time: Double, person: Person, legIdx: Int) extends SimEvent(time, person, legIdx, -1) {
-  override def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams) = {
-    generateEvents(
+  override def execute(scenario: Scenario, params: BPRSimParams) = {
+    val events = List(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
       new PersonDepartureEvent(time, person.getId, linkId, leg.getMode),
     )
 
-    leg.getMode match {
+    val simEvent = leg.getMode match {
       case TransportMode.car =>
         // if current leg is in car mode, then enter request in first road
         val emptyLeg = leg.getRoute match {
@@ -59,26 +55,26 @@ class StartLegSimEvent(time: Double, person: Person, legIdx: Int) extends SimEve
         if (emptyLeg) {
           // move to first link in next leg and schedule an end leg message
           // duration of leg = 0 (departure and arrival time is the same)
-          Some(new EndLegSimEvent(time, person, legIdx, linkIdx))
+          new EndLegSimEvent(time, person, legIdx, linkIdx)
         } else {
           // car trying to enter traffic
-          Some(new EnteringLinkSimEvent(time, person, legIdx, linkIdx))
+          new EnteringLinkSimEvent(time, person, legIdx, linkIdx)
         }
       case _ =>
-        Some(new EndLegSimEvent(time + leg.getTravelTime, person, legIdx, linkIdx))
+        new EndLegSimEvent(time + leg.getTravelTime, person, legIdx, linkIdx)
     }
-
+    (events, Some(simEvent))
   }
 }
 
 class EndLegSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, person, legIdx, linkIdx) {
-  override def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams) = {
     val nextAct = nextActivity
 
     val actStartEventTime = Math.max(time, nextAct.getStartTime)
     val activityLinkId = nextAct.getLinkId
-    generateEvents(
+    val events = List(
       new VehicleLeavesTrafficEvent(time, person.getId, activityLinkId, createVehicleId(person), leg.getMode, 1.0),
       new PersonArrivalEvent(time, person.getId, activityLinkId, leg.getMode),
       new ActivityStartEvent(actStartEventTime, person.getId, activityLinkId, nextAct.getFacilityId, nextAct.getType),
@@ -86,7 +82,7 @@ class EndLegSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     params.volumeCalculator.addVolume(linkId, -1)
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
-    if (nextLegExists) {
+    val simEvent = if (nextLegExists) {
       val activityDurationInterpretation = scenario.getConfig.plans.getActivityDurationInterpretation
       val departureTime = ActivityDurationUtils.calculateDepartureTime(nextAct, time, activityDurationInterpretation)
       val nextLegStart = Math.max(time, departureTime)
@@ -94,18 +90,19 @@ class EndLegSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     } else {
       None
     }
+    (events, simEvent)
   }
 }
 
 class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, person, legIdx, linkIdx) {
-  override def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams) = {
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
     val event =
       if (isLegStart) new VehicleEntersTrafficEvent(time, person.getId, linkId, vehicleId, null, 1.0)
       else new LinkEnterEvent(time, vehicleId, linkId)
-    generateEvents(event)
+    val events = List(event)
     params.volumeCalculator.addVolume(linkId, 1)
 
     val link = scenario.getNetwork.getLinks.get(linkId)
@@ -113,35 +110,34 @@ class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: I
     val volume: Int = params.volumeCalculator.getVolume(linkId)
     val linkTravelTime = params.config.travelTime(time, link, volume)
 
-    if (volume >= 4) BPRSimulation.logger.info(s"volume = $volume at $linkId")
-
-    Some(new EndLinkSimEvent(time + linkTravelTime, person, legIdx, linkIdx))
+    (events, Some(new EndLinkSimEvent(time + linkTravelTime, person, legIdx, linkIdx)))
   }
 }
 
 class EnteringActivityLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, person, legIdx, linkIdx) {
-  override def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams) = {
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
-    generateEvents(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
+    val events = List(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
 
-    Some(new EndLegSimEvent(time, person, legIdx, linkIdx))
+    (events, Some(new EndLegSimEvent(time, person, legIdx, linkIdx)))
   }
 }
 
 class EndLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, person, legIdx, linkIdx) {
 
-  override def execute(implicit eventManager: EventsManager, scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams) = {
     val vehicleId = createVehicleId(person)
-    generateEvents(new LinkLeaveEvent(time, vehicleId, linkId))
+    val events = List(new LinkLeaveEvent(time, vehicleId, linkId))
     params.volumeCalculator.addVolume(linkId, -1)
-    if (lastLink) {
+    val simEvent = if (lastLink) {
       //one needs to enter the next activity link, and then finish the leg
-      Some(new EnteringActivityLinkSimEvent(time, person, legIdx, linkIdx))
+      new EnteringActivityLinkSimEvent(time, person, legIdx, linkIdx)
     } else {
-      Some(new EnteringLinkSimEvent(time, person, legIdx, linkIdx + 1))
+      new EnteringLinkSimEvent(time, person, legIdx, linkIdx + 1)
     }
+    (events, Some(simEvent))
   }
 }
