@@ -1,29 +1,17 @@
 package beam.replanning
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.LccmData
-import beam.agentsim.agents.choice.logit.{
-  DestinationChoiceModel,
-  LatentClassChoiceModel,
-  MultinomialLogit,
-  UtilityFunctionOperation
-}
-import beam.sim.population.AttributesOfIndividual
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Leg, Person, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.slf4j.LoggerFactory
-import org.supercsv.cellprocessor.ift.CellProcessor
-import org.supercsv.io.CsvBeanReader
-import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
 
-class AddSupplementaryTrips @Inject()(config: Config) extends PlansStrategyAdopter {
+class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[AddSupplementaryTrips])
 
