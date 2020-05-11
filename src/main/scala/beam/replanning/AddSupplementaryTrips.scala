@@ -42,11 +42,11 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
     AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
 
     if (newPlan.getPlanElements.size > 1) {
-      if (person.getSelectedPlan.getPlanElements.asScala
-            .collect { case activity: Activity => activity }
-            .exists(x => !x.getType.equalsIgnoreCase("Work") & !x.getType.equalsIgnoreCase("Home"))) {
-        person.removePlan(person.getSelectedPlan)
-      }
+//      if (person.getSelectedPlan.getPlanElements.asScala
+//            .collect { case activity: Activity => activity }
+//            .exists(x => !x.getType.equalsIgnoreCase("Work") & !x.getType.equalsIgnoreCase("Home"))) {
+//        person.removePlan(person.getSelectedPlan)
+//      }
       person.addPlan(newPlan)
       person.setSelectedPlan(newPlan)
     }
