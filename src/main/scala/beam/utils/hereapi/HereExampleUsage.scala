@@ -2,7 +2,7 @@ package beam.utils.hereapi
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 
-object HereExapleUsage extends App {
+object HereExampleUsage extends App {
   if (args.length != 3) {
     println("Expected arguments: [API-KEY] [ORIGIN] [DESTINATION]")
     println("Example: KqkuBonCHeDLytZwdGfKcUH9N287H-lOdqu 37.705687,-122.461096 37.724113,-122.447652")
