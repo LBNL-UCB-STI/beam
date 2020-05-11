@@ -143,6 +143,7 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
           0
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
+        planElement.setStartTime(prevEndTime)
         definitelyAddSubtours(planElement, person)
     }
     newActivitiesToAdd.flatten.foreach { x =>
