@@ -1,6 +1,8 @@
 package beam.utils.hereapi
 
-import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import java.nio.file.{Files, Path, Paths}
+
+import beam.agentsim.infrastructure.geozone.{GeoZoneUtil, WgsCoordinate}
 
 object HereExampleUsage extends App {
   if (args.length != 3) {
@@ -14,6 +16,10 @@ object HereExampleUsage extends App {
 
   val result: Seq[HereSegment] = HereService.findSegments(apiKey, originCoordinate, destinationCoordinate)
 
+  val allCoordinates = result.flatMap(_.coordinates).toSet
+  val outputFile: Path = Paths.get("outputShapeFile.shx")
+  GeoZoneUtil.writeToShapeFile(outputFile, allCoordinates, resolution = 12)
+  println(s"Generated shape file: $outputFile")
   println(result.mkString(System.lineSeparator()))
 
   private def toWgsCoordinate(str: String) = {
