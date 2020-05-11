@@ -7,13 +7,12 @@ import beam.utils.data.synthpop.models.Models._
 import beam.utils.map.ShapefileReader
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.geotools.geometry.jts.JTS
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
-import scala.annotation.tailrec
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -27,6 +26,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
   import GeoService._
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
+  logger.info(s"mapBoundingBox: $mapBoundingBox")
 
   private val crsCode: String = "EPSG:4326"
 

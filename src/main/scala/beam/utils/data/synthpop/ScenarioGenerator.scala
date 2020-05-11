@@ -19,6 +19,7 @@ import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import com.typesafe.scalalogging.StrictLogging
+import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
@@ -131,6 +132,15 @@ class SimpleScenarioGenerator(
     uniqueGeoIds
   )
 
+  val boundingBoxUTM: Envelope = {
+    val maxCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMaxX, geoSvc.mapBoundingBox.getMaxY))
+    val minCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMinX, geoSvc.mapBoundingBox.getMinY))
+    val envelope = new Envelope(maxCoord.getX, minCoord.getX, maxCoord.getY, minCoord.getY)
+    logger.info(s"mapBoundingBoxUTM: ${envelope}")
+    envelope
+  }
+
+
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
@@ -211,6 +221,16 @@ class SimpleScenarioGenerator(
           case ((household, personsWithData), wgsHouseholdLocation) =>
             if (geoSvc.mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+              val backToWgs = geoUtils.utm2Wgs(utmHouseholdCoord)
+              val anotherUTM = geoUtils.wgs2Utm(new Coord(wgsHouseholdLocation.getY, wgsHouseholdLocation.getX))
+              if (!boundingBoxUTM.contains(utmHouseholdCoord.getX, utmHouseholdCoord.getY)) {
+                println(s"$household is outside of bounding box!")
+                println(s"anotherUTM: $anotherUTM")
+                println(s"backToWgs: $backToWgs")
+                println(s"wgsHouseholdLocation: $wgsHouseholdLocation")
+              }
+
+
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
                 household.numOfVehicles,
@@ -514,6 +534,12 @@ object SimpleScenarioGenerator {
     val areHouseholdsEqual = readHouseholds.toVector == households
     println(s"areHouseholdsEqual: $areHouseholdsEqual")
 
+    households.foreach { hh =>
+      if (!gen.boundingBoxUTM.contains(hh.locationX, hh.locationY)) {
+        println(s"$hh is outside of bounding box!")
+      }
+    }
+
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
     val personsFilePath = s"$pathToOutput/persons.csv"
     CsvPersonInfoWriter.write(personsFilePath, persons)
@@ -523,15 +549,40 @@ object SimpleScenarioGenerator {
     println(s"arePersonsEqual: $arePersonsEqual")
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
+    planElements.filter(_.planElementType == "activity").foreach { plan =>
+      if(!gen.boundingBoxUTM.contains(plan.activityLocationX.get, plan.activityLocationY.get)) {
+        println(s"$plan is outside of bounding box!")
+      }
+    }
+
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
     println(s"Wrote plans information to $plansFilePath")
     val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
+
+
   }
 
   def main(args: Array[String]): Unit = {
+    val geoUtils: GeoUtils = new GeoUtils {
+      // TODO: Is it truth for all cases? Check the coverage https://epsg.io/26910
+      // WGS84 bounds:
+      //-172.54 23.81
+      //-47.74 86.46
+      override def localCRS: String = "EPSG:26910"
+    }
+    val wgsCoord = new Coord(-83.15367924121381, 42.37473505708574)
+    val utmCoord = geoUtils.wgs2Utm(wgsCoord)
+    val backToWgsCoord = geoUtils.utm2Wgs(utmCoord)
+    val backToUTM = geoUtils.wgs2Utm(backToWgsCoord)
+    println(s"wgsCoord: $wgsCoord")
+    println(s"backToWgsCoord: $backToWgsCoord")
+    println(s"utmCoord: $utmCoord")
+    println(s"backToUTM: $backToUTM")
+    throw new RuntimeException("ASD")
+
     /*
 
     How to run it through gradle:
