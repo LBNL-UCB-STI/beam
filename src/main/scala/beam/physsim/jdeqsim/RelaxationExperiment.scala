@@ -379,7 +379,7 @@ class Experiment_4_0(
       javaRnd,
       beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
         case Some(list) => list.toArray
-        case None => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+        case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
       }
     )
     sim.run(prevTravelTime)
@@ -426,7 +426,7 @@ class Experiment_5_0(
         javaRnd,
         beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
           case Some(list) => list.toArray
-          case None => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+          case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
         }
       )
       sim.run(prevTravelTime)
@@ -489,7 +489,7 @@ class Experiment_5_1(
         javaRnd,
         beamConfig.beam.physsim.relaxation.experiment5_1.percentToSimulate match {
           case Some(list) => list.toArray
-          case None => Array(60.0, 10.0, 10.0, 10.0, 10.0)
+          case None       => Array(60.0, 10.0, 10.0, 10.0, 10.0)
         }
       )
       sim.run(prevTravelTime)
@@ -552,7 +552,7 @@ class Experiment_5_2(
         javaRnd,
         beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
           case Some(list) => list.toArray
-          case None => Array(40.0, 20.0, 20.0, 20.0)
+          case None       => Array(40.0, 20.0, 20.0, 20.0)
         }
       )
       sim.run(prevTravelTime)
