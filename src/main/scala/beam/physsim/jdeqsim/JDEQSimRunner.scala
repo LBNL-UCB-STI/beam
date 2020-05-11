@@ -3,7 +3,10 @@ package beam.physsim.jdeqsim
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
