@@ -1,8 +1,11 @@
 package beam.utils.hereapi
 
-import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.utils.FileUtils
 
 class HereService(adapter: HereAdapter) {
 
@@ -35,4 +38,20 @@ class HereService(adapter: HereAdapter) {
   }
 
   case class TmpSpan(startIndex: Int, endIndex: Int, lengthInMeters: Int, speedLimitInKph: Option[Int])
+}
+
+object HereService {
+
+  def findSegments(
+    apiKey: String,
+    originCoordinate: WgsCoordinate,
+    destinationCoordinate: WgsCoordinate
+  ): Seq[HereSegment] = {
+    FileUtils.using(new HereAdapter(apiKey)) { adapter =>
+      val service = new HereService(adapter)
+      val segFuture = service.findSegments(origin = originCoordinate, destination = destinationCoordinate)
+      Await.result(segFuture, Duration("5 seconds"))
+    }
+  }
+
 }
