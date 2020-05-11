@@ -103,8 +103,7 @@ class InverseSquareDistanceRepositioningFactor(
               vehAndNewLoc._2,
               tick,
               CAR,
-              vehAndNewLoc._1.vehicleType.id,
-              beamServices
+              vehAndNewLoc._1.vehicleType.id
             )
             .distance <= rideHailManager.vehicleManager
             .getVehicleState(vehAndNewLoc._1.vehicleId)
