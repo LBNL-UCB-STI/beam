@@ -199,7 +199,7 @@ class SimpleScenarioGenerator(
 
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     val finalResult = blockGroupGeoIdToHouseholds.map {
-      case (blockGroupGeoId, householdsWithPersonData) =>
+      case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
         logger.info(s"$blockGroupGeoId contains ${householdsWithPersonData.size} households")
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
@@ -500,7 +500,7 @@ object SimpleScenarioGenerator {
         defaultValueOfTime = parsedArgs.defaultValueOfTime
       )
 
-    gen.writeTazCenters(parsedArgs.outputFolder)
+    gen.writeTazCenters(pathToOutput)
 
     val generatedData = gen.generate
     println(s"Number of households: ${generatedData.size}")
