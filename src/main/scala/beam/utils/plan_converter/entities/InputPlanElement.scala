@@ -5,7 +5,7 @@ import java.util
 import beam.utils.plan_converter.EntityTransformer
 
 case class InputPlanElement(
-  personId: Int,
+  personId: String,
   planElementIndex: Int,
   activityElement: ActivityType,
   ActivityType: Option[String],
@@ -16,7 +16,7 @@ case class InputPlanElement(
 
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
   override def transform(m: util.Map[String, String]): InputPlanElement = {
-    val personId = getIfNotNull(m, "person_id").toDouble.toInt
+    val personId = getIfNotNull(m, "person_id")
     val planElementIndex = getIfNotNull(m, "PlanElementIndex").toDouble.toInt
     val activityElement = ActivityType.determineActivity(getIfNotNull(m, "ActivityElement"))
     val activityType = getOptional(m, "ActivityType")

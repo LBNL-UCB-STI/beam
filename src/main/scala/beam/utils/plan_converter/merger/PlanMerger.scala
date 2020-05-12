@@ -1,23 +1,18 @@
 package beam.utils.plan_converter.merger
 
 import beam.utils.plan_converter.entities.{Activity, InputPlanElement, Leg}
-import beam.utils.scenario.urbansim.DataExchange
+import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.math._
 
-class PlanMerger(val trips: Map[(Int, Double), String]) extends Merger[InputPlanElement, DataExchange.PlanElement] {
+class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputPlanElement, PlanElement] {
 
-  private var activityPersonOpt: Option[Int] = None
+  private var activityPersonOpt: Option[String] = None
   private var timeOpt: Option[Double] = None
 
-  def merge(inputIterator: Iterator[InputPlanElement]): Iterator[DataExchange.PlanElement] =
-    new Iterator[DataExchange.PlanElement] {
-      override def hasNext: Boolean = inputIterator.hasNext
+  def merge(inputIterator: Iterator[InputPlanElement]): Iterator[PlanElement] = inputIterator.map(transform)
 
-      override def next(): DataExchange.PlanElement = transform(inputIterator.next())
-    }
-
-  private def transform(inputPlanElement: InputPlanElement): DataExchange.PlanElement =
+  private def transform(inputPlanElement: InputPlanElement): PlanElement =
     inputPlanElement.activityElement match {
       case Activity =>
         activityPersonOpt = Some(inputPlanElement.personId)
@@ -37,17 +32,27 @@ class PlanMerger(val trips: Map[(Int, Double), String]) extends Merger[InputPlan
         inputToOutput(inputPlanElement, modeOpt)
     }
 
-  private def inputToOutput(inputPlanElement: InputPlanElement, mode: Option[String]): DataExchange.PlanElement = {
-
-    DataExchange.PlanElement(
-      inputPlanElement.personId.toString,
+  private def inputToOutput(inputPlanElement: InputPlanElement, mode: Option[String]): PlanElement = {
+    PlanElement(
+      PersonId(inputPlanElement.personId),
+      0,
+      0,
+      planSelected = true,
       inputPlanElement.activityElement.toString,
       inputPlanElement.planElementIndex,
       inputPlanElement.ActivityType,
       inputPlanElement.x,
       inputPlanElement.y,
       inputPlanElement.departureTime,
-      mode
+      mode,
+      legDepartureTime = None,
+      legTravelTime = None,
+      legRouteType = None,
+      legRouteStartLink = None,
+      legRouteEndLink = None,
+      legRouteTravelTime = None,
+      legRouteDistance = None,
+      legRouteLinks = Seq.empty
     )
   }
 

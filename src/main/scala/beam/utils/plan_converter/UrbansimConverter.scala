@@ -6,6 +6,7 @@ import beam.utils.FileUtils
 import beam.utils.plan_converter.entities.{InputPlanElement, OutputPlanElement, TripElement}
 import beam.utils.plan_converter.merger.PlanMerger
 import beam.utils.plan_converter.reader.{PlanReader, Reader, TripReader}
+import beam.utils.scenario.PlanElement
 import beam.utils.scenario.urbansim.DataExchange
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapWriter
@@ -51,8 +52,8 @@ object UrbansimConverter {
 
   private def merge(
     inputPlans: Iterator[InputPlanElement],
-    modes: Map[(Int, Double), String]
-  ): Iterator[DataExchange.PlanElement] = {
+    modes: Map[(String, Double), String]
+  ): Iterator[PlanElement] = {
     val merger = new PlanMerger(modes)
 
     merger.merge(inputPlans)
@@ -60,7 +61,7 @@ object UrbansimConverter {
 
   private def readPlan(reader: Reader[InputPlanElement]): Iterator[InputPlanElement] = reader.iterator()
 
-  private def writePlans(writer: BufferedWriter, iter: Iterator[DataExchange.PlanElement]): Closeable = {
+  private def writePlans(writer: BufferedWriter, iter: Iterator[PlanElement]): Closeable = {
     val csvWriter = new CsvMapWriter(writer, CsvPreference.STANDARD_PREFERENCE)
     csvWriter.writeHeader(OutputPlanElement.headers: _*)
     iter.foreach(out => csvWriter.write(transformPlanElement(out), OutputPlanElement.headers: _*))
@@ -69,20 +70,20 @@ object UrbansimConverter {
     csvWriter
   }
 
-  private def transformPlanElement(planElement: DataExchange.PlanElement): java.util.Map[String, Any] = {
+  private def transformPlanElement(planElement: PlanElement): java.util.Map[String, Any] = {
     Map(
       "personId"         -> planElement.personId,
-      "planElement"      -> planElement.planElement,
+      "planElement"      -> planElement.planElementType,
       "planElementIndex" -> planElement.planElementIndex,
       "activityType"     -> planElement.activityType.getOrElse(""),
-      "x"                -> planElement.x.orNull,
-      "y"                -> planElement.y.orNull,
-      "endTime"          -> planElement.endTime.orNull,
-      "mode"             -> planElement.mode.getOrElse("")
+      "x"                -> planElement.activityLocationX.getOrElse(null),
+      "y"                -> planElement.activityLocationY.getOrElse(null),
+      "endTime"          -> planElement.legDepartureTime.getOrElse(null),
+      "mode"             -> planElement.legMode.getOrElse("")
     ).asJava
   }
 
-  private def getTripModes(reader: Reader[TripElement]): Map[(Int, Double), String] =
+  private def getTripModes(reader: Reader[TripElement]): Map[(String, Double), String] =
     reader
       .iterator()
       .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
