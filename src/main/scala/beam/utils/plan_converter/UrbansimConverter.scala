@@ -3,6 +3,9 @@ package beam.utils.plan_converter
 import java.io.{BufferedReader, BufferedWriter, Closeable, FileWriter}
 
 import beam.utils.FileUtils
+import beam.utils.plan_converter.entities.{InputPlanElement, OutputPlanElement, TripElement}
+import beam.utils.plan_converter.merger.PlanMerger
+import beam.utils.scenario.PlanElement
 import org.slf4j.LoggerFactory
 import org.supercsv.io.{CsvMapReader, CsvMapWriter}
 import org.supercsv.prefs.CsvPreference
@@ -41,14 +44,13 @@ object UrbansimConverter {
         reader.close()
       }
     }
-
   }
 
   private def merge(
     inputPlans: Iterator[InputPlanElement],
     modes: Map[(Int, Double), String]
-  ): Iterator[OutputPlanElement] = {
-    val merger = new Merger(modes)
+  ): Iterator[PlanElement] = {
+    val merger = new PlanMerger(modes)
 
     merger.merge(inputPlans)
   }
@@ -64,7 +66,7 @@ object UrbansimConverter {
     (iter, csvReader)
   }
 
-  private def writePlans(writer: BufferedWriter, iter: Iterator[OutputPlanElement]): Closeable = {
+  private def writePlans(writer: BufferedWriter, iter: Iterator[PlanElement]): Closeable = {
     val csvWriter = new CsvMapWriter(writer, CsvPreference.STANDARD_PREFERENCE)
     csvWriter.writeHeader(OutputPlanElement.headers: _*)
     iter.foreach(out => csvWriter.write(out.toRow().asJava, OutputPlanElement.headers: _*))

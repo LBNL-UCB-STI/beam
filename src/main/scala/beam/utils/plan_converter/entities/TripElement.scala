@@ -1,4 +1,6 @@
-package beam.utils.plan_converter
+package beam.utils.plan_converter.entities
+
+import beam.utils.plan_converter.Transformer
 
 case class TripElement(tripId: Int, personId: Int, householdId: Int, depart: Double, trip_mode: String)
 
