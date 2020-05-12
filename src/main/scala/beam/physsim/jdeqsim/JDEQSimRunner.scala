@@ -160,6 +160,9 @@ class JDEQSimRunner(
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "PARBPRSIM" =>
         val numberOfClusters = beamConfig.beam.physsim.bprsim.numberOfClusters
+        if (numberOfClusters <= 0) {
+          throw new IllegalArgumentException("number of clusters must be greater then zero")
+        }
         val bprCfg = BPRSimConfig(
           config.getSimulationEndTime,
           numberOfClusters,
