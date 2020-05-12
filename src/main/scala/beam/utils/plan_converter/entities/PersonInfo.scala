@@ -2,7 +2,7 @@ package beam.utils.plan_converter.entities
 
 import java.util
 
-import beam.utils.plan_converter.Transformer
+import beam.utils.plan_converter.EntityTransformer
 
 import scala.annotation.switch
 
@@ -32,7 +32,7 @@ case class InputPersonInfo(
   sex: Sex
 )
 
-object InputPersonInfo extends Transformer[InputPersonInfo] {
+object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
   override def transform(rec: util.Map[String, String]): InputPersonInfo = {
     val personId = getIfNotNull(rec, "person_id").toInt
     val householdId = getIfNotNull(rec, "household_id").toInt

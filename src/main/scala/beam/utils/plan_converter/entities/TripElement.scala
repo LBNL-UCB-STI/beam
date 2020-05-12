@@ -1,10 +1,10 @@
 package beam.utils.plan_converter.entities
 
-import beam.utils.plan_converter.Transformer
+import beam.utils.plan_converter.EntityTransformer
 
 case class TripElement(tripId: Int, personId: Int, householdId: Int, depart: Double, trip_mode: String)
 
-object TripElement extends Transformer[TripElement] {
+object TripElement extends EntityTransformer[TripElement] {
 
   def transform(rec: java.util.Map[String, String]): TripElement = {
     val tripId = getIfNotNull(rec, "trip_id").toInt
