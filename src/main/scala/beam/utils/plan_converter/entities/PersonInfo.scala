@@ -26,16 +26,16 @@ object Sex {
 }
 
 case class InputPersonInfo(
-  personId: Int,
-  householdId: Int,
+  personId: String,
+  householdId: String,
   age: Int,
   sex: Sex
 )
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
   override def transform(rec: util.Map[String, String]): InputPersonInfo = {
-    val personId = getIfNotNull(rec, "person_id").toInt
-    val householdId = getIfNotNull(rec, "household_id").toInt
+    val personId = getIfNotNull(rec, "person_id")
+    val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
     val sex = Sex.determineSex(getIfNotNull(rec, "sex").toInt)
 
