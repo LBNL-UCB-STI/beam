@@ -6,13 +6,16 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 class TripReader(path: String) extends Reader[TripElement]{
+
+  private val csvMapReader = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
+
   override def iterator(): Iterator[TripElement] = {
-    FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
-      val header = csvRdr.getHeader(true)
+      val header = csvMapReader.getHeader(true)
       Iterator
-        .continually(csvRdr.read(header: _*))
+        .continually(csvMapReader.read(header: _*))
         .takeWhile(data => data != null)
         .map(TripElement.transform)
-    }
   }
+
+  override def close(): Unit = csvMapReader.close()
 }

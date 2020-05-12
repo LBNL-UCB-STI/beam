@@ -5,7 +5,7 @@ import java.io.{BufferedReader, BufferedWriter, Closeable, FileWriter}
 import beam.utils.FileUtils
 import beam.utils.plan_converter.entities.{InputPlanElement, OutputPlanElement, TripElement}
 import beam.utils.plan_converter.merger.PlanMerger
-import beam.utils.plan_converter.reader.{Reader, TripReader}
+import beam.utils.plan_converter.reader.{PlanReader, Reader, TripReader}
 import beam.utils.scenario.PlanElement
 import org.slf4j.LoggerFactory
 import org.supercsv.io.{CsvMapReader, CsvMapWriter}
@@ -27,25 +27,25 @@ object UrbansimConverter {
 
   def transform(inputTripPath: String, inputPlanPath: String, outputPlanPath: String) = {
     logger.info("Reading of the trips...")
-    val reader = new TripReader(inputTripPath)
+    val tripReader = new TripReader(inputTripPath)
 
-    val modes = getTripModes(reader)
+    val modes = getTripModes(tripReader)
     logger.info("Merging modes into plan...")
 
-    FileUtils.using(FileUtils.readerFromFile(inputPlanPath)) { inputBuffer =>
-      val (inputPlans, reader) = readPlan(inputBuffer)
-      try {
-        val outputIter = merge(inputPlans, modes)
-        FileUtils.using(new BufferedWriter(new FileWriter(outputPlanPath))) { outputBuffer =>
-          logger.info("Writing output plan...")
-          val writer = writePlans(outputBuffer, outputIter)
-          writer.close()
-        }
+    val planReader = new PlanReader(inputPlanPath)
 
-        logger.info("Finished")
-      } finally {
-        reader.close()
+    try {
+      val inputPlans = readPlan(planReader)
+      val outputIter = merge(inputPlans, modes)
+      FileUtils.using(new BufferedWriter(new FileWriter(outputPlanPath))) { outputBuffer =>
+        logger.info("Writing output plan...")
+        val writer = writePlans(outputBuffer, outputIter)
+        writer.close()
       }
+      logger.info("Finished")
+    } finally {
+      planReader.close()
+      tripReader.close()
     }
   }
 
@@ -58,16 +58,7 @@ object UrbansimConverter {
     merger.merge(inputPlans)
   }
 
-  private def readPlan(reader: BufferedReader): (Iterator[InputPlanElement], Closeable) = {
-    val csvReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
-    val headers = csvReader.getHeader(true)
-    val iter = Iterator
-      .continually(csvReader.read(headers: _*))
-      .takeWhile(data => data != null)
-      .map(InputPlanElement.transform)
-
-    (iter, csvReader)
-  }
+  private def readPlan(reader: Reader[InputPlanElement]): Iterator[InputPlanElement] = reader.iterator()
 
   private def writePlans(writer: BufferedWriter, iter: Iterator[PlanElement]): Closeable = {
     val csvWriter = new CsvMapWriter(writer, CsvPreference.STANDARD_PREFERENCE)
