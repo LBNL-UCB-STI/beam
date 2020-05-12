@@ -1,9 +1,7 @@
 package beam.utils.plan_converter.merger
 
 import beam.utils.plan_converter.entities.{Activity, InputPlanElement, Leg}
-import beam.utils.plan_converter.Leg
 import beam.utils.scenario.urbansim.DataExchange
-import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.math._
 

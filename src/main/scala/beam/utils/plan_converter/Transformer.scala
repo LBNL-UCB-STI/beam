@@ -9,5 +9,5 @@ trait Transformer[T] {
 
   def getOptional(rec: java.util.Map[String, String], column: String): Option[String] = Option(rec.get(column))
 
-  def transform(m: java.util.Map[String, String]): T
+  def transform(rec: java.util.Map[String, String]): T
 }

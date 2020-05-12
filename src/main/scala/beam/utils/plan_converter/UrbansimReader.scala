@@ -1,19 +1,24 @@
 package beam.utils.plan_converter
 
-import java.io.{BufferedWriter, FileWriter}
-
-import beam.utils.FileUtils
-import beam.utils.plan_converter.UrbansimConverter.{getTripModes, logger, merge, readPlan, writePlans}
-import beam.utils.plan_converter.entities.TripElement
-import beam.utils.plan_converter.merger.PlanMerger
-import beam.utils.plan_converter.reader.{PlanReader, Reader, TripReader}
+import beam.utils.plan_converter.entities.{InputHousehold, TripElement}
+import beam.utils.plan_converter.merger.{PersonMerger, PlanMerger}
+import beam.utils.plan_converter.reader.{HouseHoldReader, PersonReader, PlanReader, Reader, TripReader}
 import beam.utils.scenario.InputType
 import beam.utils.scenario.urbansim.{DataExchange, UrbanSimScenarioReader}
 import org.slf4j.LoggerFactory
 
-class UrbansimReader(inputTripsPath: String) extends UrbanSimScenarioReader{
+class UrbansimReader(inputTripsPath: String, inputHouseholdPath: String) extends UrbanSimScenarioReader{
 
   private val logger = LoggerFactory.getLogger(getClass)
+
+  private val inputHouseholds: Array[InputHousehold] = {
+    val reader = new HouseHoldReader(inputHouseholdPath)
+    try {
+      reader.iterator().toArray
+    } finally {
+      reader.close()
+    }
+  }
 
   override def inputType: InputType = InputType.CSV
 
@@ -23,7 +28,17 @@ class UrbansimReader(inputTripsPath: String) extends UrbanSimScenarioReader{
 
   override def readBuildingsFile(path: String): Array[DataExchange.BuildingInfo] = Array.empty
 
-  override def readPersonsFile(path: String): Array[DataExchange.PersonInfo] = ???
+  override def readPersonsFile(path: String): Array[DataExchange.PersonInfo] = {
+    val inputHouseHoldMap: Map[Int, InputHousehold] = inputHouseholds.groupBy(_.householdId)
+    val merger = new PersonMerger(inputHouseHoldMap)
+    val personReader = new PersonReader(path)
+
+    try {
+      merger.merge(personReader.iterator()).toArray
+    } finally {
+      personReader.close()
+    }
+  }
 
   override def readPlansFile(path: String): Array[DataExchange.PlanElement] = {
     logger.debug("Reading of the trips...")
