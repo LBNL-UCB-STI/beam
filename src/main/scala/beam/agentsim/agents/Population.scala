@@ -7,6 +7,7 @@ import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.replanning.AddSupplementaryTrips
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
@@ -43,6 +44,12 @@ class Population(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
+
+  if (beamServices.matsimServices.getIterationNumber == 0) {
+    val addSupplementaryTrips = new AddSupplementaryTrips()
+    scenario.getPopulation.getPersons.forEach{ case(_, person) => addSupplementaryTrips.run(person)}
+  }
+
 
   initHouseholds()
 

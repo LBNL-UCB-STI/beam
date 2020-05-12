@@ -180,11 +180,6 @@ object HouseholdActor {
             fleetManager
         }
 
-        if (beamServices.matsimServices.getIterationNumber == 0) {
-          val addSupplementaryTrips = new AddSupplementaryTrips()
-          pop.getPersons.forEach { case (_, person) => addSupplementaryTrips.run(person) }
-        }
-
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
 
@@ -201,6 +196,11 @@ object HouseholdActor {
         val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
         household.members.foreach { person =>
+//          if (beamServices.matsimServices.getIterationNumber == 0) {
+//            val addSupplementaryTrips = new AddSupplementaryTrips()
+//            addSupplementaryTrips.run(pop.getPersons.get(person))
+//          }
+
           val supplementaryTripGenerator =
             new SupplementaryTripGenerator(
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
