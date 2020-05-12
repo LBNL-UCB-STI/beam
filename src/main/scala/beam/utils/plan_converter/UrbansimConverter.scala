@@ -5,6 +5,7 @@ import java.io.{BufferedReader, BufferedWriter, Closeable, FileWriter}
 import beam.utils.FileUtils
 import beam.utils.plan_converter.entities.{InputPlanElement, OutputPlanElement, TripElement}
 import beam.utils.plan_converter.merger.PlanMerger
+import beam.utils.plan_converter.reader.{Reader, TripReader}
 import beam.utils.scenario.PlanElement
 import org.slf4j.LoggerFactory
 import org.supercsv.io.{CsvMapReader, CsvMapWriter}
@@ -26,7 +27,9 @@ object UrbansimConverter {
 
   def transform(inputTripPath: String, inputPlanPath: String, outputPlanPath: String) = {
     logger.info("Reading of the trips...")
-    val modes = getTripModes(inputTripPath)
+    val reader = new TripReader(inputTripPath)
+
+    val modes = getTripModes(reader)
     logger.info("Merging modes into plan...")
 
     FileUtils.using(FileUtils.readerFromFile(inputPlanPath)) { inputBuffer =>
@@ -75,15 +78,10 @@ object UrbansimConverter {
     csvWriter
   }
 
-  private def getTripModes(path: String): Map[(Int, Double), String] =
-    FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
-      val header = csvRdr.getHeader(true)
-      Iterator
-        .continually(csvRdr.read(header: _*))
-        .takeWhile(data => data != null)
-        .map(TripElement.transform)
-        .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
-        .toMap
-    }
+  private def getTripModes(reader: Reader[TripElement]): Map[(Int, Double), String] =
+    reader
+      .iterator()
+      .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
+      .toMap
 
 }
