@@ -164,7 +164,7 @@ class ModeChoiceMultinomialLogit(
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
@@ -312,6 +312,10 @@ object ModeChoiceMultinomialLogit {
       ),
       "drive_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
+        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
+      ),
+      "bike_transit" -> Map(
+        "intercept" -> UtilityFunctionOperation("intercept", params.bike_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       )
     )

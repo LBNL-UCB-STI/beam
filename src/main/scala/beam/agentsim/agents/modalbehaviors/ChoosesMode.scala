@@ -118,7 +118,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | BIKE | DRIVE_TRANSIT),
+              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
               _,
               _,
               _,
@@ -215,7 +215,7 @@ trait ChoosesMode {
           case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
-          case Some(DRIVE_TRANSIT) =>
+          case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
             val tripIndex = tour.tripIndexOfElement(nextAct)
             if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
@@ -381,7 +381,7 @@ trait ChoosesMode {
               responsePlaceholders =
                 makeResponsePlaceholders(boundingBox, withRouting = true, withParking = mode == CAR)
           }
-        case Some(DRIVE_TRANSIT) =>
+        case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
@@ -393,7 +393,7 @@ trait ChoosesMode {
               // actual location of transit station
               makeRequestWith(
                 withTransit = true,
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = false)
@@ -800,7 +800,7 @@ trait ChoosesMode {
               }
           }
           itin.copy(legs = newLegs)
-        case DRIVE_TRANSIT =>
+        case DRIVE_TRANSIT | BIKE_TRANSIT =>
           val newLegs = if (itin.legs.size > 2 && itin.legs(2).beamLeg.mode == CAR) {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
@@ -926,14 +926,14 @@ trait ChoosesMode {
       ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
-        case Some(DRIVE_TRANSIT) =>
+        case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
             personData.hasDeparted
           ) match {
             case (0 | LastTripIndex, false) =>
-              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+              combinedItinerariesForChoice.filter(_.tripClassifier == mode)
             case _ =>
               combinedItinerariesForChoice.filter(
                 trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
