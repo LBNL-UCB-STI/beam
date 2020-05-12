@@ -1,7 +1,7 @@
 package beam.physsim.jdeqsim
 
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
-import beam.utils.ProfilingUtils
+import beam.utils.{ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
@@ -13,6 +13,7 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 object JDEQSimRunnerApp extends StrictLogging {
 
@@ -23,7 +24,7 @@ object JDEQSimRunnerApp extends StrictLogging {
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
     val networkFile = "d:/Work/beam/GPU/network-output.xml"
-    val populationFile = "d:/Work/beam/GPU/population_sampled.xml"
+    val populationFile = "d:/Work/beam/GPU/population-output.xml"
     val pathToOutput = "d:/Work/beam/GPU/result"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
@@ -50,26 +51,39 @@ object JDEQSimRunnerApp extends StrictLogging {
     logger.info(s"Max end time for the activity is ${maxEndTime} seconds = ${maxEndTime / 3600} hours")
     scenario.setNetwork(network)
 
-    val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(pathToOutput, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
-    outputDirectoryHierarchy.createIterationDirectory(0)
+    val times = ArrayBuffer[Double]()
 
-    val physSim = new JDEQSimRunner(
-      execCfg.beamConfig,
-      scenario,
-      scenario.getPopulation,
-      outputDirectoryHierarchy,
-      new java.util.HashMap[String, java.lang.Boolean](),
-      new BeamConfigChangesObservable(execCfg.beamConfig),
-      agentSimIterationNumber = 0
-    )
-    physSim.simulate(currentPhysSimIter = 0, writeEvents = false)
+    (1 to 50).map { iter =>
+      val s = System.currentTimeMillis()
+      val outputDirectoryHierarchy =
+        new OutputDirectoryHierarchy(pathToOutput, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      outputDirectoryHierarchy.createIterationDirectory(0)
+
+      val physSim = new JDEQSimRunner(
+        execCfg.beamConfig,
+        scenario,
+        scenario.getPopulation,
+        outputDirectoryHierarchy,
+        new java.util.HashMap[String, java.lang.Boolean](),
+        new BeamConfigChangesObservable(execCfg.beamConfig),
+        agentSimIterationNumber = 0
+      )
+      physSim.simulate(currentPhysSimIter = 0, writeEvents = false)
+      val e = System.currentTimeMillis()
+      val diff = e - s
+      logger.info(s"Iter $iter took ${diff / 1000} seconds")
+      times += diff
+    }
+    logger.info(s"Statistics: ${Statistics(times)}")
   }
 
   private def readNetwork(path: String): Network = {
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)
       .readFile(path)
+    network.getLinks.values().asScala.foreach { link =>
+        link.setCapacity(10000)
+    }
     network
   }
 

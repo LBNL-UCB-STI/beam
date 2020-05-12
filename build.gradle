@@ -4,8 +4,8 @@ import java.time.format.DateTimeFormatter
 
 buildscript {
     repositories {
-        jcenter()
         mavenLocal()
+        jcenter()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
     }
