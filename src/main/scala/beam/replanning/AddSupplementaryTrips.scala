@@ -47,7 +47,7 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
 //            .exists(x => !x.getType.equalsIgnoreCase("Work") & !x.getType.equalsIgnoreCase("Home"))) {
 //        person.removePlan(person.getSelectedPlan)
 //      }
-      person.addPlan(newPlan)
+      val didItWork = person.addPlan(newPlan)
       person.setSelectedPlan(newPlan)
     }
 
@@ -143,7 +143,7 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
           0
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        planElement.setStartTime(prevEndTime)
+        planElement.setStartTime(prevEndTime + 1.0)
         definitelyAddSubtours(planElement, person)
     }
     newActivitiesToAdd.flatten.foreach { x =>
