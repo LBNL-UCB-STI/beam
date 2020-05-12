@@ -30,9 +30,7 @@ package object agentsim {
     beamVehicleMap.map({ case (vid, veh) => (vid, veh) })
   }
 
-  implicit def personId2RideHailAgentId(id: Id[Person]): Id[RideHailAgent] = {
-    Id.create(s"${RideHailAgent.idPrefix}${prefixStrip(id)}", classOf[RideHailAgent])
-  }
+  implicit def personId2RideHailAgentId(id: Id[Person]): Id[RideHailAgent] = { Id.create(s"${RideHailAgent.idPrefix}${prefixStrip(id)}", classOf[RideHailAgent])}
 
   def prefixStrip(id: Id[_]): String = {
     id.toString.replaceFirst("(?!=-)[a-zA-Z]+", "")
