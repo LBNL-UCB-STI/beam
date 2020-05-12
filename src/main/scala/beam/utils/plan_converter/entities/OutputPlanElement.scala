@@ -1,4 +1,4 @@
-package beam.utils.plan_converter
+package beam.utils.plan_converter.entities
 
 case class OutputPlanElement(
   personId: Int,
