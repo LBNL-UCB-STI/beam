@@ -63,10 +63,23 @@ object UrbansimConverter {
   private def writePlans(writer: BufferedWriter, iter: Iterator[PlanElement]): Closeable = {
     val csvWriter = new CsvMapWriter(writer, CsvPreference.STANDARD_PREFERENCE)
     csvWriter.writeHeader(OutputPlanElement.headers: _*)
-    iter.foreach(out => csvWriter.write(out.toRow().asJava, OutputPlanElement.headers: _*))
+    iter.foreach(out => csvWriter.write(transformPlanElement(out), OutputPlanElement.headers: _*))
 
     csvWriter.flush()
     csvWriter
+  }
+
+  private def transformPlanElement(planElement: PlanElement): java.util.Map[String, Any] = {
+    Map(
+      "personId"         -> planElement.personId,
+      "planElement"      -> planElement.planElementType,
+      "planElementIndex" -> planElement.planElementIndex,
+      "activityType"     -> planElement.activityType.getOrElse(""),
+      "x"                -> planElement.activityLocationX.orNull,
+      "y"                -> planElement.activityLocationY.orNull,
+      "endTime"          -> planElement.activityEndTime.orNull,
+      "mode"             -> planElement.legMode.getOrElse("")
+    ).asJava
   }
 
   private def getTripModes(reader: Reader[TripElement]): Map[(Int, Double), String] =
