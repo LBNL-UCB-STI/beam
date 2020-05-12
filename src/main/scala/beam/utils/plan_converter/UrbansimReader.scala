@@ -7,20 +7,22 @@ import beam.utils.scenario.InputType
 import beam.utils.scenario.urbansim.{DataExchange, UrbanSimScenarioReader}
 import org.slf4j.LoggerFactory
 
-class UrbansimReader(inputTripsPath: String, inputHouseholdPath: String) extends UrbanSimScenarioReader{
+class UrbansimReader(inputTripsPath: String, inputHouseholdPath: String) extends UrbanSimScenarioReader {
 
   private val logger = LoggerFactory.getLogger(getClass)
 
   private val inputHouseholds: Array[InputHousehold] = {
+    logger.debug("Start reading of households info...")
     val reader = new HouseHoldReader(inputHouseholdPath)
     try {
       reader.iterator().toArray
     } finally {
+      logger.debug("Households info have been read successfully.")
       reader.close()
     }
   }
 
-  override def inputType: InputType = InputType.CSV
+  override val inputType: InputType = InputType.CSV
 
   override def readUnitsFile(path: String): Array[DataExchange.UnitInfo] = Array.empty
 
@@ -32,6 +34,8 @@ class UrbansimReader(inputTripsPath: String, inputHouseholdPath: String) extends
     val inputHouseHoldMap: Map[Int, InputHousehold] = inputHouseholds.groupBy(_.householdId)
     val merger = new PersonMerger(inputHouseHoldMap)
     val personReader = new PersonReader(path)
+
+    logger.debug("Merging incomes into person...")
 
     try {
       merger.merge(personReader.iterator()).toArray

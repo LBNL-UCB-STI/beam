@@ -1,6 +1,6 @@
 package beam.utils.plan_converter
 
-trait Transformer[T] {
+trait EntityTransformer[T] {
 
   def getIfNotNull(rec: java.util.Map[String, String], column: String): String =
     getOptional(rec, column).getOrElse(

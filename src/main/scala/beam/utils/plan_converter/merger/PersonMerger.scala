@@ -1,5 +1,6 @@
 package beam.utils.plan_converter.merger
 
+import beam.sim.population.PopulationAdjustment
 import beam.utils.plan_converter.entities.{InputHousehold, InputPersonInfo}
 import beam.utils.scenario.urbansim.DataExchange.PersonInfo
 
@@ -11,7 +12,10 @@ class PersonMerger(inputHousehold: Map[Int, InputHousehold]) extends Merger[Inpu
   }
 
   private def inputToOutput(inputPersonInfo: InputPersonInfo): PersonInfo = {
-    val income = inputHousehold(inputPersonInfo.householdId).income
+    val inputIncome = inputHousehold(inputPersonInfo.householdId).income
+    val income = PopulationAdjustment.IncomeToValueOfTime(inputIncome).getOrElse{
+      throw new IllegalStateException(s"Can't compute income with input value income $inputIncome")
+    }
 
     PersonInfo(
       inputPersonInfo.personId.toString,
