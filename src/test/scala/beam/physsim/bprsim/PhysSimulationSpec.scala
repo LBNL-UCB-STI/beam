@@ -88,6 +88,7 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
   }
 
   private def validateEvents(events: Seq[Event]) = {
+    import scala.language.implicitConversions
     implicit def toLinkId(id: Int): Id[Link] = Id.createLinkId(id)
 
     events.size should be(640)
