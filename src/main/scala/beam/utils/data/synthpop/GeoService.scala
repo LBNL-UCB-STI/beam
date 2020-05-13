@@ -33,13 +33,9 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
   logger.info(s"mapBoundingBox: $mapBoundingBox")
-
-  private val crsCode: String = "EPSG:4326"
-
   val transportNetwork: TransportNetwork = {
     TransportNetwork.fromFiles(param.pathToOSMFile, new util.ArrayList[String](), TNBuilderConfig.defaultConfig())
   }
-
   val blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry] = {
     findShapeFile(param.pathToBlockGroupShapeFolder).flatMap { pathToShapeFile =>
       val map = getBlockGroupMap(pathToShapeFile.getPath, uniqueGeoIds).toSeq
@@ -47,8 +43,6 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       map
     }.toMap
   }
-  logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
-
   val tazGeoIdToGeom: Map[TazGeoId, Geometry] = {
     val stateAndCounty = uniqueGeoIds.map(x => (x.state, x.county))
     def filter(feature: SimpleFeature): Boolean = {
@@ -62,7 +56,10 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       map
     }.toMap
   }
+  logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
+  private val crsCode: String = "EPSG:4326"
   logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
+  private val THRESHOLD_IN_METERS: Double = 1000.0
 
   def getBlockGroupMap(
     pathToBlockGroupShapeFile: String,
@@ -121,20 +118,22 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
   }
 
-  private val THRESHOLD_IN_METERS: Double = 1000.0
-
-  def coordinatesWithinBoundaries(wgsCoord: Coord): Boolean = {
+  def coordinatesWithinBoundaries(wgsCoord: Coord): CheckResult = {
     val isWithinBoudingBox = mapBoundingBox.contains(wgsCoord.getX, wgsCoord.getY)
     if (isWithinBoudingBox) {
       val split = geoUtils.getR5Split(transportNetwork.streetLayer, wgsCoord, THRESHOLD_IN_METERS)
-      val isWithinRange = split != null
-      isWithinRange
-    } else false
+      if (split == null) {
+        CheckResult.NotFeasibleForR5(THRESHOLD_IN_METERS)
+      } else {
+        CheckResult.InsideBoundingBoxAndFeasbleForR5
+      }
+    } else {
+      CheckResult.OutsideOfBoundingBox
+    }
   }
 }
 
 object GeoService {
-
   def defaultTazMapper(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry) = {
     val state = State(feature.getAttribute("STATEFP10").toString)
     val county = County(feature.getAttribute("COUNTYFP10").toString)
@@ -192,6 +191,15 @@ object GeoService {
     foundFiles.toArray.sorted
   }
 
+  def main(args: Array[String]): Unit = {
+    val shapeFiles = findShapeFile("D:/Work/beam/NewYork/input/Shape/TAZ/")
+    println(s"Found ${shapeFiles.size} Shape files")
+    shapeFiles.foreach { file =>
+      println(s"Shape path: ${file.getPath}")
+    }
+    println("D:/Work/beam/NewYork/input/Shape/TAZ/")
+  }
+
   private def search(file: File, filter: FileFilter, result: Set[File], visited: Set[File]): Set[File] = {
     if (visited.contains(file)) {
       result
@@ -210,12 +218,13 @@ object GeoService {
     }
   }
 
-  def main(args: Array[String]): Unit = {
-    val shapeFiles = findShapeFile("D:/Work/beam/NewYork/input/Shape/TAZ/")
-    println(s"Found ${shapeFiles.size} Shape files")
-    shapeFiles.foreach { file =>
-      println(s"Shape path: ${file.getPath}")
-    }
-    println("D:/Work/beam/NewYork/input/Shape/TAZ/")
+  sealed trait CheckResult
+
+  object CheckResult {
+    final case class NotFeasibleForR5(radius: Double) extends CheckResult
+
+    final case object InsideBoundingBoxAndFeasbleForR5 extends CheckResult
+
+    final case object OutsideOfBoundingBox extends CheckResult
   }
 }
