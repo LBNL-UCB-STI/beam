@@ -1,9 +1,8 @@
 package beam.utils.plan_converter.entities
 
 import java.util
-import cats.implicits._
-import beam.utils.plan_converter.EntityTransformer
 
+import beam.utils.plan_converter.EntityTransformer
 
 case class Block(
   blockId: String,
@@ -11,7 +10,7 @@ case class Block(
   y: Double
 )
 
-object Block extends EntityTransformer[Block]{
+object Block extends EntityTransformer[Block] {
   override def transform(rec: util.Map[String, String]): Block = {
     val blockId = getIfNotNull(rec, "block_id")
     val x = getIfNotNull(rec, "x").toDouble

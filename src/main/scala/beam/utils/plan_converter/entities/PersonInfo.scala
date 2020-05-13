@@ -19,6 +19,7 @@ case object Female extends Sex {
 }
 
 object Sex {
+
   def determineSex(sex: Int): Sex = (sex: @switch) match {
     case 1 => Male
     case 2 => Female
