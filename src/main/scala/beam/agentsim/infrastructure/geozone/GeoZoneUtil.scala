@@ -36,6 +36,13 @@ object GeoZoneUtil extends LazyLogging {
     writeToShapeFile(filePath.toString, content)
   }
 
+  def writeToShapeFile(file: Path, indexes: Set[H3Index]): Unit = {
+    val items = indexes.toSeq.map { index =>
+      GeoZoneSummaryItem(index, 1)
+    }
+    writeToShapeFile(file.toString, GeoZoneSummary(items))
+  }
+
   def writeToShapeFile(filename: String, content: GeoZoneSummary): Unit = {
     if (content.items.isEmpty) {
       logger.warn("Content is empty and file was not generated")

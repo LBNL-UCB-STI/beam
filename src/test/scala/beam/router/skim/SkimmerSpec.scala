@@ -42,7 +42,6 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
          |beam.router.skim = {
-         |  h3Resolution = 6
          |  keepKLatestSkims = 1
          |  writeSkimsInterval = 1
          |  writeAggregatedSkimsInterval = 1

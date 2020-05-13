@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import scala.collection.parallel.ParSet
 
-import beam.agentsim.infrastructure.geozone.{GeoIndex, H3Wrapper, WgsCoordinate}
+import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 
 class ParkingEntriesContainer[T <: Any](
   val parkingEntries: Seq[ParkingEntry[T]],
@@ -33,11 +33,11 @@ object ParkingEntriesContainer {
     new ParkingEntriesContainer(parkingEntries, other)
   }
 
-  def fromGeoIndex(parkingFile: Path): ParkingEntriesContainer[GeoIndex] = {
-    val parkingEntries: Seq[ParkingEntry[GeoIndex]] =
+  def fromH3Index(parkingFile: Path): ParkingEntriesContainer[H3Index] = {
+    val parkingEntries: Seq[ParkingEntry[H3Index]] =
       ParkingEntriesReader.geoIndexReader(parkingFile).readParkingEntries()
 
-    val other: Map[GeoIndex, WgsCoordinate] = parkingEntries.map { entry =>
+    val other: Map[H3Index, WgsCoordinate] = parkingEntries.map { entry =>
       entry.id -> H3Wrapper.wgsCoordinate(entry.id)
     }.toMap
     new ParkingEntriesContainer(parkingEntries, other)

@@ -55,6 +55,6 @@ object Range {
   }
 
   implicit def rangeToDoubleComparableRange(range: Range) = {
-    new DoubleComparableRange(range)
+    DoubleComparableRange(range)
   }
 }

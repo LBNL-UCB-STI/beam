@@ -12,7 +12,12 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
-import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
+import beam.utils.data.synthpop.generators.{
+  RandomWorkDestinationGenerator,
+  TimeLeavingHomeGenerator,
+  TimeLeavingHomeGeneratorImpl,
+  WorkedDurationGeneratorImpl
+}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
@@ -140,7 +145,6 @@ class SimpleScenarioGenerator(
     envelope
   }
 
-
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
@@ -229,7 +233,6 @@ class SimpleScenarioGenerator(
                 println(s"backToWgs: $backToWgs")
                 println(s"wgsHouseholdLocation: $wgsHouseholdLocation")
               }
-
 
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
@@ -550,7 +553,7 @@ object SimpleScenarioGenerator {
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
     planElements.filter(_.planElementType == "activity").foreach { plan =>
-      if(!gen.boundingBoxUTM.contains(plan.activityLocationX.get, plan.activityLocationY.get)) {
+      if (!gen.boundingBoxUTM.contains(plan.activityLocationX.get, plan.activityLocationY.get)) {
         println(s"$plan is outside of bounding box!")
       }
     }
@@ -561,7 +564,6 @@ object SimpleScenarioGenerator {
     val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
-
 
   }
 
