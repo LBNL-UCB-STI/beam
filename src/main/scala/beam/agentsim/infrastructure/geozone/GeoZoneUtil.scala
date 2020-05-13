@@ -33,9 +33,7 @@ object GeoZoneUtil extends LazyLogging {
   }
 
   def writeToShapeFile(filePath: Path, coordinates: Set[WgsCoordinate], resolution: Int): Unit = {
-    val items = coordinates.par.map(coord => H3Wrapper.getIndex(coord, resolution)).map(h3 =>
-      GeoZoneSummaryItem(h3, 1)
-    )
+    val items = coordinates.par.map(coord => H3Wrapper.getIndex(coord, resolution)).map(h3 => GeoZoneSummaryItem(h3, 1))
     writeToShapeFile(filePath, GeoZoneSummary(items.seq.toSeq))
   }
 
