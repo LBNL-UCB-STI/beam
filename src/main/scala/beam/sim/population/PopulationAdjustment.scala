@@ -253,7 +253,7 @@ object PopulationAdjustment extends LazyLogging {
       Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
         .map(_.asInstanceOf[Double])
         .getOrElse(
-          incomeToValueOfTime(householdAttributes.householdIncome)
+          IncomeToValueOfTime(householdAttributes.householdIncome)
             .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
@@ -268,7 +268,7 @@ object PopulationAdjustment extends LazyLogging {
     )
   }
 
-  def incomeToValueOfTime(income: Double): Option[Double] = {
+  def IncomeToValueOfTime(income: Double): Option[Double] = {
     val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5
     if (income > 0) {
