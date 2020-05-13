@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock
 
-import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
+import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold, TripElement}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
@@ -17,7 +17,7 @@ class UrbansimReaderV2(
   private val logger = LoggerFactory.getLogger(getClass)
 
   private val inputHouseHoldMap: Map[String, InputHousehold] = {
-    logger.debug("Start reading of households info...")
+    logger.info("Start reading of households info...")
     val reader = new HouseHoldReader(inputHouseholdPath)
     try {
       reader
@@ -25,7 +25,7 @@ class UrbansimReaderV2(
         .map(h => h.householdId -> h)
         .toMap
     } finally {
-      logger.debug("Households info have been read successfully.")
+      logger.info("Households info has been read successfully.")
       reader.close()
     }
   }
@@ -34,18 +34,18 @@ class UrbansimReaderV2(
     val merger = new PersonMerger(inputHouseHoldMap)
     val personReader = new PersonReader(inputPersonPath)
 
-    logger.debug("Merging incomes into person...")
+    logger.info("Merging incomes into person...")
 
     try {
       merger.merge(personReader.iterator()).toList
     } finally {
-      logger.debug("Merged successfully.")
+      logger.info("Incomes merged successfully.")
       personReader.close()
     }
   }
 
   override def getPlans: Iterable[PlanElement] = {
-    logger.debug("Reading of the trips...")
+    logger.info("Reading of the trips...")
     val tripReader = new TripReader(inputTripsPath)
     val modes = tripReader
       .iterator()
@@ -53,16 +53,15 @@ class UrbansimReaderV2(
       .toMap
     val merger = new PlanMerger(modes)
 
-    logger.debug("Merging modes into plan...")
+    logger.info("Merging modes into plan...")
 
     val planReader = new PlanReader(inputPlanPath)
 
     try {
       merger.merge(planReader.iterator()).toList
     } finally {
-      logger.debug("Merged successfully.")
+      logger.info("Modes merged successfully into plan.")
       planReader.close()
-      tripReader.close()
     }
   }
 
@@ -80,7 +79,7 @@ class UrbansimReaderV2(
     try {
       merger.merge(inputHouseHoldMap.valuesIterator).toList
     } finally {
-      logger.debug("Merged successfully.")
+      logger.debug("Blocks merged successfully.")
       blockReader.close()
     }
   }
