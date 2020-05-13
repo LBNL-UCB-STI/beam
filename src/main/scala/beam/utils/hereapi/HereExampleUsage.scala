@@ -1,8 +1,9 @@
 package beam.utils.hereapi
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Path, Paths}
 
-import beam.agentsim.infrastructure.geozone.{GeoZoneUtil, WgsCoordinate}
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.utils.hereapi.RichSegments._
 
 object HereExampleUsage extends App {
   if (args.length != 3) {
@@ -14,13 +15,18 @@ object HereExampleUsage extends App {
   val originCoordinate = toWgsCoordinate(args(1))
   val destinationCoordinate = toWgsCoordinate(args(2))
 
+  val outputShapeFile: Path = Paths.get("outputShapeFile.shx")
+  val outputCsvFile: Path = Paths.get("outputSegments.csv")
   val result: Seq[HereSegment] = HereService.findSegments(apiKey, originCoordinate, destinationCoordinate)
+  result
+    .saveToShapeFile(outputShapeFile)
+    .saveToCsv(outputCsvFile)
 
-  val allCoordinates = result.flatMap(_.coordinates).toSet
-  val outputFile: Path = Paths.get("outputShapeFile.shx")
-  GeoZoneUtil.writeToShapeFile(outputFile, allCoordinates, resolution = 12)
-  println(s"Generated shape file: $outputFile")
-  println(result.mkString(System.lineSeparator()))
+  val result2: Seq[HereSegment] = HereService.fromCsv(outputCsvFile)
+
+  println(s"Generated shape file: $outputShapeFile")
+  println(s"Generated csv file: $outputCsvFile")
+  println(s"Content written at [$outputCsvFile] is the same read from file: ${result == result2}")
 
   private def toWgsCoordinate(str: String) = {
     val tmp = str.split(",")

@@ -1,11 +1,17 @@
 package beam.utils.hereapi
 
+import java.io.Closeable
+import java.nio.file.Path
+import java.util.Objects
+
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
+import beam.agentsim.infrastructure.geozone.GeoZoneUtil.toWgsCoordinate
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
+import beam.utils.csv.GenericCsvReader
 
 class HereService(adapter: HereAdapter) {
 
@@ -53,5 +59,39 @@ object HereService {
       Await.result(segFuture, Duration("5 seconds"))
     }
   }
+
+  def fromCsv(file: Path): Seq[HereSegment] = {
+    val (iter: Iterator[HereSegment], toClose: Closeable) =
+      GenericCsvReader.readAs[HereSegment](file.toString, toHereSegment, _ => true)
+    try {
+      iter.toList
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private def deserializeCoordinates(str: String): Seq[WgsCoordinate] = {
+    println(str)
+    val arr: Array[String] = str.split('|')
+    arr.map{eachElement =>
+      val arr = eachElement.split("/")
+      WgsCoordinate(arr(0).toDouble, arr(1).toDouble)
+    }
+  }
+
+  def toHereSegment(rec: java.util.Map[String, String]): HereSegment = {
+    val vWgsCoordinates = rec.get("wgsCoordinates")
+    val vLengthInMeters = rec.get("lengthInMeters").toInt
+    val vSpeedLimitInKph = rec.getOrDefault("speedLimitInKph", "")
+    HereSegment(
+      deserializeCoordinates(vWgsCoordinates),
+      lengthInMeters = vLengthInMeters,
+      speedLimitInKph = vSpeedLimitInKph match {
+        case value if value == null || value.isEmpty => None
+        case value => Some(value.toInt)
+      }
+    )
+  }
+
 
 }
