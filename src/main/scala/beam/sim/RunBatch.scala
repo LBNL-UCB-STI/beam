@@ -12,7 +12,7 @@ object RunBatch extends App with BeamHelper {
 
   val argsMap = parseArgs(args)
 
-  if (argsMap.get(BATCH_OPT).isEmpty) {
+  if (!argsMap.contains(BATCH_OPT)) {
     throw new IllegalArgumentException(s"$BATCH_OPT param is missing")
   }
 

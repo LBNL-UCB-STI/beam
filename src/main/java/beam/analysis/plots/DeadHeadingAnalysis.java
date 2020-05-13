@@ -162,7 +162,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         for (int i = 0; i < m; i++) {
 
                             PathTraversalEvent oldEvent = vehicleHourData.get(i);
-                            Double length2 = oldEvent.legLength();
+                            double length2 = oldEvent.legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, -1);
                         }
@@ -180,10 +180,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String mode = event.mode().value();
         String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = event.numberOfPassengers();
+        int _num_passengers = event.numberOfPassengers();
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = event.legLength();
+            double length = event.legLength();
 
             if (_num_passengers > 0) {
 
@@ -216,7 +216,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                         if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
-                            Double length2 = ((PathTraversalEvent) oldEvent).legLength();
+                            double length2 = ((PathTraversalEvent) oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, 0);
                         }
@@ -276,7 +276,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         writeTripDistanceMetric(hour, length, _num_passengers);
     }
 
-    private void writeTripDistanceMetric(int hour, double distanceInKilometers, Integer _num_passengers) {
+    private void writeTripDistanceMetric(int hour, double distanceInMeters, Integer _num_passengers) {
         if (simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
             // white spaces in the beginning of tags are required for proper legend items order in graph
             HashMap<String, String> tags = new HashMap<>();
@@ -289,8 +289,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
 
             int seconds = hour * 60 * 60;
-            double distanceInMiles = distanceInKilometers * 0.62137119;
-            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInMiles, tags, false);
+            double distanceInKilometers = distanceInMeters / 1000;;
+            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInKilometers, tags, false);
         }
     }
 
@@ -522,7 +522,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<Integer> hours = new ArrayList<>(data.keySet());
         Collections.sort(hours);
         int maxHour = hours.get(hours.size() - 1);
-        Integer maxPassengers;
+        final int maxPassengers;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             maxPassengers = CAR_MAX_PASSENGERS;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
@@ -654,8 +654,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-
-                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
+                    double vktInKm = vkt/1000;
+                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
             }

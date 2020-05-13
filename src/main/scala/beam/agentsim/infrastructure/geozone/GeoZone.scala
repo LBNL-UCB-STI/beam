@@ -19,7 +19,7 @@ class GeoZone(val coordinates: ParSet[WgsCoordinate]) {
 }
 
 object GeoZone {
-  private[geozone] type GeoZoneContent = Map[GeoIndex, Set[WgsCoordinate]]
+  private[geozone] type GeoZoneContent = Map[H3Index, Set[WgsCoordinate]]
 
   private[geozone] def generateContent(elements: ParSet[WgsCoordinate], resolution: Int): GeoZoneContent = {
     if (elements.isEmpty) {
@@ -28,7 +28,7 @@ object GeoZone {
       elements
         .map { point =>
           val indexResult = geoToH3Address(point, resolution)
-          GeoIndex(indexResult) -> point
+          H3Index(indexResult) -> point
         }
         .groupBy(_._1)
         .mapValues { x =>
@@ -40,7 +40,7 @@ object GeoZone {
     }
   }
 
-  private[geozone] def mapCoordinateToIndex(content: GeoZoneContent): Map[WgsCoordinate, GeoIndex] = {
+  private[geozone] def mapCoordinateToIndex(content: GeoZoneContent): Map[WgsCoordinate, H3Index] = {
     content.flatMap {
       case (index, coordinates) =>
         coordinates.map(coordinate => (coordinate, index))
