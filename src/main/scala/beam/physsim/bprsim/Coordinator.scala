@@ -33,7 +33,7 @@ class Coordinator(
 
   def start(): Unit = {
     workers.foreach(_.init())
-    val tillTime = workers.map(_.minTime).min + 60
+    val tillTime = workers.map(_.minTime).min + config.syncInterval
     executePeriod(tillTime)
     executorService.shutdown()
   }
@@ -41,11 +41,11 @@ class Coordinator(
   @tailrec
   private def executePeriod(tillTime: Double): Unit = {
     val future = Future.sequence(workers.map(w => Future(w.processQueuedEvents(workerMap, tillTime))))
-    val counters = Await.result(future, Duration.Inf)
+    Await.result(future, Duration.Inf)
     flush()
     val minTime = workers.map(_.minTime).min
     if (minTime != Double.MaxValue) {
-      executePeriod(minTime + 60)
+      executePeriod(minTime + config.syncInterval)
     }
   }
 
