@@ -361,9 +361,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeMode));
     }
 
-
     //reference realized mode detaset
-    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() throws IOException {
+    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeReferenceMode));
 
