@@ -172,8 +172,6 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     private static String getFuelType(String vehicleIdString, String mode) {
-        String transitAgency = null;
-
         if (mode.equalsIgnoreCase(CAR)) {
             return GASOLINE;
         }
@@ -185,7 +183,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         if (vehicleIdString.contains(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)) {
             // is transit agency
             if (vehicles == null) return null;
-            transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
+            String transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
             Id<BeamVehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), BeamVehicleType.class);
 
             if (!vehicles.containsKey(vehicleTypeId)) {
