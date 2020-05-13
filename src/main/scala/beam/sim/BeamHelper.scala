@@ -40,6 +40,7 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, r
 import beam.utils.csv.readers
 import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
+import beam.utils.scenario.urbansim.censusblock.UrbansimReaderV2
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
@@ -590,22 +591,38 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim" || src == "generic") {
+      if (src == "urbansim" || src == "generic" || src == "urbansim_v2") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
-          val source = if (src == "urbansim") {
-            buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-          } else {
-            val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-            val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-            val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-            new GenericScenarioSource(
-              pathToHouseholds = pathToHouseholds,
-              pathToPersonFile = pathToPersonFile,
-              pathToPlans = pathToPlans
-            )
+          val source = src match {
+            case "urbansim" => buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            case "generic" => {
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+              new GenericScenarioSource(
+                pathToHouseholds = pathToHouseholds,
+                pathToPersonFile = pathToPersonFile,
+                pathToPlans = pathToPlans
+              )
+            }
+            case "urbansim_v2" => {
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv"
+              val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv"
+              val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv"
+              new UrbansimReaderV2(
+                inputPersonPath = pathToPersonFile,
+                inputPlanPath = pathToPlans,
+                inputHouseholdPath = pathToHouseholds,
+                inputTripsPath = pathToTrips,
+                inputBlockPath = pathToBlocks
+              )
+            }
           }
+
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
