@@ -31,11 +31,16 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     extends StrictLogging {
   import GeoService._
 
+  private val crsCode: String = "EPSG:4326"
+  private val THRESHOLD_IN_METERS: Double = 1000.0
+
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
   logger.info(s"mapBoundingBox: $mapBoundingBox")
+
   val transportNetwork: TransportNetwork = {
     TransportNetwork.fromFiles(param.pathToOSMFile, new util.ArrayList[String](), TNBuilderConfig.defaultConfig())
   }
+
   val blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry] = {
     findShapeFile(param.pathToBlockGroupShapeFolder).flatMap { pathToShapeFile =>
       val map = getBlockGroupMap(pathToShapeFile.getPath, uniqueGeoIds).toSeq
@@ -43,6 +48,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       map
     }.toMap
   }
+
   val tazGeoIdToGeom: Map[TazGeoId, Geometry] = {
     val stateAndCounty = uniqueGeoIds.map(x => (x.state, x.county))
     def filter(feature: SimpleFeature): Boolean = {
@@ -57,9 +63,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     }.toMap
   }
   logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
-  private val crsCode: String = "EPSG:4326"
   logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
-  private val THRESHOLD_IN_METERS: Double = 1000.0
 
   def getBlockGroupMap(
     pathToBlockGroupShapeFile: String,
@@ -134,6 +138,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
 }
 
 object GeoService {
+
   def defaultTazMapper(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry) = {
     val state = State(feature.getAttribute("STATEFP10").toString)
     val county = County(feature.getAttribute("COUNTYFP10").toString)
