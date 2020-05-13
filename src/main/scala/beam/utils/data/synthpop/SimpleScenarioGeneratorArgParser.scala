@@ -118,6 +118,16 @@ object SimpleScenarioGeneratorArgParser {
             else success
         )
         .text("Default value of time for Beam")
+      opt[String]("localCRS")
+        .action(
+          (value, args) => args.copy(localCRS = value)
+        )
+        .validate(
+          value =>
+            if (value == "") failure("`localCRS` is not a double")
+            else success
+        )
+        .text("Local coordinate reference system ")
       opt[String]("outputFolder")
         .action(
           (value, args) => args.copy(outputFolder = value)
@@ -128,7 +138,7 @@ object SimpleScenarioGeneratorArgParser {
   }
 
   private def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
-    parser.parse(args, init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, ""))
+    parser.parse(args, init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, "", ""))
   }
 
   def parseArguments(args: Array[String]): Option[Arguments] = parseArguments(buildParser, args)

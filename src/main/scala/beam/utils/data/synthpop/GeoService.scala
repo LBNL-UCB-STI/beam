@@ -1,15 +1,20 @@
 package beam.utils.data.synthpop
 
 import java.io.{File, FileFilter}
+import java.util
 
+import beam.sim.common.GeoUtils
 import beam.utils.DebugLib
 import beam.utils.data.synthpop.models.Models._
 import beam.utils.map.ShapefileReader
 import com.conveyal.osmlib.OSM
+import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
+import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.geotools.geometry.jts.JTS
+import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
@@ -22,13 +27,18 @@ case class GeoServiceInputParam(
   pathToOSMFile: String
 )
 
-class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]) extends StrictLogging {
+class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId], geoUtils: GeoUtils)
+    extends StrictLogging {
   import GeoService._
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
   logger.info(s"mapBoundingBox: $mapBoundingBox")
 
   private val crsCode: String = "EPSG:4326"
+
+  val transportNetwork: TransportNetwork = {
+    TransportNetwork.fromFiles(param.pathToOSMFile, new util.ArrayList[String](), TNBuilderConfig.defaultConfig())
+  }
 
   val blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry] = {
     findShapeFile(param.pathToBlockGroupShapeFolder).flatMap { pathToShapeFile =>
@@ -109,6 +119,17 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       PumaGeoId(State(state), puma) -> wgsGeom
     }
     ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
+  }
+
+  private val THRESHOLD_IN_METERS: Double = 1000.0
+
+  def coordinatesWithinBoundaries(wgsCoord: Coord): Boolean = {
+    val isWithinBoudingBox = mapBoundingBox.contains(wgsCoord.getX, wgsCoord.getY)
+    if (isWithinBoudingBox) {
+      val split = geoUtils.getR5Split(transportNetwork.streetLayer, wgsCoord, THRESHOLD_IN_METERS)
+      val isWithinRange = split != null
+      isWithinRange
+    } else false
   }
 }
 
