@@ -183,43 +183,6 @@ object HouseholdActor {
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
 
-        val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
-
-        val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
-          case VehicleCategory.Car  => BeamMode.CAR
-          case VehicleCategory.Bike => BeamMode.BIKE
-        }.toList
-
-        val cavModeAvailable: List[BeamMode] =
-          if (cavs.nonEmpty) { List[BeamMode](BeamMode.CAV) } else { List[BeamMode]() }
-
-        val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
-
-        household.members.foreach { person =>
-//          if (beamServices.matsimServices.getIterationNumber == 0) {
-//            val addSupplementaryTrips = new AddSupplementaryTrips()
-//            addSupplementaryTrips.run(pop.getPersons.get(person))
-//          }
-
-          val supplementaryTripGenerator =
-            new SupplementaryTripGenerator(
-              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
-              destinationChoiceModel,
-              beamServices,
-              person.getId
-            )
-          val newPlan =
-            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
-          newPlan match {
-            case Some(plan) =>
-              person.removePlan(person.getSelectedPlan)
-              person.addPlan(plan)
-              person.setSelectedPlan(plan)
-            case None =>
-          }
-
-        }
-
         if (cavs.nonEmpty) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>

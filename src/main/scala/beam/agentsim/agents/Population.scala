@@ -44,13 +44,6 @@ class Population(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
-
-  if (beamServices.matsimServices.getIterationNumber == 0) {
-    val addSupplementaryTrips = new AddSupplementaryTrips()
-    scenario.getPopulation.getPersons.forEach{ case(_, person) => addSupplementaryTrips.run(person)}
-  }
-
-
   initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
