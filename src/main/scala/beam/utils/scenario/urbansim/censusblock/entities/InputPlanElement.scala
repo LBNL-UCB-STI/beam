@@ -1,8 +1,8 @@
-package beam.utils.plan_converter.entities
+package beam.utils.scenario.urbansim.censusblock.entities
 
 import java.util
 
-import beam.utils.plan_converter.EntityTransformer
+import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
 case class InputPlanElement(
   personId: String,

@@ -1,7 +1,7 @@
-package beam.utils.plan_converter.merger
+package beam.utils.scenario.urbansim.censusblock.merger
 
 import beam.sim.population.PopulationAdjustment
-import beam.utils.plan_converter.entities.{Block, InputHousehold}
+import beam.utils.scenario.urbansim.censusblock.entities.{Block, InputHousehold}
 import beam.utils.scenario.{HouseholdId, HouseholdInfo}
 
 class HouseholdMerger(blocks: Map[String, Block]) extends Merger[InputHousehold, HouseholdInfo] {

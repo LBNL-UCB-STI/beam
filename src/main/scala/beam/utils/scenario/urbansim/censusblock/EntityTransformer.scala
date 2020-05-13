@@ -1,4 +1,4 @@
-package beam.utils.plan_converter
+package beam.utils.scenario.urbansim.censusblock
 
 trait EntityTransformer[T] {
 

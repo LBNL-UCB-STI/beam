@@ -1,8 +1,8 @@
-package beam.utils.plan_converter
+package beam.utils.scenario.urbansim.censusblock
 
-import beam.utils.plan_converter.entities.InputHousehold
-import beam.utils.plan_converter.merger.{HouseholdMerger, PersonMerger, PlanMerger}
-import beam.utils.plan_converter.reader._
+import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
+import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
+import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
 import org.slf4j.LoggerFactory
 

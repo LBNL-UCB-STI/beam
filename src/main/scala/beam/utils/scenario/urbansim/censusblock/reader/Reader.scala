@@ -1,4 +1,4 @@
-package beam.utils.plan_converter.reader
+package beam.utils.scenario.urbansim.censusblock.reader
 
 trait Reader[T] extends AutoCloseable {
   def iterator(): Iterator[T]
