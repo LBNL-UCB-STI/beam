@@ -12,12 +12,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
-import beam.utils.data.synthpop.generators.{
-  RandomWorkDestinationGenerator,
-  TimeLeavingHomeGenerator,
-  TimeLeavingHomeGeneratorImpl,
-  WorkedDurationGeneratorImpl
-}
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
@@ -252,7 +247,7 @@ class SimpleScenarioGenerator(
                       case Some(wgsWorkingLocation) =>
                         if (geoSvc.mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
                           val valueOfTime =
-                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                            PopulationAdjustment.IncomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
                             personId = PersonId(nextPersonId.toString),
                             householdId = createdHousehold.householdId,

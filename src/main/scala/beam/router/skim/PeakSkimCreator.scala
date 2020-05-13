@@ -377,7 +377,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       numBikes = 1
     )
     val personVOTT = PopulationAdjustment
-      .incomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
+      .IncomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
       .getOrElse(config.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
     AttributesOfIndividual(
       householdAttributes = dummyHouseholdAttributes,
