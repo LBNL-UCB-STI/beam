@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
 
+import beam.agentsim.infrastructure.geozone._
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
@@ -12,6 +13,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
+import beam.utils.data.synthpop.GeoService.CheckResult
 import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
@@ -216,7 +218,8 @@ class SimpleScenarioGenerator(
         }
         val res = householdsWithPersonData.zip(householdLocation).map {
           case ((household, personsWithData), wgsHouseholdLocation) =>
-            if (geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)) {
+            val householdCheckResult = geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)
+            if (householdCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
@@ -234,7 +237,8 @@ class SimpleScenarioGenerator(
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
                     workLocations.lift(offset) match {
                       case Some(wgsWorkingLocation) =>
-                        if (geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)) {
+                        val workingLocationCheckResult = geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)
+                        if (workingLocationCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
                           val valueOfTime =
                             PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
@@ -300,7 +304,7 @@ class SimpleScenarioGenerator(
                         } else {
                           logger
                             .info(
-                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox}"
+                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $workingLocationCheckResult"
                             )
                           (xs, nextPersonId + 1)
                         }
@@ -313,6 +317,10 @@ class SimpleScenarioGenerator(
                 Some((createdHousehold, personsAndPlans))
               } else None
             } else {
+              logger
+                .info(
+                  s"Household $wgsHouseholdLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $householdCheckResult"
+                )
               None
             }
         }
@@ -466,6 +474,40 @@ class SimpleScenarioGenerator(
     }
   }
 
+  def writeH3(pathToFolder: String, wgsCoords: Seq[Coord], expectedNumberOfBuckets: Int): Unit = {
+    val wgsCoordinates = wgsCoords.map(WgsCoordinate.apply).toSet
+    val summary: GeoZoneSummary = TopDownEqualDemandH3IndexMapper
+      .from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, expectedNumberOfBuckets)
+      .generateSummary()
+
+    logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
+
+    val resolutionToPoints = summary.items
+      .map(x => x.index.resolution -> x.size)
+      .groupBy { case (res, _) => res }
+      .toSeq
+      .map { case (res, xs) => res -> xs.map(_._2).sum }
+      .sortBy { case (_, size) => -size }
+    resolutionToPoints.foreach {
+      case (res, size) =>
+        logger.info(s"Resolution: $res, number of points: $size")
+    }
+    val h3Indexes = summary.items.sortBy(x => -x.size)
+
+    val pathToFile = pathToFolder + "/h3-centers.csv.gz"
+    val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
+    try {
+      h3Indexes.foreach {
+        case GeoZoneSummaryItem(h3Index: H3Index, _) =>
+          val utmCoord = geoUtils.wgs2Utm(H3Wrapper.hexToCoord(h3Index))
+          val area = H3Wrapper.areaInM2(h3Index)
+          csvWriter.write(h3Index.value, utmCoord.getX, utmCoord.getY, area)
+      }
+    } finally {
+      Try(csvWriter.close())
+    }
+  }
+
 }
 
 object SimpleScenarioGenerator {
@@ -546,6 +588,14 @@ object SimpleScenarioGenerator {
       }
     }
 
+    val geoUtils: GeoUtils = new GeoUtils {
+      override def localCRS: String = parsedArgs.localCRS
+    }
+    val allActivities = planElements.filter(_.planElementType == "activity").map { plan =>
+      geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
+    }
+    gen.writeH3(pathToOutput, allActivities, 1000)
+
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
     println(s"Wrote plans information to $plansFilePath")
@@ -575,12 +625,14 @@ object SimpleScenarioGenerator {
     '--outputFolder', 'D:/Work/beam/NewYork/results'
     "] -PlogbackCfg=logback.xml
      */
-    SimpleScenarioGeneratorArgParser.parseArguments(args) match {
-      case None =>
-        throw new IllegalStateException("Unable to parse arguments. Check the logs")
-      case Some(parsedArgs: Arguments) =>
-        run(parsedArgs)
+    ProfilingUtils.timed("Scenario generation", x => println(x)) {
+      SimpleScenarioGeneratorArgParser.parseArguments(args) match {
+        case None =>
+          throw new IllegalStateException("Unable to parse arguments. Check the logs")
+        case Some(parsedArgs: Arguments) =>
+          run(parsedArgs)
 
+      }
     }
   }
 }
