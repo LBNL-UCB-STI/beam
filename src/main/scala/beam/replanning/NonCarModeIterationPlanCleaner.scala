@@ -18,10 +18,11 @@ class NonCarModeIterationPlanCleaner @Inject()(config: BeamConfig, scenario: Sce
     : Lens[BeamConfig, Int] = lens[BeamConfig] >> 'beam >> 'replanning >> 'cleanNonCarModesInIteration
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    if (event.getIteration == clearModeIterationLens.get(config)) {
-      logger.debug("Cleaning non car modes for iteration {}", event.getIteration)
-      replanNonCarModesPopulation(scenario.getPopulation)
-    }
+  // TODO: Will be fixed in https://github.com/LBNL-UCB-STI/beam/issues/2645, for now just comment it out
+//    if (event.getIteration == clearModeIterationLens.get(config)) {
+//      logger.debug("Cleaning non car modes for iteration {}", event.getIteration)
+//      replanNonCarModesPopulation(scenario.getPopulation)
+//    }
   }
 
   private def replanNonCarModesPopulation(population: Population): Unit = {
