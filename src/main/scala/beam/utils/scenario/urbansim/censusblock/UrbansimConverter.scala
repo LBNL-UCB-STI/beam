@@ -1,17 +1,15 @@
-package beam.utils.plan_converter
+package beam.utils.scenario.urbansim.censusblock
 
 import java.io.{BufferedWriter, Closeable, FileWriter}
 
 import beam.utils.FileUtils
-import beam.utils.plan_converter.entities.{InputPlanElement, OutputPlanElement, TripElement}
-import beam.utils.plan_converter.merger.PlanMerger
-import beam.utils.plan_converter.reader.{PlanReader, Reader, TripReader}
 import beam.utils.scenario.PlanElement
-import beam.utils.scenario.urbansim.DataExchange
+import beam.utils.scenario.urbansim.censusblock.entities.{InputPlanElement, OutputPlanElement, TripElement}
+import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
+import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader, Reader, TripReader}
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
-
 import scala.collection.JavaConverters._
 
 object UrbansimConverter {

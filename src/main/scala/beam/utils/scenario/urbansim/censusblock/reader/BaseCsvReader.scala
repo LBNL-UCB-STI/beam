@@ -1,7 +1,7 @@
-package beam.utils.plan_converter.reader
+package beam.utils.scenario.urbansim.censusblock.reader
 
 import beam.utils.FileUtils
-import beam.utils.plan_converter.EntityTransformer
+import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 

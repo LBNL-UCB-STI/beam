@@ -1,4 +1,4 @@
-package beam.utils.plan_converter.entities
+package beam.utils.scenario.urbansim.censusblock.entities
 
 case class OutputPlanElement(
   personId: Int,

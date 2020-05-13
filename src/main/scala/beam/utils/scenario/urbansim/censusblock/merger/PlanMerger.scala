@@ -1,6 +1,6 @@
-package beam.utils.plan_converter.merger
+package beam.utils.scenario.urbansim.censusblock.merger
 
-import beam.utils.plan_converter.entities.{Activity, InputPlanElement, Leg}
+import beam.utils.scenario.urbansim.censusblock.entities.{Activity, InputPlanElement, Leg}
 import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.math._

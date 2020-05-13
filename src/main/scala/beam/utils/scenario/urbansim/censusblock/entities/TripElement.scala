@@ -1,6 +1,6 @@
-package beam.utils.plan_converter.entities
+package beam.utils.scenario.urbansim.censusblock.entities
 
-import beam.utils.plan_converter.EntityTransformer
+import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
 case class TripElement(tripId: String, personId: String, householdId: String, depart: Double, trip_mode: String)
 
