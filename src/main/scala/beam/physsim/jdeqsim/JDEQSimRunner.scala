@@ -156,16 +156,21 @@ class JDEQSimRunner(
     simName match {
       case "BPRSIM" =>
         val bprCfg =
-          BPRSimConfig(config.getSimulationEndTime, 1, (time, link, _) => link.getLength / link.getFreespeed(time))
+          BPRSimConfig(config.getSimulationEndTime, 1, 0, (time, link, _) => link.getLength / link.getFreespeed(time))
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "PARBPRSIM" =>
-        val numberOfClusters = beamConfig.beam.physsim.bprsim.numberOfClusters
+        val numberOfClusters = beamConfig.beam.physsim.parbprsim.numberOfClusters
         if (numberOfClusters <= 0) {
           throw new IllegalArgumentException("number of clusters must be greater then zero")
+        }
+        val syncInterval = beamConfig.beam.physsim.parbprsim.syncInterval
+        if (syncInterval <= 0) {
+          throw new IllegalArgumentException("sync interval must be greater then zero")
         }
         val bprCfg = BPRSimConfig(
           config.getSimulationEndTime,
           numberOfClusters,
+          syncInterval,
           (time, link, _) => link.getLength / link.getFreespeed(time)
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)

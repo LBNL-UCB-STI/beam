@@ -108,7 +108,7 @@ class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: I
     val link = scenario.getNetwork.getLinks.get(linkId)
     // calculate time, when the car reaches the end of the link
     val volume: Int = params.volumeCalculator.getVolume(linkId)
-    val linkTravelTime = params.config.travelTime(time, link, volume)
+    val linkTravelTime = params.config.travelTimeFunction(time, link, volume)
 
     (events, Some(new EndLinkSimEvent(time + linkTravelTime, person, legIdx, linkIdx)))
   }
