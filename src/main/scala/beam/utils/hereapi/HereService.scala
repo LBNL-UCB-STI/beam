@@ -73,7 +73,7 @@ object HereService {
   private def deserializeCoordinates(str: String): Seq[WgsCoordinate] = {
     println(str)
     val arr: Array[String] = str.split('|')
-    arr.map{eachElement =>
+    arr.map { eachElement =>
       val arr = eachElement.split("/")
       WgsCoordinate(arr(0).toDouble, arr(1).toDouble)
     }
@@ -88,10 +88,9 @@ object HereService {
       lengthInMeters = vLengthInMeters,
       speedLimitInKph = vSpeedLimitInKph match {
         case value if value == null || value.isEmpty => None
-        case value => Some(value.toInt)
+        case value                                   => Some(value.toInt)
       }
     )
   }
-
 
 }
