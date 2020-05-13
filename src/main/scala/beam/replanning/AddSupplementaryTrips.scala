@@ -138,12 +138,12 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
     val newActivitiesToAdd = elements.zipWithIndex.map {
       case (planElement, idx) =>
         val prevEndTime = if (idx > 0) {
-          elements(idx - 1).getEndTime.max(0)
+          (elements(idx - 1).getEndTime + 1).max(0)
         } else {
           0
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        planElement.setStartTime(prevEndTime + 1.0)
+        planElement.setStartTime(prevEndTime)
         definitelyAddSubtours(planElement, person)
     }
     newActivitiesToAdd.flatten.foreach { x =>
