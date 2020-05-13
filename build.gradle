@@ -532,7 +532,7 @@ task checkScalaFmt() {
     doLast {
         try {
             def workingDir = new File("${project.projectDir}")
-            def result = 'git diff --exit-code'.execute(null, workingDir)
+            def result = 'git diff --exit-code --quiet'.execute(null, workingDir)
             result.waitFor()
             if (result.exitValue() != 0) throw new Exception("""
 Please run ./gradlew scalaFmtAll and commit/push the subsequent results to fix this error.
