@@ -183,7 +183,6 @@ class DelayMetricAnalysis @Inject()(
       graphTitle,
       xAxisName,
       yAxisName,
-      fileName + ".png",
       true
     )
 
@@ -207,7 +206,6 @@ class DelayMetricAnalysis @Inject()(
       averageGraphTitle,
       xAxisName,
       yAxisAverageGraphName,
-      fileName,
       false
     )
     GraphUtils.saveJFreeChartAsPNG(
@@ -234,7 +232,6 @@ class DelayMetricAnalysis @Inject()(
       networkUtilizedGraphTitle,
       xAxisName_NetworkUtilized,
       yAxisName_NetworkUtilized,
-      graphImageFile,
       false
     )
 

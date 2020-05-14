@@ -566,7 +566,6 @@ class BeamSim @Inject()(
       header,
       "iteration",
       header,
-      path,
       false
     )
 
@@ -632,5 +631,4 @@ class BeamSim @Inject()(
         }
       }
   }
-
 }
