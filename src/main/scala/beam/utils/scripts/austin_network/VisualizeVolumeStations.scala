@@ -8,6 +8,7 @@ import org.opengis.feature.simple.SimpleFeature
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.collection.JavaConverters._
+import AustinUtils._
 
 object VisualizeVolumeStations {
   def main(args: Array[String]): Unit = {
@@ -18,7 +19,6 @@ object VisualizeVolumeStations {
   private def generateTrafficSensorsShapeFile() = {
     val coords=getCoordinatesTrafficCountsFile("E:\\work\\austin\\Travel_Sensors.csv",
       2, 3)
-
     createShapeFile(coords.map(_._2), "E:\\work\\austin\\Travel_Sensors.shp")
   }
 
@@ -42,22 +42,7 @@ object VisualizeVolumeStations {
     coords
   }
 
-  def createShapeFile(coords: Vector[Coord], shapeFileOutputPath: String) = {
-    val features = ArrayBuffer[SimpleFeature]()
 
-    val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
-      .setCrs(MGC.getCRS("EPSG:4326"))
-      .setName("nodes")
-      .create()
-
-    coords.foreach { wsgCoord =>
-      val coord = new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
-      val feature = pointf.createPoint(coord)
-      features += feature
-    }
-
-    ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
-  }
 
 
 }

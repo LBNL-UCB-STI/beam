@@ -21,6 +21,10 @@ import sys.process._
 import java.net.URL
 import java.io.File
 
+import org.matsim.core.utils.geometry.geotools.MGC
+import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
+import org.opengis.feature.simple.SimpleFeature
+
 import scala.language.postfixOps
 
 //TODO: push some of this out to more general library
@@ -64,7 +68,7 @@ object AustinUtils {
     pw.close
   }
 
-  def getPhysSimNetwork(filePath: String) = {
+  def getPhysSimNetwork(filePath: String): Network = {
     val network = NetworkUtils.createNetwork
     val reader = new NetworkReaderMatsimV2(network)
     reader.readFile(filePath)
@@ -132,8 +136,34 @@ object AustinUtils {
     inLinks.asScala.toVector.find(linkId => outLinks.contains(linkId))
   }
 
+  def writePhyssimToShapeFile(physsimNetworkFilePath: String,shapeFileOutputPath: String,splitSizeInMeters: Double)={
+    var network = getPhysSimNetwork(physsimNetworkFilePath)
 
+    val coords=network.getLinks.values().asScala.toVector.flatMap{ link=>
+      DataVector(DataId(link.getId.toString), link.getFromNode.getCoord, link.getToNode.getCoord, false).produceSpeedDataPointFromSpeedVector(splitSizeInMeters)
+    }.map{dataPoint =>
+      dataPoint.coord
+    }.toVector
 
+    createShapeFile(coords,shapeFileOutputPath)
+  }
+
+  def createShapeFile(coords: Vector[Coord], shapeFileOutputPath: String) = {
+    val features = ArrayBuffer[SimpleFeature]()
+
+    val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
+      .setCrs(MGC.getCRS("EPSG:4326"))
+      .setName("nodes")
+      .create()
+
+    coords.foreach { wsgCoord =>
+      val coord = new com.vividsolutions.jts.geom.Coordinate(wsgCoord.getX, wsgCoord.getY)
+      val feature = pointf.createPoint(coord)
+      features += feature
+    }
+
+    ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
+  }
 
 
 }
