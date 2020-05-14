@@ -428,7 +428,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         // Legends
@@ -441,7 +441,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void createSingleStatsGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, rideHailWaitingSingleStatsFileBaseName + ".png", false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, false);
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");

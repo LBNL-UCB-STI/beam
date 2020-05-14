@@ -278,7 +278,6 @@ class CarTripStatsFromPathTraversalEventHandler(
       graphTitle,
       "Iteration",
       "Average Travel Time [min]",
-      fileName,
       false
     )
     val plot = chart.getCategoryPlot
@@ -305,7 +304,6 @@ class CarTripStatsFromPathTraversalEventHandler(
       graphTitle,
       "hour",
       "Average Travel Time [min]",
-      fileName,
       false
     )
     val plot = chart.getCategoryPlot
@@ -337,7 +335,6 @@ class CarTripStatsFromPathTraversalEventHandler(
       graphTitle,
       "hour",
       "Average Speed [m/s]",
-      fileName,
       false
     )
     val plot = chart.getCategoryPlot
