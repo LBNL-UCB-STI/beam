@@ -104,20 +104,26 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
     val flowPath = itHourRelatedPath("/work", iteration, hour, "flow")
     val distPath = itHourRelatedPath("/work", iteration, hour, "dist")
     val statPath = itHourRelatedPath("/work", iteration, hour, "stat")
-    val assignTrafficOutput = Process(s"""
-                                         |docker run --rm
-                                         | --memory-swap -1
-                                         | -v $tempDir:/work
-                                         | $toolDockerImage
-                                         | $assignTrafficLauncher
-                                         | -g $graphPathInContainer
-                                         | -d ${odPairsFileInContainer(iteration, hour)}
-                                         | -p 1 -n 10 -o random
-                                         | -i
-                                         | -flow $flowPath
-                                         | -dist $distPath
-                                         | -stat $statPath
-      """.stripMargin.replace("\n", ""))
+
+    val query = s"""
+                     |docker run --rm
+                     | --memory-swap -1
+                     | -v $tempDir:/work
+                     | $toolDockerImage
+                     | $assignTrafficLauncher
+                     | -g $graphPathInContainer
+                     | -d ${odPairsFileInContainer(iteration, hour)}
+                     | -p 1 -n 0 -o random
+                     | -i
+                     | -v
+                     | -flow $flowPath
+                     | -dist $distPath
+                     | -stat $statPath
+      """.stripMargin.replace("\n", "")
+
+    logger.info("Docker command for assigning traffic: {}", query)
+
+    val assignTrafficOutput = Process(query)
 
     assignTrafficOutput.lineStream.foreach(logger.info(_))
 

@@ -1,6 +1,5 @@
 package beam.physsim.jdeqsim
 import java.io.File
-import java.nio.charset.Charset
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
@@ -8,7 +7,6 @@ import java.util.concurrent.{ExecutorService, Executors}
 import beam.agentsim.events.PathTraversalEvent
 import beam.physsim.routingTool._
 import beam.sim.BeamServices
-import com.google.common.io.Files
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Coordinate
@@ -21,13 +19,14 @@ import scala.collection.convert.ImplicitConversionsToScala._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.io.Source
 
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices
 ) extends LazyLogging {
 
   private val execSvc: ExecutorService = Executors.newFixedThreadPool(
-    Runtime.getRuntime.availableProcessors(),
+    Math.max(Runtime.getRuntime.availableProcessors() / 4, 1),
     new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
   )
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
@@ -60,14 +59,16 @@ class RoutingFrameworkTravelTimeCalculator(
       .groupBy(_._1)
       .mapValues(_.map(_._2).toList)
 
-    val futures: Iterable[Future[(Int, Map[Long, Double])]] = hour2Events
+    val odsCreationFutures = hour2Events
       .map {
         case (hour, events) =>
           Future {
             val stopWatch: StopWatch = new StopWatch
             stopWatch.start()
 
-            val ods: List[(Long, Long)] = events
+            var odnumber = 0
+
+            val ods: Stream[(Long, Long)] = events.toStream
               .filter(_.linkIds.nonEmpty)
               .map { event =>
                 linkWayId(id2Link(event.linkIds.head)) -> linkWayId(id2Link(event.linkIds.last))
@@ -93,34 +94,56 @@ class RoutingFrameworkTravelTimeCalculator(
                       getRoutingToolVertexId(coordinateKey2Coordinates, coordinateToRTVertexId, destination)
                     )
 
+                  odnumber = odnumber + 1
+
                   (firstId, secondId)
               }
-            logger.warn("Generated {} ods, for hour {} in {}", ods.size, hour, stopWatch.getTime)
-            stopWatch.reset()
-            stopWatch.start()
-            val congestionFactor = beamServices.beamConfig.beam.physsim.routingFramework.congestionFactor
 
-            val odStream = ods.toStream.flatMap(od => (1 to congestionFactor).toStream.map(_ => od))
+            val odStream = ods
+              .flatMap(od => Stream.range(0, odsFactor, 1).map(_ => od))
             routingToolWrapper.generateOd(iterationNumber, hour, odStream)
 
-            val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
-            logger.info("Assigned traffic for hour {} in {}", hour, stopWatch.getTime)
-
-            val wayId2TravelTime: Map[Long, Double] = Files
-              .readLines(assignResult._1, Charset.defaultCharset)
-              .drop(2)
-              .map((x: String) => x.split(","))
-              // picking only result of 10th iteration
-              .filter(x => x(0) == "10")
-              // way id into bpr
-              .map(x => x(4).toLong -> x(5).toDouble / 10.0)
-              .groupBy(_._1)
-              .mapValues(x => x.map(_._2).sum / x.size)
-            (hour, wayId2TravelTime)
+            logger.info("Generated {} ods, for hour {} in {} ms", odnumber, hour, stopWatch.getTime)
           }
       }
 
-    val hour2Way2TravelTimes = Await.result(Future.sequence(futures), 1.hour).toMap
+    Await.result(Future.sequence(odsCreationFutures), 10.minutes)
+
+    val hour2Way2TravelTimes: Map[Int, Map[Long, Double]] = hour2Events.keys.toList.sorted.map { hour =>
+      val stopWatch: StopWatch = new StopWatch
+      stopWatch.start()
+
+      logger.info("Starting traffic assignment for hour {}", hour)
+      val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
+      logger.info("Traffic assignment for hour {} is finished in {} ms", hour, stopWatch.getTime)
+
+      var curIter = -1
+      val wayId2TravelTime: mutable.Map[Long, Double] = new mutable.HashMap[Long, Double]()
+      Source
+        .fromFile(assignResult._1)
+        .getLines()
+        .drop(2)
+        .map(x => x.split(","))
+        // picking only result of last iteration
+        .map { x =>
+          if (x(0).toInt != curIter) {
+            curIter = x(0).toInt
+            wayId2TravelTime.clear()
+          }
+          x
+        }
+        // way id into bpr
+        .map(x => x(4).toLong -> x(5).toDouble / 10.0)
+        .foreach {
+          case (wayId, travelTime) =>
+            wayId2TravelTime.get(wayId) match {
+              case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
+              case None    => wayId2TravelTime.put(wayId, travelTime)
+            }
+        }
+
+      (hour, wayId2TravelTime.toMap)
+    }.toMap
 
     val travelTimeMap: mutable.Map[String, Array[Double]] = new mutable.HashMap[String, Array[Double]]
     val totalNumberOfLinks: Int = links.size
@@ -161,10 +184,16 @@ class RoutingFrameworkTravelTimeCalculator(
 
     logger.info("Total links: {}, failed to assign travel time: {}", totalNumberOfLinks, linksFailedToResolve.get)
 
-    logger.info("Created travel times in {}", System.currentTimeMillis - startTime)
+    logger.info("Created travel times in {} ms", System.currentTimeMillis - startTime)
 
     travelTimeMap.asJava
   }
+
+  private val odsFactor: Int =
+    Math.max(
+      (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * beamServices.beamConfig.beam.physsim.routingFramework.congestionFactor).toInt,
+      1
+    )
 
   private def linkWayId(link: Link): Long = {
     val origid: Any = link.getAttributes.getAttribute("origid")
