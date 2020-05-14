@@ -18,6 +18,7 @@ abstract class SimEvent(val time: Double, val person: Person, val legIdx: Int, v
   def nextActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx + 1).asInstanceOf[Activity]
   val leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
   val isLegStart = linkIdx < 0
+  def immidiateTime = time + 0.001
 
   val (linkId, lastLink): (Id[Link], Boolean) =
     leg.getRoute match {
@@ -55,13 +56,13 @@ class StartLegSimEvent(time: Double, person: Person, legIdx: Int) extends SimEve
         if (emptyLeg) {
           // move to first link in next leg and schedule an end leg message
           // duration of leg = 0 (departure and arrival time is the same)
-          new EndLegSimEvent(time, person, legIdx, linkIdx)
+          new EndLegSimEvent(immidiateTime, person, legIdx, linkIdx)
         } else {
           // car trying to enter traffic
-          new EnteringLinkSimEvent(time, person, legIdx, linkIdx)
+          new EnteringLinkSimEvent(immidiateTime, person, legIdx, linkIdx)
         }
       case _ =>
-        new EndLegSimEvent(time + leg.getTravelTime, person, legIdx, linkIdx)
+        new EndLegSimEvent(immidiateTime + leg.getTravelTime, person, legIdx, linkIdx)
     }
     (events, Some(simEvent))
   }
@@ -85,7 +86,7 @@ class EndLegSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     val simEvent = if (nextLegExists) {
       val activityDurationInterpretation = scenario.getConfig.plans.getActivityDurationInterpretation
       val departureTime = ActivityDurationUtils.calculateDepartureTime(nextAct, time, activityDurationInterpretation)
-      val nextLegStart = Math.max(time, departureTime)
+      val nextLegStart = Math.max(immidiateTime, departureTime)
       Some(new StartLegSimEvent(nextLegStart, person, legIdx + 2))
     } else {
       None
@@ -110,7 +111,7 @@ class EnteringLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: I
     val volume: Int = params.volumeCalculator.getVolume(linkId)
     val linkTravelTime = params.config.travelTimeFunction(time, link, volume)
 
-    (events, Some(new EndLinkSimEvent(time + linkTravelTime, person, legIdx, linkIdx)))
+    (events, Some(new EndLinkSimEvent(immidiateTime + linkTravelTime, person, legIdx, linkIdx)))
   }
 }
 
@@ -121,7 +122,7 @@ class EnteringActivityLinkSimEvent(time: Double, person: Person, legIdx: Int, li
     val vehicleId = createVehicleId(person)
     val events = List(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
 
-    (events, Some(new EndLegSimEvent(time, person, legIdx, linkIdx)))
+    (events, Some(new EndLegSimEvent(immidiateTime, person, legIdx, linkIdx)))
   }
 }
 
@@ -134,9 +135,9 @@ class EndLinkSimEvent(time: Double, person: Person, legIdx: Int, linkIdx: Int)
     params.volumeCalculator.addVolume(linkId, -1)
     val simEvent = if (lastLink) {
       //one needs to enter the next activity link, and then finish the leg
-      new EnteringActivityLinkSimEvent(time, person, legIdx, linkIdx)
+      new EnteringActivityLinkSimEvent(immidiateTime, person, legIdx, linkIdx)
     } else {
-      new EnteringLinkSimEvent(time, person, legIdx, linkIdx + 1)
+      new EnteringLinkSimEvent(immidiateTime, person, legIdx, linkIdx + 1)
     }
     (events, Some(simEvent))
   }
