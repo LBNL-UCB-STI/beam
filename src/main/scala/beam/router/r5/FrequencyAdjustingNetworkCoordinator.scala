@@ -1,20 +1,20 @@
 package beam.router.r5
 
-import java.nio.file.attribute.BasicFileAttributes
+import java.io.File
 import java.nio.file._
+import java.nio.file.attribute.BasicFileAttributes
 import java.util
 
-import beam.sim.BeamServices
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
+
 import beam.sim.config.BeamConfig
+import beam.utils.FileUtils
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.gtfs.model.Trip
 import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.network.Network
-
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
-import scala.io.Source
 
 case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinator {
 
@@ -24,7 +24,8 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
   var frequencyData: Set[FrequencyAdjustmentInput] = _
 
   def loadFrequencyData(): Set[FrequencyAdjustmentInput] = {
-    val lines = Source.fromFile(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile).getLines().drop(1)
+    val frequencyAdjustmentFile: String = beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile
+    val lines = FileUtils.readAllLines(frequencyAdjustmentFile).drop(1)
     val dataRows = for { line <- lines } yield {
       line.split(",")
     }.toSeq
