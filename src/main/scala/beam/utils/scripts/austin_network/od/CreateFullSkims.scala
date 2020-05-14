@@ -56,7 +56,7 @@ object CreateFullSkims {
       val carResp = route._3//.itineraries.head.beamLegs.head.travelPath
       carResp.itineraries.headOption.map{iternary =>
         val travelPath=iternary.beamLegs.head.travelPath
-        s"$hour,CAR,${originTAZId},${destTAZId},${travelPath.duration},,,,${travelPath.distanceInM},,,"
+        s"$hour,CAR,${originTAZId},${destTAZId},${travelPath.duration},0,0,0,${travelPath.distanceInM},0,0,0"
       }
 
       //originTAZ, destTAZ
