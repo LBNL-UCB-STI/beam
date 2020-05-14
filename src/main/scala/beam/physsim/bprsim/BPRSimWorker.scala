@@ -2,17 +2,20 @@ package beam.physsim.bprsim
 
 import java.util.Comparator
 
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /**
   *
   * @author Dmitry Openkov
   */
-class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]], coordinator: Coordinator) {
+class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]],
+                   val eventBuffer: ArrayBuffer[Event]) {
   private val queue = ConcurrentPriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator)
 
@@ -39,7 +42,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       } else {
         val simEvent = queue.dequeue()
         val (events, maybeSimEvent) = simEvent.execute(scenario, params)
-        events.foreach(coordinator.processEvent)
+        eventBuffer ++= events
         for {
           se <- maybeSimEvent
         } workers(se.linkId).acceptSimEvent(se)
