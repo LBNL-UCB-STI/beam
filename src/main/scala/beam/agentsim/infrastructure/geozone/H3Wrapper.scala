@@ -11,11 +11,11 @@ object H3Wrapper {
     h3Core.h3GetResolution(index)
   }
 
-  def getIndex(point: WgsCoordinate, resolution: Int): GeoIndex = {
-    GeoIndex(h3Core.geoToH3Address(point.latitude, point.longitude, resolution))
+  def getIndex(point: WgsCoordinate, resolution: Int): H3Index = {
+    H3Index(h3Core.geoToH3Address(point.latitude, point.longitude, resolution))
   }
 
-  def areaInM2(index: GeoIndex): Double = {
+  def areaInM2(index: H3Index): Double = {
     h3Core.hexArea(index.resolution, AreaUnit.m2)
   }
 
@@ -27,23 +27,23 @@ object H3Wrapper {
     BigDecimal.valueOf(value).setScale(places, BigDecimal.RoundingMode.HALF_UP).doubleValue()
   }
 
-  def getChildren(index: GeoIndex): Set[GeoIndex] = {
+  def getChildren(index: H3Index): Set[H3Index] = {
     getChildren(index, index.resolution + 1)
   }
 
-  def getChildren(index: GeoIndex, resolution: Int): Set[GeoIndex] = {
-    h3Core.h3ToChildren(index.value, Math.min(resolution, 15)).asScala.toSet.map(GeoIndex.apply)
+  def getChildren(index: H3Index, resolution: Int): Set[H3Index] = {
+    h3Core.h3ToChildren(index.value, Math.min(resolution, 15)).asScala.toSet.map(H3Index.apply)
   }
 
-  def internalIndexes(rectangle: WgsRectangle, resolution: Int): Set[GeoIndex] = {
+  def internalIndexes(rectangle: WgsRectangle, resolution: Int): Set[H3Index] = {
     h3Core
       .polyfillAddress(rectangle.asGeoBoundary, JCollections.emptyList(), resolution)
       .asScala
-      .map(GeoIndex.apply)
+      .map(H3Index.apply)
       .toSet
   }
 
-  def wgsCoordinate(index: GeoIndex): WgsCoordinate = {
+  def wgsCoordinate(index: H3Index): WgsCoordinate = {
     val coord = h3Core.h3ToGeo(index.value)
     WgsCoordinate(latitude = coord.lat, longitude = coord.lng)
   }

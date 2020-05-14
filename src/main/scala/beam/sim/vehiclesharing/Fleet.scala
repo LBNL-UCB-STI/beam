@@ -80,7 +80,7 @@ case class FixedNonReservingFleetByTAZ(
         beamScheduler,
         beamServices,
         config.maxWalkingDistance,
-        repConfig.map(RepositionAlgorithms.lookup(_))
+        repConfig.map(RepositionAlgorithms.lookup)
       )
     )
   }

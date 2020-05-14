@@ -55,6 +55,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         /**
          * Computes the required stats from the given input.
+         *
          * @param stat A mapping that maps travel mode -> ( mapping from hour of the day -> list of travel times recorded during that hour)
          * @return tuple (travel modes , (tuple of (averageTravelTimesByModeAndHour , averageTravelTimeInADayForCarMode)))
          */
@@ -82,6 +83,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         /**
          * Builds array data set with average travel time computed for each hour.
+         *
          * @param travelTimesByHour A mapping from hour of the day -> list of travel times recorded during that hour
          * @return array representing average times for each hour (array index = hour of the day)
          */
@@ -97,17 +99,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // save the average value to the array
             for (int i = 0; i <= maxHour; i++) {
                 List<Double> hourData = travelTimesByHour.get(i);
-                Double average = 0d;
-                if (hourData != null) {
-                    average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
-                }
-                averageTravelTimesWithHourIndex[i] = average;
+                averageTravelTimesWithHourIndex[i] = hourData == null
+                        ? 0d
+                        : hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
             }
             return averageTravelTimesWithHourIndex;
         }
 
         /**
          * Calculates the average of travel times during the day
+         *
          * @param travelTimesByHour Map that maps from hour of the day -> travel times during that hour
          * @return average travel time
          */
@@ -278,10 +279,8 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                             List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                             if (travelTimes == null) {
                                 travelTimes = new ArrayList<>();
-                                travelTimes.add(travelTime);
-                            } else {
-                                travelTimes.add(travelTime);
                             }
+                            travelTimes.add(travelTime);
                             hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                         }
                         hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
@@ -296,11 +295,12 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     /**
      * Processes the current person departure event and tracks the departure details for further processing.
+     *
      * @param event Person Departure Event
      */
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
-        if(!personDepartureEvent.getLegMode().equalsIgnoreCase("car")){
+        if (!personDepartureEvent.getLegMode().equalsIgnoreCase("car")) {
             // Extract the mode of the departure event
             String mode = personDepartureEvent.getLegMode();
             // Get the list of previous departures tracked for this mode
@@ -338,28 +338,26 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) throws IOException {
+    private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "modes,count";
             out.write(heading);
             out.newLine();
             Set<String> modes = personLastDepartureEvents.keySet();
-            for(String mode: modes){
+            for (String mode : modes) {
                 Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
-                out.write(mode+","+personDepartureEventMap.size());
+                out.append(mode).append(",").append(String.valueOf(personDepartureEventMap.size()));
                 out.newLine();
             }
             out.flush();
         } catch (IOException e) {
             log.error("Error in Non Arrival Agent CSV generation", e);
         }
-
     }
 
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
-
     }
 
 }
