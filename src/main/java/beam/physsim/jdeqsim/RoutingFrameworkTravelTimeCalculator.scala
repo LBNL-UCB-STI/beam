@@ -1,5 +1,4 @@
 package beam.physsim.jdeqsim
-import java.io.File
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
@@ -19,7 +18,6 @@ import scala.collection.convert.ImplicitConversionsToScala._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.io.Source
 
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices
@@ -54,10 +52,7 @@ class RoutingFrameworkTravelTimeCalculator(
       .mapValues(_.map(_._2))
 
     val osmInfoHolder: OsmInfoHolder = new OsmInfoHolder(beamServices)
-    val hour2Events: Map[Int, List[PathTraversalEvent]] = pathTraversalEvents.toStream
-      .map(x => x.departureTime / 3600 -> x)
-      .groupBy(_._1)
-      .mapValues(_.map(_._2).toList)
+    val hour2Events: Map[Int, List[TravelInfo]] = generateHour2Events(pathTraversalEvents)
 
     val odsCreationFutures = hour2Events
       .map {
@@ -114,35 +109,11 @@ class RoutingFrameworkTravelTimeCalculator(
       stopWatch.start()
 
       logger.info("Starting traffic assignment for hour {}", hour)
-      val assignResult: (File, File, File) = routingToolWrapper.assignTraffic(iterationNumber, hour)
+      val way2TravelTime: Map[Long, Double] =
+        routingToolWrapper.assignTrafficAndFetchWay2TravelTime(iterationNumber, hour)
       logger.info("Traffic assignment for hour {} is finished in {} ms", hour, stopWatch.getTime)
 
-      var curIter = -1
-      val wayId2TravelTime: mutable.Map[Long, Double] = new mutable.HashMap[Long, Double]()
-      Source
-        .fromFile(assignResult._1)
-        .getLines()
-        .drop(2)
-        .map(x => x.split(","))
-        // picking only result of last iteration
-        .map { x =>
-          if (x(0).toInt != curIter) {
-            curIter = x(0).toInt
-            wayId2TravelTime.clear()
-          }
-          x
-        }
-        // way id into bpr
-        .map(x => x(4).toLong -> x(5).toDouble / 10.0)
-        .foreach {
-          case (wayId, travelTime) =>
-            wayId2TravelTime.get(wayId) match {
-              case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
-              case None    => wayId2TravelTime.put(wayId, travelTime)
-            }
-        }
-
-      (hour, wayId2TravelTime.toMap)
+      (hour, way2TravelTime)
     }.toMap
 
     val travelTimeMap: mutable.Map[String, Array[Double]] = new mutable.HashMap[String, Array[Double]]
@@ -189,9 +160,54 @@ class RoutingFrameworkTravelTimeCalculator(
     travelTimeMap.asJava
   }
 
+  private def generateHour2Events(
+    pathTraversalEvents: util.Collection[PathTraversalEvent]
+  ): Map[Int, List[TravelInfo]] = {
+    val preliminaryHour2Events: Map[Int, List[PathTraversalEvent]] =
+      pathTraversalEvents.toStream
+        .map(x => x.departureTime / 3600 -> x)
+        .groupBy(_._1)
+        .mapValues(_.map(_._2).toList)
+
+    val hours2EventsMutable = mutable.HashMap[Int, mutable.ArrayBuffer[TravelInfo]]()
+
+    preliminaryHour2Events.toList.sortBy { case (hour, _) => hour }.foreach {
+      case (hour, events) =>
+        events.foreach { event =>
+          val currentLinkIds = mutable.ArrayBuffer[Int]()
+          var currentHour = hour
+
+          var currentTime = event.departureTime.toDouble
+          event.linkTravelTime.zip(event.linkIds).foreach {
+            case (travelTime, linkId) =>
+              currentLinkIds += linkId
+              currentTime = currentTime + travelTime
+              val possiblyNextHour = currentTime.toInt / 3600
+
+              if (possiblyNextHour != currentHour) {
+                val currentHourEvents =
+                  hours2EventsMutable.getOrElseUpdate(currentHour, new mutable.ArrayBuffer[TravelInfo]())
+                currentHourEvents += TravelInfo(currentLinkIds.toIndexedSeq)
+                currentLinkIds.clear()
+
+                currentHour = possiblyNextHour
+              }
+          }
+          if (currentLinkIds.nonEmpty) {
+            val currentHourEvents =
+              hours2EventsMutable.getOrElseUpdate(currentHour, new mutable.ArrayBuffer[TravelInfo]())
+            currentHourEvents += TravelInfo(currentLinkIds.toIndexedSeq)
+          }
+        }
+    }
+
+    hours2EventsMutable.mapValues(_.toList).toMap
+  }
+
   private val odsFactor: Int =
     Math.max(
-      (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * beamServices.beamConfig.beam.physsim.routingFramework.congestionFactor).toInt,
+      (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation *
+      beamServices.beamConfig.beam.physsim.cch.congestionFactor).toInt,
       1
     )
 
@@ -216,3 +232,5 @@ class RoutingFrameworkTravelTimeCalculator(
   }
 
 }
+
+case class TravelInfo(linkIds: IndexedSeq[Int])

@@ -6,13 +6,15 @@ import beam.sim.BeamServices
 import com.google.common.io.Files
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.mutable
+import scala.io.Source
 import scala.sys.process.Process
 
 trait RoutingToolWrapper {
   def generateGraph(): File
   def generateOd(): Unit
   def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit
-  def assignTraffic(iteration: Int, hour: Int): (File, File, File)
+  def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double]
 }
 
 class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp/rt")
@@ -21,11 +23,15 @@ class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp
       new File(
         beamServices.beamConfig.beam.routing.r5.directory
       ).list().filter(_.endsWith("osm.pbf")).head,
-      tempDir
+      tempDir,
+      beamServices.beamConfig.beam.physsim.cch.enableVerboseOutput
     )
 
-class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: String)
-    extends RoutingToolWrapper
+class InternalRTWrapper(
+  private val pbfPath: String,
+  private val tempDirPath: String,
+  private val verboseLoggingEnabled: Boolean = true
+) extends RoutingToolWrapper
     with LazyLogging {
 
   private val toolDockerImage = "rooting-tool"
@@ -100,7 +106,7 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
     writer.close()
   }
 
-  override def assignTraffic(iteration: Int, hour: Int): (File, File, File) = {
+  override def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double] = {
     val flowPath = itHourRelatedPath("/work", iteration, hour, "flow")
     val distPath = itHourRelatedPath("/work", iteration, hour, "dist")
     val statPath = itHourRelatedPath("/work", iteration, hour, "stat")
@@ -115,23 +121,44 @@ class InternalRTWrapper(private val pbfPath: String, private val tempDirPath: St
                      | -d ${odPairsFileInContainer(iteration, hour)}
                      | -p 1 -n 0 -o random
                      | -i
-                     | -v
+                     | ${if (verboseLoggingEnabled) "-v" else ""}
                      | -flow $flowPath
                      | -dist $distPath
                      | -stat $statPath
       """.stripMargin.replace("\n", "")
 
-    logger.info("Docker command for assigning traffic: {}", query)
+    logger.debug("Docker command for assigning traffic: {}", query)
 
     val assignTrafficOutput = Process(query)
 
     assignTrafficOutput.lineStream.foreach(logger.info(_))
 
-    (
-      itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toFile,
-      itHourRelatedPath(tempDirPath, iteration, hour, "dist.csv").toFile,
-      itHourRelatedPath(tempDirPath, iteration, hour, "stat.csv").toFile
-    )
+    var curIter = -1
+    val wayId2TravelTime: mutable.Map[Long, Double] = new mutable.HashMap[Long, Double]()
+    Source
+      .fromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toFile)
+      .getLines()
+      .drop(2)
+      .map(x => x.split(","))
+      // picking only result of last iteration
+      .map { x =>
+        if (x(0).toInt != curIter) {
+          curIter = x(0).toInt
+          wayId2TravelTime.clear()
+        }
+        x
+      }
+      // way id into BPR'ed travel time
+      .map(x => x(4).toLong -> x(5).toDouble / 10.0)
+      .foreach {
+        case (wayId, travelTime) =>
+          wayId2TravelTime.get(wayId) match {
+            case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
+            case None    => wayId2TravelTime.put(wayId, travelTime)
+          }
+      }
+
+    wayId2TravelTime.toMap
   }
 }
 
@@ -139,5 +166,5 @@ object Starter extends App {
   val wrapper = new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf", "/tmp/rt")
   wrapper.generateGraph()
   wrapper.generateOd()
-  wrapper.assignTraffic(0, 0)
+  wrapper.assignTrafficAndFetchWay2TravelTime(0, 0)
 }
