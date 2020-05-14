@@ -1,6 +1,6 @@
 package beam.physsim.bprsim
 
-import java.util.concurrent.{ConcurrentLinkedQueue, Executors}
+import java.util.concurrent.Executors
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.matsim.api.core.v01.events.Event
@@ -9,9 +9,9 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.collection.JavaConverters._
 
 /**
   *
@@ -23,12 +23,12 @@ class Coordinator(
   config: BPRSimConfig,
   eventManager: EventsManager
 ) {
-  val buffer = new ConcurrentLinkedQueue[Event]
   private val executorService =
     Executors.newFixedThreadPool(clusters.size, new ThreadFactoryBuilder().setNameFormat("par-bpr-thread-%d").build())
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
 
-  val workers: Vector[BPRSimWorker] = clusters.map(links => new BPRSimWorker(scenario, config, links, this))
+  val workers: Vector[BPRSimWorker] = clusters.map(links => new BPRSimWorker(scenario, config, links,
+    ArrayBuffer.empty[Event]))
   val workerMap: Map[Id[Link], BPRSimWorker] = workers.flatMap(worker => worker.myLinks.map(_ -> worker)).toMap
 
   def start(): Unit = {
@@ -42,20 +42,18 @@ class Coordinator(
   private def executePeriod(tillTime: Double): Unit = {
     val future = Future.sequence(workers.map(w => Future(w.processQueuedEvents(workerMap, tillTime))))
     Await.result(future, Duration.Inf)
-    flush()
+    flushEvents()
     val minTime = workers.map(_.minTime).min
     if (minTime != Double.MaxValue) {
       executePeriod(minTime + config.syncInterval)
     }
   }
 
-  def processEvent(event: Event) = buffer.add(event)
-
-  private def flush(): Unit = {
+  private def flushEvents(): Unit = {
     implicit val ordering: Ordering[Event] = Ordering.by((_: Event).getTime)
-    val sorted = util.Sorting.stableSort(buffer.asScala.toVector)
+    val sorted = workers.map(_.eventBuffer).reduce(_ ++ _).sorted
     sorted.foreach(eventManager.processEvent)
-    buffer.clear()
+    workers.foreach(_.eventBuffer.clear())
   }
 
 }
