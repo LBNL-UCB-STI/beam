@@ -1,15 +1,20 @@
 package beam.utils.data.synthpop
 
 import java.io.{File, FileFilter}
+import java.util
 
+import beam.sim.common.GeoUtils
 import beam.utils.DebugLib
 import beam.utils.data.synthpop.models.Models._
 import beam.utils.map.ShapefileReader
 import com.conveyal.osmlib.OSM
+import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
+import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.geotools.geometry.jts.JTS
+import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
@@ -22,13 +27,19 @@ case class GeoServiceInputParam(
   pathToOSMFile: String
 )
 
-class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]) extends StrictLogging {
+class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId], geoUtils: GeoUtils)
+    extends StrictLogging {
   import GeoService._
+
+  private val crsCode: String = "EPSG:4326"
+  private val THRESHOLD_IN_METERS: Double = 1000.0
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
   logger.info(s"mapBoundingBox: $mapBoundingBox")
 
-  private val crsCode: String = "EPSG:4326"
+  val transportNetwork: TransportNetwork = {
+    TransportNetwork.fromFiles(param.pathToOSMFile, new util.ArrayList[String](), TNBuilderConfig.defaultConfig())
+  }
 
   val blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry] = {
     findShapeFile(param.pathToBlockGroupShapeFolder).flatMap { pathToShapeFile =>
@@ -37,7 +48,6 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       map
     }.toMap
   }
-  logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
 
   val tazGeoIdToGeom: Map[TazGeoId, Geometry] = {
     val stateAndCounty = uniqueGeoIds.map(x => (x.state, x.county))
@@ -52,6 +62,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       map
     }.toMap
   }
+  logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
   logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
 
   def getBlockGroupMap(
@@ -109,6 +120,20 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       PumaGeoId(State(state), puma) -> wgsGeom
     }
     ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
+  }
+
+  def coordinatesWithinBoundaries(wgsCoord: Coord): CheckResult = {
+    val isWithinBoudingBox = mapBoundingBox.contains(wgsCoord.getX, wgsCoord.getY)
+    if (isWithinBoudingBox) {
+      val split = geoUtils.getR5Split(transportNetwork.streetLayer, wgsCoord, THRESHOLD_IN_METERS)
+      if (split == null) {
+        CheckResult.NotFeasibleForR5(THRESHOLD_IN_METERS)
+      } else {
+        CheckResult.InsideBoundingBoxAndFeasbleForR5
+      }
+    } else {
+      CheckResult.OutsideOfBoundingBox
+    }
   }
 }
 
@@ -171,6 +196,15 @@ object GeoService {
     foundFiles.toArray.sorted
   }
 
+  def main(args: Array[String]): Unit = {
+    val shapeFiles = findShapeFile("D:/Work/beam/NewYork/input/Shape/TAZ/")
+    println(s"Found ${shapeFiles.size} Shape files")
+    shapeFiles.foreach { file =>
+      println(s"Shape path: ${file.getPath}")
+    }
+    println("D:/Work/beam/NewYork/input/Shape/TAZ/")
+  }
+
   private def search(file: File, filter: FileFilter, result: Set[File], visited: Set[File]): Set[File] = {
     if (visited.contains(file)) {
       result
@@ -189,12 +223,13 @@ object GeoService {
     }
   }
 
-  def main(args: Array[String]): Unit = {
-    val shapeFiles = findShapeFile("D:/Work/beam/NewYork/input/Shape/TAZ/")
-    println(s"Found ${shapeFiles.size} Shape files")
-    shapeFiles.foreach { file =>
-      println(s"Shape path: ${file.getPath}")
-    }
-    println("D:/Work/beam/NewYork/input/Shape/TAZ/")
+  sealed trait CheckResult
+
+  object CheckResult {
+    final case class NotFeasibleForR5(radius: Double) extends CheckResult
+
+    final case object InsideBoundingBoxAndFeasbleForR5 extends CheckResult
+
+    final case object OutsideOfBoundingBox extends CheckResult
   }
 }
