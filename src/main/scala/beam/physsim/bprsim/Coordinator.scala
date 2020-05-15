@@ -48,7 +48,8 @@ class Coordinator(
   }
 
   private def flushEvents(events: Vector[Seq[Event]]): Unit = {
-    val sorted = events.reduce(_ ++ _).sortBy(_.getTime)
+    import BPRSimulation.eventTimeOrdering
+    val sorted = util.Sorting.stableSort(events.reduce(_ ++ _))
     sorted.foreach(eventManager.processEvent)
   }
 
