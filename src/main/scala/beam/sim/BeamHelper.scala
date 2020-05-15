@@ -608,11 +608,11 @@ trait BeamHelper extends LazyLogging {
               )
             }
             case "urbansim_v2" => {
-              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv"
-              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv"
-              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv"
-              val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv"
-              val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv"
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+              val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv.gz"
+              val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
               new UrbansimReaderV2(
                 inputPersonPath = pathToPersonFile,
                 inputPlanPath = pathToPlans,
