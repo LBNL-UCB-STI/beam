@@ -1,10 +1,11 @@
 package beam.physsim.bprsim
 
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
-import org.slf4j.LoggerFactory
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup.PRIORITY_DEPARTUARE_MESSAGE
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -45,9 +46,12 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
 }
 
 object BPRSimulation {
-  private[bprsim] val logger = LoggerFactory.getLogger(getClass.getName)
+  implicit val eventTimeOrdering: Ordering[Event] = Ordering.by((_: Event).getTime)
 
-  private[bprsim] val simEventOrdering: Ordering[SimEvent] = Ordering.by((_: SimEvent).time).reverse
+  private[bprsim] val simEventOrdering: Ordering[SimEvent] = (x: SimEvent, y: SimEvent) => {
+    val c1 = y.time.compareTo(x.time)
+    if (c1 != 0) c1 else x.priority.compareTo(y.priority)
+  }
 
   private[bprsim] def startingEvent(person: Person, accept: Activity => Boolean): Option[StartLegSimEvent] = {
     val plan = person.getSelectedPlan
@@ -61,7 +65,7 @@ object BPRSimulation {
         val departureTime = firstAct.getEndTime
 
         // schedule start leg message
-        Some(new StartLegSimEvent(departureTime, person, 1))
+        Some(new StartLegSimEvent(departureTime, PRIORITY_DEPARTUARE_MESSAGE, person, 1))
       } else {
         None
       }
