@@ -1,7 +1,5 @@
 package beam.physsim.bprsim
 
-import java.util.Comparator
-
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -14,10 +12,10 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Dmitry Openkov
   */
-class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]],
-                   val eventBuffer: ArrayBuffer[Event]) {
+class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
   private val queue = ConcurrentPriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator)
+  private val eventBuffer = ArrayBuffer.empty[Event]
 
   def init(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
@@ -33,7 +31,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       .getOrElse(Double.MaxValue)
   }
 
-  def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double): Int = {
+  def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double): Seq[Event] = {
     @tailrec
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
       val seOption = queue.headOption
@@ -51,7 +49,9 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       }
     }
 
+    eventBuffer.clear()
     processQueuedEvents(workers, tillTime, 0)
+    eventBuffer
   }
 
   def acceptSimEvent(simEvent: SimEvent): Unit = {
@@ -59,14 +59,4 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       queue += simEvent
     }
   }
-}
-
-object BPRSimWorker {
-
-  val javaSimEventComparator = Comparator.comparing[SimEvent, Double](
-    (se: SimEvent) => se.time,
-    new Comparator[Double] {
-      override def compare(o1: Double, o2: Double) = o1.compareTo(o2)
-    }
-  )
 }

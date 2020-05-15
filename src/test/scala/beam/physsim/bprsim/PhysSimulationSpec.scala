@@ -93,6 +93,7 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
 
     events.size should be(640)
     val person10 = Id.createPersonId(10)
+    val vehicle10 = Id.createVehicleId(10)
     val person10Events = events.collect {
       case event: HasPersonId if event.getPersonId == person10 => event
     }
@@ -107,7 +108,6 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
     person10Events(19).getTime should be > 72007.0
     person10Events(19).asInstanceOf[VehicleLeavesTrafficEvent].getLinkId should be(Id.createLinkId(229))
 
-    val vehicle10 = Id.createVehicleId(10)
     val linkEvents = events.collect {
       case event: LinkEnterEvent if event.getVehicleId == vehicle10 => event.asInstanceOf[HasLinkId]
       case event: LinkLeaveEvent if event.getVehicleId == vehicle10 => event.asInstanceOf[HasLinkId]
