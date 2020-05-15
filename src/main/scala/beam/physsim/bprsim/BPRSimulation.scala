@@ -46,7 +46,9 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
 }
 
 object BPRSimulation {
-  implicit val eventTimeOrdering: Ordering[Event] = Ordering.by((_: Event).getTime)
+  implicit val eventTimeOrdering: Ordering[Event] = (x: Event, y: Event) => {
+    java.lang.Double.compare(x.getTime, y.getTime)
+  }
 
   private[bprsim] val simEventOrdering: Ordering[SimEvent] = (x: SimEvent, y: SimEvent) => {
     val c1 = y.time.compareTo(x.time)
