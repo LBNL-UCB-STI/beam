@@ -1,6 +1,5 @@
 package beam.router.r5
 
-import java.io.File
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 import java.util
