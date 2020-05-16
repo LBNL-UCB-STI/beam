@@ -20,7 +20,7 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
-import beam.physsim.routingTool.{RoutingToolWrapper, RoutingToolWrapperImpl}
+import beam.physsim.routingTool.{RoutingFrameworkWrapper, RoutingFrameworkWrapperImpl}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._

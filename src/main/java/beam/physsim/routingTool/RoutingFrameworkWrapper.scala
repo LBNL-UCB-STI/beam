@@ -10,28 +10,58 @@ import scala.collection.mutable
 import scala.io.Source
 import scala.sys.process.Process
 
-trait RoutingToolWrapper {
+trait RoutingFrameworkWrapper {
+
+  /**
+    * Generates a graph in binary format in tempDir
+    *
+    * @return generated graph
+    */
   def generateGraph(): File
+
+  /**
+    * Generates random ods based on binary graph
+    */
   def generateOd(): Unit
+
+  /**
+    * Generate odpairs.csv in tempDir based on incoming stream of ods
+    *
+    * @param iteration iteration number
+    * @param hour hour
+    * @param ods stream of od pairs
+    */
   def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit
+
+  /**
+    * Assign traffic and get results of last iteration
+    *
+    * @param iteration iteration number
+    * @param hour hour
+    * @return map wayId -> travelTime
+    */
   def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double]
 }
 
-class RoutingToolWrapperImpl(beamServices: BeamServices, tempDir: String = "/tmp/rt")
+class RoutingFrameworkWrapperImpl(beamServices: BeamServices, tempDir: String)
     extends InternalRTWrapper(
-      beamServices.beamConfig.beam.routing.r5.directory + "/" +
-      new File(
-        beamServices.beamConfig.beam.routing.r5.directory
-      ).list().filter(_.endsWith("osm.pbf")).head,
+      Paths
+        .get(
+          beamServices.beamConfig.beam.routing.r5.directory,
+          new File(
+            beamServices.beamConfig.beam.routing.r5.directory
+          ).list().filter(_.endsWith("osm.pbf")).head
+        )
+        .toString,
       tempDir,
-      beamServices.beamConfig.beam.physsim.cch.enableVerboseOutput
+      beamServices.beamConfig.beam.debug.debugEnabled
     )
 
 class InternalRTWrapper(
   private val pbfPath: String,
   private val tempDirPath: String,
   private val verboseLoggingEnabled: Boolean = true
-) extends RoutingToolWrapper
+) extends RoutingFrameworkWrapper
     with LazyLogging {
 
   private val toolDockerImage = "rooting-tool"

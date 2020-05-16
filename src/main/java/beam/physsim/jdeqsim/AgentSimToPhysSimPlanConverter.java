@@ -8,7 +8,6 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
-import beam.analysis.plot.PlotGraph;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
@@ -19,9 +18,12 @@ import beam.sim.metrics.MetricsSupport;
 import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
+import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
@@ -57,7 +59,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
 /**
  * @author asif and rwaraich.
  */
@@ -80,16 +81,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
-    private final RoutingFrameworkTravelTimeCalculator routingFrameworkTravelTimeCalculator;
+    //Supplier is used for sake of laziness
+    private final Supplier<RoutingFrameworkTravelTimeCalculator> routingFrameworkTravelTimeCalculator;
 
     private BeamConfig beamConfig;
-    private EventsManager eventsManager;
     private final Random rand = MatsimRandom.getRandom();
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
-    private final PlotGraph plotGraph = new PlotGraph();
     Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
@@ -123,6 +123,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
         preparePhysSimForNewIteration();
 
+
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(), controlerIO, beamConfig);
@@ -130,7 +131,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         beamConfigChangesObservable.addObserver(this);
         rnd = new Random(beamConfig.matsim().modules().global().randomSeed());
 
-        routingFrameworkTravelTimeCalculator = new RoutingFrameworkTravelTimeCalculator(beamServices);
+        routingFrameworkTravelTimeCalculator = Suppliers.memoize(() -> new RoutingFrameworkTravelTimeCalculator(beamServices));
     }
 
 
@@ -145,19 +146,44 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private void setupActorsAndRunPhysSim(IterationEndsEvent iterationEndsEvent) {
+        // I don't use single class `UpdateTravelTime` here and make decision in `BeamRouter` because
+        // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
+        // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
+        //################################################################################################################
+        Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
+        int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
+
         int iterationNumber = iterationEndsEvent.getIteration();
-//        RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
-//                beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
-//        log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
-//        TravelTime travelTimeFromPhysSim = sim.run(prevTravelTime);
-//        // Safe travel time to reuse it on the next PhysSim iteration
-//        prevTravelTime = travelTimeFromPhysSim;
-//
-//        if (beamConfig.beam().debug().debugEnabled()) {
-//            log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
-//        }
-//
-//        log.info("JDEQSim End");
+
+        Map<String, double[]> travelTimeMap;
+        TravelTime travelTimeFromPhysSim;
+
+        String physSimType = beamConfig.beam().physsim().physSimType();
+
+        if (physSimType.equals("JDEQSim")) {
+            log.info("JDEQSim started");
+
+            RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
+                    beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
+            log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
+            travelTimeFromPhysSim = sim.run(prevTravelTime);
+            // Safe travel time to reuse it on the next PhysSim iteration
+            prevTravelTime = travelTimeFromPhysSim;
+
+            travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
+                    travelTimeFromPhysSim, maxHour);
+
+            if (beamConfig.beam().debug().debugEnabled()) {
+                log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
+            }
+
+            log.info("JDEQSim End");
+        } else if (physSimType.equals("CCH")) {
+            travelTimeMap = routingFrameworkTravelTimeCalculator.get().getLink2TravelTimes(traversalEventsForPhysSimulation, iterationEndsEvent, links, maxHour);
+            travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
+        } else {
+            throw new RuntimeException(String.format("Unknown physsim type: %s", physSimType));
+        }
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
@@ -172,17 +198,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.error("exception {}", e.getMessage());
             }
         }
-
-        // I don't use single class `UpdateTravelTime` here and make decision in `BeamRouter` because
-        // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
-        // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
-        //################################################################################################################
-        Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
-        int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
-
-        Map<String, double[]> travelTimeMap = routingFrameworkTravelTimeCalculator.getLink2TravelTimes(traversalEventsForPhysSimulation, iterationEndsEvent, links, maxHour);
-
-        TravelTime travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
 
         TravelTime freeFlow = new FreeFlowTravelTime();
         int nBins = 0;
@@ -257,18 +272,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         traversalEventsForPhysSimulation.clear();
     }
 
-    private void writeTravelTimeMap(int iteration, Map<String,double[]> map) {
-        String filePath = controlerIO.getIterationFilename(iteration, "travelTime.bin");
-        try (FileOutputStream fos= new FileOutputStream(filePath)) {
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(map);
-            oos.flush();
-            oos.close();
-        } catch (Exception ex) {
-            log.error("Can't write travel time map", ex);
-        }
-    }
-
     private boolean shouldWritePlans(int iterationNumber) {
         return shouldWriteInIteration(iterationNumber, beamConfig.beam().physsim().writePlansInterval());
     }
@@ -322,7 +325,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
             if (isPhyssimMode(mode)) {
                 traversalEventsForPhysSimulation.add((PathTraversalEvent) event);
-
 
                 double departureTime = pte.departureTime();
                 String vehicleId = pte.vehicleId().toString();
@@ -434,7 +436,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
-        //
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();

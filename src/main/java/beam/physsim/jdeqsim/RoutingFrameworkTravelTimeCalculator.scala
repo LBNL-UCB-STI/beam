@@ -38,7 +38,8 @@ class RoutingFrameworkTravelTimeCalculator(
     val iterationNumber: Int = iterationEndsEvent.getIteration
     val routingToolDirectory: String = iterationEndsEvent.getServices.getControlerIO.getOutputFilename("routing-tool")
     val startTime: Long = System.currentTimeMillis
-    val routingToolWrapper: RoutingToolWrapper = new RoutingToolWrapperImpl(beamServices, routingToolDirectory)
+    val routingToolWrapper: RoutingFrameworkWrapper =
+      new RoutingFrameworkWrapperImpl(beamServices, routingToolDirectory)
     logger.info("Finished creation of graph {}", System.currentTimeMillis - startTime)
 
     val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
@@ -61,7 +62,7 @@ class RoutingFrameworkTravelTimeCalculator(
             val stopWatch: StopWatch = new StopWatch
             stopWatch.start()
 
-            var odnumber = 0
+            var odNumber = 0
 
             val ods: Stream[(Long, Long)] = events.toStream
               .filter(_.linkIds.nonEmpty)
@@ -89,7 +90,7 @@ class RoutingFrameworkTravelTimeCalculator(
                       getRoutingToolVertexId(coordinateKey2Coordinates, coordinateToRTVertexId, destination)
                     )
 
-                  odnumber = odnumber + 1
+                  odNumber = odNumber + 1
 
                   (firstId, secondId)
               }
@@ -98,7 +99,7 @@ class RoutingFrameworkTravelTimeCalculator(
               .flatMap(od => Stream.range(0, odsFactor, 1).map(_ => od))
             routingToolWrapper.generateOd(iterationNumber, hour, odStream)
 
-            logger.info("Generated {} ods, for hour {} in {} ms", odnumber, hour, stopWatch.getTime)
+            logger.info("Generated {} ods, for hour {} in {} ms", odNumber, hour, stopWatch.getTime)
           }
       }
 
