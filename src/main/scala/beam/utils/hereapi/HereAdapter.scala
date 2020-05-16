@@ -1,20 +1,25 @@
 package beam.utils.hereapi
 
+import java.util.concurrent.TimeUnit
+
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext.Implicits._
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.StreamConverters
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
-import play.api.libs.ws.StandaloneWSClient
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 class HereAdapter(apiKey: String) extends AutoCloseable {
-  import scala.concurrent.ExecutionContext.Implicits._
 
   private implicit val system: ActorSystem = ActorSystem()
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
-  private val wsClient: StandaloneWSClient = StandaloneAhcWSClient()
+
+  private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
   private[hereapi] def findPath(origin: WgsCoordinate, destination: WgsCoordinate): Future[HerePath] = {
     val originStr = s"${origin.latitude},${origin.longitude}"
@@ -30,7 +35,8 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     )
     val baseUrl = "https://router.hereapi.com/v8/routes"
     val url = s"$baseUrl${params.mkString("?", "&", "")}"
-    call(url, wsClient).map(toHerePath)
+
+    call(url).map(toHerePath)
   }
 
   private def toSpan(x: JsValue): HereSpan = {
@@ -64,18 +70,21 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     HerePath(coordinates = polyLines, spans = spans)
   }
 
-  def call(url: String, wsClient: StandaloneWSClient): Future[JsObject] = {
-    val urlCall = wsClient
-      .url(url)
-      .addHttpHeaders("Content-Type" -> "application/json")
-
-    urlCall.get().map { response =>
-      Json.parse(response.body).as[JsObject]
+  def call(url: String): Future[JsObject] = {
+    val httpRequest = HttpRequest(uri = url)
+    val responseFuture: Future[HttpResponse] = Http().singleRequest(httpRequest)
+    responseFuture.map { response =>
+      val inputStream = response.entity.dataBytes.runWith(StreamConverters.asInputStream(timeout))
+      Json.parse(inputStream).as[JsObject]
     }
   }
 
   override def close(): Unit = {
-    wsClient.close()
-    system.terminate()
+    Http().shutdownAllConnectionPools
+      .andThen {
+        case _ =>
+          if (!materializer.isShutdown) materializer.shutdown()
+          system.terminate()
+      }
   }
 }
