@@ -1,9 +1,11 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Fork, Mode}
+import org.openjdk.jmh.infra.Blackhole
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 
@@ -19,20 +21,24 @@ class GeometryPerformance {
   @Benchmark
   @Fork(value = 1, warmups = 2)
   @BenchmarkMode(Array(Mode.Throughput))
-  def contains(): Unit = {
+  def contains(bh: Blackhole): Unit = {
     val point: Point = randomPoint
-    clusters.foreach(_.convexHull.contains(point))
+    clusters.foreach { cluster =>
+      val isInside = cluster.convexHull.contains(point)
+      bh.consume(isInside)
+    }
   }
 
   @Benchmark
   @Fork(value = 1, warmups = 2)
   @BenchmarkMode(Array(Mode.Throughput))
-  def nearest(): Unit = {
+  def nearest(bh: Blackhole): Unit = {
     val point: Point = randomPoint
-    tazTreeMap.getTAZ(point.getX, point.getY)
+    val taz = tazTreeMap.getTAZ(point.getX, point.getY)
+    bh.consume(taz)
   }
 
-  private def randomPoint = {
+  private def randomPoint: Point = {
     val x = bounds.maxx + rnd.nextDouble() * (bounds.maxx - bounds.minx)
     val y = bounds.maxy + rnd.nextDouble() * (bounds.maxy - bounds.miny)
     val point = gf.createPoint(new Coordinate(x, y))
@@ -55,7 +61,7 @@ object GeometryPerformance {
     new Runner(opt).run
   }
 
-  private def loadData = {
+  private def loadData: (TAZTreeMap, Vector[HierarchicalParkingManager.ParkingCluster], QuadTreeBounds) = {
     val tazMap = taz.TAZTreeMap.fromCsv("test/input/sf-bay/taz-centers.csv")
     val (zones, _) = ZonalParkingManager.loadParkingZones(
       "test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
@@ -73,7 +79,7 @@ object GeometryPerformance {
     (tazMap, clusters, increaseBounds(bounds, 0.1))
   }
 
-  private def increaseBounds(bounds: QuadTreeBounds, fraction: Double) = {
+  private def increaseBounds(bounds: QuadTreeBounds, fraction: Double): QuadTreeBounds = {
     val dX = (bounds.maxx - bounds.minx) * fraction / 2
     val dY = (bounds.maxy - bounds.miny) * fraction / 2
     QuadTreeBounds(bounds.minx - dX, bounds.miny - dY, bounds.maxx + dX, bounds.maxy + dY)
