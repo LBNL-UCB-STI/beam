@@ -580,3 +580,8 @@ dockerCopyDistResources {
         into('test/')
     }
 }
+
+jmh {
+    // https://github.com/melix/jmh-gradle-plugin/issues/107
+    jvmArgs = ['-Djmh.separateClasspathJAR=true']
+}
