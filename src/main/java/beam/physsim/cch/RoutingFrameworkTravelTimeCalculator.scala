@@ -1,10 +1,11 @@
-package beam.physsim.jdeqsim
+package beam.physsim.cch
+
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
 import beam.agentsim.events.PathTraversalEvent
-import beam.physsim.routingTool._
+import beam.physsim.cch._
 import beam.sim.BeamServices
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
@@ -43,7 +44,7 @@ class RoutingFrameworkTravelTimeCalculator(
     logger.info("Finished creation of graph {}", System.currentTimeMillis - startTime)
 
     val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
-    val graph: RoutingToolGraph = RoutingToolsGraphReaderImpl.read(routingToolWrapper.generateGraph())
+    val graph: RoutingFrameworkGraph = RoutingFrameworkGraphReaderImpl.read(routingToolWrapper.generateGraph())
     val coordinateToRTVertexId: Map[Coordinate, Long] =
       graph.vertices.map(x => x.coordinate -> x.id).toMap
 

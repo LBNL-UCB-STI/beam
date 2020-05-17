@@ -1,4 +1,4 @@
-package beam.physsim.routingTool
+package beam.physsim.cch
 import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -8,14 +8,14 @@ import com.vividsolutions.jts.geom.Coordinate
 import scala.collection.mutable
 
 case class Vertex(id: Long, coordinate: Coordinate)
-case class RoutingToolGraph(vertices: Seq[Vertex])
+case class RoutingFrameworkGraph(vertices: Seq[Vertex])
 
-trait RoutingToolsGraphReader {
-  def read(graph: File): RoutingToolGraph
+trait RoutingFrameworkGraphReader {
+  def read(graph: File): RoutingFrameworkGraph
 }
 
-object RoutingToolsGraphReaderImpl extends RoutingToolsGraphReader {
-  override def read(graph: File): RoutingToolGraph = {
+class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
+  override def read(graph: File): RoutingFrameworkGraph = {
 
     val source = Files.asByteSource(graph).openStream()
 
@@ -72,12 +72,12 @@ object RoutingToolsGraphReaderImpl extends RoutingToolsGraphReader {
 
     source.close()
 
-    RoutingToolGraph(vertices)
+    RoutingFrameworkGraph(vertices)
   }
 }
 
 object GraphReaderApp extends App {
   val graphBinary = new File("/tmp/rt/beamville_graph.gr.bin")
-  val reader: RoutingToolsGraphReader = RoutingToolsGraphReaderImpl
+  val reader: RoutingFrameworkGraphReader = new RoutingFrameworkGraphReaderImpl
   reader.read(graphBinary)
 }

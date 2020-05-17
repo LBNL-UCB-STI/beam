@@ -1,4 +1,4 @@
-package beam.physsim.routingTool
+package beam.physsim.cch
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.Paths
 

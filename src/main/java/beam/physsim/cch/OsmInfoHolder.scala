@@ -1,4 +1,4 @@
-package beam.physsim.routingTool
+package beam.physsim.cch
 
 import beam.sim.BeamServices
 import com.conveyal.osmlib.OSM
