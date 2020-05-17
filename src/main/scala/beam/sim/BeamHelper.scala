@@ -37,7 +37,6 @@ import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.github.dockerjava.core.DockerClientBuilder
 import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
@@ -57,6 +56,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
+import scala.sys.process.Process
 import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
@@ -359,10 +359,13 @@ trait BeamHelper extends LazyLogging {
     (parsedArgs, config)
   }
 
-  private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig) = {
+  private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
     val physSimType = Try(config.getString("beam.physsim.physSimType")).getOrElse("")
     if (physSimType == "CCH") {
-      DockerClientBuilder.getInstance().build.versionCmd().exec()
+      // Exception will be thrown if docker is not available on device
+      if (Try(Process("docker version").!!).isFailure) {
+        throw new RuntimeException("Docker is required to run CCH phys simulation")
+      }
     }
   }
 
@@ -416,12 +419,7 @@ trait BeamHelper extends LazyLogging {
     }
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 

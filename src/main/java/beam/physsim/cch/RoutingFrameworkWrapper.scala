@@ -64,7 +64,8 @@ class InternalRTWrapper(
 ) extends RoutingFrameworkWrapper
     with LazyLogging {
 
-  private val toolDockerImage = "rooting-tool"
+  private val toolDockerImage = "routing-framework"
+
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraphLauncher = s"$basePath/RawData/ConvertGraph"
   private val createODPairsLauncher = s"$basePath/RawData/GenerateODPairs"
@@ -82,7 +83,7 @@ class InternalRTWrapper(
   private val graphPathInTempDir = Paths.get(tempDirPath, "graph.gr.bin")
 
   private val itHourRelatedPath = (env: String, it: Int, hour: Int, file: String) =>
-    Paths.get(env, it.toString, hour.toString, file)
+    Paths.get(env, s"Iter.$it", s"Hour.$hour", file)
   private val odPairsFileInContainer = (iteration: Int, hour: Int) =>
     itHourRelatedPath("/work", iteration, hour, "odpairs.csv")
   private val odPairsFileInTempDir = (iteration: Int, hour: Int) =>
@@ -120,7 +121,7 @@ class InternalRTWrapper(
   }
 
   def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit = {
-    Paths.get(tempDirPath, iteration.toString, hour.toString).toFile.mkdirs()
+    itHourRelatedPath(tempDirPath, iteration, hour, "").toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
 
     val writer = new BufferedWriter(new FileWriter(odPairsFile))

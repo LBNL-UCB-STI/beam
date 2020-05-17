@@ -9,6 +9,8 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.cch.OsmInfoHolder;
+import beam.physsim.cch.RoutingFrameworkGraphReaderImpl;
 import beam.physsim.cch.RoutingFrameworkTravelTimeCalculator;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
@@ -132,7 +134,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         beamConfigChangesObservable.addObserver(this);
         rnd = new Random(beamConfig.matsim().modules().global().randomSeed());
 
-        routingFrameworkTravelTimeCalculator = Suppliers.memoize(() -> new RoutingFrameworkTravelTimeCalculator(beamServices));
+        routingFrameworkTravelTimeCalculator = Suppliers.memoize(() -> new RoutingFrameworkTravelTimeCalculator(
+                beamServices,
+                new RoutingFrameworkGraphReaderImpl(),
+                new OsmInfoHolder(beamServices)
+        ));
     }
 
 
