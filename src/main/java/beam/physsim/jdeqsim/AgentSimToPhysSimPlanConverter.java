@@ -9,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.cch.RoutingFrameworkTravelTimeCalculator;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;

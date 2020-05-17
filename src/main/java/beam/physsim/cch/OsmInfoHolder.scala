@@ -24,5 +24,6 @@ class OsmInfoHolder @Inject()(beamServices: BeamServices) {
 
   def getCoordinatesForWayId(firstWayId: Long): Seq[Coordinate] =
     id2NodeIds(firstWayId)
-      .map(x => id2NodeCoordinate.getOrElse(x, new Coordinate(0.0, 0.0)))
+      .map(x => id2NodeCoordinate.get(x))
+      .collect { case Some(value) => value }
 }

@@ -30,9 +30,7 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
       new String(b.toArray)
     }
 
-    def readInt(): Int = {
-      readLittleEndianBuffer(4).getInt
-    }
+    def readInt(): Int = readLittleEndianBuffer(4).getInt
 
     def readLittleEndianBuffer(size: Int): ByteBuffer = {
       val bytes = new Array[Byte](size)
@@ -64,11 +62,14 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
         }
       }
 
-    val vertices = (0 until numOfVertices).map { id =>
-      vertexId2Coordinate(id) -> Vertex(id, vertexId2Coordinate(id))
-    }
+    val vertices = (0 until numOfVertices)
+      .map { id =>
+        vertexId2Coordinate(id) -> Vertex(id, vertexId2Coordinate(id))
+      }
       // there might be duplicates by coordinate in vertices
-      .toMap.values.toList
+      .toMap
+      .values
+      .toList
 
     source.close()
 
