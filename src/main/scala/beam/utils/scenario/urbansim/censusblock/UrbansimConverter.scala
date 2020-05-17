@@ -77,7 +77,7 @@ object UrbansimConverter {
       "x"                -> planElement.activityLocationX.getOrElse(null),
       "y"                -> planElement.activityLocationY.getOrElse(null),
       "endTime"          -> planElement.legDepartureTime.getOrElse(null),
-      "mode"             -> "" // planElement.legMode.getOrElse("")
+      "mode"             -> planElement.legMode.getOrElse("")
     ).asJava
   }
 
