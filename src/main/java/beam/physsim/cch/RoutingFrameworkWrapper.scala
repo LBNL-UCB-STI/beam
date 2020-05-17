@@ -73,13 +73,11 @@ class InternalRTWrapper(
   private val createODPairsLauncher = s"$basePath/RawData/GenerateODPairs"
   private val assignTrafficLauncher = s"$basePath/Launchers/AssignTraffic"
 
-  private val pbfName = pbfPath.split("/").last
-  private val pbfNameWithoutExtension = pbfName.replace(".osm.pbf", "")
-  private val pbfPathInContainer = Paths.get("/work", pbfNameWithoutExtension)
+  private val pbfPathInContainer = "/pbf_storage/input_pbf.osm.pbf"
+  private val pbfPathInContainerWOExtension = "/pbf_storage/input_pbf"
 
   private val tempDir = new File(tempDirPath)
   tempDir.mkdirs()
-  Files.copy(new File(pbfPath), new File(tempDir + "/" + pbfName))
 
   private val graphPathInContainer = Paths.get("/work", "graph.gr.bin")
   private val graphPathInTempDir = Paths.get(tempDirPath, "graph.gr.bin")
@@ -95,10 +93,11 @@ class InternalRTWrapper(
     val convertGraphOutput = Process(s"""
                                         |docker run --rm
                                         | -v $tempDir:/work
+                                        | -v $pbfPath:$pbfPathInContainer
                                         | $toolDockerImage
                                         | $convertGraphLauncher
                                         | -s osm
-                                        | -i $pbfPathInContainer
+                                        | -i $pbfPathInContainerWOExtension
                                         | -d binary
                                         | -o ${graphPathInContainer.toString.replace(".gr.bin", "")}
                                         | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
