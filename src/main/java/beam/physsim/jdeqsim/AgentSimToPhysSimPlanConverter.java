@@ -10,8 +10,8 @@ import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.cch.OsmInfoHolder;
-import beam.physsim.cch.RoutingFrameworkGraphReaderImpl;
 import beam.physsim.cch.RoutingFrameworkTravelTimeCalculator;
+import beam.physsim.cch.RoutingFrameworkWrapperImpl;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
@@ -25,7 +25,6 @@ import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
-import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -84,7 +84,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
-    //Supplier is used for sake of laziness
+
+    // suppliers are used for sake of laziness
     private final Supplier<RoutingFrameworkTravelTimeCalculator> routingFrameworkTravelTimeCalculator;
 
     private BeamConfig beamConfig;
@@ -136,9 +137,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         routingFrameworkTravelTimeCalculator = Suppliers.memoize(() -> new RoutingFrameworkTravelTimeCalculator(
                 beamServices,
-                new RoutingFrameworkGraphReaderImpl(),
-                new OsmInfoHolder(beamServices)
-        ));
+                new OsmInfoHolder(beamServices),
+                new RoutingFrameworkWrapperImpl(beamServices)
+        ))::get;
     }
 
 

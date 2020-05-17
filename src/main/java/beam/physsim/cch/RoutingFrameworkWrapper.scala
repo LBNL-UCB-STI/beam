@@ -17,7 +17,7 @@ trait RoutingFrameworkWrapper {
     *
     * @return generated graph
     */
-  def generateGraph(): File
+  def generateGraph(): RoutingFrameworkGraph
 
   /**
     * Generates random ods based on binary graph
@@ -31,7 +31,7 @@ trait RoutingFrameworkWrapper {
     * @param hour hour
     * @param ods stream of od pairs
     */
-  def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit
+  def generateOd(iteration: Int, hour: Int, ods: Stream[OD]): Unit
 
   /**
     * Assign traffic and get results of last iteration
@@ -43,7 +43,7 @@ trait RoutingFrameworkWrapper {
   def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double]
 }
 
-class RoutingFrameworkWrapperImpl(beamServices: BeamServices, tempDir: String)
+class RoutingFrameworkWrapperImpl(beamServices: BeamServices)
     extends InternalRTWrapper(
       Paths
         .get(
@@ -53,7 +53,7 @@ class RoutingFrameworkWrapperImpl(beamServices: BeamServices, tempDir: String)
           ).list().filter(_.endsWith("osm.pbf")).head
         )
         .toString,
-      tempDir,
+      beamServices.matsimServices.getControlerIO.getOutputFilename("routing-framework"),
       beamServices.beamConfig.beam.debug.debugEnabled
     )
 
@@ -63,6 +63,8 @@ class InternalRTWrapper(
   private val verboseLoggingEnabled: Boolean = true
 ) extends RoutingFrameworkWrapper
     with LazyLogging {
+
+  private val graphReader: RoutingFrameworkGraphReader = new RoutingFrameworkGraphReaderImpl()
 
   private val toolDockerImage = "routing-framework"
 
@@ -89,7 +91,7 @@ class InternalRTWrapper(
   private val odPairsFileInTempDir = (iteration: Int, hour: Int) =>
     itHourRelatedPath(tempDirPath, iteration, hour, "odpairs.csv")
 
-  override def generateGraph(): File = {
+  override def generateGraph(): RoutingFrameworkGraph = {
     val convertGraphOutput = Process(s"""
                                         |docker run --rm
                                         | -v $tempDir:/work
@@ -103,7 +105,8 @@ class InternalRTWrapper(
       """.stripMargin.replace("\n", ""))
 
     convertGraphOutput.lineStream.foreach(logger.info(_))
-    graphPathInTempDir.toFile
+
+    graphReader.read(graphPathInTempDir.toFile)
   }
 
   override def generateOd(): Unit = {
@@ -120,7 +123,7 @@ class InternalRTWrapper(
     createODPairsOutput.lineStream.foreach(logger.info(_))
   }
 
-  def generateOd(iteration: Int, hour: Int, ods: Stream[(Long, Long)]): Unit = {
+  def generateOd(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
     itHourRelatedPath(tempDirPath, iteration, hour, "").toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
 
@@ -129,7 +132,7 @@ class InternalRTWrapper(
     writer.newLine()
 
     ods.foreach {
-      case (first, second) =>
+      case OD(first, second) =>
         writer.write(s"$first,$second")
         writer.newLine()
     }
@@ -150,7 +153,9 @@ class InternalRTWrapper(
                      | $assignTrafficLauncher
                      | -g $graphPathInContainer
                      | -d ${odPairsFileInContainer(iteration, hour)}
-                     | -p 1 -n 0 -o random
+                     | -p 1 
+                     | -n 0 
+                     | -o random
                      | -i
                      | ${if (verboseLoggingEnabled) "-v" else ""}
                      | -flow $flowPath
@@ -158,17 +163,19 @@ class InternalRTWrapper(
                      | -stat $statPath
       """.stripMargin.replace("\n", "")
 
-    logger.debug("Docker command for assigning traffic: {}", query)
+    if (verboseLoggingEnabled)
+      logger.info("Docker command for assigning traffic: {}", query)
 
     val assignTrafficOutput = Process(query)
 
     assignTrafficOutput.lineStream.foreach(logger.info(_))
 
     var curIter = -1
-    val wayId2TravelTime: mutable.Map[Long, Double] = new mutable.HashMap[Long, Double]()
+    val wayId2TravelTime = new mutable.HashMap[Long, Double]()
     Source
       .fromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toFile)
       .getLines()
+      // drop headers
       .drop(2)
       .map(x => x.split(","))
       // picking only result of last iteration

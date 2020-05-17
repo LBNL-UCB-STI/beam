@@ -1,7 +1,7 @@
 package beam.physsim.cch
 
 import java.util
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.Executors
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.BeamServices
@@ -20,23 +20,35 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices,
-  private val graphReader: RoutingFrameworkGraphReader,
-  private val osmInfoHolder: OsmInfoHolder
+  private val osmInfoHolder: OsmInfoHolder,
+  private val routingFrameworkWrapper: RoutingFrameworkWrapper,
 ) extends LazyLogging {
 
-  private lazy val odsFactor: Int =
+  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newFixedThreadPool(
+      Math.max(Runtime.getRuntime.availableProcessors() / 4, 1),
+      new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
+    )
+  )
+
+  private val odsFactor: Int =
     Math.max(
       (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation *
       beamServices.beamConfig.beam.physsim.cch.congestionFactor).toInt,
       1
     )
 
-  private lazy val execSvc: ExecutorService = Executors.newFixedThreadPool(
-    Math.max(Runtime.getRuntime.availableProcessors() / 4, 1),
-    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
-  )
+  private val graph: RoutingFrameworkGraph = routingFrameworkWrapper.generateGraph()
 
-  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
+  private val coord2VertexId: Map[Coordinate, Long] =
+    graph.vertices.map(x => x.coordinate -> x.id).toMap
+
+  private val coordKey = (coord: Coordinate) => (coord.x * 10).toInt + "|" + (coord.y * 10).toInt
+
+  private val coordKey2Coordinates: Map[String, Seq[Vertex]] = graph.vertices
+    .map(v => coordKey(v.coordinate) -> v)
+    .groupBy(_._1)
+    .mapValues(_.map(_._2))
 
   def getLink2TravelTimes(
     pathTraversalEvents: util.Collection[PathTraversalEvent],
@@ -45,22 +57,11 @@ class RoutingFrameworkTravelTimeCalculator(
     maxHour: Int
   ): java.util.Map[String, Array[Double]] = {
     val iterationNumber: Int = iterationEndsEvent.getIteration
-    val routingToolDirectory: String = iterationEndsEvent.getServices.getControlerIO.getOutputFilename("routing-framework")
     val startTime: Long = System.currentTimeMillis
-    val routingFrameworkWrapper: RoutingFrameworkWrapper =
-      new RoutingFrameworkWrapperImpl(beamServices, routingToolDirectory)
 
     logger.info("Finished creation of graph {}", System.currentTimeMillis - startTime)
 
     val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
-    val graph: RoutingFrameworkGraph = graphReader.read(routingFrameworkWrapper.generateGraph())
-    val coord2VertexId: Map[Coordinate, Long] =
-      graph.vertices.map(x => x.coordinate -> x.id).toMap
-
-    val coordKey2Coordinates: Map[(Int, Int), Seq[Vertex]] = graph.vertices
-      .map(v => ((v.coordinate.x * 10).toInt -> (v.coordinate.y * 10).toInt) -> v)
-      .groupBy(_._1)
-      .mapValues(_.map(_._2))
 
     val hour2Events: Map[Int, List[TravelInfo]] = generateHour2Events(pathTraversalEvents)
 
@@ -73,7 +74,7 @@ class RoutingFrameworkTravelTimeCalculator(
 
             var odNumber = 0
 
-            val ods: Stream[(Long, Long)] = events.toStream
+            val ods = events.toStream
               .map { event =>
                 for {
                   firstLinkId <- event.linkIds.headOption
@@ -87,20 +88,14 @@ class RoutingFrameworkTravelTimeCalculator(
               .collect { case Some(od @ (origin, destination)) if origin != destination => od }
               .map {
                 case (origin, destination) =>
-                  val firstId: Long = coord2VertexId
-                    .getOrElse(
-                      origin,
-                      getClosestVertexId(coordKey2Coordinates, coord2VertexId, origin)
-                    )
-                  val secondId: Long = coord2VertexId
-                    .getOrElse(
-                      destination,
-                      getClosestVertexId(coordKey2Coordinates, coord2VertexId, destination)
-                    )
+                  val firstVertexId: Long = coord2VertexId
+                    .getOrElse(origin, getClosestVertexId(origin))
+                  val secondVertexId: Long = coord2VertexId
+                    .getOrElse(destination, getClosestVertexId(destination))
 
                   odNumber = odNumber + 1
 
-                  (firstId, secondId)
+                  OD(firstVertexId, secondVertexId)
               }
 
             val odStream = ods
@@ -113,12 +108,12 @@ class RoutingFrameworkTravelTimeCalculator(
 
     Await.result(Future.sequence(odsCreationFutures), 10.minutes)
 
-    val hour2Way2TravelTimes: Map[Int, Map[Long, Double]] = hour2Events.keys.toList.sorted.map { hour =>
+    val hour2Way2TravelTimes = hour2Events.keys.toList.sorted.map { hour =>
       val stopWatch: StopWatch = new StopWatch
       stopWatch.start()
 
       logger.info("Starting traffic assignment for hour {}", hour)
-      val way2TravelTime: Map[Long, Double] =
+      val way2TravelTime =
         routingFrameworkWrapper.assignTrafficAndFetchWay2TravelTime(iterationNumber, hour)
       logger.info("Traffic assignment for hour {} is finished in {} ms", hour, stopWatch.getTime)
 
@@ -137,7 +132,7 @@ class RoutingFrameworkTravelTimeCalculator(
               case Some(wayId) =>
                 var speedFoundForAtLeastOneHour = false
 
-                val travelTimeByHour = Array.tabulate(maxHour) { hour =>
+                val linkTravelTimeByHour = Array.tabulate(maxHour) { hour =>
                   hour2Way2TravelTimes.get(hour).flatMap(_.get(wayId)) match {
                     case Some(travelTime) =>
                       speedFoundForAtLeastOneHour = true
@@ -146,11 +141,12 @@ class RoutingFrameworkTravelTimeCalculator(
                     case None =>
                       link.getLength / link.getFreespeed
                   }
-
                 }
 
-                if (!speedFoundForAtLeastOneHour) linksFailedToResolve = linksFailedToResolve + 1
-                travelTimeByHour
+                if (!speedFoundForAtLeastOneHour)
+                  linksFailedToResolve = linksFailedToResolve + 1
+
+                linkTravelTimeByHour
 
               case None =>
                 linksFailedToResolve = linksFailedToResolve + 1
@@ -216,19 +212,19 @@ class RoutingFrameworkTravelTimeCalculator(
       .map(_.toString.toLong)
 
   private def getClosestVertexId(
-    coordinateKey2Coordinates: Map[(Int, Int), Seq[Vertex]],
-    coordinateToRTVertexId: Map[Coordinate, Long],
     coordinate: Coordinate
   ): Long = {
     val vertexes =
-      coordinateKey2Coordinates.getOrElse((coordinate.x * 10).toInt -> (coordinate.y * 10).toInt, Nil)
+      coordKey2Coordinates.getOrElse(coordKey(coordinate), Nil)
 
     if (vertexes.nonEmpty) {
       vertexes.minBy(x => x.coordinate.distance(coordinate)).id
     } else {
-      coordinateToRTVertexId.minBy(x => x._1.distance(coordinate))._2
+      coord2VertexId.minBy(x => x._1.distance(coordinate))._2
     }
   }
 }
 
 case class TravelInfo(linkIds: IndexedSeq[Int])
+
+case class OD(oriding: Long, destionation: Long)
