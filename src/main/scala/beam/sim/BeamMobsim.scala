@@ -120,6 +120,8 @@ class BeamMobsim @Inject()(
 
     clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
 
+    fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
@@ -140,6 +142,73 @@ class BeamMobsim @Inject()(
     stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+
+  private def fillInSecondaryActivities(households: Households): Unit = {
+    households.getHouseholds.values.forEach { household =>
+      val vehicles = household.getVehicleIds.asScala
+        .flatten(vehicleId => beamServices.beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
+      val persons = household.getMemberIds.asScala.collect {
+        case personId => beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      }
+      val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
+
+      val vehiclesByCategory =
+        vehicles.filter(_.beamVehicleType.automationLevel <= 3).groupBy(_.beamVehicleType.vehicleCategory)
+
+      val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
+        case VehicleCategory.Car  => BeamMode.CAR
+        case VehicleCategory.Bike => BeamMode.BIKE
+      }.toList
+
+      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+
+      val cavModeAvailable: List[BeamMode] =
+        if (cavs.nonEmpty) {
+          List[BeamMode](BeamMode.CAV)
+        } else {
+          List[BeamMode]()
+        }
+
+      val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
+
+      persons.foreach { person =>
+        if (beamServices.matsimServices.getIterationNumber == 0) {
+          val addSupplementaryTrips = new AddSupplementaryTrips()
+          addSupplementaryTrips.run(person)
+        }
+
+        if (person.getSelectedPlan.getPlanElements.asScala
+          .collect { case activity: Activity => activity.getType }
+          .contains("Temp")) {
+          val supplementaryTripGenerator =
+            new SupplementaryTripGenerator(
+              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
+              destinationChoiceModel,
+              beamServices,
+              person.getId
+            )
+          val newPlan =
+            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
+          newPlan match {
+            case Some(plan) =>
+              person.removePlan(person.getSelectedPlan)
+              person.addPlan(plan)
+              person.setSelectedPlan(plan)
+            case None =>
+          }
+        }
+      }
+
+     // val newP  = beamServices.matsimServices.getScenario.getPopulation.getPersons.values()
+
+      logger.info("Done filling in secondary trips in plans")
+    }
+
+
+
+
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
@@ -245,6 +314,10 @@ class BeamMobsimIteration(
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
+
+
+
+
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
@@ -373,7 +446,7 @@ class BeamMobsimIteration(
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
-  fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+
 
   scheduleRideHailManagerTimerMessages()
 
@@ -498,63 +571,6 @@ class BeamMobsimIteration(
     )
   }
 
-  private def fillInSecondaryActivities(households: Households): Unit = {
-    households.getHouseholds.values.forEach { household =>
-      val vehicles = household.getVehicleIds.asScala
-        .flatten(vehicleId => beamServices.beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
-      val persons = household.getMemberIds.asScala.collect {
-        case personId => beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
-      }
-      val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
 
-      val vehiclesByCategory =
-        vehicles.filter(_.beamVehicleType.automationLevel <= 3).groupBy(_.beamVehicleType.vehicleCategory)
-
-      val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
-        case VehicleCategory.Car  => BeamMode.CAR
-        case VehicleCategory.Bike => BeamMode.BIKE
-      }.toList
-
-      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
-
-      val cavModeAvailable: List[BeamMode] =
-        if (cavs.nonEmpty) {
-          List[BeamMode](BeamMode.CAV)
-        } else {
-          List[BeamMode]()
-        }
-
-      val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
-
-      persons.foreach { person =>
-        if (beamServices.matsimServices.getIterationNumber == 0) {
-          val addSupplementaryTrips = new AddSupplementaryTrips()
-          addSupplementaryTrips.run(person)
-        }
-
-        if (person.getSelectedPlan.getPlanElements.asScala
-              .collect { case activity: Activity => activity.getType }
-              .contains("Temp")) {
-          val supplementaryTripGenerator =
-            new SupplementaryTripGenerator(
-              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
-              destinationChoiceModel,
-              beamServices,
-              person.getId
-            )
-          val newPlan =
-            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
-          newPlan match {
-            case Some(plan) =>
-              person.removePlan(person.getSelectedPlan)
-              person.addPlan(plan)
-              person.setSelectedPlan(plan)
-            case None =>
-          }
-        }
-      }
-    }
-    log.info("Done filling in secondary trips in plans")
-  }
 
 }
