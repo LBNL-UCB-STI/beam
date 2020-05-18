@@ -61,7 +61,7 @@ object GeometryPerformance {
     new Runner(opt).run
   }
 
-  private def loadData: (TAZTreeMap, Vector[HierarchicalParkingManager.ParkingCluster], QuadTreeBounds) = {
+  private def loadData: (TAZTreeMap, Vector[ParallelParkingManager.ParkingCluster], QuadTreeBounds) = {
     val tazMap = taz.TAZTreeMap.fromCsv("test/input/sf-bay/taz-centers.csv")
     val (zones, _) = ZonalParkingManager.loadParkingZones(
       "test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
@@ -71,8 +71,8 @@ object GeometryPerformance {
       new Random(18389),
     )
 
-    val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
-      HierarchicalParkingManager.createClusters(tazMap, zones, 16)
+    val clusters: Vector[ParallelParkingManager.ParkingCluster] =
+      ParallelParkingManager.createClusters(tazMap, zones, 16)
 
     val bounds: QuadTreeBounds = ShapeUtils.quadTreeBounds(tazMap.getTAZs.map(_.coord))
 

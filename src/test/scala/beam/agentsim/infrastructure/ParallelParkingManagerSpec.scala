@@ -22,10 +22,10 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.Random
 
-class HierarchicalParkingManagerSpec
+class ParallelParkingManagerSpec
     extends TestKit(
       ActorSystem(
-        "HierarchicalParkingManagerSpec",
+        "ParallelParkingManagerSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -52,7 +52,7 @@ class HierarchicalParkingManagerSpec
 
   val emergencyId0 = Id.create("emergency-0", classOf[TAZ])
 
-  describe("HierarchicalParkingManager with no parking") {
+  describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
       for {
@@ -65,7 +65,7 @@ class HierarchicalParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
+          ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
             Array.empty[ParkingZone],
@@ -97,13 +97,13 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  describe("HierarchicalParkingManager with no taz") {
+  describe("ParallelParkingManager with no taz") {
     it("should return a response with an emergency stall") {
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingManager = system.actorOf(
-        HierarchicalParkingManager.props(
+        ParallelParkingManager.props(
           beamConfig,
           tazTreeMap,
           Array.empty[ParkingZone],
@@ -133,7 +133,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  describe("HierarchicalParkingManager with one parking option") {
+  describe("ParallelParkingManager with one parking option") {
     it("should first return that only stall, and afterward respond with the default stall") {
 
       for {
@@ -152,7 +152,7 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
         parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
+          ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -192,7 +192,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  describe("HierarchicalParkingManager with one parking option") {
+  describe("ParallelParkingManager with one parking option") {
     it("should allow us to book and then release that stall") {
 
       for {
@@ -211,7 +211,7 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
         parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
+          ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -254,7 +254,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  describe("HierarchicalParkingManager with a known set of parking alternatives") {
+  describe("ParallelParkingManager with a known set of parking alternatives") {
     it("should allow us to book all of those options and then provide us emergency stalls after that point") {
 
       val random1 = new Random(1)
@@ -284,7 +284,7 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator(parkingConfiguration, random)
         parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
+          ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
             parking.zones,
@@ -317,7 +317,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  describe("HierarchicalParkingManager with loaded common data") {
+  describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val (zones, searchTree) = ZonalParkingManager.loadParkingZones(
@@ -328,7 +328,7 @@ class HierarchicalParkingManagerSpec
         new Random(randomSeed),
       )
       val zpm = system.actorOf(
-        HierarchicalParkingManager.props(
+        ParallelParkingManager.props(
           beamConfig,
           tazMap,
           zones,

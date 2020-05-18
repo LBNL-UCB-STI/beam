@@ -10,9 +10,9 @@ import org.scalatest.{Matchers, WordSpecLike}
   *
   * @author Dmitry Openkov
   */
-class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
+class ParallelParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
-  "HierarchicalParkingManager" should {
+  "ParallelParkingManager" should {
 
     "split parking zones into clusters" in {
 
@@ -40,8 +40,8 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
-      val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
-        HierarchicalParkingManager.createClusters(treeMap, parkingZones, 4)
+      val clusters: Vector[ParallelParkingManager.ParkingCluster] =
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 4)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
     }
 
@@ -59,8 +59,8 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
       val parkingZones = ZonalParkingManagerSpec
         .makeParkingZones(treeMap, numZones)
         .drop(1)
-      val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
-        HierarchicalParkingManager.createClusters(treeMap, parkingZones, 2)
+      val clusters: Vector[ParallelParkingManager.ParkingCluster] =
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 2)
       val sumTAZesOverAllClusters = clusters.foldLeft(0) {
         case (acc, a) =>
           acc + a.tazes.size
@@ -72,8 +72,8 @@ class HierarchicalParkingManagerUtilSpec extends WordSpecLike with Matchers {
       val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingZones = Array.empty[ParkingZone]
-      val clusters: Vector[HierarchicalParkingManager.ParkingCluster] =
-        HierarchicalParkingManager.createClusters(treeMap, parkingZones, 2)
+      val clusters: Vector[ParallelParkingManager.ParkingCluster] =
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 2)
 
       clusters.size should be(1)
     }
