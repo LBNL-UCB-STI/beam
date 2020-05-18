@@ -51,8 +51,8 @@ object BPRSimulation {
   }
 
   private[bprsim] val simEventOrdering: Ordering[SimEvent] = (x: SimEvent, y: SimEvent) => {
-    val c1 = y.time.compareTo(x.time)
-    if (c1 != 0) c1 else x.priority.compareTo(y.priority)
+    val c1 = java.lang.Double.compare(y.time, x.time)
+    if (c1 != 0) c1 else java.lang.Integer.compare(x.priority, y.priority)
   }
 
   private[bprsim] def startingEvent(person: Person, accept: Activity => Boolean): Option[StartLegSimEvent] = {
