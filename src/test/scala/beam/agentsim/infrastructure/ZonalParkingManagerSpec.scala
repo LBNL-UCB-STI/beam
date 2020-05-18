@@ -2,6 +2,8 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
+import scala.annotation.tailrec
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
@@ -19,7 +21,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
-
 import scala.io.Source
 import scala.util.Random
 
@@ -377,6 +378,7 @@ object ZonalParkingManagerSpec {
 
   // comes up with a random n-way split of numStalls
   def randomSplitOfMaxStalls(numStalls: Int, numSplits: Int, random: Random): List[Int] = {
+    @tailrec
     def _sample(remaining: Int, split: List[Int] = List.empty): List[Int] = {
       if (split.length == numSplits - 1) (numStalls - split.sum) +: split
       else {

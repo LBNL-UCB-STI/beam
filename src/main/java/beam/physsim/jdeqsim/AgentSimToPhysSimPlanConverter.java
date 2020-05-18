@@ -199,7 +199,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         TravelTime travelTimeForR5 = travelTimeFromPhysSim;
-        Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
+        int startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
             travelTimeMap = processTravelTime(links, travelTimeMap, maxHour);
             travelTimeForR5 = previousTravelTime;

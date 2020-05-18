@@ -2,9 +2,9 @@ package beam.agentsim.infrastructure.geozone
 
 import scala.collection.parallel.ParSet
 
-import H3Wrapper.geoToH3Address
+import beam.agentsim.infrastructure.geozone.H3Wrapper.geoToH3Address
 
-class GeoZone(coordinates: ParSet[WgsCoordinate]) {
+class GeoZone(val coordinates: ParSet[WgsCoordinate]) {
 
   def this(coordinates: Set[WgsCoordinate]) {
     this(coordinates.par)
@@ -16,21 +16,10 @@ class GeoZone(coordinates: ParSet[WgsCoordinate]) {
     new GeoZone(allPoints)
   }
 
-  def topDownEqualDemandsGenerator(
-    expectedNumberOfBuckets: Int,
-    initialResolution: Int = 2
-  ): TopDownEqualDemandsGeoZoneHexGenerator = {
-    val allContent = GeoZone.generateContent(coordinates, initialResolution)
-    val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
-      case (index, points) => HexagonLeaf(index, points)
-    }.toIndexedSeq
-    new TopDownEqualDemandsGeoZoneHexGenerator(allHexagons, expectedNumberOfBuckets)
-  }
-
 }
 
 object GeoZone {
-  private[geozone] type GeoZoneContent = Map[GeoIndex, Set[WgsCoordinate]]
+  private[geozone] type GeoZoneContent = Map[H3Index, Set[WgsCoordinate]]
 
   private[geozone] def generateContent(elements: ParSet[WgsCoordinate], resolution: Int): GeoZoneContent = {
     if (elements.isEmpty) {
@@ -39,7 +28,7 @@ object GeoZone {
       elements
         .map { point =>
           val indexResult = geoToH3Address(point, resolution)
-          GeoIndex(indexResult) -> point
+          H3Index(indexResult) -> point
         }
         .groupBy(_._1)
         .mapValues { x =>
@@ -51,4 +40,10 @@ object GeoZone {
     }
   }
 
+  private[geozone] def mapCoordinateToIndex(content: GeoZoneContent): Map[WgsCoordinate, H3Index] = {
+    content.flatMap {
+      case (index, coordinates) =>
+        coordinates.map(coordinate => (coordinate, index))
+    }
+  }
 }
