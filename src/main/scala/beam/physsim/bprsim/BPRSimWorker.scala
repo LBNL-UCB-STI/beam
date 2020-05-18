@@ -6,16 +6,19 @@ import org.matsim.api.core.v01.{Id, Scenario}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 /**
   *
   * @author Dmitry Openkov
   */
-class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
+private[bprsim] class BPRSimWorker(
+  scenario: Scenario,
+  config: BPRSimConfig,
+  val myLinks: Set[Id[Link]],
+  val eventCollection: ConcurrentSortedCollection[Event]
+) {
   private val queue = ConcurrentPriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator)
-  private val eventBuffer = ArrayBuffer.empty[Event]
 
   def init(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
@@ -31,7 +34,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       .getOrElse(Double.MaxValue)
   }
 
-  def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double): Seq[Event] = {
+  def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double): Int = {
     @tailrec
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
       val seOption = queue.headOption
@@ -40,7 +43,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       } else {
         val simEvent = queue.dequeue()
         val (events, maybeSimEvent) = simEvent.execute(scenario, params)
-        eventBuffer ++= events
+        eventCollection ++= events
         for {
           se <- maybeSimEvent
         } workers(se.linkId).acceptSimEvent(se)
@@ -49,9 +52,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       }
     }
 
-    eventBuffer.clear()
     processQueuedEvents(workers, tillTime, 0)
-    eventBuffer
   }
 
   def acceptSimEvent(simEvent: SimEvent): Unit = {
