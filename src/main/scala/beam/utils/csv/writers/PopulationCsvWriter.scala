@@ -40,8 +40,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     val personAttributes: ObjectAttributesScala = scenario.getPopulation.getPersonAttributes
 
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val customAttributes: AttributesOfIndividual =
-        person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+      val maybeAttribs: Option[AttributesOfIndividual] =
+        Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
 
       // `personAttributes.getAttribute(...)` can return `null`
       val excludedModes =
@@ -57,21 +57,23 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
           }
           .getOrElse("")
 
-      val personAge =
-        customAttributes.age.max(
-        //TODO: prevent _.toString.toInt - this is better to convert this exactly to Int in the getAttribute code (let's think of it)
-        personAttributes.getAttribute[AnyRef](person.getId.toString, "age").map(_.toString.toInt)
+      val personAge = readAge(
+        maybeAttribs.flatMap(_.age),
+        Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
+      val isMale =
+        maybeAttribs.map(_.isMale).getOrElse(personAttributes.getAttribute(person.getId.toString, "sex") == "F")
       val values = Seq(
         person.getId.toString,
         personAge,
-        !customAttributes.isMale,
+        !isMale,
         personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
         //TODO: do we need value or even null here?
         String.valueOf(personAttributes.getAttribute[Int](person.getId.toString, "rank").getOrElse(0)),
         excludedModes,
-        personAttributes.getAttribute[Double](person.getId.toString, "valueOfTime", customAttributes.valueOfTime)
+        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+          .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
       )
       values.mkString("", FieldSeparator, LineSeparator)
     }
