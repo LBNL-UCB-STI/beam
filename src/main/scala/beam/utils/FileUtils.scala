@@ -209,11 +209,13 @@ object FileUtils extends LazyLogging {
     unpackedPath
   }
 
-  def readAllLines(file: File): Iterator[String] = {
-    using(Source.fromFile(file.getPath))(_.getLines())
+  def readAllLines(file: File): Seq[String] = {
+    using(Source.fromFile(file.getPath)) { source =>
+      source.getLines()
+    }.toList
   }
 
-  def readAllLines(file: String): Iterator[String] = {
+  def readAllLines(file: String): Seq[String] = {
     readAllLines(new File(file))
   }
 
