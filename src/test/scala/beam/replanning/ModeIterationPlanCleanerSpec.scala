@@ -7,16 +7,20 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
+import org.matsim.api.core.v01.population.PlanElement
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.controler.AbstractModule
-import org.matsim.core.controler.events.{BeforeMobsimEvent, IterationEndsEvent}
-import org.matsim.core.controler.listener.{BeforeMobsimListener, IterationEndsListener}
+import org.matsim.core.controler.events.BeforeMobsimEvent
+import org.matsim.core.controler.listener.BeforeMobsimListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import scala.util.Random
 
-class NonCarModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelper {
+class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelper {
+
+  private val random = Random.self
 
   "Running Scenario with non car modes clear" must "result only car modes" in {
     val config = ConfigFactory
@@ -25,11 +29,17 @@ class NonCarModeIterationPlanCleanerSpec extends FlatSpec with Matchers with Bea
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
            |beam.agentsim.agents.vehicles.sharedFleets = []
-           |beam.replanning.cleanNonCarModesInIteration = 0
+           |beam.replanning.clearModesAtStartOfIteration.modes = ["walk", "bike"]
+           |beam.replanning.clearModesAtStartOfIteration.atIteration = 0
            """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     runSimulation(config)
+  }
+
+  private def setRandomMode(leg: Leg): Unit = {
+    val modesArray = Array[String]("car", "walk", "bike")
+    leg.setMode(modesArray(random.nextInt(3)))
   }
 
   private def runSimulation(config: Config) = {
@@ -47,12 +57,11 @@ class NonCarModeIterationPlanCleanerSpec extends FlatSpec with Matchers with Bea
       .forEach { person =>
         {
           person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
-              leg.setMode("walk")
+            case leg: Leg => setRandomMode(leg)
           }
         }
       }
-    var nonCarModes = Seq[String]()
+    var nonCarModes: Seq[PlanElement] = Seq.empty
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
@@ -63,9 +72,11 @@ class NonCarModeIterationPlanCleanerSpec extends FlatSpec with Matchers with Bea
               nonCarModes = event.getServices.getScenario.getPopulation.getPersons
                 .values()
                 .asScala
+                .view
                 .flatMap(_.getSelectedPlan.getPlanElements.asScala)
-                .collect {
-                  case l: Leg if l.getMode.toLowerCase != "car" => l.getMode
+                .filter {
+                  case l: Leg => l.getMode.nonEmpty && l.getMode.toLowerCase != "car"
+                  case _      => false
                 }
                 .toSeq
             }
