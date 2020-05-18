@@ -15,7 +15,7 @@ class ModeIterationPlanCleaner @Inject()(config: BeamConfig, scenario: Scenario)
 
   private val clearModeIteration: Int = config.beam.replanning.clearModesAtStartOfIteration.atIteration
   private val clearModes: Set[String] =
-    config.beam.replanning.clearModesAtStartOfIteration.modes.toSet
+    config.beam.replanning.clearModesAtStartOfIteration.modes.getOrElse(List.empty).map(_.toLowerCase).toSet
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (event.getIteration == clearModeIteration) {
