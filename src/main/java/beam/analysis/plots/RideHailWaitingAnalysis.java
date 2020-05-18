@@ -281,7 +281,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
 
         double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
-        CategoryDataset singleStatsDataset = DatasetUtilities.createCategoryDataset("", "", singleStatsData);
+        CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
         if (writeGraph)
             createSingleStatsGraph(singleStatsDataset, event.getIteration());
         writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
@@ -298,7 +298,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
-
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
@@ -319,7 +318,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -343,13 +342,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             for (int i = 0; i < numberOfTimeBins; i++) {
                 Double inner = hourModeFrequency.get(i);
                 String line = (inner == null) ? "0" : "" + Math.round(inner * 100.0) / 100.0;
-                line += "," + (i + 1);
+                line += "," + i;
                 out.write(line);
                 out.newLine();
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -422,12 +421,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
         CategoryDataset categoryDataset = null;
         if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Time ", "", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("Time ", "", dataset);
         return categoryDataset;
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
@@ -466,9 +464,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
                     if (category > 60) {
-                        line = "60+," + (i + 1) + "," + line;
+                        line = "60+," + i + "," + line;
                     } else {
-                        line = _category + "," + (i + 1) + "," + line;
+                        line = _category + "," + i + "," + line;
                     }
                     out.write(line);
                     out.newLine();
@@ -476,7 +474,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
