@@ -25,9 +25,8 @@ class Coordinator(
   private val executorService =
     Executors.newFixedThreadPool(clusters.size, new ThreadFactoryBuilder().setNameFormat("par-bpr-thread-%d").build())
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
-  val eventCollection = ConcurrentSortedCollection.empty[Event](BPRSimulation.eventTimeOrdering)
 
-  val workers: Vector[BPRSimWorker] = clusters.map(links => new BPRSimWorker(scenario, config, links, eventCollection))
+  val workers: Vector[BPRSimWorker] = clusters.map(links => new BPRSimWorker(scenario, config, links))
   val workerMap: Map[Id[Link], BPRSimWorker] = workers.flatMap(worker => worker.myLinks.map(_ -> worker)).toMap
 
   def start(): Unit = {
@@ -40,17 +39,18 @@ class Coordinator(
   @tailrec
   private def executePeriod(tillTime: Double): Unit = {
     val future = Future.sequence(workers.map(w => Future(w.processQueuedEvents(workerMap, tillTime))))
-    Await.result(future, Duration.Inf)
-    flushEvents()
+    val events: Vector[Seq[Event]] = Await.result(future, Duration.Inf)
+    flushEvents(events)
     val minTime = workers.map(_.minTime).min
     if (minTime != Double.MaxValue) {
       executePeriod(minTime + config.syncInterval)
     }
   }
 
-  private def flushEvents(): Unit = {
-    eventCollection.foreach(eventManager.processEvent)
-    eventCollection.clear()
+  private def flushEvents(events: Vector[Seq[Event]]): Unit = {
+    import BPRSimulation.eventTimeOrdering
+    val sorted = util.Sorting.stableSort(events.reduce(_ ++ _))
+    sorted.foreach(eventManager.processEvent)
   }
 
 }
