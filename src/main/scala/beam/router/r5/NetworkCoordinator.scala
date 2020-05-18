@@ -187,7 +187,7 @@ trait NetworkCoordinator extends LazyLogging {
         }
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load link's params from ${path}: ${ex.getMessage}", ex)
+          logger.error(s"Could not load link's params from $path: ${ex.getMessage}", ex)
           Map.empty
       }
     } else {

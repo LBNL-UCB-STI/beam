@@ -1,15 +1,13 @@
 package beam.utils.map
 
-import ch.qos.logback.classic.{Level, Logger}
 import com.conveyal.osmlib.OSM
 import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.streets.EdgeStore.EdgeFlag
 import com.conveyal.r5.transit.TransportNetwork
-import org.slf4j.LoggerFactory
 
-import scala.util.Try
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 object R5MapStatsCalculator {
 
