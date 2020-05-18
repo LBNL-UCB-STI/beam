@@ -1,4 +1,4 @@
-package beam.utils.hereapi
+package beam.utils.mapsapi
 
 import java.nio.file.{Path, Paths}
 
@@ -6,11 +6,10 @@ import scala.language.implicitConversions
 
 import beam.agentsim.infrastructure.geozone.{GeoZoneUtil, WgsCoordinate}
 import beam.utils.csv.CsvWriter
-import beam.utils.hereapi.HereExampleUsage.result
 
-class RichSegments(segments: Seq[HereSegment]) {
+class RichSegments(segments: Seq[Segment]) {
 
-  def saveToCsv(path: Path): Seq[HereSegment] = {
+  def saveToCsv(path: Path): Seq[Segment] = {
     val csvWriter: CsvWriter = {
       val headers = Array("wgsCoordinates", "lengthInMeters", "speedLimitInKph")
       new CsvWriter(path.toString, headers)
@@ -27,7 +26,7 @@ class RichSegments(segments: Seq[HereSegment]) {
     segments
   }
 
-  def saveToShapeFile(outputFile: Path): Seq[HereSegment] = {
+  def saveToShapeFile(outputFile: Path): Seq[Segment] = {
     val allCoordinates = segments.flatMap(_.coordinates).toSet
     val outputFile: Path = Paths.get("outputShapeFile.shx")
     GeoZoneUtil.writeToShapeFile(outputFile, allCoordinates, resolution = 12)
@@ -45,5 +44,5 @@ class RichSegments(segments: Seq[HereSegment]) {
 }
 
 object RichSegments {
-  implicit def toRich(segments: Seq[HereSegment]): RichSegments = new RichSegments(segments)
+  implicit def toRich(segments: Seq[Segment]): RichSegments = new RichSegments(segments)
 }
