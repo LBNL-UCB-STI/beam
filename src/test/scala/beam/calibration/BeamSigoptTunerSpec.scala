@@ -6,11 +6,12 @@ import beam.experiment.ExperimentApp
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.util.{Failure, Success, Try}
 
-class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging{
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -73,7 +74,7 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
       )
     } match {
       case Success(e) => experimentDataFunc(e)
-      case Failure(t) => t.printStackTrace()
+      case Failure(t) => logger.error("exception occurred due to ", t)
     }
   }
 }

@@ -53,7 +53,7 @@ public class OperatorDataUtility {
             csvMapWriter.write(operatorMap, opKeyArray);
             csvMapWriter.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
         log.info(String.format("Operator key file saved at %s", opMapPath));
     }
@@ -66,7 +66,7 @@ public class OperatorDataUtility {
             header = mapReader.getHeader(true);
             res = mapReader.read(header);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
         return res;
     }
