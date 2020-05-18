@@ -153,8 +153,6 @@ class BikeTransitModeSpec
       assert(departureEvents.nonEmpty)
       assert(arrivalEvents.nonEmpty)
 
-      departureEvents.foreach(println)
-      arrivalEvents.foreach(println)
       val departPersons = departureEvents.map(_.getPersonId)
       val arrivedPersons = arrivalEvents.map(_.getPersonId)
       arrivedPersons.foreach(person => {
