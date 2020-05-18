@@ -33,7 +33,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      * @throws IOException exception
      */
     @Override
-    public void createGraph(IterationEndsEvent iterationEndsEvent) throws IOException {
+    public void createGraph(IterationEndsEvent iterationEndsEvent) {
         writeToCsv(iterationEndsEvent.getIteration(),binWaitingTimesMap);
     }
 
