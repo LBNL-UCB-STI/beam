@@ -74,11 +74,9 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
     }
   }
 
-  def acceptEvents(workerEvents: Vector[collection.Map[BPRSimWorker, Seq[SimEvent]]]): Int = {
-    val myEvents = workerEvents
-      .flatMap(map => map.getOrElse(this, Nil))
-    myEvents.foreach(acceptSimEvent)
-    myEvents.size
+  def acceptEvents(workerEvents: Seq[SimEvent]): Unit = {
+    workerEvents.foreach(acceptSimEvent)
+    workerEvents.size
   }
 
 }

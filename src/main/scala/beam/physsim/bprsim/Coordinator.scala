@@ -10,6 +10,8 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -52,16 +54,32 @@ class Coordinator(
     val future = Future.sequence(workers.map(w => Future(w.processQueuedEvents(workerMap, tillTime))))
     val events: Vector[(Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]])] = Await.result(future, Duration.Inf)
     val workerEvents = events.map { case (_, workerToEvents) => workerToEvents }
-    val future2 = Future.sequence(workers.map(w => Future(w.acceptEvents(workerEvents))))
-    val allEvents = eventAcc ++ events.flatMap { case (evs, _) => evs }
-    val acceptedEvents = Await.result(future2, Duration.Inf)
+    val workerToEventMap = group(workerEvents)
+    val acceptedEvents = workerToEventMap.map {
+      case (worker, events) => worker.acceptEvents(events)
+    }
     logger.debug(s"Accepted events: ${acceptedEvents.mkString(",")}")
+    val allEvents = eventAcc ++ events.flatMap { case (evs, _) => evs }
     val minTime = workers.map(_.minTime).min
     if (minTime > tillTime) {
       allEvents
     } else {
       executeSubPeriod(tillTime, allEvents)
     }
+  }
+
+  def group(
+    workerEvents: Vector[collection.Map[BPRSimWorker, Seq[SimEvent]]]
+  ): mutable.Map[BPRSimWorker, ArrayBuffer[SimEvent]] = {
+    val result = mutable.Map.empty[BPRSimWorker, ArrayBuffer[SimEvent]]
+    workerEvents.foreach { map =>
+      map.foreach {
+        case (w, evs) =>
+          val prev = result.getOrElseUpdate(w, ArrayBuffer.empty[SimEvent])
+          prev ++= evs
+      }
+    }
+    result
   }
 
   private def flushEvents(events: Vector[Event]): Unit = {
