@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
   * Generates a readme for .png files in root folder.
   */
 
-object GraphReadmeGenerator extends LazyLogging{
+object GraphReadmeGenerator extends LazyLogging {
 
   private val fileName = "graph_readme.txt"
 

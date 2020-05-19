@@ -28,7 +28,8 @@ case class FixedNonReservingFleetByTAZ(
   managerId: Id[VehicleManager],
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
-) extends FleetType with LazyLogging {
+) extends FleetType
+    with LazyLogging {
 
   case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
       extends Exception(message, cause)

@@ -20,7 +20,8 @@ class BeamEventsWriterParquet(
   beamEventLogger: BeamEventsLogger,
   beamServices: BeamServices,
   eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog) with LazyLogging {
+) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog)
+    with LazyLogging {
 
   sealed trait ParquetType
   final object PDouble extends ParquetType
