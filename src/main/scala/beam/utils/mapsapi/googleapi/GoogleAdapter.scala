@@ -37,7 +37,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
     call(url).map(writeToFileIfSetup).map(toRoutes)
   }
 
-  def call(url: String): Future[JsObject] = {
+  private def call(url: String): Future[JsObject] = {
     val httpRequest = HttpRequest(uri = url)
     val responseFuture: Future[HttpResponse] = Http().singleRequest(httpRequest)
     responseFuture.map { response =>
@@ -46,7 +46,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
     }
   }
 
-  def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
+  private def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
     jsRoutes.map { route =>
       val firstAndUniqueLeg = (route \ "legs").as[JsArray].value.head
       parseRoute(firstAndUniqueLeg.as[JsObject])
@@ -74,7 +74,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
     Route(startLocation, endLocation, distanceInMeter, durationInSeconds, segments)
   }
 
-  def parseStep(jsObject: JsObject): Segment = {
+  private def parseStep(jsObject: JsObject): Segment = {
     Segment(
       coordinates = PolyDecoder.decode((jsObject \ "polyline" \ "points").as[String]),
       lengthInMeters = (jsObject \ "distance" \ "value").as[Int],

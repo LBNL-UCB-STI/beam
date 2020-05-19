@@ -47,30 +47,16 @@ object GoogleApiExampleUsage extends App {
     WgsCoordinate(tmp(0).toDouble, tmp(1).toDouble)
   }
 
-//  private def getUrl(): String = {
-//    FileUtils.using(new GoogleAdapter(apiKey)) { adapter =>
-//      Await.result(
-//        adapter.findRoutes(
-//          originCoordinate,
-//          destinationCoordinate,
-//        ),
-//        Duration.Inf
-//      )
-//    }
-//  }
-
   private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[Route] = {
     FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
-      Await.result(
-        adapter.findRoutes(
-          originCoordinate,
-          destinationCoordinate,
-          departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
-          TravelModes.Driving,
-          constraints = Set.empty
-        ),
-        Duration.Inf
+      val eventualRoutes = adapter.findRoutes(
+        origin = originCoordinate,
+        destination = destinationCoordinate,
+        departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
+        mode = TravelModes.Driving,
+        constraints = Set.empty
       )
+      Await.result(eventualRoutes, Duration.Inf)
     }
   }
 
