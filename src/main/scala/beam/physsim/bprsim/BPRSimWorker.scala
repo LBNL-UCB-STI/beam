@@ -13,10 +13,11 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Dmitry Openkov
   */
-class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
+private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator)
   private val eventBuffer = ArrayBuffer.empty[Event]
+  private val otherWorkerEvents = mutable.Map.empty[BPRSimWorker, ArrayBuffer[SimEvent]]
 
   def init(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
@@ -32,32 +33,52 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       .getOrElse(Double.MaxValue)
   }
 
-  def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double): Seq[Event] = {
+  def processQueuedEvents(
+    workers: Map[Id[Link], BPRSimWorker],
+    tillTime: Double
+  ): (Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]]) = {
     @tailrec
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
       val seOption = queue.headOption
       if (seOption.isEmpty || seOption.get.time > tillTime) {
         counter
       } else {
-        val simEvent = queue.synchronized(queue.dequeue())
+        val simEvent = queue.dequeue()
         val (events, maybeSimEvent) = simEvent.execute(scenario, params)
         eventBuffer ++= events
-        for {
-          se <- maybeSimEvent
-        } workers(se.linkId).acceptSimEvent(se)
+        maybeSimEvent
+          .foreach { se =>
+            if (myLinks.contains(se.linkId)) {
+              acceptSimEvent(se)
+            } else {
+              val workerEvents = otherWorkerEvents.getOrElseUpdate(workers(se.linkId), ArrayBuffer.empty)
+              workerEvents += se
+            }
+          }
 
         processQueuedEvents(workers, tillTime: Double, counter + 1)
       }
     }
 
     eventBuffer.clear()
+    otherWorkerEvents.foreach {
+      case (_, events) => events.clear()
+    }
     processQueuedEvents(workers, tillTime, 0)
-    eventBuffer
+    (eventBuffer, otherWorkerEvents)
   }
 
-  def acceptSimEvent(simEvent: SimEvent): Unit = {
+  private def acceptSimEvent(simEvent: SimEvent): Unit = {
     if (simEvent.time <= config.simEndTime) {
-      queue.synchronized(queue += simEvent)
+      queue += simEvent
     }
   }
+
+  def acceptEvents(workerEvents: Vector[collection.Map[BPRSimWorker, Seq[SimEvent]]]): Int = {
+    val myEvents = workerEvents
+      .flatMap(map => map.getOrElse(this, Nil))
+    myEvents.foreach(acceptSimEvent)
+    myEvents.size
+  }
+
 }
