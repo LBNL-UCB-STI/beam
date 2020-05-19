@@ -187,7 +187,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             log.info("JDEQSim End");
         } else if (physSimType.equals("CCH")) {
-            travelTimeMap = routingFrameworkTravelTimeCalculator.get().getLink2TravelTimes(traversalEventsForPhysSimulation, iterationEndsEvent, links, maxHour);
+            travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationEndsEvent, links, maxHour);
             travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
         } else {
             throw new RuntimeException(String.format("Unknown physsim type: %s", physSimType));

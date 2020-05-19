@@ -49,7 +49,7 @@ class RoutingFrameworkTravelTimeCalculator(
     kdTree.insert(x.coordinate, x.id)
   }
 
-  def getLink2TravelTimes(
+  def generateLink2TravelTimes(
     pathTraversalEvents: util.Collection[PathTraversalEvent],
     iterationEndsEvent: IterationEndsEvent,
     links: util.Collection[_ <: Link],
@@ -112,7 +112,7 @@ class RoutingFrameworkTravelTimeCalculator(
     linkId2TravelTimeByHour.asJava
   }
 
-  private def fillLink2TravelTimeByHour(
+  private[cch] def fillLink2TravelTimeByHour(
     links: util.Collection[_ <: Link],
     hour2Way2TravelTimes: Map[Int, Map[Long, Double]],
     maxHour: Int
@@ -154,7 +154,7 @@ class RoutingFrameworkTravelTimeCalculator(
     (linksFailedToResolve, linkId2TravelTimeByHour)
   }
 
-  private def generateOdsFromEvents(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
+  private[cch] def generateOdsFromEvents(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
     events.toStream
       .map { event =>
         for {
@@ -178,7 +178,7 @@ class RoutingFrameworkTravelTimeCalculator(
       }
   }
 
-  private def generateHour2Events(
+  private[cch] def generateHour2Events(
     pathTraversalEvents: util.Collection[PathTraversalEvent]
   ): Map[Int, List[TravelInfo]] = {
     val preliminaryHour2Events: Map[Int, Iterable[PathTraversalEvent]] =
