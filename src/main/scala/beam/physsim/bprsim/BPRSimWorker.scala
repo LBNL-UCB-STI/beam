@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -13,7 +14,7 @@ import scala.collection.mutable.ArrayBuffer
   * @author Dmitry Openkov
   */
 class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
-  private val queue = ConcurrentPriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
+  private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator)
   private val eventBuffer = ArrayBuffer.empty[Event]
 
@@ -38,7 +39,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
       if (seOption.isEmpty || seOption.get.time > tillTime) {
         counter
       } else {
-        val simEvent = queue.dequeue()
+        val simEvent = queue.synchronized(queue.dequeue())
         val (events, maybeSimEvent) = simEvent.execute(scenario, params)
         eventBuffer ++= events
         for {
@@ -56,7 +57,7 @@ class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id
 
   def acceptSimEvent(simEvent: SimEvent): Unit = {
     if (simEvent.time <= config.simEndTime) {
-      queue += simEvent
+      queue.synchronized(queue += simEvent)
     }
   }
 }
