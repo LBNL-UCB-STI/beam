@@ -3,7 +3,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.Paths
 
 import beam.sim.BeamServices
-import com.google.common.io.Files
+import beam.utils.CloseableUtil._
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
@@ -171,27 +171,31 @@ class InternalRTWrapper(
 
     var curIter = -1
     val wayId2TravelTime = new mutable.HashMap[Long, Double]()
+
     Source
       .fromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toFile)
-      .getLines()
-      // drop headers
-      .drop(2)
-      .map(x => x.split(","))
-      // picking only result of last iteration
-      .map { x =>
-        if (x(0).toInt != curIter) {
-          curIter = x(0).toInt
-          wayId2TravelTime.clear()
-        }
-        x
-      }
-      // way id into BPR'ed travel time
-      .map(x => x(4).toLong -> x(5).toDouble / 10.0)
-      .foreach {
-        case (wayId, travelTime) =>
-          wayId2TravelTime.get(wayId) match {
-            case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
-            case None    => wayId2TravelTime.put(wayId, travelTime)
+      .use { source =>
+        // drop headers
+        source
+          .getLines()
+          .drop(2)
+          .map(x => x.split(","))
+          // picking only result of last iteration
+          .map { x =>
+            if (x(0).toInt != curIter) {
+              curIter = x(0).toInt
+              wayId2TravelTime.clear()
+            }
+            x
+          }
+          // way id into BPR'ed travel time
+          .map(x => x(4).toLong -> x(5).toDouble / 10.0)
+          .foreach {
+            case (wayId, travelTime) =>
+              wayId2TravelTime.get(wayId) match {
+                case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
+                case None    => wayId2TravelTime.put(wayId, travelTime)
+              }
           }
       }
 

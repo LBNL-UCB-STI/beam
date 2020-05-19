@@ -17,10 +17,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
@@ -71,14 +68,14 @@ public class R5MnetBuilder {
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();
-            long osmID = cursor.getOSMID();  // id of edge in the OSM db
+            Long osmID = cursor.getOSMID();  // id of edge in the OSM db
             Way way = ways.get(osmID);
 
             Set<Integer> deezNodes = new HashSet<>(2);
             deezNodes.add(cursor.getFromVertex());
             deezNodes.add(cursor.getToVertex());
 
-            final HashSet<String> flagStrings = new HashSet<>();
+            final Set<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
                 String flagString = flagToString(eF);
                 if (!flagString.isEmpty()) {
@@ -100,14 +97,14 @@ public class R5MnetBuilder {
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = getOrMakeNode(fromCoord);
             Node toNode = getOrMakeNode(toCoord);
-            Link link;
+            Link link = null;
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
                 link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
                 mNetwork.addLink(link);
                 log.debug("Created special link: {}", link);
             } else {
-                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
+                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>) flagStrings);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
@@ -124,11 +121,15 @@ public class R5MnetBuilder {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
 
+
+        for (Link link : mNetwork.getLinks().values()) {
+            link.setFreespeed(link.getFreespeed() * this.beamConfig.physsim().speedScalingFactor());
+        }
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {
         Link link = mNetwork.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);
-        link.setLength(length);
+        link.setLengthRelaxationExperiment(length);
         link.setFreespeed(10.0 / 3.6);
         link.setCapacity(300);
         link.setNumberOfLanes(1);

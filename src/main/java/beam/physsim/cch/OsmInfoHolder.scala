@@ -2,12 +2,11 @@ package beam.physsim.cch
 
 import beam.sim.BeamServices
 import com.conveyal.osmlib.OSM
-import com.google.inject.Inject
 import com.vividsolutions.jts.geom.Coordinate
 
 import scala.collection.JavaConverters._
 
-class OsmInfoHolder @Inject()(beamServices: BeamServices) {
+class OsmInfoHolder(beamServices: BeamServices) {
   private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
 
   private val id2NodeIds: Map[Long, Seq[Long]] = osm.ways.asScala.map {
@@ -24,5 +23,5 @@ class OsmInfoHolder @Inject()(beamServices: BeamServices) {
 
   def getCoordinatesForWayId(firstWayId: Long): Seq[Coordinate] =
     id2NodeIds(firstWayId)
-      .flatMap( id2NodeCoordinate.get)
+      .flatMap(x => id2NodeCoordinate.get(x))
 }

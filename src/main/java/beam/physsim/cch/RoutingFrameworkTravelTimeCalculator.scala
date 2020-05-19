@@ -7,7 +7,8 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.sim.BeamServices
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Coordinate
+import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import com.vividsolutions.jts.index.kdtree.{KdNode, KdTree}
 import org.apache.commons.lang.time.StopWatch
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -43,12 +44,10 @@ class RoutingFrameworkTravelTimeCalculator(
   private val coord2VertexId: Map[Coordinate, Long] =
     graph.vertices.map(x => x.coordinate -> x.id).toMap
 
-  private val coordKey = (coord: Coordinate) => (coord.x * 10).toInt + "|" + (coord.y * 10).toInt
-
-  private val coordKey2Coordinates: Map[String, Seq[Vertex]] = graph.vertices
-    .map(v => coordKey(v.coordinate) -> v)
-    .groupBy(_._1)
-    .mapValues(_.map(_._2))
+  private val kdTree = new KdTree()
+  graph.vertices.foreach { x =>
+    kdTree.insert(x.coordinate, x.id)
+  }
 
   def getLink2TravelTimes(
     pathTraversalEvents: util.Collection[PathTraversalEvent],
@@ -56,10 +55,8 @@ class RoutingFrameworkTravelTimeCalculator(
     links: util.Collection[_ <: Link],
     maxHour: Int
   ): java.util.Map[String, Array[Double]] = {
-    val iterationNumber: Int = iterationEndsEvent.getIteration
-    val startTime: Long = System.currentTimeMillis
 
-    logger.info("Finished creation of graph {}", System.currentTimeMillis - startTime)
+    val iterationNumber: Int = iterationEndsEvent.getIteration
 
     val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
 
@@ -166,11 +163,9 @@ class RoutingFrameworkTravelTimeCalculator(
   private def generateHour2Events(
     pathTraversalEvents: util.Collection[PathTraversalEvent]
   ): Map[Int, List[TravelInfo]] = {
-    val preliminaryHour2Events: Map[Int, List[PathTraversalEvent]] =
-      pathTraversalEvents.toStream
-        .map(x => x.departureTime / 3600 -> x)
-        .groupBy(_._1)
-        .mapValues(_.map(_._2).toList)
+    val preliminaryHour2Events: Map[Int, Iterable[PathTraversalEvent]] =
+      pathTraversalEvents
+        .groupBy(x => x.departureTime / 3600)
 
     val hours2EventsMutable = mutable.HashMap[Int, mutable.ArrayBuffer[TravelInfo]]()
 
@@ -214,17 +209,25 @@ class RoutingFrameworkTravelTimeCalculator(
   private def getClosestVertexId(
     coordinate: Coordinate
   ): Long = {
-    val vertexes =
-      coordKey2Coordinates.getOrElse(coordKey(coordinate), Nil)
+    var distance = 0.00001
+    val envelope = new Envelope(coordinate)
+    envelope.expandBy(distance)
 
-    if (vertexes.nonEmpty) {
-      vertexes.minBy(x => x.coordinate.distance(coordinate)).id
-    } else {
-      coord2VertexId.minBy(x => x._1.distance(coordinate))._2
-    }
+    Stream
+      .range(1, 10)
+      .map { _ =>
+        val res: List[KdNode] = kdTree.query(envelope).asInstanceOf[List[KdNode]]
+        distance = distance * 10
+        envelope.expandBy(distance)
+        if (res.nonEmpty) {
+          Some(res.minBy(_.getCoordinate.distance(coordinate)).getData.asInstanceOf[Long])
+        } else None
+      }
+      .collectFirst { case Some(v) => v }
+      .get
   }
 }
 
 case class TravelInfo(linkIds: IndexedSeq[Int])
 
-case class OD(oriding: Long, destionation: Long)
+case class OD(origin: Long, destination: Long)
