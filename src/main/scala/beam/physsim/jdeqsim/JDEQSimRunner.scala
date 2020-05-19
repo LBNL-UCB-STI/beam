@@ -13,6 +13,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -149,8 +150,9 @@ class JDEQSimRunner(
     logger.info(s"Physsim name = $simName, qsim.endTime = ${config.getSimulationEndTimeAsString}")
     simName match {
       case "BPRSIM" =>
+        val funName = beamConfig.beam.physsim.bprsim.travelTimeFunction
         val bprCfg =
-          BPRSimConfig(config.getSimulationEndTime, 1, 0, (time, link, _) => link.getLength / link.getFreespeed(time))
+          BPRSimConfig(config.getSimulationEndTime, 1, 0, getTravelTimeFunction(funName))
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "PARBPRSIM" =>
         val numberOfClusters = beamConfig.beam.physsim.parbprsim.numberOfClusters
@@ -165,7 +167,7 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           numberOfClusters,
           syncInterval,
-          (time, link, _) => link.getLength / link.getFreespeed(time)
+          getTravelTimeFunction(beamConfig.beam.physsim.bprsim.travelTimeFunction)
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "JDEQSIM" =>
@@ -196,6 +198,22 @@ class JDEQSimRunner(
             logger.info("CACC disabled")
             new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
         }
+    }
+  }
+
+  private def getTravelTimeFunction(functionName: String): (Double, Link, Int) => Double = {
+    functionName match {
+      case "FREE_FLOW" =>
+        (time, link, _) =>
+          link.getLength / link.getFreespeed(time)
+      case "BPR" =>
+        (time, link, volume) =>
+          {
+            val ftt = link.getLength / link.getFreespeed(time)
+            val tmp = volume / link.getCapacity(time)
+            ftt * (1 + 1 * tmp * tmp)
+          }
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }
   }
 
