@@ -16,7 +16,7 @@ import scala.xml.{Elem, NodeBuffer}
   * Generates a HTML page to compare the graphs across all iterations.
   */
 
-object BeamGraphComparator extends LazyLogging{
+object BeamGraphComparator extends LazyLogging {
 
   /**
     * Generates the html page for graph comparison

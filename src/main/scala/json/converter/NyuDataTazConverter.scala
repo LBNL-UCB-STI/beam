@@ -9,7 +9,7 @@ import scala.util.Try
 
 //Converter from https://geo.nyu.edu/catalog/stanford-hq850hh1120 to expected format for
 // https://github.com/sfcta/tncstoday
-object NyuDataTazConverter extends App with LazyLogging{
+object NyuDataTazConverter extends App with LazyLogging {
 
   import TazOutput._
 

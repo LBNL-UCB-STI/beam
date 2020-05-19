@@ -11,7 +11,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.util.{Failure, Success, Try}
 
-class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging{
+class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
