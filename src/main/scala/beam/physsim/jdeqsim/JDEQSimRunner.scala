@@ -4,10 +4,7 @@ import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
@@ -15,10 +12,12 @@ import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.events.handler.EventHandler
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -39,7 +38,7 @@ class JDEQSimRunner(
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqsimEvents = new EventsManagerImpl
+    val jdeqsimEvents = new CountEventManager
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
     val legHistogram = new LegHistogram(
@@ -206,5 +205,25 @@ class JDEQSimRunner(
     var numOfTimeBins = endTime / binSize
     numOfTimeBins = Math.floor(numOfTimeBins)
     numOfTimeBins.toInt + 1
+  }
+}
+
+class CountEventManager extends EventsManager with StrictLogging {
+  var counter = 0L
+
+  override def processEvent(event: Event): Unit = counter += 1
+
+  override def addHandler(handler: EventHandler): Unit = {}
+
+  override def removeHandler(handler: EventHandler): Unit = {}
+
+  override def resetHandlers(iteration: Int): Unit = {}
+
+  override def initProcessing(): Unit = {}
+
+  override def afterSimStep(time: Double): Unit = {}
+
+  override def finishProcessing(): Unit = {
+    logger.info(s"$counter events processed")
   }
 }
