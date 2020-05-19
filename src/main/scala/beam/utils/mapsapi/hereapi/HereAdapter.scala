@@ -12,7 +12,7 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.StreamConverters
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import play.api.libs.json.{JsArray, JsObject, Json, JsValue}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
 class HereAdapter(apiKey: String) extends AutoCloseable {
 

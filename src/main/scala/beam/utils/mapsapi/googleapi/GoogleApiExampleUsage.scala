@@ -1,13 +1,13 @@
 package beam.utils.mapsapi.googleapi
 
 import java.nio.file.{Path, Paths}
+import java.time.LocalDateTime
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.RichSegments._
-import beam.utils.mapsapi.{Segment, TransitPath}
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
 
 object GoogleApiExampleUsage extends App {
@@ -20,14 +20,25 @@ object GoogleApiExampleUsage extends App {
   val originCoordinate = toWgsCoordinate(args(1))
   val destinationCoordinate = toWgsCoordinate(args(2))
 
+  // You can build the URL yourself
+  val url = GoogleAdapter.buildUrl(
+    apiKey = apiKey,
+    origin = originCoordinate,
+    destination = destinationCoordinate,
+    departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
+    mode = TravelModes.Driving,
+    constraints = Set.empty
+  )
+
+  val outputJson: Path = Paths.get("outputJson.json")
+  val routes = findRoutesAndWriteJson(Some(outputJson))
+  println(s"Generated json file: $outputJson")
+
   val outputShapeFile: Path = Paths.get("outputShapeFile.shx")
   val outputCsvFile: Path = Paths.get("outputSegments.csv")
-
-  val result: Seq[Segment] = findSegments().segments
-  result
-    .saveToShapeFile(outputShapeFile)
+  routes.head.segments
     .saveToCsv(outputCsvFile)
-
+    .saveToShapeFile(outputShapeFile)
   println(s"Generated shape file: $outputShapeFile")
   println(s"Generated csv file: $outputCsvFile")
 
@@ -36,10 +47,28 @@ object GoogleApiExampleUsage extends App {
     WgsCoordinate(tmp(0).toDouble, tmp(1).toDouble)
   }
 
-  private def findSegments(): TransitPath = {
-    FileUtils.using(new GoogleAdapter(apiKey)) { adapter =>
+//  private def getUrl(): String = {
+//    FileUtils.using(new GoogleAdapter(apiKey)) { adapter =>
+//      Await.result(
+//        adapter.findRoutes(
+//          originCoordinate,
+//          destinationCoordinate,
+//        ),
+//        Duration.Inf
+//      )
+//    }
+//  }
+
+  private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[Route] = {
+    FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
       Await.result(
-        adapter.findPath(originCoordinate, destinationCoordinate),
+        adapter.findRoutes(
+          originCoordinate,
+          destinationCoordinate,
+          departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
+          TravelModes.Driving,
+          constraints = Set.empty
+        ),
         Duration.Inf
       )
     }

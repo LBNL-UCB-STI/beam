@@ -4,7 +4,7 @@ import java.nio.file.{Path, Paths}
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.RichSegments._
-import beam.utils.mapsapi.Segment
+import beam.utils.mapsapi.{Segment, SegmentSerializer}
 
 object HereExampleUsage extends App {
   if (args.length != 3) {
@@ -23,7 +23,7 @@ object HereExampleUsage extends App {
     .saveToShapeFile(outputShapeFile)
     .saveToCsv(outputCsvFile)
 
-  val result2: Seq[Segment] = HereService.fromCsv(outputCsvFile)
+  val result2: Seq[Segment] = SegmentSerializer.fromCsv(outputCsvFile)
 
   println(s"Generated shape file: $outputShapeFile")
   println(s"Generated csv file: $outputCsvFile")
