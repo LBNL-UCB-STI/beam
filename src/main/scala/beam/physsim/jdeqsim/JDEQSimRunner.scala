@@ -39,7 +39,7 @@ class JDEQSimRunner(
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqsimEvents = new CountEventManager
+    val jdeqsimEvents = new EventsManagerImpl
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
     val legHistogram = new LegHistogram(
