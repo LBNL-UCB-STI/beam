@@ -1,5 +1,8 @@
 package beam.utils.mapsapi.googleapi
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Path
+import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.FiniteDuration
@@ -12,30 +15,26 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.StreamConverters
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import beam.utils.mapsapi.{Segment, TransitPath}
-import play.api.libs.json.{JsArray, JsObject, Json}
+import beam.utils.mapsapi.Segment
+import beam.utils.mapsapi.googleapi.GoogleAdapter._
+import org.apache.commons.io.FileUtils
+import play.api.libs.json.{JsArray, JsLookupResult, JsObject, JsValue, Json}
 
-class GoogleAdapter(apiKey: String) extends AutoCloseable {
+class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) extends AutoCloseable {
   private implicit val system: ActorSystem = ActorSystem()
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
-  def findPath(origin: WgsCoordinate, destination: WgsCoordinate): Future[TransitPath] = {
-    val originStr = s"${origin.latitude},${origin.longitude}"
-    val destinationStr = s"${destination.latitude},${destination.longitude}"
-    val params = Seq(
-      "mode=driving",
-      "language=en",
-      "units=metric",
-      s"origin=$originStr",
-      s"destination=$destinationStr",
-      s"key=$apiKey"
-    )
-    val baseUrl = "https://maps.googleapis.com/maps/api/directions/json"
-    val url = s"$baseUrl${params.mkString("?", "&", "")}"
-
-    call(url).map(toTransitPath)
+  def findRoutes(
+    origin: WgsCoordinate,
+    destination: WgsCoordinate,
+    departureAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
+    mode: TravelModes.TravelMode = TravelModes.Driving,
+    constraints: Set[TravelConstraints.TravelConstraint] = Set.empty
+  ): Future[Seq[Route]] = {
+    val url = buildUrl(apiKey, origin, destination, departureAt, mode, constraints)
+    call(url).map(writeToFileIfSetup).map(toRoutes)
   }
 
   def call(url: String): Future[JsObject] = {
@@ -47,23 +46,53 @@ class GoogleAdapter(apiKey: String) extends AutoCloseable {
     }
   }
 
-  private def toTransitPath(jsObject: JsObject): TransitPath = {
-    val routes = (jsObject \ "routes").as[JsArray].value.head
-    val segments: IndexedSeq[Segment] = (routes \ "legs").as[JsArray].value.map { leg =>
-      val startPoint = leg \ "start_location"
-      val endPoint = leg \ "end_location"
-      val start = WgsCoordinate(
-        latitude = (startPoint \ "lat").as[Double],
-        longitude = (startPoint \ "lng").as[Double]
-      )
-      val end = WgsCoordinate(
-        latitude = (endPoint \ "lat").as[Double],
-        longitude = (endPoint \ "lng").as[Double]
-      )
-      val distanceInMeters = (leg \ "distance" \ "value").as[Int]
-      Segment(Seq(start, end), distanceInMeters, None)
+  def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
+    jsRoutes.map { route =>
+      val firstAndUniqueLeg = (route \ "legs").as[JsArray].value.head
+      parseRoute(firstAndUniqueLeg.as[JsObject])
     }
-    TransitPath(segments)
+  }
+
+  private def writeToFileIfSetup(jsObject: JsObject): JsObject = {
+    if (outputResponseToFile.isDefined) {
+      FileUtils.writeStringToFile(outputResponseToFile.get.toFile, Json.prettyPrint(jsObject), StandardCharsets.UTF_8)
+    }
+    jsObject
+  }
+
+  private def toRoutes(jsObject: JsObject): Seq[Route] = {
+
+    parseRoutes((jsObject \ "routes").as[JsArray].value)
+  }
+
+  private def parseRoute(jsObject: JsObject): Route = {
+    val segments = parseSegments((jsObject \ "steps").as[JsArray].value)
+    val distanceInMeter = (jsObject \ "distance" \ "value").as[Int]
+    val durationInSeconds = (jsObject \ "duration" \ "value").as[Int]
+    val startLocation = parseWgsCoordinate(jsObject \ "start_location")
+    val endLocation = parseWgsCoordinate(jsObject \ "end_location")
+    Route(startLocation, endLocation, distanceInMeter, durationInSeconds, segments)
+  }
+
+  def parseStep(jsObject: JsObject): Segment = {
+    Segment(
+      coordinates = PolyDecoder.decode((jsObject \ "polyline" \ "points").as[String]),
+      lengthInMeters = (jsObject \ "distance" \ "value").as[Int],
+      durationInSeconds = Some((jsObject \ "duration" \ "value").as[Int])
+    )
+  }
+
+  private def parseSegments(steps: Seq[JsValue]): Seq[Segment] = {
+    steps.map { step =>
+      parseStep(step.as[JsObject])
+    }
+  }
+
+  private def parseWgsCoordinate(position: JsLookupResult) = {
+    WgsCoordinate(
+      latitude = (position \ "lat").as[Double],
+      longitude = (position \ "lng").as[Double]
+    )
   }
 
   override def close(): Unit = {
@@ -73,6 +102,46 @@ class GoogleAdapter(apiKey: String) extends AutoCloseable {
           if (!materializer.isShutdown) materializer.shutdown()
           system.terminate()
       }
+  }
+
+}
+
+object GoogleAdapter {
+
+  private[googleapi] def buildUrl(
+    apiKey: String,
+    origin: WgsCoordinate,
+    destination: WgsCoordinate,
+    departureAt: LocalDateTime,
+    mode: TravelModes.TravelMode,
+    constraints: Set[TravelConstraints.TravelConstraint]
+  ): String = {
+    // avoid=tolls|highways|ferries
+    val originStr = s"${origin.latitude},${origin.longitude}"
+    val destinationStr = s"${destination.latitude},${destination.longitude}"
+    val params = Seq(
+      "mode=driving",
+      "language=en",
+      "units=metric",
+      "alternatives=true",
+      s"key=$apiKey",
+      s"mode=${mode.apiString}",
+      s"departure_time=${dateAsEpochSecond(departureAt)}",
+      s"origin=$originStr",
+      s"destination=$destinationStr"
+    )
+    val optionalParams = {
+      if (constraints.isEmpty) Seq.empty
+      else Seq(s"avoid=${constraints.map(_.apiName).mkString("|")}")
+    }
+
+    val baseUrl = "https://maps.googleapis.com/maps/api/directions/json"
+
+    s"$baseUrl${(params ++ optionalParams).mkString("?", "&", "")}"
+  }
+
+  private def dateAsEpochSecond(ldt: LocalDateTime): Long = {
+    ldt.toEpochSecond(ZoneOffset.UTC)
   }
 
 }

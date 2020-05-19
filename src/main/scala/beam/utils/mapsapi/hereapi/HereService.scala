@@ -37,7 +37,11 @@ class HereService(adapter: HereAdapter) {
         values.toList.map {
           case (path, span) =>
             val coordinates = path.coordinates.slice(span.startIndex, span.endIndex + 1)
-            Segment(coordinates, span.lengthInMeters, span.speedLimitInKph)
+            Segment(
+              coordinates = coordinates,
+              lengthInMeters = span.lengthInMeters,
+              speedLimitInKph = span.speedLimitInKph
+            )
         }
       }
   }
@@ -57,39 +61,6 @@ object HereService {
       val segFuture = service.findSegments(origin = originCoordinate, destination = destinationCoordinate)
       Await.result(segFuture, Duration("5 seconds"))
     }
-  }
-
-  def fromCsv(file: Path): Seq[Segment] = {
-    val (iter: Iterator[Segment], toClose: Closeable) =
-      GenericCsvReader.readAs[Segment](file.toString, toHereSegment, _ => true)
-    try {
-      iter.toList
-    } finally {
-      toClose.close()
-    }
-  }
-
-  private def deserializeCoordinates(str: String): Seq[WgsCoordinate] = {
-    println(str)
-    val arr: Array[String] = str.split('|')
-    arr.map { eachElement =>
-      val arr = eachElement.split("/")
-      WgsCoordinate(arr(0).toDouble, arr(1).toDouble)
-    }
-  }
-
-  def toHereSegment(rec: java.util.Map[String, String]): Segment = {
-    val vWgsCoordinates = rec.get("wgsCoordinates")
-    val vLengthInMeters = rec.get("lengthInMeters").toInt
-    val vSpeedLimitInKph = rec.getOrDefault("speedLimitInKph", "")
-    Segment(
-      deserializeCoordinates(vWgsCoordinates),
-      lengthInMeters = vLengthInMeters,
-      speedLimitInKph = vSpeedLimitInKph match {
-        case value if value == null || value.isEmpty => None
-        case value                                   => Some(value.toInt)
-      }
-    )
   }
 
 }

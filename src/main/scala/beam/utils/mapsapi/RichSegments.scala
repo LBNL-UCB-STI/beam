@@ -11,13 +11,14 @@ class RichSegments(segments: Seq[Segment]) {
 
   def saveToCsv(path: Path): Seq[Segment] = {
     val csvWriter: CsvWriter = {
-      val headers = Array("wgsCoordinates", "lengthInMeters", "speedLimitInKph")
+      val headers = Array("wgsCoordinates", "lengthInMeters", "durationInSeconds", "speedLimitInKph")
       new CsvWriter(path.toString, headers)
     }
     val rows = segments.map { segment =>
       IndexedSeq(
         toCsv(segment.coordinates),
         segment.lengthInMeters,
+        segment.durationInSeconds.getOrElse(""),
         segment.speedLimitInKph.getOrElse("")
       )
     }
