@@ -58,9 +58,11 @@ class RoutingFrameworkTravelTimeCalculator(
 
     val iterationNumber: Int = iterationEndsEvent.getIteration
 
+    val travelTimeCalculationStopWatch = new StopWatch()
+
     val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
 
-    val hour2Events: Map[Int, List[TravelInfo]] = generateHour2Events(pathTraversalEvents)
+    val hour2Events = generateHour2Events(pathTraversalEvents)
 
     val odsCreationFutures = hour2Events
       .map {
@@ -71,33 +73,14 @@ class RoutingFrameworkTravelTimeCalculator(
 
             var odNumber = 0
 
-            val ods = events.toStream
-              .map { event =>
-                for {
-                  firstLinkId <- event.linkIds.headOption
-                  lastLinkId  <- event.linkIds.lastOption
-                  firstWayId  <- linkWayId(id2Link(firstLinkId))
-                  secondWayId <- linkWayId(id2Link(lastLinkId))
-                  origin      <- osmInfoHolder.getCoordinatesForWayId(firstWayId).headOption
-                  destination <- osmInfoHolder.getCoordinatesForWayId(secondWayId).lastOption
-                } yield origin -> destination
-              }
-              .collect { case Some(od @ (origin, destination)) if origin != destination => od }
-              .map {
-                case (origin, destination) =>
-                  val firstVertexId: Long = coord2VertexId
-                    .getOrElse(origin, getClosestVertexId(origin))
-                  val secondVertexId: Long = coord2VertexId
-                    .getOrElse(destination, getClosestVertexId(destination))
-
-                  odNumber = odNumber + 1
-
-                  OD(firstVertexId, secondVertexId)
-              }
+            val ods = generateOdsFromEvents(events, id2Link)
 
             val odStream = ods
-              .flatMap(od => Stream.range(0, odsFactor, 1).map(_ => od))
-            routingFrameworkWrapper.generateOd(iterationNumber, hour, odStream)
+              .flatMap { od =>
+                odNumber = odNumber + 1
+                Stream.range(0, odsFactor, 1).map(_ => od)
+              }
+            routingFrameworkWrapper.writeOds(iterationNumber, hour, odStream)
 
             logger.info("Generated {} ods, for hour {} in {} ms", odNumber, hour, stopWatch.getTime)
           }
@@ -118,6 +101,22 @@ class RoutingFrameworkTravelTimeCalculator(
     }.toMap
 
     val totalNumberOfLinks: Int = links.size
+
+    val (linksFailedToResolve, linkId2TravelTimeByHour) =
+      fillLink2TravelTimeByHour(links, hour2Way2TravelTimes, maxHour)
+
+    logger.info("Total links: {}, failed to assign travel time: {}", totalNumberOfLinks, linksFailedToResolve)
+
+    logger.info("Created travel times in {} ms", travelTimeCalculationStopWatch.getTime)
+
+    linkId2TravelTimeByHour.asJava
+  }
+
+  private def fillLink2TravelTimeByHour(
+    links: util.Collection[_ <: Link],
+    hour2Way2TravelTimes: Map[Int, Map[Long, Double]],
+    maxHour: Int
+  ): (Int, Map[String, Array[Double]]) = {
     var linksFailedToResolve = 0
 
     val linkId2TravelTimeByHour = links
@@ -152,12 +151,31 @@ class RoutingFrameworkTravelTimeCalculator(
             link.getId.toString -> travelTimeByHour
           }
       }
+    (linksFailedToResolve, linkId2TravelTimeByHour)
+  }
 
-    logger.info("Total links: {}, failed to assign travel time: {}", totalNumberOfLinks, linksFailedToResolve)
+  private def generateOdsFromEvents(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
+    events.toStream
+      .map { event =>
+        for {
+          firstLinkId <- event.linkIds.headOption
+          lastLinkId  <- event.linkIds.lastOption
+          firstWayId  <- linkWayId(id2Link(firstLinkId))
+          secondWayId <- linkWayId(id2Link(lastLinkId))
+          origin      <- osmInfoHolder.getCoordinatesForWayId(firstWayId).headOption
+          destination <- osmInfoHolder.getCoordinatesForWayId(secondWayId).lastOption
+        } yield origin -> destination
+      }
+      .collect { case Some(od @ (origin, destination)) if origin != destination => od }
+      .map {
+        case (origin, destination) =>
+          val firstVertexId: Long = coord2VertexId
+            .getOrElse(origin, getClosestVertexId(origin))
+          val secondVertexId: Long = coord2VertexId
+            .getOrElse(destination, getClosestVertexId(destination))
 
-    logger.info("Created travel times in {} ms", System.currentTimeMillis - startTime)
-
-    linkId2TravelTimeByHour.asJava
+          OD(firstVertexId, secondVertexId)
+      }
   }
 
   private def generateHour2Events(
@@ -211,17 +229,19 @@ class RoutingFrameworkTravelTimeCalculator(
   ): Long = {
     var distance = 0.00001
     val envelope = new Envelope(coordinate)
-    envelope.expandBy(distance)
 
     Stream
       .range(1, 10)
       .map { _ =>
-        val res: List[KdNode] = kdTree.query(envelope).asInstanceOf[List[KdNode]]
         distance = distance * 10
         envelope.expandBy(distance)
-        if (res.nonEmpty) {
-          Some(res.minBy(_.getCoordinate.distance(coordinate)).getData.asInstanceOf[Long])
-        } else None
+        kdTree.query(envelope).asInstanceOf[java.util.ArrayList[KdNode]].toList match {
+          case Nil => None
+          case res =>
+            Some(
+              res.minBy(_.getCoordinate.distance(coordinate)).getData.asInstanceOf[Long]
+            )
+        }
       }
       .collectFirst { case Some(v) => v }
       .get

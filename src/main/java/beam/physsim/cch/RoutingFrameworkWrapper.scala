@@ -31,7 +31,7 @@ trait RoutingFrameworkWrapper {
     * @param hour hour
     * @param ods stream of od pairs
     */
-  def generateOd(iteration: Int, hour: Int, ods: Stream[OD]): Unit
+  def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit
 
   /**
     * Assign traffic and get results of last iteration
@@ -122,7 +122,7 @@ class InternalRTWrapper(
     createODPairsOutput.lineStream.foreach(logger.info(_))
   }
 
-  def generateOd(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
+  def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
     itHourRelatedPath(tempDirPath, iteration, hour, "").toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
 

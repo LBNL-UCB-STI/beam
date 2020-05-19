@@ -129,7 +129,7 @@ public class R5MnetBuilder {
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {
         Link link = mNetwork.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);
-        link.setLengthRelaxationExperiment(length);
+        link.setLength(length);
         link.setFreespeed(10.0 / 3.6);
         link.setCapacity(300);
         link.setNumberOfLanes(1);
