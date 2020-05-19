@@ -211,8 +211,8 @@ object FileUtils extends LazyLogging {
 
   def readAllLines(file: File): Seq[String] = {
     using(Source.fromFile(file.getPath)) { source =>
-      source.getLines()
-    }.toList
+      source.getLines().toList
+    }
   }
 
   def readAllLines(file: String): Seq[String] = {
