@@ -24,7 +24,7 @@ object JDEQSimRunnerApp extends StrictLogging {
 
     val networkFile = "d:/Work/beam/GPU/network-output.xml"
     val populationFile = "d:/Work/beam/GPU/population_sampled.xml"
-    val pathToOutput = "d:/Work/beam/GPU/result"
+    val pathToOutput = s"${execCfg.outputDirectory}/phys-sym"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
       readNetwork(networkFile)
@@ -64,6 +64,7 @@ object JDEQSimRunnerApp extends StrictLogging {
       agentSimIterationNumber = 0
     )
     physSim.simulate(currentPhysSimIter = 0, writeEvents = false)
+    logger.info(s"Results are in ${execCfg.outputDirectory}")
   }
 
   private def readNetwork(path: String): Network = {
