@@ -18,7 +18,6 @@ trait RoutingFrameworkGraphReader {
 class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
   override def read(graph: File): RoutingFrameworkGraph =
     Files.asByteSource(graph).openStream().use { source =>
-
       def readString(): String = {
         val b = mutable.ArrayBuffer[Byte]()
         Stream
