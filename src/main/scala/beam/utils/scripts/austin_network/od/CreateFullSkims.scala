@@ -32,7 +32,7 @@ object CreateFullSkims {
       val tazId = cols(0).replaceAll("\"", "")
       val coord = new Coord(cols(1).toDouble, cols(2).toDouble)
       (tazId, coord)
-    }.take(10) //.flatMap(List.fill(4)(_))//.take(1000)
+    }//.take(10) //.flatMap(List.fill(4)(_))//.take(1000)
 
     val odMatrix = for (originTAZ <- taz; destTAZ <- taz) yield (originTAZ, destTAZ)
 
