@@ -66,7 +66,7 @@ class InternalRTWrapper(
 
   private val graphReader: RoutingFrameworkGraphReader = new RoutingFrameworkGraphReaderImpl()
 
-  private val toolDockerImage = "routing-framework"
+  private val toolDockerImage = "beammodel/routing-framework:1.0"
 
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraphLauncher = s"$basePath/RawData/ConvertGraph"
