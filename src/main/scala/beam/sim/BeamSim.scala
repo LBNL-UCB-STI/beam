@@ -280,7 +280,6 @@ class BeamSim @Inject()(
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
-      //FROM HERE!!!
       createGraphsFromEvents.createGraphs(event)
 
       iterationSummaryStats += iterationStatsProviders
@@ -317,7 +316,6 @@ class BeamSim @Inject()(
 
       graphFileNameDirectory.clear()
 
-      // TO HERE!!!!
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
