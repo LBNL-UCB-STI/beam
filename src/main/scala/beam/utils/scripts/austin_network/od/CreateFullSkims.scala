@@ -21,7 +21,7 @@ object CreateFullSkims {
     val take = if (args(5).toInt == 0) Integer.MAX_VALUE else args(5).toInt
 
 
-    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
+    val (_, cfg) = prepareConfig(args.take(2), isConfigArgRequired = true)
 
     val r5Wrapper = createR5Wrapper(cfg, travelTimeNoiseFraction)
 
