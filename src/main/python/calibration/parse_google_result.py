@@ -18,7 +18,7 @@ pd.set_option('display.precision',12)
 
 def first_attempt(travel_time_str):
      # for a case like `typically 8 - 22 min`
-    regex = r"typically\s([\d]{1,2})\s-\s([\d]{1,2})\smin$"
+    regex = r"(?:typically\s){0,1}([\d]{1,2})\s-\s([\d]{1,2})\smin$"
     matches = re.finditer(regex, travel_time_str)
     enum = list(enumerate(matches, start=1))
     if len(enum) == 1:
@@ -28,14 +28,12 @@ def first_attempt(travel_time_str):
         return (min_time, max_time)
     else:
         return None
-
 def second_attempt(travel_time_str):
     def ifNoneThenEmptyString(value):
         if value is None:
             return ""
         else:
             return value
-
     def getTotalTimeInMinutes(minutes, hours):
         time = 0
         if hours != '':
@@ -43,7 +41,6 @@ def second_attempt(travel_time_str):
         if minutes != '':
             time = time + int(minutes)
         return time
-
     # typically 1 h - 1 h 30 min
     # typically 1 h 50 min - 2 h 20 min
     # typically 24 min - 1 h
@@ -55,7 +52,7 @@ def second_attempt(travel_time_str):
     # typically 35 min - 1 h 5 min
     # typically 40 min - 1 h
     # typically 40 min - 1 h 5 min
-    regex = r"typically\s([\d]{1,2}\sh\s){0,1}([\d]{1,2}\smin\s){0,1}-\s([\d]{1,2}\sh[\s]{0,1})([\d]{1,2}\smin){0,1}$"
+    regex = r"(?:typically\s){0,1}([\d]{1,2}\sh\s){0,1}([\d]{1,2}\smin\s){0,1}-\s([\d]{1,2}\sh[\s]{0,1})([\d]{1,2}\smin){0,1}$"
     matches = re.finditer(regex, travel_time_str)
     enum = list(enumerate(matches, start=1))
     if len(enum) == 1:
@@ -70,10 +67,9 @@ def second_attempt(travel_time_str):
         return (min_time, max_time)
     else:
         return None
-
 def third_attempt(travel_time_str):
      # for a case like `typically 8min`
-    regex = r"typically\s([\d]{1,2})\smin$"
+    regex = r"(?:typically\s){0,1}([\d]{1,2})\smin$"
     matches = re.finditer(regex, travel_time_str)
     enum = list(enumerate(matches, start=1))
     if len(enum) == 1:
@@ -83,7 +79,18 @@ def third_attempt(travel_time_str):
         return (min_time, max_time)
     else:
         return None
-
+def fourth_attempt(travel_time_str):
+     # for a case like `typically 1 h`
+    regex = r"(?:typically\s){0,1}([\d]{1,2})\sh$"
+    matches = re.finditer(regex, travel_time_str)
+    enum = list(enumerate(matches, start=1))
+    if len(enum) == 1:
+        n, match = enum[0]
+        min_time = int(match.group(1)) * 60 * 60
+        max_time = int(match.group(1)) * 60 * 60
+        return (min_time, max_time)
+    else:
+        return None
 def parse_travel_time(travel_time_str):
     if isinstance(travel_time_str,float) and math.isnan(travel_time_str):
         return (float('nan'), float('nan'))
@@ -96,9 +103,11 @@ def parse_travel_time(travel_time_str):
     temp = third_attempt(travel_time_str)
     if temp is not None:
         return temp
+    temp = fourth_attempt(travel_time_str)
+    if temp is not None:
+        return temp
     else:
         raise Exception("Cannot parse '%s' as travel time" % ((travel_time_str)))
-
 def parse_travel_distance(travel_distance):
     if isinstance(travel_distance,float) and math.isnan(travel_distance):
         return float('nan')
@@ -117,19 +126,16 @@ def parse_travel_distance(travel_distance):
         return float(travel_distance.replace('m', ''))
     else:
         raise Exception("Cannot parse '%s' as travel distance" % ((travel_distance)))
-
 def normalize(df):
     df['route_0_travel_distance_meters'] = df['route_0_travel_distance'].apply(lambda x: parse_travel_distance(x))
     df['route_1_travel_distance_meters'] = df['route_1_travel_distance'].apply(lambda x: parse_travel_distance(x))
     df['route_2_travel_distance_meters'] = df['route_2_travel_distance'].apply(lambda x: parse_travel_distance(x))
-
     df['route_0_travel_time_min'] = df['route_0_travel_time'].apply(lambda x: parse_travel_time(x)[0])
     df['route_0_travel_time_max'] = df['route_0_travel_time'].apply(lambda x: parse_travel_time(x)[1])
     df['route_1_travel_time_min'] = df['route_1_travel_time'].apply(lambda x: parse_travel_time(x)[0])
     df['route_1_travel_time_max'] = df['route_1_travel_time'].apply(lambda x: parse_travel_time(x)[1])
     df['route_2_travel_time_min'] = df['route_2_travel_time'].apply(lambda x: parse_travel_time(x)[0])
     df['route_2_travel_time_max'] = df['route_2_travel_time'].apply(lambda x: parse_travel_time(x)[1])
-
     return df
 
 def get_input_file(hour):
