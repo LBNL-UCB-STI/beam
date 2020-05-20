@@ -1,30 +1,22 @@
 package beam.analysis.physsim;
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
-import beam.sim.OutputDataDescription;
+import beam.analysis.plots.GraphUtils;
 import beam.sim.config.BeamConfig;
-import beam.utils.OutputDataDescriptor;
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartUtilities;
+import com.google.common.base.Suppliers;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
 
-import java.awt.*;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
-import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -59,30 +51,37 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * Iteration stop notification event listener
      * @param iteration the count of the current iteration
      */
-    public void notifyIterationEnds(int iteration,TravelTimeCalculator travelTimeCalculator) {
+    public void notifyIterationEnds(int iteration, TravelTime travelTime) {
         //generate the graph input for the free flow speed distribution
         Map<Integer, Integer> processedSpeedDistributionData = generateInputDataForFreeFlowSpeedGraph(noOfBins,this.network);
         //generate  data matrix for the free flow speed distribution
-        double[][] speedDataMatrix = buildDataSetFromSpeedData(processedSpeedDistributionData);
+        Supplier<double[]> speedDataList = Suppliers.memoize(() -> buildDataSetFromSpeedData(processedSpeedDistributionData));
         //generate the graph input for the link efficiencies
-        Map<Double, Integer> processedSpeedDistributionAsPercentageData = generateInputDataForLinkEfficiencies(travelTimeCalculator);
-        //generate category data set for free flow speed distribution
-        CategoryDataset dataSetForSpeed = DatasetUtilities.createCategoryDataset("Free Speed", "", speedDataMatrix);
-        //generate the category data set for link efficiencies
-        CategoryDataset dataSetForSpeedAsPercentage = generateLinkEfficienciesDataSet(processedSpeedDistributionAsPercentageData);
+        Supplier<Map<Double, Integer>> processedSpeedDistributionAsPercentageData = Suppliers.memoize(() ->
+                generateInputDataForLinkEfficiencies(travelTime));
+
         if (this.outputDirectoryHierarchy != null) {
             //If not running in test mode , write output to a csv file
             if (isNotTestMode()) {
                 //write data outputs to CSV
-                this.writeCSV(speedDataMatrix,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsSpeedUnitFileName+".csv"),"freeSpeedInMetersPerSecond");
-                this.writeCSV(processedSpeedDistributionAsPercentageData,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsPercentageFileName+".csv"),"linkEfficiencyInPercentage");
+                this.writeCSV(speedDataList.get(),outputDirectoryHierarchy.getIterationFilename(iteration, outputAsSpeedUnitFileName+".csv"),"freeSpeedInMetersPerSecond");
+                this.writeCSV(processedSpeedDistributionAsPercentageData.get(),outputDirectoryHierarchy.getIterationFilename(iteration, outputAsPercentageFileName+".csv"),"linkEfficiencyInPercentage");
             }
             //generate the required charts - frequency over speed (as m/s)
             if(beamConfig.beam().outputs().writeGraphs()) {
-                generateSpeedDistributionBarChart(dataSetForSpeed, iteration);
+                //generate category data set for free flow speed distribution
+                CategoryDataset dataSetForSpeedTest = generateSpeedDistributionDataSet(speedDataList.get());
+                generateSpeedDistributionBarChart(dataSetForSpeedTest, iteration);
+
+                //generate the category data set for link efficiencies
+                CategoryDataset dataSetForSpeedAsPercentage = generateLinkEfficienciesDataSet(processedSpeedDistributionAsPercentageData.get());
                 generateSpeedDistributionAsPercentageChart(dataSetForSpeedAsPercentage,iteration);
             }
         }
+    }
+
+    private CategoryDataset generateSpeedDistributionDataSet(double[] speedDataList) {
+        return GraphUtils.createCategoryDataset("", "", speedDataList);
     }
 
     private CategoryDataset generateLinkEfficienciesDataSet(Map<Double, Integer> generatedDataMap) {
@@ -104,17 +103,15 @@ public class PhyssimCalcLinkSpeedDistributionStats {
 
     /**
      * Helper method that writes the final data to a CSV file
-     * @param dataMatrix the input data required to generate the charts
+     * @param data the input data required to generate the charts
      * @param outputFilePath path to the CSV file
      * @param heading header string for the CSV file
      */
-    private void writeCSV(double[][] dataMatrix,String outputFilePath,String heading) {
-        try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath));
+    private void writeCSV(double[] data, String outputFilePath,String heading) {
+        try(BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath))) {
             String completeHeading = heading + ",numberOfLinks\n";
             bw.write(completeHeading);
-            double[] data = dataMatrix[0];
-            IntStream.range(0,data.length)
+            IntStream.range(0, data.length)
                     .forEach( i -> {
                         try {
                             bw.write(i + "," + data[i] + "\n");
@@ -122,7 +119,6 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                             e.printStackTrace();
                         }
                     });
-            bw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -135,8 +131,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * @param heading header string for the CSV file
      */
     private void writeCSV(Map<Double, Integer> dataMap,String outputFilePath,String heading) {
-        try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath));
+        try(BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath))) {
             String completeHeading = heading + ",linkEfficiencyRounded,numberOfLinks\n";
             bw.write(completeHeading);
             dataMap.forEach((k,v) -> {
@@ -146,7 +141,6 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                     e.printStackTrace();
                 }
             });
-            bw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -180,9 +174,8 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * Generates input data used to generate frequencies of link efficiencies
      * @return input generated data as map ( speed in m/s -> frequency )
      */
-    private Map<Double, Integer> generateInputDataForLinkEfficiencies(TravelTimeCalculator travelTimeCalculator) {
+    private Map<Double, Integer> generateInputDataForLinkEfficiencies(TravelTime travelTime) {
         int binSize = 3600;
-        TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
         Map<Double, Integer> frequencyOfEfficiencies = new HashMap<>();
         //for each bin
         for (int idx = 0; idx < noOfBins; idx++) {
@@ -202,19 +195,16 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     }
 
     /**
-     * Generate a 2d data matrix , used to generate category data set for stacked bar chart
+     * Generate a data, used to generate category data set for stacked bar chart
      * @param generatedDataMap input data generated as map
-     * @return 2d data matrix
+     * @return ordered data list
      */
-    private double[][] buildDataSetFromSpeedData(Map<Integer, Integer> generatedDataMap) {
-        Stream<Integer> keys = generatedDataMap.keySet()
-                .stream();
-        Integer max = keys.max(Comparator.comparing(Integer::valueOf)).orElse(0);
-        double[][] dataMatrix = new double[1][max+1];
-        for (int i = 1; i <= max; i++) {
-            dataMatrix[0][i-1] = generatedDataMap.getOrDefault(i,0);
-        }
-        return dataMatrix;
+    private double[] buildDataSetFromSpeedData(Map<Integer, Integer> generatedDataMap) {
+        int max = generatedDataMap.keySet().stream().max(Comparator.comparing(Integer::valueOf)).orElse(0);
+        double[] result = new double[max+1];
+        IntStream.rangeClosed(0, max).forEach(i -> result[i] = generatedDataMap.getOrDefault(i, 0));
+
+        return result;
     }
 
     /**
@@ -230,19 +220,13 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         int width = 1000;
         int height = 600;
 
-        // Setting orientation for the plot
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-
         // Create the chart
-        final JFreeChart chart = ChartFactory
-                .createStackedBarChart(plotTitle, x_axis, y_axis, dataSet, orientation, false, true, true);
-        chart.setBackgroundPaint(new Color(255, 255, 255));
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, plotTitle, x_axis, y_axis, false);
 
         //Save the chart as image
         String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputAsSpeedUnitFileName+".png");
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -260,23 +244,16 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         String y_axis = "Frequency";
         int width = 1000;
         int height = 800;
-        // Setting orientation for the plot
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
 
         // Create the chart
-        final JFreeChart chart = ChartFactory
-                .createStackedBarChart(plotTitle, x_axis, y_axis, dataSet, orientation, false, true, true);
-        chart.setBackgroundPaint(new Color(255, 255, 255));
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, plotTitle, x_axis, y_axis, false);
 
         //Save the chart as image
         String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputAsPercentageFileName+".png");
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-
 }

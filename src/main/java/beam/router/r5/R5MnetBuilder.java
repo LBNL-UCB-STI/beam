@@ -35,23 +35,23 @@ public class R5MnetBuilder {
     private final GeotoolsTransformation transform;
     private final String osmFile;
     private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final BeamConfig.Beam beamConfig;
+    private final HighwaySetting highwaySetting;
 
     private int matsimNetworkNodeId = 0;
 
     /**
-     * @param r5Net     R5 network.
+     * @param r5Net      R5 network.
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
-    public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
-        BeamConfig.Beam beam = beamConfig.beam();
+    public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig, HighwaySetting highwaySetting) {
+        this.r5Network = r5Net;
+        this.beamConfig = beamConfig.beam();
+        this.highwaySetting = highwaySetting;
 
-        osmFile = beam.routing().r5().osmMapdbFile();
-
-        transform = new GeotoolsTransformation(beam.routing().r5().mNetBuilder().fromCRS(),
-                beam.routing().r5().mNetBuilder().toCRS());
-
-        r5Network = r5Net;
-
+        osmFile = this.beamConfig.routing().r5().osmMapdbFile();
+        transform = new GeotoolsTransformation(this.beamConfig.routing().r5().mNetBuilder().fromCRS(),
+                this.beamConfig.routing().r5().mNetBuilder().toCRS());
         mNetwork = NetworkUtils.createNetwork();
     }
 
@@ -61,7 +61,7 @@ public class R5MnetBuilder {
         WayFixer$.MODULE$.fix(ways);
 
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
-        OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
+        OsmToMATSim OTM = new OsmToMATSim(mNetwork, true, highwaySetting.speedsMeterPerSecondMap, highwaySetting.capacityMap, highwaySetting.lanesMap);
 
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
@@ -71,17 +71,17 @@ public class R5MnetBuilder {
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();
-            Long osmID = cursor.getOSMID();  // id of edge in the OSM db
+            long osmID = cursor.getOSMID();  // id of edge in the OSM db
             Way way = ways.get(osmID);
 
             Set<Integer> deezNodes = new HashSet<>(2);
             deezNodes.add(cursor.getFromVertex());
             deezNodes.add(cursor.getToVertex());
 
-            final Set<String> flagStrings = new HashSet<>();
+            final HashSet<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
                 String flagString = flagToString(eF);
-                if(!flagString.isEmpty()){
+                if (!flagString.isEmpty()) {
                     flagStrings.add(flagToString(eF));
                 }
             }
@@ -100,20 +100,20 @@ public class R5MnetBuilder {
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = getOrMakeNode(fromCoord);
             Node toNode = getOrMakeNode(toCoord);
-            Link link = null;
+            Link link;
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
                 link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
                 mNetwork.addLink(link);
                 log.debug("Created special link: {}", link);
             } else {
-                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
+                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
             if (fromNode.getId() == toNode.getId()) {
                 cursor.setLengthMm(1);
-                cursor.setSpeed((short)2905); // 65 miles per hour
+                cursor.setSpeed((short) 2905); // 65 miles per hour
                 link.setLength(0.001);
                 link.setCapacity(10000);
                 link.setFreespeed(29.0576);   // 65 miles per hour
@@ -123,6 +123,7 @@ public class R5MnetBuilder {
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
+
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {

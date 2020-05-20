@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -8,7 +9,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(true);
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$, true);
 
     @BeforeClass
     public static void setUpClass() {
@@ -54,8 +55,8 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnDeadHeadingAllDistanceForSpecificHour() {
-        int expectedResultOfHour[] = {0, 3, 3, 0, 0, 4, 0};
-        int actualResultOfHour[] = new int[7];
+        int[] expectedResultOfHour = {0, 3, 3, 0, 0, 4, 0};
+        int[] actualResultOfHour = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getDeadHeadingTnc0HourDataCount(i, 6);
         }
@@ -64,8 +65,8 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnDeadHeadingPassengerPerTripForSpecificHour() {
-        int expectedResultOfHour[] = {0, 2, 2, 0, 0, 1, 0};
-        int actualResultOfHour[] = new int[7];
+        int[] expectedResultOfHour = {0, 2, 2, 0, 0, 1, 0};
+        int[] actualResultOfHour = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getPassengerPerTripCountForSpecificHour(i, "tnc", 6);
         }

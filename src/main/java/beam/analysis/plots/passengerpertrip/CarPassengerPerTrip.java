@@ -19,7 +19,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
-    private static  double matriXDataSet[][] ;
+    private static double[][] matriXDataSet;
 
     final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
@@ -64,7 +64,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public CategoryDataset getCategoryDataSet() {
-
         matriXDataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {

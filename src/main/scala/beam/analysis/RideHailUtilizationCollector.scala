@@ -1,5 +1,6 @@
 package beam.analysis
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -10,7 +11,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
@@ -19,7 +19,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 case class RideInfo(
-  vehicleId: Id[Vehicle],
+  vehicleId: Id[BeamVehicle],
   time: Int,
   startCoord: Coord,
   endCoord: Coord,
@@ -27,9 +27,9 @@ case class RideInfo(
   primaryFuelLevel: Double
 )
 case class RideHailHistoricalData(
-  notMovedAtAll: Set[Id[Vehicle]],
-  movedWithoutPassenger: Set[Id[Vehicle]],
-  movedWithPassengers: Set[Id[Vehicle]],
+  notMovedAtAll: Set[Id[BeamVehicle]],
+  movedWithoutPassenger: Set[Id[BeamVehicle]],
+  movedWithPassengers: Set[Id[BeamVehicle]],
   rides: IndexedSeq[RideInfo]
 )
 
@@ -131,7 +131,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
 
     val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
-    val numOfRidesToVehicleId: Seq[(Int, Id[Vehicle])] = vehicleToRides
+    val numOfRidesToVehicleId: Seq[(Int, Id[BeamVehicle])] = vehicleToRides
       .map {
         case (vehId, xs) =>
           vehId -> xs.count(_.numOfPassengers > 0)
@@ -297,7 +297,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
 
 object RideHailUtilizationCollector {
 
-  def getMovedWithoutPassenger(rides: IndexedSeq[RideInfo]): Set[Id[Vehicle]] = {
+  def getMovedWithoutPassenger(rides: IndexedSeq[RideInfo]): Set[Id[BeamVehicle]] = {
     rides
       .groupBy { x =>
         x.vehicleId
@@ -310,7 +310,7 @@ object RideHailUtilizationCollector {
   }
 
   def getRidesWithPassengers(rides: IndexedSeq[RideInfo]): IndexedSeq[RideInfo] = {
-    val notMoved: Set[Id[Vehicle]] = getMovedWithoutPassenger(rides)
+    val notMoved: Set[Id[BeamVehicle]] = getMovedWithoutPassenger(rides)
     val moved: IndexedSeq[RideInfo] = rides.filterNot(vri => notMoved.contains(vri.vehicleId))
     moved
   }

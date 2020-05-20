@@ -23,7 +23,6 @@ import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

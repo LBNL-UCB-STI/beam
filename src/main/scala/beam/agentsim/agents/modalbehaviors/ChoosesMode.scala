@@ -28,7 +28,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
-import org.matsim.vehicles.Vehicle
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,7 +42,7 @@ trait ChoosesMode {
 
   val dummyRHVehicle =
     StreetVehicle(
-      Id.create("dummyRH", classOf[Vehicle]),
+      Id.create("dummyRH", classOf[BeamVehicle]),
       Id.create(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
@@ -453,7 +452,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId),
+        theRouterResult @ RoutingResponse(_, requestId, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -833,7 +832,7 @@ trait ChoosesMode {
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
       case ActualVehicle(beamVehicle) =>
-        beamVehicle.mustBeDrivenHome
+        beamVehicle.isMustBeDrivenHome
       case _: Token =>
         false // is not a household vehicle
     }
@@ -1104,9 +1103,19 @@ trait ChoosesMode {
       val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
+      var isCurrentPersonalVehicleVoided = false
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
-          vehicle.manager.get ! ReleaseVehicle(vehicle)
+          data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
+            if (currentVehicle == vehicle.id) {
+              logError(
+                s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
+              )
+              isCurrentPersonalVehicleVoided = true
+            }
+          }
+          beamVehicles.remove(vehicle.id)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
         triggerId,
@@ -1123,7 +1132,11 @@ trait ChoosesMode {
         currentTourMode = data.personData.currentTourMode
           .orElse(Some(chosenTrip.tripClassifier)),
         currentTourPersonalVehicle =
-          data.personData.currentTourPersonalVehicle.orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+          if (isCurrentPersonalVehicleVoided)
+            vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
+          else
+            data.personData.currentTourPersonalVehicle
+              .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
       )
   }
 }
@@ -1239,7 +1252,7 @@ object ChoosesMode {
     )
   }
 
-  case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
+  case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[BeamVehicle])
 
   case class CavTripLegsRequest(person: PersonIdWithActorRef, originActivity: Activity)
 

@@ -13,8 +13,6 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
@@ -107,7 +105,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         updatePersonCount();
 
         hourModeFrequency.values().stream().filter(Objects::nonNull).flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Double::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count.longValue(), ShortLevel(), tags));
 
         updateRealizedModeChoiceInIteration(event.getIteration());
@@ -134,7 +132,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
-        
+
         writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv"), realizedModeChoiceInIteration, cumulativeMode);
         writeToCSV(event);
         writeToReferenceCSV();
@@ -158,7 +156,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         hourModeFrequency.clear();
         personIdList.clear();
         hourPerson.clear();
-        personIdList.clear();
         personHourModeCount.clear();
         affectedModeCount.clear();
         personReplanningChain.clear();
@@ -201,10 +198,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             hourData.merge(mode, 1.0, Double::sum);
             hourModeFrequency.put(hour, hourData);
             ModeHour modeHour = new ModeHour(mode, hour);
-            Stack<ModeHour> modeHours = hourPerson.get(personId);
-            if (modeHours == null) {
-                modeHours = new Stack<>();
-            }
+            Stack<ModeHour> modeHours = hourPerson.getOrDefault(personId, new Stack<>());
             modeHours.push(modeHour);
             hourPerson.put(personId, modeHours);
             setHourPersonMode(hour, personId, mode, false);
@@ -253,10 +247,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                 Optional<Integer> optionalHour = hours.stream().findFirst();
                 if (optionalHour.isPresent()) {
                     int hour = optionalHour.get();
-                    Map<String, Double> oldHourData = hourModeFrequency.get(hour);
-                    if (oldHourData == null) {
-                        oldHourData = new HashMap<>();
-                    }
+                    Map<String, Double> oldHourData = hourModeFrequency.getOrDefault(hour, new HashMap<>());
                     Optional<String> optionalMode = modes.stream().findFirst();
                     if (optionalMode.isPresent()) {
                         oldHourData.merge(optionalMode.get(), 1.0, Double::sum);
@@ -277,10 +268,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                         }
                     }
                     if (hour != null) {
-                        Map<String, Double> oldHourData = hourModeFrequency.get(hour);
-                        if (oldHourData == null) {
-                            oldHourData = new HashMap<>();
-                        }
+                        Map<String, Double> oldHourData = hourModeFrequency.getOrDefault(hour, new HashMap<>());
                         oldHourData.merge(mode, 1.0 / sum, Double::sum);
                         hourModeFrequency.put(hour, oldHourData);
                     }
@@ -290,14 +278,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void setHourPersonMode(int hour, String personId, String mode, boolean isUpdateExisting) {
-        Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
-        if (hourModeCount == null) {
-            hourModeCount = new HashMap<>();
-        }
-        Map<String, Integer> modeCnt = hourModeCount.get(hour);
-        if (modeCnt == null) {
-            modeCnt = new HashMap<>();
-        }
+        Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.getOrDefault(personId, new HashMap<>());
+        Map<String, Integer> modeCnt = hourModeCount.getOrDefault(hour, new HashMap<>());
         if (isUpdateExisting) {
             modeCnt.merge(mode, 1, Integer::sum);
         } else {
@@ -310,23 +292,19 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void updatePersonCount() {
-        personHourModeCount.keySet().forEach(person -> updateHourMode(person));
+        personHourModeCount.keySet().forEach(this::updateHourMode);
     }
 
     //    accumulating data for each iteration
     public void updateRealizedModeChoiceInIteration(Integer iteration) {
-        Set<Integer> hours = hourModeFrequency.keySet();
         Map<String, Double> totalModeChoice = new HashMap<>();
-        for (Integer hour : hours) {
-            Map<String, Double> iterationHourData = hourModeFrequency.get(hour);
+        hourModeFrequency.values().forEach(iterationHourData -> {
             if (iterationHourData != null) {
-                Set<String> iterationModes = iterationHourData.keySet();
-                for (String iterationMode : iterationModes) {
-                    Double freq = iterationHourData.get(iterationMode);
-                    totalModeChoice.merge(iterationMode, freq, (a, b) -> b + a);
-                }
+                iterationHourData.forEach((iterationMode, freq) -> {
+                    totalModeChoice.merge(iterationMode, freq, Double::sum);
+                });
             }
-        }
+        });
         iterationTypeSet.add("it." + iteration);
         realizedModeChoiceInIteration.put(iteration, totalModeChoice);
     }
@@ -363,6 +341,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         });
         cumulativeMode.addAll(modes);
         cumulativeReferenceMode.addAll(modes);
+        cumulativeReferenceMode.addAll(benchMarkData.keySet());
         return modes;
     }
 
@@ -380,9 +359,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeMode));
     }
 
-
     //reference realized mode detaset
-    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() throws IOException {
+    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeReferenceMode));
 
@@ -394,7 +372,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     // generating graph in root directory for replanningCountModeChoice
     private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", fileName, false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", false);
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -403,7 +381,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void createReplanningCountModeChoiceGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, "replanningCountModeChoice", false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, false);
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "replanningCountModeChoice" + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
@@ -472,12 +450,12 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             out.newLine();
 
             StringBuilder builder = new StringBuilder("benchmark");
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             for (String d : cumulativeReferenceMode) {
                 if (benchMarkData.get(d) == null) {
                     builder.append(",0.0");
                 } else {
-                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                    builder.append(",").append(benchMarkData.get(d) * 100 / sum);
                 }
             }
             out.write(builder.toString());
@@ -649,8 +627,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         try (FileReader fileReader = new FileReader(path)) {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
-            String mode[] = bufferedReader.readLine().split(",");
-            String modeData[] = bufferedReader.readLine().split(",");
+            String[] mode = bufferedReader.readLine().split(",");
+            String[] modeData = bufferedReader.readLine().split(",");
 
             for (int i = 1; i < mode.length; i++) {
                 benchMarkData.put(mode[i], Double.parseDouble(modeData[i]));
@@ -661,7 +639,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return benchMarkData;
     }
 
-    public class ModeHour {
+    public static class ModeHour {
         private String mode;
         private Integer hour;
 

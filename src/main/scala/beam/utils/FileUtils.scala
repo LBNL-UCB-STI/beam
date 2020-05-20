@@ -2,19 +2,21 @@ package beam.utils
 
 import java.io._
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
+
+import scala.io.Source
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
+import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
-
 import scala.language.reflectiveCalls
+import scala.util.Random
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -22,6 +24,9 @@ import scala.language.reflectiveCalls
 object FileUtils extends LazyLogging {
 
   val runStartTime: String = getDateString
+  val suffixLength = 3
+
+  def randomString(size: Int): String = Random.alphanumeric.filter(_.isLower).take(size).mkString
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
@@ -31,9 +36,10 @@ object FileUtils extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
+    val uniqueSuffix = "_" + randomString(suffixLength)
     val outputDir = Paths
       .get(
-        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix
+        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix + uniqueSuffix
       )
       .toFile
     outputDir.mkdir()
@@ -51,8 +57,10 @@ object FileUtils extends LazyLogging {
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(addTimestampToOutputDirectory)
+    val uniqueSuffix = randomString(suffixLength)
+
     val outputDir = Paths
-      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
+      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix + "_" + uniqueSuffix)
       .toFile
     outputDir.mkdir()
     outputDir.getAbsolutePath
@@ -81,6 +89,15 @@ object FileUtils extends LazyLogging {
     } finally {
       resource.close()
     }
+
+  def usingTemporaryDirectory[B](f: Path => B): B = {
+    val tmpFolder: Path = Files.createTempDirectory("tempDirectory")
+    try {
+      f(tmpFolder)
+    } finally {
+      deleteDirectory(tmpFolder.toFile)
+    }
+  }
 
   def safeLines(fileLoc: String): stream.Stream[String] = {
     using(readerFromFile(fileLoc))(_.lines)
@@ -190,6 +207,16 @@ object FileUtils extends LazyLogging {
         localPath
 
     unpackedPath
+  }
+
+  def readAllLines(file: File): Seq[String] = {
+    using(Source.fromFile(file.getPath)) { source =>
+      source.getLines().toList
+    }
+  }
+
+  def readAllLines(file: String): Seq[String] = {
+    readAllLines(new File(file))
   }
 
   private def isZipArchive(sourceFilePath: String): Boolean = {

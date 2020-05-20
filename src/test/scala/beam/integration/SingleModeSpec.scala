@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.Modes.BeamMode
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim}
@@ -76,8 +76,6 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services, beamScenario, services.geo),
-        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )
@@ -129,8 +127,6 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services, beamScenario, services.geo),
-        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )
@@ -201,8 +197,6 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services, beamScenario, services.geo),
-        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )
@@ -279,8 +273,6 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services, beamScenario, services.geo),
-        new TravelTimeObserved(services, beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         services.networkHelper
       )

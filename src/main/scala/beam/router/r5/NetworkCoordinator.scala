@@ -5,6 +5,7 @@ import java.nio.file.Files.exists
 import java.nio.file.{Files, Paths}
 
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Physsim
 import beam.utils.BeamVehicleUtils
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
@@ -18,7 +19,13 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Double], length: Option[Double]) {
+case class LinkParam(
+  linkId: Int,
+  capacity: Option[Double],
+  freeSpeed: Option[Double],
+  length: Option[Double],
+  lanes: Option[Int]
+) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
     capacity.foreach(value => link.setCapacity(value))
@@ -31,6 +38,9 @@ case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Do
       // Provided length is in meters, convert them to millimeters
       cursor.setLengthMm((value * 1000).toInt)
       link.setLength(value)
+    }
+    lanes.foreach { value =>
+      link.setNumberOfLanes(value)
     }
   }
 }
@@ -104,12 +114,21 @@ trait NetworkCoordinator extends LazyLogging {
 
   def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
-    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
+    val rmNetBuilder = new R5MnetBuilder(
+      transportNetwork,
+      beamConfig,
+      NetworkCoordinator.createHighwaySetting(beamConfig.beam.physsim.network.overwriteRoadTypeProperties)
+    )
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
+
+    // Scale the speed after overwriting link params. Important!
+    network.getLinks.values.asScala.foreach { link =>
+      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+    }
 
     logger.info(s"MATSim network created")
     new NetworkWriter(network)
@@ -162,16 +181,109 @@ trait NetworkCoordinator extends LazyLogging {
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length)
+            val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
+            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
             z += ((linkId, lp))
         }
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load link's params from ${path}: ${ex.getMessage}", ex)
+          logger.error(s"Could not load link's params from $path: ${ex.getMessage}", ex)
           Map.empty
       }
     } else {
       Map.empty
     }
+  }
+
+}
+
+object NetworkCoordinator {
+  private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
+    if (!highwayType.enabled) {
+      HighwaySetting.empty()
+    } else {
+      val speeds = getSpeeds(highwayType)
+      val capacities = getCapacities(highwayType)
+      val lanes = getLanes(highwayType)
+      new HighwaySetting(speeds, capacities, lanes)
+    }
+  }
+
+  private[r5] def getSpeeds(
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Double] = {
+    val map = new java.util.HashMap[HighwayType, java.lang.Double]()
+    highwayType.motorway.speed.foreach(speed => map.put(HighwayType.Motorway, speed))
+    highwayType.motorwayLink.speed.foreach(speed => map.put(HighwayType.MotorwayLink, speed))
+
+    highwayType.primary.speed.foreach(speed => map.put(HighwayType.Primary, speed))
+    highwayType.primaryLink.speed.foreach(speed => map.put(HighwayType.PrimaryLink, speed))
+
+    highwayType.trunk.speed.foreach(speed => map.put(HighwayType.Trunk, speed))
+    highwayType.trunkLink.speed.foreach(speed => map.put(HighwayType.TrunkLink, speed))
+
+    highwayType.secondary.speed.foreach(speed => map.put(HighwayType.Secondary, speed))
+    highwayType.secondaryLink.speed.foreach(speed => map.put(HighwayType.SecondaryLink, speed))
+
+    highwayType.tertiary.speed.foreach(speed => map.put(HighwayType.Tertiary, speed))
+    highwayType.tertiaryLink.speed.foreach(speed => map.put(HighwayType.TertiaryLink, speed))
+
+    highwayType.minor.speed.foreach(speed => map.put(HighwayType.Minor, speed))
+    highwayType.residential.speed.foreach(speed => map.put(HighwayType.Residential, speed))
+    highwayType.livingStreet.speed.foreach(speed => map.put(HighwayType.LivingStreet, speed))
+    highwayType.unclassified.speed.foreach(speed => map.put(HighwayType.Unclassified, speed))
+    map
+  }
+
+  private[r5] def getCapacities(
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Integer] = {
+    val map = new java.util.HashMap[HighwayType, java.lang.Integer]()
+    highwayType.motorway.capacity.foreach(capacity => map.put(HighwayType.Motorway, capacity))
+    highwayType.motorwayLink.capacity.foreach(capacity => map.put(HighwayType.MotorwayLink, capacity))
+
+    highwayType.primary.capacity.foreach(capacity => map.put(HighwayType.Primary, capacity))
+    highwayType.primaryLink.capacity.foreach(capacity => map.put(HighwayType.PrimaryLink, capacity))
+
+    highwayType.trunk.capacity.foreach(capacity => map.put(HighwayType.Trunk, capacity))
+    highwayType.trunkLink.capacity.foreach(capacity => map.put(HighwayType.TrunkLink, capacity))
+
+    highwayType.secondary.capacity.foreach(capacity => map.put(HighwayType.Secondary, capacity))
+    highwayType.secondaryLink.capacity.foreach(capacity => map.put(HighwayType.SecondaryLink, capacity))
+
+    highwayType.tertiary.capacity.foreach(capacity => map.put(HighwayType.Tertiary, capacity))
+    highwayType.tertiaryLink.capacity.foreach(capacity => map.put(HighwayType.TertiaryLink, capacity))
+
+    highwayType.minor.capacity.foreach(capacity => map.put(HighwayType.Minor, capacity))
+    highwayType.residential.capacity.foreach(capacity => map.put(HighwayType.Residential, capacity))
+    highwayType.livingStreet.capacity.foreach(capacity => map.put(HighwayType.LivingStreet, capacity))
+    highwayType.unclassified.capacity.foreach(capacity => map.put(HighwayType.Unclassified, capacity))
+    map
+  }
+
+  private[r5] def getLanes(
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Integer] = {
+    val map = new java.util.HashMap[HighwayType, java.lang.Integer]()
+    highwayType.motorway.lanes.foreach(lanes => map.put(HighwayType.Motorway, lanes))
+    highwayType.motorwayLink.lanes.foreach(lanes => map.put(HighwayType.MotorwayLink, lanes))
+
+    highwayType.primary.lanes.foreach(lanes => map.put(HighwayType.Primary, lanes))
+    highwayType.primaryLink.lanes.foreach(lanes => map.put(HighwayType.PrimaryLink, lanes))
+
+    highwayType.trunk.lanes.foreach(lanes => map.put(HighwayType.Trunk, lanes))
+    highwayType.trunkLink.lanes.foreach(lanes => map.put(HighwayType.TrunkLink, lanes))
+
+    highwayType.secondary.lanes.foreach(lanes => map.put(HighwayType.Secondary, lanes))
+    highwayType.secondaryLink.lanes.foreach(lanes => map.put(HighwayType.SecondaryLink, lanes))
+
+    highwayType.tertiary.lanes.foreach(lanes => map.put(HighwayType.Tertiary, lanes))
+    highwayType.tertiaryLink.lanes.foreach(lanes => map.put(HighwayType.TertiaryLink, lanes))
+
+    highwayType.minor.lanes.foreach(lanes => map.put(HighwayType.Minor, lanes))
+    highwayType.residential.lanes.foreach(lanes => map.put(HighwayType.Residential, lanes))
+    highwayType.livingStreet.lanes.foreach(lanes => map.put(HighwayType.LivingStreet, lanes))
+    highwayType.unclassified.lanes.foreach(lanes => map.put(HighwayType.Unclassified, lanes))
+    map
   }
 }

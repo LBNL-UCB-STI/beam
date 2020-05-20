@@ -15,11 +15,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -33,7 +34,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfterEach, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
@@ -42,6 +43,7 @@ class PersonAgentSpec
     extends FunSpecLike
     with TestKitBase
     with SimRunnerForTest
+    with BeforeAndAfterEach
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -68,6 +70,8 @@ class PersonAgentSpec
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
 
+  private var maybeIteration: Option[ActorRef] = None
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -77,7 +81,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -115,9 +122,7 @@ class PersonAgentSpec
           parkingManager,
           services.tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(services, beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox = boundingBox
         )
       )
@@ -134,7 +139,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -180,8 +188,6 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -199,7 +205,9 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
-        requestId = request1.requestId
+        requestId = request1.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       // This is the regular routing request.
@@ -233,7 +241,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = request2.requestId
+        requestId = request2.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -258,21 +268,23 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+      maybeIteration = Some(
+        TestActorRef(
+          Props(new Actor() {
+            context.actorOf(
+              Props(new Actor() {
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
 
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
+                override def receive: Receive = Actor.emptyBehavior
+              }),
+              "transit-system"
+            )
 
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
+            override def receive: Receive = Actor.emptyBehavior
+          }),
+          "BeamMobsim.iteration"
+        )
       )
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
@@ -283,7 +295,10 @@ class PersonAgentSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -379,8 +394,6 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -438,7 +451,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -510,7 +525,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
     }
 
     it("should also work when the first bus is late") {
@@ -518,28 +532,33 @@ class PersonAgentSpec
       val events = new TestProbe(system)
       eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
-          events.ref ! event
+          event match {
+            case _: AbstractSkimmerEvent => // ignore
+            case _                       => events.ref ! event
+          }
         }
       })
       val transitDriverProps = Props(new ForwardActor(self))
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+      maybeIteration = Some(
+        TestActorRef(
+          Props(new Actor() {
+            context.actorOf(
+              Props(new Actor() {
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
 
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
+                override def receive: Receive = Actor.emptyBehavior
+              }),
+              "transit-system"
+            )
 
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
+            override def receive: Receive = Actor.emptyBehavior
+          }),
+          "BeamMobsim.iteration"
+        )
       )
 
       val busPassengerLeg = EmbodiedBeamLeg(
@@ -657,8 +676,6 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(services, beamScenario, services.geo),
-          new TravelTimeObserved(services, beamScenario, services.geo),
           boundingBox
         )
       )
@@ -726,7 +743,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -755,7 +774,7 @@ class PersonAgentSpec
       events.expectMsgType[ReplanningEvent]
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             Vector(
               replannedTramLeg,
@@ -782,7 +801,9 @@ class PersonAgentSpec
             )
           )
         ),
-        1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       events.expectMsgType[ModeChoiceEvent]
 
@@ -831,7 +852,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
     }
 
   }
@@ -839,6 +859,16 @@ class PersonAgentSpec
   override def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  override def afterEach(): Unit = {
+    import scala.language.postfixOps
+    maybeIteration.foreach { iteration =>
+      watch(iteration)
+      iteration ! PoisonPill
+      expectTerminated(iteration)
+    }
+    maybeIteration = None
   }
 
 }

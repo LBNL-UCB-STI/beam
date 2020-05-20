@@ -1,6 +1,6 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import com.amazonaws.services.lambda.model.InvokeResult
-import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import jp.classmethod.aws.reboot.gradle.lambda.AWSLambdaInvokeTask
 
 
 buildscript {
@@ -11,7 +11,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+        classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.42"
     }
 }
 
@@ -19,7 +19,7 @@ group = 'beam'
 version = '0.8.0'
 
 apply plugin: "base"
-apply plugin: "jp.classmethod.aws.lambda"
+apply plugin: "jp.classmethod.aws.reboot.lambda"
 
 aws {
     profileName = "gradle"
@@ -28,6 +28,11 @@ aws {
 
 lambda {
     region = "us-east-2"
+    maxErrorRetry = 0
+    requestTimeout = 900000
+    clientExecutionTimeout = 900000
+    connectionTimeout = 900000
+    socketTimeout = 900000
 }
 
 task deploy(type: AWSLambdaInvokeTask) {
@@ -73,8 +78,13 @@ task deploy(type: AWSLambdaInvokeTask) {
                 break
         }
 
+        def tempInstanceType = "${ext.getParameterValue('instanceType') ?: (project.hasProperty('defaultInstanceType') ? defaultInstanceType : '')}"
+        def finalInstanceType = tempInstanceType != "" ? tempInstanceType : null
+
         def pload = """{
   "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+  "git_user_email": "${getCurrentGitUserEmail()}",
+  "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
@@ -84,21 +94,28 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_args": "${ext.getParameterValue('executeArgs')}",
   "max_ram": "${ext.getParameterValue('maxRAM') ?: '140g'}",
   "storage_size": ${ext.getParameterValue('storageSize')},
-  "batch": "${ext.getParameterValue('beamBatch')}",
-  "s3_publish": "${ext.getParameterValue('s3Backup') ?: true}",
-  "instance_type": "${ext.getParameterValue('instanceType') ?: defaultInstanceType}",
+  "batch": ${ext.getParameterValue('beamBatch')},
+  "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
+  "instance_type": "${finalInstanceType}",
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
   "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
-  "command": "deploy"
+  "command": "deploy",
+  "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
+  "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
+  "min_cores": ${ext.getParameterValue('minCores') ?: 0},
+  "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
+  "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
+  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
 }"""
+        payload = pload
+        println payload
+        println "Please note that if you set isSpot to true then it could take an excessive time period. In fact it could time out at 15 minutes and still complete later on. ALSO! volumes using spot instances must be MANUALLY deleted. This is done so you do not lose data in the case of a premature shutdown."
         functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
-        payload = pload
     }
 
     doLast {
-        println payload
         println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
@@ -218,7 +235,7 @@ def checkInstanceId() {
 }
 
 def buildPayload(command) {
-    println "command:"+command
+    println "command:" + command
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "${project.findProperty('region') ?: defaultRegion}",
@@ -237,7 +254,7 @@ def getCurrentGitBranch() {
 
 def getCurrentGitUserEmail() {
     def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
-    return rawGitUserEmail.replaceAll('@',"AT").replaceAll("\\.", "_")
+    return rawGitUserEmail.replaceAll('@', "AT").replaceAll("\\.", "_")
 }
 
 def getGitResultFromWorkingDirUsing(command, defaultResult) {
