@@ -20,37 +20,16 @@ import org.matsim.api.core.v01.{Coord, Id}
 //  - Run it from gradle: `./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=4 -PappArgs="['--config', 'test/input/texas/austin-prod-100k.conf']"`
 object R5Requester extends BeamHelper {
 
-  val travelTimeNoiseFraction=0.75
-
-
-  def getRoutingRequest(origin:Coord,dest:Coord): RoutingRequest = {
-    val personAttribs = AttributesOfIndividual(
-      householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
-      modalityStyle = None,
-      isMale = true,
-      availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
-      valueOfTime = 17.15686274509804,
-      age = None,
-      income = Some(70000.0)
-    )
-    RoutingRequest(
-      originUTM = origin,
-      destinationUTM = dest,
-      departureTime = 30600,
-      withTransit = false,
-      streetVehicles = Vector.empty,
-      attributesOfIndividual = Some(personAttribs)
-    )
-  }
-
-
   def main(args: Array[String]): Unit = {
+    val travelTimeNoiseFraction=0.75
+    val uberSpeedsODTable = "uber-movement-speed-od-table.csv"
+    val outputRoutesPath = s"test\\input\\sf-light\\r5-temp\\odRoutes-${travelTimeNoiseFraction}.csv"
 
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
 
-    val r5Wrapper = createR5Wrapper(cfg)
+    val r5Wrapper = createR5Wrapper(cfg,travelTimeNoiseFraction)
 
-    val lines=AustinUtils.getFileLines("test\\input\\sf-light\\r5-temp\\uber-speed-od-table.csv")
+    val lines=AustinUtils.getFileLines(uberSpeedsODTable)
 
     val odMatrix= lines.drop(1).map{line =>
       val cols=line.split(",")
@@ -81,7 +60,27 @@ object R5Requester extends BeamHelper {
       }
     }.flatten.toVector
     log.info("end routing")
-    AustinUtils.writeFile(result,s"test\\input\\sf-light\\r5-temp\\odRoutes-${travelTimeNoiseFraction}.csv",Some("rowId,numLinks,travelTimeInSec,linkIds"))
+    AustinUtils.writeFile(result,outputRoutesPath,Some("rowId,numLinks,travelTimeInSec,linkIds"))
+  }
+
+  def getRoutingRequest(origin:Coord,dest:Coord): RoutingRequest = {
+    val personAttribs = AttributesOfIndividual(
+      householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
+      modalityStyle = None,
+      isMale = true,
+      availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
+      valueOfTime = 17.15686274509804,
+      age = None,
+      income = Some(70000.0)
+    )
+    RoutingRequest(
+      originUTM = origin,
+      destinationUTM = dest,
+      departureTime = 30600,
+      withTransit = false,
+      streetVehicles = Vector.empty,
+      attributesOfIndividual = Some(personAttribs)
+    )
   }
 
   private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse) = {
@@ -94,7 +93,7 @@ object R5Requester extends BeamHelper {
     println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
   }
 
-  def createR5Wrapper(cfg: Config): R5Wrapper = {
+  def createR5Wrapper(cfg: Config,travelTimeNoiseFraction:Double): R5Wrapper = {
     val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
     new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = travelTimeNoiseFraction)
   }
