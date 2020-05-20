@@ -171,7 +171,7 @@ case class TNCIterationStats(
       val vehicleToCoordAssignment = if (topScored.nonEmpty) {
         val coords =
           if (repositioningMethod
-                .equalsIgnoreCase("TOP_SCORES") || topScored.size <= vehicles.size) {
+                .equalsIgnoreCase("TOP_SCORES") || topScored.length <= vehicles.size) {
             // Not using
             val scoreExpSumOverAllTAZInRadius =
               topScored.map(taz => taz.score).sum
@@ -203,7 +203,7 @@ case class TNCIterationStats(
             val clusterInput = topScored.map(t => new LocationWrapper(t.taz.coord))
 
             val clusterSize =
-              if (clusterInput.size < vehicles.size) clusterInput.size
+              if (clusterInput.length < vehicles.size) clusterInput.length
               else vehicles.size
             val kMeans =
               new KMeansPlusPlusClusterer[LocationWrapper](clusterSize, 1000)
