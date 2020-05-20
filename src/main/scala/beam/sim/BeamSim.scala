@@ -107,7 +107,10 @@ class BeamSim @Inject()(
     List(routeDumper)
 
   val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
-    new CarTripStatsFromPathTraversalEventHandler(networkHelper, Some(beamServices.matsimServices.getControlerIO))
+    new CarTripStatsFromPathTraversalEventHandler(
+      networkHelper,
+      Some(beamServices.matsimServices.getControlerIO)
+    )
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -566,7 +569,6 @@ class BeamSim @Inject()(
       header,
       "iteration",
       header,
-      path,
       false
     )
 
@@ -632,5 +634,4 @@ class BeamSim @Inject()(
         }
       }
   }
-
 }

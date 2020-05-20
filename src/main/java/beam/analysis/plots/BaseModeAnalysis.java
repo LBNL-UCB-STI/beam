@@ -62,7 +62,7 @@ public abstract class BaseModeAnalysis<T extends Map<Integer, Map>> implements G
     }
 
     protected void createGraphInRootDirectory(CategoryDataset dataset, String graphTitleName, String fileName, String xAxisTitle, String yAxisTitle, Set<String> modes) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, xAxisTitle, yAxisTitle, fileName, true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modes);
         Collections.sort(modesChosenList);
