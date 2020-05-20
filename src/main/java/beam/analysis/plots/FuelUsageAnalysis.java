@@ -142,7 +142,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileBaseName, true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesFuelList = new ArrayList<>(modesFuel);
         Collections.sort(modesFuelList);
