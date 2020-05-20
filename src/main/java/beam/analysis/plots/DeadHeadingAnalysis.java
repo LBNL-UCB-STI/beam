@@ -602,7 +602,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String fileName = getFileName(graphName, "png");
         String graphTitle = getTitle(graphName);
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(graphName, dataSet.getRowCount(), getBucketSize());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
