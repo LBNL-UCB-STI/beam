@@ -17,8 +17,8 @@ object CreateFullSkims {
     val travelTimeNoiseFraction=0.1
     val tazCentersFilePath = "test\\input\\sf-light\\tazCentersDallas.csv"
     val outputSkimsPath = s"test\\input\\sf-light\\r5-dallas\\fullSkims2.csv"
-    val start=10
-    val take=10
+    val start=0
+    val take=Integer.MAX_VALUE
 
 
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
