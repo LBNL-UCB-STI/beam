@@ -28,16 +28,14 @@ class RouteResolver(val ghLocation: String) extends LazyLogging {
     val request: GHRequest =
       new GHRequest(new GHPoint(origin.latitude, origin.longitude), new GHPoint(dest.latitude, dest.longitude))
     request
-      .setVehicle("car")
-      .setWeighting("fastest")
       .setAlgorithm("")
       .setLocale("en")
       .setPointHints(java.util.Collections.emptyList())
       .getHints
-      .put("calc_points", true)
-      .put("instructions", true)
-      .put("way_point_max_distance", 1)
-      .put("elevation", true)
+      .putObject("calc_points", true)
+      .putObject("instructions", true)
+      .putObject("way_point_max_distance", 1)
+      .putObject("elevation", "true")
      gh.route(request)
   }
 }
