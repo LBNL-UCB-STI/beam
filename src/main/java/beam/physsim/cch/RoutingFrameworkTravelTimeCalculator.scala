@@ -73,7 +73,7 @@ class RoutingFrameworkTravelTimeCalculator(
 
             var odNumber = 0
 
-            val ods = generateOdsFromEvents(events, id2Link)
+            val ods = generateOdsFromTravelInfos(events, id2Link)
 
             val odStream = ods
               .flatMap { od =>
@@ -154,7 +154,7 @@ class RoutingFrameworkTravelTimeCalculator(
     (linksFailedToResolve, linkId2TravelTimeByHour)
   }
 
-  private[cch] def generateOdsFromEvents(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
+  private[cch] def generateOdsFromTravelInfos(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
     events.toStream
       .map { event =>
         for {
