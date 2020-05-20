@@ -210,6 +210,6 @@ if __name__ == "__main__":
       df_list.append(merged)
 
     final_df = pd.concat(df_list, ignore_index=True)
-    final_df.to_csv('austin_24hours.csv', index=False)
+    final_df.to_csv('final_24hours.csv', index=False)
 
     create_3am_data(final_df)
