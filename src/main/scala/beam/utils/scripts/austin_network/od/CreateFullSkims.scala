@@ -16,7 +16,10 @@ object CreateFullSkims {
   def main(args: Array[String]): Unit = {
     val travelTimeNoiseFraction=0.1
     val tazCentersFilePath = "test\\input\\sf-light\\tazCentersDallas.csv"
-    val outputSkimsPath = s"test\\input\\sf-light\\r5-dallas\\fullSkims.csv"
+    val outputSkimsPath = s"test\\input\\sf-light\\r5-dallas\\fullSkims2.csv"
+    val start=10
+    val take=10
+
 
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
 
@@ -29,14 +32,14 @@ object CreateFullSkims {
       val tazId = cols(0).replaceAll("\"", "")
       val coord = new Coord(cols(1).toDouble, cols(2).toDouble)
       (tazId, coord)
-    }//.take(10) //.flatMap(List.fill(4)(_))//.take(1000)
+    }.take(10) //.flatMap(List.fill(4)(_))//.take(1000)
 
     val odMatrix = for (originTAZ <- taz; destTAZ <- taz) yield (originTAZ, destTAZ)
 
     val log: Logging = new Logging()
     log.info("start routing")
     var i: AtomicLong = new AtomicLong(0)
-    val routes = odMatrix.par.map { case (originTAZ, destTAZ) =>
+    val routes = odMatrix.drop(start).take(take).par.map { case (originTAZ, destTAZ) =>
       val baseRoutingRequest = getRoutingRequest(originTAZ._2, destTAZ._2)
       val carStreetVehicle =
         getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, baseRoutingRequest.originUTM)
