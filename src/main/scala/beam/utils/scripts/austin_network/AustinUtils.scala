@@ -139,15 +139,16 @@ object AustinUtils {
   def writePhyssimToShapeFile(physsimNetworkFilePath: String,shapeFileOutputPath: String,splitSizeInMeters: Double)={
     var network = getPhysSimNetwork(physsimNetworkFilePath)
 
-    val coords=network.getLinks.values().asScala.toVector.flatMap{ link=>
+    val coords=network.getLinks.values().asScala.toVector.par.flatMap{ link=>
       DataVector(DataId(link.getId.toString), link.getFromNode.getCoord, link.getToNode.getCoord, false).produceSpeedDataPointFromSpeedVector(splitSizeInMeters)
     }.map{dataPoint =>
-      dataPoint.coord
+      getGeoUtils.utm2Wgs(dataPoint.coord)
     }.toVector
 
     createShapeFile(coords,shapeFileOutputPath)
   }
 
+  //TODO: include parameters to write out
   def createShapeFile(coords: Vector[Coord], shapeFileOutputPath: String) = {
     val features = ArrayBuffer[SimpleFeature]()
 
