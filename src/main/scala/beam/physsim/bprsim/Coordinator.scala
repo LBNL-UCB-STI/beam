@@ -34,7 +34,7 @@ class Coordinator(
   val workerMap: Map[Id[Link], BPRSimWorker] = workers.flatMap(worker => worker.myLinks.map(_ -> worker)).toMap
 
   def start(): Unit = {
-    workers.foreach(_.init())
+    parallelExecution(workers.map(w => () => w.init()))
     val tillTime = workers.map(_.minTime).min + config.syncInterval
     executePeriod(tillTime)
     executorService.shutdown()
@@ -54,11 +54,10 @@ class Coordinator(
 
   @tailrec
   private def executeSubPeriod(tillTime: Double, eventAcc: Vector[Event]): Vector[Event] = {
-    val future = Future.sequence(workers.map(w => Future(w.processQueuedEvents(workerMap, tillTime))))
-    val events: Vector[(Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]])] = Await.result(future, Duration.Inf)
+    val events: Seq[(Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]])] =
+      parallelExecution(workers.map(w => () => w.processQueuedEvents(workerMap, tillTime)))
     val (producedEvents, workerEvents) = events.unzip
-    val future2 = Future.sequence(workers.map(w => Future(w.acceptEvents(workerEvents))))
-    val acceptedEvents = Await.result(future2, Duration.Inf)
+    val acceptedEvents: Seq[Int] = parallelExecution(workers.map(w => () => w.acceptEvents(workerEvents)))
     logger.debug(s"Accepted events: ${acceptedEvents.mkString(",")}")
     val minTime = workers.map(_.minTime).min
     val allEvents = eventAcc ++ producedEvents.flatten
@@ -77,8 +76,13 @@ class Coordinator(
           import BPRSimulation.eventTimeOrdering
           val sorted = util.Sorting.stableSort(events)
           sorted.foreach(eventManager.processEvent)
-      }(eventEC)
+        }(eventEC)
     )(eventEC)
+  }
+
+  private def parallelExecution[A](functions: Seq[() => A]): Seq[A] = {
+    val future = Future.sequence(functions.map(f => Future { f() }))
+    Await.result(future, Duration.Inf)
   }
 
 }
