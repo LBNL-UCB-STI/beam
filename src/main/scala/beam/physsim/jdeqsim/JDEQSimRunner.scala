@@ -198,6 +198,7 @@ class JDEQSimRunner(
             logger.info("CACC disabled")
             new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
         }
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown physsim: $unknown")
     }
   }
 
