@@ -51,12 +51,10 @@ class RoutingFrameworkTravelTimeCalculator(
 
   def generateLink2TravelTimes(
     pathTraversalEvents: util.Collection[PathTraversalEvent],
-    iterationEndsEvent: IterationEndsEvent,
+    iterationNumber: Int,
     links: util.Collection[_ <: Link],
     maxHour: Int
   ): java.util.Map[String, Array[Double]] = {
-
-    val iterationNumber: Int = iterationEndsEvent.getIteration
 
     val travelTimeCalculationStopWatch = new StopWatch()
 

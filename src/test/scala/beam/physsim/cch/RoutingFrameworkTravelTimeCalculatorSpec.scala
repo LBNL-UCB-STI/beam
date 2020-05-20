@@ -28,6 +28,7 @@ class RoutingFrameworkTravelTimeCalculatorSpec
   )
   when(infoHolder.getCoordinatesForWayId(11)).thenReturn(Seq(new Coordinate(0.0, 0.0)))
   when(infoHolder.getCoordinatesForWayId(22)).thenReturn(Seq())
+  when(infoHolder.getCoordinatesForWayId(44)).thenReturn(Seq(new Coordinate(0.4, 0.4)))
   when(infoHolder.getCoordinatesForWayId(55)).thenReturn(Seq(new Coordinate(0.3, 0.3)))
 
   private val calculator = new RoutingFrameworkTravelTimeCalculator(
@@ -89,7 +90,6 @@ class RoutingFrameworkTravelTimeCalculatorSpec
       case (linkId, travelTimes) =>
         expected(linkId) shouldBe travelTimes
     }
-
   }
 
   private def event(
