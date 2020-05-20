@@ -14,16 +14,16 @@ import org.matsim.api.core.v01.Coord
 object CreateFullSkims {
 
   def main(args: Array[String]): Unit = {
-    val travelTimeNoiseFraction=0.1
-    val tazCentersFilePath = "test\\input\\sf-light\\tazCentersDallas.csv"
-    val outputSkimsPath = s"test\\input\\sf-light\\r5-dallas\\fullSkims2.csv"
-    val start=0
-    val take=Integer.MAX_VALUE
+    val travelTimeNoiseFraction = 0.1
+    val tazCentersFilePath = args(2)
+    val outputSkimsPath = args(3)
+    val start = args(4).toInt
+    val take = if (args(5).toInt == 0) Integer.MAX_VALUE else args(5).toInt
 
 
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
 
-    val r5Wrapper = createR5Wrapper(cfg,travelTimeNoiseFraction)
+    val r5Wrapper = createR5Wrapper(cfg, travelTimeNoiseFraction)
 
     val lines = AustinUtils.getFileLines(tazCentersFilePath)
 
