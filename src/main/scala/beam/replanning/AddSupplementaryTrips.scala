@@ -1,8 +1,7 @@
 package beam.replanning
 
 import javax.inject.Inject
-import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Leg, Person, Plan}
-import org.matsim.core.config.Config
+import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.slf4j.LoggerFactory
@@ -47,7 +46,7 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
 //            .exists(x => !x.getType.equalsIgnoreCase("Work") & !x.getType.equalsIgnoreCase("Home"))) {
 //        person.removePlan(person.getSelectedPlan)
 //      }
-      val didItWork = person.addPlan(newPlan)
+      person.addPlan(newPlan)
       person.setSelectedPlan(newPlan)
     }
 
@@ -63,7 +62,7 @@ class AddSupplementaryTrips @Inject()() extends PlansStrategyAdopter {
 
     val elements: List[Activity] = plan.getPlanElements.asScala
       .collect { case activity: Activity => activity }
-      .filter(x => (x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home")))
+      .filter(x => x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))
       .toList
 
     val newElements = elements.foldLeft(mutable.MutableList[Activity]())(

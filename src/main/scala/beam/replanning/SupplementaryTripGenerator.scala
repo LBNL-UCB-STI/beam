@@ -1,26 +1,16 @@
 package beam.replanning
 
-import beam.agentsim.agents.choice.logit
-import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.{ASC, ExpMaxUtility}
-import beam.agentsim.agents.choice.logit.DestinationChoiceModel.{
-  ActivityDurations,
-  ActivityRates,
-  ActivityVOTs,
-  DestinationParameters,
-  SupplementaryTripAlternative,
-  TimesAndCost,
-  TripParameters
-}
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
+import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.router.skim.Skims
-import beam.sim.population.AttributesOfIndividual
-import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.population.Person
+import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 
 import scala.collection.JavaConverters._
@@ -34,9 +24,9 @@ class SupplementaryTripGenerator(
   val personId: Id[Person]
 ) {
   val r: Random.type = scala.util.Random
-  val personSpecificSeed = personId.hashCode().toLong
+  val personSpecificSeed: Long = personId.hashCode().toLong
 
-  val travelTimeBufferInSec = 30 * 60
+  val travelTimeBufferInSec: Int = 30 * 60
 
   val activityRates: ActivityRates = destinationChoiceModel.activityRates
   val activityVOTs: ActivityVOTs = destinationChoiceModel.activityVOTs
