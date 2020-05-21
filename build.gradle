@@ -213,6 +213,7 @@ dependencies {
         exclude group: 'com.typesafe', module: 'config'
     }
     compile group: 'com.typesafe', name: 'config', version: '1.4.0'
+    compile group: 'org.simpleflatmapper', name: 'sfm-csv', version: '8.2.3'
 
 
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
