@@ -156,9 +156,15 @@ class JDEQSimRunner(
     logger.info(s"Physsim name = $simName, qsim.endTime = ${config.getSimulationEndTimeAsString}")
     simName match {
       case "BPRSIM" =>
-        val funName = beamConfig.beam.physsim.bprsim.travelTimeFunction
-        val bprCfg =
-          BPRSimConfig(config.getSimulationEndTime, 1, 0, getTravelTimeFunction(funName))
+        val bprCfg = BPRSimConfig(
+          config.getSimulationEndTime,
+          1,
+          0,
+          getTravelTimeFunction(
+            beamConfig.beam.physsim.bprsim.travelTimeFunction,
+            beamConfig.beam.physsim.flowCapacityFactor
+          )
+        )
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "PARBPRSIM" =>
         val numberOfClusters = beamConfig.beam.physsim.parbprsim.numberOfClusters
@@ -173,7 +179,10 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           numberOfClusters,
           syncInterval,
-          getTravelTimeFunction(beamConfig.beam.physsim.bprsim.travelTimeFunction)
+          getTravelTimeFunction(
+            beamConfig.beam.physsim.bprsim.travelTimeFunction,
+            beamConfig.beam.physsim.flowCapacityFactor
+          )
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "JDEQSIM" =>
@@ -208,7 +217,7 @@ class JDEQSimRunner(
     }
   }
 
-  private def getTravelTimeFunction(functionName: String): (Double, Link, Int) => Double = {
+  private def getTravelTimeFunction(functionName: String, flowCapacityFactor: Double): (Double, Link, Int) => Double = {
     functionName match {
       case "FREE_FLOW" =>
         (time, link, _) =>
@@ -217,7 +226,7 @@ class JDEQSimRunner(
         (time, link, volume) =>
           {
             val ftt = link.getLength / link.getFreespeed(time)
-            val tmp = volume / link.getCapacity(time)
+            val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
             ftt * (1 + 1 * tmp * tmp)
           }
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
