@@ -63,7 +63,7 @@ object JDEQSimRunnerApp extends StrictLogging {
       new BeamConfigChangesObservable(execCfg.beamConfig),
       agentSimIterationNumber = 0
     )
-    physSim.simulate(currentPhysSimIter = 0, writeEvents = false)
+    physSim.simulate(currentPhysSimIter = 0, writeEvents = true)
     logger.info(s"Results are in ${execCfg.outputDirectory}")
   }
 
