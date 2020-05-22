@@ -186,7 +186,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
 
             log.info("JDEQSim End");
-        } else if (physSimType.equals("CCH")) {
+        } else if (physSimType.equals("CCHRoutingAssignment")) {
             travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationNumber, links, maxHour);
             travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
         } else {

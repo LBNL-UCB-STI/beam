@@ -34,7 +34,7 @@ class RoutingFrameworkTravelTimeCalculator(
   private val odsFactor: Double =
     Math.max(
       (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation *
-      beamServices.beamConfig.beam.physsim.cch.congestionFactor).toInt,
+      beamServices.beamConfig.beam.physsim.cchRoutingAssignment.congestionFactor).toInt,
       1.0
     )
 
