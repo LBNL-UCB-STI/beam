@@ -23,7 +23,7 @@ import scala.compat.java8.StreamConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
 
-class BeamWarmStart private(beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
+class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
   val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
   if (!isWarmMode) {
     throw new IllegalStateException("BeamWarmStart cannot be initialized since warmstart is disabled")
@@ -186,11 +186,11 @@ object BeamWarmStart extends LazyLogging {
   }
 
   def warmStartTravelTime(
-                           beamConfig: BeamConfig,
-                           calculator: TravelTimeCalculatorConfigGroup,
-                           beamRouter: ActorRef,
-                           scenario: Scenario
-                         ): Unit = {
+    beamConfig: BeamConfig,
+    calculator: TravelTimeCalculatorConfigGroup,
+    beamRouter: ActorRef,
+    scenario: Scenario
+  ): Unit = {
     if (beamConfig.beam.warmStart.enabled) {
       val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
       val warm = new BeamWarmStart(beamConfig, maxHour)
@@ -217,7 +217,6 @@ object BeamWarmStart extends LazyLogging {
         val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
         new BeamWarmStart(beamConfig, maxHour)
       }
-
 
       val newWarmStart = {
         val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
@@ -247,9 +246,11 @@ object BeamWarmStart extends LazyLogging {
     }
   }
 
-
-  def getAgentSimExchangeTuple(instance: BeamWarmStart, beamConfig: BeamConfig, matsimConfig: Config)
-  : Option[(Beam.Agentsim, Beam.Exchange)] = {
+  def getAgentSimExchangeTuple(
+    instance: BeamWarmStart,
+    beamConfig: BeamConfig,
+    matsimConfig: Config
+  ): Option[(Beam.Agentsim, Beam.Exchange)] = {
     val configAgents = beamConfig.beam.agentsim.agents
     val scenarioConfig = beamConfig.beam.exchange.scenario
     try {
@@ -300,7 +301,8 @@ object BeamWarmStart extends LazyLogging {
 
       Some(newAgentSim, newExchange)
     } catch {
-      case NonFatal(exception: Exception) => logger.info(s"Parts of population/housholds/vehicles could not be loaded ${exception.getMessage}")
+      case NonFatal(exception: Exception) =>
+        logger.info(s"Parts of population/housholds/vehicles could not be loaded ${exception.getMessage}")
         None
     }
   }
