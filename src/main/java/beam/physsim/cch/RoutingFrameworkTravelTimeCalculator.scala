@@ -11,7 +11,6 @@ import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.kdtree.{KdNode, KdTree}
 import org.apache.commons.lang.time.StopWatch
 import org.matsim.api.core.v01.network.Link
-import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversionsToScala._
@@ -27,16 +26,16 @@ class RoutingFrameworkTravelTimeCalculator(
 
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newFixedThreadPool(
-      Math.max(Runtime.getRuntime.availableProcessors() / 4, 1),
+      Math.max(Runtime.getRuntime.availableProcessors(), 1),
       new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
     )
   )
 
-  private val odsFactor: Int =
+  private val odsFactor: Double =
     Math.max(
       (1.0 / beamServices.beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation *
       beamServices.beamConfig.beam.physsim.cch.congestionFactor).toInt,
-      1
+      1.0
     )
 
   private val graph: RoutingFrameworkGraph = routingFrameworkWrapper.generateGraph()
@@ -69,18 +68,20 @@ class RoutingFrameworkTravelTimeCalculator(
             val stopWatch: StopWatch = new StopWatch
             stopWatch.start()
 
-            var odNumber = 0
+            val ods = generateOdsFromTravelInfos(events, id2Link).toList
 
-            val ods = generateOdsFromTravelInfos(events, id2Link)
+            val odStream = Stream.fill(odsFactor.toInt)(ods).flatten ++
+            scala.util.Random.shuffle(ods).toStream.take(((odsFactor % 1) * ods.size).toInt)
 
-            val odStream = ods
-              .flatMap { od =>
-                odNumber = odNumber + 1
-                Stream.range(0, odsFactor, 1).map(_ => od)
-              }
             routingFrameworkWrapper.writeOds(iterationNumber, hour, odStream)
 
-            logger.info("Generated {} ods, for hour {} in {} ms", odNumber, hour, stopWatch.getTime)
+            logger.info(
+              "Generated {} ods ({} with ods factor), for hour {} in {} ms",
+              ods.size,
+              (ods.size * odsFactor).toInt,
+              hour,
+              stopWatch.getTime
+            )
           }
       }
 

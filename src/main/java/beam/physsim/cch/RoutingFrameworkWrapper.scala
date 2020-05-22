@@ -90,18 +90,20 @@ class InternalRTWrapper(
     itHourRelatedPath(tempDirPath, iteration, hour, "odpairs.csv")
 
   override def generateGraph(): RoutingFrameworkGraph = {
-    val convertGraphOutput = Process(s"""
-                                        |docker run --rm
-                                        | -v $tempDir:/work
-                                        | -v $pbfPath:$pbfPathInContainer
-                                        | $toolDockerImage
-                                        | $convertGraphLauncher
-                                        | -s osm
-                                        | -i $pbfPathInContainerWOExtension
-                                        | -d binary
-                                        | -o ${graphPathInContainer.toString.replace(".gr.bin", "")}
-                                        | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
-      """.stripMargin.replace("\n", ""))
+    val a = s"""
+               |docker run --rm
+               | -v $tempDir:/work
+               | -v $pbfPath:$pbfPathInContainer
+               | $toolDockerImage
+               | $convertGraphLauncher
+               | -s osm
+               | -i $pbfPathInContainerWOExtension
+               | -d binary
+               | -o ${graphPathInContainer.toString.replace(".gr.bin", "")}
+               | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
+      """.stripMargin.replace("\n", "")
+    val convertGraphOutput = Process(a)
+    logger.info(a)
 
     convertGraphOutput.lineStream.foreach(logger.info(_))
 

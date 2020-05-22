@@ -16,6 +16,8 @@ trait RoutingFrameworkGraphReader {
 }
 
 class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
+  private val coordinatePrecision = 1000000.0
+
   override def read(graph: File): RoutingFrameworkGraph =
     Files.asByteSource(graph).openStream().use { source =>
       def readString(): String = {
@@ -55,7 +57,11 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
           if (attributeName == "lat_lng") {
             readInt() // skip list size
             (0 until numOfVertices)
-              .foreach(i => vertexId2Coordinate.put(i, new Coordinate(readInt() / 1000000.0, readInt() / 1000000.0)))
+              .foreach(
+                i =>
+                  vertexId2Coordinate
+                    .put(i, new Coordinate(readInt() / coordinatePrecision, readInt() / coordinatePrecision))
+              )
           } else {
             source.skip(size)
           }
