@@ -31,9 +31,10 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
     destination: WgsCoordinate,
     departureAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
     mode: TravelModes.TravelMode = TravelModes.Driving,
+    trafficModel: TrafficModels.TrafficModel = TrafficModels.BestGuess,
     constraints: Set[TravelConstraints.TravelConstraint] = Set.empty
   ): Future[Seq[Route]] = {
-    val url = buildUrl(apiKey, origin, destination, departureAt, mode, constraints)
+    val url = buildUrl(apiKey, origin, destination, departureAt, mode, trafficModel, constraints)
     call(url).map(writeToFileIfSetup).map(toRoutes)
   }
 
@@ -76,7 +77,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
 
   private def parseStep(jsObject: JsObject): Segment = {
     Segment(
-      coordinates = PolyDecoder.decode((jsObject \ "polyline" \ "points").as[String]),
+      coordinates = GooglePolylineDecoder.decode((jsObject \ "polyline" \ "points").as[String]),
       lengthInMeters = (jsObject \ "distance" \ "value").as[Int],
       durationInSeconds = Some((jsObject \ "duration" \ "value").as[Int])
     )
@@ -114,21 +115,23 @@ object GoogleAdapter {
     destination: WgsCoordinate,
     departureAt: LocalDateTime,
     mode: TravelModes.TravelMode,
+    trafficModel: TrafficModels.TrafficModel = TrafficModels.BestGuess,
     constraints: Set[TravelConstraints.TravelConstraint]
   ): String = {
     // avoid=tolls|highways|ferries
     val originStr = s"${origin.latitude},${origin.longitude}"
     val destinationStr = s"${destination.latitude},${destination.longitude}"
     val params = Seq(
-      "mode=driving",
+      s"mode=${mode.apiString}",
       "language=en",
       "units=metric",
       "alternatives=true",
       s"key=$apiKey",
       s"mode=${mode.apiString}",
-      s"departure_time=${dateAsEpochSecond(departureAt)}",
       s"origin=$originStr",
-      s"destination=$destinationStr"
+      s"destination=$destinationStr",
+      s"traffic_model=${trafficModel.apiString}",
+      s"departure_time=${dateAsEpochSecond(departureAt)}",
     )
     val optionalParams = {
       if (constraints.isEmpty) Seq.empty
