@@ -62,20 +62,26 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, legIdx: Int)
         if (emptyLeg) {
           // move to first link in next leg and schedule an end leg message
           // duration of leg = 0 (departure and arrival time is the same)
-          new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)
+          new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx, false)
         } else {
           // car trying to enter traffic
           new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, legIdx, linkIdx)
         }
       case _ =>
-        new EndLegSimEvent(immidiateTime + leg.getTravelTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)
+        new EndLegSimEvent(immidiateTime + leg.getTravelTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx, false)
     }
     (events, Some(simEvent))
   }
 }
 
-class EndLegSimEvent(time: Double, priority: Int, person: Person, legIdx: Int, linkIdx: Int)
-    extends SimEvent(time, priority, person, legIdx, linkIdx) {
+class EndLegSimEvent(
+  time: Double,
+  priority: Int,
+  person: Person,
+  legIdx: Int,
+  linkIdx: Int,
+  vehicleHasEnteredLink: Boolean
+) extends SimEvent(time, priority, person, legIdx, linkIdx) {
   override def execute(scenario: Scenario, params: BPRSimParams) = {
     val nextAct = nextActivity
 
@@ -92,7 +98,9 @@ class EndLegSimEvent(time: Double, priority: Int, person: Person, legIdx: Int, l
         nextAct.getType
       ),
     )
-    params.volumeCalculator.addVolume(linkId, -1)
+    if (vehicleHasEnteredLink) {
+      params.volumeCalculator.addVolume(linkId, -1)
+    }
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
     val simEvent = if (nextLegExists) {
@@ -136,8 +144,9 @@ class EnteringActivityLinkSimEvent(time: Double, priority: Int, person: Person, 
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
     val events = List(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
+    params.volumeCalculator.addVolume(linkId, 1)
 
-    (events, Some(new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)))
+    (events, Some(new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx, true)))
   }
 }
 
