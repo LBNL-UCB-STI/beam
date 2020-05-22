@@ -164,11 +164,11 @@ if __name__ == '__main__':
         weights = [1.0]
         
     
-    trips_all = pd.read_csv('Data/NHTS/trippub.csv',
+    trips_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/trippub.csv.gz',
                     usecols=[0, 1, 2, 3, 4, 5, 6, 7, 17, 26, 28, 58, 59, 60, 61, 64, 69, 70, 71, 72, 73, 74, 84, 89, 93,
                              102, 103])
 
-    persons_all = pd.read_csv('Data/NHTS/perpub.csv')
+    persons_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/perpub.csv.gz')
 
     collected = dict()
     for cbsa in cbsas:
