@@ -54,6 +54,7 @@ object GoogleApiExampleUsage extends App {
         destination = destinationCoordinate,
         departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
         mode = TravelModes.Driving,
+        trafficModel = TrafficModels.BestGuess,
         constraints = Set.empty
       )
       Await.result(eventualRoutes, Duration.Inf)
