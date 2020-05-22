@@ -4,10 +4,12 @@ import java.nio.file.Paths
 
 import beam.sim.BeamServices
 import beam.utils.CloseableUtil._
+import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable
-import scala.io.Source
 import scala.sys.process.Process
 
 trait RoutingFrameworkWrapper {
@@ -90,7 +92,7 @@ class InternalRTWrapper(
     itHourRelatedPath(tempDirPath, iteration, hour, "odpairs.csv")
 
   override def generateGraph(): RoutingFrameworkGraph = {
-    val a = s"""
+    val command = s"""
                |docker run --rm
                | -v $tempDir:/work
                | -v $pbfPath:$pbfPathInContainer
@@ -102,8 +104,8 @@ class InternalRTWrapper(
                | -o ${graphPathInContainer.toString.replace(".gr.bin", "")}
                | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
       """.stripMargin.replace("\n", "")
-    val convertGraphOutput = Process(a)
-    logger.info(a)
+    val convertGraphOutput = Process(command)
+    logger.info("Docker command for graph generation: {}", command)
 
     convertGraphOutput.lineStream.foreach(logger.info(_))
 
@@ -164,8 +166,7 @@ class InternalRTWrapper(
                      | -stat $statPath
       """.stripMargin.replace("\n", "")
 
-    if (verboseLoggingEnabled)
-      logger.info("Docker command for assigning traffic: {}", query)
+    logger.info("Docker command for assigning traffic: {}", query)
 
     val assignTrafficOutput = Process(query)
 
@@ -174,24 +175,27 @@ class InternalRTWrapper(
     var curIter = -1
     val wayId2TravelTime = new mutable.HashMap[Long, Double]()
 
-    Source
-      .fromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toFile)
-      .use { source =>
-        // drop headers
-        source
-          .getLines()
-          .drop(2)
-          .map(x => x.split(","))
-          // picking only result of last iteration
-          .map { x =>
-            if (x(0).toInt != curIter) {
-              curIter = x(0).toInt
+    val reader = FileUtils.readerFromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toString)
+    //skip first line, which contains debug info
+    reader.readLine()
+    //file format : iteration,vol,sat,travel_time,way_id,bpr_result
+    new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+      .use { csvReader =>
+        val headers = csvReader.getHeader(false)
+        Iterator
+          .continually(csvReader.read(headers: _*))
+          .takeWhile(_ != null)
+          .map { map =>
+            val iteration = map.get("iteration").toInt
+            if (iteration != curIter) {
+              curIter = iteration
               wayId2TravelTime.clear()
             }
-            x
+            map.get("way_id").toLong ->
+            // travel time in routing framework is measured in tens of seconds
+            // so we are dividing it by 10 to get time in seconds
+            map.get("bpr_result").toDouble / 10
           }
-          // way id into BPR'ed travel time
-          .map(x => x(4).toLong -> x(5).toDouble / 10.0)
           .foreach {
             case (wayId, travelTime) =>
               wayId2TravelTime.get(wayId) match {
