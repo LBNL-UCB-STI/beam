@@ -1,4 +1,4 @@
-package beam.physsim.cch
+package beam.physsim.cchRoutingAssignment
 
 import java.util
 import java.util.concurrent.Executors
@@ -18,6 +18,9 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
+/**
+  * Generates traveltime for links by hours
+  */
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices,
   private val osmInfoHolder: OsmInfoHolder,
@@ -111,7 +114,7 @@ class RoutingFrameworkTravelTimeCalculator(
     linkId2TravelTimeByHour.asJava
   }
 
-  private[cch] def fillLink2TravelTimeByHour(
+  private[cchRoutingAssignment] def fillLink2TravelTimeByHour(
     links: util.Collection[_ <: Link],
     hour2Way2TravelTimes: Map[Int, Map[Long, Double]],
     maxHour: Int
@@ -153,7 +156,10 @@ class RoutingFrameworkTravelTimeCalculator(
     (linksFailedToResolve, linkId2TravelTimeByHour)
   }
 
-  private[cch] def generateOdsFromTravelInfos(events: Seq[TravelInfo], id2Link: Map[Int, Link]): Stream[OD] = {
+  private[cchRoutingAssignment] def generateOdsFromTravelInfos(
+    events: Seq[TravelInfo],
+    id2Link: Map[Int, Link]
+  ): Stream[OD] = {
     events.toStream
       .map { event =>
         for {
@@ -177,7 +183,7 @@ class RoutingFrameworkTravelTimeCalculator(
       }
   }
 
-  private[cch] def generateHour2Events(
+  private[cchRoutingAssignment] def generateHour2Events(
     pathTraversalEvents: util.Collection[PathTraversalEvent]
   ): Map[Int, List[TravelInfo]] = {
     val preliminaryHour2Events: Map[Int, Iterable[PathTraversalEvent]] =

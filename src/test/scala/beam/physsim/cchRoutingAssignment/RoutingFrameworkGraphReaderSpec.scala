@@ -1,4 +1,4 @@
-package beam.physsim.cch
+package beam.physsim.cchRoutingAssignment
 import java.io.File
 
 import com.vividsolutions.jts.geom.Coordinate

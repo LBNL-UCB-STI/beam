@@ -1,4 +1,4 @@
-package beam.physsim.cch
+package beam.physsim.cchRoutingAssignment
 import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -11,6 +11,9 @@ import scala.collection.mutable
 case class Vertex(id: Long, coordinate: Coordinate)
 case class RoutingFrameworkGraph(vertices: Seq[Vertex])
 
+/**
+  * Reads graph in binary routing framework format
+  */
 trait RoutingFrameworkGraphReader {
   def read(graph: File): RoutingFrameworkGraph
 }

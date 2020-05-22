@@ -1,4 +1,4 @@
-package beam.physsim.cch
+package beam.physsim.cchRoutingAssignment
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.BeamServices

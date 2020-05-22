@@ -1,4 +1,4 @@
-package beam.physsim.cch
+package beam.physsim.cchRoutingAssignment
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.Paths
 
@@ -12,6 +12,9 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable
 import scala.sys.process.Process
 
+/**
+  * Wrapper around routing framework
+  */
 trait RoutingFrameworkWrapper {
 
   /**
@@ -46,7 +49,7 @@ trait RoutingFrameworkWrapper {
 }
 
 class RoutingFrameworkWrapperImpl(beamServices: BeamServices)
-    extends InternalRTWrapper(
+    extends DockerRoutingFrameworkWrapper(
       Paths
         .get(
           beamServices.beamConfig.beam.routing.r5.directory,
@@ -59,7 +62,7 @@ class RoutingFrameworkWrapperImpl(beamServices: BeamServices)
       beamServices.beamConfig.beam.debug.debugEnabled
     )
 
-class InternalRTWrapper(
+class DockerRoutingFrameworkWrapper(
   private val pbfPath: String,
   private val tempDirPath: String,
   private val verboseLoggingEnabled: Boolean = true
@@ -210,7 +213,7 @@ class InternalRTWrapper(
 }
 
 object Starter extends App {
-  val wrapper = new InternalRTWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf", "/tmp/rt")
+  val wrapper = new DockerRoutingFrameworkWrapper("/Users/e.zuykin/Downloads/iran-latest.osm.pbf", "/tmp/rt")
   wrapper.generateGraph()
   wrapper.generateOd()
   wrapper.assignTrafficAndFetchWay2TravelTime(0, 0)
