@@ -29,7 +29,7 @@ class RoutingFrameworkTravelTimeCalculator(
 
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newFixedThreadPool(
-      Math.max(Runtime.getRuntime.availableProcessors(), 1),
+      Runtime.getRuntime.availableProcessors(),
       new ThreadFactoryBuilder().setDaemon(true).setNameFormat("routing-framework-worker-%d").build()
     )
   )
