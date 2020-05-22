@@ -24,7 +24,7 @@ object MatsimConversionTool extends App {
 
   val dummyGtfsPath = "test/input/beamville/r5/dummy.zip"
 
-  if (null != args && args.size > 0) {
+  if (null != args && args.length > 0) {
     val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
 
     val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
