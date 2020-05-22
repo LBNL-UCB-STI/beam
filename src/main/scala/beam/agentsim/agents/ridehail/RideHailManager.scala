@@ -1679,7 +1679,7 @@ class RideHailManager(
         }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+            val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }

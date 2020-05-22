@@ -38,7 +38,7 @@ public interface IGraphPassengerPerTrip {
         String fileName = getFileName("png");
         String graphTitle = getTitle();
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(dataSet.getRowCount());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());

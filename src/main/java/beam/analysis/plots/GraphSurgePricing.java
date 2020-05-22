@@ -2,8 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.agentsim.agents.ridehail.SurgePriceBin;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -365,7 +363,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         try {
             String fileName = graphImageFile;
 
-            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, fileName, true);
+            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, true);
             CategoryPlot plot = chart.getCategoryPlot();
             GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);

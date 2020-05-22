@@ -1,16 +1,16 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.FileNotFoundException
+import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
+
+import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.router.Modes.BeamMode
 import beam.sim.common._
 import beam.sim.population.AttributesOfIndividual
-
-import scala.collection.mutable.ListBuffer
-import scala.io.Source
-import scala.util.Try
+import beam.utils.FileUtils
 
 case class ModeIncentive(modeIncentives: Map[BeamMode, List[Incentive]]) {
 
@@ -44,7 +44,7 @@ object ModeIncentive {
     if (Files.notExists(Paths.get(incentivesFile)))
       throw new FileNotFoundException(s"ModeIncentive file not found at location: $incentivesFile")
     val incentives: ListBuffer[Incentive] = ListBuffer()
-    val lines = Try(Source.fromFile(incentivesFile).getLines().toList.tail).getOrElse(List())
+    val lines = Try(FileUtils.readAllLines(incentivesFile).toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 
