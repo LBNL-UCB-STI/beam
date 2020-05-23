@@ -36,7 +36,7 @@ object MeansOfTransportationTableReader {
   def main(args: Array[String]): Unit = {
     val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/CTPP"), Set("48"))
     val ods: Iterable[OD[MeansOfTransportation]] =
-      new MeansOfTransportationTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`State-County To State-County`)
+      new MeansOfTransportationTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
 
     println("Overall modes:")
@@ -54,9 +54,9 @@ object MeansOfTransportationTableReader {
   }
 
   def calcModes(ods: Iterable[OD[MeansOfTransportation]]): Unit = {
-    val modeToSum = ods.groupBy(x => x.attribute).map { case (mode, xs) =>
+    val modeToSum = ods.groupBy(x => x.attribute.toBeamMode).map { case (mode, xs) =>
       mode -> xs.map(_.value).sum.toLong
-    }.toSeq.sortBy(x => x._1.lineNumber)
+    }.toSeq.sortBy(x => x._1.map(_.value).getOrElse(""))
     val totalModes = modeToSum.map(_._2).sum
     println(s"The sum of all modes: $totalModes")
     modeToSum.foreach{ case (mode, sum) =>

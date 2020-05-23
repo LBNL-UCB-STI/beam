@@ -1,9 +1,32 @@
 package beam.utils.data.ctpp.models
 
+import beam.router.Modes.BeamMode
+
 import scala.util.{Failure, Success, Try}
 
 sealed trait MeansOfTransportation {
   def lineNumber: Int
+
+  def toBeamMode: Option[BeamMode] = {
+    this match {
+      case MeansOfTransportation.`Car, truck, or van -- Drove alone`                   => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Car, truck, or van -- In a 2-person carpool`         => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Car, truck, or van -- In a 3-person carpool`         => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Car, truck, or van -- In a 4-person carpool`         => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Car, truck, or van -- In a 5-or-6-person carpool`    => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Car, truck, or van -- In a 7-or-more-person carpool` => Some(BeamMode.CAR)
+      case MeansOfTransportation.`Bus or trolley bus`                                  => Some(BeamMode.TRANSIT)
+      case MeansOfTransportation.`Streetcar or trolley car`                            => Some(BeamMode.TRANSIT)
+      case MeansOfTransportation.`Subway or elevated`                                  => Some(BeamMode.TRANSIT)
+      case MeansOfTransportation.`Railroad`                                            => Some(BeamMode.TRANSIT)
+      case MeansOfTransportation.`Ferryboat`                                           => Some(BeamMode.TRANSIT)
+      case MeansOfTransportation.`Bicycle`                                             => Some(BeamMode.BIKE)
+      case MeansOfTransportation.`Walked`                                              => Some(BeamMode.WALK)
+      case MeansOfTransportation.`Taxicab`                                             => Some(BeamMode.RIDE_HAIL)
+      case MeansOfTransportation.`Motorcycle`                                          => None
+      case MeansOfTransportation.`Other method`                                        => None
+    }
+  }
 }
 
 object MeansOfTransportation {
