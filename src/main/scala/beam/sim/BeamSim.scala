@@ -16,6 +16,7 @@ import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
+import beam.router.r5.RouteDumper
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
@@ -32,11 +33,6 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
-import org.matsim.core.population.PopulationUtils
-import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.matsim.core.events.handler.BasicEventHandler
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
