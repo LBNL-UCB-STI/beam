@@ -32,33 +32,14 @@ class BenchmarkGenerator(
     }
     insideBoundingBox
       .map { od =>
-        (toBeamMode(od.attribute), od.value)
+        (od.attribute.toBeamMode, od.value)
       }
       .collect { case (maybeBeamMode, value) if maybeBeamMode.nonEmpty => (maybeBeamMode.get, value) }
       .groupBy { case (beamMode, _) => beamMode }
       .map { case (mode, xs) => mode -> xs.view.map(_._2).sum }
   }
 
-  def toBeamMode(cttpMode: MeansOfTransportation): Option[BeamMode] = {
-    cttpMode match {
-      case MeansOfTransportation.`Car, truck, or van -- Drove alone`                   => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Car, truck, or van -- In a 2-person carpool`         => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Car, truck, or van -- In a 3-person carpool`         => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Car, truck, or van -- In a 4-person carpool`         => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Car, truck, or van -- In a 5-or-6-person carpool`    => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Car, truck, or van -- In a 7-or-more-person carpool` => Some(BeamMode.CAR)
-      case MeansOfTransportation.`Bus or trolley bus`                                  => Some(BeamMode.TRANSIT)
-      case MeansOfTransportation.`Streetcar or trolley car`                            => Some(BeamMode.TRANSIT)
-      case MeansOfTransportation.`Subway or elevated`                                  => Some(BeamMode.TRANSIT)
-      case MeansOfTransportation.`Railroad`                                            => Some(BeamMode.TRANSIT)
-      case MeansOfTransportation.`Ferryboat`                                           => Some(BeamMode.TRANSIT)
-      case MeansOfTransportation.`Bicycle`                                             => Some(BeamMode.BIKE)
-      case MeansOfTransportation.`Walked`                                              => Some(BeamMode.WALK)
-      case MeansOfTransportation.`Taxicab`                                             => Some(BeamMode.RIDE_HAIL)
-      case MeansOfTransportation.`Motorcycle`                                          => None
-      case MeansOfTransportation.`Other method`                                        => None
-    }
-  }
+
 }
 
 object BenchmarkGenerator {
