@@ -86,10 +86,9 @@ object CoordInBoundsUtil extends App {
     coords += new Coord(-121.88562672146001, 37.336730003490004)
     coords += new Coord(-121.92953484746799, 37.3827565381698)
     coords += new Coord(-121.88562672146001, 37.336730003490004)
-    coords.foreach {
-      case coord: Coord => println(coord.toString() + " -> " + wgs2Utm.transform(coord))
+    coords.foreach {coord: Coord =>
+      println(coord.toString() + " -> " + wgs2Utm.transform(coord))
     }
-
     coords
   }
 

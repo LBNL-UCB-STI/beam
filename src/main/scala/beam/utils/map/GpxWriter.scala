@@ -62,7 +62,7 @@ object GpxWriter {
 
     try {
       points.foreach {
-        case point =>
+        point =>
           val longitude = point.wgsCoord.getX
           val latitude = point.wgsCoord.getY
           val name = point.name
@@ -85,7 +85,7 @@ object GpxWriter {
     val p = envelopePoints.sliding(2).toArray :+ Array(envelopePoints(0), envelopePoints(3))
 
     p.foreach {
-      case p =>
+      p =>
         val source = p(0)
         val dest = p(1)
         drawSourceToDest(outWriter, geoUtils, source, dest)

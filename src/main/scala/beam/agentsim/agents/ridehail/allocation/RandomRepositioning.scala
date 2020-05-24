@@ -490,7 +490,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           if (repositionPerTick >= 1) {
             var idx: Int = 0
             val map = (0 to lastTickWithRepos by step).map {
-              case t =>
+              t =>
                 val activities: Vector[Location] = rand
                   .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
                   .map(_.getCoord)

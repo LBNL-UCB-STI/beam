@@ -174,8 +174,7 @@ x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
 
     val closestEdges = corners.map { gpxPoint =>
       val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
-      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy {
-        case x =>
+      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy { x =>
           val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
           distUTMInMeters(utmCornerCoord, utmCoord)
       }
