@@ -48,7 +48,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     getWarmStartFilePath(fileName, rootFirst) match {
       case Some(compressedFileFullPath) =>
         logger.info(
-          s"compressedLocation: description: ${description}, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
+          s"compressedLocation: description: $description, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
         )
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)

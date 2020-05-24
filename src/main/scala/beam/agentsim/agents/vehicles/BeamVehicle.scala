@@ -419,7 +419,7 @@ object BeamVehicle {
   }
 
   def createId[A](id: String, prefix: Option[String]): Id[BeamVehicle] = {
-    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle])
+    Id.create(s"${prefix.map(_ + "-").getOrElse("")}$id", classOf[BeamVehicle])
   }
 
   case class BeamVehicleState(
