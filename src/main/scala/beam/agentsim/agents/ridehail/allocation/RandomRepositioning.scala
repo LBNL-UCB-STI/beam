@@ -489,18 +489,17 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
           if (repositionPerTick >= 1) {
             var idx: Int = 0
-            val map = (0 to lastTickWithRepos by step).map {
-              t =>
-                val activities: Vector[Location] = rand
-                  .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
-                  .map(_.getCoord)
-                  .take(numberOfRepos)
-                  .toVector
-                // Use `lift` to be in safe
-                val ids = neverMovedVehiclesBatched.lift(idx).getOrElse(Vector.empty)
-                logger.info(s"t: $t. VehicleIds: ${activities.size}, Activities locations: ${activities.size}")
-                idx += 1
-                t -> ids.zip(activities)
+            val map = (0 to lastTickWithRepos by step).map { t =>
+              val activities: Vector[Location] = rand
+                .shuffle(activitySegment.getActivities(tick + 20 * 60, tick + 3600))
+                .map(_.getCoord)
+                .take(numberOfRepos)
+                .toVector
+              // Use `lift` to be in safe
+              val ids = neverMovedVehiclesBatched.lift(idx).getOrElse(Vector.empty)
+              logger.info(s"t: $t. VehicleIds: ${activities.size}, Activities locations: ${activities.size}")
+              idx += 1
+              t -> ids.zip(activities)
             }.toMap
             tickToLocation = map
           } else {
