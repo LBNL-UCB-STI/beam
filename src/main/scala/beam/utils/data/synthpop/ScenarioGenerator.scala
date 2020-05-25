@@ -1,8 +1,11 @@
 package beam.utils.data.synthpop
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
 
+import beam.agentsim.infrastructure.geozone._
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
 import beam.taz.{PointGenerator, RandomPointsInGridGenerator}
@@ -10,6 +13,7 @@ import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
+import beam.utils.data.synthpop.GeoService.CheckResult
 import beam.utils.data.synthpop.generators.{
   RandomWorkDestinationGenerator,
   TimeLeavingHomeGenerator,
@@ -22,6 +26,7 @@ import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import com.typesafe.scalalogging.StrictLogging
+import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
@@ -41,10 +46,11 @@ class SimpleScenarioGenerator(
   val pathToTazShapeFile: String,
   val pathToBlockGroupShapeFile: String,
   val pathToCongestionLevelDataFile: String, // One can create it manually https://www.tomtom.com/en_gb/traffic-index/austin-traffic/
-  val pathToWorkedHours: String,
-  val pathToOsmMap: String, // Conditional work duration
+  val pathToWorkedHours: String, // Conditional work duration
+  val pathToOsmMap: String,
   val randomSeed: Int,
   val offPeakSpeedMetersPerSecond: Double,
+  val localCoordinateReferenceSystem: String,
   val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -54,11 +60,7 @@ class SimpleScenarioGenerator(
   private val rndGen: MersenneTwister = new MersenneTwister(randomSeed) // Random.org
 
   private val geoUtils: GeoUtils = new GeoUtils {
-    // TODO: Is it truth for all cases? Check the coverage https://epsg.io/26910
-    // WGS84 bounds:
-    //-172.54 23.81
-    //-47.74 86.46
-    override def localCRS: String = "epsg:26910"
+    override def localCRS: String = localCoordinateReferenceSystem
   }
 
   private val defaultTimeLeavingHomeRange: Range = Range(6 * 3600, 7 * 3600)
@@ -131,8 +133,17 @@ class SimpleScenarioGenerator(
 
   private val geoSvc: GeoService = new GeoService(
     GeoServiceInputParam(pathToTazShapeFile, pathToBlockGroupShapeFile, pathToOsmMap),
-    uniqueGeoIds
+    uniqueGeoIds,
+    geoUtils
   )
+
+  val boundingBoxUTM: Envelope = {
+    val maxCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMaxX, geoSvc.mapBoundingBox.getMaxY))
+    val minCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMinX, geoSvc.mapBoundingBox.getMinY))
+    val envelope = new Envelope(maxCoord.getX, minCoord.getX, maxCoord.getY, minCoord.getY)
+    logger.info(s"mapBoundingBoxUTM: ${envelope}")
+    envelope
+  }
 
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
@@ -202,7 +213,7 @@ class SimpleScenarioGenerator(
 
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     val finalResult = blockGroupGeoIdToHouseholds.map {
-      case (blockGroupGeoId, householdsWithPersonData) =>
+      case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
         logger.info(s"$blockGroupGeoId contains ${householdsWithPersonData.size} households")
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
@@ -212,7 +223,8 @@ class SimpleScenarioGenerator(
         }
         val res = householdsWithPersonData.zip(householdLocation).map {
           case ((household, personsWithData), wgsHouseholdLocation) =>
-            if (geoSvc.mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
+            val householdCheckResult = geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)
+            if (householdCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
@@ -230,7 +242,8 @@ class SimpleScenarioGenerator(
                     nextWorkLocation.update(workDestPumaGeoId, offset + 1)
                     workLocations.lift(offset) match {
                       case Some(wgsWorkingLocation) =>
-                        if (geoSvc.mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
+                        val workingLocationCheckResult = geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)
+                        if (workingLocationCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
                           val valueOfTime =
                             PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
@@ -296,7 +309,7 @@ class SimpleScenarioGenerator(
                         } else {
                           logger
                             .info(
-                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox}"
+                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $workingLocationCheckResult"
                             )
                           (xs, nextPersonId + 1)
                         }
@@ -309,6 +322,10 @@ class SimpleScenarioGenerator(
                 Some((createdHousehold, personsAndPlans))
               } else None
             } else {
+              logger
+                .info(
+                  s"Household $wgsHouseholdLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $householdCheckResult"
+                )
               None
             }
         }
@@ -462,6 +479,40 @@ class SimpleScenarioGenerator(
     }
   }
 
+  def writeH3(pathToFolder: String, wgsCoords: Seq[Coord], expectedNumberOfBuckets: Int): Unit = {
+    val wgsCoordinates = wgsCoords.map(WgsCoordinate.apply).toSet
+    val summary: GeoZoneSummary = TopDownEqualDemandH3IndexMapper
+      .from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, expectedNumberOfBuckets)
+      .generateSummary()
+
+    logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
+
+    val resolutionToPoints = summary.items
+      .map(x => x.index.resolution -> x.size)
+      .groupBy { case (res, _) => res }
+      .toSeq
+      .map { case (res, xs) => res -> xs.map(_._2).sum }
+      .sortBy { case (_, size) => -size }
+    resolutionToPoints.foreach {
+      case (res, size) =>
+        logger.info(s"Resolution: $res, number of points: $size")
+    }
+    val h3Indexes = summary.items.sortBy(x => -x.size)
+
+    val pathToFile = pathToFolder + "/h3-centers.csv.gz"
+    val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
+    try {
+      h3Indexes.foreach {
+        case GeoZoneSummaryItem(h3Index: H3Index, _) =>
+          val utmCoord = geoUtils.wgs2Utm(H3Wrapper.wgsCoordinate(h3Index).coord)
+          val area = H3Wrapper.areaInM2(h3Index)
+          csvWriter.write(h3Index.value, utmCoord.getX, utmCoord.getY, area)
+      }
+    } finally {
+      Try(csvWriter.close())
+    }
+  }
+
 }
 
 object SimpleScenarioGenerator {
@@ -477,13 +528,18 @@ object SimpleScenarioGenerator {
     randomSeed: Int,
     offPeakSpeedMetersPerSecond: Double,
     defaultValueOfTime: Double,
+    localCRS: String,
     outputFolder: String
   )
 
+  def getCurrentDateTime: String = {
+    DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss").format(LocalDateTime.now)
+  }
+
   def run(parsedArgs: Arguments): Unit = {
-    val pathToOutput = parsedArgs.outputFolder
+    val pathToOutput = parsedArgs.outputFolder + "_" + getCurrentDateTime
     val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
-    require(new File(parsedArgs.outputFolder).mkdirs(), s"${pathToOutput} exists, stopping...")
+    require(new File(pathToOutput).mkdirs(), s"${pathToOutput} exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(
@@ -496,10 +552,11 @@ object SimpleScenarioGenerator {
         pathToOsmMap = parsedArgs.osmMap,
         randomSeed = parsedArgs.randomSeed,
         offPeakSpeedMetersPerSecond = parsedArgs.offPeakSpeedMetersPerSecond,
+        localCoordinateReferenceSystem = parsedArgs.localCRS,
         defaultValueOfTime = parsedArgs.defaultValueOfTime
       )
 
-    gen.writeTazCenters(parsedArgs.outputFolder)
+    gen.writeTazCenters(pathToOutput)
 
     val generatedData = gen.generate
     println(s"Number of households: ${generatedData.size}")
@@ -513,6 +570,13 @@ object SimpleScenarioGenerator {
     val areHouseholdsEqual = readHouseholds.toVector == households
     println(s"areHouseholdsEqual: $areHouseholdsEqual")
 
+    // TODO: Remove once it is ready to be merged
+    households.foreach { hh =>
+      if (!gen.boundingBoxUTM.contains(hh.locationX, hh.locationY)) {
+        println(s"$hh is outside of bounding box!")
+      }
+    }
+
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
     val personsFilePath = s"$pathToOutput/persons.csv"
     CsvPersonInfoWriter.write(personsFilePath, persons)
@@ -521,13 +585,29 @@ object SimpleScenarioGenerator {
     val arePersonsEqual = readPersons.toVector == persons
     println(s"arePersonsEqual: $arePersonsEqual")
 
+    // TODO: Remove once it is ready to be merged
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
+    planElements.filter(_.planElementType == "activity").foreach { plan =>
+      if (!gen.boundingBoxUTM.contains(plan.activityLocationX.get, plan.activityLocationY.get)) {
+        println(s"$plan is outside of bounding box!")
+      }
+    }
+
+    val geoUtils: GeoUtils = new GeoUtils {
+      override def localCRS: String = parsedArgs.localCRS
+    }
+    val allActivities = planElements.filter(_.planElementType == "activity").map { plan =>
+      geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
+    }
+    gen.writeH3(pathToOutput, allActivities, 1000)
+
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
     println(s"Wrote plans information to $plansFilePath")
     val readPlanElements = CsvPlanElementReader.read(plansFilePath)
     val arePlanElementsEqual = readPlanElements.toVector == planElements
     println(s"arePlanElementsEqual: $arePlanElementsEqual")
+
   }
 
   def main(args: Array[String]): Unit = {
@@ -546,15 +626,18 @@ object SimpleScenarioGenerator {
     '--randomSeed', '42',
     '--offPeakSpeedMetersPerSecond', '12.5171',
     '--defaultValueOfTime', '8.0',
+    '--localCRS', 'EPSG:3084',
     '--outputFolder', 'D:/Work/beam/NewYork/results'
     "] -PlogbackCfg=logback.xml
      */
-    SimpleScenarioGeneratorArgParser.parseArguments(args) match {
-      case None =>
-        throw new IllegalStateException("Unable to parse arguments. Check the logs")
-      case Some(parsedArgs: Arguments) =>
-        run(parsedArgs)
+    ProfilingUtils.timed("Scenario generation", x => println(x)) {
+      SimpleScenarioGeneratorArgParser.parseArguments(args) match {
+        case None =>
+          throw new IllegalStateException("Unable to parse arguments. Check the logs")
+        case Some(parsedArgs: Arguments) =>
+          run(parsedArgs)
 
+      }
     }
   }
 }

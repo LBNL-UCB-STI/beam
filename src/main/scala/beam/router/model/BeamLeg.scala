@@ -101,7 +101,7 @@ object BeamLeg {
     ).updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {
-    if (legs.filter(_.isDefined).nonEmpty) {
+    if (legs.exists(_.isDefined)) {
       var runningStartTime = legs.find(_.isDefined).head.get.startTime
       for (legOpt <- legs) yield {
         val newLeg = legOpt.map(leg => leg.updateStartTime(runningStartTime))
