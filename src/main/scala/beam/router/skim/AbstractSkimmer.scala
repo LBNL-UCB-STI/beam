@@ -3,16 +3,24 @@ package beam.router.skim
 import java.io.{BufferedWriter, File}
 
 import beam.agentsim.events.ScalaEvent
+import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.Modes.BeamMode
+import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
+import com.univocity.parsers.common.record.Record
+import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
+import scala.collection.JavaConverters._
 
 import scala.collection.{immutable, mutable}
 import scala.util.control.NonFatal
@@ -24,13 +32,17 @@ trait AbstractSkimmerKey {
 trait AbstractSkimmerInternal {
   val observations: Int
   val iterations: Int
+
   def toCsv: String
 }
 
 abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
+
   def getKey: AbstractSkimmerKey
+
   def getSkimmerInternal: AbstractSkimmerInternal
+
   def getEventType: String = skimName + "-event"
 }
 
@@ -45,6 +57,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     with IterationStartsListener
     with IterationEndsListener
     with LazyLogging {
+
   import beamServices._
 
   protected[skim] val readOnlySkim: AbstractSkimmerReadOnly
@@ -59,6 +72,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
   ): AbstractSkimmerInternal
+
   protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
@@ -66,7 +80,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
-      readOnlySkim.aggregatedSkim = readAggregatedSkims
+      readOnlySkim.aggregatedSkim =
+        new CsvSkimReader(beamConfig.beam.warmStart.skimsFilePath, fromCsv, logger).readAggregatedSkims
     }
   }
 

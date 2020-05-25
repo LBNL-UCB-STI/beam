@@ -29,7 +29,10 @@ abstract class BaseTableReader(
   protected def findTablePath(stateCode: String): String = {
     val fullStatePath = s"${dbInfo.pathToData.path}/$stateCode/"
     val folder = new File(fullStatePath)
-    require(folder.isDirectory && folder.canRead, s"THe folder ${folder.getAbsolutePath} does not exist or permission is denied")
+    require(
+      folder.isDirectory && folder.canRead,
+      s"THe folder ${folder.getAbsolutePath} does not exist or permission is denied"
+    )
     findFile(fullStatePath, table.name)
   }
 
