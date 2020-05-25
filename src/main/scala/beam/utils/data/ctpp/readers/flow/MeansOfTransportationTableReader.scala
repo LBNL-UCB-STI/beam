@@ -54,14 +54,20 @@ object MeansOfTransportationTableReader {
   }
 
   def calcModes(ods: Iterable[OD[MeansOfTransportation]]): Unit = {
-    val modeToSum = ods.groupBy(x => x.attribute.toBeamMode).map { case (mode, xs) =>
-      mode -> xs.map(_.value).sum.toLong
-    }.toSeq.sortBy(x => x._1.map(_.value).getOrElse(""))
+    val modeToSum = ods
+      .groupBy(x => x.attribute.toBeamMode)
+      .map {
+        case (mode, xs) =>
+          mode -> xs.map(_.value).sum.toLong
+      }
+      .toSeq
+      .sortBy(x => x._1.map(_.value).getOrElse(""))
     val totalModes = modeToSum.map(_._2).sum
     println(s"The sum of all modes: $totalModes")
-    modeToSum.foreach{ case (mode, sum) =>
-      val pct = (100 * sum.toDouble / totalModes).formatted("%.2f")
-      println(s"$mode => $sum, $pct %")
+    modeToSum.foreach {
+      case (mode, sum) =>
+        val pct = (100 * sum.toDouble / totalModes).formatted("%.2f")
+        println(s"$mode => $sum, $pct %")
     }
   }
 }

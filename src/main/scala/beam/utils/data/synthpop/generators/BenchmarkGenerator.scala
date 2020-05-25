@@ -39,7 +39,6 @@ class BenchmarkGenerator(
       .map { case (mode, xs) => mode -> xs.view.map(_._2).sum }
   }
 
-
 }
 
 object BenchmarkGenerator {
