@@ -261,8 +261,7 @@ class RideHailManager(
           .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
       }
     }
-    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / fleet
+    .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
   // Undo sampling to estimate initial number
 
   val numRideHailAgents: Long = math.round(
@@ -1178,7 +1177,7 @@ class RideHailManager(
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (!refuelingQueue.isEmpty) =>
+      case refuelingQueue if (refuelingQueue.nonEmpty) =>
         val toReturn = refuelingQueue.dequeue
         log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn
@@ -1663,7 +1662,7 @@ class RideHailManager(
       .filter(tup => tup._1.isDefined && tup._2.size == 1)
       .map(_._2.head._1.person.get)
     var passengersToAdd = noPickupPassengers
-    if (!passengersToAdd.isEmpty) {
+    if (passengersToAdd.nonEmpty) {
       val i = 0
     }
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
@@ -1680,7 +1679,7 @@ class RideHailManager(
         }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+            val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }

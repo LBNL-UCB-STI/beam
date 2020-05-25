@@ -13,8 +13,6 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
@@ -107,7 +105,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         updatePersonCount();
 
         hourModeFrequency.values().stream().filter(Objects::nonNull).flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Double::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count.longValue(), ShortLevel(), tags));
 
         updateRealizedModeChoiceInIteration(event.getIteration());
@@ -134,7 +132,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
-        
+
         writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv"), realizedModeChoiceInIteration, cumulativeMode);
         writeToCSV(event);
         writeToReferenceCSV();
@@ -361,9 +359,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeMode));
     }
 
-
     //reference realized mode detaset
-    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() throws IOException {
+    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeReferenceMode));
 
@@ -375,7 +372,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     // generating graph in root directory for replanningCountModeChoice
     private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", fileName, false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", false);
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -384,7 +381,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void createReplanningCountModeChoiceGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, "replanningCountModeChoice", false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, false);
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "replanningCountModeChoice" + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
@@ -453,12 +450,12 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             out.newLine();
 
             StringBuilder builder = new StringBuilder("benchmark");
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             for (String d : cumulativeReferenceMode) {
                 if (benchMarkData.get(d) == null) {
                     builder.append(",0.0");
                 } else {
-                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                    builder.append(",").append(benchMarkData.get(d) * 100 / sum);
                 }
             }
             out.write(builder.toString());

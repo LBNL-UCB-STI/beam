@@ -21,12 +21,14 @@ import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
+import beam.router.r5.RouteDumper
 import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.router.r5.RouteDumper
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
+import beam.utils.watcher.MethodWatcher
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -317,10 +319,18 @@ class BeamSim @Inject()(
 
       val summaryVehicleStatsFile =
         Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryVehicleStats.csv")).toFile
-      val unProcessedStats = writeSummaryVehicleStats(summaryVehicleStatsFile)
+      val unProcessedStats = MethodWatcher.withLoggingInvocationTime(
+        "Saving summary vehicle stats",
+        writeSummaryVehicleStats(summaryVehicleStatsFile),
+        logger.underlying
+      )
 
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
-      writeSummaryStats(summaryStatsFile, unProcessedStats)
+      MethodWatcher.withLoggingInvocationTime(
+        "Saving summary stats",
+        writeSummaryStats(summaryStatsFile, unProcessedStats),
+        logger.underlying
+      )
 
       iterationSummaryStats.flatMap(_.keySet).distinct.foreach { x =>
         val key = x.split("_")(0)
@@ -329,7 +339,11 @@ class BeamSim @Inject()(
       }
 
       val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
-      fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration))
+      MethodWatcher.withLoggingInvocationTime(
+        "Creating summary stats graphs",
+        fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration)),
+        logger.underlying
+      )
 
       graphFileNameDirectory.clear()
 
@@ -613,7 +627,6 @@ class BeamSim @Inject()(
       header,
       "iteration",
       header,
-      path,
       false
     )
 

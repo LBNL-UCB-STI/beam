@@ -34,8 +34,8 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private case class Container(
-  srcGeoIndex: GeoIndex,
-  dstGeoIndex: GeoIndex,
+  srcGeoIndex: H3Index,
+  dstGeoIndex: H3Index,
   considerModes: Array[BeamMode],
   request: RoutingRequest,
   response: RoutingResponse
@@ -60,7 +60,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   private val wgsCoordinates = getAllActivitiesLocations.map(beamServices.geo.utm2Wgs(_)).map(WgsCoordinate.apply).toSet
 
   private val summary: GeoZoneSummary =
-    TopDownEqualDemandGeoIndexMapper.from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, 1000).generateSummary()
+    TopDownEqualDemandH3IndexMapper.from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, 1000).generateSummary()
 
   logger.info(s"Created ${summary.items.length} H3 indexes from ${wgsCoordinates.size} unique coordinates")
 
@@ -106,7 +106,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           val hour = config.beam.urbansim.allTAZSkimsPeakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
           val origins = h3Indexes.map { h3Index =>
-            val wgsCenter = H3Wrapper.hexToCoord(h3Index.index)
+            val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
             val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
             val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
             GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
@@ -175,7 +175,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     GeoUtils.distFormula(srcCoord, dstCoord) * 1.4
   }
 
-  private def getGeoIndexCenters(src: GeoIndex, dst: GeoIndex): (Coord, Coord) = {
+  private def getGeoIndexCenters(src: H3Index, dst: H3Index): (Coord, Coord) = {
     val srcGeoCenter = getGeoIndexCenter(src)
     val dstGeoCenter = getGeoIndexCenter(dst)
     val srcCoord = if (src == dst) {
@@ -194,8 +194,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     (srcCoord, dstCoord)
   }
 
-  private def getGeoIndexCenter(geoIndex: GeoIndex): Coord = {
-    val hexCentroid = H3Wrapper.hexToCoord(geoIndex)
+  private def getGeoIndexCenter(geoIndex: H3Index): Coord = {
+    val hexCentroid = H3Wrapper.wgsCoordinate(geoIndex).coord
     transformation.transform(hexCentroid)
   }
 
@@ -276,8 +276,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     results.foreach {
       case Success(
           Container(
-            srcGeoIndex: GeoIndex,
-            dstGeoIndex: GeoIndex,
+            srcGeoIndex: H3Index,
+            dstGeoIndex: H3Index,
             considerModes: Array[BeamMode],
             routingReq: RoutingRequest,
             response: RoutingResponse
@@ -312,8 +312,8 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   }
 
   private def createSkimEvent(
-    origin: GeoIndex,
-    destination: GeoIndex,
+    origin: H3Index,
+    destination: H3Index,
     beamMode: BeamMode,
     requestTime: Int,
     trip: EmbodiedBeamTrip

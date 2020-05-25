@@ -6,6 +6,8 @@ import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
 
+import scala.io.Source
+
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
@@ -205,6 +207,16 @@ object FileUtils extends LazyLogging {
         localPath
 
     unpackedPath
+  }
+
+  def readAllLines(file: File): Seq[String] = {
+    using(Source.fromFile(file.getPath)) { source =>
+      source.getLines().toList
+    }
+  }
+
+  def readAllLines(file: String): Seq[String] = {
+    readAllLines(new File(file))
   }
 
   private def isZipArchive(sourceFilePath: String): Boolean = {

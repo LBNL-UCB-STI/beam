@@ -2,11 +2,11 @@ package beam.utils.data.ctpp
 
 import java.util.{Map => JavaMap}
 
-import org.apache.commons.math3.util.{Pair => CPair}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
+import org.apache.commons.math3.util.{Pair => CPair}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
