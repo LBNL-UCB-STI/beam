@@ -280,8 +280,8 @@ class BeamSim @Inject()(
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
-      createGraphsFromEvents.createGraphs(event)
 
+      createGraphsFromEvents.createGraphs(event)
       iterationSummaryStats += iterationStatsProviders
         .flatMap(_.getSummaryStats.asScala)
         .toMap
@@ -317,8 +317,10 @@ class BeamSim @Inject()(
       graphFileNameDirectory.clear()
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
-      tncIterationsStatsCollector
-        .tellHistoryToRideHailIterationHistoryActorAndReset()
+      if (beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name == "REPOSITIONING_LOW_WAITING_TIMES") {
+        tncIterationsStatsCollector
+          .tellHistoryToRideHailIterationHistoryActorAndReset()
+      }
 
       if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
