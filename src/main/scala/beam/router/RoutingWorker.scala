@@ -1,4 +1,4 @@
-package beam.router.r5
+package beam.router
 
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
@@ -13,10 +13,10 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
-import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
+import beam.router.r5.{DefaultNetworkCoordinator, R5}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -26,10 +26,9 @@ import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -124,7 +123,7 @@ class RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogg
 
   private var workAssigner: ActorRef = context.parent
 
-  private var r5: R5Wrapper = new R5Wrapper(
+  private var r5: R5 = new R5(
     workerParams,
     new FreeFlowTravelTime,
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
@@ -200,7 +199,7 @@ class RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogg
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      r5 = new R5Wrapper(
+      r5 = new R5(
         workerParams,
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
@@ -209,7 +208,7 @@ class RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogg
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      r5 = new R5Wrapper(
+      r5 = new R5(
         workerParams,
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction

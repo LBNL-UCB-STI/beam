@@ -2,7 +2,6 @@ package beam.router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.FromConfig
-import beam.router.r5.RoutingWorker
 import com.typesafe.config.Config
 
 class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {

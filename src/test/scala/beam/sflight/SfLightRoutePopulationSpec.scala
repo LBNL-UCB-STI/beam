@@ -4,10 +4,10 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.FreeFlowTravelTime
+import beam.router.{FreeFlowTravelTime, WorkerParameters}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.R5
 import beam.tags.{ExcludeRegular, Periodic}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -22,7 +22,7 @@ class SfLightRoutePopulationSpec
   "A router" must {
 
     "respond with a car route for most trips in sflight" taggedAs (Periodic, ExcludeRegular) in {
-      val router = new R5Wrapper(
+      val router = new R5(
         WorkerParameters(
           beamConfig,
           beamScenario.transportNetwork,

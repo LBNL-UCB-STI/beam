@@ -12,15 +12,15 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, AccessAndEgress, Egress, RoutingRequest, RoutingResponse}
-import beam.router.Modes
+import beam.router.{Modes, Router, RoutingWorker, WorkerParameters}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
-import beam.router.r5.R5Wrapper.{R5Request, StopVisitor}
-import beam.router.r5.RoutingWorker.createBushwackingBeamLeg
+import beam.router.r5.R5.{R5Request, StopVisitor}
+import beam.router.RoutingWorker.createBushwackingBeamLeg
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
@@ -39,8 +39,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.collection.JavaConverters._
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
-    extends MetricsSupport {
+class R5(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
+    extends Router
+    with MetricsSupport {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
@@ -203,7 +204,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     profileRequest
   }
 
-  def calcRoute(request: RoutingRequest): RoutingResponse = {
+  override def calcRoute(request: RoutingRequest): RoutingResponse = {
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -1055,7 +1056,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     }
 }
 
-object R5Wrapper {
+object R5 {
 
   case class R5Request(
     from: Coord,

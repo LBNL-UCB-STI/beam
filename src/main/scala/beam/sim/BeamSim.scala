@@ -16,11 +16,9 @@ import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
-import beam.router.r5.RouteDumper
 import beam.router.skim.Skims
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, RouteDumper, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
-import beam.router.r5.RouteDumper
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
 import beam.utils.watcher.MethodWatcher

@@ -16,7 +16,7 @@ import io.circe.syntax._
 import scala.collection.mutable.ArrayBuffer
 
 class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with IterationEndsListener with LazyLogging {
-  import beam.router.r5.RouteDumper._
+  import beam.router.RouteDumper._
   import beam.utils.json.AllNeededFormats._
 
   val errors: ArrayBuffer[PointInfo] = new ArrayBuffer[PointInfo]()

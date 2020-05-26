@@ -29,7 +29,7 @@
     <Logger name="beam.calibration" level="INFO" />
     <Logger name="beam.router.BeamRouter" level="ERROR" />
     <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
-    <Logger name="beam.router.r5.RoutingWorker" level="INFO" />
+    <Logger name="beam.router.RoutingWorker" level="INFO" />
 
     <Logger name="org.apache.parquet" level="WARN" />
     <Logger name="org.reflections" level="ERROR" />

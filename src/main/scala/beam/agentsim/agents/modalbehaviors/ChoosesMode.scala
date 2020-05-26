@@ -19,7 +19,6 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.RoutingWorker
 import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
@@ -28,10 +27,11 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.router.RoutingWorker
 
 /**
   * BEAM

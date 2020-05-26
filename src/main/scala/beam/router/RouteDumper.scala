@@ -1,4 +1,4 @@
-package beam.router.r5
+package beam.router
 
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -6,21 +6,20 @@ import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, Rout
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.Schema.Type
 import org.apache.avro.generic.GenericData
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetWriter
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.handler.BasicEventHandler
-
-import scala.collection.JavaConverters._
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
+import org.matsim.core.events.handler.BasicEventHandler
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class RouteDumper(beamServices: BeamServices)

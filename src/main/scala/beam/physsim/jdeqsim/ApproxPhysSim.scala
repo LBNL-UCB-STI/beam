@@ -1,6 +1,6 @@
 package beam.physsim.jdeqsim
 
-import beam.router.r5.WorkerParameters
+import beam.router.WorkerParameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.Statistics

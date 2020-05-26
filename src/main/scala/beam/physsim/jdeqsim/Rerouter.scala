@@ -6,7 +6,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.WorkerParameters
+import beam.router.r5.R5
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{ProfilingUtils, Statistics}
@@ -41,7 +42,7 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
         plan.getPerson -> route
       }
 
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
+      val r5Wrapper = new R5(workerParams, travelTime, 0)
       // Get new routes
       val result = ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
         personToRoutes.par.map {
@@ -136,7 +137,7 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
   }
 
   private def reroute(
-    r5: R5Wrapper,
+    r5: R5,
     person: Person,
     elemIdxToRoute: Vector[ElementIndexToLeg]
   ): (Person, Vector[ElementIndexToRoutingResponse]) = {

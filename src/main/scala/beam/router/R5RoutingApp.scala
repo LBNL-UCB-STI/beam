@@ -15,7 +15,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode.CAR
-import beam.router.r5.RoutingWorker
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamWarmStart}
 import beam.utils.{FileUtils, LoggingUtil}

@@ -1,10 +1,9 @@
-package beam.router.r5
+package beam.router
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, Location, RoutingRequest, RoutingResponse}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -12,6 +11,7 @@ import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.apache.avro.generic.GenericData
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest.{FunSuite, Matchers}
+
 import scala.collection.JavaConverters._
 
 class RouteDumperTest extends FunSuite with Matchers {
