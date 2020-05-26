@@ -32,7 +32,7 @@ class CsvSkimReader(
     val csvParser: CsvParser = getCsvParser
     try {
       if (new File(aggregatedSkimsFilePath).isFile) {
-        var mapReader = csvParser.iterateRecords(IOUtils.getBufferedReader(aggregatedSkimsFilePath)).asScala
+        val mapReader = csvParser.iterateRecords(IOUtils.getBufferedReader(aggregatedSkimsFilePath)).asScala
         res = mapReader
           .map(rec => {
             val a = convertRecordToMap(rec, header)
@@ -58,7 +58,7 @@ class CsvSkimReader(
   }
 
   private def convertRecordToMap(rec: Record, header: Array[String]): immutable.Map[String, String] = {
-    var res = new util.HashMap[String, String]()
+    val res = new util.HashMap[String, String]()
     rec.fillFieldMap(res, header: _*)
     res.asScala.toMap
   }

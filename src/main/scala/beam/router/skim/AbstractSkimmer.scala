@@ -3,26 +3,20 @@ package beam.router.skim
 import java.io.{BufferedWriter, File}
 
 import beam.agentsim.events.ScalaEvent
-import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.Modes.BeamMode
-import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import com.univocity.parsers.common.record.Record
-import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-import scala.collection.JavaConverters._
 
 import scala.collection.{immutable, mutable}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 trait AbstractSkimmerKey {
@@ -48,10 +42,11 @@ abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamService
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyLogging {
-  protected[skim] val pastSkims: mutable.ListBuffer[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
+abstract class AbstractSkimmerReadOnly extends LazyLogging {
+  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
-  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
+
+  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = Map()
 }
 
 abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
@@ -70,6 +65,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   private lazy val eventType = skimName + "-event"
 
   protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
+
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
@@ -80,12 +76,15 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
 
-  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
+  def lazyLoadAggregatedSkimFromFile(): Future[Unit] = {
+    Future {
       readOnlySkim.aggregatedSkim =
         new CsvSkimReader(beamConfig.beam.warmStart.skimsFilePath, fromCsv, logger).readAggregatedSkims
+      Unit
     }
   }
+
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {}
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
