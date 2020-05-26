@@ -23,7 +23,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
+case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
 
   def getSkimDefaultValue(
     mode: BeamMode,

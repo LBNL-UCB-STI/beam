@@ -6,6 +6,9 @@ import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 object Skims extends LazyLogging {
   lazy val od_skimmer: ODSkims = lookup(SkimType.OD_SKIMMER).asInstanceOf[ODSkims]
@@ -14,9 +17,25 @@ object Skims extends LazyLogging {
 
   def setup(implicit beamServices: BeamServices): Unit = {
     val skimConfig = beamServices.beamConfig.beam.router.skim
-    skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
-    skims.put(SkimType.TAZ_SKIMMER, addEvent(new TAZSkimmer(beamServices, skimConfig)))
-    skims.put(SkimType.DT_SKIMMER, addEvent(new DriveTimeSkimmer(beamServices, skimConfig)))
+    val odSkimmer = new ODSkimmer(beamServices, skimConfig)
+    val tazSkimmer = new TAZSkimmer(beamServices, skimConfig)
+    val dtSkimmer = new DriveTimeSkimmer(beamServices, skimConfig)
+
+    if (beamServices.beamConfig.beam.agentsim.firstIteration == 0 &&
+        beamServices.beamConfig.beam.warmStart.enabled) {
+      val futures = Future.sequence(
+        Seq(
+          odSkimmer.lazyLoadAggregatedSkimFromFile(),
+          tazSkimmer.lazyLoadAggregatedSkimFromFile(),
+          dtSkimmer.lazyLoadAggregatedSkimFromFile()
+        )
+      )
+      Await.result(futures, 10.minutes)
+    }
+
+    skims.put(SkimType.OD_SKIMMER, addEvent(odSkimmer))
+    skims.put(SkimType.TAZ_SKIMMER, addEvent(tazSkimmer))
+    skims.put(SkimType.DT_SKIMMER, addEvent(dtSkimmer))
   }
 
   def clear(): Unit = {
