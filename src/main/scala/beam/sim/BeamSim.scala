@@ -387,7 +387,7 @@ class BeamSim @Inject()(
           event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
         val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
           "src/main/python/events_analysis/analyze_events.py",
-          if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+          if (new File(currentEventsFilePath).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
         )
         runningPythonScripts += pythonProcess
       }

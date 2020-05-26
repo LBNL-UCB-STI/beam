@@ -153,13 +153,13 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
           res.put(newPair._1, newPair._2)
           line = mapReader.read(header: _*)
         }
-        logger.info(s"warmStart skim successfully loaded from path '${aggregatedSkimsFilePath}'")
+        logger.info(s"warmStart skim successfully loaded from path '$aggregatedSkimsFilePath'")
       } else {
-        logger.info(s"warmStart skim NO PATH FOUND '${aggregatedSkimsFilePath}'")
+        logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not load warmStart skim from '${aggregatedSkimsFilePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}", ex)
     } finally {
       if (null != mapReader)
         mapReader.close()
@@ -176,7 +176,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       writer.close()
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
