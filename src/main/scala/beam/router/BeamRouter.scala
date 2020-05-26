@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.{R5RoutingWorker, RouteDumper}
+import beam.router.r5.{RouteDumper, RoutingWorker}
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -125,16 +125,7 @@ class BeamRouter(
 
   if (beamScenario.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
-      R5RoutingWorker.props(
-        beamScenario,
-        transportNetwork,
-        network,
-        networkHelper,
-        scenario,
-        fareCalculator,
-        tollCalculator,
-        transitVehicles
-      ),
+      RoutingWorker.props(beamScenario, transportNetwork, networkHelper, fareCalculator, tollCalculator),
       "router-worker"
     )
     localNodes += localWorker

@@ -15,7 +15,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode.CAR
-import beam.router.r5.R5RoutingWorker
+import beam.router.r5.RoutingWorker
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamWarmStart}
 import beam.utils.{FileUtils, LoggingUtil}
@@ -73,7 +73,7 @@ object R5RoutingApp extends BeamHelper {
     implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
     implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-    val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
+    val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
