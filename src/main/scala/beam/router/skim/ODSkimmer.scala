@@ -156,7 +156,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -229,7 +229,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
         }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()

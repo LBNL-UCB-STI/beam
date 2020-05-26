@@ -21,7 +21,7 @@ import scala.util.control.NonFatal
   */
 class CsvSkimReader(
   val aggregatedSkimsFilePath: String,
-  fromCsv: (Map[String, String]) => (AbstractSkimmerKey, AbstractSkimmerInternal),
+  fromCsv: Map[String, String] => (AbstractSkimmerKey, AbstractSkimmerInternal),
   logger: Logger
 ) {
 
