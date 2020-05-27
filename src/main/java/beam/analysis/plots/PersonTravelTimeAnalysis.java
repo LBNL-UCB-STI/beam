@@ -35,9 +35,9 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String otherMode = "mixed_mode";
     private static final String carMode = "car";
     public static String fileBaseName = "averageTravelTimes";
-    private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
-    private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
-    private List<Double> averageTime = new ArrayList<>();
+    private final Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
+    private final Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
+    private final List<Double> averageTime = new ArrayList<>();
     private final SimulationMetricCollector simMetricCollector;
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation;
