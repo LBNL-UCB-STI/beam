@@ -25,11 +25,13 @@ class CsvSkimReader(
   logger: Logger
 ) {
 
-  val header: Array[String] = initHeader
-
   def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     var res = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+
     val csvParser: CsvParser = getCsvParser
+    csvParser.beginParsing(IOUtils.getBufferedReader(aggregatedSkimsFilePath))
+    val header = csvParser.getRecordMetadata.headers()
+
     try {
       if (new File(aggregatedSkimsFilePath).isFile) {
         val mapReader = csvParser.iterateRecords(IOUtils.getBufferedReader(aggregatedSkimsFilePath)).asScala
@@ -49,12 +51,6 @@ class CsvSkimReader(
         logger.info(s"Could not load warmStart skim from '${aggregatedSkimsFilePath}': ${ex.getMessage}")
     }
     res
-  }
-
-  private def initHeader(): Array[String] = {
-    val csvParser = getCsvParser
-    csvParser.beginParsing(IOUtils.getBufferedReader(aggregatedSkimsFilePath))
-    csvParser.getRecordMetadata.headers()
   }
 
   private def convertRecordToMap(rec: Record, header: Array[String]): immutable.Map[String, String] = {
