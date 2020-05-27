@@ -67,7 +67,7 @@ class HouseholdSolverActor extends Actor with ActorLogging {
     var totalMb = 0L
     var initialTotalTime = 0L
     var initialTotalMb = 0L
-    (1 to 1000).map(i => {
+    (1 to 1000).foreach(i => {
       if (i % 10 == 0) println(s"Completing iteration $i")
       val startTime = System.currentTimeMillis
       val mb = 1024 * 1024

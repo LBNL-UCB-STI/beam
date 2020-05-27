@@ -64,7 +64,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public CategoryDataset getCategoryDataSet() {
-
         matriXDataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {

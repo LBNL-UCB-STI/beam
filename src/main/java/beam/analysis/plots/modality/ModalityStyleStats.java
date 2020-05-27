@@ -114,7 +114,7 @@ public class ModalityStyleStats {
             return;
         }
         List<String> classList = GraphsStatsAgentSimEventsListener.getSortedStringList(className);
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(categoryDataset, graphTile, xAxisTitle, yAxisTitle, fileName, true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(categoryDataset, graphTile, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, classList, categoryDataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName);
