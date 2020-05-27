@@ -69,7 +69,7 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
         case 0 =>
           Map(
             (chargingCountFileBaseName + "_CAV", java.lang.Double.valueOf(0.0)),
-            (averagekWhFileBaseName + "_CAV", java.lang.Double.valueOf((0.0)))
+            (averagekWhFileBaseName + "_CAV", java.lang.Double.valueOf(0.0))
           )
         case _ =>
           Map(
