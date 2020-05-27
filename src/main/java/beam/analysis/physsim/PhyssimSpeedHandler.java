@@ -75,7 +75,7 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                                         if(travelTime > 0.0) {
                                             double speed = distance / travelTime;
                                             int bin = (int) departureEvent.getTime() / binSize;
-                                            Mean mean = binSpeed.getOrDefault(bin, new Mean());
+                                            Mean mean = binSpeed.computeIfAbsent(bin, i -> new Mean());
                                             mean.increment(speed);
                                         }
                                         return;
