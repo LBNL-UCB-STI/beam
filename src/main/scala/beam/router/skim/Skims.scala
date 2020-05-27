@@ -30,7 +30,7 @@ object Skims extends LazyLogging {
           dtSkimmer.lazyLoadAggregatedSkimFromFile()
         )
       )
-      Await.result(futures, 10.minutes)
+      Await.result(futures, 20.minutes)
     }
 
     skims.put(SkimType.OD_SKIMMER, addEvent(odSkimmer))
