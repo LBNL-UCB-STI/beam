@@ -13,8 +13,8 @@ import java.util.Observer;
 
 @Singleton
 public class MatsimConfigUpdater implements Observer {
-    private ControlerConfigGroup controlerConfigGroup;
-    private LinkStatsConfigGroup linkStatsConfigGroup;
+    private final ControlerConfigGroup controlerConfigGroup;
+    private final LinkStatsConfigGroup linkStatsConfigGroup;
 
     @Inject
     MatsimConfigUpdater(BeamConfigChangesObservable beamConfigChangesObservable, LinkStatsConfigGroup linkStatsConfigGroup, ControlerConfigGroup controlerConfigGroup) {
