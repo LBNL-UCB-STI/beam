@@ -2,6 +2,9 @@ package beam.integration
 
 import java.io.File
 
+import scala.collection.JavaConverters._
+import scala.util.Try
+
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -9,8 +12,9 @@ import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamHelper
 import beam.sim.config.BeamExecutionConfig
 import beam.utils.EventReader._
-import com.typesafe.config.{Config, ConfigValueFactory}
+import beam.utils.FileUtils
 import com.google.inject
+import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.config.ConfigUtils
@@ -19,10 +23,6 @@ import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-
-import scala.collection.JavaConverters._
-import scala.io.Source
-import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
@@ -86,8 +86,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     trips.toSet
   }
 
-  private def tripsFromGtfs(file: File) = {
-    val trips = for (line <- Source.fromFile(file.getPath).getLines.drop(1))
+  private def tripsFromGtfs(file: File): Set[String] = {
+    val trips = for (line <- FileUtils.readAllLines(file).drop(1))
       yield line.split(",")(2)
     trips.toSet
   }
@@ -113,8 +113,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     eventsByTrip.map { case (k, v) => (k, v.size) }
   }
 
-  private def stopToStopLegsFromGtfsByTrip(stopTimesFile: String) = {
-    val stopTimes = for (line <- Source.fromFile(new File(stopTimesFile).getPath).getLines.drop(1))
+  private def stopToStopLegsFromGtfsByTrip(stopTimesFile: String): Map[String, Int] = {
+    val stopTimes = for (line <- FileUtils.readAllLines(stopTimesFile).drop(1))
       yield line.split(",")
     val stopTimesByTrip = stopTimes.toList.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }

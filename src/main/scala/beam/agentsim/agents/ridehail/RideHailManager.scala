@@ -1177,7 +1177,7 @@ class RideHailManager(
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (refuelingQueue.nonEmpty) =>
+      case refuelingQueue if refuelingQueue.nonEmpty =>
         val toReturn = refuelingQueue.dequeue
         log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn
@@ -1679,7 +1679,7 @@ class RideHailManager(
         }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+            val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }

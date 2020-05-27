@@ -1,9 +1,8 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream, FileWriter}
+import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
-import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
@@ -12,11 +11,6 @@ import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
-import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
-import beam.agentsim.infrastructure.parking.ParkingType.{Public, Residential, Workplace}
-import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
@@ -30,10 +24,8 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
-import beam.sim.metrics.BeamStaticMetricsWriter
 import beam.sim.metrics.Metrics._
-import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
-import beam.sim.metrics.{InfluxDbSimulationMetricCollector, SimulationMetricCollector}
+import beam.sim.metrics.{BeamStaticMetricsWriter, InfluxDbSimulationMetricCollector, SimulationMetricCollector}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{PopulationAdjustment, PopulationScaling}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -49,27 +41,23 @@ import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
-import org.matsim.core.population.PersonUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
-import org.matsim.households.{Household, HouseholdImpl}
 import org.matsim.utils.objectattributes.AttributeConverter
-import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-import scala.util.Random
+import scala.sys.process.Process
+import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
 
@@ -366,7 +354,19 @@ trait BeamHelper extends LazyLogging {
       else parsedArgs.config.get
     }).withFallback(location).resolve()
 
+    checkDockerIsInstalledForCCHPhysSim(config)
+
     (parsedArgs, config)
+  }
+
+  private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
+    val physSimType = Try(config.getString("beam.physsim.physSimType")).getOrElse("")
+    if (physSimType == "CCH") {
+      // Exception will be thrown if docker is not available on device
+      if (Try(Process("docker version").!!).isFailure) {
+        throw new RuntimeException("Docker is required to run CCH phys simulation")
+      }
+    }
   }
 
   private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
@@ -499,6 +499,7 @@ trait BeamHelper extends LazyLogging {
     logger.warn(logStart)
 
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+
     val services = injector.getInstance(classOf[BeamServices])
     (beamExecutionConfig, scenario, beamScenario, services)
   }
