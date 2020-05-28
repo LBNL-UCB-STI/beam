@@ -4,8 +4,6 @@ import beam.analysis.plots.GraphUtils;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.sim.config.BeamConfig;
 import beam.utils.FileUtils;
-import com.google.common.collect.Lists;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.jfree.chart.JFreeChart;
@@ -77,7 +75,7 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                                         if(travelTime > 0.0) {
                                             double speed = distance / travelTime;
                                             int bin = (int) departureEvent.getTime() / binSize;
-                                            Mean mean = binSpeed.getOrDefault(bin, new Mean());
+                                            Mean mean = binSpeed.computeIfAbsent(bin, i -> new Mean());
                                             mean.increment(speed);
                                         }
                                         return;
@@ -104,7 +102,6 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
     }
 
     public void notifyIterationEnds(int iteration) {
-
         writeIterationGraph(iteration);
         writeIterationCsv(iteration);
         personsDepartureTime.clear();
@@ -134,7 +131,6 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                 graphTitle,
                 "hour",
                 "Average Speed [m/s]",
-                fileName+".png",
                 false
         );
         CategoryPlot plot = chart.getCategoryPlot();

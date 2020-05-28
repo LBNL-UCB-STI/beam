@@ -39,18 +39,18 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
     private final static Logger log = Logger.getLogger(Hao2018CaccRoadCapacityAdjustmentFunction.class);
 
-    private double caccMinRoadCapacity;
-    private double caccMinSpeedMetersPerSec;
+    private final double caccMinRoadCapacity;
+    private final double caccMinSpeedMetersPerSec;
     private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads = 0;
     private int numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads = 0;
     private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads = 0;
 
     private double capacityIncreaseSum = 0;
     private double percentageCapacityIncreaseSum = 0;
-    private int currentIterationNumber;
+    private final int currentIterationNumber;
     private int writeInterval;
-    private boolean writeGraphs;
-    private OutputDirectoryHierarchy controllerIO;
+    private final boolean writeGraphs;
+    private final OutputDirectoryHierarchy controllerIO;
 
     private int nonCACCCategoryRoadsTravelled = 0;
     private int caccCategoryRoadsTravelled = 0;

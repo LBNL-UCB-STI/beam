@@ -24,6 +24,7 @@ trait AbstractSkimmerKey {
 trait AbstractSkimmerInternal {
   val observations: Int
   val iterations: Int
+
   def toCsv: String
 }
 
@@ -31,8 +32,11 @@ abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamService
     extends Event(eventTime)
     with ScalaEvent {
   protected val skimName: String
+
   def getKey: AbstractSkimmerKey
+
   def getSkimmerInternal: AbstractSkimmerInternal
+
   def getEventType: String = skimName + "-event"
 }
 
@@ -47,6 +51,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     with IterationStartsListener
     with IterationEndsListener
     with LazyLogging {
+
   import beamServices._
 
   protected[skim] val readOnlySkim: AbstractSkimmerReadOnly
@@ -56,11 +61,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
-  protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
+  protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
   ): AbstractSkimmerInternal
+
   protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
@@ -68,7 +74,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
-      readOnlySkim.aggregatedSkim = readAggregatedSkims
+      readOnlySkim.aggregatedSkim =
+        new CsvSkimReader(beamConfig.beam.warmStart.skimsFilePath, fromCsv, logger).readAggregatedSkims
     }
   }
 
@@ -98,7 +105,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     }
   }
 
-  protected def writeToDisk(event: IterationEndsEvent) = {
+  protected def writeToDisk(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
       ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info(_)) {
         val filePath =
@@ -138,13 +145,13 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
           res.put(newPair._1, newPair._2)
           line = mapReader.read(header: _*)
         }
-        logger.info(s"warmStart skim successfully loaded from path '${aggregatedSkimsFilePath}'")
+        logger.info(s"warmStart skim successfully loaded from path '$aggregatedSkimsFilePath'")
       } else {
-        logger.info(s"warmStart skim NO PATH FOUND '${aggregatedSkimsFilePath}'")
+        logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not load warmStart skim from '${aggregatedSkimsFilePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}", ex)
     } finally {
       if (null != mapReader)
         mapReader.close()
@@ -152,7 +159,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     res.toMap
   }
 
-  private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String) = {
+  private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
     var writer: BufferedWriter = null
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
@@ -161,7 +168,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       writer.close()
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()

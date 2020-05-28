@@ -247,6 +247,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 rideHailWaitingIndividualStat.personId = pId;
                 rideHailWaitingIndividualStat.vehicleId = vehicleId;
                 rideHailWaitingIndividualStat.waitingTime = difference;
+                rideHailWaitingIndividualStat.modeChoice = modeChoiceEvent.mode;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
 
@@ -301,7 +302,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
+            String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds,modeChoice";
 
             out.write(heading);
             out.newLine();
@@ -311,7 +312,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 String line = rideHailWaitingIndividualStat.time + "," +
                         rideHailWaitingIndividualStat.personId + "," +
                         rideHailWaitingIndividualStat.vehicleId + "," +
-                        rideHailWaitingIndividualStat.waitingTime;
+                        rideHailWaitingIndividualStat.waitingTime + "," +
+                        rideHailWaitingIndividualStat.modeChoice;
 
                 out.write(line);
 
@@ -428,7 +430,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         // Legends
@@ -441,7 +443,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void createSingleStatsGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, rideHailWaitingSingleStatsFileBaseName + ".png", false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, false);
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
@@ -521,5 +523,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         String personId;
         String vehicleId;
         double waitingTime;
+        String modeChoice;
     }
 }
