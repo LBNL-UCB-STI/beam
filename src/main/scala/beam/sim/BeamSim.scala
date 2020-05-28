@@ -113,7 +113,7 @@ class BeamSim @Inject()(
       Some(beamServices.matsimServices.getControlerIO)
     )
 
-  val vmInformationWriter: VMInformationWriter = new VMInformationWriter();
+  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -221,7 +221,7 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
-      vmInformationWriter.notifyIterationStarts(event)
+      vmInformationWriter.writeVMInfo(event.getIteration, "start")
     }
 
     if (event.getIteration > 0) {
@@ -268,7 +268,7 @@ class BeamSim @Inject()(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
-      vmInformationWriter.notifyIterationEnds(event)
+      vmInformationWriter.writeVMInfo(event.getIteration, "end")
     }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -342,8 +342,8 @@ class BeamSim @Inject()(
         agentSimToPhysSimPlanConverter.startPhysSim(event)
       }
 
-      // executing code blocks parallel
-      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+       // executing code blocks parallel
+       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
     if (beamConfig.beam.debug.debugEnabled)

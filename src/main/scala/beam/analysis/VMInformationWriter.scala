@@ -5,12 +5,9 @@ import java.io.IOException
 import beam.utils.VMInfoCollector
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.utils.io.IOUtils
 
-class VMInformationWriter extends LazyLogging with IterationEndsListener with IterationStartsListener {
-
+class VMInformationWriter(val controllerIO: OutputDirectoryHierarchy) extends LazyLogging {
   private def writeToFile(content: String, filePath: String): Unit = {
     val bw = IOUtils.getBufferedWriter(filePath)
     try {
@@ -23,29 +20,21 @@ class VMInformationWriter extends LazyLogging with IterationEndsListener with It
     }
   }
 
-  private def writeClassHistogram(
-    vmInfoCollector: VMInfoCollector,
-    controllerIO: OutputDirectoryHierarchy,
-    iteration: Int,
-    suffix: String
-  ): Unit = {
-    val filePath = controllerIO.getIterationFilename(iteration, s"vmHeapClassHistogram$suffix.txt")
+  def writeHeapDump(iteration: Int, suffix: String): Unit = {
+    val vmInfoCollector = VMInfoCollector()
+    val filePath = controllerIO.getIterationFilename(iteration, s"heapDump.$suffix.hprof")
+    try {
+      vmInfoCollector.dumpHeap(filePath, live = false)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing heap dump - $filePath", e)
+    }
+  }
+
+  def writeVMInfo(iteration: Int, suffix: String): Unit = {
+    val vmInfoCollector = VMInfoCollector()
+    val filePath = controllerIO.getIterationFilename(iteration, s"vmHeapClassHistogram.$suffix.txt")
+
     writeToFile(vmInfoCollector.gcClassHistogram, filePath)
-  }
-
-  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val vmInfoCollector = VMInfoCollector()
-    val controllerIO = event.getServices.getControlerIO
-    val iteration = event.getIteration
-
-    writeClassHistogram(vmInfoCollector, controllerIO, iteration, "AtIterationEnd")
-  }
-
-  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    val vmInfoCollector = VMInfoCollector()
-    val controllerIO = event.getServices.getControlerIO
-    val iteration = event.getIteration
-
-    writeClassHistogram(vmInfoCollector, controllerIO, iteration, "AtIterationStart")
   }
 }
