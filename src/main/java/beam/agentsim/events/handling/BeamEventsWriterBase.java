@@ -1,6 +1,5 @@
 package beam.agentsim.events.handling;
 
-import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.events.algorithms.EventWriter;
 import org.matsim.core.events.handler.BasicEventHandler;
@@ -14,20 +13,17 @@ import java.io.BufferedWriter;
 public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
     protected final BufferedWriter outWriter;
     protected final BeamEventsLogger beamEventLogger;
-    protected final BeamServices beamServices;
     protected final Class<?> eventTypeToLog;
 
 
-    public BeamEventsWriterBase(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+    public BeamEventsWriterBase(String outfilename, BeamEventsLogger beamEventLogger, Class<?> eventTypeToLog) {
         this.beamEventLogger = beamEventLogger;
-        this.beamServices = beamServices;
         this.outWriter = IOUtils.getBufferedWriter(outfilename);
         this.eventTypeToLog = eventTypeToLog;
     }
 
-    public BeamEventsWriterBase(BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+    public BeamEventsWriterBase(BeamEventsLogger beamEventLogger, Class<?> eventTypeToLog) {
         this.beamEventLogger = beamEventLogger;
-        this.beamServices = beamServices;
         this.eventTypeToLog = eventTypeToLog;
         this.outWriter = null;
     }

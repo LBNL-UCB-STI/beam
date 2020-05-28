@@ -1,7 +1,6 @@
 package beam.agentsim.events.handling;
 
 import beam.agentsim.events.ScalaEvent;
-import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
@@ -20,8 +19,8 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
     private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
-    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
-        super(outfilename, eventLogger, beamServices, eventTypeToLog);
+    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, Class<?> eventTypeToLog) {
+        super(outfilename, eventLogger, eventTypeToLog);
 
         if (eventTypeToLog == null) {
             for (Class<?> clazz : eventLogger.getAllEventsToLog()) {
