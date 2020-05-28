@@ -11,12 +11,15 @@ import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -25,6 +28,7 @@ import java.util.stream.Stream;
  * This class computes the distribution of free flow speed (in both m/s and %) over the network.
  */
 public class PhyssimCalcLinkSpeedDistributionStats {
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkSpeedDistributionStats.class);
 
     private static int noOfBins = 24;
     private BeamConfig beamConfig;
@@ -70,7 +74,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
             //generate the required charts - frequency over speed (as m/s)
             if(beamConfig.beam().outputs().writeGraphs()) {
                 //generate category data set for free flow speed distribution
-                CategoryDataset dataSetForSpeedTest = generateSpeedDistributionDataSet(speedDataList.get());
+                CategoryDataset dataSetForSpeedTest = GraphUtils.createCategoryDataset("", "", speedDataList.get());
                 generateSpeedDistributionBarChart(dataSetForSpeedTest, iteration);
 
                 //generate the category data set for link efficiencies
@@ -80,12 +84,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
-    private CategoryDataset generateSpeedDistributionDataSet(double[] speedDataList) {
-        return GraphUtils.createCategoryDataset("", "", speedDataList);
-    }
-
     private CategoryDataset generateLinkEfficienciesDataSet(Map<Double, Integer> generatedDataMap) {
-        final DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
         try {
             Map<Integer, Integer> converterMap = new HashMap<>();
             generatedDataMap.forEach((k, v) -> {
@@ -94,11 +93,16 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                 Integer value = converterMap.getOrDefault(category, 0);
                 converterMap.put(category, value + v);
             });
-            IntStream.rangeClosed(1,10).forEach(i -> dataSet.addValue(converterMap.getOrDefault(i*10,0),"percentage",String.valueOf(i*10)));
+
+            Map<Integer, Integer> data = IntStream.rangeClosed(1, 10)
+                    .mapToObj(i -> i*10)
+                    .collect(Collectors.toMap(i -> i, i -> converterMap.getOrDefault(i,0)));
+            return GraphUtils.createCategoryDataset(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
-        return dataSet;
+
+        return GraphUtils.createCategoryDataset(Collections.emptyMap());
     }
 
     /**
@@ -116,11 +120,11 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                         try {
                             bw.write(i + "," + data[i] + "\n");
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            log.error("exception occurred due to ", e);
                         }
                     });
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -138,11 +142,11 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                 try {
                     bw.write( k + "," + (int)Math.round(k) + "," + v + "\n");
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("exception occurred due to ", e);
                 }
             });
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -228,7 +232,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -253,7 +257,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 }
