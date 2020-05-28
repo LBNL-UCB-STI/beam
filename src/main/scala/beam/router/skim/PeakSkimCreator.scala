@@ -268,7 +268,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
             Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
         }
     }
-    val waitDuration = 5.hours
+    val waitDuration = 12.hours
     val results = ProfilingUtils.timed(s"Computed ${futures.length}", logger.info(_)) {
       Await.result(Future.sequence(futures), waitDuration)
     }
