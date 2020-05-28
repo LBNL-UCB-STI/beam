@@ -5,19 +5,17 @@ import java.io.BufferedWriter
 import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
-import org.supercsv.io.CsvMapReader
-import org.supercsv.prefs.CsvPreference
 
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.reflect.io.File
 import scala.util.control.NonFatal
 
@@ -84,12 +82,18 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       readOnlySkim.aggregatedSkim = if (file.exists) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
+        // TODO: skimsFilePath should be list of file. In this case we can read them without scanning directory
+        // TODO: Detecting that huge file or parts is being processed should be moved to BeamWarmStart.scala `skimsFilePath`
         val fileRegex = file.name.replace(".csv.gz", "_part.*.csv.gz")
         val files = File(file.parent).toDirectory.files
           .filter(_.isFile)
           .filter(_.name.matches(fileRegex))
           .map(_.path)
           .toList
+
+        if (files.isEmpty) {
+          logger.info(s"warmStart skim NO PATH FOUND '${filePath}'")
+        }
 
         val futures = files.map(
           f =>
@@ -149,38 +153,6 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
         writeSkim(readOnlySkim.aggregatedSkim, filePath)
       }
     }
-  }
-
-  // ***
-  // Helpers
-  private def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
-    var mapReader: CsvMapReader = null
-    val res = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-    val aggregatedSkimsFilePath = skimFileBaseName + "Aggregated.csv.gz"
-    try {
-      if (new java.io.File(aggregatedSkimsFilePath).isFile) {
-        mapReader =
-          new CsvMapReader(FileUtils.readerFromFile(aggregatedSkimsFilePath), CsvPreference.STANDARD_PREFERENCE)
-        val header = mapReader.getHeader(true)
-        var line: java.util.Map[String, String] = mapReader.read(header: _*)
-        while (null != line) {
-          import scala.collection.JavaConverters._
-          val newPair = fromCsv(line.asScala.toMap)
-          res.put(newPair._1, newPair._2)
-          line = mapReader.read(header: _*)
-        }
-        logger.info(s"warmStart skim successfully loaded from path '$aggregatedSkimsFilePath'")
-      } else {
-        logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
-      }
-    } catch {
-      case NonFatal(ex) =>
-        logger.error(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}", ex)
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
-    }
-    res.toMap
   }
 
   private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
