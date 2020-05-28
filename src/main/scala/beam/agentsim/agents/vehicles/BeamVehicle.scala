@@ -144,7 +144,7 @@ class BeamVehicle(
     * @param startTick
     */
   def connectToChargingPoint(startTick: Long): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
@@ -419,7 +419,7 @@ object BeamVehicle {
   }
 
   def createId[A](id: String, prefix: Option[String]): Id[BeamVehicle] = {
-    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle])
+    Id.create(s"${prefix.map(_ + "-").getOrElse("")}$id", classOf[BeamVehicle])
   }
 
   case class BeamVehicleState(
