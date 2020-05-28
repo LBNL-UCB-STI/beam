@@ -1,11 +1,11 @@
 package beam.router.skim
 
-import java.io.{BufferedWriter, File}
+import java.io.BufferedWriter
 
 import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -16,6 +16,7 @@ import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.reflect.io.File
 import scala.util.control.NonFatal
 
 trait AbstractSkimmerKey {
@@ -75,25 +76,32 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
 
-  def lazyLoadAggregatedSkimFromFile(): Future[Unit] = {
-    Future {
-      val filePathTemplate = beamConfig.beam.warmStart.skimsFilePartsTemplate
-      val numberOfParts = beamConfig.beam.warmStart.skimsFileNumberOfParts
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
+      val filePath = beamConfig.beam.warmStart.skimsFilePath
+      val file = File(filePath)
 
-      val futures = (1 to numberOfParts).map(i => Future {
-        val file = filePathTemplate.format(i)
-        val res = new CsvSkimReader(file, fromCsv, logger).readAggregatedSkims
-        res
-      })
+      readOnlySkim.aggregatedSkim = if (file.exists) {
+        new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
+      } else {
+        val fileRegex = file.name.replace(".csv.gz", "_part.*.csv.gz")
+        val files = File(file.parent).toDirectory.files
+          .filter(_.isFile)
+          .filter(_.name.matches(fileRegex))
+          .map(_.path)
+          .toList
 
-      val result = Await.result(Future.sequence(futures), 20.minutes)
+        val futures = files.map(
+          f =>
+            Future {
+              new CsvSkimReader(f, fromCsv, logger).readAggregatedSkims
+          }
+        )
 
-      readOnlySkim.aggregatedSkim = result.flatten.toMap
-      Unit
+        Await.result(Future.sequence(futures), 20.minutes).flatten.toMap
+      }
     }
   }
-
-  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {}
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
