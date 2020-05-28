@@ -22,7 +22,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     static final String fileBaseName = "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
-    private BeamServices beamServices;
+    private final BeamServices beamServices;
 
     private NetworkHelper networkHelper() {
         return beamServices.networkHelper();
