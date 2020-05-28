@@ -12,7 +12,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 
-import scala.collection.immutable
 import scala.util.control.NonFatal
 
 class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
@@ -43,7 +42,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   }
 
   override def fromCsv(
-    row: immutable.Map[String, String]
+    row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     ODSkimmer.fromCsv(row)
   }
@@ -312,7 +311,7 @@ object ODSkimmer extends LazyLogging {
   }
 
   def fromCsv(
-    row: immutable.Map[String, String]
+    row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       ODSkimmerKey(
