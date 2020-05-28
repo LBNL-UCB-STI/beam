@@ -138,7 +138,7 @@ class BeamSim @Inject()(
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
-  val vmInformationWriter: VMInformationWriter = new VMInformationWriter();
+  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -250,7 +250,8 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
-      vmInformationWriter.notifyIterationStarts(event)
+      vmInformationWriter.writeVMInfo(event.getIteration, "b")
+      vmInformationWriter.writeHeapDump(event.getIteration, "b")
     }
 
     if (event.getIteration > 0) {
@@ -297,7 +298,7 @@ class BeamSim @Inject()(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
-      vmInformationWriter.notifyIterationEnds(event)
+      vmInformationWriter.writeVMInfo(event.getIteration, "e")
     }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
