@@ -5,12 +5,14 @@ import java.io.BufferedWriter
 import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -156,7 +158,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     val res = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     val aggregatedSkimsFilePath = skimFileBaseName + "Aggregated.csv.gz"
     try {
-      if (new File(aggregatedSkimsFilePath).isFile) {
+      if (new java.io.File(aggregatedSkimsFilePath).isFile) {
         mapReader =
           new CsvMapReader(FileUtils.readerFromFile(aggregatedSkimsFilePath), CsvPreference.STANDARD_PREFERENCE)
         val header = mapReader.getHeader(true)
