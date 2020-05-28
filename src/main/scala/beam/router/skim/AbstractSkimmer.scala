@@ -45,8 +45,7 @@ abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamService
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
-
-  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = Map()
+  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
 }
 
 abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
@@ -64,8 +63,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
-  protected def fromCsv(line: immutable.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
-
+  protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
@@ -129,7 +127,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     }
   }
 
-  protected def writeToDisk(event: IterationEndsEvent) = {
+  protected def writeToDisk(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
       ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info(_)) {
         val filePath =
@@ -151,7 +149,39 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     }
   }
 
-  private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String) = {
+  // ***
+  // Helpers
+  private def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+    var mapReader: CsvMapReader = null
+    val res = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+    val aggregatedSkimsFilePath = skimFileBaseName + "Aggregated.csv.gz"
+    try {
+      if (new File(aggregatedSkimsFilePath).isFile) {
+        mapReader =
+          new CsvMapReader(FileUtils.readerFromFile(aggregatedSkimsFilePath), CsvPreference.STANDARD_PREFERENCE)
+        val header = mapReader.getHeader(true)
+        var line: java.util.Map[String, String] = mapReader.read(header: _*)
+        while (null != line) {
+          import scala.collection.JavaConverters._
+          val newPair = fromCsv(line.asScala.toMap)
+          res.put(newPair._1, newPair._2)
+          line = mapReader.read(header: _*)
+        }
+        logger.info(s"warmStart skim successfully loaded from path '$aggregatedSkimsFilePath'")
+      } else {
+        logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
+      }
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}", ex)
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res.toMap
+  }
+
+  private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
     var writer: BufferedWriter = null
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)

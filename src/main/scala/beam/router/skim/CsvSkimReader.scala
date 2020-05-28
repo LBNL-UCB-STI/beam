@@ -3,13 +3,14 @@ package beam.router.skim
 import java.io.File
 import java.util
 
-import com.typesafe.scalalogging.{Logger}
+import com.typesafe.scalalogging.Logger
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
+import scala.util.Try
 import scala.util.control.NonFatal
 
 /**
@@ -21,17 +22,15 @@ import scala.util.control.NonFatal
   */
 class CsvSkimReader(
   val aggregatedSkimsFilePath: String,
-  fromCsv: Map[String, String] => (AbstractSkimmerKey, AbstractSkimmerInternal),
+  fromCsv: scala.collection.Map[String, String] => (AbstractSkimmerKey, AbstractSkimmerInternal),
   logger: Logger
 ) {
 
+  val header: Array[String] = initHeader()
+
   def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     var res = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-
     val csvParser: CsvParser = getCsvParser
-    csvParser.beginParsing(IOUtils.getBufferedReader(aggregatedSkimsFilePath))
-    val header = csvParser.getRecordMetadata.headers()
-
     try {
       if (new File(aggregatedSkimsFilePath).isFile) {
         val mapReader = csvParser.iterateRecords(IOUtils.getBufferedReader(aggregatedSkimsFilePath)).asScala
@@ -49,14 +48,36 @@ class CsvSkimReader(
     } catch {
       case NonFatal(ex) =>
         logger.info(s"Could not load warmStart skim from '${aggregatedSkimsFilePath}': ${ex.getMessage}")
+    } finally {
+      // In any case stop parser
+      Try(csvParser.stopParsing())
     }
     res
   }
 
-  private def convertRecordToMap(rec: Record, header: Array[String]): immutable.Map[String, String] = {
+  private def initHeader(): Array[String] = {
+    val csvParser = getCsvParser
+    try {
+      val rdr = IOUtils.getBufferedReader(aggregatedSkimsFilePath)
+      try {
+        csvParser.beginParsing(rdr)
+        csvParser.getRecordMetadata.headers()
+      } finally {
+        Try(rdr.close())
+      }
+    } catch {
+      case NonFatal(ex) =>
+        logger.info(s"Could not read headers '${aggregatedSkimsFilePath}': ${ex.getMessage}", ex)
+        Array.empty
+    } finally {
+      Try(csvParser.stopParsing())
+    }
+  }
+
+  private def convertRecordToMap(rec: Record, header: Array[String]): scala.collection.Map[String, String] = {
     val res = new util.HashMap[String, String]()
     rec.fillFieldMap(res, header: _*)
-    res.asScala.toMap
+    res.asScala
   }
 
   private def getCsvParser: CsvParser = {
