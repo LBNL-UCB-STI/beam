@@ -11,6 +11,8 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -24,6 +26,8 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+    private final Logger log = LoggerFactory.getLogger(FuelUsageAnalysis.class);
+
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
@@ -94,7 +98,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private CategoryDataset buildModesFuelageGraphDataset() {
         double[][] dataset = compute();
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+        return GraphUtils.createCategoryDataset("Mode ", "", dataset);
     }
 
     double[][] compute() {
@@ -133,7 +137,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
                 hourModeFuelage.put(hour, hourData);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
         String fuelType = event.primaryFuelType();
         double fuel = event.primaryFuelConsumed();
@@ -141,7 +145,6 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     }
 
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesFuelList = new ArrayList<>(modesFuel);
@@ -160,7 +163,6 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     }
 
     private void createFuelCSV(Map<Integer, Map<String, Double>> hourModeFuelage, int iterationNumber) {
-
         String SEPARATOR = ",";
 
         CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
@@ -198,7 +200,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
             bufferedWriter.flush();
             csvWriter.closeFile();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 }

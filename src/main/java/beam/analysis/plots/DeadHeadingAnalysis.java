@@ -102,7 +102,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
         if ("TNC0".equalsIgnoreCase(graphType)) {
-
             processDeadHeadingDistanceRemainingRepositionings();
             createDeadHeadingDistanceGraph(event);
         } else {
@@ -294,10 +293,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
     }
 
-
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
-        CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
         if (writeGraph) {
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
@@ -513,7 +511,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
             double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
-            CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+            CategoryDataset tncDeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }
     }
@@ -661,7 +659,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

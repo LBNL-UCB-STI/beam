@@ -17,6 +17,8 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -34,6 +36,7 @@ import java.util.*;
 
 
 public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
+    private final Logger log = LoggerFactory.getLogger(PathTraversalSpatialTemporalTableGenerator.class);
 
     public static final String TABLE_OUTPUT_FULL_PATH = "c:\\tmp\\csv analysis\\energyConsumption.txt";
 
@@ -327,7 +330,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             System.out.print("numberOfLinkIdsMissingInR5NetworkFile: " + numberOfLinkIdsMissingInR5NetworkFile);
 
         } catch (Exception exception) {
-            exception.printStackTrace();
+            log.error("exception occurred due to ", exception);
         }
     }
 

@@ -149,10 +149,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {
-                // A single row matrix to store the averageTravelTimesByHour array in the column
-                double[][] dataSetMatrix = new double[1][averageTravelTimesByModeAndHour[i].length];
-                dataSetMatrix[0] = averageTravelTimesByModeAndHour[i];
-                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), dataSetMatrix);
+                CategoryDataset averageDataset = GraphUtils.createCategoryDataset(modes.get(i), "", averageTravelTimesByModeAndHour[i]);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
             createNonArrivalAgentAtTheEndOfSimulationGraph(event.getIteration());
@@ -173,7 +170,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
             int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
-            for (int hour = 1; hour <= hours; hour++) {
+            for (int hour = 0; hour <= hours; hour++) {
                 heading.append(",").append(hour);
             }
             out.write(heading.toString());
@@ -353,9 +350,4 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             log.error("Error in Non Arrival Agent CSV generation", e);
         }
     }
-
-    private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
-        return DatasetUtilities.createCategoryDataset(mode, "", dataset);
-    }
-
 }
