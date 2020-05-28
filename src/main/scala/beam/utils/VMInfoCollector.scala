@@ -46,11 +46,6 @@ class VMInfoCollector(val objectName: ObjectName) {
 
   def gcClassHistogram: String = {
     gcRun()
-    gcRun()
-    gcRun()
-    gcRun()
-    gcRun()
-    gcRun()
     invoke("gcClassHistogram")
   }
 
