@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.geozone
 
-object TopDownEqualDemandsSplitter {
+object TopDownEqualDemandSplitter {
 
   val MaxResolution = 12
 

@@ -11,6 +11,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.listener.ControlerListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
@@ -22,6 +24,7 @@ import java.io.IOException;
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
 public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
+    private final Logger log = LoggerFactory.getLogger(RideHailRevenueAnalysis.class);
 
     private RideHailSurgePricingManager surgePricingManager;
     static String fileBaseName = "rideHailRevenue";
@@ -65,24 +68,22 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     }
 
     private void drawRideHailRevenueGraph(DefaultCategoryDataset dataSet) {
-
-        JFreeChart chart = ChartFactory.createLineChart(
+        JFreeChart chart = GraphUtils.createLineChartWithDefaultSettings(
+                dataSet,
                 "Ride Hail Revenue",
                 "iteration", "revenue($)",
-                dataSet,
-                PlotOrientation.VERTICAL,
-                false, true, false);
+                false, true
+        );
 
         String graphImageFile = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
     private DefaultCategoryDataset createDataset(ArrayBuffer<?> data) {
-
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
         Iterator iterator = data.iterator();
@@ -118,7 +119,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
             outWriter.close();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

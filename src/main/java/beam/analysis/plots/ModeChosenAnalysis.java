@@ -96,7 +96,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
         hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Integer::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
         updateModeChoiceInIteration(event.getIteration());
@@ -179,7 +179,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         CategoryDataset categoryDataset = null;
         double[][] dataset = compute();
         if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("Mode ", "", dataset);
 
         return categoryDataset;
     }
@@ -230,23 +230,22 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             csvWriter.closeFile();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
-
 
     //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
         if (dataset != null) {
-            categoryDataset = createCategoryDataset("it.", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("", "it.", dataset);
         }
         return categoryDataset;
     }
 
     //    dataset for root graph
-    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException {
+    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForReference));
 
@@ -274,7 +273,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             out.write("iterations," + heading);
             out.newLine();
 
-            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce(Double::sum).orElse(0.0);
             StringBuilder builder = new StringBuilder("benchmark");
             for (String mode : modes) {
                 if (benchMarkData.get(mode) != null) {

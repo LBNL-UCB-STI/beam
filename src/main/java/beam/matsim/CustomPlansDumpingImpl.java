@@ -2,7 +2,6 @@ package beam.matsim;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.apache.log4j.Logger;
 import org.matsim.analysis.IterationStopWatch;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Population;
@@ -15,10 +14,12 @@ import org.matsim.core.controler.events.BeforeMobsimEvent;
 import org.matsim.core.controler.listener.BeforeMobsimListener;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
 import org.matsim.core.utils.geometry.transformations.TransformationFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class CustomPlansDumpingImpl implements PlansDumping, BeforeMobsimListener {
-    static final private Logger log = Logger.getLogger(CustomPlansDumpingImpl.class);
+    static final private Logger log = LoggerFactory.getLogger(CustomPlansDumpingImpl.class);
 
     @Inject
     private Config config;

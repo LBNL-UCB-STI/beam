@@ -183,7 +183,6 @@ class DelayMetricAnalysis @Inject()(
       graphTitle,
       xAxisName,
       yAxisName,
-      fileName + ".png",
       true
     )
 
@@ -207,7 +206,6 @@ class DelayMetricAnalysis @Inject()(
       averageGraphTitle,
       xAxisName,
       yAxisAverageGraphName,
-      fileName,
       false
     )
     GraphUtils.saveJFreeChartAsPNG(
@@ -221,7 +219,7 @@ class DelayMetricAnalysis @Inject()(
   def createNetworkUtilizationGraph(iterationNumber: Int): Unit = {
     val dataset = new DefaultCategoryDataset
     val totalLink = networkHelper.allLinks.length
-    for (hour <- 1 to linkUtilization.keysIterator.max) {
+    for (hour <- 0 to linkUtilization.keysIterator.max) {
       dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
     }
 
@@ -234,7 +232,6 @@ class DelayMetricAnalysis @Inject()(
       networkUtilizedGraphTitle,
       xAxisName_NetworkUtilized,
       yAxisName_NetworkUtilized,
-      graphImageFile,
       false
     )
 
