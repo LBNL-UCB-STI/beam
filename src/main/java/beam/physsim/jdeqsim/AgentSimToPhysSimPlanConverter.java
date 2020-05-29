@@ -211,11 +211,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (iterationNumber == 0 || (iterationNumber + 1) % beamConfig.beam().outputs().writeEventsInterval() == 0) {
             String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
             try {
-                try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
+                try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
                     oos.writeObject(travelTimeMap);
                 }
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 log.error("Can't write travel time map", ex);
             }
         }
@@ -257,9 +256,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    private void writeTravelTimeMap(int iteration, Map<String,double[]> map) {
+    private void writeTravelTimeMap(int iteration, Map<String, double[]> map) {
         String filePath = controlerIO.getIterationFilename(iteration, "travelTime.bin");
-        try (FileOutputStream fos= new FileOutputStream(filePath)) {
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(map);
             oos.flush();
@@ -274,7 +273,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private boolean shouldWriteInIteration(int iterationNumber, int interval) {
-        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+        return interval == 1 || (interval > 0 && iterationNumber != 0 && iterationNumber % interval == 0);
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {
@@ -288,7 +287,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
 
-    private boolean isCarMode(String mode){
+    private boolean isCarMode(String mode) {
         return mode.equalsIgnoreCase(CAR);
     }
 
@@ -302,13 +301,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             PathTraversalEvent pte = (PathTraversalEvent) event;
             String mode = pte.mode().value();
 
-            if(isCarMode(mode)) {
+            if (isCarMode(mode)) {
                 double departureTime = pte.departureTime();
                 double travelTime = pte.arrivalTime() - departureTime;
 
-                if(travelTime > 0.0){
+                if (travelTime > 0.0) {
                     double speed = pte.legLength() / travelTime;
-                    int bin = (int)departureTime / beamConfig.beam().physsim().linkStatsBinSize();
+                    int bin = (int) departureTime / beamConfig.beam().physsim().linkStatsBinSize();
                     Mean mean = binSpeed.getOrDefault(bin, new Mean());
                     mean.increment(speed);
                 }
@@ -353,7 +352,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         String path = controlerIO.getIterationFilename(iteration, "agentSimAverageSpeed.csv");
 
         List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(entry -> (entry.getKey()+1)+","+entry.getValue().getResult())
+                .map(entry -> (entry.getKey() + 1) + "," + entry.getValue().getResult())
                 .collect(Collectors.toList());
 
         FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
