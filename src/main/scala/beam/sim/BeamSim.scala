@@ -251,7 +251,6 @@ class BeamSim @Inject()(
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
       vmInformationWriter.writeVMInfo(event.getIteration, "b")
-      vmInformationWriter.writeHeapDump(event.getIteration, "beginning")
     }
 
     if (event.getIteration > 0) {
