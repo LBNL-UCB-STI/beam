@@ -63,6 +63,8 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
+  private val awaitSkimLoading = 20.minutes
+
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
@@ -102,7 +104,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
           }
         )
 
-        Await.result(Future.sequence(futures), 20.minutes).flatten.toMap
+        Await.result(Future.sequence(futures), awaitSkimLoading).flatten.toMap
       }
     }
   }
