@@ -49,7 +49,7 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
             if (curr.size != 2) {
               0
             } else {
-              val travelTime = (curr(1).time - curr(0).time)
+              val travelTime = curr(1).time - curr(0).time
               travelTime
             }
           }

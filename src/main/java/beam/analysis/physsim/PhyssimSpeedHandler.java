@@ -4,9 +4,8 @@ import beam.analysis.plots.GraphUtils;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.sim.config.BeamConfig;
 import beam.utils.FileUtils;
-import com.google.common.collect.Lists;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -18,18 +17,22 @@ import org.matsim.api.core.v01.events.handler.PersonArrivalEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonDepartureEventHandler;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDepartureEventHandler {
+    private final Logger log = LoggerFactory.getLogger(PhyssimSpeedHandler.class);
 
     private final String fileName = "MultiJDEQSim_speed";
     private final Map<Id<Person>,? extends Person> persons;
     private final Map<String, PersonDepartureEvent> personsDepartureTime = new HashMap<>();
-    private final Map<Integer, List<Double>> binSpeed = new HashMap<>();
+    private final Map<Integer, Mean> binSpeed = new HashMap<>();
     private final OutputDirectoryHierarchy controlerIO;
     private final int binSize;
 
@@ -76,7 +79,8 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                                         if(travelTime > 0.0) {
                                             double speed = distance / travelTime;
                                             int bin = (int) departureEvent.getTime() / binSize;
-                                            binSpeed.merge(bin, Lists.newArrayList(speed), ListUtils::union);
+                                            Mean mean = binSpeed.computeIfAbsent(bin, i -> new Mean());
+                                            mean.increment(speed);
                                         }
                                         return;
                                     }
@@ -102,26 +106,30 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
     }
 
     public void notifyIterationEnds(int iteration) {
-
-        writeIterationGraph(iteration);
-        writeIterationCsv(iteration);
+        double[] data = buildData();
+        writeIterationGraph(iteration, data);
+        writeIterationCsv(iteration, data);
         personsDepartureTime.clear();
         binSpeed.clear();
     }
 
-    private void writeIterationGraph(int iteration) {
-        int maxHour = Collections.max(binSpeed.keySet());
-        double[][] data = new double[1][maxHour + 1];
+    private double[] buildData() {
+        int maxHour = binSpeed.isEmpty() ? 24 : Collections.max(binSpeed.keySet());
+        double[] data = new double[maxHour + 1];
 
         for(int bin=0; bin <= maxHour; bin++){
-            if(binSpeed.containsKey(bin)){
-                data[0][bin] = binSpeed.get(bin).stream().mapToDouble(x -> x).average().getAsDouble();
-            }else {
-                data[0][bin] = 0.0;
+            if(binSpeed.containsKey(bin)) {
+                data[bin] = binSpeed.get(bin).getResult();
+            } else {
+                data[bin] = 0.0;
             }
         }
 
-        CategoryDataset dataSet = DatasetUtilities.createCategoryDataset("car", "", data);
+        return data;
+    }
+
+    private void writeIterationGraph(int iteration, double[] data) {
+        CategoryDataset dataSet = GraphUtils.createCategoryDataset("car", "", data);
         createIterationGraphForAverageSpeed(dataSet, iteration);
     }
 
@@ -132,7 +140,6 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                 graphTitle,
                 "hour",
                 "Average Speed [m/s]",
-                fileName+".png",
                 false
         );
         CategoryPlot plot = chart.getCategoryPlot();
@@ -146,17 +153,16 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                     GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
             );
         }
-        catch (IOException exception){
-            exception.printStackTrace();
+        catch (IOException e) {
+            log.error("exception occurred due to ", e);
         }
-
     }
 
-    private void writeIterationCsv(int iteration) {
+    private void writeIterationCsv(int iteration, double[] data) {
         String path = controlerIO.getIterationFilename(iteration, fileName+".csv");
 
-        List<String> rows = binSpeed.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(entry -> (entry.getKey()+1)+","+entry.getValue().stream().mapToDouble(x -> x).average().getAsDouble())
+        List<String> rows = IntStream.range(0, data.length)
+                .mapToObj(i-> i + "," + data[i])
                 .collect(Collectors.toList());
 
         FileUtils.writeToFile(path, Option.apply("timeBin,averageSpeed"), StringUtils.join(rows, "\n"), Option.empty());
