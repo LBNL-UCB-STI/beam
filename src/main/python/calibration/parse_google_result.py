@@ -107,9 +107,9 @@ def parse_travel_time(travel_time_str):
     if isinstance(travel_time_str, float) and math.isnan(travel_time_str):
         return (float('nan'), float('nan'))
     result = first_attempt(travel_time_str) \
-        or second_attempt(travel_time_str) \
-        or third_attempt(travel_time_str)  \
-        or fourth_attempt(travel_time_str)
+             or second_attempt(travel_time_str) \
+             or third_attempt(travel_time_str) \
+             or fourth_attempt(travel_time_str)
     if (result):
         return result
     else:
@@ -190,11 +190,15 @@ def get_input_df(path_with_template, hour):
     return pd.read_csv(get_input_file(path_with_template, hour))
 
 
-def get_google_df(path_with_template, hour):
+def get_google_df_template(path_with_template, hour):
+    return get_google_df(get_output_file(path_with_template, hour))
+
+
+def get_google_df(path):
     columns = ['url', 'index', 'route_0_name', 'route_0_travel_time', 'route_0_travel_distance',
                'route_1_name', 'route_1_travel_time', 'route_1_travel_distance', 'route_2_name', 'route_2_travel_time',
                'route_2_travel_distance']
-    return pd.read_csv(get_output_file(path_with_template, hour), usecols=columns, index_col=False)
+    return pd.read_csv(path, usecols=columns, index_col=False)
 
 
 def original_with_google_route(original_df, google_df):
@@ -225,6 +229,18 @@ def create_3am_data(df):
         df.to_csv(file_name, index=False, header=False)
 
 
+def join_3_am_results(path_template, n_partitions):
+    freeflow_df_list = []
+    for partition in range(0, n_partitions):
+        path = "%s_%d_3am.txt_result.txt" % (path_template, partition)
+        print(path)
+        df = get_google_df(path)
+        normalized_df = get_normalize_google(df)
+        freeflow_df_list.append(normalized_df)
+    freeflow_df = pd.concat(freeflow_df_list, ignore_index=True)
+    freeflow_df.to_csv('freeflow.csv', index=False)
+
+
 if __name__ == "__main__":
     google_input_path_with_template = 'https://beam-outputs.s3.us-east-2.amazonaws.com/analysis/detroit/google_input/10.studyarea.CarRideStats.personal.output'
     google_output_path_with_template = 'https://beam-outputs.s3.us-east-2.amazonaws.com/analysis/detroit/google_output/10.studyarea.CarRideStats.personal.output'
@@ -232,7 +248,7 @@ if __name__ == "__main__":
     df_list = []
     for hour in range(0, 24):
         input_df = get_input_df(google_input_path_with_template, hour)
-        google_df = get_google_df(google_output_path_with_template, hour)
+        google_df = get_google_df_template(google_output_path_with_template, hour)
         normalized_google_df = get_normalize_google(google_df)
         merged = original_with_google_route(input_df, normalized_google_df)
         print("Read data for hour %d hour. input_df size: %d, google_df: %d, merged: %d" % (
