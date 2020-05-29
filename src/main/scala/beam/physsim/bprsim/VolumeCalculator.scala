@@ -10,9 +10,24 @@ import scala.collection.mutable
   * @author Dmitry Openkov
   */
 class VolumeCalculator {
-  val linkToVolume = mutable.Map.empty[Id[Link], Int]
+  implicit val reverseOrdering = Ordering[Double].reverse
+  val linkToEvents = mutable.Map.empty[Id[Link], mutable.TreeMap[Double, Int]]
 
-  def addVolume(linkId: Id[Link], v: Int): Unit = linkToVolume.update(linkId, linkToVolume.getOrElse(linkId, 0) + v)
+  def vehicleEntered(linkId: Id[Link], time: Double): Unit = {
+    val events = linkToEvents.getOrElseUpdate(linkId, mutable.TreeMap.empty[Double, Int])
+    val numEvents = events.getOrElseUpdate(time, 0)
+    events.put(time, numEvents + 1)
+  }
 
-  def getVolume(linkId: Id[Link]): Int = linkToVolume.getOrElse(linkId, 0)
+  def getVolume(linkId: Id[Link], time: Double): Int = {
+    val events = linkToEvents.getOrElse(linkId, mutable.TreeMap.empty[Double, Int])
+    val numberOfEvents = events.range(time, time - 30).values.sum
+    numberOfEvents * (3600 / 30)
+  }
+
+  def dropEarlierThan(time: Double) = {
+    linkToEvents.values.foreach { events =>
+      //todo
+    }
+  }
 }
