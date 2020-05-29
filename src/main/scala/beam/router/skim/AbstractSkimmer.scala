@@ -84,8 +84,6 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       readOnlySkim.aggregatedSkim = if (file.exists) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
-        // TODO: skimsFilePath should be list of file. In this case we can read them without scanning directory
-        // TODO: Detecting that huge file or parts is being processed should be moved to BeamWarmStart.scala `skimsFilePath`
         val fileRegex = file.name.replace(".csv.gz", "_part.*.csv.gz")
         val files = File(file.parent).toDirectory.files
           .filter(_.isFile)
