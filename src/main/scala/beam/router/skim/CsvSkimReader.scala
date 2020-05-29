@@ -32,6 +32,7 @@ class CsvSkimReader(
     val csvParser: CsvParser = getCsvParser
     try {
       if (new File(aggregatedSkimsFilePath).isFile) {
+        // Headers will be available only when parsing was started
         lazy val headers = {
           csvParser.getRecordMetadata.headers()
         }
