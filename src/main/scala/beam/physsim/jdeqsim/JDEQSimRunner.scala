@@ -156,7 +156,8 @@ class JDEQSimRunner(
           0,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
-            beamConfig.beam.physsim.flowCapacityFactor
+            beamConfig.beam.physsim.flowCapacityFactor,
+            beamConfig.beam.physsim.bprsim.minVolumeToUseBPRFunction,
           )
         )
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
@@ -175,7 +176,8 @@ class JDEQSimRunner(
           syncInterval,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
-            beamConfig.beam.physsim.flowCapacityFactor
+            beamConfig.beam.physsim.flowCapacityFactor,
+            beamConfig.beam.physsim.bprsim.minVolumeToUseBPRFunction,
           )
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
@@ -211,7 +213,11 @@ class JDEQSimRunner(
     }
   }
 
-  private def getTravelTimeFunction(functionName: String, flowCapacityFactor: Double): (Double, Link, Int) => Double = {
+  private def getTravelTimeFunction(
+    functionName: String,
+    flowCapacityFactor: Double,
+    minVolumeToUseBPRFunction: Int
+  ): (Double, Link, Int) => Double = {
     functionName match {
       case "FREE_FLOW" =>
         (time, link, _) =>
@@ -220,8 +226,12 @@ class JDEQSimRunner(
         (time, link, volume) =>
           {
             val ftt = link.getLength / link.getFreespeed(time)
-            val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-            ftt * (1 + 1 * tmp * tmp)
+            if (volume >= minVolumeToUseBPRFunction) {
+              val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
+              ftt * (1 + tmp * tmp)
+            } else {
+              ftt
+            }
           }
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }
