@@ -9,7 +9,13 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{BeamConfigChangesObservable, BeamConfigChangesObserver, BeamServices, MapStringDouble, OutputDataDescription}
+import beam.sim.{
+  BeamConfigChangesObservable,
+  BeamConfigChangesObserver,
+  BeamServices,
+  MapStringDouble,
+  OutputDataDescription
+}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
