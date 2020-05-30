@@ -29,7 +29,17 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
-
+  lazy val gender: Int = if(isMale) {0} else {1}
+  lazy val indAge: Int = age.getOrElse(0)
+  lazy val hhdIncome: Double = householdAttributes.householdIncome
+  lazy val age_30_to_50: Int = if(age.getOrElse(0) >= 30) {if (age.getOrElse(0)< 50){1}else{0}}else{0}
+  lazy val age_50_to_70: Int = if (age.getOrElse(0) >= 50){if (age.getOrElse(0)< 70){1}else{0}}else{0}
+  lazy val age_70_over: Int = if(age.getOrElse(0) >= 70) {1}else{0}
+  lazy val income_under_35k: Int = if (hhdIncome < 35000){1} else{0}
+  lazy val income_35_to_100k: Int = if(hhdIncome >= 35000.0) {if (hhdIncome < 100000.0){1}else{0}}else{0}
+  lazy val income_100k_more: Int = if (hhdIncome >= 100000.0){1}else{0}
+  lazy val numHhdCars: Int = householdAttributes.numCars
+  lazy val car_owner: Int = if(numHhdCars>=1){1} else{0}
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
 
@@ -114,19 +124,6 @@ case class AttributesOfIndividual(
                                       destinationActivity: Option[Activity],
                                       attributesOfIndividual: AttributesOfIndividual,
                                      ): mutable.Map[String, Double] = {
-
-    val gender = if(attributesOfIndividual.isMale) {0} else {1}
-    val indAge: Int = attributesOfIndividual.age.getOrElse(0)
-    val indIncome: Double = attributesOfIndividual.income.getOrElse(0)
-    val hhdIncome: Double = attributesOfIndividual.householdAttributes.householdIncome
-    val age_30_to_50 = if(attributesOfIndividual.age.getOrElse(0) >= 30) {if (attributesOfIndividual.age.getOrElse(0)< 50){1}else{0}}else{0}
-    val age_50_to_70 = if (attributesOfIndividual.age.getOrElse(0) >= 50){if (attributesOfIndividual.age.getOrElse(0)< 70){1}else{0}}else{0}
-    val age_70_over = if(attributesOfIndividual.age.getOrElse(0) >= 70) {1}else{0}
-    val income_under_35k = if (hhdIncome < 35000){1} else{0}
-    val income_35_to_100k = if(hhdIncome >= 35000.0) {if (indIncome < 100000.0){1}else{0}}else{0}
-    val income_100k_more = if (hhdIncome >= 100000.0){1}else{0}
-    val numHhdCars: Int = attributesOfIndividual.householdAttributes.numCars
-    val car_owner = if(numHhdCars>=1){1} else{0}
 
     val isWorkTrip = destinationActivity match {
       case None =>
