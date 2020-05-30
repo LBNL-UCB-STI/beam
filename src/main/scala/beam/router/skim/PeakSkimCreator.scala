@@ -16,6 +16,7 @@ import beam.router.BeamRouter.{RoutingFailure, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -78,7 +79,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   private val transformation: GeotoolsTransformation =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamServices.beamConfig.matsim.modules.global.coordinateSystem)
 
-  private val h3Indexes = summary.items.sortBy(x => -x.size)
+  private val h3Indexes = summary.items.sortBy(x => -x.size).take(100)
 
   private val h3IndexPairs = h3Indexes
     .flatMap { srcGeo =>
@@ -86,6 +87,14 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
         (srcGeo.index, dstGeo.index)
       }
     }
+
+  val odSkimmer: ODSkimmer = Skims.get(Skims.SkimType.OD_SKIMMER).asInstanceOf[ODSkimmer]
+  odSkimmer.currentSkim.map { case (key, value) =>
+    val odSkimmerKey = key.asInstanceOf[ODSkimmerKey]
+    val skimInternal = value.asInstanceOf[ODSkimmerInternal]
+    println(s"key: $odSkimmerKey")
+    println(s"value: $skimInternal")
+  }
 
   private val beamModes: Array[BeamMode] =
     Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT, BeamMode.DRIVE_TRANSIT)
@@ -277,7 +286,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
         Await.result(Future.sequence(onePctFuture), waitDuration)
       }
       results
-    }
+    }.toArray
 
     var nSkimEvents: Int = 0
     results.foreach {
