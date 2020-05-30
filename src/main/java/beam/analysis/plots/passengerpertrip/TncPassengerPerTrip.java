@@ -11,7 +11,7 @@ import java.util.*;
 
 public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
-    String graphName = "tnc";
+    final String graphName = "tnc";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
@@ -20,8 +20,8 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     int passengerCounter = 0;
     int maxHour = 0;
 
-    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
-    private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    private final Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private final Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
 
     int maxPassengersSeenOnGenericCase = 0;
 

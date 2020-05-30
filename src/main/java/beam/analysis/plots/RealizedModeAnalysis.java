@@ -30,21 +30,21 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private static final String yAxisTitle = "# mode chosen";
     static final String fileName = "realizedMode";
 
-    private Map<Integer, Map<String, Double>> hourModeFrequency = new HashMap<>();
-    private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
-    private Map<Integer, Map<String, Double>> realizedModeChoiceInIteration = new HashMap<>();
-    private Map<Integer, Integer> affectedModeCount = new HashMap<>();
-    private Map<Integer, Integer> rootAffectedModeCount = new HashMap<>();
-    private Set<String> iterationTypeSet = new HashSet<>();
-    private Set<String> cumulativeMode = new TreeSet<>();
-    private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
-    private Map<String, Double> benchMarkData;
-    private Set<String> cumulativeReferenceMode = new TreeSet<>();
-    private Map<String,List<String>> personReplanningChain = new HashMap<>();
-    private Map<String, Integer> replanningReasonCount = new HashMap<>();
-    private Map<Integer, Map<String, Integer>> replanningReasonCountPerIter = new HashMap<>();
+    private final Map<Integer, Map<String, Double>> hourModeFrequency = new HashMap<>();
+    private final Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
+    private final Map<Integer, Map<String, Double>> realizedModeChoiceInIteration = new HashMap<>();
+    private final Map<Integer, Integer> affectedModeCount = new HashMap<>();
+    private final Map<Integer, Integer> rootAffectedModeCount = new HashMap<>();
+    private final Set<String> iterationTypeSet = new HashSet<>();
+    private final Set<String> cumulativeMode = new TreeSet<>();
+    private final Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
+    private final Map<String, Double> benchMarkData;
+    private final Set<String> cumulativeReferenceMode = new TreeSet<>();
+    private final Map<String,List<String>> personReplanningChain = new HashMap<>();
+    private final Map<String, Integer> replanningReasonCount = new HashMap<>();
+    private final Map<Integer, Map<String, Integer>> replanningReasonCountPerIter = new HashMap<>();
     //This map will always hold value as 0 or 1
-    private Map<String, Integer> personIdList = new HashMap<>();
+    private final Map<String, Integer> personIdList = new HashMap<>();
 
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
@@ -631,8 +631,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public static class ModeHour {
-        private String mode;
-        private Integer hour;
+        private final String mode;
+        private final Integer hour;
 
         public ModeHour(String mode, Integer hour) {
             this.mode = mode;

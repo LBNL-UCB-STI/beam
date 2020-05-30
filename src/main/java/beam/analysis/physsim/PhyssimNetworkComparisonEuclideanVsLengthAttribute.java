@@ -24,9 +24,9 @@ import java.io.IOException;
 public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
     private final Logger log = LoggerFactory.getLogger(PhyssimNetworkComparisonEuclideanVsLengthAttribute.class);
 
-    private BeamConfig beamConfig;
-    private Network network;
-    private OutputDirectoryHierarchy outputDirectoryHierarchy;
+    private final BeamConfig beamConfig;
+    private final Network network;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
 
     public PhyssimNetworkComparisonEuclideanVsLengthAttribute(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;

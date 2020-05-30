@@ -34,7 +34,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "mixed_mode";
     private static final String carMode = "car";
-    public static String fileBaseName = "averageTravelTimes";
+    public static final String fileBaseName = "averageTravelTimes";
     private final Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private final List<Double> averageTime = new ArrayList<>();

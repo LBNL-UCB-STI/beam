@@ -26,8 +26,8 @@ import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
     private final Logger log = LoggerFactory.getLogger(RideHailRevenueAnalysis.class);
 
-    private RideHailSurgePricingManager surgePricingManager;
-    static String fileBaseName = "rideHailRevenue";
+    private final RideHailSurgePricingManager surgePricingManager;
+    static final String fileBaseName = "rideHailRevenue";
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
