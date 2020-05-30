@@ -3,6 +3,7 @@ package beam.sim
 import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
+import com.typesafe.scalalogging.LazyLogging
 import javax.inject.{Inject, Singleton}
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -12,8 +13,7 @@ import scala.ref.WeakReference
 @Singleton
 class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
 
-  class WeaklyObservable {
-    private val log = LoggerFactory.getLogger(classOf[WeaklyObservable])
+  class WeaklyObservable extends LazyLogging{
     private var changed: Boolean = false
     private val observers: mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]] =
       new mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]]
@@ -62,7 +62,7 @@ class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
           case None           =>
         }
 
-        log.debug(s"There are ${observers.size} observers and ${aliveObservers.size} of them alive.")
+        logger.debug(s"There are ${observers.size} observers and ${aliveObservers.size} of them alive.")
 
         clearChanged()
       }
