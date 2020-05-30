@@ -377,7 +377,7 @@ class PolylineEncoderDecoder {
         CUSTOM1(6),
         CUSTOM2(7);
 
-        private int num;
+        private final int num;
 
         ThirdDimension(int num) {
             this.num = num;
