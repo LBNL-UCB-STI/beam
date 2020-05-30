@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
@@ -36,7 +37,7 @@ in multi-lane freeway facilities." Transportation Research Part C: Emerging Tech
 
  */
 
-public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction, Observer {
+public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction, BeamConfigChangesObserver {
     private final static Logger log = LoggerFactory.getLogger(Hao2018CaccRoadCapacityAdjustmentFunction.class);
 
     private final double caccMinRoadCapacity;
@@ -172,13 +173,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         });
     }
 
-    @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        BeamConfig beamConfig = (BeamConfig) t._2;
-        this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
-    }
-
     private Optional<ICsvMapWriter> getCsvWriter(int iterationNumber) {
         try {
             String filePath = controllerIO.getIterationFilename(iterationNumber, "caccCapacityStats.csv.gz");
@@ -190,6 +184,11 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
             log.error("Could not create CsvMapWriter", ex);
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.writeInterval = updatedBeamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
     }
 }
 
