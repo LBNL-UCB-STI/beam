@@ -13,7 +13,7 @@ import scala.ref.WeakReference
 @Singleton
 class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
 
-  class WeaklyObservable extends LazyLogging{
+  class WeaklyObservable extends LazyLogging {
     private var changed: Boolean = false
     private val observers: mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]] =
       new mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]]
