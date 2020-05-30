@@ -1,11 +1,10 @@
 package beam.sim
 
-import java.util
-import java.util.{Observer, Vector}
-
+import beam.analysis.physsim.PhyssimCalcLinkStats
 import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
 import javax.inject.{Inject, Singleton}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable
 import scala.ref.WeakReference
@@ -14,6 +13,7 @@ import scala.ref.WeakReference
 class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
 
   class WeaklyObservable {
+    private val log = LoggerFactory.getLogger(classOf[WeaklyObservable])
     private var changed: Boolean = false
     private val observers: mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]] =
       new mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]]
@@ -57,16 +57,12 @@ class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
         if (!changed)
           return
 
-        val resoledLinks = observers.map(link => link.get).toArray
-        observers.clear()
-
-        resoledLinks.foreach {
-          case Some(observer) =>
-            aliveObservers += observer
-            observers += WeakReference(observer)
-
-          case None =>
+        observers.map(link => link.get).foreach {
+          case Some(observer) => aliveObservers += observer
+          case None           =>
         }
+
+        log.debug(s"There are ${observers.size} observers and ${aliveObservers.size} of them alive.")
 
         clearChanged()
       }
