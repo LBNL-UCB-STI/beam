@@ -154,7 +154,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
     private CategoryDataset buildAndGetGraphCategoryDataset() {
         double[][] dataset = buildModesFrequencyDataset();
-        return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
+        return GraphUtils.createCategoryDataset("Relative Speed", "", dataset);
     }
 
     List<Double> getSortedListRelativeSpeedCategoryList() {
@@ -202,17 +202,9 @@ public class PhyssimCalcLinkStats implements Observer {
         String yaxis = "# of network links";
         int width = 800;
         int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
+
         String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relativeSpeeds.png");
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, plotTitle, xaxis, yaxis, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         LegendItemCollection legendItems = new LegendItemCollection();
@@ -229,7 +221,7 @@ public class PhyssimCalcLinkStats implements Observer {
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

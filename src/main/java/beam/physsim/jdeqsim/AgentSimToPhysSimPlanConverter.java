@@ -81,8 +81,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
-    private BeamServices beamServices;
-    private BeamConfigChangesObservable beamConfigChangesObservable;
+    private final BeamServices beamServices;
+    private final BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
