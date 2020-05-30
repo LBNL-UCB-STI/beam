@@ -19,14 +19,14 @@ class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
       new mutable.ListBuffer[WeakReference[BeamConfigChangesObserver]]
 
     def setChanged(): Unit = {
-      synchronized(() => changed = true)
+      this.synchronized { changed = true }
     }
 
     def addObserver(observer: BeamConfigChangesObserver): Unit = {
-      synchronized(() => {
+      this.synchronized {
         val weakObserver = new WeakReference[BeamConfigChangesObserver](observer)
         observers += weakObserver
-      })
+      }
     }
 
     protected def clearChanged(): Unit = {
@@ -52,21 +52,24 @@ class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) {
        * 2) a recently unregistered Observer will be
        *   wrongly notified when it doesn't care
        */
-      synchronized(() => {
+
+      this.synchronized {
         if (!changed)
           return
 
-        val links = observers.map(link => link.get)
+        val resoledLinks = observers.map(link => link.get).toArray
         observers.clear()
-        links.foreach {
+
+        resoledLinks.foreach {
           case Some(observer) =>
             aliveObservers += observer
             observers += WeakReference(observer)
+
           case None =>
         }
 
         clearChanged()
-      })
+      }
 
       aliveObservers.foreach(_.update(observable, config))
     }
