@@ -5,8 +5,6 @@ import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-import scala.collection.immutable
-
 class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     extends AbstractSkimmer(beamServices, config) {
   import TAZSkimmer._
@@ -19,7 +17,7 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
     "time,taz,hex,actor,key,value,observations,iterations"
 
   override def fromCsv(
-    line: immutable.Map[String, String]
+    line: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       TAZSkimmerKey(

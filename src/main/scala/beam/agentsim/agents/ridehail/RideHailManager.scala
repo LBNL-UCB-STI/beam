@@ -1177,7 +1177,7 @@ class RideHailManager(
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (refuelingQueue.nonEmpty) =>
+      case refuelingQueue if refuelingQueue.nonEmpty =>
         val toReturn = refuelingQueue.dequeue
         log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn

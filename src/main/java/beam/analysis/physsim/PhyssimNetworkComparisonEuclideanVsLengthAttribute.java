@@ -14,12 +14,16 @@ import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.geom.Ellipse2D;
 import java.io.BufferedWriter;
 import java.io.IOException;
 
 public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
+    private final Logger log = LoggerFactory.getLogger(PhyssimNetworkComparisonEuclideanVsLengthAttribute.class);
+
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
@@ -40,7 +44,7 @@ public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
                 writeComparisonEuclideanVsLengthAttributeCsv(iteration);
                 writeComparisonEuclideanVsLengthAttributePlot(iteration);
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("exception occurred due to ", e);
             }
         }
     }

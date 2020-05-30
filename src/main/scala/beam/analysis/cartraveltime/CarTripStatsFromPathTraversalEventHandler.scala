@@ -230,15 +230,13 @@ class CarTripStatsFromPathTraversalEventHandler(
 
     executeOnAverageSpeedData({ case (it, carType, speed) => dataset.addValue(speed, carType, it) })
 
-    val chart = ChartFactory.createLineChart(
+    val chart = GraphUtils.createLineChartWithDefaultSettings(
+      dataset,
       "Average car speed",
       "Iteration",
       "m / s",
-      dataset,
-      PlotOrientation.VERTICAL,
       true,
-      true,
-      false
+      true
     )
 
     GraphUtils.saveJFreeChartAsPNG(
@@ -262,7 +260,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       executeOnAverageSpeedData({ case (it, carType, speed) => csvWriter.write(it, carType, speed) })
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Writing average car speed to the ${outputPath} has failed with: ${ex.getMessage}", ex)
+        logger.error(s"Writing average car speed to the $outputPath has failed with: ${ex.getMessage}", ex)
     } finally {
       Try(csvWriter.close())
     }
@@ -305,7 +303,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       }
     }
     // generate the category dataset using the average travel times data
-    DatasetUtilities.createCategoryDataset("car", "", Array(averageTravelTimes.toArray))
+    GraphUtils.createCategoryDataset("car", "", Array(averageTravelTimes.toArray))
   }
 
   /**
@@ -468,7 +466,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       csvWriter.flush()
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write iteration $iteration stats ${statistics}. Error: ${ex.getMessage}", ex)
+        logger.error(s"Could not write iteration $iteration stats $statistics. Error: ${ex.getMessage}", ex)
     }
   }
 }
