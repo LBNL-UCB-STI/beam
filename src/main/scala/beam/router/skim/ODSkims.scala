@@ -31,7 +31,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
     destinationUTM: Location,
     departureTime: Int,
     vehicleTypeId: Id[BeamVehicleType],
-    beamServices: BeamServices
+    beamScenario: BeamScenario
   ): Skim = {
     val beamScenario = beamServices.beamScenario
     val beamConfig = beamServices.beamConfig
@@ -133,7 +133,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
           new Coord(destinationUTM.getX, destinationUTM.getY),
           departureTime,
           vehicleTypeId,
-          beamServices
+          beamServices.beamScenario
         )
     }
   }
@@ -166,7 +166,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
             adjustedDestCoord,
             timeBin * 3600,
             dummyId,
-            beamServices
+            beamServices.beamScenario
           )
         }
     }
