@@ -20,21 +20,85 @@ object VMInfoCollector {
       val objectName = new ObjectName(DIAGNOSTIC_COMMAND_MBEAN_OBJECT_NAME)
       new VMInfoCollector(objectName)
     } catch {
-      case _: MalformedObjectNameException =>
+      case monException: MalformedObjectNameException =>
         throw new RuntimeException(
-          "Unable to create an ObjectName and so unable to create instance of VirtualMachineDiagnostics"
+          "Unable to create an ObjectName and so unable to create instance of VirtualMachineDiagnostics",
+          monException
         )
     }
   }
 }
 
-class VMInfoCollector(val objectName: ObjectName) {
+sealed trait JFRCommandWithoutArguments {
+  def asStr: String
+}
+
+object JFRCommandWithoutArguments {
+  case object GcClassHistogram extends JFRCommandWithoutArguments {
+    def asStr: String = "gcClassHistogram"
+  }
+  case object GcClassStats extends JFRCommandWithoutArguments {
+    def asStr: String = "gcClassStats"
+  }
+  case object GcRotateLog extends JFRCommandWithoutArguments {
+    def asStr: String = "gcRotateLog"
+  }
+  case object GcRun extends JFRCommandWithoutArguments {
+    def asStr: String = "gcRun"
+  }
+  case object GcRunFinalization extends JFRCommandWithoutArguments {
+    def asStr: String = "gcRunFinalization"
+  }
+  case object Help extends JFRCommandWithoutArguments {
+    def asStr: String = "help"
+  }
+  case object FrCheck extends JFRCommandWithoutArguments {
+    def asStr: String = "frCheck"
+  }
+  case object JfrDump extends JFRCommandWithoutArguments {
+    def asStr: String = "jfrDump"
+  }
+  case object JfrStart extends JFRCommandWithoutArguments {
+    def asStr: String = "jfrStart"
+  }
+  case object JfrStop extends JFRCommandWithoutArguments {
+    def asStr: String = "jfrStop"
+  }
+  case object ThreadPrint extends JFRCommandWithoutArguments {
+    def asStr: String = "threadPrint"
+  }
+  case object VmCheckCommercialFeatures extends JFRCommandWithoutArguments {
+    def asStr: String = "vmCheckCommercialFeatures"
+  }
+  case object VmCommandLine extends JFRCommandWithoutArguments {
+    def asStr: String = "vmCommandLine"
+  }
+  case object VmFlags extends JFRCommandWithoutArguments {
+    def asStr: String = "vmFlags"
+  }
+  case object VmNativeMemory extends JFRCommandWithoutArguments {
+    def asStr: String = "vmNativeMemory"
+  }
+  case object VmSystemProperties extends JFRCommandWithoutArguments {
+    def asStr: String = "vmSystemProperties"
+  }
+  case object VmUnlockCommercialFeatures extends JFRCommandWithoutArguments {
+    def asStr: String = "vmUnlockCommercialFeatures"
+  }
+  case object VmUptime extends JFRCommandWithoutArguments {
+    def asStr: String = "vmUptime"
+  }
+  case object VmVersion extends JFRCommandWithoutArguments {
+    def asStr: String = "vmVersion"
+  }
+}
+
+class VMInfoCollector(val mbeanObjectName: ObjectName) {
   private val server: MBeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def gcRun(): Unit = invoke("gcRun")
+  def gcRun(): Unit = invoke(JFRCommandWithoutArguments.GcRun)
 
   def dumpHeap(filePath: String, live: Boolean): Unit = {
-    val server = ManagementFactory.getPlatformMBeanServer
     val mxBean = ManagementFactory.newPlatformMXBeanProxy(
       server,
       "com.sun.management:type=HotSpotDiagnostic",
@@ -45,37 +109,17 @@ class VMInfoCollector(val objectName: ObjectName) {
 
   def gcClassHistogram: String = {
     gcRun()
-    invoke("gcClassHistogram")
+    invoke(JFRCommandWithoutArguments.GcClassHistogram)
   }
 
-  //  commands examples:
-  //  gcClassHistogram - 2
-  //  gcClassStats - 2
-  //  gcRotateLog - 2
-  //  gcRun - 2
-  //  gcRunFinalization - 2
-  //  help - 2
-  //  jfrCheck - 2
-  //  jfrDump - 2
-  //  jfrStart - 2
-  //  jfrStop - 2
-  //  threadPrint - 2
-  //  vmCheckCommercialFeatures - 2
-  //  vmCommandLine - 2
-  //  vmFlags - 2
-  //  vmNativeMemory - 2
-  //  vmSystemProperties - 2
-  //  vmUnlockCommercialFeatures - 2
-  //  vmUptime - 2
-  //  vmVersion - 2
-  private def invoke(operationName: String): String = {
+  def invoke(jfrCommand: JFRCommandWithoutArguments): String = {
     try {
       server
-        .invoke(objectName, operationName, Array[AnyRef](null), Array[String](classOf[Array[String]].getName))
+        .invoke(mbeanObjectName, jfrCommand.asStr, Array[AnyRef](null), Array[String](classOf[Array[String]].getName))
         .asInstanceOf[String]
     } catch {
       case exception @ (_: InstanceNotFoundException | _: ReflectionException | _: MBeanException) =>
-        "ERROR: Unable to access '" + operationName + "' - " + exception
+        "ERROR: Unable to access '" + jfrCommand.asStr + "' - " + exception
     }
   }
 }
