@@ -342,8 +342,8 @@ class BeamSim @Inject()(
         agentSimToPhysSimPlanConverter.startPhysSim(event)
       }
 
-       // executing code blocks parallel
-       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+      // executing code blocks parallel
+      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
     if (beamConfig.beam.debug.debugEnabled)
