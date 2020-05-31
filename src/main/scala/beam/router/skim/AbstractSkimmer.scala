@@ -3,7 +3,7 @@ package beam.router.skim
 import java.io.BufferedWriter
 
 import beam.agentsim.events.ScalaEvent
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.LazyLogging
@@ -80,14 +80,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
       val filePath = beamConfig.beam.warmStart.skimsFilePath
       val file = File(filePath)
-
-      readOnlySkim.aggregatedSkim = if (file.exists) {
+      readOnlySkim.aggregatedSkim = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
-        val fileRegex = file.name.replace(".csv.gz", "_part.*.csv.gz")
-        val files = File(file.parent).toDirectory.files
+        val files = File(file).toDirectory.files
           .filter(_.isFile)
-          .filter(_.name.matches(fileRegex))
+          .filter(_.name.contains(BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode))
           .map(_.path)
           .toList
 
