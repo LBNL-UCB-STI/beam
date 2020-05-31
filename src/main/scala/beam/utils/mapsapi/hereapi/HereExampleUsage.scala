@@ -1,9 +1,10 @@
-package beam.utils.hereapi
+package beam.utils.mapsapi.hereapi
 
 import java.nio.file.{Path, Paths}
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import beam.utils.hereapi.RichSegments._
+import beam.utils.mapsapi.RichSegments._
+import beam.utils.mapsapi.{Segment, SegmentSerializer}
 
 object HereExampleUsage extends App {
   if (args.length != 3) {
@@ -17,12 +18,12 @@ object HereExampleUsage extends App {
 
   val outputShapeFile: Path = Paths.get("outputShapeFile.shx")
   val outputCsvFile: Path = Paths.get("outputSegments.csv")
-  val result: Seq[HereSegment] = HereService.findSegments(apiKey, originCoordinate, destinationCoordinate)
+  val result: Seq[Segment] = HereService.findSegments(apiKey, originCoordinate, destinationCoordinate)
   result
     .saveToShapeFile(outputShapeFile)
     .saveToCsv(outputCsvFile)
 
-  val result2: Seq[HereSegment] = HereService.fromCsv(outputCsvFile)
+  val result2: Seq[Segment] = SegmentSerializer.fromCsv(outputCsvFile)
 
   println(s"Generated shape file: $outputShapeFile")
   println(s"Generated csv file: $outputCsvFile")

@@ -504,7 +504,7 @@ class SimpleScenarioGenerator(
     try {
       h3Indexes.foreach {
         case GeoZoneSummaryItem(h3Index: H3Index, _) =>
-          val utmCoord = geoUtils.wgs2Utm(H3Wrapper.hexToCoord(h3Index))
+          val utmCoord = geoUtils.wgs2Utm(H3Wrapper.wgsCoordinate(h3Index).coord)
           val area = H3Wrapper.areaInM2(h3Index)
           csvWriter.write(h3Index.value, utmCoord.getX, utmCoord.getY, area)
       }

@@ -73,7 +73,7 @@ object R5Requester extends BeamHelper {
     println
   }
 
-  private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse) = {
+  private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse): Unit = {
     println(s"######################## $name ##############################")
     println(s"Number of routes: ${threeModesResp.itineraries.length}")
     threeModesResp.itineraries.zipWithIndex.foreach {
@@ -97,7 +97,7 @@ object R5Requester extends BeamHelper {
       case BeamMode.WALK =>
         "BODY-TYPE-DEFAULT"
       case x =>
-        throw new IllegalStateException(s"Don't know what to do with BeamMode ${beamMode}")
+        throw new IllegalStateException(s"Don't know what to do with BeamMode $beamMode")
     }
     StreetVehicle(
       id = Id.createVehicleId(id),
