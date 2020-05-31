@@ -2,8 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.agentsim.agents.ridehail.SurgePriceBin;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -156,7 +154,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private double[][] getDataset(boolean categorize) {
-
         if (categorize) {
             Map<Integer, Map<Integer, Integer>> finalCategories = convertTransformedBinsToCategories(transformedBins);
             return buildDatasetFromCategories(finalCategories);
@@ -354,8 +351,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize) {
-
-        CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
+        CategoryDataset dataset = GraphUtils.createCategoryDataset("Categories ", "", _dataset);
         List<String> _categoriesKeys = new ArrayList<>(categoriesKeys);
         int lastIndex = _categoriesKeys.size() - 1;
         String lastValue = _categoriesKeys.get(lastIndex);
@@ -365,41 +361,35 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         try {
             String fileName = graphImageFile;
 
-            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, fileName, true);
+            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, true);
             CategoryPlot plot = chart.getCategoryPlot();
             GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
     private void drawRevenueGraph(double[] data) {
+        CategoryDataset dataset = GraphUtils.createCategoryDataset("revenue", "", data);
 
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-
-        for (int i = 0; i < data.length; i++) {
-            Double revenue = data[i];
-            dataset.addValue(revenue, "revenue", "" + i);
-        }
-
-        JFreeChart chart = ChartFactory.createLineChart(
-                "Ride Hail Revenue",
-                "timebin", "revenue($)",
+        JFreeChart chart = GraphUtils.createLineChartWithDefaultSettings(
                 dataset,
-                PlotOrientation.VERTICAL,
-                false, true, false);
+                "Ride Hail Revenue",
+                "timebin",
+                "revenue($)",
+                false,
+                true);
+
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, revenueGraphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
     private void writePriceSurgeCsv(double[][] dataset, List<String> categoriesList, boolean categorize) {
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingCsvFileName)))) {
-
-
             out.write("Categories,PriceLevel,Hour");
             out.newLine();
 
@@ -421,19 +411,17 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
                     double[] priceLevels = dataset[j];
 
-                    for(int i = 0; i < priceLevels.length; i++) {
-                        out.write(strFormat + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                    for (int i = 0; i < priceLevels.length; i++) {
+                        out.write(strFormat + "," + getRoundedNumber(priceLevels[i]) + "," + i);
                         out.newLine();
                     }
                 }
             } else {
                 for (int j = 0; j < categoriesList.size(); j++) {
-
-
                     double[] priceLevels = dataset[j];
 
-                    for(int i = 0; i < priceLevels.length; i++) {
-                        out.write(categoriesList.get(j) + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                    for (int i = 0; i < priceLevels.length; i++) {
+                        out.write(categoriesList.get(j) + "," + getRoundedNumber(priceLevels[i]) + "," + i);
                         out.newLine();
                     }
                 }
@@ -441,7 +429,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -456,7 +444,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
                 double[] priceLevels = data[0];
                 double[] revenues = data[1];
 
-                for(int i = 0; i < priceLevels.length; i++) {
+                for (int i = 0; i < priceLevels.length; i++) {
                     out.write(tazId + ",pricelevel," + getRoundedNumber(priceLevels[i]) + "," + (i + 1));
                     out.newLine();
 
@@ -467,7 +455,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -478,7 +466,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             out.write("Revenue,Hour");
             out.newLine();
 
-            for(int i=0; i<revenueDataSet.length; i++){
+            for (int i = 0; i < revenueDataSet.length; i++) {
 
                 out.write(getRoundedNumber(revenueDataSet[i]) + "," + (i));
                 out.newLine();
@@ -489,7 +477,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -545,8 +533,8 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+        } catch (IOException e) {
+            log.error("exception occurred due to ", e);
         }
     }
 

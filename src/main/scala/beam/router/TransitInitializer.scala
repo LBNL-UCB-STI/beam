@@ -77,20 +77,7 @@ class TransitInitializer(
         )
     }
 
-    def limitedWarn(stopIdx: Int): Unit = {
-      if (numStopsNotFound.get() < 5) {
-        logger.warn("Stop {} not linked to street network.", stopIdx)
-        numStopsNotFound.incrementAndGet()
-      } else if (numStopsNotFound.get() == 5) {
-        logger.warn(
-          "Stop {} not linked to street network. Further warnings messages will be suppressed",
-          stopIdx
-        )
-        numStopsNotFound.incrementAndGet()
-      }
-    }
-
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
+    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -238,11 +225,10 @@ class TransitInitializer(
   }
 
   def limitedWarn(stopIdx: Int): Unit = {
-    val n = numStopsNotFound.get()
-    if (n < 5) {
+    if (numStopsNotFound.get() < 5) {
       logger.warn("Stop {} not linked to street network.", stopIdx)
       numStopsNotFound.incrementAndGet()
-    } else if (n == 5) {
+    } else if (numStopsNotFound.get() == 5) {
       logger.warn(
         "Stop {} not linked to street network. Further warnings messages will be suppressed",
         stopIdx

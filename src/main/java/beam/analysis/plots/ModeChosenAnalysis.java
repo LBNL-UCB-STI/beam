@@ -179,7 +179,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         CategoryDataset categoryDataset = null;
         double[][] dataset = compute();
         if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("Mode ", "", dataset);
 
         return categoryDataset;
     }
@@ -230,17 +230,16 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             csvWriter.closeFile();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
-
 
     //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
         if (dataset != null) {
-            categoryDataset = createCategoryDataset("it.", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("", "it.", dataset);
         }
         return categoryDataset;
     }

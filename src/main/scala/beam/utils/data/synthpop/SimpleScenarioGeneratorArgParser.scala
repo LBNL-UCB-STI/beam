@@ -124,7 +124,7 @@ object SimpleScenarioGeneratorArgParser {
         )
         .validate(
           value =>
-            if (value == "") failure("`localCRS` is not a double")
+            if (value == "") failure("`localCRS` cannot be empty")
             else success
         )
         .text("Local coordinate reference system ")
@@ -132,7 +132,7 @@ object SimpleScenarioGeneratorArgParser {
         .action(
           (value, args) => args.copy(outputFolder = value)
         )
-        .validate(value => if (value.isEmpty) failure("`outputFolder` cannot be emtpy") else success)
+        .validate(value => if (value.isEmpty) failure("`outputFolder` cannot be empty") else success)
         .text("Path to output folder with the results")
     }
   }
