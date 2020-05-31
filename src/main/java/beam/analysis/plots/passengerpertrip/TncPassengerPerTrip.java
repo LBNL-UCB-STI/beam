@@ -15,7 +15,6 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
-    private static double[][] matrixDataset;
 
     int eventCounter = 0;
     int passengerCounter = 0;
@@ -110,15 +109,13 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public void process(IterationEndsEvent event) throws IOException {
         processDeadHeadingPassengerPerTripRemainingRepositionings();
-        CategoryDataset dataSet = getCategoryDataSet();
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
-        writeCSV(matrixDataset,dataSet.getRowCount(),event.getIteration());
-    }
 
-    @Override
-    public CategoryDataset getCategoryDataSet() {
-        matrixDataset = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName));
-        return GraphUtils.createCategoryDataset("", "", matrixDataset);
+        double[][] matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName));
+
+        CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode", "", matrixDataSet);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+
+        writeCSV(matrixDataSet, event.getIteration());
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data) {

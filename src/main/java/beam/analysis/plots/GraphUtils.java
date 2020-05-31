@@ -78,13 +78,22 @@ public class GraphUtils {
         return chart;
     }
 
-    public static JFreeChart createLineChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
+    public static JFreeChart createLineChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, boolean legend, boolean tooltips) {
         PlotOrientation orientation = PlotOrientation.VERTICAL;
         final JFreeChart chart = ChartFactory.createLineChart(
                 graphTitle, xAxisTitle, yAxisTitle,
-                dataset, orientation, legend, false, false);
+                dataset, orientation, legend, tooltips, false);
         chart.setBackgroundPaint(DEFAULT_BACK_GROUND);
         return chart;
+    }
+
+    public static CategoryDataset createCategoryDataset(Map<Integer, ? extends Number> data) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        data.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> dataset.addValue(e.getValue(), 0, e.getKey()));
+        return dataset;
     }
 
     public static CategoryDataset createCategoryDataset(String rowKeyPrefix, String columnKeyPrefix, double[] data) {
