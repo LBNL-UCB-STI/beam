@@ -5,20 +5,11 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
@@ -119,7 +110,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
     departureTime: Int,
     mode: BeamMode,
     vehicleTypeId: Id[BeamVehicleType],
-    beamServices: BeamServices
+    beamScenario: BeamScenario
   ): Skim = {
     val origTaz = beamServices.beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
     val destTaz = beamServices.beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
