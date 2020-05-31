@@ -11,7 +11,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 
-import scala.collection.immutable
 import scala.util.control.NonFatal
 
 class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
@@ -50,26 +49,9 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   }
 
   override def fromCsv(
-    row: immutable.Map[String, String]
+    row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    (
-      ODSkimmerKey(
-        hour = row("hour").toInt,
-        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        origin = row("origTaz"),
-        destination = row("destTaz")
-      ),
-      ODSkimmerInternal(
-        travelTimeInS = row("travelTimeInS").toDouble,
-        generalizedTimeInS = row("generalizedTimeInS").toDouble,
-        generalizedCost = row("generalizedCost").toDouble,
-        distanceInM = row("distanceInM").toDouble,
-        cost = row("cost").toDouble,
-        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        observations = row("observations").toInt,
-        iterations = row("iterations").toInt
-      )
-    )
+    ODSkimmer.fromCsv(row)
   }
 
   override protected def aggregateOverIterations(
@@ -180,7 +162,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -253,7 +235,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -332,6 +314,30 @@ object ODSkimmer extends LazyLogging {
   case class ODSkimmerKey(hour: Int, mode: BeamMode, origin: String, destination: String) extends AbstractSkimmerKey {
     override def toCsv: String = hour + "," + mode + "," + origin + "," + destination
   }
+
+  def fromCsv(
+    row: scala.collection.Map[String, String]
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    (
+      ODSkimmerKey(
+        hour = row("hour").toInt,
+        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        origin = row("origTaz"),
+        destination = row("destTaz")
+      ),
+      ODSkimmerInternal(
+        travelTimeInS = row("travelTimeInS").toDouble,
+        generalizedTimeInS = row("generalizedTimeInS").toDouble,
+        generalizedCost = row("generalizedCost").toDouble,
+        distanceInM = row("distanceInM").toDouble,
+        cost = row("cost").toDouble,
+        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
+        observations = row("observations").toInt,
+        iterations = row("iterations").toInt
+      )
+    )
+  }
+
   case class ODSkimmerInternal(
     travelTimeInS: Double,
     generalizedTimeInS: Double,

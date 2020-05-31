@@ -122,6 +122,11 @@ trait NetworkCoordinator extends LazyLogging {
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
+    require(
+      beamConfig.beam.physsim.speedScalingFactor <= Int.MaxValue,
+      "PhysSim speed scaling factor value is too high"
+    )
+
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 
@@ -187,7 +192,7 @@ trait NetworkCoordinator extends LazyLogging {
         }
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load link's params from ${path}: ${ex.getMessage}", ex)
+          logger.error(s"Could not load link's params from $path: ${ex.getMessage}", ex)
           Map.empty
       }
     } else {

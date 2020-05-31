@@ -28,6 +28,7 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
       checkFileExistenceInRoot("CarTravelDistance.csv")
       checkFileExistenceInRoot("CarSpeed.csv")
       checkFileExistenceInRoot("FreeFlowCarSpeed.csv")
+      checkFileExistenceInRoot("percentageFreeSpeed.png")
 
       // If those start to fail, someone changed vehicle types for beamville or `CarTripStatsFromPathTraversalEventHandler` is changed
       checkFileExistenceInIterFolder("CarRideStats.ridehail.csv.gz", 0)
