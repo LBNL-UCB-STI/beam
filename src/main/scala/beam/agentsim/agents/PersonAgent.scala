@@ -347,7 +347,7 @@ class PersonAgent(
                       0,
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
-                      beamServices
+                      beamServices.beamScenario
                     )
                     .distance
                 )
