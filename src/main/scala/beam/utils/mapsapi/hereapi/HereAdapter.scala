@@ -1,4 +1,4 @@
-package beam.utils.hereapi
+package beam.utils.mapsapi.hereapi
 
 import java.util.concurrent.TimeUnit
 

@@ -5,14 +5,14 @@ import java.util
 
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.utils.FileUtils
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.{Coord, Id}
 import org.supercsv.io.{CsvMapReader, CsvMapWriter}
 import org.supercsv.prefs.CsvPreference
 
-object FleetUtils {
+object FleetUtils extends LazyLogging {
 
-  private val logger = Logger.getLogger("FleetUtils")
   private val fileHeader = Seq[String]("taz", "x", "y", "fleetShare")
 
   def readCSV(filePath: String): Vector[(Id[TAZ], Coord, Double)] = {

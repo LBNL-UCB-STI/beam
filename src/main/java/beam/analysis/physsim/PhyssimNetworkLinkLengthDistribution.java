@@ -11,6 +11,8 @@ import org.jfree.data.statistics.HistogramType;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +23,7 @@ import java.util.stream.Stream;
  * An analysis class that shows how the link lengths are distributed over the network.
  */
 public class PhyssimNetworkLinkLengthDistribution {
+    private final Logger log = LoggerFactory.getLogger(PhyssimNetworkLinkLengthDistribution.class);
 
     private BeamConfig beamConfig;
     private Network network;
@@ -71,7 +74,7 @@ public class PhyssimNetworkLinkLengthDistribution {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
