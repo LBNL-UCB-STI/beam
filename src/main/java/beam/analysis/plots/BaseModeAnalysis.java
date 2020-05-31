@@ -49,18 +49,6 @@ public abstract class BaseModeAnalysis<T extends Map<Integer, Map>> implements G
         return result;
     }
 
-    protected CategoryDataset createCategoryDataset(String columnKeyPrefix, double[][] data) {
-        DefaultCategoryDataset result = new DefaultCategoryDataset();
-        for (int r = 0; r < data.length; r++) {
-            String rowKey = String.valueOf(r + 1);
-            for (int c = 0; c < data[r].length; c++) {
-                String columnKey = columnKeyPrefix + c;
-                result.addValue(data[r][c], rowKey, columnKey);
-            }
-        }
-        return result;
-    }
-
     protected void createGraphInRootDirectory(CategoryDataset dataset, String graphTitleName, String fileName, String xAxisTitle, String yAxisTitle, Set<String> modes) throws IOException {
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();

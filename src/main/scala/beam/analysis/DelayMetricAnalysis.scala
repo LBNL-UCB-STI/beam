@@ -219,7 +219,7 @@ class DelayMetricAnalysis @Inject()(
   def createNetworkUtilizationGraph(iterationNumber: Int): Unit = {
     val dataset = new DefaultCategoryDataset
     val totalLink = networkHelper.allLinks.length
-    for (hour <- 1 to linkUtilization.keysIterator.max) {
+    for (hour <- 0 to linkUtilization.keysIterator.max) {
       dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
     }
 

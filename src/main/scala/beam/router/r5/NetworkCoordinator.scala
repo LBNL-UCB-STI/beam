@@ -122,6 +122,11 @@ trait NetworkCoordinator extends LazyLogging {
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
+    require(
+      beamConfig.beam.physsim.speedScalingFactor <= Int.MaxValue,
+      "PhysSim speed scaling factor value is too high"
+    )
+
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 

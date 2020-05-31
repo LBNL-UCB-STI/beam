@@ -11,11 +11,15 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.api.core.v01.population.Population;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
 public class ModalityStyleStats {
+    private final Logger log = LoggerFactory.getLogger(ModalityStyleStats.class);
+
     private final String graphTile;
     private final String xAxisTitle;
     private final String yAxisTitle;
@@ -38,7 +42,7 @@ public class ModalityStyleStats {
         try {
             buildGraphFromPopulationProcessDataSet();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -88,12 +92,7 @@ public class ModalityStyleStats {
             String className = classList.get(i);
             for (int j = 0; j < iterationCount.size(); j++) {
                 Map<String, Double> modalityData = iterationVsModalityClassCount.get(j);
-                Double classCount = modalityData.get(className);
-                if (classCount == null) {
-                    data[j] = 0;
-                } else {
-                    data[j] = classCount;
-                }
+                data[j] = modalityData.getOrDefault(className, 0D);
             }
             dataSet[i] = data;
         }
@@ -105,7 +104,7 @@ public class ModalityStyleStats {
         if (dataSet == null) {
             return null;
         }
-        return DatasetUtilities.createCategoryDataset("", "", dataSet);
+        return GraphUtils.createCategoryDataset("", "", dataSet);
     }
 
     private void buildGraphFromPopulationProcessDataSet() throws IOException {
@@ -120,6 +119,4 @@ public class ModalityStyleStats {
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
-
-
 }
