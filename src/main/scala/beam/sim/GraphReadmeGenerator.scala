@@ -2,11 +2,13 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
+import com.typesafe.scalalogging.LazyLogging
+
 /**
   * Generates a readme for .png files in root folder.
   */
 
-object GraphReadmeGenerator {
+object GraphReadmeGenerator extends LazyLogging {
 
   private val fileName = "graph_readme.txt"
 
@@ -45,8 +47,7 @@ object GraphReadmeGenerator {
     try {
       bw.write(content)
     } catch {
-      case e: IOException =>
-        e.printStackTrace()
+      case e: IOException => logger.error("exception occurred due to ", e)
     } finally {
       bw.close()
     }
