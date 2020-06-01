@@ -369,8 +369,13 @@ class UrbanSimScenarioLoader(
                   if (numToCreate == 0) {
                     true
                   } else {
-                    hh_car_count(key + numToCreate) ++= Iterable(hh)
-                    currentTotalCars += numToCreate
+                    if (hh_car_count.contains(key + numToCreate)) {
+                      hh_car_count(key + numToCreate) ++= Iterable(hh)
+                      currentTotalCars += numToCreate
+                    } else {
+                      hh_car_count(key + numToCreate) = ArrayBuffer(hh)
+                      currentTotalCars += numToCreate
+                    }
                     false
                   }
                 } else { true }
