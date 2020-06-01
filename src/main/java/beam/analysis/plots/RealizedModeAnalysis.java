@@ -209,7 +209,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     // adding proportionate of replanning to mode choice
-    public void updateHourMode(String personId) {
+    private void updateHourMode(String personId) {
         Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
         if (hourModeCount != null) {
             double countSum = hourModeCount.values().stream().map(Map::values).mapToInt(i -> i.stream().mapToInt(Integer::intValue).sum()).sum();
