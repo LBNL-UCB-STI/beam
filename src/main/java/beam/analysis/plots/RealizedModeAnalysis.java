@@ -21,6 +21,8 @@ import static beam.sim.metrics.Metrics.ShortLevel;
 
 public class RealizedModeAnalysis extends BaseModeAnalysis {
 
+    private static final String REPLANNING_SEPARATOR = "-" + ReplanningEvent.EVENT_TYPE + "-";
+
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String referenceGraphTitle = "Reference Realized Mode Histogram";
     private static final String replanningGraphTitle = "Replanning Event Count";
@@ -500,8 +502,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public Map<String, Integer> calculateModeCount(){
-
-        String REPLANNING_SEPARATOR = "-"+ReplanningEvent.EVENT_TYPE+"-";
         Set<String> persons = personReplanningChain.keySet();
         //This is holding modes-replanning-modes as key and there count as value
         Map<String, Integer> modeCount = new HashMap<>();
