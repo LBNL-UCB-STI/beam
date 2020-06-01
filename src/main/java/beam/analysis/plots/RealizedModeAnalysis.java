@@ -157,7 +157,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         String person = re.getPersonId().toString();
 
         personReplanningChain.merge(person, Lists.newArrayList(re.getEventType()), ListUtils::union);
-        Stack<ModeHour> modeHours = hourPerson.get(person);
         affectedModeCount.merge(hour, 1, Integer::sum);
         replanningReasonCount.merge(re.getReason(), 1, Integer::sum);
 
@@ -166,6 +165,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             return;
         }
 
+        Stack<ModeHour> modeHours = hourPerson.get(person);
         if (modeHours != null && modeHours.size() > 0
                 && !personIdList.containsKey(person)) {
 
