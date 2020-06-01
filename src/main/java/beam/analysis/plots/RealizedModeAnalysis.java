@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
 
 public class RealizedModeAnalysis extends BaseModeAnalysis {
@@ -167,7 +168,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         }
 
         Stack<ModeHour> modeHours = hourPerson.get(person);
-        if (CollectionUtils.isNotEmpty(modeHours) && !personIdList.containsKey(person)) {
+        if (isNotEmpty(modeHours) && !personIdList.containsKey(person)) {
             personIdList.put(person, 1);
 
             ModeHour modeHour = modeHours.pop();
