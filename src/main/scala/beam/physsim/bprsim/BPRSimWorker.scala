@@ -15,7 +15,8 @@ import scala.collection.mutable.ArrayBuffer
   */
 private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
-  private val params = BPRSimParams(config, new VolumeCalculator(config.inFlowAggregationTimeWindow))
+  private val params =
+    BPRSimParams(config, new VolumeCalculator(config.inFlowAggregationTimeWindow, config.syncInterval))
   private val eventBuffer = ArrayBuffer.empty[Event]
   private val otherWorkerEvents = mutable.Map.empty[BPRSimWorker, ArrayBuffer[SimEvent]]
 
