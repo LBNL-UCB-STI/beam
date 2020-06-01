@@ -95,7 +95,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
-    Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
+    final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();

@@ -10,7 +10,7 @@ public class EventCollector implements BasicEventHandler{
 
     int counter = 0;
 
-    List<Event> events;
+    final List<Event> events;
 
     @Override
     public void reset(int iteration) {
