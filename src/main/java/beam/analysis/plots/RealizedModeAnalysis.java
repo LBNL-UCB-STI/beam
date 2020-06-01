@@ -60,9 +60,16 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE) ||
-                event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE))
+        if (isReplanningEvent(event) || isModeChoiceEvent(event))
             processRealizedMode(event);
+    }
+
+    private boolean isModeChoiceEvent(Event event) {
+        return event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE);
+    }
+
+    private boolean isReplanningEvent(Event event) {
+        return event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE);
     }
 
     @Override
