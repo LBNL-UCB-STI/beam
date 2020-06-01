@@ -599,9 +599,9 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         return benchMarkData;
     }
 
-    public static class ModeHour {
-        private String mode;
-        private Integer hour;
+    private static class ModeHour {
+        private final String mode;
+        private final Integer hour;
 
         public ModeHour(String mode, Integer hour) {
             this.mode = mode;
