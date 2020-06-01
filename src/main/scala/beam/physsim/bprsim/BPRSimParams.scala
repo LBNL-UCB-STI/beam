@@ -11,7 +11,8 @@ case class BPRSimConfig(
   simEndTime: Double,
   numberOfClusters: Int,
   syncInterval: Int,
-  travelTimeFunction: (Double, Link, Int) => Double,
+  inFlowAggregationTimeWindow: Int,
+  travelTimeFunction: (Double, Link, Double) => Double,
 )
 
 case class BPRSimParams(config: BPRSimConfig, volumeCalculator: VolumeCalculator)
