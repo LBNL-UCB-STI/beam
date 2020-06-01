@@ -4,7 +4,10 @@ import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.BeamConfig
@@ -154,6 +157,7 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           1,
           0,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
@@ -174,6 +178,7 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           numberOfClusters,
           syncInterval,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
@@ -217,7 +222,7 @@ class JDEQSimRunner(
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int
-  ): (Double, Link, Int) => Double = {
+  ): (Double, Link, Double) => Double = {
     functionName match {
       case "FREE_FLOW" =>
         (time, link, _) =>

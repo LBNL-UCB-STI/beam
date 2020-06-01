@@ -9,7 +9,8 @@ import scala.collection.mutable
   * Not thread-safe
   * @author Dmitry Openkov
   */
-class VolumeCalculator {
+class VolumeCalculator(val window: Int) {
+  if (window <= 0) throw new IllegalArgumentException("Aggregation Time window must be greater than zero")
   implicit val reverseOrdering = Ordering[Double].reverse
   val linkToEvents = mutable.Map.empty[Id[Link], mutable.TreeMap[Double, Int]]
 
@@ -17,17 +18,12 @@ class VolumeCalculator {
     val events = linkToEvents.getOrElseUpdate(linkId, mutable.TreeMap.empty[Double, Int])
     val numEvents = events.getOrElseUpdate(time, 0)
     events.put(time, numEvents + 1)
+    events.rangeImpl(Some(time - window), None).clear()
   }
 
-  def getVolume(linkId: Id[Link], time: Double): Int = {
+  def getVolume(linkId: Id[Link], time: Double): Double = {
     val events = linkToEvents.getOrElse(linkId, mutable.TreeMap.empty[Double, Int])
-    val numberOfEvents = events.range(time, time - 30).values.sum
-    numberOfEvents * (3600 / 30)
-  }
-
-  def dropEarlierThan(time: Double) = {
-    linkToEvents.values.foreach { events =>
-      //todo
-    }
+    val numberOfEvents = events.range(time, time - window).values.sum
+    numberOfEvents * (3600.0 / window)
   }
 }
