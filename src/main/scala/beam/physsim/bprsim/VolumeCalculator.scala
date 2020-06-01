@@ -11,14 +11,14 @@ import scala.collection.mutable
   */
 class VolumeCalculator(val window: Int) {
   if (window <= 0) throw new IllegalArgumentException("Aggregation Time window must be greater than zero")
-  implicit val reverseOrdering = Ordering[Double].reverse
-  val linkToEvents = mutable.Map.empty[Id[Link], mutable.TreeMap[Double, Int]]
+  private implicit val reverseOrdering = Ordering[Double].reverse
+  private val linkToEvents = mutable.Map.empty[Id[Link], mutable.TreeMap[Double, Int]]
 
   def vehicleEntered(linkId: Id[Link], time: Double): Unit = {
     val events = linkToEvents.getOrElseUpdate(linkId, mutable.TreeMap.empty[Double, Int])
     val numEvents = events.getOrElseUpdate(time, 0)
     events.put(time, numEvents + 1)
-    events.rangeImpl(Some(time - window), None).clear()
+    events --= events.keysIteratorFrom(time - window * 1.5)
   }
 
   def getVolume(linkId: Id[Link], time: Double): Double = {
