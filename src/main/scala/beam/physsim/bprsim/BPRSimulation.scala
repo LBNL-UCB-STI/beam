@@ -33,14 +33,14 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
   private def processQueuedEvents(): Unit = {
     if (queue.nonEmpty) {
       val simulationEvent = queue.dequeue()
-      if (simulationEvent.time < config.simEndTime) {
-        simulationEvent.execute(scenario, params) match {
+      simulationEvent.execute(scenario, params) match {
           case (events, simEvent) =>
             events.foreach(eventManager.processEvent)
-            simEvent.foreach(queue += _)
+            for {
+              e <- simEvent if e.time < config.simEndTime
+            } queue += e
         }
-        processQueuedEvents()
-      }
+      processQueuedEvents()
     }
   }
 }
