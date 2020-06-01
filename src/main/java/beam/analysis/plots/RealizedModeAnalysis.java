@@ -42,7 +42,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
     private Map<String, Double> benchMarkData;
     private Set<String> cumulativeReferenceMode = new TreeSet<>();
-    private Map<String,List<String>> personReplanningChain = new HashMap<>();
+    private Map<String, List<String>> personReplanningChain = new HashMap<>();
     private Map<String, Integer> replanningReasonCount = new HashMap<>();
     private Map<Integer, Map<String, Integer>> replanningReasonCountPerIter = new HashMap<>();
     //This map will always hold value as 0 or 1
@@ -116,7 +116,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         writeReplanningReasonCountCSV(event.getIteration());
 
-        replanningReasonCountPerIter.put(event.getIteration(),replanningReasonCount.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        replanningReasonCountPerIter.put(event.getIteration(), replanningReasonCount.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
         writeReplanningReasonCountRootCSV();
     }
 
@@ -363,7 +363,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     public CategoryDataset replanningCountModeChoiceDataset() {
         int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
-        int[] data = new int[max+1];
+        int[] data = new int[max + 1];
         for (int hour = 0; hour <= max; hour++) {
             data[hour] = affectedModeCount.getOrDefault(hour, 0);
         }
@@ -471,14 +471,14 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void writeReplanningReasonCountCSV(Integer iteration) {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"replanningEventReason.csv");
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "replanningEventReason.csv");
         String header = "ReplanningReason,Count";
-        try(FileWriter writer = new FileWriter(new File(fileName));
-            BufferedWriter out = new BufferedWriter(writer)){
+        try (FileWriter writer = new FileWriter(new File(fileName));
+             BufferedWriter out = new BufferedWriter(writer)) {
             out.write(header);
             out.newLine();
-            for (Map.Entry<String,Integer> entry : replanningReasonCount.entrySet()){
-                out.write(entry.getKey()+","+entry.getValue());
+            for (Map.Entry<String, Integer> entry : replanningReasonCount.entrySet()) {
+                out.write(entry.getKey() + "," + entry.getValue());
                 out.newLine();
             }
         } catch (IOException ex) {
@@ -490,15 +490,15 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     public void writeReplanningReasonCountRootCSV() {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("replanningEventReason.csv");
         Set<String> headerItem = replanningReasonCountPerIter.values().stream().flatMap(header -> header.keySet().stream()).collect(Collectors.toSet());
-        String csvHeader = "Mode,"+String.join(",", headerItem);
+        String csvHeader = "Mode," + String.join(",", headerItem);
 
-        try(FileWriter writer = new FileWriter(new File(fileName));
-            BufferedWriter out = new BufferedWriter(writer)){
+        try (FileWriter writer = new FileWriter(new File(fileName));
+             BufferedWriter out = new BufferedWriter(writer)) {
             out.write(csvHeader);
             out.newLine();
-            for (Map.Entry<Integer, Map<String,Integer>> entry : replanningReasonCountPerIter.entrySet()){
+            for (Map.Entry<Integer, Map<String, Integer>> entry : replanningReasonCountPerIter.entrySet()) {
                 Map<String, Integer> replanningReasonCount = entry.getValue();
-                String row = entry.getKey()+","+headerItem.stream().map(item -> replanningReasonCount.getOrDefault(item, 0).toString()).collect(Collectors.joining(","));
+                String row = entry.getKey() + "," + headerItem.stream().map(item -> replanningReasonCount.getOrDefault(item, 0).toString()).collect(Collectors.joining(","));
                 out.write(row);
                 out.newLine();
             }
@@ -507,27 +507,26 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         }
     }
 
-    public Map<String, Integer> calculateModeCount(){
+    public Map<String, Integer> calculateModeCount() {
         Set<String> persons = personReplanningChain.keySet();
         //This is holding modes-replanning-modes as key and there count as value
         Map<String, Integer> modeCount = new HashMap<>();
-        for(String person: persons){
+        for (String person : persons) {
             List<String> modes = personReplanningChain.get(person);
-            if(modes.size() > 1){
+            if (modes.size() > 1) {
                 StringBuffer lastModes = new StringBuffer();
-                for(String mode: modes){
-                    if(ReplanningEvent.EVENT_TYPE.equals(mode)){
+                for (String mode : modes) {
+                    if (ReplanningEvent.EVENT_TYPE.equals(mode)) {
                         lastModes.append(REPLANNING_SEPARATOR);
-                    }
-                    else if(lastModes.toString().endsWith(REPLANNING_SEPARATOR)){
+                    } else if (lastModes.toString().endsWith(REPLANNING_SEPARATOR)) {
                         //This is used to decrease previous key count(if any)
-                        String lastModeCount = lastModes.substring(0, lastModes.length()- REPLANNING_SEPARATOR.length());
-                        if(modeCount.containsKey(lastModeCount)){
+                        String lastModeCount = lastModes.substring(0, lastModes.length() - REPLANNING_SEPARATOR.length());
+                        if (modeCount.containsKey(lastModeCount)) {
                             modeCount.merge(lastModeCount, -1, Integer::sum);
                         }
                         lastModes.append(mode);
                         modeCount.merge(lastModes.toString(), 1, Integer::sum);
-                    }else{
+                    } else {
                         lastModes = new StringBuffer(mode);
                     }
                 }
@@ -539,24 +538,23 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private void writeToReplaningChainCSV(IterationEndsEvent event, Map<String, Integer> modeCount) {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningEventChain.csv");
 
-        try(FileWriter fileWriter = new FileWriter(new File(fileName))){
+        try (FileWriter fileWriter = new FileWriter(new File(fileName))) {
             try (BufferedWriter out = new BufferedWriter(fileWriter)) {
                 String heading = "modeChoiceReplanningEventChain,count";
                 out.write(heading);
                 out.newLine();
                 Set<String> modes = modeCount.keySet();
-                for(String mode: modes){
+                for (String mode : modes) {
                     int count = modeCount.get(mode);
-                    if(count > 0){
-                        out.write(mode+","+count);
+                    if (count > 0) {
+                        out.write(mode + "," + count);
                         out.newLine();
                     }
                 }
             } catch (IOException ex) {
                 log.error("exception occurred due to ", ex);
             }
-        }
-        catch (IOException exception){
+        } catch (IOException exception) {
             log.error("exception occurred due to ", exception);
         }
     }
@@ -588,7 +586,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private Map<String, Double> benchMarkCSVLoader(String path) {
-
         Map<String, Double> benchMarkData = new HashMap<>();
 
         try (FileReader fileReader = new FileReader(path)) {
@@ -629,7 +626,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
         @Override
         public boolean equals(Object o) {
-
             if (o == this) return true;
             if (!(o instanceof ModeHour)) {
                 return false;
