@@ -160,6 +160,7 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           1,
           0,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
@@ -180,6 +181,7 @@ class JDEQSimRunner(
           config.getSimulationEndTime,
           numberOfClusters,
           syncInterval,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
           getTravelTimeFunction(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
@@ -223,7 +225,7 @@ class JDEQSimRunner(
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int
-  ): (Double, Link, Int) => Double = {
+  ): (Double, Link, Double) => Double = {
     functionName match {
       case "FREE_FLOW" =>
         (time, link, _) =>
