@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.sim.config.BeamConfig;
 import com.google.common.collect.Lists;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -166,9 +167,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         }
 
         Stack<ModeHour> modeHours = hourPerson.get(person);
-        if (modeHours != null && modeHours.size() > 0
-                && !personIdList.containsKey(person)) {
-
+        if (CollectionUtils.isNotEmpty(modeHours) && !personIdList.containsKey(person)) {
             personIdList.put(person, 1);
 
             ModeHour modeHour = modeHours.pop();
