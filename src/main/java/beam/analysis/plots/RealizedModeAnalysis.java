@@ -139,67 +139,73 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, Double> hourData = hourModeFrequency.get(hour);
         if (event instanceof ModeChoiceEvent) {
-            ModeChoiceEvent mce = (ModeChoiceEvent) event;
-            String mode = mce.mode;
-            String personId = mce.getPersonId().toString();
-            Map<String, String> tags = new HashMap<>();
-            tags.put("stats-type", "mode-choice");
-            tags.put("hour", "" + (hour + 1));
+            processModeChoiceEvent((ModeChoiceEvent) event, hour);
+        } else if (event instanceof ReplanningEvent) {
+            processReplanningEvent((ReplanningEvent) event, hour);
+        }
+    }
 
-            countOccurrenceJava(mode, 1, ShortLevel(), tags);
-            personReplanningChain.merge(personId , Lists.newArrayList(mode), ListUtils::union);
-            if (personIdList.containsKey(personId) && personIdList.get(personId) == 1) {
-                personIdList.put(personId, 0);
-                setHourPersonMode(hour, personId, mode, true);
-                return;
-            }
+    private void processReplanningEvent(ReplanningEvent re, int hour) {
+        Map<String, Double> hourData;
+        String person = re.getPersonId().toString();
 
-            if (personIdList.remove(personId) != null) {
-                updateHourMode(personId);
-                personHourModeCount.remove(personId);
-            }
-            if (hourData == null) {
-                hourData = new HashMap<>();
-            }
+        personReplanningChain.merge(person, Lists.newArrayList(re.getEventType()), ListUtils::union);
+        Stack<ModeHour> modeHours = hourPerson.get(person);
+        affectedModeCount.merge(hour, 1, Integer::sum);
+        replanningReasonCount.merge(re.getReason(), 1, Integer::sum);
 
-            hourData.merge(mode, 1.0, Double::sum);
-            hourModeFrequency.put(hour, hourData);
-            ModeHour modeHour = new ModeHour(mode, hour);
-            Stack<ModeHour> modeHours = hourPerson.getOrDefault(personId, new Stack<>());
-            modeHours.push(modeHour);
-            hourPerson.put(personId, modeHours);
-            setHourPersonMode(hour, personId, mode, false);
+        if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
+            personIdList.put(person, 1);
+            return;
         }
 
-        if (event instanceof ReplanningEvent) {
-            ReplanningEvent re = (ReplanningEvent) event;
-            String person = re.getPersonId().toString();
+        if (modeHours != null && modeHours.size() > 0
+                && !personIdList.containsKey(person)) {
 
-            personReplanningChain.merge(person , Lists.newArrayList(re.getEventType()), ListUtils::union);
-            Stack<ModeHour> modeHours = hourPerson.get(person);
-            affectedModeCount.merge(hour, 1, Integer::sum);
-            replanningReasonCount.merge(re.getReason(), 1, Integer::sum);
+            personIdList.put(person, 1);
 
-            if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
-                personIdList.put(person, 1);
-                return;
-            }
+            ModeHour modeHour = modeHours.pop();
+            hourPerson.put(person, modeHours);
 
-            if (modeHours != null && modeHours.size() > 0
-                    && !personIdList.containsKey(person)) {
-
-                personIdList.put(person, 1);
-
-                ModeHour modeHour = modeHours.pop();
-                hourPerson.put(person, modeHours);
-
-                hourData = hourModeFrequency.get(modeHour.getHour());
-                hourData.merge(modeHour.getMode(), -1.0, Double::sum);
-                hourModeFrequency.put(modeHour.getHour(), hourData);
-            }
+            hourData = hourModeFrequency.get(modeHour.getHour());
+            hourData.merge(modeHour.getMode(), -1.0, Double::sum);
+            hourModeFrequency.put(modeHour.getHour(), hourData);
         }
+    }
+
+    private void processModeChoiceEvent(ModeChoiceEvent event, int hour) {
+        String mode = event.mode;
+        String personId = event.getPersonId().toString();
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "mode-choice");
+        tags.put("hour", "" + (hour + 1));
+
+        countOccurrenceJava(mode, 1, ShortLevel(), tags);
+        personReplanningChain.merge(personId, Lists.newArrayList(mode), ListUtils::union);
+        if (personIdList.containsKey(personId) && personIdList.get(personId) == 1) {
+            personIdList.put(personId, 0);
+            setHourPersonMode(hour, personId, mode, true);
+            return;
+        }
+
+        if (personIdList.remove(personId) != null) {
+            updateHourMode(personId);
+            personHourModeCount.remove(personId);
+        }
+
+        Map<String, Double> hourData = hourModeFrequency.get(hour);
+        if (hourData == null) {
+            hourData = new HashMap<>();
+        }
+        hourData.merge(mode, 1.0, Double::sum);
+
+        hourModeFrequency.put(hour, hourData);
+        ModeHour modeHour = new ModeHour(mode, hour);
+        Stack<ModeHour> modeHours = hourPerson.getOrDefault(personId, new Stack<>());
+        modeHours.push(modeHour);
+        hourPerson.put(personId, modeHours);
+        setHourPersonMode(hour, personId, mode, false);
     }
 
     // adding proportionate of replanning to mode choice
