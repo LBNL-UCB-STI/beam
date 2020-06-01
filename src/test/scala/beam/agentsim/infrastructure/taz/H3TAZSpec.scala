@@ -1,20 +1,18 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
+import scala.collection.JavaConverters._
+
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
-import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.controler.AbstractModule
-import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.collection.JavaConverters._
 
 class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
 
@@ -54,6 +52,7 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
     val demandPoints = scenario.getPopulation.getPersons.asScala
       .flatMap(_._2.getPlans.get(0).getPlanElements.asScala.filter(_.isInstanceOf[Activity]))
       .map(_.asInstanceOf[Activity].getCoord)
+      .map(v => WgsCoordinate(latitude = v.getY, longitude = v.getX))
       .toArray
     val maxDemandPoints = 10
     val lowestResolution = 6
@@ -70,7 +69,7 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
     )
     indexes.foreach {
       case (h3Index, _) =>
-        val resolution = H3TAZ.getResolution(h3Index)
+        val resolution = h3Index.resolution
         require(
           resolution >= lowestResolution && resolution <= highestResolution,
           s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"

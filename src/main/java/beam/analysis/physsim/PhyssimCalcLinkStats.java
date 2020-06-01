@@ -2,6 +2,7 @@ package beam.analysis.physsim;
 
 import beam.analysis.plots.GraphUtils;
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
@@ -26,7 +27,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-public class PhyssimCalcLinkStats implements Observer {
+public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
     private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
@@ -255,8 +256,7 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        this.beamConfig = (BeamConfig) t._2;
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.beamConfig = updatedBeamConfig;
     }
 }
