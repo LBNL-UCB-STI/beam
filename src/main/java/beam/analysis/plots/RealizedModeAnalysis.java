@@ -67,7 +67,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
 
