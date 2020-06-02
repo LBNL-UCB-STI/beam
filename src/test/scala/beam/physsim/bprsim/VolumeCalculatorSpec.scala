@@ -39,9 +39,22 @@ class VolumeCalculatorSpec extends WordSpecLike with Matchers {
       vc.vehicleEntered(link1, 2.0)
       vc.vehicleEntered(link1, 3.0)
       vc.vehicleEntered(link1, 4.0)
-      vc.vehicleEntered(link1, 10.0)
       vc.getVolume(link1, 4.0) should be(2160.0)
+      vc.vehicleEntered(link1, 10.0)
       vc.getVolume(link1, 11.0) should be(1440.0)
+    }
+    "work correctly with a larger time window" in {
+      val vc = new VolumeCalculator(60)
+      val link1 = Id.createLinkId(1)
+      vc.vehicleEntered(link1, 1.0)
+      vc.vehicleEntered(link1, 1.0)
+      vc.vehicleEntered(link1, 1.0)
+      vc.vehicleEntered(link1, 2.0)
+      vc.vehicleEntered(link1, 3.0)
+      vc.vehicleEntered(link1, 4.0)
+      vc.getVolume(link1, 4.0) should be(360.0)
+      vc.vehicleEntered(link1, 10.0)
+      vc.getVolume(link1, 61.0) should be(180.0)
     }
   }
 
