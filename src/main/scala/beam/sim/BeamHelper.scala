@@ -31,7 +31,7 @@ import beam.sim.population.{PopulationAdjustment, PopulationScaling}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.csv.readers
 import beam.utils.scenario.matsim.BeamScenarioSource
-import beam.utils.scenario.urbansim.censusblock.UrbansimReaderV2
+import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
@@ -607,8 +607,16 @@ trait BeamHelper extends LazyLogging {
               )
             }
           }
-
-          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          val scenario =
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          if (src == "urbansim_v2") {
+            new ScenarioAdjuster(
+              beamConfig.beam.urbansim,
+              scenario.getPopulation,
+              beamConfig.matsim.modules.global.randomSeed
+            ).adjust()
+          }
+          scenario
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
       } else if (src == "beam") {
