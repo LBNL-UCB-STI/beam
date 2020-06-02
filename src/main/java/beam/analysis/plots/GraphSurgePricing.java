@@ -301,7 +301,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             Map<Integer, Integer> data = null;
 
-            if (finalCategories.keySet().contains(i)) {
+            if (finalCategories.containsKey(i)) {
                 data = finalCategories.get(i);
             }
 
@@ -460,33 +460,19 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private void writeRevenueCsv(double[] revenueDataSet) {
-
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)))) {
-
             out.write("Revenue,Hour");
             out.newLine();
 
             for (int i = 0; i < revenueDataSet.length; i++) {
-
                 out.write(getRoundedNumber(revenueDataSet[i]) + "," + (i));
                 out.newLine();
             }
-
-            toDoubleCsv(revenueDataSet);
             out.newLine();
-
             out.flush();
         } catch (IOException e) {
             log.error("exception occurred due to ", e);
         }
-    }
-
-    private String toDoubleCsv(double[] numbers) {
-        return Arrays.stream(numbers).mapToObj(Double::toString).collect(joining(","));
-    }
-
-    private String binsHeaderCsv() {
-        return range(0, numberOfTimeBins).mapToObj(i -> "bin_" + i).collect(joining(","));
     }
 
     private Double getRoundedNumber(Double number) {

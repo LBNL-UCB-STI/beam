@@ -31,11 +31,11 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkSpeedDistributionStats.class);
 
     private static int noOfBins = 24;
-    private BeamConfig beamConfig;
-    private Network network;
-    private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    static String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
-    private static String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
+    private final BeamConfig beamConfig;
+    private final Network network;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
+    static final String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
+    private static final String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
 
     public PhyssimCalcLinkSpeedDistributionStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;

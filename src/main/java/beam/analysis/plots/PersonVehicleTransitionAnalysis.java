@@ -19,12 +19,12 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
-    private static Map<String, Integer> modePerson = new HashMap<>();
+    private static final Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
     private static final String xAxisLabel = "time (binSize=<?> sec)";
-    private PlotGraph plotGraph = new PlotGraph();
-    private int binSize;
-    private int numOfBins;
+    private final PlotGraph plotGraph = new PlotGraph();
+    private final int binSize;
+    private final int numOfBins;
     private final boolean writeGraph;
 
     public PersonVehicleTransitionAnalysis(BeamConfig beamConfig){
