@@ -103,7 +103,6 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       context.stop(self)
 
     case Success =>
-
     case x =>
       logger.warn(s"No handler for ${x}")
   }
