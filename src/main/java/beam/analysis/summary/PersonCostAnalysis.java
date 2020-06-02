@@ -31,8 +31,8 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private double totalNetCost = 0.0;
   private final BeamServices beamServices;
   double averageVot=0;
-  String votKeyString="valueOfTime";
-  double defaultDummyHouseholdIncome=0.01;
+  final String votKeyString="valueOfTime";
+  final double defaultDummyHouseholdIncome=0.01;
 
 
   private final Logger logger = LoggerFactory.getLogger(PersonCostAnalysis.class);
