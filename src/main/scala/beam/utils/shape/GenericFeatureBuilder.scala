@@ -34,11 +34,11 @@ object GenericFeatureBuilder {
 
   private[shape] def fixIfPrimitive(v: Any): Any = {
     v match {
-      case byte: Byte => new java.lang.Byte(byte)
-      case s: Short   => new java.lang.Short(s)
-      case i: Int     => new java.lang.Integer(i)
-      case l: Long    => new java.lang.Long(l)
-      case d: Double  => new java.lang.Double(d)
+      case byte: Byte => java.lang.Byte.valueOf(byte)
+      case s: Short   => java.lang.Short.valueOf(s)
+      case i: Int     => java.lang.Integer.valueOf(i)
+      case l: Long    => java.lang.Long.valueOf(l)
+      case d: Double  => java.lang.Double.valueOf(d)
       case x          => x
     }
   }

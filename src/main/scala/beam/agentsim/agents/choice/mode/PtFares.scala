@@ -1,15 +1,15 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.FileNotFoundException
+import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
+
+import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.sim.common.Range
+import beam.utils.FileUtils
 import org.slf4j.LoggerFactory
-
-import scala.collection.mutable.ListBuffer
-import scala.io.Source
-import scala.util.Try
 
 case class PtFares(ptFares: List[FareRule]) {
 
@@ -75,7 +75,7 @@ object PtFares {
       throw new FileNotFoundException(s"PtFares file not found at location: $ptFaresFile")
     }
     val fareRules: ListBuffer[FareRule] = ListBuffer()
-    val lines = Try(Source.fromFile(ptFaresFile).getLines().toList.tail).getOrElse(List())
+    val lines = Try(FileUtils.readAllLines(ptFaresFile).toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 

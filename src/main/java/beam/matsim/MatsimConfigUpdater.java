@@ -1,6 +1,7 @@
 package beam.matsim;
 
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -12,9 +13,9 @@ import java.util.Observable;
 import java.util.Observer;
 
 @Singleton
-public class MatsimConfigUpdater implements Observer {
-    private ControlerConfigGroup controlerConfigGroup;
-    private LinkStatsConfigGroup linkStatsConfigGroup;
+public class MatsimConfigUpdater implements BeamConfigChangesObserver {
+    private final ControlerConfigGroup controlerConfigGroup;
+    private final LinkStatsConfigGroup linkStatsConfigGroup;
 
     @Inject
     MatsimConfigUpdater(BeamConfigChangesObservable beamConfigChangesObservable, LinkStatsConfigGroup linkStatsConfigGroup, ControlerConfigGroup controlerConfigGroup) {
@@ -25,15 +26,8 @@ public class MatsimConfigUpdater implements Observer {
     }
 
     @Override
-    public void update(Observable observable, Object o) {
-        if (o instanceof Tuple2) {
-            Tuple2 t = (Tuple2) o;
-            if (t._2 instanceof BeamConfig) {
-                BeamConfig beamConfig = (BeamConfig) t._2;
-
-                controlerConfigGroup.setWritePlansInterval(beamConfig.beam().physsim().writePlansInterval());
-                linkStatsConfigGroup.setWriteLinkStatsInterval(beamConfig.matsim().modules().linkStats().writeLinkStatsInterval());
-            }
-        }
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        controlerConfigGroup.setWritePlansInterval(updatedBeamConfig.beam().physsim().writePlansInterval());
+        linkStatsConfigGroup.setWriteLinkStatsInterval(updatedBeamConfig.matsim().modules().linkStats().writeLinkStatsInterval());
     }
 }
