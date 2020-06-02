@@ -88,6 +88,9 @@ class EventHolder(length: Int, countInterval: Int) {
 
 object EventHolder {
 
-  def apply(length: Int): EventHolder =
-    new EventHolder(length, Math.max(1, Math.min(60, length / 20)))
+  def apply(timeWindow: Int): EventHolder = {
+    val countInterval = Math.max(1, Math.min(60, timeWindow / 20))
+    val actualWindow = timeWindow / countInterval
+    new EventHolder(actualWindow, countInterval)
+  }
 }
