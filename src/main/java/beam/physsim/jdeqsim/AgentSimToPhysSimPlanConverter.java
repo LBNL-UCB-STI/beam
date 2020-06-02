@@ -15,6 +15,7 @@ import beam.physsim.cchRoutingAssignment.RoutingFrameworkWrapperImpl;
 import beam.router.BeamRouter;
 import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -65,7 +66,7 @@ import java.util.stream.Stream;
 /**
  * @author asif and rwaraich.
  */
-public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStatsProvider, Observer {
+public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStatsProvider, BeamConfigChangesObserver {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -94,7 +95,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
-    Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
+    final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
@@ -482,8 +483,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        this.beamConfig = (BeamConfig) t._2;
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.beamConfig = updatedBeamConfig;
     }
 }

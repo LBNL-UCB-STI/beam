@@ -13,7 +13,7 @@ import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector, VMInformationWriter}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -108,6 +108,8 @@ class BeamSim @Inject()(
       networkHelper,
       Some(beamServices.matsimServices.getControlerIO)
     )
+
+  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -213,6 +215,11 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
+      vmInformationWriter.writeVMInfo(event.getIteration, "start")
+    }
+
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()
@@ -256,6 +263,9 @@ class BeamSim @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
+      vmInformationWriter.writeVMInfo(event.getIteration, "end")
+    }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(

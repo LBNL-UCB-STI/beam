@@ -1736,7 +1736,8 @@ object BeamConfig {
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
-      triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer
+      triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
+      vmInformation: BeamConfig.Beam.Debug.VmInformation
     )
 
     object Debug {
@@ -1862,6 +1863,25 @@ object BeamConfig {
         }
       }
 
+      case class VmInformation(
+        gcClassHistogramAtIterationEnd: scala.Boolean,
+        gcClassHistogramAtIterationStart: scala.Boolean
+      )
+
+      object VmInformation {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
+          BeamConfig.Beam.Debug.VmInformation(
+            gcClassHistogramAtIterationEnd = c.hasPathOrNull("gcClassHistogramAtIterationEnd") && c.getBoolean(
+              "gcClassHistogramAtIterationEnd"
+            ),
+            gcClassHistogramAtIterationStart = c.hasPathOrNull("gcClassHistogramAtIterationStart") && c.getBoolean(
+              "gcClassHistogramAtIterationStart"
+            )
+          )
+        }
+      }
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug = {
         BeamConfig.Beam.Debug(
           actor = BeamConfig.Beam.Debug.Actor(
@@ -1891,6 +1911,10 @@ object BeamConfig {
           triggerMeasurer = BeamConfig.Beam.Debug.TriggerMeasurer(
             if (c.hasPathOrNull("triggerMeasurer")) c.getConfig("triggerMeasurer")
             else com.typesafe.config.ConfigFactory.parseString("triggerMeasurer{}")
+          ),
+          vmInformation = BeamConfig.Beam.Debug.VmInformation(
+            if (c.hasPathOrNull("vmInformation")) c.getConfig("vmInformation")
+            else com.typesafe.config.ConfigFactory.parseString("vmInformation{}")
           )
         )
       }
