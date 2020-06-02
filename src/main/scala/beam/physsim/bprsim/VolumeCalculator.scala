@@ -20,12 +20,12 @@ class VolumeCalculator(val timeWindow: Int) {
   }
 
   def getVolume(linkId: Id[Link], time: Double): Double = {
-    val eventHodler = linkToEvents(linkId)
-    eventHodler.numberOfEvents(time) * (3600 / timeWindow)
+    val eventHoldler = linkToEvents(linkId)
+    eventHoldler.numberOfEvents(time) * (3600 / timeWindow)
   }
 }
 
-class EventHolder(length: Int) {
+class EventHolder(length: Int, countInterval: Int) {
   private val backend = Array.fill(length)(0)
   private var pointer = 0
   private var zeroIndexInterval = 0
@@ -82,10 +82,12 @@ class EventHolder(length: Int) {
   }
 
   private def toInterval(time: Double): Int = {
-    time.toInt
+    (time / countInterval).toInt
   }
 }
 
 object EventHolder {
-  def apply(length: Int): EventHolder = new EventHolder(length)
+
+  def apply(length: Int): EventHolder =
+    new EventHolder(length, Math.max(1, Math.min(60, length / 20)))
 }
