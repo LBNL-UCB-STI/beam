@@ -113,7 +113,7 @@ public class StatsFactory {
             case PersonTravelTime:
                 return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
+                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
                 return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
             case VehicleHoursTraveled:
