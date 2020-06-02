@@ -1,11 +1,11 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.log4j.Logger;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
@@ -17,6 +17,8 @@ import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.supercsv.io.CsvMapWriter;
 import org.supercsv.io.ICsvMapWriter;
 import org.supercsv.prefs.CsvPreference;
@@ -35,22 +37,21 @@ in multi-lane freeway facilities." Transportation Research Part C: Emerging Tech
 
  */
 
-public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction, Observer {
+public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction, BeamConfigChangesObserver {
+    private final static Logger log = LoggerFactory.getLogger(Hao2018CaccRoadCapacityAdjustmentFunction.class);
 
-    private final static Logger log = Logger.getLogger(Hao2018CaccRoadCapacityAdjustmentFunction.class);
-
-    private double caccMinRoadCapacity;
-    private double caccMinSpeedMetersPerSec;
+    private final double caccMinRoadCapacity;
+    private final double caccMinSpeedMetersPerSec;
     private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads = 0;
     private int numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads = 0;
     private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads = 0;
 
     private double capacityIncreaseSum = 0;
     private double percentageCapacityIncreaseSum = 0;
-    private int currentIterationNumber;
+    private final int currentIterationNumber;
     private int writeInterval;
-    private boolean writeGraphs;
-    private OutputDirectoryHierarchy controllerIO;
+    private final boolean writeGraphs;
+    private final OutputDirectoryHierarchy controllerIO;
 
     private int nonCACCCategoryRoadsTravelled = 0;
     private int caccCategoryRoadsTravelled = 0;
@@ -172,13 +173,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         });
     }
 
-    @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        BeamConfig beamConfig = (BeamConfig) t._2;
-        this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
-    }
-
     private Optional<ICsvMapWriter> getCsvWriter(int iterationNumber) {
         try {
             String filePath = controllerIO.getIterationFilename(iterationNumber, "caccCapacityStats.csv.gz");
@@ -191,9 +185,15 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
             return Optional.empty();
         }
     }
+
+    @Override
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.writeInterval = updatedBeamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
+    }
 }
 
 class CaccRoadCapacityGraphs {
+    private static final Logger log = LoggerFactory.getLogger(CaccRoadCapacityGraphs.class);
     /**
      * A scattered plot that analyses the percentage of increase of road capacity observed for a given fraction of CACC enabled travelling on
      * CACC enabled roads
@@ -221,7 +221,7 @@ class CaccRoadCapacityGraphs {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -253,7 +253,7 @@ class CaccRoadCapacityGraphs {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

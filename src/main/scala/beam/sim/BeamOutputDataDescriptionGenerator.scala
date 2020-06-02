@@ -7,6 +7,7 @@ import beam.analysis.plots._
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
@@ -21,7 +22,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario
-) {
+) extends LazyLogging {
 
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"
@@ -68,8 +69,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
       if (fileFooter.isDefined)
         bw.append(fileFooter.get)
     } catch {
-      case e: IOException =>
-        e.printStackTrace()
+      case e: IOException => logger.error("exception occurred due to ", e)
     } finally {
       bw.close()
     }
