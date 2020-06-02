@@ -363,8 +363,8 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     static class ModeChosenAvailableAlternatives {
-        String mode;
-        String availableModes;
+        final String mode;
+        final String availableModes;
 
         public ModeChosenAvailableAlternatives(String mode, String availableModes) {
             this.mode = mode;
