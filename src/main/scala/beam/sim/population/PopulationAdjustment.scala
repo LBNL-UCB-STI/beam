@@ -78,7 +78,7 @@ trait PopulationAdjustment extends LazyLogging {
       personExcludedModes.isDefined
     }
 
-    if (allExcludedModes.nonEmpty){
+    if (allExcludedModes.nonEmpty) {
       logger.info("Modes excluded:")
     }
 
