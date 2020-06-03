@@ -46,7 +46,7 @@ public class StatsFactory {
 
     private final BeamConfig beamConfig;
     private final BeamServices beamServices;
-    private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
+    private final Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
 
     public StatsFactory(BeamServices services) {
         this.beamServices = services;
@@ -113,7 +113,7 @@ public class StatsFactory {
             case PersonTravelTime:
                 return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs, beamConfig);
+                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case DeadHeading:
                 return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
             case VehicleHoursTraveled:

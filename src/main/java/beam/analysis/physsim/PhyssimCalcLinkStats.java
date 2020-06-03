@@ -29,7 +29,7 @@ import java.util.List;
 
 public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
-    private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -52,7 +52,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
      * The outer map contains the relativeSpeed a double value as the key that defines a relativeSpeed category.
      * The inner map contains the bin id as the key and the frequency as the value for the particular relativeSpeed category.
      */
-    private Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
+    private final Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy controllerIO;

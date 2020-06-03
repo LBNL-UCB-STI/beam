@@ -23,9 +23,9 @@ import java.util.stream.DoubleStream;
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     private final Logger log = LoggerFactory.getLogger(RideHailWaitingTazAnalysis.class);
 
-    private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
-    private Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
-    private BeamServices beamServices;
+    private final Map<String, Event> rideHailWaitingQueue = new HashMap<>();
+    private final Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
+    private final BeamServices beamServices;
 
     public RideHailWaitingTazAnalysis(BeamServices beamServices) {
         this.beamServices = beamServices;

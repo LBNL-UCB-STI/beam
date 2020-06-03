@@ -17,7 +17,7 @@ import java.util.Random;
 
 public class NestedLogit implements AbstractLogit {
     private static final Logger log = LoggerFactory.getLogger(NestedLogit.class);
-    public NestedLogitData data;
+    public final NestedLogitData data;
     public NestedLogit parent;
     public LinkedList<NestedLogit> children;
     public LinkedList<NestedLogit> ancestorNests;
