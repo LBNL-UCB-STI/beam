@@ -3,7 +3,6 @@ package beam.physsim.bprsim
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 
-import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -20,66 +19,83 @@ class VolumeCalculator(val timeWindow: Int) {
   }
 
   def getVolume(linkId: Id[Link], time: Double): Double = {
-    val eventHoldler = linkToEvents(linkId)
-    eventHoldler.numberOfEvents(time) * (3600 / timeWindow)
+    val eventHolder = linkToEvents(linkId)
+    val (numEvents, tw) = eventHolder.numberOfEventsWithLength(time)
+    numEvents * (3600 / tw)
   }
 }
 
-class EventHolder(length: Int, countInterval: Int) {
-  private val backend = Array.fill(length)(0)
-  private var pointer = 0
+class EventHolder(length: Int, countInterval: Int, arrayOfZeros: Array[Int]) {
+  private val backend = new Array[Int](length)
+  private var index = 0
   private var zeroIndexInterval = 0
+  private def currentInterval = zeroIndexInterval + index
 
   def addEvent(time: Double): Unit = {
     val interval = toInterval(time)
-    val diff = interval - (zeroIndexInterval + pointer)
+    val diff = interval - currentInterval
     if (diff >= length) {
-      backend(pointer) = 1
-      for (i <- 1 until length) backend(i) = 0
-      pointer = 0
-      zeroIndexInterval = interval
+      //event to far from current point
+      initWith(interval)
+      backend(index) = 1
     } else if (diff >= 0) {
-      fill(diff, 0)
-      backend(pointer) = backend(pointer) + 1
+      if (diff > 0) {
+        circularCopyZeros(currentInterval + 1, interval)
+      }
+      index = getCircularIndex(interval)
+      backend(index) = backend(index) + 1
+      zeroIndexInterval = getZeroInterval(interval)
+    } else if (diff <= -length) {
+      //event to far in the past, do nothing about it
+    } else {
+      val ind = getCircularIndex(interval)
+      backend(ind) = backend(ind) + 1
     }
   }
 
-  def numberOfEvents(time: Double) = {
+  def numberOfEventsWithLength(time: Double) = {
     val interval = toInterval(time)
-    val end = Math.min(interval, zeroIndexInterval + pointer)
-    sum(interval - length + 1, end, 0)
-  }
-
-  @tailrec
-  private def fill(n: Int, value: Int): Unit = {
-    if (n > 0) {
-      pointer += 1
-      if (pointer >= length) {
-        pointer = 0
-        zeroIndexInterval = zeroIndexInterval + length
-      }
-      backend(pointer) = value
-      fill(n - 1, value)
-    }
-  }
-
-  @tailrec
-  private def sum(start: Int, end: Int, acc: Int): Int = {
-    if (start > end)
-      acc
-    else {
-      val diff = start - zeroIndexInterval
-      if (diff <= -length)
-        sum(start + 1, end, acc)
-      else if (diff < 0) {
-        sum(start + 1, end, acc + backend(diff + length))
-      } else if (diff >= length) {
-        acc
+    val diff = interval - currentInterval
+    if (diff > 0 || diff <= -length) {
+      //cannot handle future events or events in the far past
+      (0, 1)
+    } else if (diff == 0) {
+      (backend.sum, length * countInterval)
+    } else {
+      val start = getCircularIndex(currentInterval + 1)
+      val till = getCircularIndex(interval)
+      var sum = 0
+      if (start <= till) {
+        for (i <- start to till) sum += backend(i)
       } else {
-        sum(start + 1, end, acc + backend(diff))
+        for (i <- start until length) sum += backend(i)
+        for (i <- 0 to till) sum += backend(i)
       }
+      val len = interval - (currentInterval - length)
+      (sum, len * countInterval)
     }
   }
+
+  private def initWith(zeroInterval: Int): Unit = {
+    Array.copy(arrayOfZeros, 0, backend, 0, length)
+    index = 0
+    zeroIndexInterval = zeroInterval
+  }
+
+  private def circularCopyZeros(start: Int, end: Int): Unit = {
+    val st = getCircularIndex(start)
+    val til = getCircularIndex(end)
+    if (st <= til) {
+      Array.copy(arrayOfZeros, 0, backend, st, til - st + 1)
+    } else {
+      Array.copy(arrayOfZeros, 0, backend, st, length - st)
+      Array.copy(arrayOfZeros, 0, backend, 0, til + 1)
+    }
+  }
+
+  private def getCircularIndex(interval: Int): Int = ((interval - zeroIndexInterval) % length + length) % length
+
+  private def getZeroInterval(interval: Int): Int = zeroIndexInterval + (interval - zeroIndexInterval) / length * length
 
   private def toInterval(time: Double): Int = {
     (time / countInterval).toInt
@@ -87,10 +103,14 @@ class EventHolder(length: Int, countInterval: Int) {
 }
 
 object EventHolder {
+  var arrayOfZeros: Array[Int] = _
 
   def apply(timeWindow: Int): EventHolder = {
     val countInterval = Math.max(1, Math.min(60, timeWindow / 20))
     val actualWindow = timeWindow / countInterval
-    new EventHolder(actualWindow, countInterval)
+    if (arrayOfZeros == null || arrayOfZeros.length != actualWindow) {
+      arrayOfZeros = new Array[Int](actualWindow)
+    }
+    new EventHolder(actualWindow, countInterval, arrayOfZeros)
   }
 }
