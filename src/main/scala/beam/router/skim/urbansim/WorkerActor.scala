@@ -3,29 +3,43 @@ package beam.router.skim.urbansim
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContextExecutorService, Future}
+import scala.util.control.NonFatal
 
-class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(implicit val ec: ExecutionContext)
-    extends Actor
+class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(
+  implicit val ec: ExecutionContextExecutorService
+) extends Actor
     with ActorLogging {
+
+  var nTotalRequests: Int = 0
+  var nSuccess: Int = 0
+
   override def preStart(): Unit = {
     requestWork()
   }
   override def postStop(): Unit = {
-    log.info(s"$self is stopped")
+    log.info(s"$self is stopped. Total number of requests: $nTotalRequests, success: $nSuccess")
   }
 
   override def receive: Receive = {
     case resp: ODR5Requester.Response =>
+      if (resp.maybeRoutingResponse.isSuccess)
+        nSuccess += 1
       masterActor ! resp
       requestWork()
     case work: MasterActor.Response.Work =>
+      nTotalRequests += 1
       Future {
-        r5Requester.route(work.srcIndex, work.dstIndex)
+        try {
+          r5Requester.route(work.srcIndex, work.dstIndex)
+        } catch {
+          case NonFatal(ex) =>
+            log.error(ex, s"route failed: ${ex.getMessage}")
+        }
       }.pipeTo(self)
 
     case MasterActor.Response.NoWork =>
-      log.info(s"No more work from master $masterActor")
+      log.debug(s"No more work from master $masterActor")
   }
 
   private def requestWork(): Unit = {
@@ -36,7 +50,7 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(imp
 object WorkerActor {
   sealed trait Request
 
-  def props(masterActor: ActorRef, r5Requester: ODR5Requester, ec: ExecutionContext): Props = {
+  def props(masterActor: ActorRef, r5Requester: ODR5Requester, ec: ExecutionContextExecutorService): Props = {
     Props(new WorkerActor(masterActor, r5Requester)(ec))
   }
 }

@@ -1,6 +1,7 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
@@ -26,11 +27,14 @@ class ODR5Requester(
   val geoUtils: GeoUtils,
   val beamModes: Array[BeamMode],
   val beamConfig: BeamConfig,
-  val modeChoiceCalculator: ModeChoiceCalculator
+  val modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory,
+  val withTransit: Boolean
 ) {
-  val requestTime: Int = (beamConfig.beam.urbansim.allTAZSkimsPeakHour * 3600).toInt
+  val requestTime: Int = (beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour * 3600).toInt
 
   private val dummyPersonAttributes = createDummyPersonAttribute
+
+  private val modeChoiceCalculator: ModeChoiceCalculator = modeChoiceCalculatorFactory(dummyPersonAttributes)
 
   private val dummyCarVehicleType: BeamVehicleType = vehicleTypes.values
     .find(theType => theType.vehicleCategory == VehicleCategory.Car && theType.maxVelocity.isEmpty)
@@ -46,17 +50,19 @@ class ODR5Requester(
   def route(srcIndex: H3Index, dstIndex: H3Index): ODR5Requester.Response = {
     val (srcCoord, dstCoord) = H3Clustering.getGeoIndexCenters(geoUtils, srcIndex, dstIndex)
     val dist = distanceWithMargin(srcCoord, dstCoord)
-    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDinstanceWithinRange(mode, dist))
-    val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
-    val routingReq = RoutingRequest(
-      originUTM = srcCoord,
-      destinationUTM = dstCoord,
-      departureTime = requestTime,
-      withTransit = true,
-      streetVehicles = streetVehicles,
-      attributesOfIndividual = Some(dummyPersonAttributes)
-    )
-    val maybeResponse = Try(r5Wrapper.calcRoute(routingReq))
+    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist))
+    val maybeResponse = Try {
+      val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
+      val routingReq = RoutingRequest(
+        originUTM = srcCoord,
+        destinationUTM = dstCoord,
+        departureTime = requestTime,
+        withTransit = withTransit,
+        streetVehicles = streetVehicles,
+        attributesOfIndividual = Some(dummyPersonAttributes)
+      )
+      r5Wrapper.calcRoute(routingReq)
+    }
     ODR5Requester.Response(srcIndex, dstIndex, considerModes, maybeResponse)
   }
 
@@ -105,8 +111,8 @@ class ODR5Requester(
       generalizedTimeInHours = generalizedTime,
       generalizedCost = generalizedCost,
       energyConsumption = energyConsumption,
-      // TODO: FIXME
-      skimName = "OD"
+      // If you change this name, make sure it is properly reflected in `AbstractSkimmer.handleEvent`
+      skimName = "od-skimmer"
     )
   }
 
@@ -114,11 +120,12 @@ class ODR5Requester(
     GeoUtils.distFormula(srcCoord, dstCoord) * 1.4
   }
 
-  def isDinstanceWithinRange(mode: BeamMode, dist: Double): Boolean = {
+  def isDistanceWithinRange(mode: BeamMode, dist: Double): Boolean = {
     mode match {
       case BeamMode.CAR           => true
       case BeamMode.DRIVE_TRANSIT => true
       case BeamMode.WALK_TRANSIT  => true
+      case BeamMode.WALK          => true
       case BeamMode.BIKE =>
         dist < thresholdDistanceForBikeMeteres
       case x => throw new IllegalStateException(s"Don't know what to do with $x")
@@ -143,7 +150,7 @@ class ODR5Requester(
           BeamMode.BIKE,
           asDriver = true
         )
-      case BeamMode.WALK_TRANSIT =>
+      case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
         StreetVehicle(
           Id.createVehicleId("dummy-body-for-skim-observations"),
           dummyBodyVehicleType.id,
