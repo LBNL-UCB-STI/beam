@@ -41,7 +41,7 @@ object Skims extends LazyLogging {
     skims.get(skimType).map(_.readOnlySkim).getOrElse(throw new RuntimeException(s"Skims $skimType does not exist"))
   }
 
-  def get(skimType: SkimType.Value): AbstractSkimmer= {
+  def get(skimType: SkimType.Value): AbstractSkimmer = {
     skims.getOrElse(skimType, throw new RuntimeException(s"Skims $skimType does not exist"))
   }
 }
