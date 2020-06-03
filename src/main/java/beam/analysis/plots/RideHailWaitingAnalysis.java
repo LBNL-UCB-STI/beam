@@ -153,19 +153,19 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private double lastMaximumTime = 0;
     private double lastHourWrittenToStats = 0;
     private boolean writeGraph;
-    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
-    private Map<String, Event> rideHailWaiting = new HashMap<>();
-    private Map<String, Double> ptWaiting = new HashMap<>();
-    private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-    private Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
+    private final List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+    private final Map<String, Event> rideHailWaiting = new HashMap<>();
+    private final Map<String, Double> ptWaiting = new HashMap<>();
+    private final Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private final Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
-    private static Double categoryValueMax = Double.MAX_VALUE;
-    private static Double categoryValueBeforeMax = 60.0;
+    private static final Double categoryValueMax = Double.MAX_VALUE;
+    private static final Double categoryValueBeforeMax = 60.0;
     private final SimulationMetricCollector simMetricCollector;
 
     private static int numberOfTimeBins;
