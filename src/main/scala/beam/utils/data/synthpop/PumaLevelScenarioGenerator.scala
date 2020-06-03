@@ -218,7 +218,7 @@ class PumaLevelScenarioGenerator(
                       case Some(wgsWorkingLocation) =>
                         if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
                           val valueOfTime =
-                            PopulationAdjustment.IncomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
                             personId = PersonId(nextPersonId.toString),
                             householdId = createdHousehold.householdId,

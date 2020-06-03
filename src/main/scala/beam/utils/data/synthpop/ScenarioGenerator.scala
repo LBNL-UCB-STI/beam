@@ -14,12 +14,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService.CheckResult
-import beam.utils.data.synthpop.generators.{
-  RandomWorkDestinationGenerator,
-  TimeLeavingHomeGenerator,
-  TimeLeavingHomeGeneratorImpl,
-  WorkedDurationGeneratorImpl
-}
+import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
 import beam.utils.scenario._
@@ -245,7 +240,7 @@ class SimpleScenarioGenerator(
                         val workingLocationCheckResult = geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)
                         if (workingLocationCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
                           val valueOfTime =
-                            PopulationAdjustment.IncomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
                           val createdPerson = beam.utils.scenario.PersonInfo(
                             personId = PersonId(nextPersonId.toString),
                             householdId = createdHousehold.householdId,
