@@ -31,9 +31,11 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, Skims}
+import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -126,7 +128,7 @@ object PersonAgent {
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
-    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
+    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): LiterallyDrivingData =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
         legEndsAt,
@@ -206,7 +208,7 @@ object PersonAgent {
     endTime: Int,
     bodyVehicleId: Id[BeamVehicle],
     bodyVehicleTypeId: Id[BeamVehicleType]
-  ) = {
+  ): EmbodiedBeamTrip = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
@@ -250,14 +252,14 @@ class PersonAgent(
     with ChoosesParking
     with Stash
     with ExponentialLazyLogging {
-  val networkHelper = beamServices.networkHelper
-  val geo = beamServices.geo
+  val networkHelper: NetworkHelper = beamServices.networkHelper
+  val geo: GeoUtils = beamServices.geo
 
-  val bodyType = beamScenario.vehicleTypes(
+  val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
     Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
 
-  val body = new BeamVehicle(
+  val body: BeamVehicle = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType
@@ -272,8 +274,8 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  var totFuelConsumed = FuelConsumed(0.0, 0.0)
-  var curFuelConsumed = FuelConsumed(0.0, 0.0)
+  var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+  var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
   def updateFuelConsumed(fuelOption: Option[FuelConsumed]) = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
@@ -287,7 +289,7 @@ class PersonAgent(
     )
   }
 
-  def resetFuelConsumed() = curFuelConsumed = FuelConsumed(0.0, 0.0)
+  def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def logDepth: Int = 30
 
@@ -961,7 +963,7 @@ class PersonAgent(
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           eventsManager.processEvent(
-            ODSkimmerEvent(
+            ODSkimmerEvent.forTaz(
               tick,
               beamServices,
               correctedTrip,
@@ -1080,7 +1082,7 @@ class PersonAgent(
       } else if (stateName == PerformingActivity) {
         logger.warn(s"Performing Activity at end of simulation")
       } else {
-        logger.warn(s"Received Finish while in state: ${stateName}")
+        logger.warn(s"Received Finish while in state: $stateName")
       }
       stop
     case Event(

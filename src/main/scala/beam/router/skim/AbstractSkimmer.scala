@@ -28,9 +28,7 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime)
-    with ScalaEvent {
+abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
 
   def getKey: AbstractSkimmerKey
@@ -40,7 +38,7 @@ abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamService
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly(beamServices: BeamServices) extends LazyLogging {
+abstract class AbstractSkimmerReadOnly extends LazyLogging {
   protected[skim] val pastSkims: mutable.ListBuffer[immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
@@ -58,7 +56,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
   protected val skimName: String
-  protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)

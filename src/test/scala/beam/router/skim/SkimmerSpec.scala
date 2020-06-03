@@ -2,7 +2,6 @@ package beam.router.skim
 
 import java.io.File
 
-import akka.actor.ActorRef
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
@@ -260,8 +259,8 @@ object SkimmerSpec extends LazyLogging {
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
-        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+        origin = row("origTaz"),
+        destination = row("destTaz")
       ),
       ODSkimmerInternal(
         travelTimeInS = row("travelTimeInS").toDouble,

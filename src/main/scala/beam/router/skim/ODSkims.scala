@@ -5,16 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
@@ -23,7 +14,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(beamServices) {
+case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly() {
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -149,7 +140,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
   ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -204,9 +195,9 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly(b
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     pastSkims
-      .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+      .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .headOption
-      .getOrElse(aggregatedSkim.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+      .getOrElse(aggregatedSkim.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .map(_.asInstanceOf[ODSkimmerInternal])
   }
 
