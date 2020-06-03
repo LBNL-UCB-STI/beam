@@ -103,7 +103,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static Map<String, R5NetworkLink> r5NetworkLinks;
     private static int numberOfLinkIdsMissingInR5NetworkFile = 0;
     private static Map<Id<BeamVehicleType>, BeamVehicleType> vehicles;
-    private List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
+    private final List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
     private final List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
     private final List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
     private final List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
