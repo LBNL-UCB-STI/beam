@@ -9,9 +9,7 @@ class HouseholdMerger(blocks: Map[String, Block]) extends Merger[InputHousehold,
 
   private def inputToOutput(inputHousehold: InputHousehold): HouseholdInfo = {
     val block = blocks(inputHousehold.blockId)
-    val income = PopulationAdjustment.incomeToValueOfTime(inputHousehold.income).getOrElse {
-      throw new IllegalStateException(s"Can't compute income with input value income ${inputHousehold.income}")
-    }
+    val income = PopulationAdjustment.incomeToValueOfTime(inputHousehold.income).getOrElse(0d)
 
     HouseholdInfo(
       HouseholdId(inputHousehold.householdId),
