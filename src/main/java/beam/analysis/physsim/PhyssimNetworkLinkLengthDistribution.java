@@ -25,10 +25,10 @@ import java.util.stream.Stream;
 public class PhyssimNetworkLinkLengthDistribution {
     private final Logger log = LoggerFactory.getLogger(PhyssimNetworkLinkLengthDistribution.class);
 
-    private BeamConfig beamConfig;
-    private Network network;
-    private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    static String outputFileBaseName = "physsimNetworkLinkLengthHistogram";
+    private final BeamConfig beamConfig;
+    private final Network network;
+    private final OutputDirectoryHierarchy outputDirectoryHierarchy;
+    static final String outputFileBaseName = "physsimNetworkLinkLengthHistogram";
 
     public PhyssimNetworkLinkLengthDistribution(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;
