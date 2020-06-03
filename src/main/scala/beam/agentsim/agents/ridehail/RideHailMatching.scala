@@ -131,7 +131,7 @@ object RideHailMatching {
         beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       ),
-      beamServices.beamScenario
+      beamServices
     )
   }
 
@@ -253,7 +253,7 @@ object RideHailMatching {
           beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
         ),
-        beamServices.beamScenario
+        beamServices
       )
     CustomerRequest(
       vehiclePersonId,

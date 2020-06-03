@@ -162,7 +162,7 @@ class FastHouseholdCAVScheduling(
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           cav.beamVehicleType.id,
-          beamServices.beamScenario
+          beamServices
         )
         var serviceTime = prevReq.serviceTime + metric.time
         val ubTime = curReq.upperBoundTime
@@ -471,7 +471,7 @@ object HouseholdTripsHelper {
       0,
       defaultMode,
       beamVehicleType.id,
-      beamServices.beamScenario
+      beamServices
     )
 
     val startTime = prevTrip.activity.getEndTime.toInt
