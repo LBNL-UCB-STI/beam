@@ -32,7 +32,7 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, r
 import beam.utils.csv.readers
 import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
-import beam.utils.scenario.urbansim.censusblock.UrbansimReaderV2
+import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
@@ -598,16 +598,6 @@ trait BeamHelper extends LazyLogging {
         val scenario = {
           val source = src match {
             case "urbansim" => buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-            case "generic" => {
-              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-              new GenericScenarioSource(
-                pathToHouseholds = pathToHouseholds,
-                pathToPersonFile = pathToPersonFile,
-                pathToPlans = pathToPlans
-              )
-            }
             case "urbansim_v2" => {
               val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
               val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
@@ -623,8 +613,16 @@ trait BeamHelper extends LazyLogging {
               )
             }
           }
-
-          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          val scenario =
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          if (src == "urbansim_v2") {
+            new ScenarioAdjuster(
+              beamConfig.beam.urbansim,
+              scenario.getPopulation,
+              beamConfig.matsim.modules.global.randomSeed
+            ).adjust()
+          }
+          scenario
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
       } else if (src == "beam") {
