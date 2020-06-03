@@ -274,17 +274,21 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
-        if (modesFrequencyDataset != null && writeGraph)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
+            if (modesFrequencyDataset != null) {
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            }
+        }
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
 
-        double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
-        CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
-        if (writeGraph)
+        if (writeGraph) {
+            double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
+            CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
             createSingleStatsGraph(singleStatsDataset, event.getIteration());
+        }
         writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
 
         writeWaitingTimeToStats(hoursTimesMap, listOfBounds);
