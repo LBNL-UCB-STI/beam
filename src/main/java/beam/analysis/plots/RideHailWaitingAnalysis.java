@@ -421,10 +421,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
-        CategoryDataset categoryDataset = null;
-        if (dataset != null)
-            categoryDataset = GraphUtils.createCategoryDataset("Time ", "", dataset);
-        return categoryDataset;
+        return dataset == null
+                ? null
+                : GraphUtils.createCategoryDataset("Time ", "", dataset);
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
