@@ -652,7 +652,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-                    double vktInKm = vkt/1000;
+                    double vktInKm = vkt / 1000;
                     out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
