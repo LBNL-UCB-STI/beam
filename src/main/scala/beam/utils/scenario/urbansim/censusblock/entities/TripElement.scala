@@ -11,7 +11,8 @@ object TripElement extends EntityTransformer[TripElement] {
     val personId = getIfNotNull(rec, "person_id")
     val householdId = getIfNotNull(rec, "household_id")
     val depart = getIfNotNull(rec, "depart").toDouble
-    val tripMode = getIfNotNull(rec, "trip_mode")
+    // FIXME: Uncomment me once experiment for Austin with cleared modes is over OR ready to merge
+    val tripMode = "" // getIfNotNull(rec, "trip_mode")
 
     TripElement(tripId, personId, householdId, depart, tripMode)
   }
