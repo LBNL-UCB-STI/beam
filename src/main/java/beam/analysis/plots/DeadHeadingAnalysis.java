@@ -294,9 +294,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
-        double[][] dataSet = buildDeadHeadingDataSetTnc0();
-        CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
         if (writeGraph) {
+            double[][] dataSet = buildDeadHeadingDataSetTnc0();
+            CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
