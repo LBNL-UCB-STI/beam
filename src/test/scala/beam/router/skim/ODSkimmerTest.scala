@@ -18,7 +18,8 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
       testConfig("test/input/beamville/beam.conf")
         .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
         .withValue("beam.warmStart.skimsFilePath", ConfigValueFactory.fromAnyRef(inputFilePath))
-        .resolve())
+        .resolve()
+    )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
 
@@ -38,7 +39,8 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
       testConfig("test/input/beamville/beam.conf")
         .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
         .withValue("beam.warmStart.skimsFilePath", ConfigValueFactory.fromAnyRef(skimsFilePath))
-        .resolve())
+        .resolve()
+    )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
 
@@ -48,7 +50,11 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
     val skimmer = new ODSkimmer(services, beamConfig.beam.router.skim)
     skimmer.notifyIterationStarts(event)
 
-    val origData = new CsvSkimReader(getClass.getResource("/files/od_for_test.csv.gz").getFile, ODSkimmer.fromCsv, logger).readAggregatedSkims
+    val origData = new CsvSkimReader(
+      getClass.getResource("/files/od_for_test.csv.gz").getFile,
+      ODSkimmer.fromCsv,
+      logger
+    ).readAggregatedSkims
     assert(skimmer.readOnlySkim.aggregatedSkim == origData)
   }
 }

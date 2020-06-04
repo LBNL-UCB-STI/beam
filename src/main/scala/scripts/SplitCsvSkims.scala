@@ -22,10 +22,8 @@ object SplitCsvSkims extends App with LazyLogging {
       .map(
         i =>
           i.toLong -> IOUtils.getBufferedWriter(
-            Paths.get(
-              outputDirectory,
-              File(csvFilePath).name.replace(".csv.gz", s"$filePartSuffix$i.csv.gz")).toString
-          )
+            Paths.get(outputDirectory, File(csvFilePath).name.replace(".csv.gz", s"$filePartSuffix$i.csv.gz")).toString
+        )
       )
       .toMap
 
