@@ -18,8 +18,7 @@ class SplitCsvSkimsTest extends FunSuite with StrictLogging {
 
     SplitCsvSkims.process(inputFilePath, outputDirectory, numberOfParts)
 
-    val paths = File(outputDirectory).toDirectory
-      .files
+    val paths = File(outputDirectory).toDirectory.files
       .filter(_.isFile)
       .filter(_.name.contains(BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode))
       .map(_.path)
@@ -29,9 +28,11 @@ class SplitCsvSkimsTest extends FunSuite with StrictLogging {
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
 
-    val splitData = paths.flatMap(path => {
-      new CsvSkimReader(path, ODSkimmer.fromCsv, logger).readAggregatedSkims
-    }).toMap
+    val splitData = paths
+      .flatMap(path => {
+        new CsvSkimReader(path, ODSkimmer.fromCsv, logger).readAggregatedSkims
+      })
+      .toMap
 
     assert(origData == splitData)
   }
