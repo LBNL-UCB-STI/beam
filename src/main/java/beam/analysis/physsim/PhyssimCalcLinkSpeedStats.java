@@ -11,6 +11,8 @@ import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.BufferedWriter;
@@ -28,6 +30,7 @@ import java.util.stream.IntStream;
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
 public class PhyssimCalcLinkSpeedStats {
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkSpeedStats.class);
 
     static final String OUTPUT_FILE_NAME = "physsimLinkAverageSpeedPercentage";
     private static final int BIN_SIZE = 3600;
@@ -82,7 +85,7 @@ public class PhyssimCalcLinkSpeedStats {
             }
             bw.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -116,7 +119,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private CategoryDataset generateGraphCategoryDataSet(Map<Integer, Double> processedData) {
         double[] dataSet = buildDataSetFromProcessedData(processedData);
-        return GraphUtils.createCategoryDataset("", "", dataSet);
+        return GraphUtils.createCategoryDataset("Relative Speed", "", dataSet);
     }
 
     private double[] buildDataSetFromProcessedData(Map<Integer, Double> processedData) {
@@ -148,7 +151,7 @@ public class PhyssimCalcLinkSpeedStats {
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -176,7 +179,7 @@ public class PhyssimCalcLinkSpeedStats {
             double[] dataSet = buildDataSetFromProcessedData(processedData);
             return dataSet[bin];
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
             return 0;
         }
     }

@@ -257,7 +257,7 @@ object SkimsUtils extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 until seriesPerCount.size).map { counter =>
+    (0 until seriesPerCount.size).foreach { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 

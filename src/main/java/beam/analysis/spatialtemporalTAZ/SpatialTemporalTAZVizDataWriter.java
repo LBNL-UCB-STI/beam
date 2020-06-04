@@ -15,8 +15,8 @@ import java.util.Map;
 public class SpatialTemporalTAZVizDataWriter {
 
     private List<TazOutput.TazStructure> jsonStructure;
-    private Map<TazKey, TazValue> dataMap = new HashMap<>();
-    private String mainCat;
+    private final Map<TazKey, TazValue> dataMap = new HashMap<>();
+    private final String mainCat;
     public SpatialTemporalTAZVizDataWriter(String filePath, String mainCat) throws Exception {
         this.mainCat = mainCat;
         String jsonContent = readTextContentFile(filePath);
@@ -118,8 +118,8 @@ public class SpatialTemporalTAZVizDataWriter {
     }
 
     static class TazKey {
-        Long tazId;
-        Integer hourOfDay;
+        final Long tazId;
+        final Integer hourOfDay;
 
         public TazKey(Long tazId, Integer hourOfDay) {
             this.tazId = tazId;
@@ -148,7 +148,7 @@ public class SpatialTemporalTAZVizDataWriter {
     static class TazValue {
         Double mainValue;
         Double secValue;
-        Integer dayOfWeek;
+        final Integer dayOfWeek;
 
         public TazValue(Double mainValue, Double secValue, Integer dayOfWeek) {
             this.mainValue = mainValue;

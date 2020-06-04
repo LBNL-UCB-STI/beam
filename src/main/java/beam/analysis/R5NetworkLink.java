@@ -6,10 +6,10 @@ import org.matsim.api.core.v01.Coord;
  * @author rwaraich
  */
 public class R5NetworkLink {
-    String linkId;
-    Coord coord;
-    double lengthInMeters;
-    String countyName;
+    final String linkId;
+    final Coord coord;
+    final double lengthInMeters;
+    final String countyName;
 
     public R5NetworkLink(String linkId, Coord coord, double lengthInMeters, String countyName) {
         this.linkId = linkId;

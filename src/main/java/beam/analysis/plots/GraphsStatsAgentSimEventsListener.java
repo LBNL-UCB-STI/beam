@@ -56,7 +56,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
         try{
             statsFactory.createStats();
         }catch (Exception e){
-            log.error("exception: {}", e);
+            log.error("Error trying to create stats", e);
         }
 
         eventsManager.addHandler(this);
@@ -113,7 +113,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                     }
                 }
             } catch (Exception e) {
-                log.error("exception: {}", e);
+                log.error("Error trying to create a graph", e);
             }
 
     }
