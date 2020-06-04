@@ -14,8 +14,8 @@ import scala.collection.mutable
 
 class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     extends AbstractSkimmer(beamServices, config) {
-  import SkimsUtils._
   import DriveTimeSkimmer._
+  import SkimsUtils._
   import beamServices._
 
   val maxDistanceFromBeamTaz: Double = 500.0 // 500 meters
@@ -70,7 +70,9 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
     super.notifyIterationEnds(event)
   }
 
-  override protected def fromCsv(line: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+  override protected def fromCsv(
+    line: scala.collection.Map[String, String]
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       DriveTimeSkimmerKey(
         fromTAZId = Id.create(line("fromTAZId"), classOf[TAZ]),

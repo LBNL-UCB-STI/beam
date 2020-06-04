@@ -1,4 +1,4 @@
-package beam.utils.hereapi;
+package beam.utils.mapsapi.hereapi;
 
 /*
  * Copyright (C) 2019 HERE Europe B.V.
@@ -79,10 +79,10 @@ class PolylineEncoderDecoder {
      * @param encoded URL-safe encoded {@link String}
      * @return {@link List} of coordinate triples that are decoded from input
      *
-     * @see PolylineDecoder#getThirdDimension(String) getThirdDimension
+     * @see PolylineEncoderDecoder#getThirdDimension(String) getThirdDimension
      * @see LatLngZ
      */
-    public static final List<LatLngZ> decode(String encoded) {
+    public static List<LatLngZ> decode(String encoded) {
 
         if (encoded == null || encoded.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid argument!");
@@ -284,7 +284,7 @@ class PolylineEncoderDecoder {
         }
 
         private void setPrecision(int precision) {
-            multiplier = (long) Math.pow(10, Double.valueOf(precision));
+            multiplier = (long) Math.pow(10, precision);
         }
 
         private static void encodeUnsignedVarint(long value, StringBuilder result) {
@@ -303,7 +303,7 @@ class PolylineEncoderDecoder {
              * round(-1.5) --> -2
              * round(-2.5) --> -3
              */
-            long scaledValue = (long) Math.round(Math.abs(value * multiplier)) * Math.round(Math.signum(value));
+            long scaledValue = Math.round(Math.abs(value * multiplier)) * Math.round(Math.signum(value));
             long delta = scaledValue - lastValue;
             boolean negative = delta < 0;
 
@@ -341,10 +341,7 @@ class PolylineEncoderDecoder {
                 }
             }
 
-            if (shift > 0) {
-                return false;
-            }
-            return true;
+            return shift <= 0;
         }
 
         //Decode single coordinate (say lat|lng|z) starting at index
@@ -370,7 +367,7 @@ class PolylineEncoderDecoder {
      *  Example a level, altitude, elevation or some other custom value.
      *  ABSENT is default when there is no third dimension en/decoding required.
      */
-    public static enum ThirdDimension {
+    public enum ThirdDimension {
         ABSENT(0),
         LEVEL(1),
         ALTITUDE(2),
@@ -380,7 +377,7 @@ class PolylineEncoderDecoder {
         CUSTOM1(6),
         CUSTOM2(7);
 
-        private int num;
+        private final int num;
 
         ThirdDimension(int num) {
             this.num = num;
@@ -430,7 +427,7 @@ class PolylineEncoderDecoder {
             }
             if (anObject instanceof LatLngZ) {
                 LatLngZ passed = (LatLngZ)anObject;
-                if(passed.lat == this.lat && passed.lng == this.lng && passed.z == this.z) {
+                if (passed.lat == this.lat && passed.lng == this.lng && passed.z == this.z) {
                     return true;
                 }
             }

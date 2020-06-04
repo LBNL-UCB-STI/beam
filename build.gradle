@@ -224,7 +224,7 @@ dependencies {
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
 
-    compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
+    compile(group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
     compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
@@ -289,6 +289,11 @@ dependencies {
     }
 
     compile(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
+
+    compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
+
+    compile group: 'com.google.maps', name: 'google-maps-services', version: '0.14.0'
+
 }
 
 // Autoformatting using scalafmt
