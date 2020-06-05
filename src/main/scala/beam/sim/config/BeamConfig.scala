@@ -2841,11 +2841,7 @@ object BeamConfig {
         numberOfSamples: scala.Int,
         osmFile: java.lang.String,
         osmMapdbFile: java.lang.String,
-<<<<<<< HEAD
-        travelTimeError: scala.Double
-=======
         travelTimeNoiseFraction: scala.Double
->>>>>>> origin/production-sfbay-develop
       )
 
       object R5 {
