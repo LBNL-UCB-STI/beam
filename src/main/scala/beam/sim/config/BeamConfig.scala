@@ -2891,12 +2891,8 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
-<<<<<<< HEAD
-            travelTimeError = if (c.hasPathOrNull("travelTimeError")) c.getDouble("travelTimeError") else 0.0
-=======
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
->>>>>>> origin/production-sfbay-develop
           )
         }
       }
