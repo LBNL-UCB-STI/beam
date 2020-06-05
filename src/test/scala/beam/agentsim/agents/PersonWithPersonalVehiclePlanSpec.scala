@@ -14,8 +14,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -31,8 +32,8 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.Matchers._
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -74,7 +75,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -123,8 +127,6 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -160,7 +162,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -191,7 +195,7 @@ class PersonWithPersonalVehiclePlanSpec
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -221,7 +225,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        parkingRoutingRequest.requestId
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
@@ -230,7 +236,7 @@ class PersonWithPersonalVehiclePlanSpec
       assert(walkFromParkingRoutingRequest.destinationUTM.getX === workLocation.getX +- 1)
       assert(walkFromParkingRoutingRequest.destinationUTM.getY === workLocation.getY +- 1)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -260,7 +266,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        parkingRoutingRequest.requestId
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -274,7 +282,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      val parkEvent = expectMsgType[ParkEvent]
+      val parkEvent = expectMsgType[ParkingEvent]
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -296,7 +304,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -344,8 +355,6 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -359,7 +368,7 @@ class PersonWithPersonalVehiclePlanSpec
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.endPoint.loc).getY === workLocation.getY +- 1)
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -381,7 +390,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -431,11 +442,11 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            if (event.isInstanceOf[ModeChoiceEvent]) {
-              modeChoiceEvents.ref ! event
-            }
-            if (event.isInstanceOf[PersonEntersVehicleEvent]) {
-              personEntersVehicleEvents.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent     => // ignore
+              case _: ModeChoiceEvent          => modeChoiceEvents.ref ! event
+              case _: PersonEntersVehicleEvent => personEntersVehicleEvents.ref ! event
+              case _                           => // ignore
             }
           }
         }
@@ -489,8 +500,6 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -516,8 +525,10 @@ class PersonWithPersonalVehiclePlanSpec
               unbecomeDriverOnCompletion = true
             )
             lastSender ! RoutingResponse(
-              Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = 1
+              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+              requestId = 1,
+              request = None,
+              isEmbodyWithCurrentTravelTime = false
             )
         }
       }
@@ -538,7 +549,10 @@ class PersonWithPersonalVehiclePlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
           }
         }
       )
@@ -584,8 +598,6 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -594,7 +606,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -640,7 +652,9 @@ class PersonWithPersonalVehiclePlanSpec
             )
           )
         ),
-        routingRequest.requestId
+        requestId = routingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -662,7 +676,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkEvent]
+      expectMsgType[ParkingEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]

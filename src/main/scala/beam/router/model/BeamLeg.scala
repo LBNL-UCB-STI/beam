@@ -92,11 +92,11 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
 object BeamLeg {
 
-  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK): BeamLeg =
+  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK, duration: Int = 0): BeamLeg =
     new BeamLeg(
       0,
       mode,
-      0,
+      duration,
       BeamPath(Vector(), Vector(), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0)
     ).updateStartTime(startTime)
 

@@ -1,7 +1,10 @@
 package beam.utils
 
-import java.io.{Closeable, File}
+import java.io._
+import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util
+import java.util.zip.GZIPInputStream
 
 import beam.agentsim.events._
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
@@ -9,6 +12,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.utils.io.UnicodeInputStream
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -24,15 +28,31 @@ class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.g
 object EventReader {
 
   def fromCsvFile(filePath: String, filterPredicate: Event => Boolean): (Iterator[Event], Closeable) = {
-    readAs[Event](filePath, x => new DummyEvent(x), filterPredicate)
+    val rdr = if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+      val stream = {
+        val s = new URL(filePath).openStream()
+        if (filePath.endsWith(".gz")) {
+          new GZIPInputStream(s)
+        } else {
+          s
+        }
+      }
+      new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
+    } else {
+      FileUtils.readerFromFile(filePath)
+    }
+    fromCsvReader(rdr, filterPredicate)
   }
 
-  private def readAs[T](path: String, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
+  def fromCsvReader(rdr: Reader, filterPredicate: Event => Boolean): (Iterator[Event], Closeable) = {
+    readAs[Event](rdr, x => new DummyEvent(x), filterPredicate)
+  }
+
+  private def readAs[T](rdr: Reader, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
     implicit ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
-    val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
+    val csvRdr = new CsvMapReader(rdr, CsvPreference.STANDARD_PREFERENCE)
     val header = csvRdr.getHeader(true)
-    var line = csvRdr.read(header: _*)
     (Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(mapper).filter(filterPredicate), csvRdr)
   }
 
@@ -63,9 +83,9 @@ object EventReader {
     new MatsimEventsReader(tempEventManager).readFile(filePath)
   }
 
-  def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
+  def getEventsFilePath(matsimConfig: Config, name: String, extension: String, iteration: Int = 0): File = {
     new File(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
+      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.$name.$extension"
     )
   }
 
@@ -75,8 +95,8 @@ object EventReader {
         PathTraversalEvent(event)
       case LeavingParkingEvent.EVENT_TYPE =>
         LeavingParkingEvent(event)
-      case ParkEvent.EVENT_TYPE =>
-        ParkEvent(event)
+      case ParkingEvent.EVENT_TYPE =>
+        ParkingEvent(event)
       case ModeChoiceEvent.EVENT_TYPE =>
         ModeChoiceEvent.apply(event)
       case PersonCostEvent.EVENT_TYPE =>

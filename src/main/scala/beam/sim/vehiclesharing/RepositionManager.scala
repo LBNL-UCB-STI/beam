@@ -7,22 +7,43 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
+import beam.router.skim.TAZSkimmerEvent
+import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
 trait RepositionManager extends Actor with ActorLogging {
 
-  override def receive: Receive = {
-    case TriggerWithId(REPDataCollectionTrigger(tick), triggerId) =>
-      currentTick = tick
-      val nextTick = tick + statTime
-      if (nextTick < eos) {
-        collectData(tick)
-        sender ! CompletionNotice(triggerId, Vector(ScheduleTrigger(REPDataCollectionTrigger(nextTick), self)))
-      } else {
-        sender ! CompletionNotice(triggerId)
+  var currentTick = 0
+  val eos = 108000
+
+  val (algorithm, repTime, statTime) = getRepositionAlgorithmType match {
+    case Some(algorithmType) =>
+      var alg: RepositionAlgorithm = null
+      if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
+        alg = algorithmType.getInstance(getId, getServices)
+        getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }
+      (alg, algorithmType.getRepositionTimeBin, algorithmType.getStatTimeBin)
+    case _ =>
+      (null, 0, 1)
+  }
+
+  // ****
+  def getId: Id[VehicleManager]
+  def queryAvailableVehicles: List[BeamVehicle]
+  def getAvailableVehicles: Iterable[BeamVehicle]
+  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
+  def makeAvailable(vehId: Id[BeamVehicle]): Boolean
+  def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
+  def getScheduler: ActorRef
+  def getServices: BeamServices
+  def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
+
+  // ***
+  override def receive: Receive = {
+    case TAZSkimsCollectionTrigger(tick) =>
+      queryAvailableVehicles.foreach(v => collectData(tick, v.spaceTime.loc, RepositionManager.availability))
 
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + repTime
@@ -49,51 +70,14 @@ trait RepositionManager extends Actor with ActorLogging {
       sender ! CompletionNotice(triggerId)
   }
 
-  var currentTick = 0
-  val eos = 108000
-
-  val (algorithm, repTime, statTime) = getRepositionAlgorithmType match {
-    case Some(algorithmType) =>
-      getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(algorithmType.getStatTimeBin), self)
-      var alg: RepositionAlgorithm = null
-      if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
-        alg = algorithmType.getInstance(getId, getServices, getSkimmer)
-        getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
-      }
-      (alg, algorithmType.getRepositionTimeBin, algorithmType.getStatTimeBin)
-    case _ =>
-      (null, 0, 0)
-  }
-
-  // ****
-  def getId: Id[VehicleManager]
-  def queryAvailableVehicles: List[BeamVehicle]
-  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
-  def makeAvailable(vehId: Id[BeamVehicle]): Boolean
-  def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
-  def getScheduler: ActorRef
-  def getServices: BeamServices
-  def getSkimmer: BeamSkimmer
-  def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
-
-  def collectData(time: Int, coord: Coord, label: String) = {
-    if (statTime != 0)
-      getSkimmer.countEventsByTAZ(time / statTime, coord, getId, label)
-  }
-
-  def collectData(time: Int) = {
-    if (statTime != 0)
-      getSkimmer.observeVehicleAvailabilityByTAZ(
-        time / statTime,
-        getId,
-        RepositionManager.availability,
-        queryAvailableVehicles
-      )
+  protected def collectData(time: Int, loc: Coord, varLabel: String) = {
+    getServices.matsimServices.getEvents.processEvent(
+      TAZSkimmerEvent(time, loc, varLabel, 1.0, getServices, "RepositionManager")
+    )
   }
 }
 
 case class REPVehicleRepositionTrigger(tick: Int) extends Trigger
-case class REPDataCollectionTrigger(tick: Int) extends Trigger
 case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ])
     extends Trigger
 
@@ -108,10 +92,10 @@ trait RepositionAlgorithm {
 case class RepositionModule(algorithm: RepositionAlgorithm, timeBin: Int, statTimeBin: Int)
 
 object RepositionManager {
-  val pickup = "REPPickup"
-  val dropoff = "REPDropoff"
-  val inquiry = "VEHInquiry"
-  val boarded = "VEHBoarded"
-  val release = "VEHRelease"
-  val availability = "VEHAvailability"
+  val pickup = "pickup"
+  val dropoff = "dropoff"
+  val inquiry = "inquiry"
+  val boarded = "boarded"
+  val release = "released"
+  val availability = "idleVehicles"
 }

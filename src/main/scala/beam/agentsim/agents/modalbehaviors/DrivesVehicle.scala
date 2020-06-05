@@ -141,11 +141,11 @@ object DrivesVehicle {
 
   case class AlightVehicleTrigger(
     tick: Int,
-    vehicleId: Id[Vehicle],
+    vehicleId: Id[BeamVehicle],
     fuelConsumed: Option[FuelConsumed] = None
   ) extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -158,9 +158,9 @@ object DrivesVehicle {
     vehicle: BeamVehicle
   ) extends Trigger
 
-  case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
+  case class BeamVehicleStateUpdate(id: Id[BeamVehicle], vehicleState: BeamVehicleState)
 
-  def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+  def processLinkEvents(eventsManager: EventsManager, beamVehicleId: Id[BeamVehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       val links = path.linkIds
@@ -173,6 +173,7 @@ object DrivesVehicle {
         val to = links(i + 1)
         val timeAtNode = math.round(linkTravelTime(i).toFloat)
         curTime = curTime + timeAtNode
+        val vehicleId = Id.create(beamVehicleId.toString, classOf[Vehicle])
         eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
         eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
         i += 1
@@ -191,7 +192,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
@@ -345,7 +345,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
             currentBeamVehicle.useParkingStall(stall)
-            val parkEvent = ParkEvent(
+            val parkEvent = ParkingEvent(
               time = tick,
               stall = stall,
               locationWGS = geo.utm2Wgs(stall.locationUTM),
@@ -853,16 +853,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
-    eventsManager.processEvent(
-      new ChargingPlugInEvent(
-        tick = currentTick,
-        stall = vehicle.stall.get,
-        locationWGS = geo.utm2Wgs(vehicle.stall.get.locationUTM),
-        vehId = vehicle.id,
-        primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
-        secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
-      )
+    val chargingPlugInEvent = new ChargingPlugInEvent(
+      tick = currentTick,
+      stall = vehicle.stall.get,
+      locationWGS = geo.utm2Wgs(vehicle.stall.get.locationUTM),
+      vehId = vehicle.id,
+      primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
+      secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
     )
+    eventsManager.processEvent(chargingPlugInEvent)
   }
 
   /**
@@ -878,34 +877,32 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
     log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
     vehicle.addFuel(energyInJoules)
-    eventsManager.processEvent(
-      new RefuelSessionEvent(
-        currentTick,
-        vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        energyInJoules,
-        vehicle.primaryFuelLevelInJoules - energyInJoules,
-        chargingDuration,
-        vehicle.id,
-        vehicle.beamVehicleType
-      )
-    )
 
+    val refuelSessionEvent: RefuelSessionEvent = new RefuelSessionEvent(
+      currentTick,
+      vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      energyInJoules,
+      vehicle.primaryFuelLevelInJoules - energyInJoules,
+      chargingDuration,
+      vehicle.id,
+      vehicle.beamVehicleType
+    )
+    eventsManager.processEvent(refuelSessionEvent)
     vehicle.disconnectFromChargingPoint()
     log.debug(
       "Vehicle {} disconnected from charger @ stall {}",
       vehicle.id,
       vehicle.stall.get
     )
-    eventsManager.processEvent(
-      new ChargingPlugOutEvent(
-        currentTick,
-        vehicle.stall.get
-          .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id,
-        vehicle.primaryFuelLevelInJoules,
-        Some(vehicle.secondaryFuelLevelInJoules)
-      )
+    val chargingPlugOutEvent: ChargingPlugOutEvent = new ChargingPlugOutEvent(
+      currentTick,
+      vehicle.stall.get
+        .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+      vehicle.id,
+      vehicle.primaryFuelLevelInJoules,
+      Some(vehicle.secondaryFuelLevelInJoules)
     )
+    eventsManager.processEvent(chargingPlugOutEvent)
     vehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall.parkingZoneId)

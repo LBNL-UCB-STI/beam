@@ -25,8 +25,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.skim.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -89,7 +90,10 @@ class PersonWithVehicleSharingSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -134,8 +138,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -154,7 +156,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -165,7 +167,7 @@ class PersonWithVehicleSharingSpec
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -185,7 +187,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -209,7 +213,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
@@ -232,7 +236,10 @@ class PersonWithVehicleSharingSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => events.ref ! event
+            }
           }
         }
       )
@@ -278,8 +285,6 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamScenario, services.geo),
-            new TravelTimeObserved(beamScenario, services.geo),
             boundingBox
           )
         )
@@ -298,7 +303,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -355,7 +360,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -377,7 +384,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[ParkEvent]
+      events.expectMsgType[ParkingEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[NotifyVehicleIdle]
@@ -401,7 +408,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      vehicle2.manager = Some(mockSharedVehicleFleet.ref)
+      vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -438,7 +445,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -454,7 +463,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
-      car1.manager = Some(mockSharedVehicleFleet.ref)
+      car1.setManager(Some(mockSharedVehicleFleet.ref))
 
       val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
       population.addPerson(person1)
@@ -517,8 +526,6 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo),
           boundingBox
         )
       )
@@ -531,7 +538,7 @@ class PersonWithVehicleSharingSpec
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle)))
+            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle)))
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
@@ -552,8 +559,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -570,7 +579,7 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
-        Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
+        Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
@@ -590,8 +599,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -628,8 +639,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 

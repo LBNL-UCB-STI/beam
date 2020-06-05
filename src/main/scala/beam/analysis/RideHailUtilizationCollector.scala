@@ -1,6 +1,8 @@
 package beam.analysis
 
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
@@ -9,15 +11,15 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.SortedSet
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
 
 case class RideInfo(
-  vehicleId: Id[Vehicle],
+  vehicleId: Id[BeamVehicle],
   time: Int,
   startCoord: Coord,
   endCoord: Coord,
@@ -25,9 +27,9 @@ case class RideInfo(
   primaryFuelLevel: Double
 )
 case class RideHailHistoricalData(
-  notMovedAtAll: Set[Id[Vehicle]],
-  movedWithoutPassenger: Set[Id[Vehicle]],
-  movedWithPassengers: Set[Id[Vehicle]],
+  notMovedAtAll: Set[Id[BeamVehicle]],
+  movedWithoutPassenger: Set[Id[BeamVehicle]],
+  movedWithPassengers: Set[Id[BeamVehicle]],
   rides: IndexedSeq[RideInfo]
 )
 
@@ -40,7 +42,10 @@ case class Utilization(
   numberOfRidesServedByNumberOfVehicles: Map[Int, Int],
   rideHailModeChoices: Int,
   rideHailInAlternatives: Int,
-  totalModeChoices: Int
+  rideHailPooledChoices: Int,
+  rideHailPooledInAlternatives: Int,
+  totalModeChoices: Int,
+  replanningReasonToTotalCountMap: Map[String, Int]
 )
 
 class RideHailUtilizationCollector(beamSvc: BeamServices)
@@ -51,8 +56,11 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   private val rides: ArrayBuffer[RideInfo] = ArrayBuffer()
   private val utilizations: ArrayBuffer[Utilization] = ArrayBuffer()
   private var rideHailChoices: Int = 0
+  private var rideHailPooledChoices: Int = 0
   private var rideHailInAlternatives: Int = 0
+  private var rideHailPooledInAlternatives: Int = 0
   private var totalModeChoices: Int = 0
+  private val replanningReasonToTotalCountMap: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
 
   val commonHeaders: Vector[String] = Vector(
     "iteration",
@@ -71,11 +79,23 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       case pte: PathTraversalEvent if pte.vehicleId.toString.contains("rideHailVehicle-") =>
         handle(pte)
       case mc: ModeChoiceEvent =>
-        if (mc.mode == "ride_hail")
+        if (mc.mode == BeamMode.RIDE_HAIL.value)
           rideHailChoices += 1
-        if (mc.availableAlternatives.contains("RIDE_HAIL"))
+        else if (mc.mode == BeamMode.RIDE_HAIL_POOLED.value)
+          rideHailPooledChoices += 1
+        if (mc.availableAlternatives == "RIDE_HAIL" || mc.availableAlternatives.contains("RIDE_HAIL:"))
           rideHailInAlternatives += 1
+        if (mc.availableAlternatives.contains("RIDE_HAIL_POOLED"))
+          rideHailPooledInAlternatives += 1
         totalModeChoices += 1
+      case replanningEvent: ReplanningEvent =>
+        val shouldProcess = replanningEvent.getReason.contains("RIDE_HAIL") || replanningEvent.getReason.contains(
+          "RIDE_HAIL_POOLED"
+        )
+        if (shouldProcess) {
+          val cnt = replanningReasonToTotalCountMap.getOrElse(replanningEvent.getReason, 0) + 1
+          replanningReasonToTotalCountMap.update(replanningEvent.getReason, cnt)
+        }
       case _ =>
     }
   }
@@ -84,8 +104,11 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     logger.info(s"There were ${rides.length} ride-hail rides for iteration $iteration")
     rides.clear()
     rideHailChoices = 0
+    rideHailPooledChoices = 0
     rideHailInAlternatives = 0
+    rideHailPooledInAlternatives = 0
     totalModeChoices = 0
+    replanningReasonToTotalCountMap.clear()
   }
 
   def handle(pte: PathTraversalEvent): RideInfo = {
@@ -108,7 +131,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
 
     val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
-    val numOfRidesToVehicleId: Seq[(Int, Id[Vehicle])] = vehicleToRides
+    val numOfRidesToVehicleId: Seq[(Int, Id[BeamVehicle])] = vehicleToRides
       .map {
         case (vehId, xs) =>
           vehId -> xs.count(_.numOfPassengers > 0)
@@ -142,7 +165,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       numberOfRidesServedByNumberOfVehicles = ridesToVehicles,
       rideHailModeChoices = rideHailChoices,
       rideHailInAlternatives = rideHailInAlternatives,
-      totalModeChoices = totalModeChoices
+      rideHailPooledChoices = rideHailPooledChoices,
+      rideHailPooledInAlternatives = rideHailPooledInAlternatives,
+      totalModeChoices = totalModeChoices,
+      replanningReasonToTotalCountMap = replanningReasonToTotalCountMap.toMap
     )
   }
 
@@ -160,7 +186,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
             |numberOfRidesServedByNumberOfVehicles: ${sorted}
             |rideHailChoices: ${utilization.rideHailModeChoices}
             |rideHailInAlternatives: ${utilization.rideHailInAlternatives}
-            |totalModeChoices: ${utilization.totalModeChoices}""".stripMargin
+            |rideHailPooledChoices: ${utilization.rideHailPooledChoices}
+            |rideHailPooledInAlternatives: ${utilization.rideHailPooledInAlternatives}
+            |totalModeChoices: ${utilization.totalModeChoices}
+            |replannings: ${utilization.replanningReasonToTotalCountMap}""".stripMargin
     logger.info(msg)
 
     if (shouldDumpRides) {
@@ -268,7 +297,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
 
 object RideHailUtilizationCollector {
 
-  def getMovedWithoutPassenger(rides: IndexedSeq[RideInfo]): Set[Id[Vehicle]] = {
+  def getMovedWithoutPassenger(rides: IndexedSeq[RideInfo]): Set[Id[BeamVehicle]] = {
     rides
       .groupBy { x =>
         x.vehicleId
@@ -281,7 +310,7 @@ object RideHailUtilizationCollector {
   }
 
   def getRidesWithPassengers(rides: IndexedSeq[RideInfo]): IndexedSeq[RideInfo] = {
-    val notMoved: Set[Id[Vehicle]] = getMovedWithoutPassenger(rides)
+    val notMoved: Set[Id[BeamVehicle]] = getMovedWithoutPassenger(rides)
     val moved: IndexedSeq[RideInfo] = rides.filterNot(vri => notMoved.contains(vri.vehicleId))
     moved
   }
