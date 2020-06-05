@@ -122,22 +122,23 @@ class BeamSim @Inject()(
     configHolder
   )
 
-  val backgroundSkimsCreator: Option[BackgroundSkimsCreator] = if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
-    val h3Clustering: H3Clustering =
-      new H3Clustering(beamServices.matsimServices.getScenario.getPopulation, beamServices.geo, 1000)
-    val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, h3Clustering)
-    val skimCreator = new BackgroundSkimsCreator(
-      beamServices,
-      beamScenario,
-      h3Clustering,
-      odSkimmer,
-      new FreeFlowTravelTime,
-      Array(BeamMode.WALK, BeamMode.BIKE),
-      withTransit = true
-    )(actorSystem)
-    skimCreator.start()
-    Some(skimCreator)
-  } else None
+  val backgroundSkimsCreator: Option[BackgroundSkimsCreator] =
+    if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
+      val h3Clustering: H3Clustering =
+        new H3Clustering(beamServices.matsimServices.getScenario.getPopulation, beamServices.geo, 1000)
+      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, h3Clustering)
+      val skimCreator = new BackgroundSkimsCreator(
+        beamServices,
+        beamScenario,
+        h3Clustering,
+        odSkimmer,
+        new FreeFlowTravelTime,
+        Array(BeamMode.WALK, BeamMode.BIKE),
+        withTransit = true
+      )(actorSystem)
+      skimCreator.start()
+      Some(skimCreator)
+    } else None
 
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =
