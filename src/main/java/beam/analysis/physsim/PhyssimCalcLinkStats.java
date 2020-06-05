@@ -82,12 +82,12 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
         linkStats.addData(volumes, travelTime);
         processData(iteration, travelTime);
-        CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            if (beamConfig.beam().outputs().writeGraphs()){
+            if (beamConfig.beam().outputs().writeGraphs()) {
+                CategoryDataset dataset = buildAndGetGraphCategoryDataset();
                 createModesFrequencyGraph(dataset, iteration);
             }
         }
