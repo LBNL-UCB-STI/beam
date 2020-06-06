@@ -13,7 +13,7 @@ import java.util.*;
 
 public class TravelTimeCalculatorHelper {
     public static class TravelTimePerHour implements TravelTime {
-        private Logger log = LoggerFactory.getLogger(TravelTimePerHour.class);
+        private final Logger log = LoggerFactory.getLogger(TravelTimePerHour.class);
 
         private final double[][] _linkIdToTravelTimeArray;
         private final int _timeBinSizeInSeconds;
@@ -71,7 +71,7 @@ public class TravelTimeCalculatorHelper {
             return linkIdToTravelTimeArray;
         }
     }
-    private static Logger log = LoggerFactory.getLogger(TravelTimeCalculatorHelper.class);
+    private static final Logger log = LoggerFactory.getLogger(TravelTimeCalculatorHelper.class);
 
     public static Map<String, double[]> GetLinkIdToTravelTimeArray(Collection<? extends Link> links, TravelTime travelTime, int maxHour) {
         long start = System.currentTimeMillis();

@@ -2,6 +2,7 @@ package json.converter
 
 import java.io.PrintWriter
 
+import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
 import scala.util.Try
@@ -30,7 +31,7 @@ object TazOutput {
 
 //Converter from https://data.sfgov.org/Geographic-Locations-and-Boundaries/Traffic-Analysis-Zones/j4sj-j2nf/data#revert
 // to expected format for https://github.com/sfcta/tncstoday
-object SfGovTazConverter extends App {
+object SfGovTazConverter extends App with LazyLogging {
 
   import TazOutput._
 
@@ -65,7 +66,7 @@ object SfGovTazConverter extends App {
       JsSuccess(features)
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("exception occurred due to ", e)
         JsError()
     }
   }

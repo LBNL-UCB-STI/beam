@@ -143,7 +143,7 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    if (allTriggersInWave.size > 0)
+    if (allTriggersInWave.nonEmpty)
       rideHailManager.log.debug(
         "Earliest tick in triggers to schedule is {} and latest is {}",
         allTriggersInWave.map(_.trigger.tick).min,
@@ -373,7 +373,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isPendingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).map(_.interruptOrigin == SingleReservation).getOrElse(false)
+    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).exists(_.interruptOrigin == SingleReservation)
   }
 
   private def sendInterruptMessage(
@@ -390,11 +390,10 @@ class RideHailModifyPassengerScheduleManager(
   ): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus
       .get(vehicleId)
-      .map(
+      .exists(
         stat =>
           stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
       )
-      .getOrElse(false)
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
