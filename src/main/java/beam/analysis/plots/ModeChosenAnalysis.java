@@ -176,12 +176,10 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
-        CategoryDataset categoryDataset = null;
         double[][] dataset = compute();
-        if (dataset != null)
-            categoryDataset = GraphUtils.createCategoryDataset("Mode ", "", dataset);
-
-        return categoryDataset;
+        return dataset == null
+                ? null
+                : GraphUtils.createCategoryDataset("Mode ", "", dataset);
     }
 
     double[][] compute() {
