@@ -108,8 +108,7 @@ object FileUtils extends LazyLogging {
   def getReader(pathOrUrl: String): java.io.BufferedReader = {
     if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
       readerFromURL(pathOrUrl)
-    }
-    else {
+    } else {
       readerFromFile(pathOrUrl)
     }
   }
@@ -126,8 +125,7 @@ object FileUtils extends LazyLogging {
   def getInputStream(pathOrUrl: String): InputStream = {
     val rawStream = if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
       new URL(pathOrUrl).openStream()
-    }
-    else {
+    } else {
       new FileInputStream(pathOrUrl)
     }
     if (pathOrUrl.endsWith(".gz")) {
