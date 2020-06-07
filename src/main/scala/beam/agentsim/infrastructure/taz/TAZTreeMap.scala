@@ -2,8 +2,8 @@ package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
-import java.util.zip.GZIPInputStream
 
+import beam.utils.FileUtils
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
@@ -58,7 +58,7 @@ object TAZTreeMap {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
 
-  val emptyTAZId = Id.create("NA", classOf[TAZ])
+  val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
 
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
@@ -107,14 +107,14 @@ object TAZTreeMap {
   }
 
   private def quadTreeExtentFromCsvFile(lines: Seq[CsvTaz]): QuadTreeBounds = {
-    implicit val hasQuadBounds = new HasQuadBounds[CsvTaz] {
-      override def getMinX(a: CsvTaz) = a.coordX
+    implicit val hasQuadBounds: HasQuadBounds[CsvTaz] = new HasQuadBounds[CsvTaz] {
+      override def getMinX(a: CsvTaz): Double = a.coordX
 
-      override def getMaxX(a: CsvTaz) = a.coordX
+      override def getMaxX(a: CsvTaz): Double = a.coordX
 
-      override def getMinY(a: CsvTaz) = a.coordY
+      override def getMinY(a: CsvTaz): Double = a.coordY
 
-      override def getMaxY(a: CsvTaz) = a.coordY
+      override def getMaxY(a: CsvTaz): Double = a.coordY
     }
     ShapeUtils.quadTreeBounds(lines)
   }
@@ -161,21 +161,11 @@ object TAZTreeMap {
 
   }
 
-  private def readerFromFile(filePath: String): java.io.Reader = {
-    if (filePath.endsWith(".gz")) {
-      new InputStreamReader(
-        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
-      )
-    } else {
-      new FileReader(filePath)
-    }
-  }
-
   private def readCsvFile(filePath: String): Seq[CsvTaz] = {
     var mapReader: ICsvMapReader = null
     val res = ArrayBuffer[CsvTaz]()
     try {
-      mapReader = new CsvMapReader(readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+      mapReader = new CsvMapReader(FileUtils.getReader(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
