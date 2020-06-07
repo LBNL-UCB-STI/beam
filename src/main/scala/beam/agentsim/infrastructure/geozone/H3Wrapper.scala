@@ -43,6 +43,13 @@ object H3Wrapper {
       .toSet
   }
 
+  /** Average hexagon area in square meters at the given resolution.
+    * @param resolution Resolution
+    */
+  def hexAreaM2(resolution: Int): Double = {
+    h3Core.hexArea(resolution, AreaUnit.m2)
+  }
+
   def wgsCoordinate(index: H3Index): WgsCoordinate = {
     val coord = h3Core.h3ToGeo(index.value)
     WgsCoordinate(latitude = coord.lat, longitude = coord.lng)
