@@ -41,7 +41,7 @@ class ParallelParkingManagerUtilSpec extends WordSpecLike with Matchers {
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
-        ParallelParkingManager.createClusters(treeMap, parkingZones, 4)
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 4, 42)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
     }
 
@@ -60,12 +60,12 @@ class ParallelParkingManagerUtilSpec extends WordSpecLike with Matchers {
         .makeParkingZones(treeMap, numZones)
         .drop(1)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
-        ParallelParkingManager.createClusters(treeMap, parkingZones, 2)
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 42)
       val sumTAZesOverAllClusters = clusters.foldLeft(0) {
         case (acc, a) =>
           acc + a.tazes.size
       }
-      sumTAZesOverAllClusters should (be(treeMap.tazQuadTree.size()))
+      sumTAZesOverAllClusters should be(treeMap.tazQuadTree.size())
     }
 
     "Handle empty tazTreeMap" in {
@@ -73,7 +73,7 @@ class ParallelParkingManagerUtilSpec extends WordSpecLike with Matchers {
 
       val parkingZones = Array.empty[ParkingZone]
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
-        ParallelParkingManager.createClusters(treeMap, parkingZones, 2)
+        ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 2)
 
       clusters.size should be(1)
     }
