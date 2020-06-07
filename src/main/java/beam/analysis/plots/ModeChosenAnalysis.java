@@ -176,12 +176,10 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
-        CategoryDataset categoryDataset = null;
         double[][] dataset = compute();
-        if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-
-        return categoryDataset;
+        return dataset == null
+                ? null
+                : GraphUtils.createCategoryDataset("Mode ", "", dataset);
     }
 
     double[][] compute() {
@@ -230,17 +228,16 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             csvWriter.closeFile();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
-
 
     //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
         if (dataset != null) {
-            categoryDataset = createCategoryDataset("it.", dataset);
+            categoryDataset = GraphUtils.createCategoryDataset("", "it.", dataset);
         }
         return categoryDataset;
     }
@@ -364,8 +361,8 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     static class ModeChosenAvailableAlternatives {
-        String mode;
-        String availableModes;
+        final String mode;
+        final String availableModes;
 
         public ModeChosenAvailableAlternatives(String mode, String availableModes) {
             this.mode = mode;

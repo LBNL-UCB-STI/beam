@@ -12,6 +12,8 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,9 +21,11 @@ import java.util.*;
 import java.util.stream.DoubleStream;
 
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
-    private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
-    private Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
-    private BeamServices beamServices;
+    private final Logger log = LoggerFactory.getLogger(RideHailWaitingTazAnalysis.class);
+
+    private final Map<String, Event> rideHailWaitingQueue = new HashMap<>();
+    private final Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
+    private final BeamServices beamServices;
 
     public RideHailWaitingTazAnalysis(BeamServices beamServices) {
         this.beamServices = beamServices;
@@ -107,13 +111,13 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                     outWriter.write(line);
                     outWriter.newLine();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("exception occurred due to ", e);
                 }
             });
             outWriter.flush();
             outWriter.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

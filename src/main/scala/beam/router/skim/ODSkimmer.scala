@@ -1,4 +1,5 @@
 package beam.router.skim
+
 import java.io.BufferedWriter
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -11,11 +12,11 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 
-import scala.collection.immutable
 import scala.util.control.NonFatal
 
 class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
     extends AbstractSkimmer(beamServices, config) {
+
   import ODSkimmer._
   import beamServices._
 
@@ -41,26 +42,9 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   }
 
   override def fromCsv(
-    row: immutable.Map[String, String]
+    row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    (
-      ODSkimmerKey(
-        hour = row("hour").toInt,
-        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
-        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
-      ),
-      ODSkimmerInternal(
-        travelTimeInS = row("travelTimeInS").toDouble,
-        generalizedTimeInS = row("generalizedTimeInS").toDouble,
-        generalizedCost = row("generalizedCost").toDouble,
-        distanceInM = row("distanceInM").toDouble,
-        cost = row("cost").toDouble,
-        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        observations = row("observations").toInt,
-        iterations = row("iterations").toInt
-      )
-    )
+    ODSkimmer.fromCsv(row)
   }
 
   override protected def aggregateOverIterations(
@@ -171,7 +155,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -244,7 +228,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
         }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -319,11 +303,36 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
 }
 
 object ODSkimmer extends LazyLogging {
+
   // cases
   case class ODSkimmerKey(hour: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])
       extends AbstractSkimmerKey {
     override def toCsv: String = hour + "," + mode + "," + originTaz + "," + destinationTaz
   }
+
+  def fromCsv(
+    row: scala.collection.Map[String, String]
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    (
+      ODSkimmerKey(
+        hour = row("hour").toInt,
+        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
+        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+      ),
+      ODSkimmerInternal(
+        travelTimeInS = row("travelTimeInS").toDouble,
+        generalizedTimeInS = row("generalizedTimeInS").toDouble,
+        generalizedCost = row("generalizedCost").toDouble,
+        distanceInM = row("distanceInM").toDouble,
+        cost = row("cost").toDouble,
+        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
+        observations = row("observations").toInt,
+        iterations = row("iterations").toInt
+      )
+    )
+  }
+
   case class ODSkimmerInternal(
     travelTimeInS: Double,
     generalizedTimeInS: Double,
@@ -338,6 +347,7 @@ object ODSkimmer extends LazyLogging {
     //NOTE: All times in seconds here
     def toSkimExternal: Skim =
       Skim(travelTimeInS.toInt, generalizedTimeInS, generalizedCost, distanceInM, cost, observations, energy)
+
     override def toCsv: String =
       travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + observations + "," + iterations
   }
@@ -365,4 +375,5 @@ object ODSkimmer extends LazyLogging {
     sumWeights: Double,
     weightedEnergy: Double
   )
+
 }

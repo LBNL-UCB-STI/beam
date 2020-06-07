@@ -102,7 +102,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
         if ("TNC0".equalsIgnoreCase(graphType)) {
-
             processDeadHeadingDistanceRemainingRepositionings();
             createDeadHeadingDistanceGraph(event);
         } else {
@@ -289,16 +288,15 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
 
             int seconds = hour * 60 * 60;
-            double distanceInKilometers = distanceInMeters / 1000;;
+            double distanceInKilometers = distanceInMeters / 1000;
             simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInKilometers, tags, false);
         }
     }
 
-
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
-        double[][] dataSet = buildDeadHeadingDataSetTnc0();
-        CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
         if (writeGraph) {
+            double[][] dataSet = buildDeadHeadingDataSetTnc0();
+            CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
@@ -513,7 +511,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
             double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
-            CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+            CategoryDataset tncDeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }
     }
@@ -602,7 +600,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String fileName = getFileName(graphName, "png");
         String graphTitle = getTitle(graphName);
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(graphName, dataSet.getRowCount(), getBucketSize());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
@@ -654,14 +652,14 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-                    double vktInKm = vkt/1000;
+                    double vktInKm = vkt / 1000;
                     out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
