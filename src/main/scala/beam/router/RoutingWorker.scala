@@ -34,7 +34,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-case class WorkerParameters(
+case class R5Parameters(
   beamConfig: BeamConfig,
   transportNetwork: TransportNetwork,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
@@ -47,9 +47,9 @@ case class WorkerParameters(
   tollCalculator: TollCalculator
 )
 
-object WorkerParameters {
+object R5Parameters {
 
-  def fromConfig(config: Config): WorkerParameters = {
+  def fromConfig(config: Config): R5Parameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
       beamConfig.beam.outputs.baseOutputDirectory,
@@ -76,7 +76,7 @@ object WorkerParameters {
     val fareCalculator = new FareCalculator(beamConfig)
     val tollCalculator = new TollCalculator(beamConfig)
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
-    WorkerParameters(
+    R5Parameters(
       beamConfig,
       networkCoordinator.transportNetwork,
       vehicleTypes,
@@ -91,11 +91,11 @@ object WorkerParameters {
   }
 }
 
-class RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
+class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
   def this(config: Config) {
     this(workerParams = {
-      WorkerParameters.fromConfig(config)
+      R5Parameters.fromConfig(config)
     })
   }
 
@@ -247,7 +247,7 @@ object RoutingWorker {
     tollCalculator: TollCalculator
   ): Props = Props(
     new RoutingWorker(
-      WorkerParameters(
+      R5Parameters(
         beamScenario.beamConfig,
         transportNetwork,
         beamScenario.vehicleTypes,

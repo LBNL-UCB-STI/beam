@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
-import beam.router.WorkerParameters
+import beam.router.R5Parameters
 import beam.router.r5.R5
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -21,7 +21,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
+class Rerouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
   private val shouldLogWhenLinksAreNotTheSame: Boolean = false
 
   private val bodyType: BeamVehicleType = beamServices.beamScenario.vehicleTypes(

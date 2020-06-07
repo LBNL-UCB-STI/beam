@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, AccessAndEgress, Egress, RoutingRequest, RoutingResponse}
-import beam.router.{Modes, Router, RoutingWorker, WorkerParameters}
+import beam.router.{Modes, Router, RoutingWorker, R5Parameters}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
@@ -39,13 +39,13 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.collection.JavaConverters._
 
-class R5(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
+class R5(parameters: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends Router
     with MetricsSupport {
   private val maxDistanceForBikeMeters: Int =
-    workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
+    parameters.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
-  private val WorkerParameters(
+  private val R5Parameters(
     beamConfig,
     transportNetwork,
     vehicleTypes,
@@ -56,7 +56,7 @@ class R5(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoise
     networkHelper,
     fareCalculator,
     tollCalculator
-  ) = workerParams
+  ) = parameters
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
