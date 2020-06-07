@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, AccessAndEgress, Egress, RoutingRequest, RoutingResponse}
-import beam.router.{Modes, Router, RoutingWorker, R5Parameters}
+import beam.router.{Modes, R5Parameters, Router, RoutingWorker}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}

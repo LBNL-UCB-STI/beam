@@ -44,7 +44,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario) = buildMatsimScenarioAndBeamScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )

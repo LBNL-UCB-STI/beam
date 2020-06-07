@@ -472,7 +472,7 @@ trait BeamHelper extends LazyLogging {
 
   def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
-    val (scenario, beamScenario) = buildBeamServicesAndScenario(
+    val (scenario, beamScenario) = buildMatsimScenarioAndBeamScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
     )
@@ -579,7 +579,7 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  protected def buildBeamServicesAndScenario(
+  protected def buildMatsimScenarioAndBeamScenario(
     beamConfig: BeamConfig,
     matsimConfig: MatsimConfig
   ): (MutableScenario, BeamScenario) = {
