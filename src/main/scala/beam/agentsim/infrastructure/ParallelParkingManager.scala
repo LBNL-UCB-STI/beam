@@ -79,7 +79,7 @@ class ParallelParkingManager(
 
   private val tazToWorker: Map[Id[TAZ], Worker] = mapTazToWorker(workers)
 
-  override def receive = {
+  override def receive: Receive = {
     case inquiry: ParkingInquiry =>
       counter.count("all")
       val foundCluster = workers.find { w =>
@@ -167,8 +167,8 @@ object ParallelParkingManager extends LazyLogging {
     geo: GeoUtils,
     seed: Int,
     boundingBox: Envelope
-  ) = {
-    val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters)
+  ): Props = {
+    val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters, seed.toLong)
 
     Props(
       new ParallelParkingManager(
@@ -196,7 +196,8 @@ object ParallelParkingManager extends LazyLogging {
   private[infrastructure] def createClusters(
     tazTreeMap: TAZTreeMap,
     zones: Array[ParkingZone],
-    numClusters: Int
+    numClusters: Int,
+    seed: Long
   ): Vector[ParkingCluster] = {
     logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
     val pgf = new PreparedGeometryFactory
@@ -223,7 +224,7 @@ object ParallelParkingManager extends LazyLogging {
         SquaredEuclideanDistanceFunction.STATIC,
         numClusters,
         2000,
-        new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+        new RandomUniformGeneratedInitialMeans(RandomFactory.get(seed)),
         true
       )
       val result = kmeans.run(db)

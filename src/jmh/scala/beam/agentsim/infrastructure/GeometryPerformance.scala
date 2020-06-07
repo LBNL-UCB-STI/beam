@@ -4,10 +4,6 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
-import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Fork, Mode}
-import org.openjdk.jmh.infra.Blackhole
-import org.openjdk.jmh.runner.Runner
-import org.openjdk.jmh.runner.options.OptionsBuilder
 
 import scala.util.Random
 
@@ -72,7 +68,7 @@ object GeometryPerformance {
     )
 
     val clusters: Vector[ParallelParkingManager.ParkingCluster] =
-      ParallelParkingManager.createClusters(tazMap, zones, 16)
+      ParallelParkingManager.createClusters(tazMap, zones, 16, 42L)
 
     val bounds: QuadTreeBounds = ShapeUtils.quadTreeBounds(tazMap.getTAZs.map(_.coord))
 
