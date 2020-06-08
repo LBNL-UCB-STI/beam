@@ -85,7 +85,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         this.filterEvent = filterEvent;
-        fileName = defaultFileName + filterEvent.graphNamePreSuffix();
+        fileName = defaultFileName;
         benchMarkData = benchMarkCSVLoader(beamConfig.beam().calibration().mode().benchmarkFilePath());
     }
 
