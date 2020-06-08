@@ -46,6 +46,18 @@ class ParkingZone(
     }
     s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString)"
   }
+
+  def makeCopy(): ParkingZone = {
+    new ParkingZone(
+      this.parkingZoneId,
+      this.tazId,
+      this.parkingType,
+      this.stallsAvailable,
+      this.maxStalls,
+      this.chargingPointType,
+      this.pricingModel
+    )
+  }
 }
 
 object ParkingZone extends LazyLogging {
