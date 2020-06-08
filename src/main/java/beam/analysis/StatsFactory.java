@@ -2,11 +2,17 @@ package beam.analysis;
 
 import beam.analysis.cartraveltime.PersonAverageTravelTimeAnalysis;
 import beam.analysis.plots.*;
-import beam.analysis.summary.*;
+import beam.analysis.plots.filterevent.ActivitySimFilterEvent;
+import beam.analysis.summary.AboveCapacityPtUsageDurationAnalysis;
+import beam.analysis.summary.AgencyRevenueAnalysis;
+import beam.analysis.summary.NumberOfVehiclesAnalysis;
+import beam.analysis.summary.PersonCostAnalysis;
+import beam.analysis.summary.RideHailSummary;
+import beam.analysis.summary.VehicleMilesTraveledAnalysis;
+import beam.analysis.summary.VehicleTravelTimeAnalysis;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import com.conveyal.r5.transit.TransportNetwork;
-import org.apache.commons.lang.ArrayUtils;
 
 import java.beans.Beans;
 import java.util.Arrays;
@@ -24,6 +30,7 @@ public class StatsFactory {
         PersonTravelTime,
         PersonCost,
         RealizedMode,
+        RealizedModeForActivitySimEnabled,
         FuelUsage,
         DeadHeading,
         VehicleMilesTraveled,
@@ -114,6 +121,9 @@ public class StatsFactory {
                 return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
             case RealizedMode:
                 return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig);
+            case RealizedModeForActivitySimEnabled:
+                ActivitySimFilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
+                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig, activitySimFilterEvent);
             case DeadHeading:
                 return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
             case VehicleHoursTraveled:
