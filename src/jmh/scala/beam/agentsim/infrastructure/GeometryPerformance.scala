@@ -15,7 +15,9 @@ import scala.util.Random
 
 /**
   * Executing:<br>
-  * ./gradlew jmh
+  * ./gradlew jmh<br>
+  * Runs convexHull contains point for each TAZ cluster vs TAZTreeMap (with the same TAZes) get nearest Taz for point.
+  * Before actual performance test it loads TAZes and parking zones from appropriate files.
   * @author Dmitry Openkov
   */
 class GeometryPerformance {
