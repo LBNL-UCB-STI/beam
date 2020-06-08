@@ -104,6 +104,8 @@ TAZs, Scaling, and Physsim Tuning::
    beam.agentsim.tuning.transitPrice = 1.0
    beam.agentsim.tuning.tollPrice = 1.0
    beam.agentsim.tuning.rideHailPrice = 1.0
+   # PhysSim name (JDEQSim | BPRSim | PARBPRSim | CCHRoutingAssignment)
+   beam.physsim.name = "JDEQSim
    # PhysSim Scaling Params
    beam.physsim.flowCapacityFactor = 0.0001
    beam.physsim.storageCapacityFactor = 0.0001
@@ -111,6 +113,12 @@ TAZs, Scaling, and Physsim Tuning::
    beam.physsim.ptSampleSize = 1.0
    beam.physsim.jdeqsim.agentSimPhysSimInterfaceDebugger.enabled = false
    beam.physsim.skipPhysSim = false
+   # Travel time function for (PAR)PBR sim (BPR | FREE_FLOW)
+   beam.physsim.bprsim.travelTimeFunction = "BPR"
+   beam.physsim.bprsim.minFlowToUseBPRFunction = 10
+   beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds = 900
+   beam.physsim.parbprsim.numberOfClusters = 8
+   beam.physsim.parbprsim.syncInterval = 60
 
 * agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
 * taz.parking: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then ulimited free parking is assumed.
@@ -120,12 +128,18 @@ TAZs, Scaling, and Physsim Tuning::
 * tuning.transitPrice: Scale the price of riding on transit. Applies uniformly to all transit trips.
 * tuning.tollPrice: Scale the price to cross tolls.
 * tuning.rideHailPrice: Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
+* physsim.name: Name of the physsim. BPR physsim calculates the travel time of a vehicle for a particular link basing on the inFlow value for that link (number of vehicle entered that link within last n minutes. This value is upscaled to one hour value.). PARBPR splits the network into clusters and simulates vehicle movement for each cluster in parallel.
 * physsim.flowCapacityFactor: Flow capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.storageCapacityFactor: Storage capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.writeMATSimNetwork: A copy of the network used by JDEQSim will be written to outputs folder (typically only needed for debugging).
 * physsim.ptSampleSize: A scaling factor used to reduce the seating capacity of all transit vehicles. This is typically used in the context of running a partial sample of the population, it is advisable to reduce the capacity of the transit vehicles, but not necessarily proportionately. This should be calibrated.
 * agentSimPhysSimInterfaceDebugger.enabled: Enables special debugging output.
 * skipPhysSim: Turns off the JDEQSim traffic flow simulation. If set to true, then network congestion will not change from one iteration to the next. Typically this is only used for debugging issues that are unrelated to the physsim.
+* physsim.bprsim.travelTimeFunction: Travel time function (BPR of free flow). For BPR function see https://en.wikipedia.org/wiki/Route_assignment. Free flow implies that the vehicles go on the free speed on that link.
+* physsim.bprsim.minFlowToUseBPRFunction: If the inFlow is below this value then BPR function is not used. Free flow is used in this case.
+* physsim.bprsim.inFlowAggregationTimeWindowInSeconds: The length of inFlow aggregation in seconds.
+* physsim.parbprsim.numberOfClusters: the number of clusters for PARBPR physsim.
+* physsim.parbprsim.syncInterval: The sync interval in seconds for PARBPRsim. When the sim time reaches this interval in a particular cluster then it waits for the other clusters at that time point.
 
 
 Warm Mode::
