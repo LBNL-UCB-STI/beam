@@ -159,6 +159,7 @@ object ParkingZoneFileUtils extends LazyLogging {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
           fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
+        reader.close()
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
         )
