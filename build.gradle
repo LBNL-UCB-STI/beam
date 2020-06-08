@@ -23,6 +23,7 @@ plugins {
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.5.0"
     id 'maven-publish'
+    id "me.champeau.gradle.jmh" version "0.5.0"
 }
 
 apply plugin: 'java'
@@ -181,6 +182,9 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
+    jmh group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
+    jmh group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
+
 
     /////////////////////////////////
     // Scala dependencies
@@ -580,4 +584,9 @@ dockerCopyDistResources {
     from('test/') {
         into('test/')
     }
+}
+
+jmh {
+    // https://github.com/melix/jmh-gradle-plugin/issues/107
+    jvmArgs = ['-Djmh.separateClasspathJAR=true']
 }

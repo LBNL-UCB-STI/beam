@@ -655,7 +655,10 @@ class RideHailAgent(
               currentBeamVehicle.id
             )
           )
-        if (!vehicle.isCAV) parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
+        if (!vehicle.isCAV) {
+          val stall = vehicle.stall.get
+          parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
+        }
         val currentLocation = vehicle.stall.get.locationUTM
         if (!vehicle.isCAV) vehicle.unsetParkingStall()
         currentLocation

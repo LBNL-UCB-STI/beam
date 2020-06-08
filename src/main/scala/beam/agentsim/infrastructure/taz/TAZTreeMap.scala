@@ -2,9 +2,10 @@ package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
-import java.util.zip.GZIPInputStream
 
-import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, QuadTreeBounds}
+import beam.utils.FileUtils
+import beam.utils.matsim_conversion.ShapeUtils
+import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -57,7 +58,7 @@ object TAZTreeMap {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
 
-  val emptyTAZId = Id.create("NA", classOf[TAZ])
+  val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
 
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
@@ -97,39 +98,29 @@ object TAZTreeMap {
   private def quadTreeExtentFromShapeFile(
     features: util.Collection[SimpleFeature]
   ): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-
-    for (f <- features.asScala) {
-      f.getDefaultGeometry match {
-        case g: Geometry =>
-          val ca = g.getEnvelope.getEnvelopeInternal
-          //val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
-          minX = Math.min(minX, ca.getMinX)
-          minY = Math.min(minY, ca.getMinY)
-          maxX = Math.max(maxX, ca.getMaxX)
-          maxY = Math.max(maxY, ca.getMaxY)
-        case _ =>
+    val envelopes = features.asScala
+      .map(_.getDefaultGeometry)
+      .collect {
+        case g: Geometry => g.getEnvelope.getEnvelopeInternal
       }
-    }
-    QuadTreeBounds(minX, minY, maxX, maxY)
+    ShapeUtils.quadTreeBounds(envelopes)
   }
 
   private def quadTreeExtentFromCsvFile(lines: Seq[CsvTaz]): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
+    implicit val hasQuadBounds: HasQuadBounds[CsvTaz] = new HasQuadBounds[CsvTaz] {
+      override def getMinX(a: CsvTaz): Double = a.coordX
 
-    for (l <- lines) {
-      minX = Math.min(minX, l.coordX)
-      minY = Math.min(minY, l.coordY)
-      maxX = Math.max(maxX, l.coordX)
-      maxY = Math.max(maxY, l.coordY)
+      override def getMaxX(a: CsvTaz): Double = a.coordX
+
+      override def getMinY(a: CsvTaz): Double = a.coordY
+
+      override def getMaxY(a: CsvTaz): Double = a.coordY
     }
-    QuadTreeBounds(minX, minY, maxX, maxY)
+    ShapeUtils.quadTreeBounds(lines)
+  }
+
+  private def quadTreeExtentFromList(lines: Seq[TAZ]): QuadTreeBounds = {
+    ShapeUtils.quadTreeBounds(lines.map(_.coord))
   }
 
   def fromCsv(csvFile: String): TAZTreeMap = {
@@ -152,21 +143,29 @@ object TAZTreeMap {
 
   }
 
-  private def readerFromFile(filePath: String): java.io.Reader = {
-    if (filePath.endsWith(".gz")) {
-      new InputStreamReader(
-        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
-      )
-    } else {
-      new FileReader(filePath)
+  def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
+
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
+
+    for (taz <- tazes) {
+      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
+
+    new TAZTreeMap(tazQuadTree)
+
   }
 
   private def readCsvFile(filePath: String): Seq[CsvTaz] = {
     var mapReader: ICsvMapReader = null
     val res = ArrayBuffer[CsvTaz]()
     try {
-      mapReader = new CsvMapReader(readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+      mapReader = new CsvMapReader(FileUtils.getReader(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
