@@ -182,8 +182,8 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
-    jmh group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
-    jmh group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
+    jmhCompile group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
+    jmhCompile group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
 
 
     /////////////////////////////////
