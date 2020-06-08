@@ -3,6 +3,7 @@ package beam.analysis;
 import beam.analysis.cartraveltime.PersonAverageTravelTimeAnalysis;
 import beam.analysis.plots.*;
 import beam.analysis.plots.filterevent.ActivitySimFilterEvent;
+import beam.analysis.plots.filterevent.FilterEvent;
 import beam.analysis.summary.AboveCapacityPtUsageDurationAnalysis;
 import beam.analysis.summary.AgencyRevenueAnalysis;
 import beam.analysis.summary.NumberOfVehiclesAnalysis;
@@ -106,7 +107,7 @@ public class StatsFactory {
 
     private BeamAnalysis createStats(StatsType statsType) {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
-        ActivitySimFilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
+        FilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
         switch (statsType) {
             case RideHailWaiting:
                 TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();
@@ -116,7 +117,7 @@ public class StatsFactory {
             case ModeChosen:
                 return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case ModeChosenForActivitySimEnabled:
-                new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, activitySimFilterEvent);
+                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, activitySimFilterEvent);
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:

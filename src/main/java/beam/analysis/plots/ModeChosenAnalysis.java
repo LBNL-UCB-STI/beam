@@ -78,7 +78,8 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
 
     private String outputFilename(final String filename, final String suffix) {
         final String namePreSuffix = filterEvent.graphNamePreSuffix();
-        return controllerIo().getOutputFilename(filename + namePreSuffix + suffix);
+        String filenameResult = filename + namePreSuffix + suffix;
+        return controllerIo().getOutputFilename(filenameResult);
     }
 
     public static String getModeChoiceFileBaseName() {
