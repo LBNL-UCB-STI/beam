@@ -88,7 +88,7 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
           (time, link, _) => link.getLength / link.getFreespeed(time)
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
-      val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager)
+      val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)
       sim.run()
       validateEvents(eventBuffer.buffer)
     }

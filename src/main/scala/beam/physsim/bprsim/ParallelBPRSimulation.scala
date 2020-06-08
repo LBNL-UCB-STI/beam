@@ -25,13 +25,13 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Dmitry Openkov
   */
-class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager)
+class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager, seed: Long)
     extends Mobsim
     with LazyLogging {
 
   override def run(): Unit = {
     if (scenario.getNetwork.getLinks.size() > 0) {
-      val clusters = createClusters(scenario.getNetwork.getLinks.values().asScala, config.numberOfClusters)
+      val clusters = createClusters(scenario.getNetwork.getLinks.values().asScala, config.numberOfClusters, seed: Long)
       val coordinator: Coordinator = new Coordinator(clusters, scenario, config, eventManager)
       coordinator.start()
     } else {
@@ -41,7 +41,7 @@ class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManag
 }
 
 object ParallelBPRSimulation extends LazyLogging {
-  private def createClusters(links: Iterable[Link], numClusters: Int): Vector[Set[Id[Link]]] = {
+  private def createClusters(links: Iterable[Link], numClusters: Int, seed: Long): Vector[Set[Id[Link]]] = {
     logger.info(s"creating clusters, links.size = ${links.size}")
     if (links.isEmpty) {
       Vector.empty
@@ -52,7 +52,7 @@ object ParallelBPRSimulation extends LazyLogging {
           SquaredEuclideanDistanceFunction.STATIC,
           numClusters,
           2000,
-          new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+          new RandomUniformGeneratedInitialMeans(RandomFactory.get(seed)),
           true
         )
         val result = kmeans.run(db)
