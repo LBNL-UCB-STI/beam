@@ -167,31 +167,36 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<String, double[]> travelTimeMap;
         TravelTime travelTimeFromPhysSim;
 
-        String physSimType = beamConfig.beam().physsim().physSimType();
+        String physSimName = beamConfig.beam().physsim().name();
 
-        if (physSimType.equals("JDEQSim")) {
-            log.info("JDEQSim started");
+        switch (physSimName) {
+            case "JDEQSim":
+            case "BPRSim":
+            case "PARBPRSim":
+                log.info("{} started", physSimName);
 
-            RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
-                    beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
-            log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
-            travelTimeFromPhysSim = sim.run(prevTravelTime);
-            // Safe travel time to reuse it on the next PhysSim iteration
-            prevTravelTime = travelTimeFromPhysSim;
+                RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
+                        beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
+                log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
+                travelTimeFromPhysSim = sim.run(prevTravelTime);
+                // Safe travel time to reuse it on the next PhysSim iteration
+                prevTravelTime = travelTimeFromPhysSim;
 
-            travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                    travelTimeFromPhysSim, maxHour);
+                travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
+                        travelTimeFromPhysSim, maxHour);
 
-            if (beamConfig.beam().debug().debugEnabled()) {
-                log.info(DebugLib.getMemoryLogMessage("Memory Use After JDEQSim: "));
-            }
+                if (beamConfig.beam().debug().debugEnabled()) {
+                    log.info(DebugLib.getMemoryLogMessage("Memory Use After Phys Sim: "));
+                }
 
-            log.info("JDEQSim End");
-        } else if (physSimType.equals("CCHRoutingAssignment")) {
-            travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationNumber, links, maxHour);
-            travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
-        } else {
-            throw new RuntimeException(String.format("Unknown physsim type: %s", physSimType));
+                log.info("{} End", physSimName);
+                break;
+            case "CCHRoutingAssignment":
+                travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationNumber, links, maxHour);
+                travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
+                break;
+            default:
+                throw new RuntimeException(String.format("Unknown physsim type: %s", physSimName));
         }
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
