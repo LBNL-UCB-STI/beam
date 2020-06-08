@@ -153,19 +153,19 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private double lastMaximumTime = 0;
     private double lastHourWrittenToStats = 0;
     private boolean writeGraph;
-    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
-    private Map<String, Event> rideHailWaiting = new HashMap<>();
-    private Map<String, Double> ptWaiting = new HashMap<>();
-    private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-    private Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
+    private final List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+    private final Map<String, Event> rideHailWaiting = new HashMap<>();
+    private final Map<String, Double> ptWaiting = new HashMap<>();
+    private final Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private final Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
-    private static Double categoryValueMax = Double.MAX_VALUE;
-    private static Double categoryValueBeforeMax = 60.0;
+    private static final Double categoryValueMax = Double.MAX_VALUE;
+    private static final Double categoryValueBeforeMax = 60.0;
     private final SimulationMetricCollector simMetricCollector;
 
     private static int numberOfTimeBins;
@@ -274,17 +274,21 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
-        if (modesFrequencyDataset != null && writeGraph)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
+            if (modesFrequencyDataset != null) {
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            }
+        }
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
 
-        double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
-        CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
-        if (writeGraph)
+        if (writeGraph) {
+            double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
+            CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
             createSingleStatsGraph(singleStatsDataset, event.getIteration());
+        }
         writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
 
         writeWaitingTimeToStats(hoursTimesMap, listOfBounds);
@@ -421,10 +425,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
-        CategoryDataset categoryDataset = null;
-        if (dataset != null)
-            categoryDataset = GraphUtils.createCategoryDataset("Time ", "", dataset);
-        return categoryDataset;
+        return dataset == null
+                ? null
+                : GraphUtils.createCategoryDataset("Time ", "", dataset);
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {

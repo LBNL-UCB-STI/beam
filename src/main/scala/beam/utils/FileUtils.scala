@@ -2,11 +2,11 @@ package beam.utils
 
 import java.io._
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
-
-import scala.io.Source
+import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
@@ -14,7 +14,9 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
-import org.matsim.core.utils.io.IOUtils
+import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
+
+import scala.io.Source
 import scala.language.reflectiveCalls
 import scala.util.Random
 
@@ -103,8 +105,34 @@ object FileUtils extends LazyLogging {
     using(readerFromFile(fileLoc))(_.lines)
   }
 
+  def getReader(pathOrUrl: String): java.io.BufferedReader = {
+    if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
+      readerFromURL(pathOrUrl)
+    } else {
+      readerFromFile(pathOrUrl)
+    }
+  }
+
   def readerFromFile(filePath: String): java.io.BufferedReader = {
     IOUtils.getBufferedReader(filePath)
+  }
+
+  def readerFromURL(url: String): java.io.BufferedReader = {
+    require(isRemote(url, "http://") || isRemote(url, "https://"))
+    new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
+  }
+
+  def getInputStream(pathOrUrl: String): InputStream = {
+    val rawStream = if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
+      new URL(pathOrUrl).openStream()
+    } else {
+      new FileInputStream(pathOrUrl)
+    }
+    if (pathOrUrl.endsWith(".gz")) {
+      new GZIPInputStream(rawStream)
+    } else {
+      rawStream
+    }
   }
 
   def downloadFile(source: String): Unit = {
