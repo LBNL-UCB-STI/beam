@@ -1,14 +1,23 @@
 package beam.agentsim.infrastructure
 
+import java.nio.file.Paths
+
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
+import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Fork, Mode}
+import org.openjdk.jmh.infra.Blackhole
+import org.openjdk.jmh.runner.Runner
+import org.openjdk.jmh.runner.options.OptionsBuilder
 
 import scala.util.Random
 
 /**
-  *
+  * Executing:<br>
+  * ./gradlew jmh<br>
+  * Runs convexHull contains point for each TAZ cluster vs TAZTreeMap (with the same TAZes) get nearest Taz for point.
+  * Before actual performance test it loads TAZes and parking zones from appropriate files.
   * @author Dmitry Openkov
   */
 class GeometryPerformance {
@@ -58,9 +67,11 @@ object GeometryPerformance {
   }
 
   private def loadData: (TAZTreeMap, Vector[ParallelParkingManager.ParkingCluster], QuadTreeBounds) = {
-    val tazMap = taz.TAZTreeMap.fromCsv("test/input/sf-bay/taz-centers.csv")
+    val beamHome = System.getProperty("beam.home", ".")
+    println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
+    val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
     val (zones, _) = ZonalParkingManager.loadParkingZones(
-      "test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
+      s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
       "/not_set",
       1.0,
       1.0,
