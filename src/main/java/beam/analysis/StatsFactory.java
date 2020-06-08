@@ -26,6 +26,7 @@ public class StatsFactory {
         RideHailWaiting,
         RideHailWaitingTaz,
         ModeChosen,
+        ModeChosenForActivitySimEnabled,
         PersonVehicleTransition,
         PersonTravelTime,
         PersonCost,
@@ -105,6 +106,7 @@ public class StatsFactory {
 
     private BeamAnalysis createStats(StatsType statsType) {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
+        ActivitySimFilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
         switch (statsType) {
             case RideHailWaiting:
                 TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();
@@ -113,6 +115,8 @@ public class StatsFactory {
                 return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
                 return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
+            case ModeChosenForActivitySimEnabled:
+                new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, activitySimFilterEvent);
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
@@ -122,7 +126,6 @@ public class StatsFactory {
             case RealizedMode:
                 return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig);
             case RealizedModeForActivitySimEnabled:
-                ActivitySimFilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
                 return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig, activitySimFilterEvent);
             case DeadHeading:
                 return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
