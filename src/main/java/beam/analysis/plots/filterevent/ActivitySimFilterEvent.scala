@@ -22,7 +22,6 @@ class ActivitySimFilterEvent(matsimServices: MatsimServices) extends FilterEvent
   private def isHomeOrWorkActivity(event: ModeChoiceEvent): Boolean = {
     val person = matsimServices.getScenario.getPopulation.getPersons.get(event.personId)
     val plan = person.getSelectedPlan
-    System.out.println("Plan type: [" + plan.getType + "]. Index: [" + event.tourIndex + "]")
     val planElements = person.getSelectedPlan.getPlanElements.asScala.toIndexedSeq
     val current: Option[PlanElement] = planElements.lift(event.tourIndex-1)
     val next: Option[PlanElement] = planElements.lift(event.tourIndex)
