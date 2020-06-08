@@ -181,7 +181,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
           )
         )
-        new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
+        new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents, beamConfig.matsim.modules.global.randomSeed)
       case "JDEQSim" =>
         maybeRoadCapacityAdjustmentFunction match {
           case Some(roadCapacityAdjustmentFunction) =>
