@@ -288,15 +288,15 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
 
             int seconds = hour * 60 * 60;
-            double distanceInKilometers = distanceInMeters / 1000;;
+            double distanceInKilometers = distanceInMeters / 1000;
             simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInKilometers, tags, false);
         }
     }
 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
-        double[][] dataSet = buildDeadHeadingDataSetTnc0();
-        CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
         if (writeGraph) {
+            double[][] dataSet = buildDeadHeadingDataSetTnc0();
+            CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
@@ -652,7 +652,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-                    double vktInKm = vkt/1000;
+                    double vktInKm = vkt / 1000;
                     out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
