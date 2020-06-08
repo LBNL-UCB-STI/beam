@@ -107,7 +107,7 @@ public class StatsFactory {
 
     private BeamAnalysis createStats(StatsType statsType) {
         boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
-        FilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamServices.matsimServices());
+        FilterEvent activitySimFilterEvent = new ActivitySimFilterEvent(beamConfig, beamServices.matsimServices());
         switch (statsType) {
             case RideHailWaiting:
                 TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();

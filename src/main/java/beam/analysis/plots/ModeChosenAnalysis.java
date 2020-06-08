@@ -196,7 +196,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         return statComputation.compute(new Tuple<>(hourModeFrequency, modesChosen));
     }
 
-    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber,String fileBaseName) {
+    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber, String fileBaseName) {
 
         final String separator = ",";
 
@@ -331,17 +331,17 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
-    private void writeModeChosenAvailableAlternativeCSV(Integer interation){
+    private void writeModeChosenAvailableAlternativeCSV(Integer interation) {
         String csvFileName = iterationFilename(interation, "modeChosenAvailableAlternativesCount", ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             out.write("modeChosen, alternativesAvailable, numberOfTimes");
             out.newLine();
-            modeChosenAvailableAlternativesCount.forEach((modeChosenAlternatives,count) -> {
-                try{
+            modeChosenAvailableAlternativesCount.forEach((modeChosenAlternatives, count) -> {
+                try {
                     out.write(modeChosenAlternatives.toCountString(count));
                     out.newLine();
-                }catch (IOException exception){
+                } catch (IOException exception) {
                     log.error(exception.getMessage(), exception);
                 }
             });
@@ -380,7 +380,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
 
         public String toCountString(Integer count) {
-            return mode+", "+availableModes+", "+count;
+            return mode + ", " + availableModes + ", " + count;
         }
 
         @Override
