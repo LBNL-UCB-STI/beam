@@ -588,5 +588,7 @@ dockerCopyDistResources {
 
 jmh {
     // https://github.com/melix/jmh-gradle-plugin/issues/107
-    jvmArgs = ['-Djmh.separateClasspathJAR=true']
+    jvmArgs = ['-Djmh.separateClasspathJAR=true', '-Dbeam.home=' + project.projectDir]
+    duplicateClassesStrategy = 'exclude'
+    zip64 = true
 }
