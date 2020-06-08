@@ -6,4 +6,3 @@ trait FilterEvent {
   def shouldProcessEvent(event: Event): Boolean
   def graphNamePreSuffix: String = ""
 }
-
