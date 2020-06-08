@@ -13,7 +13,13 @@ import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector, VMInformationWriter}
+import beam.analysis.{
+  DelayMetricAnalysis,
+  IterationStatsProvider,
+  ModeChoiceAlternativesCollector,
+  RideHailUtilizationCollector,
+  VMInformationWriter
+}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -88,6 +94,10 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
+  private val modeChoiceAlternativesCollector: ModeChoiceAlternativesCollector = new ModeChoiceAlternativesCollector(
+    beamServices
+  )
+
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
@@ -129,6 +139,7 @@ class BeamSim @Inject()(
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
 
+    eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
     eventsManager.addHandler(carTravelTimeFromPte)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
@@ -231,10 +242,15 @@ class BeamSim @Inject()(
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
+    if (beamServices.beamConfig.beam.debug.spawnModeChoiceOccurredEvents) {
+      modeChoiceAlternativesCollector.notifyIterationStarts(event)
+    }
+
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       beamServices,
-      configHolder
+      configHolder,
+      eventsManager
     )
 
     ExponentialLazyLogging.reset()
@@ -280,6 +296,10 @@ class BeamSim @Inject()(
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPte.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
+
+    if (beamServices.beamConfig.beam.debug.spawnModeChoiceOccurredEvents) {
+      modeChoiceAlternativesCollector.notifyIterationEnds(event)
+    }
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {

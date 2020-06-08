@@ -10,6 +10,7 @@ import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -115,7 +116,8 @@ object ModeChoiceCalculator {
   def apply(
     classname: String,
     beamServices: BeamServices,
-    configHolder: BeamConfigHolder
+    configHolder: BeamConfigHolder,
+    eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
@@ -126,7 +128,8 @@ object ModeChoiceCalculator {
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle),
-                configHolder
+                configHolder,
+                eventsManager
               )
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")
@@ -146,7 +149,7 @@ object ModeChoiceCalculator {
       case "ModeChoiceMultinomialLogit" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder)
+          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, eventsManager)
     }
   }
   sealed trait ModeVotMultiplier
