@@ -54,7 +54,7 @@ public class StatsFactory {
 
     private final BeamConfig beamConfig;
     private final BeamServices beamServices;
-    private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
+    private final Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
 
     public StatsFactory(BeamServices services) {
         this.beamServices = services;

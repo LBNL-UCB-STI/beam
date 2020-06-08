@@ -14,9 +14,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     private static final double INCREASE_TIMESTAMP = 0.0000000001D;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
-    private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
-    private double speedAdjustmentFactor;
-    private double minimumRoadSpeedInMetersPerSecond;
+    private final HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
+    private final double speedAdjustmentFactor;
+    private final double minimumRoadSpeedInMetersPerSecond;
 
     public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond) {
 
@@ -69,7 +69,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         return vehicle.isCACCVehicle()?1.0:0.0;
     }
 
-    public HashMap<org.matsim.core.mobsim.jdeqsim.Vehicle,Double> latestTimeToLeaveRoad = new HashMap<>();
+    public final HashMap<org.matsim.core.mobsim.jdeqsim.Vehicle,Double> latestTimeToLeaveRoad = new HashMap<>();
 
     @Override
     public void enterRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {

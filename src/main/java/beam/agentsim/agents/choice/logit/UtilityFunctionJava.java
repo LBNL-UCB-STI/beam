@@ -7,8 +7,8 @@ import java.util.stream.Collectors;
 
 public class UtilityFunctionJava {
 
-    private Map<String, Double> coefficients = new HashMap<>();
-    private Map<String, LogitCoefficientType> coefficientTypes = new HashMap<>();
+    private final Map<String, Double> coefficients = new HashMap<>();
+    private final Map<String, LogitCoefficientType> coefficientTypes = new HashMap<>();
 
     void addCoefficient(final String variableName, final double coefficient, final LogitCoefficientType coefficientType) {
         coefficients.put(variableName, coefficient);

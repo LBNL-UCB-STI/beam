@@ -7,6 +7,7 @@ import beam.analysis.plots.filterevent.FilterEvent;
 import beam.sim.config.BeamConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
