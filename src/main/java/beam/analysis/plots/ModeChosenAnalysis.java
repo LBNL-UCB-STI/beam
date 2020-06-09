@@ -108,10 +108,12 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     private void writeModeChosen(IterationEndsEvent event) throws IOException {
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null && writeGraph) {
-            String graphImageFile = iterationFilename(event.getIteration(), modeChoiceFileBaseName, ".png");
-            createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, modesChosen);
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+            if (modesFrequencyDataset != null) {
+                String graphImageFile = iterationFilename(event.getIteration(), modeChoiceFileBaseName, ".png");
+                createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, modesChosen);
+            }
         }
         createModeChosenCSV(hourModeFrequency, event.getIteration(), modeChoiceFileBaseName);
     }
@@ -197,7 +199,9 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     }
 
     private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber, String fileBaseName) {
-
+        if (hourModeChosen.isEmpty()) {
+            return;
+        }
         final String separator = ",";
 
         CSVWriter csvWriter = new CSVWriter(iterationFilename(iterationNumber, fileBaseName, ".csv"));
