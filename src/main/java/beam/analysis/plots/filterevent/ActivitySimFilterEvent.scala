@@ -12,8 +12,9 @@ class ActivitySimFilterEvent(beamConfig: BeamConfig, matsimServices: MatsimServi
 
   override def graphNamePreSuffix: String = "_commute"
 
+  private val isEnabled = beamConfig.beam.exchange.scenario.urbansim.activitySimEnabled
+
   override def shouldProcessEvent(event: Event): Boolean = {
-    val isEnabled = beamConfig.beam.exchange.scenario.urbansim.activitySimEnabled
     event match {
       case mcEvent: ModeChoiceEvent if isEnabled => isHomeOrWorkActivity(mcEvent)
       case rEvent: ReplanningEvent if isEnabled  => isHomeOrWorkActivity(rEvent)
@@ -23,7 +24,6 @@ class ActivitySimFilterEvent(beamConfig: BeamConfig, matsimServices: MatsimServi
 
   private def isHomeOrWorkActivity(event: ModeChoiceEvent): Boolean = {
     val person = matsimServices.getScenario.getPopulation.getPersons.get(event.personId)
-    val plan = person.getSelectedPlan
     val planElements = person.getSelectedPlan.getPlanElements.asScala.toIndexedSeq
     val current: Option[PlanElement] = planElements.lift(event.tourIndex - 1)
     val next: Option[PlanElement] = planElements.lift(event.tourIndex)
