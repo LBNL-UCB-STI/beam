@@ -27,7 +27,27 @@ object VMInfoCollector {
         )
     }
   }
+
+  def parseClassHistogram(jfrClassHistogram: String, takeLines: Int): Seq[VMClassInfo] = {
+    val lines = jfrClassHistogram
+      .split("\n")
+      .filter(_.length > 5)
+      .slice(2, takeLines + 2)
+
+    val infos = lines.flatMap { line =>
+      val parts = line.split(" ").map(_.trim).filter(_ != "")
+      if (parts.length == 4) {
+        Some(new VMClassInfo(parts(3), parts(2).toLong, parts(1).toLong))
+      } else {
+        None
+      }
+    }
+
+    infos
+  }
 }
+
+class VMClassInfo(val className: String, val numberOfBytes: Long, val countOfInstances: Long)
 
 sealed trait JFRCommandWithoutArguments {
   def asStr: String
@@ -94,6 +114,8 @@ object JFRCommandWithoutArguments {
 }
 
 class VMInfoCollector(val mbeanObjectName: ObjectName) {
+  import VMInfoCollector._
+
   private val server: MBeanServer = ManagementFactory.getPlatformMBeanServer
 
   def gcRun(): Unit = invoke(JFRCommandWithoutArguments.GcRun)
@@ -107,9 +129,9 @@ class VMInfoCollector(val mbeanObjectName: ObjectName) {
     mxBean.dumpHeap(filePath, live)
   }
 
-  def gcClassHistogram: String = {
+  def gcClassHistogram(takeTopClasses: Int): Seq[VMClassInfo] = {
     gcRun()
-    invoke(JFRCommandWithoutArguments.GcClassHistogram)
+    parseClassHistogram(invoke(JFRCommandWithoutArguments.GcClassHistogram), takeTopClasses)
   }
 
   def invoke(jfrCommand: JFRCommandWithoutArguments): String = {
