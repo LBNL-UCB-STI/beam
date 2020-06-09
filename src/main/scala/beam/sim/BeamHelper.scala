@@ -666,14 +666,14 @@ trait BeamHelper extends LazyLogging {
     * @param config the input config file
     * @param outputDirectory output folder where full configs will be generated
     */
-  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String) = {
+  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String): Unit = {
     val configConciseWithoutJson = config.root().render(ConfigRenderOptions.concise().setFormatted(true).setJson(false))
     writeStringToFile(configConciseWithoutJson, new File(outputDirectory, "fullBeamConfig.conf"))
 
     writeStringToFile(config.root().render(), new File(outputDirectory, "fullBeamConfigJson.conf"))
   }
 
-  private def writeStringToFile(text: String, output: File) = {
+  private def writeStringToFile(text: String, output: File): Unit = {
     val fileWriter = new PrintWriter(output)
     fileWriter.write(text)
     fileWriter.close
