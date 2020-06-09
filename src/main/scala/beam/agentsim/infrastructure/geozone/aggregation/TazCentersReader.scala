@@ -8,9 +8,12 @@ import beam.agentsim.infrastructure.taz.CsvTaz
 private[aggregation] class TazCentersReader(tazCentersFile: Path) {
 
   def readTazToWgsCoordinate(): Map[TazCoordinate, WgsCoordinate] = {
-    CsvTaz.readCsvFile(tazCentersFile.toString).map{ elem =>
-      TazCoordinate(elem.id) -> WgsCoordinate(latitude = elem.coordY, longitude = elem.coordX)
-    }.toMap
+    CsvTaz
+      .readCsvFile(tazCentersFile.toString)
+      .map { elem =>
+        TazCoordinate(elem.id) -> WgsCoordinate(latitude = elem.coordY, longitude = elem.coordX)
+      }
+      .toMap
   }
 
 }
