@@ -2,12 +2,17 @@ package beam.analysis
 
 import java.io.IOException
 
+import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.utils.csv.CsvWriter
 import beam.utils.{VMClassInfo, VMInfoCollector}
 import com.typesafe.scalalogging.LazyLogging
+import org.jfree.chart.ChartFactory
+import org.jfree.chart.plot.PlotOrientation
+import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
+
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -17,6 +22,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     with IterationStartsListener {
 
   val bytesInMegabyte: Double = 1024.0 * 1024.0
+  val baseNumberOfMBytesOfClassOnHeapFileName = "vmNumberOfMBytesOfClassOnHeap"
 
   val classNameToBytesPerIteration: mutable.Map[String, mutable.ListBuffer[Long]] =
     new mutable.HashMap[String, mutable.ListBuffer[Long]]()
@@ -92,14 +98,57 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     fixMap(classNameToBytesPerIteration)
   }
 
+  private def createTypeSizeOnHeapDataset(
+    classToIterationValues: Vector[(String, mutable.ListBuffer[Long])]
+  ): CategoryDataset = {
+    val dataset = new DefaultCategoryDataset
+
+    classToIterationValues.foreach {
+      case (className, sizePerIteration) =>
+        sizePerIteration.zipWithIndex.foreach {
+          case (sizeOnHeap, iteration) => dataset.addValue(sizeOnHeap, className, iteration)
+        }
+    }
+
+    dataset
+  }
+
+  private def createTypeSizeOnHeapGraph(
+    outputFileName: String,
+    dataset: CategoryDataset
+  ): Unit = {
+    val chart = ChartFactory.createBarChart(
+      "Size of all type instances on a heap",
+      "Iteration",
+      "MB",
+      dataset,
+      PlotOrientation.VERTICAL,
+      true,
+      true,
+      false
+    )
+
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      outputFileName,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
+  }
+
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val vmInfoCollector = VMInfoCollector()
     val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
 
     analyzeVMClassHystogram(classes, event.getIteration)
+    val typeSizeOnHeap = classNameToBytesPerIteration.toVector
 
-    val filePath = controllerIO.getOutputFilename("vmNumberOfMBytesOfClassOnHeap.csv.gz")
-    writeHeapClassesInformation(classNameToBytesPerIteration.toVector, filePath)
+    val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")
+    writeHeapClassesInformation(typeSizeOnHeap, csvFilePath)
+
+    val pngFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.png")
+    val typeSizeOnHeapDataSet = createTypeSizeOnHeapDataset(typeSizeOnHeap)
+    createTypeSizeOnHeapGraph(pngFilePath, typeSizeOnHeapDataSet)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {}
