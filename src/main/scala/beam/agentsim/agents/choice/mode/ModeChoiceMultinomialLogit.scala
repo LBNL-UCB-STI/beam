@@ -95,8 +95,8 @@ class ModeChoiceMultinomialLogit(
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
-            if (beamServices.beamConfig.beam.debug.spawnModeChoiceOccurredEvents)
-              spawnModeChoiceOccurredEvent(
+            if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives)
+              createModeChoiceOccurredEvent(
                 person,
                 alternativesWithUtility,
                 modeCostTimeTransfers,
@@ -112,7 +112,7 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
-  def spawnModeChoiceOccurredEvent(
+  def createModeChoiceOccurredEvent(
     person: Option[Person],
     alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
@@ -137,15 +137,29 @@ class ModeChoiceMultinomialLogit(
           )
           .toMap
 
-        Some(
-          ModeChoiceOccurredEvent(
-            p.getId.toString,
-            alternatives,
-            altCostTimeTransfer,
-            altUtility,
-            chosenModeCostTime.head.index
+        val time = alternatives.headOption match {
+          case Some(trip) =>
+            trip.legs.headOption match {
+              case Some(leg) => Some(leg.beamLeg.startTime)
+              case None      => None
+            }
+          case None => None
+        }
+
+        if (time.nonEmpty) {
+          Some(
+            ModeChoiceOccurredEvent(
+              time.get,
+              p.getId.toString,
+              alternatives,
+              altCostTimeTransfer,
+              altUtility,
+              chosenModeCostTime.head.index
+            )
           )
-        )
+        } else {
+          None
+        }
 
       case _ => None
     }

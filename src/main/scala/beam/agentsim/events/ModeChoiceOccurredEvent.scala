@@ -10,17 +10,13 @@ object ModeChoiceOccurredEvent {
   case class AltCostTimeTransfer(cost: Double, time: Double, numTransfers: Int)
 
   def apply(
+    time: Double,
     personId: String,
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     modeCostTimeTransfers: Map[String, AltCostTimeTransfer],
     alternativesUtility: Map[String, AltUtility],
     chosenAlternativeIdx: Int
-  ): ModeChoiceOccurredEvent = {
-
-    // just to have an approximate event time.
-    // not used in calculations at all.
-    val time = alternatives.head.legs.head.beamLeg.startTime
-
+  ): ModeChoiceOccurredEvent =
     new ModeChoiceOccurredEvent(
       time,
       personId,
@@ -29,7 +25,6 @@ object ModeChoiceOccurredEvent {
       alternativesUtility,
       chosenAlternativeIdx
     )
-  }
 }
 
 case class ModeChoiceOccurredEvent(
