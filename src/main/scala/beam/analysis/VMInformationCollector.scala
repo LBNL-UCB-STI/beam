@@ -11,24 +11,23 @@ import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
+import org.matsim.core.controler.listener.IterationEndsListener
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
 class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val takeTopClasses: Int = 10)
     extends LazyLogging
-    with IterationEndsListener
-    with IterationStartsListener {
+    with IterationEndsListener {
 
-  val bytesInMegabyte: Double = 1024.0 * 1024.0
+  val bytesInGb: Double = 1024.0 * 1024.0 * 1024.0
   val baseNumberOfMBytesOfClassOnHeapFileName = "vmNumberOfMBytesOfClassOnHeap"
 
   val classNameToBytesPerIteration: mutable.Map[String, mutable.ListBuffer[Long]] =
     new mutable.HashMap[String, mutable.ListBuffer[Long]]()
 
   def writeHeapClassesInformation(
-    classToIterationValues: Vector[(String, mutable.ListBuffer[Long])],
+    classToIterationValues: Vector[(String, Seq[Double])],
     filePath: String
   ): Unit = {
 
@@ -38,7 +37,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
 
     try {
       for (iteration <- 0 until numberOfIterations) {
-        val row = iteration +: classToIterationValues.map(_._2(iteration) / bytesInMegabyte)
+        val row = iteration +: classToIterationValues.map(_._2(iteration))
         csvWriter.write(row: _*)
       }
     } catch {
@@ -99,7 +98,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
   }
 
   private def createTypeSizeOnHeapDataset(
-    classToIterationValues: Vector[(String, mutable.ListBuffer[Long])]
+    classToIterationValues: Vector[(String, Seq[Double])]
   ): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
 
@@ -120,7 +119,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     val chart = ChartFactory.createBarChart(
       "Size of all type instances on a heap",
       "Iteration",
-      "MB",
+      "GB",
       dataset,
       PlotOrientation.VERTICAL,
       true,
@@ -141,7 +140,9 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
 
     analyzeVMClassHystogram(classes, event.getIteration)
-    val typeSizeOnHeap = classNameToBytesPerIteration.toVector
+    val typeSizeOnHeap = classNameToBytesPerIteration.map {
+      case (className, values) => (className, values.map(_ / bytesInGb))
+    }.toVector
 
     val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")
     writeHeapClassesInformation(typeSizeOnHeap, csvFilePath)
@@ -150,6 +151,4 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     val typeSizeOnHeapDataSet = createTypeSizeOnHeapDataset(typeSizeOnHeap)
     createTypeSizeOnHeapGraph(pngFilePath, typeSizeOnHeapDataSet)
   }
-
-  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {}
 }
