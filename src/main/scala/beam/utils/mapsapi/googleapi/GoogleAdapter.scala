@@ -6,7 +6,6 @@ import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 
 import akka.actor.ActorSystem
@@ -20,9 +19,11 @@ import beam.utils.mapsapi.googleapi.GoogleAdapter._
 import org.apache.commons.io.FileUtils
 import play.api.libs.json.{JsArray, JsLookupResult, JsObject, JsValue, Json}
 
-class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) extends AutoCloseable {
-  private implicit val system: ActorSystem = ActorSystem()
+class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, actorSystem: Option[ActorSystem] = None)
+    extends AutoCloseable {
+  private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  private implicit val ec = system.dispatcher
 
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
@@ -97,12 +98,14 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
   }
 
   override def close(): Unit = {
-    Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          if (!materializer.isShutdown) materializer.shutdown()
-          system.terminate()
-      }
+    if (actorSystem.isEmpty) {
+      Http().shutdownAllConnectionPools
+        .andThen {
+          case _ =>
+            if (!materializer.isShutdown) materializer.shutdown()
+            system.terminate()
+        }
+    }
   }
 
 }
