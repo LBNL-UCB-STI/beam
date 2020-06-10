@@ -109,7 +109,9 @@ class BeamSim @Inject()(
       Some(beamServices.matsimServices.getControlerIO)
     )
 
-  val vmInformationWriter: VMInformationCollector = new VMInformationCollector(beamServices.matsimServices.getControlerIO);
+  val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
+    beamServices.matsimServices.getControlerIO
+  );
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -215,11 +217,6 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
-    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
-      vmInformationWriter.notifyIterationStarts(event)
-    }
-
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()

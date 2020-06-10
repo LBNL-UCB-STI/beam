@@ -18,7 +18,7 @@ class VMInformationCollectorTest extends FlatSpec with Matchers {
       new VMClassInfo("[I", 22648216, 204633)
     )
 
-      parts.zip(expectedInfos).foreach {
+    parts.zip(expectedInfos).foreach {
       case (ci1: VMClassInfo, ci2: VMClassInfo) =>
         ci1.className shouldBe ci2.className
         ci1.numberOfBytes shouldBe ci2.numberOfBytes
@@ -37,7 +37,7 @@ class VMInformationCollectorTest extends FlatSpec with Matchers {
 
     val vmInfoWriter = new VMInformationCollector(null)
 
-    def check(map: mutable.Map[String, ListBuffer[Long]], numberOfRecords:Int, lengthOfIterationValues:Int): Unit = {
+    def check(map: mutable.Map[String, ListBuffer[Long]], numberOfRecords: Int, lengthOfIterationValues: Int): Unit = {
       map.size shouldBe numberOfRecords
       map.values.foreach { iterationVals =>
         iterationVals.length shouldBe lengthOfIterationValues
