@@ -26,7 +26,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     filePath: String
   ): Unit = {
 
-    val header = "iteration\className" +: classToIterationValues.map(_._1)
+    val header = "iteration\\className" +: classToIterationValues.map(_._1)
     val numberOfIterations = classToIterationValues(0)._2.length
     val csvWriter = new CsvWriter(filePath, header)
 
