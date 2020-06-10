@@ -22,7 +22,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   *
@@ -46,7 +46,37 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     }
   }
 
+  private def lift[T](futures: Iterable[Future[T]]): Iterable[Future[Try[T]]] =
+    futures.map(_.map {
+      Success(_)
+    }.recover {
+      case throwable => Failure(throwable)
+    })
+
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    @scala.annotation.tailrec
+    def queryGoogleAPI(
+      events: List[Iterable[PathTraversalEvent]],
+      adapter: GoogleAdapter,
+      acc: List[EventContainer]
+    ): List[EventContainer] = {
+      events match {
+        case Nil => acc
+        case head :: tl =>
+          val futureResult = for {
+            result <- Future.sequence(lift(head.map(e => toGoogleTravelTime(e, adapter))))
+            _ = result.collect {
+              case Failure(throwable) => logger.error("Error when calling google API", throwable)
+            }
+            flat = result.collect {
+              case Success(value) => value
+            }.flatten
+          } yield flat
+          val eventContainers = Await.result(futureResult, 1.hour)
+          queryGoogleAPI(tl, adapter, acc ++ eventContainers)
+      }
+    }
+
     if (cfg.travelTimes.enable
         && cfg.travelTimes.iterationInterval > 0
         && event.getIteration % cfg.travelTimes.iterationInterval == 0) {
@@ -55,25 +85,23 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
       val byHour = acc.groupBy(_.departureTime % 3600).filter {
         case (hour, _) => hour < 24
       }
-      val events = byHour.flatMap {
-        case (_, events) => getAppropriateEvents(events, numEventsPerHour, cfg.travelTimes.minDistanceInMeters)
-      }.toList
+      val events = byHour
+        .flatMap {
+          case (_, events) => getAppropriateEvents(events, numEventsPerHour, cfg.travelTimes.minDistanceInMeters)
+        }
+      val groupedEvents = events.grouped(16).toList
       logger.info("Number of events: {}", events.size)
       val apiKey = cfg.apiKey.getOrElse(throw new IllegalArgumentException("No google api key provided"))
+      val adapter = new GoogleAdapter(apiKey, None, Some(actorSystem))
+      val result = using(adapter) { adapter =>
+        queryGoogleAPI(groupedEvents, adapter, List())
+      }.sortBy(
+        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
+      )
       val iterationNumber = event.getServices.getIterationNumber
       val iterationPath = event.getServices.getControlerIO.getIterationPath(iterationNumber)
       val filePath = s"$iterationPath/$iterationNumber.googleTravelTimeEstimation.csv"
-      val numSaved = for {
-        allEvents <- Future.sequence(using(new GoogleAdapter(apiKey, None, Some(actorSystem))) { adapter =>
-          events.map(e => toGoogleTravelTime(e, adapter))
-        })
-        sorted = allEvents.flatten.sortBy(
-          ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
-        )
-      } yield {
-        writeToCsv(sorted, filePath)
-      }
-      val num = Await.result(numSaved, 1.hour)
+      val num = writeToCsv(result, filePath)
       logger.info(s"Saved $num routes to $filePath")
     }
   }
