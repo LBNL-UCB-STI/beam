@@ -11,14 +11,13 @@ import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
-
 import scala.collection.JavaConverters._
+
+import beam.agentsim.infrastructure.taz.CsvTaz
 
 object ShapeUtils {
 
   case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
-
-  case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
 
   trait HasQuadBounds[A] {
     def getMinX(a: A): Double
