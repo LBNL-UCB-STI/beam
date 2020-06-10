@@ -149,7 +149,6 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeReplanningReasonCountRootCSV();
     }
 
-    // check this graph first
     private void writeRealizedModeGraph(IterationEndsEvent event) throws IOException {
         if (writeGraph) {
             CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
