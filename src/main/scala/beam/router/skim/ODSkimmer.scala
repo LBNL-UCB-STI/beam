@@ -203,7 +203,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             newDestCoord,
                             timeBin * 3600,
                             dummyId,
-                            beamServices
+                            beamServices.beamScenario
                           )
                       } else {
                         readOnlySkim
@@ -214,7 +214,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             destination.coord,
                             timeBin * 3600,
                             dummyId,
-                            beamServices
+                            beamServices.beamScenario
                           )
                       }
                     }
@@ -265,7 +265,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
               adjustedDestCoord,
               timeBin * 3600,
               dummyId,
-              beamServices
+              beamServices.beamScenario
             )
         }
     }
