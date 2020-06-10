@@ -242,7 +242,7 @@ class BeamSim @Inject()(
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
-    if (beamServices.beamConfig.beam.debug.spawnModeChoiceOccurredEvents) {
+    if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
     }
 
@@ -297,7 +297,7 @@ class BeamSim @Inject()(
     carTravelTimeFromPte.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
-    if (beamServices.beamConfig.beam.debug.spawnModeChoiceOccurredEvents) {
+    if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationEnds(event)
     }
 
