@@ -17,6 +17,7 @@ object Skims extends LazyLogging {
     skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.TAZ_SKIMMER, addEvent(new TAZSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.DT_SKIMMER, addEvent(new DriveTimeSkimmer(beamServices, skimConfig)))
+
   }
 
   def clear(): Unit = {
