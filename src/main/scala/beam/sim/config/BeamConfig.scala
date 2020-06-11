@@ -1774,7 +1774,8 @@ object BeamConfig {
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
-      vmInformation: BeamConfig.Beam.Debug.VmInformation
+      vmInformation: BeamConfig.Beam.Debug.VmInformation,
+      writeModeChoiceAlternatives: scala.Boolean
     )
 
     object Debug {
@@ -1952,6 +1953,9 @@ object BeamConfig {
           vmInformation = BeamConfig.Beam.Debug.VmInformation(
             if (c.hasPathOrNull("vmInformation")) c.getConfig("vmInformation")
             else com.typesafe.config.ConfigFactory.parseString("vmInformation{}")
+          ),
+          writeModeChoiceAlternatives = c.hasPathOrNull("writeModeChoiceAlternatives") && c.getBoolean(
+            "writeModeChoiceAlternatives"
           )
         )
       }
