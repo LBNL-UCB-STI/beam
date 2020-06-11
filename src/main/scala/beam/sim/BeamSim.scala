@@ -640,9 +640,9 @@ class BeamSim @Inject()(
               .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))
           )
         )
-        logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getAbsoluteFile)
         try {
           if (file != newFile && !newFile.exists()) {
+            logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getName)
             file.renameTo(newFile)
           }
           newFile
