@@ -1966,17 +1966,34 @@ object BeamConfig {
         convertWgs2Utm: scala.Boolean,
         fileFormat: java.lang.String,
         folder: java.lang.String,
-        source: java.lang.String
+        source: java.lang.String,
+        urbansim: BeamConfig.Beam.Exchange.Scenario.Urbansim
       )
 
       object Scenario {
+        case class Urbansim(
+          activitySimEnabled: scala.Boolean
+        )
+
+        object Urbansim {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario.Urbansim = {
+            BeamConfig.Beam.Exchange.Scenario.Urbansim(
+              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled")
+            )
+          }
+        }
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario = {
           BeamConfig.Beam.Exchange.Scenario(
             convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
             fileFormat = if (c.hasPathOrNull("fileFormat")) c.getString("fileFormat") else "xml",
             folder = if (c.hasPathOrNull("folder")) c.getString("folder") else "",
-            source = if (c.hasPathOrNull("source")) c.getString("source") else "Beam"
+            source = if (c.hasPathOrNull("source")) c.getString("source") else "Beam",
+            urbansim = BeamConfig.Beam.Exchange.Scenario.Urbansim(
+              if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
+              else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
+            )
           )
         }
       }
