@@ -32,13 +32,15 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     extends BasicEventHandler
     with IterationEndsListener
     with LazyLogging {
-  if (cfg.travelTimes.enable && cfg.apiKey.isEmpty)
-    throw new IllegalArgumentException("google api key is empty")
 
   val acc = mutable.ListBuffer.empty[PathTraversalEvent]
+  val apiKey = System.getenv("GOOGLE_API_KEY")
+  if (cfg.travelTimes.enable && apiKey == null)
+    logger.warn("google api key is empty")
+  val enabled = cfg.travelTimes.enable && apiKey != null
 
   override def handleEvent(event: Event): Unit = {
-    if (cfg.travelTimes.enable) {
+    if (enabled) {
       event match {
         case pte: PathTraversalEvent => acc += pte
         case _                       =>
@@ -77,7 +79,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
       }
     }
 
-    if (cfg.travelTimes.enable
+    if (enabled
         && cfg.travelTimes.iterationInterval > 0
         && event.getIteration % cfg.travelTimes.iterationInterval == 0) {
       logger.info("Executing google API call for iteration #{}", event.getIteration)
@@ -91,7 +93,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
         }
       val groupedEvents = events.grouped(16).toList
       logger.info("Number of events: {}", events.size)
-      val apiKey = cfg.apiKey.getOrElse(throw new IllegalArgumentException("No google api key provided"))
+
       val adapter = new GoogleAdapter(apiKey, None, Some(actorSystem))
       val result = using(adapter) { adapter =>
         queryGoogleAPI(groupedEvents, adapter, List())
