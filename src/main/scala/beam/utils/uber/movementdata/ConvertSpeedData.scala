@@ -115,7 +115,7 @@ class ConvertSpeedData(
     require(startNode != null, s"NodeId[startNodeId] ${speedData.startNodeId} does not exist in OSM")
     val endNode = osmNodes.get(speedData.endNodeId)
     require(endNode != null, s"NodeId[endNodeId] ${speedData.endNodeId} does not exist in OSM")
-    boundingBox.contains(startNode.getLat, startNode.getLon) && boundingBox.contains(endNode.getLat, endNode.getLon)
+    boundingBox.contains(startNode.getLon, startNode.getLat) && boundingBox.contains(endNode.getLon, endNode.getLat)
   }
 }
 
@@ -136,9 +136,9 @@ object ConvertSpeedData {
     val pathToSpeedCsv: String = "D:/Work/beam/Uber/SpeedData/movement-speeds-hourly-san-francisco-2019-10.csv"
     val pathToOsm: String = "D:/Work/beam/Uber/SpeedData/norcal-latest.osm.pbf"
 
-    // Lat1, Lat2, Long1, Long2
-    // https://www.google.com/maps/d/drive?state=%7B%22ids%22%3A%5B%221JxxEvTayxiqi_GXe5-pzmNeV72wmjkkz%22%5D%2C%22action%22%3A%22open%22%2C%22userId%22%3A%22111892074776602978600%22%7D&usp=sharing
-    val boundingBox: Envelope = new Envelope(37.616703303, 37.887535417, -122.672606043, -122.186313573)
+    // https://www.google.com/maps/d/drive?state=%7B%22ids%22%3A%5B%221n-UDzL-FBZzyXBs7tSfYgb37GpJ93_Az%22%5D%2C%22action%22%3A%22open%22%2C%22userId%22%3A%22111892074776602978600%22%7D&usp=sharing
+    // X = Longitude, Y = Latitude
+    val boundingBox: Envelope = new Envelope(-122.546046192, -122.330412968, 37.655512625, 37.811362211)
     val stuff = new ConvertSpeedData(pathToSpeedCsv, pathToOsm, boundingBox, samplePerHour = 100, seed = 42)
     stuff.write()
   }
