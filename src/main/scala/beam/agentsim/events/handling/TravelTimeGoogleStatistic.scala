@@ -10,7 +10,8 @@ import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
-import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route, TrafficModels, TravelModes}
+import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
+import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
@@ -29,22 +30,28 @@ import scala.util.{Failure, Random, Success, Try}
   *
   * @author Dmitry Openkov
   */
-class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSystem: ActorSystem, geoUtils: GeoUtils)
-    extends BasicEventHandler
+class TravelTimeGoogleStatistic(
+  cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
+  actorSystem: ActorSystem,
+  geoUtils: GeoUtils
+) extends BasicEventHandler
     with IterationEndsListener
     with LazyLogging {
 
   private val acc = mutable.ListBuffer.empty[PathTraversalEvent]
   private val apiKey = System.getenv("GOOGLE_API_KEY")
-  if (cfg.travelTimes.enable && apiKey == null)
+  if (cfg.enable && apiKey == null)
     logger.warn("google api key is empty")
-  private val enabled = cfg.travelTimes.enable && apiKey != null
+  private val queryDate = getQueryDate(cfg.queryDate)
+
+  private val enabled = cfg.enable && apiKey != null
+  private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
 
   override def handleEvent(event: Event): Unit = {
     if (enabled) {
       event match {
         case pte: PathTraversalEvent if pte.mode == BeamMode.CAR => acc += pte
-        case _                                                     =>
+        case _                                                   =>
       }
     }
   }
@@ -81,16 +88,20 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     }
 
     if (enabled
-        && cfg.travelTimes.iterationInterval > 0
-        && event.getIteration % cfg.travelTimes.iterationInterval == 0) {
-      logger.info("Executing google API call for iteration #{}", event.getIteration)
-      val numEventsPerHour = Math.max(1, cfg.travelTimes.numDataPointsOver24Hours / 24)
+        && cfg.iterationInterval > 0
+        && event.getIteration % cfg.iterationInterval == 0) {
+      logger.info(
+        "Executing google API call for iteration #{}, query date = {}",
+        event.getIteration,
+        queryDate.toLocalDate
+      )
+      val numEventsPerHour = Math.max(1, cfg.numDataPointsOver24Hours / 24)
       val byHour = acc.groupBy(_.departureTime % 3600).filter {
         case (hour, _) => hour < 24
       }
       val events = byHour
         .flatMap {
-          case (_, events) => getAppropriateEvents(events, numEventsPerHour, cfg.travelTimes.minDistanceInMeters)
+          case (_, events) => getAppropriateEvents(events, numEventsPerHour, cfg.minDistanceInMeters)
         }
       logger.info("Number of events: {}", events.size)
       val groupedEvents = events.grouped(16).toList
@@ -157,25 +168,30 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     Random.shuffle(events).view.filter(e => e.legLength >= minDistanceInMeters).take(numEventsPerHour)
   }
 
+  private def getQueryDate(dateStr: String) = {
+    val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureDate())
+    val date = if (parsedDate.compareTo(LocalDate.now()) <= 0) {
+      futureDate()
+    } else {
+      parsedDate
+    }
+    LocalDateTime.of(date, LocalTime.MIDNIGHT)
+  }
+
+  private def futureDate(): LocalDate = {
+    LocalDate.now().plusDays(2)
+  }
+
   private def toGoogleTravelTime(event: PathTraversalEvent, adapter: GoogleAdapter): Future[Seq[EventContainer]] = {
     for {
       routes <- adapter
         .findRoutes(
           origin = WgsCoordinate(event.startY, event.startX),
           destination = WgsCoordinate(event.endY, event.endX),
-          departureAt = toLocalDateTime(event.departureTime),
-          mode = TravelModes.Driving,
-          trafficModel = TrafficModels.BestGuess,
-          constraints = Set.empty
+          departureAt = queryDate.plusSeconds(event.departureTime),
+          constraints = constraints
         )
     } yield routes.map(route => EventContainer(event, route))
-  }
-
-  private def toLocalDateTime(departureTime: Int): LocalDateTime = {
-    val today = LocalDate.now()
-    val todayMidnight = LocalDateTime.of(today, LocalTime.MIDNIGHT)
-    val futureMidnight = todayMidnight.plusDays(2)
-    futureMidnight.plusSeconds(departureTime)
   }
 
   override def reset(iteration: Int): Unit = {

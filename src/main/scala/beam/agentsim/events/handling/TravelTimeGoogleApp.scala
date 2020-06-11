@@ -36,8 +36,8 @@ object TravelTimeGoogleApp extends App {
   using(ActorSystem())(_.terminate())(actorSystem => processEventFile(execCfg, actorSystem))
 
   private def processEventFile(execCfg: BeamExecutionConfig, actorSystem: ActorSystem): Unit = {
-    val statistic =
-      new TravelTimeGoogleStatistic(execCfg.beamConfig.beam.calibration.google, actorSystem, SimpleGeoUtils())
+    val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes
+    val statistic = new TravelTimeGoogleStatistic(statCfg, actorSystem, SimpleGeoUtils())
 
     val iteration = 0
     statistic.reset(iteration)
