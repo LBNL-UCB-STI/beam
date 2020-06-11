@@ -6,6 +6,7 @@ import java.util.Objects
 import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
@@ -33,17 +34,17 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     with IterationEndsListener
     with LazyLogging {
 
-  val acc = mutable.ListBuffer.empty[PathTraversalEvent]
-  val apiKey = System.getenv("GOOGLE_API_KEY")
+  private val acc = mutable.ListBuffer.empty[PathTraversalEvent]
+  private val apiKey = System.getenv("GOOGLE_API_KEY")
   if (cfg.travelTimes.enable && apiKey == null)
     logger.warn("google api key is empty")
-  val enabled = cfg.travelTimes.enable && apiKey != null
+  private val enabled = cfg.travelTimes.enable && apiKey != null
 
   override def handleEvent(event: Event): Unit = {
     if (enabled) {
       event match {
-        case pte: PathTraversalEvent => acc += pte
-        case _                       =>
+        case pte: PathTraversalEvent if pte.mode == BeamMode.CAR => acc += pte
+        case _                                                     =>
       }
     }
   }
@@ -74,7 +75,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
               case Success(value) => value
             }.flatten
           } yield flat
-          val eventContainers = Await.result(futureResult, 1.hour)
+          val eventContainers = Await.result(futureResult, 10.minutes)
           queryGoogleAPI(tl, adapter, acc ++ eventContainers)
       }
     }
@@ -91,8 +92,8 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
         .flatMap {
           case (_, events) => getAppropriateEvents(events, numEventsPerHour, cfg.travelTimes.minDistanceInMeters)
         }
-      val groupedEvents = events.grouped(16).toList
       logger.info("Number of events: {}", events.size)
+      val groupedEvents = events.grouped(16).toList
 
       val adapter = new GoogleAdapter(apiKey, None, Some(actorSystem))
       val result = using(adapter) { adapter =>
@@ -100,7 +101,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
       }.sortBy(
         ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
       )
-      val iterationNumber = event.getServices.getIterationNumber
+      val iterationNumber = event.getIteration
       val iterationPath = event.getServices.getControlerIO.getIterationPath(iterationNumber)
       val filePath = s"$iterationPath/$iterationNumber.googleTravelTimeEstimation.csv"
       val num = writeToCsv(result, filePath)
@@ -156,7 +157,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     Random.shuffle(events).view.filter(e => e.legLength >= minDistanceInMeters).take(numEventsPerHour)
   }
 
-  def toGoogleTravelTime(event: PathTraversalEvent, adapter: GoogleAdapter): Future[Seq[EventContainer]] = {
+  private def toGoogleTravelTime(event: PathTraversalEvent, adapter: GoogleAdapter): Future[Seq[EventContainer]] = {
     for {
       routes <- adapter
         .findRoutes(
@@ -170,7 +171,7 @@ class TravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google, actorSy
     } yield routes.map(route => EventContainer(event, route))
   }
 
-  def toLocalDateTime(departureTime: Int): LocalDateTime = {
+  private def toLocalDateTime(departureTime: Int): LocalDateTime = {
     val today = LocalDate.now()
     val todayMidnight = LocalDateTime.of(today, LocalTime.MIDNIGHT)
     val futureMidnight = todayMidnight.plusDays(2)
