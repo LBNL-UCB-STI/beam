@@ -111,7 +111,11 @@ class BeamSim @Inject()(
     )
 
   val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
-    new TravelTimeGoogleStatistic(beamServices.beamConfig.beam.calibration.google, actorSystem, beamServices.geo)
+    new TravelTimeGoogleStatistic(
+      beamServices.beamConfig.beam.calibration.google.travelTimes,
+      actorSystem,
+      beamServices.geo
+    )
 
   val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
 
