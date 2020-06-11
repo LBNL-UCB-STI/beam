@@ -96,6 +96,9 @@ TAZs, Scaling, and Physsim Tuning::
    #TAZ params
    beam.agentsim.taz.file=${beam.inputDirectory}"/taz-centers.csv"
    beam.agentsim.taz.parking = ${beam.inputDirectory}"/parking/taz-parking-default.csv"
+   # Parking Manager name (DEFAULT | PARALLEL)
+   beam.agentsim.taz.parkingManager.name = "DEFAULT"
+   beam.agentsim.taz.parkingManager.parallel.numberOfClusters = 8
    # Scaling and Tuning Params
    beam.agentsim.tuning.transitCapacity = 0.1
    beam.agentsim.tuning.transitPrice = 1.0
@@ -111,6 +114,8 @@ TAZs, Scaling, and Physsim Tuning::
 
 * agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
 * taz.parking: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then ulimited free parking is assumed.
+* beam.agentsim.taz.parkingManager.name: the name of the parking manager. PARALLEL parking manager splits the TAZes into a number of clusters. This allows the users to speed up the searching for parking stalls. But as a tradeoff, it has degraded quality. Usually, 8-16 clusters can provide satisfactory quality on big numbers of TAZes.
+* beam.agentsim.taz.parkingManager.parallel.numberOfClusters: the number of clusters for PARALLEL parking manager.
 * tuning.transitCapacity: Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
 * tuning.transitPrice: Scale the price of riding on transit. Applies uniformly to all transit trips.
 * tuning.tollPrice: Scale the price to cross tolls.
