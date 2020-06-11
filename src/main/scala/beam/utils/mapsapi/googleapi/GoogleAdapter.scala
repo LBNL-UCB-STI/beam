@@ -98,14 +98,12 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   override def close(): Unit = {
-    if (actorSystem.isEmpty) {
-      Http().shutdownAllConnectionPools
-        .andThen {
-          case _ =>
-            if (!materializer.isShutdown) materializer.shutdown()
-            system.terminate()
-        }
-    }
+    Http().shutdownAllConnectionPools
+      .andThen {
+        case _ =>
+          if (!materializer.isShutdown) materializer.shutdown()
+          if (actorSystem.isEmpty) system.terminate()
+      }
   }
 
 }
