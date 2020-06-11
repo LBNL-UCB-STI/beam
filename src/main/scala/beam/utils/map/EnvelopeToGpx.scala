@@ -64,8 +64,8 @@ object EnvelopeToGpx {
   def latitude(coord: Coord): Double = coord.getY
 
   def main(args: Array[String]): Unit = {
-    val en1 = new Envelope(-122.5447336, -122.3592068, 37.6989794, 37.843628)
+    val en: Envelope = new Envelope(-122.546046192, -122.330412968,37.655512625, 37.811362211)
     val envelopeToGpx = new EnvelopeToGpx
-    envelopeToGpx.render(en1, Some(new Coord(-123.180062255, 38.7728279981)), "ex1.gpx")
+    envelopeToGpx.render(en, None, "ex1.gpx")
   }
 }
