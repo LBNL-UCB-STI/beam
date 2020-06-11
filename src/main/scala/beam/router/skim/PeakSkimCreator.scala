@@ -89,11 +89,12 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     }
 
   val odSkimmer: ODSkimmer = Skims.get(Skims.SkimType.OD_SKIMMER).asInstanceOf[ODSkimmer]
-  odSkimmer.currentSkim.map { case (key, value) =>
-    val odSkimmerKey = key.asInstanceOf[ODSkimmerKey]
-    val skimInternal = value.asInstanceOf[ODSkimmerInternal]
-    println(s"key: $odSkimmerKey")
-    println(s"value: $skimInternal")
+  odSkimmer.currentSkim.map {
+    case (key, value) =>
+      val odSkimmerKey = key.asInstanceOf[ODSkimmerKey]
+      val skimInternal = value.asInstanceOf[ODSkimmerInternal]
+      println(s"key: $odSkimmerKey")
+      println(s"value: $skimInternal")
   }
 
   private val beamModes: Array[BeamMode] =
@@ -251,42 +252,45 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     }
 
     val waitDuration = 5.hours
-    val results = requests.grouped(onePct).flatMap { it =>
-      val onePctFuture = it.map {
-        case (src, dst, considerModes, routingReq) =>
-          r5Router.ask(routingReq).map {
-            case resp: RoutingResponse =>
-              val processed = processedAtomic.getAndIncrement()
-              if (processed > 0 && processed % onePct == 0) {
-                val diff = System.currentTimeMillis() - started
-                val rps = processed.toDouble / diff * 1000 // Average per second
-                val pct = 100 * processed.toDouble / h3IndexPairs.length
-                logger.info(
-                  s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
-                    .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
-                )
-                logger.info(s"Non-empty routes per mode: ")
-                nonEmptyRoutesPerType.foreach {
-                  case (mode, counter) =>
-                    logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
+    val results = requests
+      .grouped(onePct)
+      .flatMap { it =>
+        val onePctFuture = it.map {
+          case (src, dst, considerModes, routingReq) =>
+            r5Router.ask(routingReq).map {
+              case resp: RoutingResponse =>
+                val processed = processedAtomic.getAndIncrement()
+                if (processed > 0 && processed % onePct == 0) {
+                  val diff = System.currentTimeMillis() - started
+                  val rps = processed.toDouble / diff * 1000 // Average per second
+                  val pct = 100 * processed.toDouble / h3IndexPairs.length
+                  logger.info(
+                    s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
+                      .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
+                  )
+                  logger.info(s"Non-empty routes per mode: ")
+                  nonEmptyRoutesPerType.foreach {
+                    case (mode, counter) =>
+                      logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
+                  }
                 }
-              }
-              resp.itineraries.foreach { trip =>
-                nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
-              }
-              Success(Container(src, dst, considerModes, routingReq, resp))
-            case failure: RoutingFailure =>
-              failedRoutes.getAndIncrement()
-              Failure(failure.cause)
-            case x =>
-              Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
-          }
+                resp.itineraries.foreach { trip =>
+                  nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
+                }
+                Success(Container(src, dst, considerModes, routingReq, resp))
+              case failure: RoutingFailure =>
+                failedRoutes.getAndIncrement()
+                Failure(failure.cause)
+              case x =>
+                Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
+            }
+        }
+        val results = ProfilingUtils.timed(s"Computed ${onePctFuture.length}", logger.info(_)) {
+          Await.result(Future.sequence(onePctFuture), waitDuration)
+        }
+        results
       }
-      val results = ProfilingUtils.timed(s"Computed ${onePctFuture.length}", logger.info(_)) {
-        Await.result(Future.sequence(onePctFuture), waitDuration)
-      }
-      results
-    }.toArray
+      .toArray
 
     var nSkimEvents: Int = 0
     results.foreach {

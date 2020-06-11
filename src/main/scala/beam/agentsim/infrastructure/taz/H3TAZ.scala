@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.taz
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
+import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
@@ -106,16 +107,8 @@ object H3TAZ {
   }
 
   private def quadTreeExtentFromShapeFile(coords: Iterable[Coord]): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-    for (c <- coords) {
-      minX = Math.min(minX, c.getX)
-      minY = Math.min(minY, c.getY)
-      maxX = Math.max(maxX, c.getX)
-      maxY = Math.max(maxY, c.getY)
-    }
+    val bounds = ShapeUtils.quadTreeBounds(coords)
+    val (minX, maxX, minY, maxY) = (bounds.minx, bounds.maxx, bounds.miny, bounds.maxy)
     val gf = new GeometryFactory()
     val box = gf
       .createPolygon(
