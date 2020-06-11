@@ -1,19 +1,30 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.plots.filterevent.AllEventsFilter$;
+import beam.analysis.plots.filterevent.FilterEvent;
 import beam.analysis.via.CSVWriter;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.SimulationMetricCollector;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
@@ -41,43 +52,34 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
     private final SimulationMetricCollector simMetricCollector;
+    private final FilterEvent filterEvent;
 
-    public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
-
-        @Override
-        public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
-            List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
-            if (hoursList.isEmpty()) {
-                return null;
-            }
-            final int maxHour = hoursList.get(hoursList.size() - 1);
-
-            List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.getSecond());
-
-            double[][] dataset = new double[stat.getSecond().size()][maxHour + 1];
-            for (int i = 0; i < modesChosenList.size(); i++) {
-                String modeChosen = modesChosenList.get(i);
-                dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour, stat.getFirst());
-            }
-            return dataset;
-        }
-
-        private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Integer>> stat) {
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            for (int hour = 0; hour <= maxHour; hour++) {
-                Map<String, Integer> hourData = stat.getOrDefault(hour, Collections.emptyMap());
-                modeOccurrencePerHour[hour] = defaultIfNull(hourData.get(modeChosen), 0);
-            }
-            return modeOccurrencePerHour;
-        }
-    }
-
-    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig, FilterEvent filterEvent) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.simMetricCollector = simMetricCollector;
         this.statComputation = statComputation;
+        this.filterEvent = filterEvent;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
+    }
+
+    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+        this(simMetricCollector, statComputation, beamConfig, AllEventsFilter$.MODULE$);
+    }
+
+    private OutputDirectoryHierarchy controllerIo() {
+        return GraphsStatsAgentSimEventsListener.CONTROLLER_IO;
+    }
+
+    private String iterationFilename(final int iterationNumber, final String fileName, final String suffix) {
+        final String theFinalName = fileName + filterEvent.graphNamePreSuffix() + suffix;
+        return controllerIo().getIterationFilename(iterationNumber, theFinalName);
+    }
+
+    private String outputFilename(final String filename, final String suffix) {
+        final String namePreSuffix = filterEvent.graphNamePreSuffix();
+        String filenameResult = filename + namePreSuffix + suffix;
+        return controllerIo().getOutputFilename(filenameResult);
     }
 
     public static String getModeChoiceFileBaseName() {
@@ -86,7 +88,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof ModeChoiceEvent) {
+        if (event instanceof ModeChoiceEvent && filterEvent.shouldProcessEvent(event)) {
             processModeChoice((ModeChoiceEvent) event);
         }
     }
@@ -98,31 +100,41 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Integer::sum))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
-
         updateModeChoiceInIteration(event.getIteration());
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null && writeGraph) {
-            String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), modeChoiceFileBaseName + ".png");
-            createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, modesChosen);
+        writeModeChosen(event);
+        writeCumulativeModeChosen();
+        writeReferenceModeChoice();
+        writeModeChosenAvailableAlternativeCSV(event.getIteration());
+    }
+
+    private void writeModeChosen(IterationEndsEvent event) throws IOException {
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+            if (modesFrequencyDataset != null) {
+                String graphImageFile = iterationFilename(event.getIteration(), modeChoiceFileBaseName, ".png");
+                createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, modesChosen);
+            }
         }
         createModeChosenCSV(hourModeFrequency, event.getIteration(), modeChoiceFileBaseName);
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename(modeChoiceFileBaseName + ".png");
+    }
+
+    private void writeCumulativeModeChosen() throws IOException {
+        String fileName = outputFilename(modeChoiceFileBaseName, ".png");
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
         if (dataset != null && writeGraph) {
             createGraphInRootDirectory(dataset, graphTitle, fileName, "Iteration", "# mode choosen", cumulativeModeChosenForModeChoice);
         }
-        writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(modeChoiceFileBaseName + ".csv"), modeChoiceInIteration, cumulativeModeChosenForModeChoice);
+        writeToRootCSV(outputFilename(modeChoiceFileBaseName, ".csv"), modeChoiceInIteration, cumulativeModeChosenForModeChoice);
+    }
 
-        fileName = outputDirectoryHierarchy.getOutputFilename(referenceModeChoiceFileBaseName + ".png");
+    private void writeReferenceModeChoice() throws IOException {
+        final String fileName = outputFilename(referenceModeChoiceFileBaseName, ".png");
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null && writeGraph) {
             createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "Iteration", "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
         writeToRootCSVForReference(referenceModeChoiceFileBaseName);
-
-        writeModeChosenAvailableAlternativeCSV(event.getIteration());
     }
 
     @Override
@@ -186,11 +198,13 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         return statComputation.compute(new Tuple<>(hourModeFrequency, modesChosen));
     }
 
-    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber,String fileBaseName) {
-
+    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber, String fileBaseName) {
+        if (hourModeChosen.isEmpty()) {
+            return;
+        }
         final String separator = ",";
 
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
+        CSVWriter csvWriter = new CSVWriter(iterationFilename(iterationNumber, fileBaseName, ".csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
 
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeChosen.keySet());
@@ -261,7 +275,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     //csv for reference mode choice
     public void writeToRootCSVForReference(String fileBaseName) {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
+        final String csvFileName = outputFilename(fileBaseName, ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
@@ -321,17 +335,17 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
     }
 
-    private void writeModeChosenAvailableAlternativeCSV(Integer interation){
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(interation, "modeChosenAvailableAlternativesCount.csv");
+    private void writeModeChosenAvailableAlternativeCSV(Integer interation) {
+        String csvFileName = iterationFilename(interation, "modeChosenAvailableAlternativesCount", ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             out.write("modeChosen, alternativesAvailable, numberOfTimes");
             out.newLine();
-            modeChosenAvailableAlternativesCount.forEach((modeChosenAlternatives,count) -> {
-                try{
+            modeChosenAvailableAlternativesCount.forEach((modeChosenAlternatives, count) -> {
+                try {
                     out.write(modeChosenAlternatives.toCountString(count));
                     out.newLine();
-                }catch (IOException exception){
+                } catch (IOException exception) {
                     log.error(exception.getMessage(), exception);
                 }
             });
@@ -370,7 +384,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         }
 
         public String toCountString(Integer count) {
-            return mode+", "+availableModes+", "+count;
+            return mode + ", " + availableModes + ", " + count;
         }
 
         @Override
@@ -393,6 +407,36 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
             result = 31 * result + mode.hashCode();
             result = 31 * result + availableModes.hashCode();
             return result;
+        }
+    }
+
+    public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
+
+        @Override
+        public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
+            List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
+            if (hoursList.isEmpty()) {
+                return null;
+            }
+            final int maxHour = hoursList.get(hoursList.size() - 1);
+
+            List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.getSecond());
+
+            double[][] dataset = new double[stat.getSecond().size()][maxHour + 1];
+            for (int i = 0; i < modesChosenList.size(); i++) {
+                String modeChosen = modesChosenList.get(i);
+                dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour, stat.getFirst());
+            }
+            return dataset;
+        }
+
+        private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Integer>> stat) {
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            for (int hour = 0; hour <= maxHour; hour++) {
+                Map<String, Integer> hourData = stat.getOrDefault(hour, Collections.emptyMap());
+                modeOccurrencePerHour[hour] = defaultIfNull(hourData.get(modeChosen), 0);
+            }
+            return modeOccurrencePerHour;
         }
     }
 
