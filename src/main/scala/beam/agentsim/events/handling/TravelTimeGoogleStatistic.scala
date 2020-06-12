@@ -99,9 +99,10 @@ class TravelTimeGoogleStatistic(
       _ = list.collect {
         case (Left(throwable), uo) => logger.error(s"Error when calling google API for $uo", throwable)
       }
-    } yield list.collect {
-      case (Right(routes), event) => routes.map(EventContainer(event, _))
-    }.flatten
+    } yield
+      list.collect {
+        case (Right(routes), event) => routes.map(EventContainer(event, _))
+      }.flatten
     Await.result(futureResult, 10.minutes)
   }
 
