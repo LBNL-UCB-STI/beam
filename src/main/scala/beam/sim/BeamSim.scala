@@ -397,7 +397,7 @@ class BeamSim @Inject()(
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
 
-    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
+    if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
       vmInformationWriter.notifyIterationEnds(event)
     }
 
