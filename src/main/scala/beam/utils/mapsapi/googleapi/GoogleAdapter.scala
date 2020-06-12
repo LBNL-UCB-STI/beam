@@ -1,29 +1,35 @@
 package beam.utils.mapsapi.googleapi
 
+import java.io.{BufferedOutputStream, File}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.Future
-
-import akka.actor.ActorSystem
+import scala.concurrent.{Await, Future}
+import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
+import akka.pattern.ask
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.StreamConverters
+import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.Segment
 import beam.utils.mapsapi.googleapi.GoogleAdapter._
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, IOUtils}
 import play.api.libs.json.{JsArray, JsLookupResult, JsObject, JsValue, Json}
+
+import scala.util.Try
 
 class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, actorSystem: Option[ActorSystem] = None)
     extends AutoCloseable {
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private implicit val ec = system.dispatcher
+
+  private val fileWriter = outputResponseToFile.map(path => system.actorOf(ResponseSaverActor.props(path.toFile)))
 
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
@@ -56,9 +62,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def writeToFileIfSetup(jsObject: JsObject): JsObject = {
-    if (outputResponseToFile.isDefined) {
-      FileUtils.writeStringToFile(outputResponseToFile.get.toFile, Json.prettyPrint(jsObject), StandardCharsets.UTF_8)
-    }
+    fileWriter.foreach(_ ! jsObject)
     jsObject
   }
 
@@ -98,6 +102,12 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   override def close(): Unit = {
+    implicit val timeOut = new Timeout(20L, TimeUnit.SECONDS)
+    fileWriter.foreach { ref =>
+      val closed = ref ? ResponseSaverActor.CloseMsg
+      Try(Await.result(closed, timeOut.duration))
+      ref ! PoisonPill
+    }
     Http().shutdownAllConnectionPools
       .andThen {
         case _ =>
@@ -148,4 +158,37 @@ object GoogleAdapter {
     ldt.toEpochSecond(ZoneOffset.UTC)
   }
 
+}
+
+class ResponseSaverActor(file: File) extends Actor {
+  override def receive = {
+    case jsObject: JsObject =>
+      val out = FileUtils.openOutputStream(file)
+      val buffer = new BufferedOutputStream(out)
+      IOUtils.write("[\n", buffer, StandardCharsets.UTF_8)
+      IOUtils.write(Json.prettyPrint(jsObject), buffer, StandardCharsets.UTF_8)
+      context.become(saveIncoming(buffer))
+    case ResponseSaverActor.CloseMsg =>
+      sender() ! ResponseSaverActor.ClosedRsp
+  }
+
+  def saveIncoming(buffer: BufferedOutputStream): Actor.Receive = {
+    case jsObject: JsObject =>
+      IOUtils.write(",\n", buffer, StandardCharsets.UTF_8)
+      IOUtils.write(Json.prettyPrint(jsObject), buffer, StandardCharsets.UTF_8)
+    case ResponseSaverActor.CloseMsg =>
+      IOUtils.write("\n]", buffer, StandardCharsets.UTF_8)
+      buffer.close()
+      sender() ! ResponseSaverActor.ClosedRsp
+  }
+
+}
+
+object ResponseSaverActor {
+  object CloseMsg
+  object ClosedRsp
+
+  def props(file: File): Props = {
+    Props(new ResponseSaverActor(file))
+  }
 }

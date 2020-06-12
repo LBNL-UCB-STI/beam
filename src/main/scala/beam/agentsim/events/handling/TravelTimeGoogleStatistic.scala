@@ -1,5 +1,6 @@
 package beam.agentsim.events.handling
 
+import java.nio.file.Paths
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.Objects
 
@@ -106,15 +107,15 @@ class TravelTimeGoogleStatistic(
       logger.info("Number of events: {}", events.size)
       val groupedEvents = events.grouped(16).toList
 
-      val adapter = new GoogleAdapter(apiKey, None, Some(actorSystem))
+      val controller = event.getServices.getControlerIO
+      val responsePath = controller.getIterationFilename(event.getIteration, "maps.googleapi.responses.json")
+      val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
       val result = using(adapter) { adapter =>
         queryGoogleAPI(groupedEvents, adapter, List())
       }.sortBy(
         ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
       )
-      val iterationNumber = event.getIteration
-      val iterationPath = event.getServices.getControlerIO.getIterationPath(iterationNumber)
-      val filePath = s"$iterationPath/$iterationNumber.googleTravelTimeEstimation.csv"
+      val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
       val num = writeToCsv(result, filePath)
       logger.info(s"Saved $num routes to $filePath")
     }
