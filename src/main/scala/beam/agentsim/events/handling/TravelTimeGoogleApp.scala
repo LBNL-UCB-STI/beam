@@ -8,6 +8,7 @@ import beam.sim.common.SimpleGeoUtils
 import beam.sim.config.BeamExecutionConfig
 import beam.utils.EventReader
 import beam.utils.FileUtils.using
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.ControlerListener
@@ -19,7 +20,7 @@ import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
   * -PappArgs=["'--config', 'test/input/sf-light/sf-light-0.5k.conf'", 'path/to/0.events.csv'] \
   * -PlogbackCfg=logback.xml`
   */
-object TravelTimeGoogleApp extends App {
+object TravelTimeGoogleApp extends App with StrictLogging {
 
   if (args.length != 3) {
     println("Expected arguments: --config path/to/beam/config.conf path/to/0.events.csv(.gz)")
@@ -42,6 +43,8 @@ object TravelTimeGoogleApp extends App {
     val iteration = 0
     statistic.reset(iteration)
 
+    logger.info(s"Reading events from $pathToEventFile")
+
     using(
       EventReader.fromCsvFile(
         pathToEventFile,
@@ -55,6 +58,7 @@ object TravelTimeGoogleApp extends App {
       case (eventSeq, _) =>
         eventSeq.map(PathTraversalEvent(_)).foreach(statistic.handleEvent)
     }
+    logger.info(s"${statistic.loadedEventNumber} events loaded")
 
     val controller = new OutputDirectoryHierarchy(execCfg.outputDirectory, OverwriteFileSetting.overwriteExistingFiles)
     controller.createIterationDirectory(iteration)
