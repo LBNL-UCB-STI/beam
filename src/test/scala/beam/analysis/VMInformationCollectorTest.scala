@@ -1,6 +1,6 @@
 package beam.analysis
 
-import beam.utils.{VMClassInfo, VMInfoCollector}
+import beam.utils.{VMClassInfo, VMUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
@@ -10,7 +10,7 @@ class VMInformationCollectorTest extends FlatSpec with Matchers {
   import VMInformationCollectorTest._
 
   it should "parse class histogram from JFR output" in {
-    val parts = VMInfoCollector.parseClassHistogram(vmHeapClassHistogramAtIteration0, 3)
+    val parts = VMUtils.parseClassHistogram(vmHeapClassHistogramAtIteration0, 3)
     parts.length shouldBe 3
     val expectedInfos = Seq(
       new VMClassInfo("[D", 121531352, 566190),
@@ -27,9 +27,9 @@ class VMInformationCollectorTest extends FlatSpec with Matchers {
   }
 
   it should "create a map class to numberOfBytes" in {
-    val parts0 = VMInfoCollector.parseClassHistogram(vmHeapClassHistogramAtIteration0, 5)
-    val parts1 = VMInfoCollector.parseClassHistogram(vmHeapClassHistogramAtIteration1, 5)
-    val parts5 = VMInfoCollector.parseClassHistogram(vmHeapClassHistogramAtIteration5, 5)
+    val parts0 = VMUtils.parseClassHistogram(vmHeapClassHistogramAtIteration0, 5)
+    val parts1 = VMUtils.parseClassHistogram(vmHeapClassHistogramAtIteration1, 5)
+    val parts5 = VMUtils.parseClassHistogram(vmHeapClassHistogramAtIteration5, 5)
 
     parts0.length shouldBe 5
     parts1.length shouldBe 5

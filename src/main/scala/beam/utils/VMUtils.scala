@@ -12,13 +12,13 @@ import javax.management.{
 import com.sun.management.HotSpotDiagnosticMXBean
 import java.lang.management.ManagementFactory
 
-object VMInfoCollector {
+object VMUtils {
   private val DIAGNOSTIC_COMMAND_MBEAN_OBJECT_NAME = "com.sun.management:type=DiagnosticCommand"
 
-  def apply(): VMInfoCollector = {
+  def apply(): VMUtils = {
     try {
       val objectName = new ObjectName(DIAGNOSTIC_COMMAND_MBEAN_OBJECT_NAME)
-      new VMInfoCollector(objectName)
+      new VMUtils(objectName)
     } catch {
       case monException: MalformedObjectNameException =>
         throw new RuntimeException(
@@ -113,8 +113,8 @@ object JFRCommandWithoutArguments {
   }
 }
 
-class VMInfoCollector(val mbeanObjectName: ObjectName) {
-  import VMInfoCollector._
+class VMUtils(val mbeanObjectName: ObjectName) {
+  import VMUtils._
 
   private val server: MBeanServer = ManagementFactory.getPlatformMBeanServer
 
