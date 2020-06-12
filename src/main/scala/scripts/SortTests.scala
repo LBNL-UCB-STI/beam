@@ -4,6 +4,11 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 
+/*
+How to use this script:
+Save the output of tests to a file. For example testsOutput.txt
+Run SortTests class passing testOutput.txt path as parameter and the script will sort in descending order
+ */
 object SortTests extends App {
   val minutePattern = "([0-9]+?) minute( )??".r
   val secondPattern = "([0-9]+?) second( )?".r
