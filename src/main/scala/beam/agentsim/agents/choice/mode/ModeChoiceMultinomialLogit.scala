@@ -15,9 +15,11 @@ import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
+import org.matsim.core.api.experimental.events.EventsManager
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -26,7 +28,8 @@ import scala.collection.mutable.ListBuffer
 class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
   val model: MultinomialLogit[String, String],
-  beamConfigHolder: BeamConfigHolder
+  beamConfigHolder: BeamConfigHolder,
+  val eventsManager: EventsManager
 ) extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
@@ -62,9 +65,10 @@ class ModeChoiceMultinomialLogit(
         }
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
-      val chosenModeOpt = {
-        model.sampleAlternative(inputData, random)
-      }
+
+      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+      val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
       if (shouldLogDetails) {
@@ -91,11 +95,73 @@ class ModeChoiceMultinomialLogit(
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
+            if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives)
+              createModeChoiceOccurredEvent(
+                person,
+                alternativesWithUtility,
+                modeCostTimeTransfers,
+                alternatives,
+                chosenModeCostTime
+              ).foreach(eventsManager.processEvent)
+
             Some(alternatives(chosenModeCostTime.head.index))
           }
         case None =>
           None
       }
+    }
+  }
+
+  def createModeChoiceOccurredEvent(
+    person: Option[Person],
+    alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]],
+    modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    chosenModeCostTime: immutable.Iterable[ModeCostTimeTransfer]
+  ): Option[ModeChoiceOccurredEvent] = {
+    person match {
+      case Some(p) =>
+        val altUtility = alternativesWithUtility
+          .map(
+            au =>
+              au.alternative.toLowerCase() -> ModeChoiceOccurredEvent
+                .AltUtility(au.utility, au.expUtility)
+          )
+          .toMap
+
+        val altCostTimeTransfer = modeCostTimeTransfers
+          .map(
+            mctt =>
+              mctt.mode.value.toLowerCase() -> ModeChoiceOccurredEvent
+                .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
+          )
+          .toMap
+
+        val time = alternatives.headOption match {
+          case Some(trip) =>
+            trip.legs.headOption match {
+              case Some(leg) => Some(leg.beamLeg.startTime)
+              case None      => None
+            }
+          case None => None
+        }
+
+        if (time.nonEmpty) {
+          Some(
+            ModeChoiceOccurredEvent(
+              time.get,
+              p.getId.toString,
+              alternatives,
+              altCostTimeTransfer,
+              altUtility,
+              chosenModeCostTime.head.index
+            )
+          )
+        } else {
+          None
+        }
+
+      case _ => None
     }
   }
 
