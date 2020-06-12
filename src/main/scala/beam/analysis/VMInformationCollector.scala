@@ -4,7 +4,7 @@ import java.io.IOException
 
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.utils.csv.CsvWriter
-import beam.utils.{VMClassInfo, VMInfoCollector}
+import beam.utils.{VMClassInfo, VMUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
@@ -49,7 +49,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
   }
 
   def writeHeapDump(iteration: Int, suffix: String): Unit = {
-    val vmInfoCollector = VMInfoCollector()
+    val vmInfoCollector = VMUtils()
     val filePath = controllerIO.getIterationFilename(iteration, s"heapDump.$suffix.hprof")
     try {
       vmInfoCollector.dumpHeap(filePath, live = false)
@@ -136,7 +136,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val vmInfoCollector = VMInfoCollector()
+    val vmInfoCollector = VMUtils()
     val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
 
     analyzeVMClassHystogram(classes, event.getIteration)
