@@ -3,21 +3,17 @@ package beam.agentsim.infrastructure.taz
 import java.io._
 import java.util
 
-import beam.utils.FileUtils
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
 import beam.utils.matsim_conversion.ShapeUtils
-import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, HasQuadBounds, QuadTreeBounds}
+import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
-import org.supercsv.io._
-import org.supercsv.prefs.CsvPreference
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
@@ -124,8 +120,7 @@ object TAZTreeMap {
   }
 
   def fromCsv(csvFile: String): TAZTreeMap = {
-
-    val lines = readCsvFile(csvFile)
+    val lines: Seq[CsvTaz] = CsvTaz.readCsvFile(csvFile)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
       quadTreeBounds.minx,
@@ -144,7 +139,6 @@ object TAZTreeMap {
   }
 
   def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
-
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
       quadTreeBounds.minx,
@@ -158,30 +152,6 @@ object TAZTreeMap {
     }
 
     new TAZTreeMap(tazQuadTree)
-
-  }
-
-  private def readCsvFile(filePath: String): Seq[CsvTaz] = {
-    var mapReader: ICsvMapReader = null
-    val res = ArrayBuffer[CsvTaz]()
-    try {
-      mapReader = new CsvMapReader(FileUtils.getReader(filePath), CsvPreference.STANDARD_PREFERENCE)
-      val header = mapReader.getHeader(true)
-      var line: java.util.Map[String, String] = mapReader.read(header: _*)
-      while (null != line) {
-        val id = line.get("taz")
-        val coordX = line.get("coord-x")
-        val coordY = line.get("coord-y")
-        val area = line.get("area")
-        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble, area.toDouble))
-        line = mapReader.read(header: _*)
-      }
-
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
-    }
-    res
   }
 
   def getTazTreeMap(filePath: String): TAZTreeMap = {

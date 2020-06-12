@@ -85,7 +85,7 @@ case class AvailabilityBasedRepositioning(
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
             classOf[BeamVehicleType]
           ),
-          beamServices
+          beamServices.beamScenario
         )
         if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
           destTimeOpt = Some((dst, skim.time))
