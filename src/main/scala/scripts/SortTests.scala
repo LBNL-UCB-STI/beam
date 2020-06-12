@@ -11,23 +11,27 @@ object SortTests extends App {
   val descriptionPattern = "(.*?)\\([0-9]+? .*?\\)??".r
 
   def parseLine(text: String): (Duration, String) = {
-    val minutes = minutePattern.findAllMatchIn(text)
+    val minutes = minutePattern
+      .findAllMatchIn(text)
       .toList
       .headOption
       .map(x => Duration(x.group(1).toInt, TimeUnit.MINUTES))
       .getOrElse(Duration.Zero)
-    val seconds = secondPattern.findAllMatchIn(text)
+    val seconds = secondPattern
+      .findAllMatchIn(text)
       .toList
       .headOption
       .map(x => Duration(x.group(1).toInt, TimeUnit.SECONDS))
       .getOrElse(Duration.Zero)
-    val millis = millisPattern.findAllMatchIn(text)
+    val millis = millisPattern
+      .findAllMatchIn(text)
       .toList
       .headOption
       .map(x => Duration(x.group(1).toInt, TimeUnit.MILLISECONDS))
       .getOrElse(Duration.Zero)
 
-    val description = descriptionPattern.findAllMatchIn(text)
+    val description = descriptionPattern
+      .findAllMatchIn(text)
       .toList
       .headOption
       .map(_.group(1).trim)
@@ -37,7 +41,9 @@ object SortTests extends App {
   }
 
   val source = scala.io.Source.fromFile(args(0))
-  val allLines = try source.getLines.toList finally source.close()
+
+  val allLines = try source.getLines.toList
+  finally source.close()
 
   val tests = allLines.filter(l => l.toLowerCase.contains("second") || l.toLowerCase.contains("minute"))
   val testsSortedDesc = tests.map(parseLine).sortWith(_._1 > _._1)
