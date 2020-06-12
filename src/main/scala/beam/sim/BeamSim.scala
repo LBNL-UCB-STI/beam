@@ -13,13 +13,12 @@ import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector, VMInformationCollector}
 import beam.analysis.{
   DelayMetricAnalysis,
   IterationStatsProvider,
   ModeChoiceAlternativesCollector,
   RideHailUtilizationCollector,
-  VMInformationWriter
+  VMInformationCollector
 }
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
