@@ -64,8 +64,6 @@ trait PopulationAdjustment extends LazyLogging {
     */
   protected final def logModes(population: MPopulation): Unit = {
 
-    logger.info("Modes excluded:")
-
     // initialize all excluded modes to empty array
     var allExcludedModes: Array[String] = Array.empty
 
@@ -79,6 +77,11 @@ trait PopulationAdjustment extends LazyLogging {
         allExcludedModes = allExcludedModes ++ personExcludedModes.get.split(",")
       personExcludedModes.isDefined
     }
+
+    if (allExcludedModes.nonEmpty) {
+      logger.info("Modes excluded:")
+    }
+
     // count the number of excluded modes for each mode type
     allExcludedModes
       .groupBy(x => x)

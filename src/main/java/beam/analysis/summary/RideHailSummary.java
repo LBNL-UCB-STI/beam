@@ -22,10 +22,10 @@ public class RideHailSummary implements IterationSummaryAnalysis {
     private int countOfUnmatchedSoloRequests = 0;
     private double sumDeadheadingDistanceTraveled = 0.0;
     private double sumRideHailDistanceTraveled = 0.0;
-    private Map<Id<Person>, String> modeChoiceAttempt = new HashMap<Id<Person>, String>();
-    private Map<Id<Person>, Boolean> personHasSharedATrip = new HashMap<Id<Person>, Boolean>();
-    private Map<Id<Vehicle>, Integer> passengersPerVeh = new HashMap<Id<Vehicle>, Integer>();
-    private Map<Id<Person>, Id<Vehicle>> personInVeh = new HashMap<Id<Person>, Id<Vehicle>>();
+    private final Map<Id<Person>, String> modeChoiceAttempt = new HashMap<Id<Person>, String>();
+    private final Map<Id<Person>, Boolean> personHasSharedATrip = new HashMap<Id<Person>, Boolean>();
+    private final Map<Id<Vehicle>, Integer> passengersPerVeh = new HashMap<Id<Vehicle>, Integer>();
+    private final Map<Id<Person>, Id<Vehicle>> personInVeh = new HashMap<Id<Person>, Id<Vehicle>>();
 
     @Override
     public void processStats(Event event) {

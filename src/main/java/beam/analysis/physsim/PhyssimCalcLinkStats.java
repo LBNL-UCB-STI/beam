@@ -2,6 +2,7 @@ package beam.analysis.physsim;
 
 import beam.analysis.plots.GraphUtils;
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
@@ -26,9 +27,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-public class PhyssimCalcLinkStats implements Observer {
+public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
-    private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -51,7 +52,7 @@ public class PhyssimCalcLinkStats implements Observer {
      * The outer map contains the relativeSpeed a double value as the key that defines a relativeSpeed category.
      * The inner map contains the bin id as the key and the frequency as the value for the particular relativeSpeed category.
      */
-    private Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
+    private final Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy controllerIO;
@@ -81,12 +82,12 @@ public class PhyssimCalcLinkStats implements Observer {
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
         linkStats.addData(volumes, travelTime);
         processData(iteration, travelTime);
-        CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            if (beamConfig.beam().outputs().writeGraphs()){
+            if (beamConfig.beam().outputs().writeGraphs()) {
+                CategoryDataset dataset = buildAndGetGraphCategoryDataset();
                 createModesFrequencyGraph(dataset, iteration);
             }
         }
@@ -255,8 +256,7 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        this.beamConfig = (BeamConfig) t._2;
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.beamConfig = updatedBeamConfig;
     }
 }

@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.io.Closeable
-import java.nio.file.{Files, Path}
+import java.nio.file.Path
 
 import scala.reflect.ClassTag
 

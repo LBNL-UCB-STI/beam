@@ -17,6 +17,7 @@ object Skims extends LazyLogging {
     skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.TAZ_SKIMMER, addEvent(new TAZSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.DT_SKIMMER, addEvent(new DriveTimeSkimmer(beamServices, skimConfig)))
+
   }
 
   def clear(): Unit = {
@@ -39,5 +40,9 @@ object Skims extends LazyLogging {
 
   private def lookup(skimType: SkimType.Value): AbstractSkimmerReadOnly = {
     skims.get(skimType).map(_.readOnlySkim).getOrElse(throw new RuntimeException(s"Skims $skimType does not exist"))
+  }
+
+  def get(skimType: SkimType.Value): AbstractSkimmer = {
+    skims.getOrElse(skimType, throw new RuntimeException(s"Skims $skimType does not exist"))
   }
 }

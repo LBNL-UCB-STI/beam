@@ -252,7 +252,7 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
-      vmInformationWriter.writeVMInfo(event.getIteration, "b")
+      vmInformationWriter.writeVMInfo(event.getIteration, "start")
     }
 
     if (event.getIteration > 0) {
@@ -299,7 +299,7 @@ class BeamSim @Inject()(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
-      vmInformationWriter.writeVMInfo(event.getIteration, "e")
+      vmInformationWriter.writeVMInfo(event.getIteration, "end")
     }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -689,9 +689,9 @@ class BeamSim @Inject()(
               .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))
           )
         )
-        logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getAbsoluteFile)
         try {
           if (file != newFile && !newFile.exists()) {
+            logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getName)
             file.renameTo(newFile)
           }
           newFile
