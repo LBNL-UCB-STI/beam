@@ -152,7 +152,8 @@ object HouseholdCAVDriverAgent {
     context.actorSelection("/user/population/" + householdId.toString + "/" + idFromVehicleId(transitVehicle))
   }
 
-  def idFromVehicleId(vehId: Id[BeamVehicle]): Id[HouseholdCAVDriverAgent] = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
+  def idFromVehicleId(vehId: Id[BeamVehicle]): Id[HouseholdCAVDriverAgent] =
+    Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
 
   case class HouseholdCAVDriverData(
     currentVehicleToken: BeamVehicle,

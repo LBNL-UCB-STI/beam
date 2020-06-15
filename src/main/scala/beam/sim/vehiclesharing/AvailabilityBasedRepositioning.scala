@@ -38,7 +38,11 @@ case class AvailabilityBasedRepositioning(
     }
   }
 
-  def getCollectedDataFromPreviousSimulation(time: Int, idTAZ: Id[TAZ], label: String): Vector[TAZSkimmer.TAZSkimmerInternal] = {
+  def getCollectedDataFromPreviousSimulation(
+    time: Int,
+    idTAZ: Id[TAZ],
+    label: String
+  ): Vector[TAZSkimmer.TAZSkimmerInternal] = {
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)

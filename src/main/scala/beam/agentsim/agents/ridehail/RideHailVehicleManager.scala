@@ -70,9 +70,15 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       boundingBox.getMaxY
     )
   }
-  val idleRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val outOfServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val inServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val idleRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val outOfServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val inServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
 
   def getVehicleState(vehicleId: Id[BeamVehicle]): BeamVehicleState =
     vehicleState(vehicleId)
