@@ -27,5 +27,5 @@ object SpaceTime {
     x.time.compareTo(y.time)
   }
 
-  val zero = SpaceTime(0, 0, 0)
+  val zero: SpaceTime = SpaceTime(0, 0, 0)
 }

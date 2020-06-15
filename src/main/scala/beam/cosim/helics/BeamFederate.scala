@@ -54,7 +54,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   logger.debug(s"Federate successfully entered the Executing Mode")
 
   // publish
-  def publish(event: Event, currentTime: Double) = {
+  def publish(event: Event, currentTime: Double): Unit = {
     if (registeredEvents.contains(event.getEventType)) {
       event match {
         case e: ChargingPlugInEvent =>

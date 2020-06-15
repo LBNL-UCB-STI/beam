@@ -99,9 +99,9 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
     combinations.map(lf => s"${lf._2.title}_${lf._1.name}").mkString("__")
   }
 
-  def getParam(name: String) = params(name)
+  def getParam(name: String): Any = params(name)
 
-  def getLevelTitle(name: String) = levels(name)
+  def getLevelTitle(name: String): String = levels(name)
 
   override def toString: String = {
     s"experiment-run: $name"
