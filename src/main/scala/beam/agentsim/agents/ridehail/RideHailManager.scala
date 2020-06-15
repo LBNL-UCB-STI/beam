@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -342,7 +346,8 @@ class RideHailManager(
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
   // parking choice function parameters
-  val mnlParamsFromConfig: MulitnomialLogit.Params = beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
+  val mnlParamsFromConfig: MulitnomialLogit.Params =
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
 
   val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
     ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
