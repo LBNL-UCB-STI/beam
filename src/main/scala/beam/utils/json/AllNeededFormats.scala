@@ -11,23 +11,23 @@ import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.matsim.vehicles.Vehicle
 
 object AllNeededFormats {
-  implicit val locationFormat = LocationFormat
-  implicit val beamModeFormat = new Format[BeamMode]
-  implicit val vehicleIdFormat = new IdFormat[Vehicle]
-  implicit val beamVehicleIdFormat = new IdFormat[BeamVehicle]
-  implicit val beamVehicleTypeFormat = new IdFormat[BeamVehicleType]
+  implicit val locationFormat: LocationFormat.type = LocationFormat
+  implicit val beamModeFormat: Format[BeamMode] = new Format[BeamMode]
+  implicit val vehicleIdFormat: IdFormat[Vehicle] = new IdFormat[Vehicle]
+  implicit val beamVehicleIdFormat: IdFormat[BeamVehicle] = new IdFormat[BeamVehicle]
+  implicit val beamVehicleTypeFormat: IdFormat[BeamVehicleType] = new IdFormat[BeamVehicleType]
 
-  implicit val spaceTimeFormat = new Format[SpaceTime]
-  implicit val streetVehicleFormat = new Format[StreetVehicle]
-  implicit val householdAttributesFormat = new Format[HouseholdAttributes]
-  implicit val attributesOfIndividualFormat = new Format[AttributesOfIndividual]
-  implicit val intermodalUseFormat = new Format[IntermodalUse]
-  implicit val routingRequestFormat = new Format[RoutingRequest]
+  implicit val spaceTimeFormat: Format[SpaceTime] = new Format[SpaceTime]
+  implicit val streetVehicleFormat: Format[StreetVehicle] = new Format[StreetVehicle]
+  implicit val householdAttributesFormat: Format[HouseholdAttributes] = new Format[HouseholdAttributes]
+  implicit val attributesOfIndividualFormat: Format[AttributesOfIndividual] = new Format[AttributesOfIndividual]
+  implicit val intermodalUseFormat: Format[IntermodalUse] = new Format[IntermodalUse]
+  implicit val routingRequestFormat: Format[RoutingRequest] = new Format[RoutingRequest]
 
-  implicit val transitStopsInfoFormat = new Format[TransitStopsInfo]
-  implicit val beamPathFormat = new Format[BeamPath]
-  implicit val beamLegFormat = new Format[BeamLeg]
-  implicit val embodiedBeamLegFormat = new Format[EmbodiedBeamLeg]
-  implicit val embodiedBeamTripFormat = new Format[EmbodiedBeamTrip]
-  implicit val routingResponseFormat = new Format[RoutingResponse]
+  implicit val transitStopsInfoFormat: Format[TransitStopsInfo] = new Format[TransitStopsInfo]
+  implicit val beamPathFormat: Format[BeamPath] = new Format[BeamPath]
+  implicit val beamLegFormat: Format[BeamLeg] = new Format[BeamLeg]
+  implicit val embodiedBeamLegFormat: Format[EmbodiedBeamLeg] = new Format[EmbodiedBeamLeg]
+  implicit val embodiedBeamTripFormat: Format[EmbodiedBeamTrip] = new Format[EmbodiedBeamTrip]
+  implicit val routingResponseFormat: Format[RoutingResponse] = new Format[RoutingResponse]
 }

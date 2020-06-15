@@ -77,5 +77,5 @@ case class BeamPath(
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
 object BeamPath {
-  val empty = BeamPath(Vector[Int](), Vector(), None, null, null, 0)
+  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, null, null, 0)
 }
