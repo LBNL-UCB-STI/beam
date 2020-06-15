@@ -133,7 +133,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
   protected def writeToDisk(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
-      ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info(_)) {
+      ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info) {
         val filePath =
           beamServices.matsimServices.getControlerIO
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
@@ -143,7 +143,7 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
     if (beamConfig.beam.router.skim.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
-        logger.info(_)
+        logger.info
       ) {
         val filePath =
           beamServices.matsimServices.getControlerIO
