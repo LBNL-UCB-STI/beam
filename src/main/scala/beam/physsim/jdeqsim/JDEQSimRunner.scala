@@ -52,7 +52,7 @@ class JDEQSimRunner(
       jdeqsimEvents,
       beamConfig.beam.outputs.stats.binSize,
       getNoOfBins(beamConfig.beam.outputs.stats.binSize)
-    );
+    )
 
     val linkStatsGraph = new PhyssimCalcLinkStats(
       jdeqSimScenario.getNetwork,
@@ -60,7 +60,7 @@ class JDEQSimRunner(
       beamServices.beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
       beamConfigChangesObservable
-    );
+    )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 
     val eventTypeCounter = new EventTypeCounter
@@ -99,12 +99,12 @@ class JDEQSimRunner(
         x => logger.info(x)
       ) {
         val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
-        logger.info(s"JDEQSim iteration $currentPhysSimIter start");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter start")
         if (beamConfig.beam.debug.debugEnabled) {
-          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
+          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "))
         }
         jdeqSimulation.run()
-        logger.info(s"JDEQSim iteration $currentPhysSimIter finished");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter finished")
       }
 
     } finally {

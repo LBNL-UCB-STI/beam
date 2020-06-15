@@ -109,7 +109,7 @@ class BeamSim @Inject()(
       Some(beamServices.matsimServices.getControlerIO)
     )
 
-  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
+  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO)
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
