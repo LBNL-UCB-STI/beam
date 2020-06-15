@@ -3210,16 +3210,43 @@ object BeamConfig {
 
     case class Urbansim(
       allTAZSkimsPeakHour: scala.Double,
-      allTAZSkimsWriteInterval: scala.Int
+      allTAZSkimsWriteInterval: scala.Int,
+      fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
     )
 
     object Urbansim {
+      case class FractionOfModesToClear(
+        allModes: scala.Double,
+        bike: scala.Double,
+        car: scala.Double,
+        drive_transit: scala.Double,
+        walk: scala.Double,
+        walk_transit: scala.Double
+      )
+
+      object FractionOfModesToClear {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.FractionOfModesToClear = {
+          BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            allModes = if (c.hasPathOrNull("allModes")) c.getDouble("allModes") else 0.0,
+            bike = if (c.hasPathOrNull("bike")) c.getDouble("bike") else 0.0,
+            car = if (c.hasPathOrNull("car")) c.getDouble("car") else 0.0,
+            drive_transit = if (c.hasPathOrNull("drive_transit")) c.getDouble("drive_transit") else 0.0,
+            walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 0.0,
+            walk_transit = if (c.hasPathOrNull("walk_transit")) c.getDouble("walk_transit") else 0.0
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
         BeamConfig.Beam.Urbansim(
           allTAZSkimsPeakHour = if (c.hasPathOrNull("allTAZSkimsPeakHour")) c.getDouble("allTAZSkimsPeakHour") else 8.5,
           allTAZSkimsWriteInterval =
-            if (c.hasPathOrNull("allTAZSkimsWriteInterval")) c.getInt("allTAZSkimsWriteInterval") else 0
+            if (c.hasPathOrNull("allTAZSkimsWriteInterval")) c.getInt("allTAZSkimsWriteInterval") else 0,
+          fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
+            else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
+          )
         )
       }
     }
