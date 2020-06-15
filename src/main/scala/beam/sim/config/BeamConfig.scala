@@ -1799,7 +1799,8 @@ object BeamConfig {
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
-      vmInformation: BeamConfig.Beam.Debug.VmInformation
+      vmInformation: BeamConfig.Beam.Debug.VmInformation,
+      writeModeChoiceAlternatives: scala.Boolean
     )
 
     object Debug {
@@ -1926,20 +1927,14 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        gcClassHistogramAtIterationEnd: scala.Boolean,
-        gcClassHistogramAtIterationStart: scala.Boolean
+        createGCClassHistogram: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            gcClassHistogramAtIterationEnd = c.hasPathOrNull("gcClassHistogramAtIterationEnd") && c.getBoolean(
-              "gcClassHistogramAtIterationEnd"
-            ),
-            gcClassHistogramAtIterationStart = c.hasPathOrNull("gcClassHistogramAtIterationStart") && c.getBoolean(
-              "gcClassHistogramAtIterationStart"
-            )
+            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
           )
         }
       }
@@ -1977,6 +1972,9 @@ object BeamConfig {
           vmInformation = BeamConfig.Beam.Debug.VmInformation(
             if (c.hasPathOrNull("vmInformation")) c.getConfig("vmInformation")
             else com.typesafe.config.ConfigFactory.parseString("vmInformation{}")
+          ),
+          writeModeChoiceAlternatives = c.hasPathOrNull("writeModeChoiceAlternatives") && c.getBoolean(
+            "writeModeChoiceAlternatives"
           )
         )
       }
