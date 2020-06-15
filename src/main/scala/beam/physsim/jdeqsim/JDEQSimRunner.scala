@@ -156,7 +156,7 @@ class JDEQSimRunner(
         logger.info(
           "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
         )
-        val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
+        val caccSettings = CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
         val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
         val adjustedMinimumRoadSpeedInMetersPerSecond =
           beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
