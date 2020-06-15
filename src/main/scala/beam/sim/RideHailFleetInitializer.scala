@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.File
 import java.nio.file.{Files, Paths}
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -8,7 +9,6 @@ import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
-
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -47,15 +47,21 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     */
   def writeFleetData(beamServices: BeamServices, fleetData: Seq[RideHailAgentInputData]): Unit = {
     try {
-      val filePath = beamServices.matsimServices.getControlerIO
-        .getIterationFilename(
-          beamServices.matsimServices.getIterationNumber,
-          RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
-        )
-      writeFleetData(filePath, fleetData)
+      val controllerIo = beamServices.matsimServices.getControlerIO
+      val rootFilePath = controllerIo.getOutputFilename(RideHailFleetInitializer.outputFileBaseName + ".csv.gz")
+      writeFileOnlyOnce(fleetData, rootFilePath)
     } catch {
       case e: Exception =>
         logger.error("Error while writing procedurally initialized ride hail fleet data to csv ", e)
+    }
+  }
+
+  private def writeFileOnlyOnce(
+    fleetData: Seq[RideHailAgentInputData],
+    rootFilePath: String
+  ): Unit = {
+    if (!new File(rootFilePath).isFile) {
+      writeFleetData(rootFilePath, fleetData)
     }
   }
 
