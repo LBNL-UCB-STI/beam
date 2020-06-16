@@ -7,8 +7,8 @@ import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
@@ -38,10 +38,12 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
+    private final OutputDirectoryHierarchy ioController;
 
-    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation, boolean writeGraph) {
+    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation, boolean writeGraph, OutputDirectoryHierarchy ioController) {
         this.statsComputation = statsComputation;
         this.writeGraph = writeGraph;
+        this.ioController = ioController;
     }
 
     public static class FuelUsageStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
@@ -150,7 +152,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         List<String> modesFuelList = new ArrayList<>(modesFuel);
         Collections.sort(modesFuelList);
         GraphUtils.plotLegendItems(plot, modesFuelList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName);
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileBaseName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -165,7 +167,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     private void createFuelCSV(Map<Integer, Map<String, Double>> hourModeFuelage, int iterationNumber) {
         String SEPARATOR = ",";
 
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
+        CSVWriter csvWriter = new CSVWriter(ioController.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
         List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);

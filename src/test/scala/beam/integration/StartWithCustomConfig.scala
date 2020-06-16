@@ -6,7 +6,7 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 
 class StartWithCustomConfig(val config: Config) extends IntegrationSpecCommon with BeamHelper {
 
-  lazy val (matsimConfig, _) = runBeamWithConfig(
+  lazy val (matsimConfig, _, _) = runBeamWithConfig(
     config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
   )
 

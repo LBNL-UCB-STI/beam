@@ -327,7 +327,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular', '-P16']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
@@ -340,7 +340,7 @@ build.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
+    args = ['-R', 'build/classes/scala/test', '-o', '-P4', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 

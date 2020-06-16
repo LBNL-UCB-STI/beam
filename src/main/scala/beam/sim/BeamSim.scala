@@ -298,7 +298,7 @@ class BeamSim @Inject()(
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
-        modalityStyleStats.buildModalityStyleGraph()
+        modalityStyleStats.buildModalityStyleGraph(event.getServices.getControlerIO)
       }
       createGraphsFromEvents.createGraphs(event)
 

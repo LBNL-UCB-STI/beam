@@ -324,7 +324,7 @@ trait BeamHelper extends LazyLogging {
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
-        val (_, outputDirectory) = runBeamWithConfig(config)
+        val (_, outputDirectory, _) = runBeamWithConfig(config)
         postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
     }
   }
@@ -454,7 +454,7 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
+  def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String, BeamServices) = {
     val (
       beamExecutionConfig: BeamExecutionConfig,
       scenario: MutableScenario,
@@ -468,7 +468,7 @@ trait BeamHelper extends LazyLogging {
       beamScenario,
       beamExecutionConfig.outputDirectory
     )
-    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+    (scenario.getConfig, beamExecutionConfig.outputDirectory, services)
   }
 
   def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {

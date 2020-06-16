@@ -9,7 +9,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$, true);
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$, true, null);
 
     @BeforeClass
     public static void setUpClass() {
