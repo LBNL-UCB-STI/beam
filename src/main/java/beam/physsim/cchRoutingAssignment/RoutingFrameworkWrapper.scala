@@ -110,7 +110,7 @@ class DockerRoutingFrameworkWrapper(
     val convertGraphOutput = Process(command)
     logger.info("Docker command for graph generation: {}", command)
 
-    convertGraphOutput.lineStream.foreach(logger.info)
+    convertGraphOutput.lineStream.foreach(v => logger.info(v))
 
     graphReader.read(graphPathInTempDir.toFile)
   }
@@ -126,7 +126,7 @@ class DockerRoutingFrameworkWrapper(
                                          | -o ${odPairsFileInContainer(0, 0)} -d 10 15 20 25 30 -geom
       """.stripMargin.replace("\n", ""))
 
-    createODPairsOutput.lineStream.foreach(logger.info)
+    createODPairsOutput.lineStream.foreach(v => logger.info(v))
   }
 
   def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
@@ -173,7 +173,7 @@ class DockerRoutingFrameworkWrapper(
 
     val assignTrafficOutput = Process(query)
 
-    assignTrafficOutput.lineStream.foreach(logger.info)
+    assignTrafficOutput.lineStream.foreach(v => logger.info(v))
 
     var curIter = -1
     val wayId2TravelTime = new mutable.HashMap[Long, Double]()
