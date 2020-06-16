@@ -77,7 +77,7 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
   }
 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
-    val chart = GraphUtils.createLineChartWithDefaultSettings(dataSet, title, "Hour", "#Count", true, true);
+    val chart = GraphUtils.createLineChartWithDefaultSettings(dataSet, title, "Hour", "#Count", true, true)
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,

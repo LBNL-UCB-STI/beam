@@ -70,7 +70,7 @@ trait RepositionManager extends Actor with ActorLogging {
       sender ! CompletionNotice(triggerId)
   }
 
-  protected def collectData(time: Int, loc: Coord, varLabel: String) = {
+  protected def collectData(time: Int, loc: Coord, varLabel: String): Unit = {
     getServices.matsimServices.getEvents.processEvent(
       TAZSkimmerEvent(time, loc, varLabel, 1.0, getServices, "RepositionManager")
     )

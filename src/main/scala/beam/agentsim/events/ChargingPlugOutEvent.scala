@@ -25,13 +25,13 @@ case class ChargingPlugOutEvent(
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
-  val pricingModelString = stall.pricingModel
+  val pricingModelString: String = stall.pricingModel
     .map {
       _.toString
     }
     .getOrElse("None")
 
-  val chargingPointString = stall.chargingPointType
+  val chargingPointString: String = stall.chargingPointType
     .map {
       _.toString
     }

@@ -20,7 +20,7 @@ class AbstractSfLightSpec(val name: String)
     with Matchers
     with ImplicitSender
     with MockitoSugar {
-  lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""
+  lazy implicit val system: ActorSystem = ActorSystem(name, ConfigFactory.parseString("""
       |akka.test.timefactor=10""".stripMargin))
 
   def outputDirPath: String = basePath + "/" + testOutputDir + name
