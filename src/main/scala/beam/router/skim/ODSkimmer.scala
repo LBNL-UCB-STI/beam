@@ -30,12 +30,15 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
     if (config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
-      ProfilingUtils.timed(s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", logger.info) {
+      ProfilingUtils.timed(
+        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+        v => logger.info(v)
+      ) {
         writeAllModeSkimsForPeakNonPeakPeriods(event)
       }
     }
     if (config.origin_destination_skimmer.writeFullSkimsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeFullSkimsInterval == 0) {
-      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", logger.info) {
+      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
         writeFullSkims(event)
       }
     }
