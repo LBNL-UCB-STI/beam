@@ -1,6 +1,10 @@
+import java.nio.file.Paths
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 buildscript {
     repositories {
@@ -348,6 +352,43 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
+}
+
+task parSpec(dependsOn: ['testClasses']) {
+    description = 'Execute tests in parallel'
+    int numThreads = Math.min(Runtime.getRuntime().availableProcessors(), 32)
+    println("numThreads = $numThreads")
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads)
+    def testSource = new File("${projectDir}/src/test/scala")
+
+    doLast {
+        new File(testSource, "/beam").traverse([maxDepth: 0, type: groovy.io.FileType.DIRECTORIES]) { file ->
+            executeTestForPackage(file, executor)
+        }
+        executeTestForPackage(new File(testSource, "/scripts"), executor)
+
+        executor.awaitTermination(180, TimeUnit.MINUTES)
+    }
+}
+
+private executeTestForPackage(File file, ExecutorService executor) {
+    println("file exec: $file")
+    executor.submit {
+        javaexec {
+            main = 'org.scalatest.tools.Runner'
+            args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l',
+                    'beam.tags.ExcludeRegular', '-m', toPackageName(file)]
+            classpath = sourceSets.test.runtimeClasspath
+        }
+    }
+}
+
+private String toPackageName(File file) {
+    def pathAbsolute = file.toPath()
+    def pathBase = Paths.get("$projectDir/src/test/scala")
+    def pathRelative = pathBase.relativize(pathAbsolute)
+    def pack = pathRelative.toString().replace("/", ".")
+    return pack
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
