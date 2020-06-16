@@ -317,7 +317,7 @@ class BeamVehicle(
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
 
-  def initializeFuelLevels(meanSOCoption: Option[Double] = None) = {
+  def initializeFuelLevels(meanSOCoption: Option[Double] = None): Unit = {
     val startingSOC: Double = beamVehicleType.primaryFuelType match {
       case Electricity =>
         val meanSOC = math.max(math.min(meanSOCoption.getOrElse(1.0), 1.0), 0.5)
@@ -431,7 +431,7 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   ) {
 
-    def totalRemainingRange = {
+    def totalRemainingRange: Double = {
       remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
     }
   }

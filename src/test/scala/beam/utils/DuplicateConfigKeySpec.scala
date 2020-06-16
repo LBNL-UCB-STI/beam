@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 class DuplicateConfigKeySpec extends WordSpecLike with Matchers {
 
-  val dummyConfString =
+  val dummyConfString: String =
     """
       |beam.agentsim.simulationName = "beamville"
       |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 0.1

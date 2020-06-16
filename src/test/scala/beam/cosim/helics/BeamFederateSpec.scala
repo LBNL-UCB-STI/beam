@@ -46,7 +46,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     }
   }
 
-  private def runCosimulationTest(config: Config) = {
+  private def runCosimulationTest(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -68,7 +68,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     controler.run()
   }
 
-  private def createBrokerAndReaderFederate() = {
+  private def createBrokerAndReaderFederate(): Unit = {
     HelicsLoader.load()
     val broker = helics.helicsCreateBroker("zmq", "", "-f 2 --name=BeamBrokerTemp")
     val fedName = "BeamFederateTemp"
