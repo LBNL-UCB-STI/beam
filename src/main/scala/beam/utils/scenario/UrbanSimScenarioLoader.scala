@@ -464,29 +464,34 @@ class UrbanSimScenarioLoader(
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
       val personAttrib = population.getPersonAttributes
-      val hh = personHouseholds(person.getId)
-      val sexChar = if (personInfo.isFemale) "F" else "M"
 
-      // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
-      // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "rank", personInfo.rank)
-      personAttrib.putAttribute(personId, "age", personInfo.age)
-      personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
-      personAttrib.putAttribute(personId, "sex", sexChar)
+      personHouseholds.get(person.getId) match {
+        case None => logger.error(s"Person (id:${person.getId.toString}) does not have household and will be ignored")
+        case Some(hh) =>
+          val sexChar = if (personInfo.isFemale) "F" else "M"
 
-      person.getAttributes.putAttribute("sex", sexChar)
-      person.getAttributes.putAttribute("age", personInfo.age)
-      person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+          // FIXME Search for "householdId" in the code does not show any place where it used
+          personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
+          // FIXME Search for "householdId" in the code does not show any place where it used
+          personAttrib.putAttribute(personId, "rank", personInfo.rank)
+          personAttrib.putAttribute(personId, "age", personInfo.age)
+          personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
+          personAttrib.putAttribute(personId, "sex", sexChar)
 
-      AvailableModeUtils.setAvailableModesForPerson_v2(
-        beamScenario,
-        person,
-        hh,
-        population,
-        availableModes.split(",")
-      )
-      population.addPerson(person)
+          person.getAttributes.putAttribute("sex", sexChar)
+          person.getAttributes.putAttribute("age", personInfo.age)
+          person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+
+          AvailableModeUtils.setAvailableModesForPerson_v2(
+            beamScenario,
+            person,
+            hh,
+            population,
+            availableModes.split(",")
+          )
+
+          population.addPerson(person)
+      }
     }
   }
 
