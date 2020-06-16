@@ -2,9 +2,10 @@ import java.nio.file.Paths
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.Future
 
 buildscript {
     repositories {
@@ -360,26 +361,30 @@ task parSpec(dependsOn: ['testClasses']) {
     println("numThreads = $numThreads")
     ExecutorService executor = Executors.newFixedThreadPool(numThreads)
     def testSource = new File("${projectDir}/src/test/scala")
+    def packageFiles = new ArrayList<File>()
+    new File(testSource, "/beam").traverse([maxDepth: 1024, type: groovy.io.FileType.DIRECTORIES]) { file ->
+        packageFiles.add(file)
+    }
+    packageFiles.add(new File(testSource, "/scripts"))
 
     doLast {
-        new File(testSource, "/beam").traverse([maxDepth: 0, type: groovy.io.FileType.DIRECTORIES]) { file ->
-            executeTestForPackage(file, executor)
-        }
-        executeTestForPackage(new File(testSource, "/scripts"), executor)
 
-        executor.awaitTermination(180, TimeUnit.MINUTES)
-    }
-}
+        List<Future<ExecResult>> results = executor.invokeAll(packageFiles.collect { file ->
+            new Callable<ExecResult>() {
+                @Override
+                ExecResult call() throws Exception {
+                    return javaexec {
+                        main = 'org.scalatest.tools.Runner'
+                        args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l',
+                                'beam.tags.ExcludeRegular', '-m', toPackageName(file)]
+                        classpath = sourceSets.test.runtimeClasspath
+                    }
+                }
+            }
+        })
 
-private executeTestForPackage(File file, ExecutorService executor) {
-    println("file exec: $file")
-    executor.submit {
-        javaexec {
-            main = 'org.scalatest.tools.Runner'
-            args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l',
-                    'beam.tags.ExcludeRegular', '-m', toPackageName(file)]
-            classpath = sourceSets.test.runtimeClasspath
-        }
+        results.forEach { it.get() }
+        executor.shutdown()
     }
 }
 
