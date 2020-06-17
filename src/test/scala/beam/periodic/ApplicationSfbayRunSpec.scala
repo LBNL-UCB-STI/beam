@@ -16,7 +16,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
   private var baseConf: Config = _
   private var totalIterations: Int = _
 
-  override def beforeAll(configMap: ConfigMap) = {
+  override def beforeAll(configMap: ConfigMap): Unit = {
     val conf = configMap.getWithDefault("config", "production/application-sfbay/base.conf")
     totalIterations = configMap.getWithDefault("iterations", 11)
     baseConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(conf).resolve()

@@ -128,7 +128,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeRealizedModeGraph(event);
 
         writeRealizedModeChoiceGraph(outputFilename("realizedModeChoice", ".png"));
-        writeReferenceDatasetGraph(outputFilename("realizedModeChoice", ".png"));
+        writeReferenceDatasetGraph(outputFilename("referenceRealizedModeChoice", ".png"));
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);

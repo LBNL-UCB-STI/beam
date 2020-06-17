@@ -77,7 +77,7 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
                             leg.setRoute(newRoute)
                             leg.setDepartureTime(beamLeg.startTime)
                             leg.setTravelTime(0)
-                            leg.getAttributes.putAttribute("travel_time", beamLeg.duration);
+                            leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
                             leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
                           case _ =>
                         }

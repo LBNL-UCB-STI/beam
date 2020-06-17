@@ -298,11 +298,11 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * @param score score calculated for the person
     * @return
     */
-  def setPersonScore(personId: String, score: String) = {
+  def setPersonScore(personId: String, score: String): Option[String] = {
     personTripScores.put(personId, score)
   }
 
-  def setGeneralizedLinkStats(linkId: Int, stats: String) = {
+  def setGeneralizedLinkStats(linkId: Int, stats: String): Option[String] = {
     generalizedLinkStats.put(linkId, stats)
   }
 
@@ -310,18 +310,18 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * Returns the stored person scores
     * @return
     */
-  def getPersonScores = {
+  def getPersonScores: mutable.HashMap[String, String] = {
     personTripScores
   }
 
-  def getAllGeneralizedLinkStats = {
+  def getAllGeneralizedLinkStats: mutable.HashMap[Int, String] = {
     generalizedLinkStats
   }
 
   /**
     * Resets the scores
     */
-  def reset() = {
+  def reset(): Unit = {
     personTripScores.clear()
     linkAverageTravelTimes.clear()
     linkAverageCosts.clear()
