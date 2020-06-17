@@ -7,6 +7,8 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.plan.sampling.AvailableModeUtils
+import com.conveyal.r5.profile.StreetMode
+import com.conveyal.r5.streets.Split
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
@@ -38,6 +40,16 @@ class UrbanSimScenarioLoader(
 
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
+  def isCoordValid(
+    lat: Double,
+    lon: Double,
+    maxRadius: Double = 1E5,
+    streetMode: StreetMode = StreetMode.WALK
+  ): Boolean = {
+    beamScenario.transportNetwork.streetLayer.envelope.contains(lat, lon)
+    // Split.find(lat, lon, maxRadius, beamScenario.transportNetwork.streetLayer, streetMode) != null
+  }
+
   def loadScenario(): Scenario = {
     clear()
 
@@ -54,7 +66,7 @@ class UrbanSimScenarioLoader(
           .filter { act =>
             val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
             val wgsCoord = if (areCoordinatesInWGS) actCoord else geo.utm2Wgs(actCoord)
-            beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+            isCoordValid(wgsCoord.getX, wgsCoord.getY)
           }
           .map { act =>
             act.personId
@@ -79,7 +91,7 @@ class UrbanSimScenarioLoader(
         .filter { hh =>
           val coord = new Coord(hh.locationX, hh.locationY)
           val wgsCoord = if (areCoordinatesInWGS) coord else geo.utm2Wgs(coord)
-          beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+          isCoordValid(wgsCoord.getX, wgsCoord.getY)
         }
         .map { hh =>
           hh.householdId
