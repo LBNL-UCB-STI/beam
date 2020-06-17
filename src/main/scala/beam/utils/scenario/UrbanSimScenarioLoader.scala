@@ -42,7 +42,7 @@ class UrbanSimScenarioLoader(
 
   def isCoordValid(coordWGS: Coord): Boolean = {
     // beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
-    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS)
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 1E4)
     split != null
   }
 
@@ -72,6 +72,8 @@ class UrbanSimScenarioLoader(
       val filteredCnt = plans.size - planWithinRange.size
       if (filteredCnt > 0) {
         logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
+      } else {
+        logger.info(s"Nothing to filter. Total number of plans: ${planWithinRange.size}")
       }
       planWithinRange
     }
@@ -101,9 +103,12 @@ class UrbanSimScenarioLoader(
         logger.info(
           s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
         )
+      } else {
+        logger.info(s"Nothing to filter. Total number of households: ${householdsInsideBoundingBox.size}")
       }
       householdsInsideBoundingBox
     }
+
     val plans = Await.result(plansF, 5000.seconds)
     val persons = Await.result(personsF, 5000.seconds)
 
