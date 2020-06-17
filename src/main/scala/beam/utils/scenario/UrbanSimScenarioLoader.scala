@@ -40,14 +40,10 @@ class UrbanSimScenarioLoader(
 
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  def isCoordValid(
-    x: Double,
-    y: Double,
-    maxRadius: Double = 1E5,
-    streetMode: StreetMode = StreetMode.WALK
-  ): Boolean = {
-    beamScenario.transportNetwork.streetLayer.envelope.contains(x, y)
-    // Split.find(lat, lon, maxRadius, beamScenario.transportNetwork.streetLayer, streetMode) != null
+  def isCoordValid(coordWGS: Coord): Boolean = {
+    // beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS)
+    split != null
   }
 
   def loadScenario(): Scenario = {
@@ -66,7 +62,7 @@ class UrbanSimScenarioLoader(
           .filter { act =>
             val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
             val wgsCoord = if (areCoordinatesInWGS) actCoord else geo.utm2Wgs(actCoord)
-            isCoordValid(wgsCoord.getX, wgsCoord.getY)
+            isCoordValid(wgsCoord)
           }
           .map { act =>
             act.personId
@@ -91,7 +87,7 @@ class UrbanSimScenarioLoader(
         .filter { hh =>
           val coord = new Coord(hh.locationX, hh.locationY)
           val wgsCoord = if (areCoordinatesInWGS) coord else geo.utm2Wgs(coord)
-          isCoordValid(wgsCoord.getX, wgsCoord.getY)
+          isCoordValid(wgsCoord)
         }
         .map { hh =>
           hh.householdId
