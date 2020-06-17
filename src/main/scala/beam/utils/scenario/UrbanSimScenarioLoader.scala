@@ -104,15 +104,15 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val plans = Await.result(plansF, 500.seconds)
-    val persons = Await.result(personsF, 500.seconds)
+    val plans = Await.result(plansF, 5000.seconds)
+    val persons = Await.result(personsF, 5000.seconds)
 
     val personsWithPlans = getPersonsWithPlan(persons, plans)
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val households = Await.result(householdsF, 500.seconds)
+    val households = Await.result(householdsF, 5000.seconds)
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
