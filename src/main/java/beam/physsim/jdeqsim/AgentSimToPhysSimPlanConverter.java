@@ -264,7 +264,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
 
         writeIterationCsv(iterationNumber);
-        Road.setAllRoads(null);
         Message.setEventsManager(null);
 
         if (iterationNumber == beamConfig.matsim().modules().controler().lastIteration()) {

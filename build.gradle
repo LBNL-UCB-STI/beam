@@ -162,7 +162,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-13') {
+    compile(group: 'org.matsim', name: 'matsim', version: '0.10.1-beam-14') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -327,7 +327,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular', '-P16']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular', '-P4']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
