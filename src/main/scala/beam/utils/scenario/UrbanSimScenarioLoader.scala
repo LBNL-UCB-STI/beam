@@ -41,12 +41,12 @@ class UrbanSimScenarioLoader(
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   def isCoordValid(
-    lat: Double,
-    lon: Double,
+    x: Double,
+    y: Double,
     maxRadius: Double = 1E5,
     streetMode: StreetMode = StreetMode.WALK
   ): Boolean = {
-    beamScenario.transportNetwork.streetLayer.envelope.contains(lat, lon)
+    beamScenario.transportNetwork.streetLayer.envelope.contains(x, y)
     // Split.find(lat, lon, maxRadius, beamScenario.transportNetwork.streetLayer, streetMode) != null
   }
 
