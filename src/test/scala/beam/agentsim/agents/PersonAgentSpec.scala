@@ -43,7 +43,7 @@ class PersonAgentSpec
     extends FunSpecLike
     with TestKitBase
     with SimRunnerForTest
-    with BeforeAndAfterEach
+    with BeforeAndAfter
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -71,6 +71,7 @@ class PersonAgentSpec
   private lazy val transitDriverProps = Props(new ForwardActor(self))
 
   private var maybeIteration: Option[ActorRef] = None
+  private val terminationProbe = TestProbe()
 
   describe("A PersonAgent") {
 
@@ -869,6 +870,10 @@ class PersonAgentSpec
       expectTerminated(iteration)
     }
     maybeIteration = None
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1000 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
 }
