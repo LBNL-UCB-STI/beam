@@ -890,9 +890,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  filePath =
-                    if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                    else "/test/input/beamville/ride-hail-parking.csv"
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
                 )
               }
             }
