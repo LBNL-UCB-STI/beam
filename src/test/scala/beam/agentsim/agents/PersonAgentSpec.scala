@@ -34,7 +34,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.{BeforeAndAfterEach, FunSpecLike}
+import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
@@ -287,6 +287,7 @@ class PersonAgentSpec
           "BeamMobsim.iteration"
         )
       )
+      terminationProbe.watch(maybeIteration.get)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -561,6 +562,7 @@ class PersonAgentSpec
           "BeamMobsim.iteration"
         )
       )
+      terminationProbe.watch(maybeIteration.get)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -862,12 +864,12 @@ class PersonAgentSpec
     super.afterAll()
   }
 
-  override def afterEach(): Unit = {
+  after {
+    import scala.concurrent.duration._
     import scala.language.postfixOps
     maybeIteration.foreach { iteration =>
-      watch(iteration)
       iteration ! PoisonPill
-      expectTerminated(iteration)
+      terminationProbe.expectTerminated(iteration, 60 seconds)
     }
     maybeIteration = None
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
