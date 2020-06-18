@@ -71,10 +71,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String CAR = "car";
     public static final String BUS = "bus";
     private static final String DUMMY_ACTIVITY = "DummyActivity";
-    private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
-    private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
-    private static PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
-    private static PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
+    private final PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
+    private final PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
+    private final PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
+    private final PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
