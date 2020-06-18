@@ -74,7 +74,7 @@ class RideHailModifyPassengerScheduleManager(
         )
     }
   }
-  def allInterruptConfirmationsReceived = numInterruptRepliesPending == 0
+  def allInterruptConfirmationsReceived: Boolean = numInterruptRepliesPending == 0
 
   private def sendModifyPassengerScheduleMessage(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
@@ -156,11 +156,11 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = Vector()
   }
 
-  def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger) = {
+  def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger): Unit = {
     allTriggersInWave = allTriggersInWave :+ newTrigger
   }
 
-  def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]) = {
+  def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]): Unit = {
     allTriggersInWave = allTriggersInWave ++ newTriggers
   }
 
@@ -332,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
     interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
   }
 
-  def setStatusToIdle(vehicleId: Id[BeamVehicle]) = {
+  def setStatusToIdle(vehicleId: Id[BeamVehicle]): Any = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
       case Some(status) =>
         val newStatus =
@@ -343,7 +343,7 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def cleanUpCaches = {
+  def cleanUpCaches: Unit = {
     interruptIdToModifyPassengerScheduleStatus.values.foreach { status =>
       status.status match {
         case ModifyPassengerScheduleSent =>
