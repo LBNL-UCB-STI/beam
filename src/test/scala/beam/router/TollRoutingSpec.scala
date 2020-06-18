@@ -54,7 +54,7 @@ class TollRoutingSpec
 
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 

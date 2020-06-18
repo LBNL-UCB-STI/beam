@@ -6,7 +6,7 @@ import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Assertion, FlatSpec, Matchers}
 
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
@@ -57,7 +57,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
     maxValue: T,
     oDSkimmerInternals: Iterable[V],
     fieldMapping: V => T
-  ) = {
+  ): Assertion = {
     assert(oDSkimmerInternals.map(fieldMapping).min == minValue, error(fieldName))
     assert(oDSkimmerInternals.map(fieldMapping).max == maxValue, error(fieldName))
   }
@@ -67,7 +67,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   class DummyLogging extends LazyLogging {
-    def log = logger
+    def log: Logger = logger
   }
 
 }
