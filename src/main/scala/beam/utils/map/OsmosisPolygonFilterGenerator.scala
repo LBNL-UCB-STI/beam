@@ -27,10 +27,17 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
 
     logger.info(s"pathToCountyShapeFile: ${pathToCountyShapeFile}")
     logger.info(s"geoIds to take: ${geoIds}")
-    logger.info(s"pathToOutputFolder: ${pathToOutputFolder}")
 
     val countyWithGeom: Array[(String, Geometry)] = readShape(pathToCountyShapeFile, geoIds)
     logger.info(s"countyWithGeom: ${countyWithGeom.length}")
+
+    val directory = new File(pathToOutputFolder)
+    if (!directory.exists()) {
+      directory.mkdirs();
+      logger.info(s"pathToOutputFolder: ${pathToOutputFolder} created.")
+    } else {
+      logger.info(s"pathToOutputFolder: ${pathToOutputFolder}")
+    }
 
     // You can use QGis to see how does the result geometry look
     writeWktForDebuggingPurpose(pathToOutputFolder, countyWithGeom)
