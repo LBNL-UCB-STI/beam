@@ -120,56 +120,56 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   "Parking system " must {
-//    "guarantee at least some parking used " in {
-//      val parkingEvents =
-//        defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
-//      parkingEvents.size should be > 0
-//    }
-//
-//    "departure and arrival should be from same parking 4 tuple" in {
-//
-//      val parkingEvents =
-//        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
-//      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
-//        case (c, ev) =>
-//          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
-//          val array = c.getOrElse(vehId, ArrayBuffer[Event]())
-//          array.append(ev)
-//          c.updated(vehId, array)
-//      }
-//
-//      val res = groupedByVehicle.map {
-//        case (id, x) =>
-//          val (parkEvents, leavingEvents) =
-//            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
-//
-//          //First and last park events won't match
-//          val parkEventsWithoutLast = parkEvents.dropRight(1)
-//          val leavingParkEventsWithoutFirst = leavingEvents.tail
-//
-//          parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
-//          (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
-//      }
-//
-//      res.collect {
-//        case (_, array) =>
-//          array.foreach {
-//            case (evA, evB) =>
-//              List(
-//                ParkingEvent.ATTRIBUTE_PARKING_TAZ,
-//                ParkingEvent.ATTRIBUTE_PARKING_TYPE,
-//                ParkingEvent.ATTRIBUTE_PRICING_MODEL,
-//                ParkingEvent.ATTRIBUTE_CHARGING_TYPE
-//              ).foreach { k =>
-//                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
-//              }
-//              evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
-//                .get("time")
-//                .toDouble
-//          }
-//      }
-//    }
-//
+    "guarantee at least some parking used " in {
+      val parkingEvents =
+        defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
+      parkingEvents.size should be > 0
+    }
+
+    "departure and arrival should be from same parking 4 tuple" in {
+
+      val parkingEvents =
+        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
+        case (c, ev) =>
+          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+          val array = c.getOrElse(vehId, ArrayBuffer[Event]())
+          array.append(ev)
+          c.updated(vehId, array)
+      }
+
+      val res = groupedByVehicle.map {
+        case (id, x) =>
+          val (parkEvents, leavingEvents) =
+            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
+
+          // First and last park events won't match
+          val parkEventsWithoutLast = parkEvents.dropRight(1)
+          val leavingParkEventsWithoutFirst = leavingEvents.tail
+
+          parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
+          (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
+      }
+
+      res.collect {
+        case (_, array) =>
+          array.foreach {
+            case (evA, evB) =>
+              List(
+                ParkingEvent.ATTRIBUTE_PARKING_TAZ,
+                ParkingEvent.ATTRIBUTE_PARKING_TYPE,
+                ParkingEvent.ATTRIBUTE_PRICING_MODEL,
+                ParkingEvent.ATTRIBUTE_CHARGING_TYPE
+              ).foreach { k =>
+                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
+              }
+              evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
+                .get("time")
+                .toDouble
+          }
+      }
+    }
+
     "Park event should be thrown after last path traversal" in {
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
@@ -211,8 +211,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
     }
 
-    // failed
-    "VERY expensive parking should reduce driving" in {
+    "very expensive parking should reduce driving" in {
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
