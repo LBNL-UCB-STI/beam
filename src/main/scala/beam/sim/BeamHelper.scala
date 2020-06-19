@@ -714,6 +714,12 @@ trait BeamHelper extends LazyLogging {
       return value.toInt
     }
     if (paramValue.contains("double")) {
+      if ("Double.PositiveInfinity" == value) {
+        return Double.PositiveInfinity
+      }
+      if ("Double.NegativeInfinity" == value) {
+        return Double.NegativeInfinity
+      }
       return value.toDouble
     }
     if (paramValue.contains("boolean")) {
