@@ -144,7 +144,6 @@ class BeamMobsim @Inject()(
     logger.info("Processing Agentsim Events (End)")
   }
 
-
   private def fillInSecondaryActivities(households: Households): Unit = {
     households.getHouseholds.values.forEach { household =>
       val vehicles = household.getVehicleIds.asScala
@@ -180,8 +179,8 @@ class BeamMobsim @Inject()(
         }
 
         if (person.getSelectedPlan.getPlanElements.asScala
-          .collect { case activity: Activity => activity.getType }
-          .contains("Temp")) {
+              .collect { case activity: Activity => activity.getType }
+              .contains("Temp")) {
           val supplementaryTripGenerator =
             new SupplementaryTripGenerator(
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
@@ -201,13 +200,10 @@ class BeamMobsim @Inject()(
         }
       }
 
-     // val newP  = beamServices.matsimServices.getScenario.getPopulation.getPersons.values()
+      // val newP  = beamServices.matsimServices.getScenario.getPopulation.getPersons.values()
 
       logger.info("Done filling in secondary trips in plans")
     }
-
-
-
 
   }
 
@@ -314,9 +310,6 @@ class BeamMobsimIteration(
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
-
-
-
 
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
@@ -446,8 +439,6 @@ class BeamMobsimIteration(
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
-
-
   scheduleRideHailManagerTimerMessages()
 
   //to monitor with TAZSkimmer add actor hereinafter
@@ -570,7 +561,5 @@ class BeamMobsimIteration(
       yMax + beamConfig.beam.spatial.boundingBoxBuffer
     )
   }
-
-
 
 }
