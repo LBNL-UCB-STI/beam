@@ -39,6 +39,7 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
 import org.matsim.api.core.v01.network.Network
@@ -257,7 +258,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 }
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
-    extends MetricsSupport {
+    extends MetricsSupport
+    with LazyLogging {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
@@ -420,8 +422,22 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     profileRequest
   }
 
-  def calcRoute(request: RoutingRequest): RoutingResponse = {
-    //    log.debug(routingRequest.toString)
+  def removeBikeVehiclesIfDistanceTooHigh(originalRequest: RoutingRequest): RoutingRequest = {
+    if (originalRequest.streetVehicles
+          .exists(_.mode == BeamMode.BIKE) && geo.distUTMInMeters(
+          originalRequest.originUTM,
+          originalRequest.destinationUTM
+        ) > maxDistanceForBikeMeters) {
+      originalRequest.copy(streetVehicles = originalRequest.streetVehicles.filter(_.mode != BeamMode.BIKE))
+    } else {
+      originalRequest
+    }
+  }
+
+  def calcRoute(originalRequest: RoutingRequest): RoutingResponse = {
+    val startTimeMillis = System.currentTimeMillis()
+
+    val request = removeBikeVehiclesIfDistanceTooHigh(originalRequest)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = request.streetVehicles.exists(_.mode == WALK)
@@ -1006,6 +1022,22 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           trip.legs.head.beamLeg.startTime >= request.departureTime && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
         }
     }
+
+    //    val endTimeMillis = System.currentTimeMillis()
+    //    val durationSeconds = (endTimeMillis - startTimeMillis) / 1000.0
+    //
+    //    val wgsFrom = workerParams.geo.utm2Wgs(request.originUTM)
+    //    val wgsTo = workerParams.geo.utm2Wgs(request.destinationUTM)
+    //    val modes = request.streetVehicles.map(sv => sv.mode).mkString
+    //    val distance = geo.distLatLon2Meters(wgsFrom, wgsTo)
+    //    val tripInfo = if (embodiedTrips.isEmpty) {
+    //      "isEmpty"
+    //    } else {
+    //      s"${embodiedTrips.map(_.tripClassifier).mkString}:${embodiedTrips.length}"
+    //    }
+    //    logger.info(
+    //      s"CalcRoute from:$wgsFrom to:$wgsTo distance:$distance mode:$modes trip $tripInfo took $durationSeconds seconds"
+    //    )
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = accessVehicles.find(_.mode == WALK)
