@@ -173,6 +173,7 @@ runcmd:
   - export MAXRAM=$MAX_RAM
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
+  - export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   - echo "MAXRAM is $MAXRAM"
   - sudo docker pull $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION
   - /tmp/slack.sh "$hello_msg"
