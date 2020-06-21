@@ -7,17 +7,24 @@ import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
+import beam.sim.common.GeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 // You can run it as:
 //  - App with Main method in IntelliJ IDEA. You need to provide config as Program Arguments: `--config test/input/texas/austin-prod-100k.conf`
 //  - Run it from gradle: `./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=4 -PappArgs="['--config', 'test/input/texas/austin-prod-100k.conf']"`
 object R5Requester extends BeamHelper {
 
+  val geo: GeoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:2808"
+  }
+
+  //(-83.12597352, 42.391160051) to (-83.037062772, 42.514944839)
+
   private val baseRoutingRequest: RoutingRequest = {
-    val originUTM = new Location(2961475.272057291, 3623253.4635826824)
+    val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051)) //new Location(2961475.272057291, 3623253.4635826824)
     val personAttribs = AttributesOfIndividual(
       householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
       modalityStyle = None,
@@ -29,7 +36,7 @@ object R5Requester extends BeamHelper {
     )
     RoutingRequest(
       originUTM = originUTM,
-      destinationUTM = new Location(2967932.9521744307, 3635449.522501624),
+      destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839)), // new Location(2967932.9521744307, 3635449.522501624),
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
