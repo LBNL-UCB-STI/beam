@@ -41,9 +41,8 @@ class UrbanSimScenarioLoader(
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   def isCoordValid(coordWGS: Coord): Boolean = {
-    // beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
-    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 1E4)
-    split != null
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 1E3)
+    split != null && beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
   }
 
   def loadScenario(): Scenario = {
@@ -473,13 +472,15 @@ class UrbanSimScenarioLoader(
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
       .toMap
 
+    var filteredCnt = 0
+
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
       val personAttrib = population.getPersonAttributes
 
       personHouseholds.get(person.getId) match {
-        case None => logger.error(s"Person (id:${person.getId.toString}) does not have household and will be ignored")
+        case None => filteredCnt += 1
         case Some(hh) =>
           val sexChar = if (personInfo.isFemale) "F" else "M"
 
@@ -505,6 +506,10 @@ class UrbanSimScenarioLoader(
 
           population.addPerson(person)
       }
+    }
+
+    if (filteredCnt > 0) {
+      logger.info(s"Filtered out $filteredCnt persons. Total number of persons: ${persons.size - filteredCnt}")
     }
   }
 
