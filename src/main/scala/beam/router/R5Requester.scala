@@ -17,14 +17,14 @@ import org.matsim.api.core.v01.{Coord, Id}
 //  - Run it from gradle: `./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=4 -PappArgs="['--config', 'test/input/texas/austin-prod-100k.conf']"`
 object R5Requester extends BeamHelper {
 
-  val geo: GeoUtils = new GeoUtils {
+  private val geo: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:2808"
   }
 
-  //(-83.12597352, 42.391160051) to (-83.037062772, 42.514944839)
+  private val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051))
+  private val destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839))
 
   private val baseRoutingRequest: RoutingRequest = {
-    val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051)) //new Location(2961475.272057291, 3623253.4635826824)
     val personAttribs = AttributesOfIndividual(
       householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
       modalityStyle = None,
@@ -34,9 +34,10 @@ object R5Requester extends BeamHelper {
       age = None,
       income = Some(70000.0)
     )
+
     RoutingRequest(
       originUTM = originUTM,
-      destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839)), // new Location(2967932.9521744307, 3635449.522501624),
+      destinationUTM = destinationUTM,
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
@@ -49,6 +50,25 @@ object R5Requester extends BeamHelper {
 
     val r5Wrapper = createR5Wrapper(cfg)
 
+    def makeRouteRequest(name: String, request: BeamRouter.RoutingRequest): Unit = {
+      val startTimeMillis = System.currentTimeMillis()
+      val responce = r5Wrapper.calcRoute(request)
+      val endTimeMillis = System.currentTimeMillis()
+
+      val durationSeconds = (endTimeMillis - startTimeMillis) / 1000.0
+
+      println(s"######################## $name ##############################")
+      println(s"Trip calculation took: $durationSeconds seconds")
+      println(s"Number of routes: ${responce.itineraries.length}")
+      responce.itineraries.zipWithIndex.foreach {
+        case (route, idx) =>
+          println(s"$idx\t$route")
+      }
+      // println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
+      println
+      println
+    }
+
     val carStreetVehicle =
       getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, baseRoutingRequest.originUTM)
     val bikeStreetVehicle =
@@ -56,38 +76,27 @@ object R5Requester extends BeamHelper {
     val walkStreetVehicle =
       getStreetVehicle("dummy-body-for-skim-observations", BeamMode.WALK, baseRoutingRequest.originUTM)
 
-    val threeModesReq = baseRoutingRequest.copy(
+    println
+    val distance = geo.distUTMInMeters(originUTM, destinationUTM)
+    println(s"Trip distance is $distance meters")
+    println
+    println
+
+    val threeModesReq: RoutingRequest = baseRoutingRequest.copy(
       streetVehicles = Vector(carStreetVehicle, bikeStreetVehicle, walkStreetVehicle),
       withTransit = true
     )
-    val threeModesResp = r5Wrapper.calcRoute(threeModesReq)
-    showRouteResponse("Three Modes in one shot", threeModesResp)
-    println
+
+    makeRouteRequest("Three Modes in one shot", threeModesReq)
 
     val carReq = baseRoutingRequest.copy(streetVehicles = Vector(carStreetVehicle), withTransit = false)
-    val carResp = r5Wrapper.calcRoute(carReq)
-    showRouteResponse("Only CAR mode", carResp)
-    println
+    makeRouteRequest("Only CAR mode", carReq)
 
     val bikeReq = baseRoutingRequest.copy(streetVehicles = Vector(bikeStreetVehicle), withTransit = false)
-    val bikeResp = r5Wrapper.calcRoute(bikeReq)
-    showRouteResponse("Only BIKE mode", bikeResp)
-    println
+    makeRouteRequest("Only BIKE mode", bikeReq)
 
     val walkReq = baseRoutingRequest.copy(streetVehicles = Vector(walkStreetVehicle), withTransit = true)
-    val walkResp = r5Wrapper.calcRoute(walkReq)
-    showRouteResponse("Only WALK mode with transit", walkResp)
-    println
-  }
-
-  private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse): Unit = {
-    println(s"######################## $name ##############################")
-    println(s"Number of routes: ${threeModesResp.itineraries.length}")
-    threeModesResp.itineraries.zipWithIndex.foreach {
-      case (route, idx) =>
-        println(s"$idx\t$route")
-    }
-    println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
+    makeRouteRequest("Only WALK mode with transit", walkReq)
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
