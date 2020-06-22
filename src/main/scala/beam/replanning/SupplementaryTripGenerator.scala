@@ -12,6 +12,7 @@ import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
@@ -94,7 +95,9 @@ class SupplementaryTripGenerator(
     if (anyChanges) {
       //newPlan.setScore(plan.getScore)
       newPlan.setType(plan.getType)
-      Some(ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(newPlan))
+      val resultPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(newPlan)
+      AttributesUtils.copyAttributesFromTo(plan, resultPlan)
+      Some(resultPlan)
     } else {
       None
     }
