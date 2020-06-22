@@ -15,6 +15,7 @@ import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
 import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.codec.digest.DigestUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -44,6 +45,7 @@ class TravelTimeGoogleStatistic(
   private val apiKey = System.getenv("GOOGLE_API_KEY")
   if (cfg.enable && apiKey == null)
     logger.warn("google api key is empty")
+  logger.info(s"Google API key hash: ${DigestUtils.md5Hex(apiKey)}")
   private val queryDate = getQueryDate(cfg.queryDate)
 
   private val enabled = cfg.enable && apiKey != null
