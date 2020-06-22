@@ -35,7 +35,7 @@ object TravelTimeGoogleApp extends App with StrictLogging {
   using(ActorSystem())(_.terminate())(actorSystem => processEventFile(execCfg, actorSystem))
 
   private def processEventFile(execCfg: BeamExecutionConfig, actorSystem: ActorSystem): Unit = {
-    val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes
+    val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes.copy(enable = true)
     val statistic = new TravelTimeGoogleStatistic(statCfg, actorSystem, SimpleGeoUtils())
 
     val iteration = 0
