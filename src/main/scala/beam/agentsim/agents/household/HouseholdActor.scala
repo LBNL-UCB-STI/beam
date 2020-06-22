@@ -41,6 +41,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.utils.misc.Time
 import org.matsim.households
 import org.matsim.households.Household
 
@@ -268,6 +269,16 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val selectedPlan = person.getSelectedPlan
+          // Set zero endTime for plans with one activity. In other case agent sim will be started
+          // before all InitializeTrigger's are completed
+          if (selectedPlan.getPlanElements.size() == 1) {
+            selectedPlan.getPlanElements.get(0) match {
+              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case _              =>
+            }
+          }
+
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
@@ -282,7 +293,7 @@ object HouseholdActor {
               eventsManager,
               person.getId,
               self,
-              person.getSelectedPlan,
+              selectedPlan,
               fleetManagers ++: sharedVehicleFleets,
               routeHistory,
               boundingBox
