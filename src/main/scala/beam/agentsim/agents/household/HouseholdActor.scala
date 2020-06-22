@@ -14,7 +14,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
 import beam.agentsim.events.SpaceTime
@@ -270,8 +274,8 @@ object HouseholdActor {
           // before all InitializeTrigger's are completed
           if (selectedPlan.getPlanElements.size() == 1) {
             selectedPlan.getPlanElements.get(0) match {
-              case elem: Activity => if(Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
-              case _ =>
+              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case _              =>
             }
           }
 
