@@ -50,7 +50,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
                 isCaccEnabled = value;
             }
             // the vehicle registers itself to the scheduler
-            new Vehicle(getScheduler(), person, activityDurationInterpretation, isCaccEnabled, allRoads);
+            new Vehicle(getScheduler(), person, activityDurationInterpretation, isCaccEnabled, allRoads, messageFactory);
         }
 
         logInitializeVehiclesOutcome(vehicleNotFound, isCACCVehicle);
