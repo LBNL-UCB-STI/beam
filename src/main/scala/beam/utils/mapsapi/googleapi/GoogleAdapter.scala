@@ -16,6 +16,7 @@ import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.Segment
 import beam.utils.mapsapi.googleapi.GoogleAdapter._
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.{FileUtils, IOUtils}
 import play.api.libs.json._
 
@@ -25,7 +26,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, actorSystem: Option[ActorSystem] = None)
-    extends AutoCloseable {
+    extends AutoCloseable with LazyLogging {
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -97,7 +98,15 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-
+    // FIXME later once we got the error
+    (jsObject \ "status") match {
+      case JsDefined(value) =>
+        if (value != JsString("OK")) {
+          val error = jsObject \ "error_message"
+          logger.error(s"Google route request failed. Status: ${value}, error: $error")
+        }
+      case undefined: JsUndefined =>
+    }
     parseRoutes((jsObject \ "routes").as[JsArray].value)
   }
 
