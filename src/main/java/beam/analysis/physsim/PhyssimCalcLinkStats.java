@@ -1,6 +1,8 @@
 package beam.analysis.physsim;
 
+import beam.analysis.plots.GraphUtils;
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
@@ -16,20 +18,18 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import java.awt.*;
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-public class PhyssimCalcLinkStats implements Observer {
+public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
-    private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -52,7 +52,7 @@ public class PhyssimCalcLinkStats implements Observer {
      * The outer map contains the relativeSpeed a double value as the key that defines a relativeSpeed category.
      * The inner map contains the bin id as the key and the frequency as the value for the particular relativeSpeed category.
      */
-    private Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
+    private final Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy controllerIO;
@@ -80,19 +80,17 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-
         linkStats.addData(volumes, travelTime);
         processData(iteration, travelTime);
-        CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            if (beamConfig.beam().outputs().writeGraphs()){
+            if (beamConfig.beam().outputs().writeGraphs()) {
+                CategoryDataset dataset = buildAndGetGraphCategoryDataset();
                 createModesFrequencyGraph(dataset, iteration);
             }
         }
-
     }
 
     private boolean isNotTestMode() {
@@ -111,11 +109,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
     private void processData(int iteration, TravelTime travelTime) {
         for (int idx = 0; idx < noOfBins; idx++) {
-
-
             for (Link link : this.network.getLinks().values()) {
-
-
                 double freeSpeed = link.getFreespeed(idx * binSize);
 
                 double linkLength = link.getLength();
@@ -161,7 +155,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
     private CategoryDataset buildAndGetGraphCategoryDataset() {
         double[][] dataset = buildModesFrequencyDataset();
-        return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
+        return GraphUtils.createCategoryDataset("Relative Speed", "", dataset);
     }
 
     List<Double> getSortedListRelativeSpeedCategoryList() {
@@ -171,10 +165,7 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     private double[][] buildModesFrequencyDataset() {
-
         List<Double> relativeSpeedsCategoriesList = getSortedListRelativeSpeedCategoryList();
-
-
         double[][] dataset = new double[0][];
 
         Optional<Double> optionalMaxRelativeSpeedsCategories = relativeSpeedsCategoriesList.stream().max(Comparator.naturalOrder());
@@ -207,48 +198,31 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) {
-
         String plotTitle = "Relative Network Link Speeds";
         String xaxis = "Hour";
         String yaxis = "# of network links";
         int width = 800;
         int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
+
         String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relativeSpeeds.png");
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, plotTitle, xaxis, yaxis, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         LegendItemCollection legendItems = new LegendItemCollection();
-
-
         List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
 
         int max = Collections.max(relativeSpeedsCategoriesList).intValue();
 
         for (int i = 0; i <= max ; i++) {
-
             legendItems.add(new LegendItem(String.valueOf(i), getColor(i)));
-
             plot.getRenderer().setSeriesPaint(i, getColor(i));
-
         }
         plot.setFixedLegendItems(legendItems);
 
-
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -261,7 +235,6 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     private Color getRandomColor() {
-
         Random rand = new Random();
 
         float r = rand.nextFloat();
@@ -283,8 +256,7 @@ public class PhyssimCalcLinkStats implements Observer {
     }
 
     @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        this.beamConfig = (BeamConfig) t._2;
+    public void update(BeamConfigChangesObservable observable, BeamConfig updatedBeamConfig) {
+        this.beamConfig = updatedBeamConfig;
     }
 }

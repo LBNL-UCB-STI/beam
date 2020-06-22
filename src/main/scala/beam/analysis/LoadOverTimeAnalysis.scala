@@ -150,17 +150,14 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
   }
 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
-    val chart =
-      ChartFactory.createLineChart(
-        title,
-        "Hour",
-        "Avg. Power (kW)",
-        dataSet,
-        PlotOrientation.VERTICAL,
-        true,
-        true,
-        false
-      )
+    val chart = GraphUtils.createLineChartWithDefaultSettings(
+      dataSet,
+      title,
+      "Hour",
+      "Avg. Power (kW)",
+      true,
+      true
+    )
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,

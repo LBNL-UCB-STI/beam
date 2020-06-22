@@ -3,6 +3,7 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
@@ -274,14 +275,18 @@ class SupplementaryTripGenerator(
             alternativeActivity.getCoord,
             additionalActivity.getCoord,
             desiredDepartTimeBin,
-            mode
+            mode,
+            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX WITH REAL VEHICLE
+            beamServices.beamScenario
           )
         val egressTripSkim =
           Skims.od_skimmer.getTimeDistanceAndCost(
             additionalActivity.getCoord,
             alternativeActivity.getCoord,
             desiredReturnTimeBin,
-            mode
+            mode,
+            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX
+            beamServices.beamScenario
           )
         val startingOverlap =
           (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)

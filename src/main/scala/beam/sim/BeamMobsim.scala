@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
@@ -341,12 +341,23 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  private val parkingManager = context.actorOf(
-    ZonalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
-      .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
-    "ParkingManager"
-  )
+  private val parkingManager = {
+    val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
+    log.info(s"Starting parking manager: $managerName")
+    val pmProps = managerName match {
+      case "DEFAULT" =>
+        ZonalParkingManager
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case "PARALLEL" =>
+        ParallelParkingManager
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
+    }
+    context.actorOf(pmProps, "ParkingManager")
+  }
+
   context.watch(parkingManager)
 
   private val rideHailManager = context.actorOf(

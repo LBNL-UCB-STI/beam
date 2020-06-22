@@ -158,7 +158,11 @@ class BeamRouter(
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+        log.debug(
+          "TryToSerialize size in bytes: {}, MBytes: {}",
+          byteArray.length,
+          byteArray.length.toDouble / 1024 / 1024
+        )
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -487,7 +491,7 @@ object BeamRouter {
 
   object RoutingResponse {
 
-    val dummyRoutingResponse = Some(
+    val dummyRoutingResponse: Some[RoutingResponse] = Some(
       RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
     )
   }
@@ -598,7 +602,7 @@ object BeamRouter {
     )
   }
 
-  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork) = {
+  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork): Unit = {
     if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
           dates.localBaseDateTime
         )) {

@@ -395,7 +395,7 @@ object HouseholdActor {
                 }
                 .toList
             )
-            .map(ModifyPassengerScheduleAcks(_))
+            .map(ModifyPassengerScheduleAcks)
             .pipeTo(self)
         }
 

@@ -161,7 +161,8 @@ class FastHouseholdCAVScheduling(
           curReq.activity.getCoord,
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
-          cav.beamVehicleType.id
+          cav.beamVehicleType.id,
+          beamServices.beamScenario
         )
         var serviceTime = prevReq.serviceTime + metric.time
         val ubTime = curReq.upperBoundTime
@@ -394,7 +395,7 @@ case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperIm
 object HouseholdTripsHelper {
 
   import scala.util.control.Breaks._
-  val logger = HouseholdTripsLogger(getClass.getName)
+  val logger: HouseholdTripsLogger = HouseholdTripsLogger(getClass.getName)
 
   def getDefaultMode(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
     legOption
@@ -469,7 +470,8 @@ object HouseholdTripsHelper {
       curTrip.activity.getCoord,
       0,
       defaultMode,
-      beamVehicleType.id
+      beamVehicleType.id,
+      beamServices.beamScenario
     )
 
     val startTime = prevTrip.activity.getEndTime.toInt
