@@ -146,10 +146,10 @@ class TravelTimeGoogleStatistic(
     seq.size
   }
 
-  private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int) =
+  private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] =
     Random.shuffle(events).take(numEventsPerHour)
 
-  private def getQueryDate(dateStr: String) = {
+  private def getQueryDate(dateStr: String): LocalDateTime = {
     val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureDate())
     val date = if (parsedDate.compareTo(LocalDate.now()) <= 0) {
       futureDate()
@@ -163,7 +163,7 @@ class TravelTimeGoogleStatistic(
     LocalDate.now().plusDays(2)
   }
 
-  private def toRouteRequest(event: PathTraversalEvent) = {
+  private def toRouteRequest(event: PathTraversalEvent): RouteRequest[PathTraversalEvent] = {
     RouteRequest(
       userObject = event,
       origin = WgsCoordinate(event.startY, event.startX),
@@ -173,7 +173,7 @@ class TravelTimeGoogleStatistic(
     )
   }
 
-  def loadedEventNumber = acc.size
+  def loadedEventNumber: Int = acc.size
 
   override def reset(iteration: Int): Unit = {
     acc.clear()
