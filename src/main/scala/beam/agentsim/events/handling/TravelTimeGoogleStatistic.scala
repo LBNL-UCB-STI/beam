@@ -11,6 +11,7 @@ import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
+import beam.utils.csv.CsvWriter
 import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
 import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
@@ -112,15 +113,25 @@ class TravelTimeGoogleStatistic(
     implicit def doubleToString(x: Double): String = formatter.format(x)
     implicit def intToString(x: Int): String = x.toString
 
-    using(IOUtils.getBufferedWriter(filePath)) { writer =>
-      writer.write(
-        "vehicleId,vehicleType,departureTime,originLat,originLng,destLat,destLng,simTravelTime,googleTravelTime," +
-        "euclideanDistanceInMeters,legLength,googleDistance"
-      )
+    val headers = Vector(
+      "vehicleId",
+      "vehicleType",
+      "departureTime",
+      "originLat",
+      "originLng",
+      "destLat",
+      "destLng",
+      "simTravelTime",
+      "googleTravelTime",
+      "euclideanDistanceInMeters",
+      "legLength",
+      "googleDistance"
+    )
+    using(new CsvWriter(filePath, headers)) { csvWriter =>
       seq
         .map(
           ec =>
-            List[String](
+            Vector[String](
               Objects.toString(ec.event.vehicleId),
               ec.event.vehicleType,
               ec.event.departureTime,
@@ -136,11 +147,10 @@ class TravelTimeGoogleStatistic(
               ),
               ec.event.legLength,
               ec.route.distanceInMeters,
-            ).mkString(",")
+          )
         )
         .foreach { line =>
-          writer.newLine()
-          writer.write(line)
+          csvWriter.writeRow(line)
         }
     }
     seq.size
