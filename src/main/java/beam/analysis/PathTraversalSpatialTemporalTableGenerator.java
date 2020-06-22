@@ -17,6 +17,8 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -34,6 +36,7 @@ import java.util.*;
 
 
 public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
+    private final Logger log = LoggerFactory.getLogger(PathTraversalSpatialTemporalTableGenerator.class);
 
     public static final String TABLE_OUTPUT_FULL_PATH = "c:\\tmp\\csv analysis\\energyConsumption.txt";
 
@@ -100,11 +103,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static Map<String, R5NetworkLink> r5NetworkLinks;
     private static int numberOfLinkIdsMissingInR5NetworkFile = 0;
     private static Map<Id<BeamVehicleType>, BeamVehicleType> vehicles;
-    private List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
-    private List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
-    private List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
-    private List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
-    private Map<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap<>();
+    private final List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
+    private final List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
+    private final List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
+    private final List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
+    private final Map<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap<>();
 
 
     private final beam.sim.common.GeoUtils geoUtils = new GeoUtilsImpl(BeamConfig.apply(ConfigFactory.load()));
@@ -327,7 +330,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             System.out.print("numberOfLinkIdsMissingInR5NetworkFile: " + numberOfLinkIdsMissingInR5NetworkFile);
 
         } catch (Exception exception) {
-            exception.printStackTrace();
+            log.error("exception occurred due to ", exception);
         }
     }
 

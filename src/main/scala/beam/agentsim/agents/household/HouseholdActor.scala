@@ -25,7 +25,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.replanning.SupplementaryTripGenerator
+import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
@@ -39,7 +39,9 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.utils.misc.Time
 import org.matsim.households
 import org.matsim.households.Household
 
@@ -178,40 +180,9 @@ object HouseholdActor {
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
             fleetManager
         }
+
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
-
-        val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
-
-        val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
-          case VehicleCategory.Car  => BeamMode.CAR
-          case VehicleCategory.Bike => BeamMode.BIKE
-        }.toList
-
-        val cavModeAvailable: List[BeamMode] =
-          if (cavs.nonEmpty) { List[BeamMode](BeamMode.CAV) } else { List[BeamMode]() }
-
-        val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
-
-        household.members.foreach { person =>
-          val supplementaryTripGenerator =
-            new SupplementaryTripGenerator(
-              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
-              destinationChoiceModel,
-              beamServices,
-              person.getId
-            )
-          val newPlan =
-            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
-          newPlan match {
-            case Some(plan) =>
-              person.removePlan(person.getSelectedPlan)
-              person.addPlan(plan)
-              person.setSelectedPlan(plan)
-            case None =>
-          }
-
-        }
 
         if (cavs.nonEmpty) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
@@ -298,6 +269,16 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val selectedPlan = person.getSelectedPlan
+          // Set zero endTime for plans with one activity. In other case agent sim will be started
+          // before all InitializeTrigger's are completed
+          if (selectedPlan.getPlanElements.size() == 1) {
+            selectedPlan.getPlanElements.get(0) match {
+              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case _              =>
+            }
+          }
+
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
@@ -312,7 +293,7 @@ object HouseholdActor {
               eventsManager,
               person.getId,
               self,
-              person.getSelectedPlan,
+              selectedPlan,
               fleetManagers ++: sharedVehicleFleets,
               routeHistory,
               boundingBox
@@ -414,7 +395,7 @@ object HouseholdActor {
                 }
                 .toList
             )
-            .map(ModifyPassengerScheduleAcks(_))
+            .map(ModifyPassengerScheduleAcks)
             .pipeTo(self)
         }
 

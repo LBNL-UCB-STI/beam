@@ -46,7 +46,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     }
   }
 
-  private def runCosimulationTest(config: Config) = {
+  private def runCosimulationTest(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -68,7 +68,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     controler.run()
   }
 
-  private def createBrokerAndReaderFederate() = {
+  private def createBrokerAndReaderFederate(): Unit = {
     HelicsLoader.load()
     val broker = helics.helicsCreateBroker("zmq", "", "-f 2 --name=BeamBrokerTemp")
     val fedName = "BeamFederateTemp"
@@ -90,8 +90,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     (1 to 360).foreach { i =>
       val t: Double = i * timeBin
       while (currentTime < t) currentTime = helics.helicsFederateRequestTime(fedComb, t)
-      var buffer = new Array[Byte](1000)
-      var bufferInt = new Array[Int](1)
+      val buffer = new Array[Byte](1000)
+      val bufferInt = new Array[Int](1)
       if (helics.helicsInputIsUpdated(subsChargingPlugIn) == 1) {
         helics.helicsInputGetString(subsChargingPlugIn, buffer, bufferInt)
         val chargingPlugInEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString

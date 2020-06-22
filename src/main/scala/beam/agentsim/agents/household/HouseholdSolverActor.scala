@@ -44,7 +44,7 @@ class HouseholdSolverActor extends Actor with ActorLogging {
     This is just a simple equation, and should be changed to handle whichever you feel is needed
    */
   def solve: Unit = {
-    implicit val model = MPModel(SolverLib.oJSolver)
+    implicit val model: MPModel = MPModel(SolverLib.oJSolver)
     val x1 = MPFloatVar("x1", 0, INFINITE)
     val x2 = MPFloatVar("x2", 0, INFINITE)
     val x3 = MPFloatVar("x3", 0, INFINITE)
@@ -67,7 +67,7 @@ class HouseholdSolverActor extends Actor with ActorLogging {
     var totalMb = 0L
     var initialTotalTime = 0L
     var initialTotalMb = 0L
-    (1 to 1000).map(i => {
+    (1 to 1000).foreach(i => {
       if (i % 10 == 0) println(s"Completing iteration $i")
       val startTime = System.currentTimeMillis
       val mb = 1024 * 1024

@@ -1,8 +1,8 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.GraphUtils;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
@@ -11,18 +11,17 @@ import java.util.*;
 
 public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
-    String graphName = "tnc";
+    final String graphName = "tnc";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
-    private static double[][] matrixDataset;
 
     int eventCounter = 0;
     int passengerCounter = 0;
     int maxHour = 0;
 
-    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
-    private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    private final Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private final Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
 
     int maxPassengersSeenOnGenericCase = 0;
 
@@ -89,7 +88,6 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
                 // Process the current event with num_passenger > 0 and remove any buffer of repositioning and deadheading events
                 updateNumPassengerInDeadHeadingsMap(hour, graphName, _num_passengers);
             } else {
-
                 Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
                 if (vehicleData == null) {
                     vehicleData = new HashMap<>();
@@ -108,29 +106,23 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         }
     }
 
-
     @Override
     public void process(IterationEndsEvent event) throws IOException {
-
         processDeadHeadingPassengerPerTripRemainingRepositionings();
-        CategoryDataset dataSet = getCategoryDataSet();
+
+        double[][] matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName));
+
+        CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode", "", matrixDataSet);
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
-        writeCSV(matrixDataset,dataSet.getRowCount(),event.getIteration());
+
+        writeCSV(matrixDataSet, event.getIteration());
     }
 
-    @Override
-    public CategoryDataset getCategoryDataSet() {
-
-         matrixDataset = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", matrixDataset);
-    }
-
-    private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
+    private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data) {
         List<Integer> hours = new ArrayList<>(data.keySet());
         Collections.sort(hours);
         int maxHour = hours.get(hours.size() - 1);
-        Integer maxPassengers = TNC_MAX_PASSENGERS;
+        int maxPassengers = TNC_MAX_PASSENGERS;
 
         double[][] dataSet;
 
@@ -140,11 +132,9 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
         for (int i = 1; i <= maxPassengers; i++) {
             dataSet[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i - 1);
-
         }
         return dataSet;
     }
-
 
     @Override
     public String getFileName(String extension) {
@@ -177,8 +167,6 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         }
         return modeOccurrencePerHour;
     }
-
-
 
     @Override
     public boolean isValidCase(String graphName, int numPassengers) {
