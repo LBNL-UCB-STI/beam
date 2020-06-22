@@ -4,6 +4,8 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -14,7 +16,8 @@ import java.util.LinkedList;
 import java.util.Random;
 
 public class NestedLogit implements AbstractLogit {
-    public NestedLogitData data;
+    private static final Logger log = LoggerFactory.getLogger(NestedLogit.class);
+    public final NestedLogitData data;
     public NestedLogit parent;
     public LinkedList<NestedLogit> children;
     public LinkedList<NestedLogit> ancestorNests;
@@ -42,7 +45,7 @@ public class NestedLogit implements AbstractLogit {
             document = saxBuilder.build(stream);
             return NestedLogit.nestedLogitFactory(document.getRootElement());
         } catch (JDOMException | IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
         return null;
     }

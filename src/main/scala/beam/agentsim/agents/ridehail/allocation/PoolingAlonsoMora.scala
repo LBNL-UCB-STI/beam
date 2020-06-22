@@ -94,6 +94,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: Vector[VehicleAllocation] = Vector()
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
+    rideHailManager.doNotUseInAllocation.foreach { veh =>
+      alreadyAllocated = alreadyAllocated + veh.asInstanceOf[Id[BeamVehicle]]
+    }
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toAllocate += request

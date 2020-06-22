@@ -7,7 +7,7 @@ import beam.utils.OutputDataDescriptor
 
 object RealizedModeAnalysisObject extends OutputDataDescriptor {
 
-  private val fileName = RealizedModeAnalysis.fileName
+  private val fileName = RealizedModeAnalysis.defaultFileName
 
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val outputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".csv")

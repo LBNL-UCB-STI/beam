@@ -6,14 +6,12 @@ import java.nio.file.Files
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
-import beam.sim.config.BeamConfig
 import beam.utils.{BeamConfigUtils, EventReader}
 import com.typesafe.config.{Config, ConfigFactory, ConfigResolveOptions, ConfigValueFactory}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.io.Source
 import scala.util.Try

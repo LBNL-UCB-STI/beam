@@ -176,7 +176,7 @@ object MultinomialLogitSpec {
   }
 
   trait EquallyValuedAlternatives {
-    val alternativesCost = -1
+    val alternativesCost: Int = -1
 
     val utilityFunctions = Map(
       "value" -> UtilityFunctionOperation.Multiplier(1.0)
