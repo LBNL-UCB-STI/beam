@@ -3,7 +3,7 @@ package beam.utils
 import java.io._
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
 import java.util.zip.GZIPInputStream
@@ -16,9 +16,11 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import scala.annotation.tailrec
+import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.reflectiveCalls
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -98,6 +100,63 @@ object FileUtils extends LazyLogging {
       f(tmpFolder)
     } finally {
       deleteDirectory(tmpFolder.toFile)
+    }
+  }
+
+  /**
+    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
+    * that indicates that file is being created.
+    * @param path the file path
+    * @param atMost wait at most this time before starting reading the file
+    * @param reader the file reader
+    * @param writer the file writer
+    * @tparam T type of the entity that is read from the file
+    * @return the read entity
+    */
+  def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
+    reader: Path => T
+  )(writer: Path => T): Try[T] = {
+    val locFile = path.getParent.resolve(path.getFileName.toString + ".lock")
+
+    def readFile: Try[T] = {
+      busyWaiting(atMost.toMillis, 1000) { () =>
+        !Files.exists(locFile)
+      }
+      Try { reader(path) }
+    }
+
+    if (Files.exists(path))
+      readFile
+    else {
+      val locking = Try { Files.createFile(locFile) }
+      locking match {
+        case Failure(exception) =>
+          exception match {
+            case _: FileAlreadyExistsException => readFile
+            case throwable                     => Failure(throwable)
+          }
+        case Success(_) =>
+          val tryWrite = Try(writer(path))
+          Try(Files.delete(locFile)).failed.foreach { throwable =>
+            logger.error(s"Cannot delete lock file $locFile", throwable)
+          }
+          tryWrite
+      }
+    }
+  }
+
+  @tailrec
+  private def busyWaiting(atMostMillis: Long, checkInterval: Int)(f: () => Boolean): Boolean = {
+    if (!f()) {
+      Thread.sleep(checkInterval)
+      val newAtMost = atMostMillis - checkInterval
+      if (newAtMost > 0) {
+        busyWaiting(newAtMost, checkInterval)(f)
+      } else {
+        false
+      }
+    } else {
+      true
     }
   }
 

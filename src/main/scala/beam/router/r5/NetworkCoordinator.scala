@@ -6,7 +6,7 @@ import java.nio.file.{Files, Paths}
 
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
-import beam.utils.BeamVehicleUtils
+import beam.utils.{BeamVehicleUtils, FileUtils}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
@@ -70,13 +70,16 @@ trait NetworkCoordinator extends LazyLogging {
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
       transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      if (exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))) {
-        network = NetworkUtils.createNetwork()
+
+      network = FileUtils.readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
+        val network = NetworkUtils.createNetwork()
         new MatsimNetworkReader(network)
           .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-      } else {
+        network
+      } { _ =>
         createPhyssimNetwork()
-      }
+        network
+      }.get
     } else {
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
