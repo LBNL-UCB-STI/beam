@@ -1,7 +1,7 @@
 package beam.agentsim.events.handling
 
 import java.nio.file.Paths
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
 import java.util.Objects
 
 import akka.actor.ActorSystem
@@ -150,17 +150,22 @@ class TravelTimeGoogleStatistic(
     Random.shuffle(events).take(numEventsPerHour)
 
   private def getQueryDate(dateStr: String): LocalDateTime = {
-    val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureDate())
+    val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureWednesday())
     val date = if (parsedDate.compareTo(LocalDate.now()) <= 0) {
-      futureDate()
+      futureWednesday()
     } else {
       parsedDate
     }
     LocalDateTime.of(date, LocalTime.MIDNIGHT)
   }
 
-  private def futureDate(): LocalDate = {
-    LocalDate.now().plusDays(2)
+  private def futureWednesday(): LocalDate = {
+    @scala.annotation.tailrec
+    def findWednesday(date: LocalDate): LocalDate = {
+      if (date.getDayOfWeek == DayOfWeek.WEDNESDAY) date else findWednesday(date.plusDays(1))
+    }
+
+    findWednesday(LocalDate.now().plusDays(1))
   }
 
   private def toRouteRequest(event: PathTraversalEvent): RouteRequest[PathTraversalEvent] = {
