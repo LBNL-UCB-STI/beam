@@ -2,11 +2,11 @@ package beam.utils.data.ctpp
 
 import java.util.{Map => JavaMap}
 
-import org.apache.commons.math3.util.{Pair => CPair}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
+import org.apache.commons.math3.util.{Pair => CPair}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -85,7 +85,7 @@ class JointDistribution(
         value =>
           new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
       )
-      .toList
+      .toVector
 
     val values = pmf.map(_.getValue)
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {

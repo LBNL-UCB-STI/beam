@@ -64,8 +64,6 @@ trait PopulationAdjustment extends LazyLogging {
     */
   protected final def logModes(population: MPopulation): Unit = {
 
-    logger.info("Modes excluded:")
-
     // initialize all excluded modes to empty array
     var allExcludedModes: Array[String] = Array.empty
 
@@ -79,6 +77,11 @@ trait PopulationAdjustment extends LazyLogging {
         allExcludedModes = allExcludedModes ++ personExcludedModes.get.split(",")
       personExcludedModes.isDefined
     }
+
+    if (allExcludedModes.nonEmpty) {
+      logger.info("Modes excluded:")
+    }
+
     // count the number of excluded modes for each mode type
     allExcludedModes
       .groupBy(x => x)
@@ -253,7 +256,7 @@ object PopulationAdjustment extends LazyLogging {
       Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
         .map(_.asInstanceOf[Double])
         .getOrElse(
-          IncomeToValueOfTime(householdAttributes.householdIncome)
+          incomeToValueOfTime(householdAttributes.householdIncome)
             .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
@@ -267,7 +270,8 @@ object PopulationAdjustment extends LazyLogging {
       income = Some(income)
     )
   }
-  private def IncomeToValueOfTime(income: Double): Option[Double] = {
+
+  def incomeToValueOfTime(income: Double): Option[Double] = {
     val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5
     if (income > 0) {

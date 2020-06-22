@@ -1,18 +1,14 @@
 package beam.utils
 
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.mockito.Mockito.{when, withSettings}
-import org.scalatest.mockito.MockitoSugar
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 object TestConfigUtils {
   val testOutputDir = "output/test/"
 
   val configFileName = "test/input/beamville/beam.conf"
-  val configLocation = ConfigFactory.parseString("config=" + configFileName)
+  val configLocation: Config = ConfigFactory.parseString("config=" + configFileName)
 
-  def testConfig(conf: String) =
+  def testConfig(conf: String): Config =
     BeamConfigUtils
       .parseFileSubstitutingInputDirectory(conf)
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))

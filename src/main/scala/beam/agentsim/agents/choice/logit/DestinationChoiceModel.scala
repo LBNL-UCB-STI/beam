@@ -3,14 +3,12 @@ package beam.agentsim.agents.choice.logit
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
+import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-import java.nio.file.{Files, Paths}
-
-import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.population.Activity
 
 object DestinationChoiceModel {
   def apply(beamConfig: BeamConfig) = new DestinationChoiceModel(beamConfig)
