@@ -16,6 +16,7 @@ import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.Segment
 import beam.utils.mapsapi.googleapi.GoogleAdapter._
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.{FileUtils, IOUtils}
 import play.api.libs.json._
 
@@ -25,7 +26,8 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, actorSystem: Option[ActorSystem] = None)
-    extends AutoCloseable {
+    extends AutoCloseable
+    with LazyLogging {
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -80,7 +82,13 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   private def parseResponse(response: HttpResponse) = {
     val reduced = response.entity.dataBytes.runReduce(_ ++ _)
     reduced.map { bs =>
-      Json.parse(bs.iterator.asInputStream).as[JsObject]
+      val jsObject = Json.parse(bs.iterator.asInputStream).as[JsObject]
+      val status = (jsObject \ "status").asOpt[String].getOrElse("no status field found")
+      if (status != "OK") {
+        val errorMessage = (jsObject \ "error_message").asOpt[String].getOrElse("no error message provided")
+        logger.error("Response status is not OK: {}, error message: {}", status, errorMessage)
+      }
+      jsObject
     }
   }
 
