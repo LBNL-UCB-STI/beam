@@ -150,8 +150,13 @@ class TravelTimeGoogleStatistic(
     Random.shuffle(events).take(numEventsPerHour)
 
   private def getQueryDate(dateStr: String): LocalDateTime = {
-    val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureWednesday())
+    val triedDate = Try(LocalDate.parse(dateStr))
+    triedDate.failed.foreach { throwable =>
+      logger.error("Cannot parse date {}, using a future one", dateStr, throwable)
+    }
+    val parsedDate = triedDate.getOrElse(futureWednesday())
     val date = if (parsedDate.compareTo(LocalDate.now()) <= 0) {
+      logger.warn("Date in the past: {}, using a future one", dateStr)
       futureWednesday()
     } else {
       parsedDate
