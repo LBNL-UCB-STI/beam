@@ -66,11 +66,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   }
 
   // Precompute on the first tick where to reposition for the whole day
-  val lastTickWithRepos = 24 * 3600
+  val lastTickWithRepos: Int = 24 * 3600
 
   val step = 300
-  val numberOfRepos = lastTickWithRepos / step
-  var repositionPerTick = vehicleAllowedToReposition.size.toDouble / numberOfRepos
+  val numberOfRepos: Int = lastTickWithRepos / step
+  var repositionPerTick: Double = vehicleAllowedToReposition.size.toDouble / numberOfRepos
   repositionPerTick = if (repositionPerTick < 1) 1 else repositionPerTick
   logger.info(s"""
        |algorithm: ${algorithm}
@@ -85,13 +85,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val activitySegment: ActivitySegment =
     ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
 
-  val algo8 = ProfilingUtils.timed("Initialized Algo8", x => logger.info(x)) {
+  val algo8: DemandFollowingRepositioningManager = ProfilingUtils.timed("Initialized Algo8", x => logger.info(x)) {
     new DemandFollowingRepositioningManager(rideHailManager.beamServices, rideHailManager)
   }
 
   val intervalForUpdatingQuadTree = 1800
 
-  var lastTimeQuadTreeUpdated = Double.NegativeInfinity
+  var lastTimeQuadTreeUpdated: Double = Double.NegativeInfinity
 
   var quadTree: QuadTree[Activity] = _
 
@@ -139,7 +139,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     }
   }
 
-  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[BeamVehicle], Coord)], tick: Double) = {
+  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[BeamVehicle], Coord)], tick: Double): Unit = {
     // TODO: write in the output folder graph
 
     // draw all content in quadTree with color blue
@@ -466,7 +466,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             }
             .filterNot(_._2.getX == Double.MaxValue)
             .seq
-            .toVector
 
           // writeRepositioningToCSV(result, tick)
 

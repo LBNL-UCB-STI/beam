@@ -7,7 +7,6 @@ import beam.analysis.plots.filterevent.FilterEvent;
 import beam.sim.config.BeamConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -127,7 +126,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeRealizedModeGraph(event);
 
         writeRealizedModeChoiceGraph(outputFilename("realizedModeChoice", ".png"));
-        writeReferenceDatasetGraph(outputFilename("realizedModeChoice", ".png"));
+        writeReferenceDatasetGraph(outputFilename("referenceRealizedModeChoice", ".png"));
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);

@@ -1947,20 +1947,14 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        gcClassHistogramAtIterationEnd: scala.Boolean,
-        gcClassHistogramAtIterationStart: scala.Boolean
+        createGCClassHistogram: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            gcClassHistogramAtIterationEnd = c.hasPathOrNull("gcClassHistogramAtIterationEnd") && c.getBoolean(
-              "gcClassHistogramAtIterationEnd"
-            ),
-            gcClassHistogramAtIterationStart = c.hasPathOrNull("gcClassHistogramAtIterationStart") && c.getBoolean(
-              "gcClassHistogramAtIterationStart"
-            )
+            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
           )
         }
       }
