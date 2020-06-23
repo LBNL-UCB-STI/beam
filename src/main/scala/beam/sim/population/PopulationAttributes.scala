@@ -192,7 +192,9 @@ case class AttributesOfIndividual(
 }
 
 object AttributesOfIndividual {
-  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
+
+  val EMPTY: AttributesOfIndividual =
+    AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
 }
 
 case class HouseholdAttributes(
@@ -205,7 +207,7 @@ case class HouseholdAttributes(
 
 object HouseholdAttributes {
 
-  val EMPTY = HouseholdAttributes("0", 0.0, 0, 0, 0)
+  val EMPTY: HouseholdAttributes = HouseholdAttributes("0", 0.0, 0, 0, 0)
 
   def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(

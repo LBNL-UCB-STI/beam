@@ -42,9 +42,11 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+
+import beam.sim.common.GeoUtils
+import beam.utils.NetworkHelper
 
 /**
   */
@@ -126,7 +128,7 @@ object PersonAgent {
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
-    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
+    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
         legEndsAt,
@@ -206,7 +208,7 @@ object PersonAgent {
     endTime: Int,
     bodyVehicleId: Id[BeamVehicle],
     bodyVehicleTypeId: Id[BeamVehicleType]
-  ) = {
+  ): EmbodiedBeamTrip = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
@@ -250,10 +252,10 @@ class PersonAgent(
     with ChoosesParking
     with Stash
     with ExponentialLazyLogging {
-  val networkHelper = beamServices.networkHelper
-  val geo = beamServices.geo
+  val networkHelper: NetworkHelper = beamServices.networkHelper
+  val geo: GeoUtils = beamServices.geo
 
-  val bodyType = beamScenario.vehicleTypes(
+  val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
     Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
 
@@ -272,10 +274,10 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  var totFuelConsumed = FuelConsumed(0.0, 0.0)
-  var curFuelConsumed = FuelConsumed(0.0, 0.0)
+  var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+  var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
-  def updateFuelConsumed(fuelOption: Option[FuelConsumed]) = {
+  def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
     curFuelConsumed = FuelConsumed(
       curFuelConsumed.primaryFuel + newFuelConsumed.primaryFuel,
@@ -287,7 +289,7 @@ class PersonAgent(
     )
   }
 
-  def resetFuelConsumed() = curFuelConsumed = FuelConsumed(0.0, 0.0)
+  def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def logDepth: Int = 30
 
@@ -347,7 +349,7 @@ class PersonAgent(
                       0,
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
-                      beamServices
+                      beamServices.beamScenario
                     )
                     .distance
                 )

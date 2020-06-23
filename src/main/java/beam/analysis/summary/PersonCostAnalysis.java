@@ -20,22 +20,22 @@ import java.util.Map;
 
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private final Map<Id<Person>, Household> personToHousehold;
-  private Map<String,Double> personCostByCostType = new HashMap<>();
-  private Map<String, Integer> personCostCount = new HashMap<>();
-  private Map<String,Double> personCostByActivityType = new HashMap<>();
-  private String[] costTypes = {"Cost", "Incentive", "Toll"};
-  private Map<String, Integer> activityTypeCount = new HashMap<>();
-  private Map<String, Double> personIdCost = new HashMap<>();
-  private Map<String, Double> personDepartureTime = new HashMap<>();
+  private final Map<String,Double> personCostByCostType = new HashMap<>();
+  private final Map<String, Integer> personCostCount = new HashMap<>();
+  private final Map<String,Double> personCostByActivityType = new HashMap<>();
+  private final String[] costTypes = {"Cost", "Incentive", "Toll"};
+  private final Map<String, Integer> activityTypeCount = new HashMap<>();
+  private final Map<String, Double> personIdCost = new HashMap<>();
+  private final Map<String, Double> personDepartureTime = new HashMap<>();
   private int numberOfTrips = 0;
   private double totalNetCost = 0.0;
-  private BeamServices beamServices;
+  private final BeamServices beamServices;
   double averageVot=0;
-  String votKeyString="valueOfTime";
-  double defaultDummyHouseholdIncome=0.01;
+  final String votKeyString="valueOfTime";
+  final double defaultDummyHouseholdIncome=0.01;
 
 
-  private Logger logger = LoggerFactory.getLogger(PersonCostAnalysis.class);
+  private final Logger logger = LoggerFactory.getLogger(PersonCostAnalysis.class);
 
   public PersonCostAnalysis(BeamServices beamServices){
     this.beamServices = beamServices;

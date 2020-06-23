@@ -49,6 +49,7 @@ import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.vehicles.VehiclesAdjustment
@@ -261,8 +262,7 @@ class RideHailManager(
           .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
       }
     }
-    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / fleet
+    .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
   // Undo sampling to estimate initial number
 
   val numRideHailAgents: Long = math.round(
@@ -346,7 +346,8 @@ class RideHailManager(
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
   // parking choice function parameters
-  val mnlParamsFromConfig = beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
+  val mnlParamsFromConfig: MulitnomialLogit.Params =
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
 
   val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
     ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
@@ -361,7 +362,7 @@ class RideHailManager(
   )
 
   // provides tracking of parking/charging alternatives and their availability
-  val rideHailDepotParkingManager = RideHailDepotParkingManager(
+  val rideHailDepotParkingManager: RideHailDepotParkingManager = RideHailDepotParkingManager(
     parkingFilePath,
     beamServices.beamConfig.beam.agentsim.taz.filePath,
     beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
@@ -373,7 +374,7 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
-  val stalls = rideHailDepotParkingManager.rideHailParkingStalls
+  val stalls: Array[ParkingZone] = rideHailDepotParkingManager.rideHailParkingStalls
 
   private var cntEVCAV = 0
   private var cntEVnCAV = 0
@@ -1178,7 +1179,7 @@ class RideHailManager(
 
   def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
-      case refuelingQueue if (!refuelingQueue.isEmpty) =>
+      case refuelingQueue if refuelingQueue.nonEmpty =>
         val toReturn = refuelingQueue.dequeue
         log.debug("Dequeueing vehicle {} to charge at depot {}", toReturn._1, toReturn._2.parkingZoneId)
         toReturn
@@ -1663,7 +1664,7 @@ class RideHailManager(
       .filter(tup => tup._1.isDefined && tup._2.size == 1)
       .map(_._2.head._1.person.get)
     var passengersToAdd = noPickupPassengers
-    if (!passengersToAdd.isEmpty) {
+    if (passengersToAdd.nonEmpty) {
       val i = 0
     }
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
@@ -1680,7 +1681,7 @@ class RideHailManager(
         }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+            val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }
