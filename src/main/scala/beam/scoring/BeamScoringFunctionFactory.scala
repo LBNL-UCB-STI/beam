@@ -1,7 +1,5 @@
 package beam.scoring
 
-import java.util.{Observable, Observer}
-
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
@@ -11,7 +9,13 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
+import beam.sim.{
+  BeamConfigChangesObservable,
+  BeamConfigChangesObserver,
+  BeamServices,
+  MapStringDouble,
+  OutputDataDescription
+}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
@@ -29,7 +33,7 @@ class BeamScoringFunctionFactory @Inject()(
   beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends ScoringFunctionFactory
     with IterationEndsListener
-    with Observer
+    with BeamConfigChangesObserver
     with LazyLogging {
 
   beamConfigChangesObservable.addObserver(this)
@@ -263,12 +267,9 @@ class BeamScoringFunctionFactory @Inject()(
     }
   }
 
-  override def update(observable: Observable, o: Any): Unit = {
-    val t = o.asInstanceOf[(_, _)]
-    val beamConfig = t._2.asInstanceOf[BeamConfig]
-    this.beamConfig = beamConfig
+  override def update(observable: BeamConfigChangesObservable, updatedBeamConfig: BeamConfig): Unit = {
+    this.beamConfig = updatedBeamConfig
   }
-
 }
 
 /**
@@ -296,11 +297,11 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * @param score score calculated for the person
     * @return
     */
-  def setPersonScore(personId: String, score: String) = {
+  def setPersonScore(personId: String, score: String): Option[String] = {
     personTripScores.put(personId, score)
   }
 
-  def setGeneralizedLinkStats(linkId: Int, stats: String) = {
+  def setGeneralizedLinkStats(linkId: Int, stats: String): Option[String] = {
     generalizedLinkStats.put(linkId, stats)
   }
 
@@ -308,18 +309,18 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * Returns the stored person scores
     * @return
     */
-  def getPersonScores = {
+  def getPersonScores: mutable.HashMap[String, String] = {
     personTripScores
   }
 
-  def getAllGeneralizedLinkStats = {
+  def getAllGeneralizedLinkStats: mutable.HashMap[Int, String] = {
     generalizedLinkStats
   }
 
   /**
     * Resets the scores
     */
-  def reset() = {
+  def reset(): Unit = {
     personTripScores.clear()
     linkAverageTravelTimes.clear()
     linkAverageCosts.clear()

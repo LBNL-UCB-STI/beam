@@ -40,7 +40,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
-  val dummyRHVehicle =
+  val dummyRHVehicle: StreetVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[BeamVehicle]),
       Id.create(
@@ -52,7 +52,7 @@ trait ChoosesMode {
       asDriver = false
     )
 
-  def bodyVehiclePersonId = PersonIdWithActorRef(id, self)
+  def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   def boundingBox: Envelope
 

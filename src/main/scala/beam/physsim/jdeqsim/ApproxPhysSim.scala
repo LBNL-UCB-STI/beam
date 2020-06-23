@@ -150,7 +150,7 @@ class ApproxPhysSim(
         controlerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
-        currentIter
+        agentSimIterationNumber
       )
       val simulationResult =
         jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
@@ -194,10 +194,10 @@ class ApproxPhysSim(
       val absTotalCountDiff = Math.abs(before.totalLinkCount - after.totalLinkCount)
       val absAvgCountDiff = Math.abs(before.totalLinkCount / before.nRoutes - after.totalLinkCount / after.nRoutes)
       logger.info(s"""
-                     |Abs diff in total len: $absTotalLenDiff
-                     |Abs avg diff in len: $absAvgLenDiff
-                     |Abs dif in total link count: $absTotalCountDiff
-                     |Abs avg diff in link count: $absAvgCountDiff""".stripMargin)
+           |Abs diff in total len: $absTotalLenDiff
+           |Abs avg diff in len: $absAvgLenDiff
+           |Abs dif in total link count: $absTotalCountDiff
+           |Abs avg diff in link count: $absAvgCountDiff""".stripMargin)
       printStats(lastResult, simulationResult)
       val realFirstResult = if (currentIter == 1) simulationResult else firstResult
       val nextNumberOfPeopleToTake = numberOfPeopleToSimulateEveryIter.lift(currentIter).getOrElse(-1)

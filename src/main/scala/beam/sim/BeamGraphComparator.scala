@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.{BufferedWriter, File, FileWriter, IOException}
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.matsim.core.controler.events.ControlerEvent
 import play.api.libs.json.{JsObject, Json}
@@ -15,7 +16,7 @@ import scala.xml.{Elem, NodeBuffer}
   * Generates a HTML page to compare the graphs across all iterations.
   */
 
-object BeamGraphComparator {
+object BeamGraphComparator extends LazyLogging {
 
   /**
     * Generates the html page for graph comparison
@@ -193,8 +194,7 @@ object BeamGraphComparator {
     try {
       bw.write(htmlElem.mkString)
     } catch {
-      case e: IOException =>
-        e.printStackTrace()
+      case e: IOException => logger.error("exception occurred due to ", e)
     } finally {
       bw.close()
     }

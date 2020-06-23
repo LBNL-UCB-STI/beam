@@ -7,17 +7,21 @@ import org.scalatest.{Matchers, WordSpec}
 
 class GeoZoneSpec extends WordSpec with Matchers {
 
-  "GeoZone combined with TopDownEqualDemandsGeoZoneHexGenerator and GeoZoneUtil" should {
+  "GeoZone combined with TopDownEqualDemandGeoZoneHexGenerator and GeoZoneUtil" should {
 
     "parse coordinates from austin and properly generate already tested GIS file" in {
       FileUtils.usingTemporaryDirectory { tmpFolder =>
         val csvPath = Paths.get("test", "input", "geozone", "austin.csv")
-        val wgsCoordinates = GeoZoneUtil.readWgsCoordinatesFromCsv(csvPath)
-        val summary = new GeoZone(wgsCoordinates).includeBoundBoxPoints
-          .topDownEqualDemandsGenerator(1000)
-          .generate()
+        val wgsCoordinates: Set[WgsCoordinate] = GeoZoneUtil.readWgsCoordinatesFromCsv(csvPath)
+        val summary = TopDownEqualDemandH3IndexMapper
+          .from(
+            geoZone = new GeoZone(wgsCoordinates).includeBoundBoxPoints,
+            expectedNumberOfBuckets = 1000,
+            initialResolution = 4
+          )
+          .generateSummary()
 
-        val expectedIndexes = 1003
+        val expectedIndexes = 1001
         val expectedIndexAtResolution9 = 28
 
         val (shapeFile, indexFile, attributeFile) = {

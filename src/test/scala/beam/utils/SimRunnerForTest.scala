@@ -2,10 +2,12 @@ package beam.utils
 import java.io.File
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import com.google.inject.Injector
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.MutableScenario
@@ -18,8 +20,8 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   def outputDirPath: String
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
-  val beamConfig = BeamConfig(config)
-  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
+  val beamConfig: BeamConfig = BeamConfig(config)
+  val matsimConfig: Config = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(outputDirPath)
   matsimConfig.controler.setOverwriteFileSetting(OverwriteFileSetting.overwriteExistingFiles)
 
@@ -39,8 +41,10 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services,
-      injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
+      injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder]),
+      eventsManager
     )
+    Skims.setup(services)
   }
 
   override protected def afterAll(): Unit = {
@@ -52,6 +56,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     injector = null
     services = null
     eventsManager = null
+    Skims.clear()
     super.afterAll()
   }
 }

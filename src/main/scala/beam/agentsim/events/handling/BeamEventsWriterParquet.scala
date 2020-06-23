@@ -1,9 +1,8 @@
 package beam.agentsim.events.handling
 
-import java.io.IOException
-
 import beam.agentsim.events.ScalaEvent
 import beam.sim.BeamServices
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
@@ -21,7 +20,8 @@ class BeamEventsWriterParquet(
   beamEventLogger: BeamEventsLogger,
   beamServices: BeamServices,
   eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog) {
+) extends BeamEventsWriterBase(beamEventLogger, beamServices, eventTypeToLog)
+    with LazyLogging {
 
   sealed trait ParquetType
   final object PDouble extends ParquetType
@@ -81,7 +81,7 @@ class BeamEventsWriterParquet(
       .withCompressionCodec(CompressionCodecName.GZIP)
       .withValidation(false)
       .withDictionaryEncoding(false)
-      .build();
+      .build()
   }
 
   override protected def writeEvent(event: Event): Unit = {
@@ -125,7 +125,7 @@ class BeamEventsWriterParquet(
           try {
             attributes += method.invoke(null).asInstanceOf[String]
           } catch {
-            case e: Exception => e.printStackTrace()
+            case e: Exception => logger.error("exception occurred due to ", e)
           }
       }
 
@@ -136,7 +136,7 @@ class BeamEventsWriterParquet(
         try {
           attributes += field.get(null).toString
         } catch {
-          case e: Exception => e.printStackTrace()
+          case e: Exception => logger.error("exception occurred due to ", e)
         }
     }
 
