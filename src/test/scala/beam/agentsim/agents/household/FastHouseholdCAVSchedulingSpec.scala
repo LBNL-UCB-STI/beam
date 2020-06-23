@@ -6,7 +6,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils
