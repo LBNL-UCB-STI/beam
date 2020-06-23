@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.skim.{Skims, SkimsUtils}
+import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
@@ -19,7 +19,6 @@ import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
-
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -107,7 +106,7 @@ object RideHailMatching {
     schedule.exists(s => GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
   }
 
-  def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]) = {
+  def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]): List[CustomerRequest] = {
     // get all customer requests located at a proximity to the vehicle
     v.geofence match {
       case Some(gf) =>
@@ -121,7 +120,7 @@ object RideHailMatching {
     }
   }
 
-  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices) = {
+  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices): ODSkimmer.Skim = {
     Skims.od_skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
@@ -131,7 +130,7 @@ object RideHailMatching {
         beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       ),
-      beamServices
+      beamServices.beamScenario
     )
   }
 
@@ -253,7 +252,7 @@ object RideHailMatching {
           beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
         ),
-        beamServices
+        beamServices.beamScenario
       )
     CustomerRequest(
       vehiclePersonId,

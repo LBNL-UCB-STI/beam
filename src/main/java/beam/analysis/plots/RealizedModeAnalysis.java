@@ -2,9 +2,11 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.analysis.plots.filterevent.AllEventsFilter$;
+import beam.analysis.plots.filterevent.FilterEvent;
 import beam.sim.config.BeamConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -13,16 +15,21 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
-
 public class RealizedModeAnalysis extends BaseModeAnalysis {
 
+    public static final String defaultFileName = "realizedMode";
     private static final String REPLANNING_SEPARATOR = "-" + ReplanningEvent.EVENT_TYPE + "-";
 
     private static final String graphTitle = "Realized Mode Histogram";
@@ -32,7 +39,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private static final String yAxisTitleForReplanning = "count";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    static final String fileName = "realizedMode";
+    private final String fileName;
 
     private final Map<Integer, Map<String, Double>> hourModeFrequency = new HashMap<>();
     private final Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
@@ -52,18 +59,48 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
+    private final FilterEvent filterEvent;
 
-    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfig beamConfig) {
-        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
+    private OutputDirectoryHierarchy controllerIo() {
+        return GraphsStatsAgentSimEventsListener.CONTROLLER_IO;
+    }
+
+    private String iterationFilename(final int iterationNumber, final String fileName, final String suffix) {
+        final String theFinalName = fileName + filterEvent.graphNamePreSuffix() + suffix;
+        return controllerIo().getIterationFilename(iterationNumber, theFinalName);
+    }
+
+    private String outputFilename(final String filename, final String suffix) {
+        final String namePreSuffix = filterEvent.graphNamePreSuffix();
+        return controllerIo().getOutputFilename(filename + namePreSuffix + suffix);
+    }
+
+    public RealizedModeAnalysis(
+            StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
+            boolean writeGraph,
+            BeamConfig beamConfig,
+            FilterEvent filterEvent
+    ) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
-        benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);
+        this.filterEvent = filterEvent;
+        fileName = defaultFileName;
+        benchMarkData = benchMarkCSVLoader(beamConfig.beam().calibration().mode().benchmarkFilePath());
+    }
+
+    public RealizedModeAnalysis(
+            StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
+            boolean writeGraph,
+            BeamConfig beamConfig
+    ) {
+        this(statComputation, writeGraph, beamConfig, AllEventsFilter$.MODULE$);
     }
 
     @Override
     public void processStats(Event event) {
-        if (isReplanningEvent(event) || isModeChoiceEvent(event))
+        if (filterEvent.shouldProcessEvent(event)) {
             processRealizedMode(event);
+        }
     }
 
     private boolean isModeChoiceEvent(Event event) {
@@ -86,31 +123,15 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                 .forEach((mode, count) -> countOccurrenceJava(mode, count.longValue(), ShortLevel(), tags));
 
         updateRealizedModeChoiceInIteration(event.getIteration());
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null && writeGraph) {
-            String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName + ".png");
-            createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, getModesChosen());
-        }
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        writeRealizedModeGraph(event);
 
-        String fileName;
-        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null && writeGraph) {
-            fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
-            createGraphInRootDirectory(dataset, graphTitle, fileName, "Iteration", "# mode choosen", cumulativeMode);
-        }
-
-        CategoryDataset referenceDataset = buildRealizedModeChoiceReferenceDatasetForGraph();
-        if (referenceDataset != null && writeGraph) {
-            fileName = outputDirectoryHierarchy.getOutputFilename("referenceRealizedModeChoice.png");
-            cumulativeReferenceMode.addAll(benchMarkData.keySet());
-            createGraphInRootDirectory(referenceDataset, referenceGraphTitle, fileName, "Iteration", "# mode choosen(Percent)", cumulativeReferenceMode);
-        }
+        writeRealizedModeChoiceGraph(outputFilename("realizedModeChoice", ".png"));
+        writeReferenceDatasetGraph(outputFilename("referenceRealizedModeChoice", ".png"));
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
 
-        writeToRootCSV(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv"), realizedModeChoiceInIteration, cumulativeMode);
+        writeToRootCSV(outputFilename("realizedModeChoice", ".csv"), realizedModeChoiceInIteration, cumulativeMode);
         writeToCSV(event);
         writeToReferenceCSV();
 
@@ -119,13 +140,39 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeToReplanningCSV(event);
 
         rootAffectedModeCount.put(event.getIteration(), affectedModeCount.values().stream().reduce(Integer::sum).orElse(0));
-        fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
-        writeToRootReplanningCountModeChoice(fileName);
+        writeToRootReplanningCountModeChoice(outputFilename("replanningCountModeChoice", ".png"));
 
         writeReplanningReasonCountCSV(event.getIteration());
 
         replanningReasonCountPerIter.put(event.getIteration(), replanningReasonCount.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
         writeReplanningReasonCountRootCSV();
+    }
+
+    private void writeRealizedModeGraph(IterationEndsEvent event) throws IOException {
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+            if (modesFrequencyDataset != null) {
+                String graphImageFile = iterationFilename(event.getIteration(), fileName, ".png");
+                createGraphInRootDirectory(modesFrequencyDataset, graphTitle, graphImageFile, xAxisTitle, yAxisTitle, getModesChosen());
+            }
+        }
+    }
+
+    private void writeReferenceDatasetGraph(String referenceDataSetGraphFileName) throws IOException {
+        CategoryDataset referenceDataset = buildRealizedModeChoiceReferenceDatasetForGraph();
+        if (referenceDataset != null && writeGraph) {
+            cumulativeReferenceMode.addAll(benchMarkData.keySet());
+            createGraphInRootDirectory(referenceDataset, referenceGraphTitle, referenceDataSetGraphFileName, "Iteration", "# mode choosen(Percent)", cumulativeReferenceMode);
+        }
+    }
+
+    private void writeRealizedModeChoiceGraph(String realizedModeChoiceGraphFileName) throws IOException {
+        if (writeGraph) {
+            CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
+            if (dataset != null) {
+                createGraphInRootDirectory(dataset, graphTitle, realizedModeChoiceGraphFileName, "Iteration", "# mode choosen", cumulativeMode);
+            }
+        }
     }
 
     @Override
@@ -147,15 +194,14 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        if (event instanceof ModeChoiceEvent) {
+        if (isModeChoiceEvent(event)) {
             processModeChoiceEvent((ModeChoiceEvent) event, hour);
-        } else if (event instanceof ReplanningEvent) {
+        } else if (isReplanningEvent(event)) {
             processReplanningEvent((ReplanningEvent) event, hour);
         }
     }
 
     private void processReplanningEvent(ReplanningEvent re, int hour) {
-        Map<String, Double> hourData;
         String person = re.getPersonId().toString();
 
         personReplanningChain.merge(person, Lists.newArrayList(re.getEventType()), ListUtils::union);
@@ -174,7 +220,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             ModeHour modeHour = modeHours.pop();
             hourPerson.put(person, modeHours);
 
-            hourData = hourModeFrequency.get(modeHour.getHour());
+            Map<String, Double> hourData = hourModeFrequency.get(modeHour.getHour());
             hourData.merge(modeHour.getMode(), -1.0, Double::sum);
             hourModeFrequency.put(modeHour.getHour(), hourData);
         }
@@ -272,7 +318,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         personHourModeCount.put(personId, hourModeCount);
     }
 
-    public void updatePersonCount() {
+    @VisibleForTesting
+    void updatePersonCount() {
         personHourModeCount.keySet().forEach(this::updateHourMode);
     }
 
@@ -363,7 +410,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     private void createReplanningCountModeChoiceGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, false);
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "replanningCountModeChoice" + ".png");
+        String graphImageFile = iterationFilename(iterationNumber, "replanningCountModeChoice", ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -378,7 +425,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void writeToCSV(IterationEndsEvent event) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName + ".csv");
+        String csvFileName = iterationFilename(event.getIteration(), fileName, ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
@@ -416,7 +463,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void writeToReferenceCSV() {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("referenceRealizedModeChoice.csv");
+        String fileName = outputFilename("referenceRealizedModeChoice", ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
             Set<String> modes = cumulativeReferenceMode;
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
@@ -477,7 +524,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void writeReplanningReasonCountCSV(Integer iteration) {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "replanningEventReason.csv");
+        String fileName = iterationFilename(iteration, "replanningEventReason", ".csv");
         String header = "ReplanningReason,Count";
         try (FileWriter writer = new FileWriter(new File(fileName));
              BufferedWriter out = new BufferedWriter(writer)) {
@@ -494,7 +541,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     public void writeReplanningReasonCountRootCSV() {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("replanningEventReason.csv");
+        String fileName = outputFilename("replanningEventReason", ".csv");
         Set<String> headerItem = replanningReasonCountPerIter.values().stream().flatMap(header -> header.keySet().stream()).collect(Collectors.toSet());
         String csvHeader = "Mode," + String.join(",", headerItem);
 
@@ -542,7 +589,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void writeToReplaningChainCSV(IterationEndsEvent event, Map<String, Integer> modeCount) {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningEventChain.csv");
+        String fileName = iterationFilename(event.getIteration(), "replanningEventChain", ".csv");
 
         try (FileWriter fileWriter = new FileWriter(new File(fileName))) {
             try (BufferedWriter out = new BufferedWriter(fileWriter)) {
@@ -566,7 +613,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void writeToReplanningCSV(IterationEndsEvent event) {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningCountModeChoice.csv");
+        String fileName = iterationFilename(event.getIteration(), "replanningCountModeChoice", ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
             String heading = "hour,count";
             out.write(heading);

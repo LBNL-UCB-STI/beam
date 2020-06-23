@@ -20,6 +20,7 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.Option
 import scala.compat.java8.StreamConverters._
+
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -169,6 +170,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 }
 
 object BeamWarmStart extends LazyLogging {
+  val fileNameSubstringToDetectIfReadSkimsInParallelMode = "_part"
 
   // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
   def apply(beamConfig: BeamConfig): BeamWarmStart = {
@@ -219,7 +221,8 @@ object BeamWarmStart extends LazyLogging {
       }
 
       val newWarmStart = {
-        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
+        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", beamConfig.beam.warmStart.skimsFileName))
+          .getOrElse(instance.parentRunPath)
         val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
         val newRouteHistoryFilePath =
           Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
