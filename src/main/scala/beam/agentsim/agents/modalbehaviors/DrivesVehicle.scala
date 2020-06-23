@@ -191,7 +191,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-  protected val forgottenBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected def currentBeamVehicle: BeamVehicle =
     beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
