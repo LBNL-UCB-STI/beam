@@ -344,7 +344,7 @@ build.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-P4', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
+    args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
