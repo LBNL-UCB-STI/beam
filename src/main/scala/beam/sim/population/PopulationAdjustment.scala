@@ -149,7 +149,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param modeToRemove mode to be removed
     */
   protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
-    population.getPersons.keySet() forEach { personId =>
+    population.getPersons.keySet().forEach { personId =>
       this.removeMode(population, personId.toString, modeToRemove: _*)
     }
   }

@@ -10,7 +10,7 @@ class StartWithCustomConfig(val config: Config) extends IntegrationSpecCommon wi
     config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
   )
 
-  lazy val groupedCount =
+  lazy val groupedCount: Map[String, Int] =
     fromXmlFile(
       getEventsFilePath(matsimConfig, "events", BeamConfig(config).beam.outputs.events.fileOutputFormats).getPath
     ).filter(_.getEventType == "ModeChoice")
