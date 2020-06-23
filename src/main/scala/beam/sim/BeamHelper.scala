@@ -690,7 +690,7 @@ trait BeamHelper extends LazyLogging {
       .entrySet()
       .asScala
       .collect {
-        case entry if addKey(entry.getValue.unwrapped) =>
+        case entry if shouldAddKey(entry.getValue.unwrapped) =>
           val unwrapped = entry.getValue.unwrapped()
           val paramValue = unwrapped.toString
           if (paramValue.contains("|")) {
@@ -728,7 +728,7 @@ trait BeamHelper extends LazyLogging {
     value
   }
 
-  private def addKey(value: AnyRef): Boolean = {
+  private def shouldAddKey(value: AnyRef): Boolean = {
     if ("int?" == value.toString || "double?" == value.toString || "[double]" == value.toString) {
       return false
     }
