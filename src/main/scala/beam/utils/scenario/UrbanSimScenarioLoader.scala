@@ -41,7 +41,7 @@ class UrbanSimScenarioLoader(
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   def isCoordValid(coordWGS: Coord): Boolean = {
-    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 1E2)
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 100)
     split != null && beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
   }
 
@@ -54,7 +54,7 @@ class UrbanSimScenarioLoader(
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
       val activities = plans.view.filter { p =>
-        p.activityType.exists(actType => actType.toLowerCase == "home")
+        p.planElementType.toLowerCase() == "activity"
       }
       val personIdsWithinRange =
         activities
