@@ -72,7 +72,6 @@ object R5RoutingApp extends BeamHelper {
 
     implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
 
-
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
