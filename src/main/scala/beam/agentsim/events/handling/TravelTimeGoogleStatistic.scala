@@ -45,7 +45,6 @@ class TravelTimeGoogleStatistic(
   private val apiKey = System.getenv("GOOGLE_API_KEY")
   if (cfg.enable && apiKey == null)
     logger.warn("google api key is empty")
-  logger.info(s"Google API key hash: ${DigestUtils.md5Hex(apiKey)}")
   private val queryDate = getQueryDate(cfg.queryDate)
 
   private val enabled = cfg.enable && apiKey != null
