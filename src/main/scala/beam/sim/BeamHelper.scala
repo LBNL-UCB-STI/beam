@@ -1,7 +1,6 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.io.{File, FileOutputStream, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -39,14 +38,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
-import com.typesafe.config.{
-  ConfigFactory,
-  ConfigRenderOptions,
-  ConfigResolveOptions,
-  ConfigValueFactory,
-  ConfigValueType,
-  Config => TypesafeConfig
-}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -659,86 +651,11 @@ trait BeamHelper extends LazyLogging {
 
     prepareDirectories(config, beamConfig, outputDirectory)
 
-    writeFullConfigs(config, outputDirectory)
+    ConfigHelper.writeFullConfigs(config, outputDirectory)
 
     val matsimConfig: MatsimConfig = buildMatsimConfig(config, beamConfig, outputDirectory)
 
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
-  }
-
-  /**
-    * This method merges all configuration parameters into a single file including parameters from
-    * 'include' statements. Two full config files are written out: One without comments and one with
-    * comments in JSON format.
-    * @param config the input config file
-    * @param outputDirectory output folder where full configs will be generated
-    */
-  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String): Unit = {
-
-    val configResolveOptions = ConfigResolveOptions.defaults().setAllowUnresolved(true)
-
-    val templateConf = ConfigFactory
-      .parseResources("beam-template.conf")
-      .withoutPath("matsim.modules.vehicles.vehiclesFile")
-      .withoutPath("matsim.modules.transit.vehiclesFile")
-      .withoutPath("matsim.modules.counts.inputCountsFile")
-      .withoutPath("matsim.modules.strategy.planSelectorForRemoval")
-      .resolve(configResolveOptions)
-    val fullConfig = config.resolve().withFallback(templateConf).resolve()
-
-    val defaultConfig = fullConfig
-      .entrySet()
-      .asScala
-      .collect {
-        case entry if shouldAddKey(entry.getValue.unwrapped) =>
-          val unwrapped = entry.getValue.unwrapped()
-          val paramValue = unwrapped.toString
-          if (paramValue.contains("|")) {
-            entry.getKey -> actualValue(paramValue)
-          } else {
-            entry.getKey -> unwrapped
-          }
-      }
-      .toMap
-      .asJava
-    val defaultValues = ConfigFactory.parseMap(defaultConfig).resolve()
-    val configConciseWithoutJson =
-      defaultValues.root().render(ConfigRenderOptions.concise().setFormatted(true).setJson(false))
-    writeStringToFile(configConciseWithoutJson, new File(outputDirectory, "fullBeamConfig.conf"))
-    writeStringToFile(defaultValues.root().render(), new File(outputDirectory, "fullBeamConfigJson.conf"))
-  }
-
-  private def actualValue(paramValue: String): Any = {
-    val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
-    if (paramValue.contains("int")) {
-      return value.toInt
-    }
-    if (paramValue.contains("double")) {
-      if ("Double.PositiveInfinity" == value) {
-        return Double.PositiveInfinity
-      }
-      if ("Double.NegativeInfinity" == value) {
-        return Double.NegativeInfinity
-      }
-      return value.toDouble
-    }
-    if (paramValue.contains("boolean")) {
-      return value.toBoolean
-    }
-    value
-  }
-
-  private def shouldAddKey(value: AnyRef): Boolean = {
-    if ("int?" == value.toString || "double?" == value.toString || "[double]" == value.toString) {
-      return false
-    }
-    true
-  }
-
-  private def writeStringToFile(text: String, output: File): Unit = {
-    val fileWriter = new PrintWriter(output)
-    fileWriter.write(text)
-    fileWriter.close
   }
 
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
