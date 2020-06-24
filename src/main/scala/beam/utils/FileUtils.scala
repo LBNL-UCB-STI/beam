@@ -16,8 +16,11 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.io.Source
-import scala.language.reflectiveCalls
+import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.Random
 
 /**
@@ -255,5 +258,83 @@ object FileUtils extends LazyLogging {
   private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
     assert(sourceFilePath != null)
     sourceFilePath.startsWith(remoteIfStartsWith)
+  }
+
+  /**
+    * Reads files in parallel and returns all the loaded records as Iterable
+    * @param dir the directory where the files reside
+    * @param fileNamePattern glob file pattern
+    * @param atMost the expected time interval for file reading
+    * @param loader the function that actually read data from the reader
+    * @tparam X the record type
+    * @tparam M the container type
+    * @return all the loaded records as an Iterable
+    */
+  def flatParRead[X, M[X] <: TraversableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+    loader: (Path, BufferedReader) => M[X]
+  ): Iterable[X] =
+    parRead(dir, fileNamePattern, atMost) { (path: Path, reader: BufferedReader) =>
+      (path, loader(path, reader))
+    }.values.flatten
+
+  /**
+    * Reads files in parallel and returns loaded data as a map containing each loaded file data as values
+    * @param dir the directory where the files reside
+    * @param fileNamePattern glob file pattern
+    * @param atMost the expected time interval for file reading
+    * @param loader the function that actually read data from the reader
+    * @tparam Key the return map key
+    * @tparam Value the the return map value
+    * @return a Map containing the key values returned back by the loader
+    */
+  def parRead[Key, Value](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+    loader: (Path, BufferedReader) => (Key, Value)
+  ): Map[Key, Value] = {
+    import scala.collection.JavaConverters._
+    import scala.concurrent.ExecutionContext.Implicits._
+    val directoryStream = Files.newDirectoryStream(dir, fileNamePattern)
+    val fileList = directoryStream.iterator().asScala.toList
+    if (fileList.isEmpty) {
+      logger.info(s"No files $fileNamePattern found in directory '$dir'")
+    }
+    val futures = fileList
+      .map { path: Path =>
+        Future {
+          using(IOUtils.getBufferedReader(path.toString)) { reader =>
+            loader(path, reader)
+          }
+        }
+      }
+    Await.result(Future.sequence(futures), atMost).toMap
+  }
+
+  /**
+    * Writes data to separate files in parallel
+    * @param outputDir the ouput dir
+    * @param fileNamePattern the file name pattern. It must contains $i which is substituted with the part number
+    * @param numberOfParts the number of parts
+    * @param atMost the expected time interval for file writing
+    * @param saver the function that saves data to the provided writer.
+    *              It takes part number (starting from 1), path to file and buffered writer as an input
+    */
+  def parWrite(outputDir: Path, fileNamePattern: String, numberOfParts: Int, atMost: Duration = 30 minutes)(
+    saver: (Int, Path, BufferedWriter) => Unit
+  ): Unit = {
+    assert(numberOfParts > 0, "numberOfParts must be greater than zero")
+    assert(fileNamePattern.contains("$i"), "fileNamePattern must contain $i for substitution")
+    import scala.concurrent.ExecutionContext.Implicits._
+    val fileList = (1 to numberOfParts)
+      .map { i =>
+        (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
+      }
+    val futures = fileList.map {
+      case (i: Int, path: Path) =>
+        Future {
+          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+            saver(i, path, writer)
+          }
+        }
+    }
+    Await.result(Future.sequence(futures), atMost)
   }
 }

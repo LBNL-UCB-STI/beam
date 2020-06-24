@@ -1,11 +1,12 @@
 package beam.router.skim
 
 import java.io.BufferedWriter
+import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
 import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -83,24 +84,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       readOnlySkim.aggregatedSkim = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
-        val files = File(file).toDirectory.files
-          .filter(_.isFile)
-          .filter(_.name.contains(BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode))
-          .map(_.path)
-          .toList
-
-        if (files.isEmpty) {
-          logger.info(s"warmStart skim NO PATH FOUND '${filePath}'")
-        }
-
-        val futures = files.map(
-          f =>
-            Future {
-              new CsvSkimReader(f, fromCsv, logger).readAggregatedSkims
+        val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
+        FileUtils
+          .flatParRead(Paths.get(file.path), filePattern, awaitSkimLoading) { (path, reader) =>
+            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader)
           }
-        )
-
-        Await.result(Future.sequence(futures), awaitSkimLoading).flatten.toMap
+          .toMap
       }
     }
   }
