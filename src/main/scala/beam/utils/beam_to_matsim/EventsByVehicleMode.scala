@@ -5,6 +5,7 @@ import beam.utils.beam_to_matsim.utils.{LinkCoordinate, Point}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
 import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter}
 import beam.utils.beam_to_matsim.via_event.ViaEvent
+import scala.xml.XML._
 
 import scala.collection.mutable
 
@@ -111,7 +112,7 @@ object EventsByVehicleMode extends App {
     circleR: Double
   ): MutableSamplingFilter = {
 
-    val networkXml = xml.XML.loadFile(networkPath)
+    val networkXml = loadFile(networkPath)
     val nodes = LinkCoordinate.parseNodes(networkXml)
 
     case class Circle(x: Double, y: Double, r: Double) {

@@ -263,6 +263,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
+  logger.info(s"max distance for BIKE in meters: $maxDistanceForBikeMeters")
   private val WorkerParameters(
     beamConfig,
     transportNetwork,
@@ -1023,21 +1024,23 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         }
     }
 
-    //    val endTimeMillis = System.currentTimeMillis()
-    //    val durationSeconds = (endTimeMillis - startTimeMillis) / 1000.0
-    //
-    //    val wgsFrom = workerParams.geo.utm2Wgs(request.originUTM)
-    //    val wgsTo = workerParams.geo.utm2Wgs(request.destinationUTM)
-    //    val modes = request.streetVehicles.map(sv => sv.mode).mkString
-    //    val distance = geo.distLatLon2Meters(wgsFrom, wgsTo)
-    //    val tripInfo = if (embodiedTrips.isEmpty) {
-    //      "isEmpty"
-    //    } else {
-    //      s"${embodiedTrips.map(_.tripClassifier).mkString}:${embodiedTrips.length}"
-    //    }
-    //    logger.info(
-    //      s"CalcRoute from:$wgsFrom to:$wgsTo distance:$distance mode:$modes trip $tripInfo took $durationSeconds seconds"
-    //    )
+    if (false) {
+      val endTimeMillis = System.currentTimeMillis()
+      val durationSeconds = (endTimeMillis - startTimeMillis) / 1000.0
+
+      val wgsFrom = workerParams.geo.utm2Wgs(request.originUTM)
+      val wgsTo = workerParams.geo.utm2Wgs(request.destinationUTM)
+      val modes = request.streetVehicles.map(sv => sv.mode).mkString
+      val distance = geo.distLatLon2Meters(wgsFrom, wgsTo)
+      val tripInfo = if (embodiedTrips.isEmpty) {
+        "isEmpty"
+      } else {
+        s"${embodiedTrips.map(_.tripClassifier).mkString}:${embodiedTrips.length}"
+      }
+      logger.info(
+        s"CalcRoute from:$wgsFrom to:$wgsTo distance:$distance mode:$modes trip $tripInfo took $durationSeconds seconds"
+      )
+    }
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = accessVehicles.find(_.mode == WALK)
