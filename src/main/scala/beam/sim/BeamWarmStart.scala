@@ -3,8 +3,8 @@ package beam.sim
 import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
+import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -156,8 +156,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
 }
 
 object BeamWarmStart extends LazyLogging {
-  private val referenceLock = new Object
-  private val reference = new AtomicReference[Option[BeamWarmStart]](None)
+  private val instances = TrieMap.empty[WarmStartConfigProperties, BeamWarmStart]
 
   private[sim] case class WarmStartConfigProperties(
     warmStartPath: String,
@@ -190,19 +189,15 @@ object BeamWarmStart extends LazyLogging {
   ): BeamWarmStart = {
     if (beamConfig.beam.warmStart.enabled) {
       val warmConfig = buildWarmConfig(beamConfig, maxHour)
-      referenceLock.synchronized {
-        reference.get() match {
-          case Some(value) if value.warmConfig == warmConfig => value
-          case Some(value) if value.warmConfig != warmConfig =>
-            throw new IllegalArgumentException(
-              s"Requested a new instance of WarmStart with different configurations. Previous: [${value.warmConfig}]. Current: [$warmConfig]"
-            )
-          case None =>
-            val newWarm = new BeamWarmStart(warmConfig)
-            reference.set(Some(newWarm))
-            newWarm
+      instances.getOrElseUpdate(warmConfig, {
+        val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
+        if (instances.isEmpty) {
+          logger.info(msg)
+        } else {
+          logger.warn(msg)
         }
-      }
+        new BeamWarmStart(warmConfig)
+      })
     } else {
       throw new IllegalArgumentException("BeamWarmStart cannot be initialized since warmstart is disabled")
     }
