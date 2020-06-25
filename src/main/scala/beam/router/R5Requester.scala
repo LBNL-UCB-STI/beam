@@ -153,6 +153,7 @@ object R5Requester extends BeamHelper {
     //  private val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051))
     //  private val destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839))
 
+
     val r5Wrapper = createR5Wrapper(cfg)
 
     val filePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.csv"
@@ -170,13 +171,25 @@ object R5Requester extends BeamHelper {
         "responseStr"
       )
     )
-    def writeResult(result: RouteRequestResults): Unit = {
+
+    object ResultStats {
+      var numberOfSuccessRoutes = 0
+      var numberOfEmptyRoutes = 0
+    }
+
+    def processResult(result: RouteRequestResults): Unit = {
       val respStr: String = result.responce.itineraries.zipWithIndex
         .map {
           case (route, idx) => s"$idx:$route"
         }
         .mkString
         .replace(',', '.')
+
+      if (result.responce.itineraries.isEmpty) {
+        ResultStats.numberOfEmptyRoutes += 1
+      } else {
+        ResultStats.numberOfSuccessRoutes += 1
+      }
 
       csvWriter.writeRow(
         IndexedSeq(
@@ -217,12 +230,14 @@ object R5Requester extends BeamHelper {
         progress()
         makeRequestToR5(r5Wrapper, request.originUtm(geo), request.destinationUtm(geo), getNumber)
       }
-      .foreach(writeResult)
+      .foreach(processResult)
     val endTimeMillis = System.currentTimeMillis()
     val durationSeconds = (endTimeMillis - startTimeMillis) / 1000.0
 
     csvWriter.close()
     println(s"calculation took $durationSeconds seconds")
+    println(s"number of empty routes: ${ResultStats.numberOfEmptyRoutes}")
+    println(s"number of success routes: ${ResultStats.numberOfSuccessRoutes}")
     println(s"results are written into $csvFilePath")
   }
 
