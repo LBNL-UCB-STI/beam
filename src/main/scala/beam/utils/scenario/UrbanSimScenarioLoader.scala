@@ -41,7 +41,7 @@ class UrbanSimScenarioLoader(
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   def isCoordValid(coordWGS: Coord): Boolean = {
-    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 100)
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 1E4)
     split != null && beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
   }
 
