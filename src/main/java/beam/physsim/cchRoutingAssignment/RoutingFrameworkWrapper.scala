@@ -159,8 +159,8 @@ class DockerRoutingFrameworkWrapper(
                      | $assignTrafficLauncher
                      | -g $graphPathInContainer
                      | -d ${odPairsFileInContainer(iteration, hour)}
-                     | -p 1 
-                     | -n 0 
+                     | -p 1
+                     | -n 0
                      | -o random
                      | -i
                      | ${if (verboseLoggingEnabled) "-v" else ""}
@@ -207,6 +207,19 @@ class DockerRoutingFrameworkWrapper(
               }
           }
       }
+
+    val iterationFolder = toUnixPath(Paths.get("/work", s"Iter.$iteration"))
+    val zipFilePath = toUnixPath(Paths.get(iterationFolder, s"Hour.$hour.tar.gz"))
+    val zipQuery = s"""
+                   |docker run --rm
+                   | -v $tempDir:/work
+                   | $toolDockerImage
+                   | tar -czvf $zipFilePath -C $iterationFolder Hour.$hour --remove-files
+      """.stripMargin.replace("\n", "")
+
+    logger.info("Docker zip resources")
+    val zipOutput = Process(zipQuery)
+    zipOutput.lineStream.foreach(logger.info(_))
 
     wayId2TravelTime.toMap
   }
