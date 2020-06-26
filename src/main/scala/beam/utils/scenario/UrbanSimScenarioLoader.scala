@@ -47,7 +47,7 @@ class UrbanSimScenarioLoader(
     //1500
     //3000
     //5000
-    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 200)
+    val split = geo.getR5Split(beamScenario.transportNetwork.streetLayer, coordWGS, 500)
     split != null && beamScenario.transportNetwork.streetLayer.envelope.contains(coordWGS.getX, coordWGS.getY)
   }
 
