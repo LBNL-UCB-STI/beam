@@ -189,15 +189,17 @@ object BeamWarmStart extends LazyLogging {
   ): BeamWarmStart = {
     if (beamConfig.beam.warmStart.enabled) {
       val warmConfig = buildWarmConfig(beamConfig, maxHour)
-      instances.getOrElseUpdate(warmConfig, {
-        val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
-        if (instances.isEmpty) {
-          logger.info(msg)
-        } else {
-          logger.warn(msg)
+      instances.getOrElseUpdate(
+        warmConfig, {
+          val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
+          if (instances.isEmpty) {
+            logger.info(msg)
+          } else {
+            logger.warn(msg)
+          }
+          new BeamWarmStart(warmConfig)
         }
-        new BeamWarmStart(warmConfig)
-      })
+      )
     } else {
       throw new IllegalArgumentException("BeamWarmStart cannot be initialized since warmstart is disabled")
     }
