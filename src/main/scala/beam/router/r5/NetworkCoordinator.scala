@@ -71,15 +71,17 @@ trait NetworkCoordinator extends LazyLogging {
       )
       transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
 
-      network = FileUtils.readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
-        val network = NetworkUtils.createNetwork()
-        new MatsimNetworkReader(network)
-          .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-        network
-      } { _ =>
-        createPhyssimNetwork()
-        network
-      }.get
+      network = FileUtils
+        .readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
+          val network = NetworkUtils.createNetwork()
+          new MatsimNetworkReader(network)
+            .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+          network
+        } { _ =>
+          createPhyssimNetwork()
+          network
+        }
+        .get
     } else {
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
