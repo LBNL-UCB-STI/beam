@@ -6,10 +6,10 @@ import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter
 import com.conveyal.osmlib.{OSM, Way}
 import com.typesafe.scalalogging.StrictLogging
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath
-import org.jgrapht.{Graph, GraphPath}
-import org.matsim.api.core.v01.Coord
+import org.jgrapht.Graph
+import org.jgrapht.traverse.BreadthFirstIterator
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -40,8 +40,7 @@ object ReduceOSM2 extends StrictLogging {
       .map(way => Objects.toString(way.getTag("highway")))
       .groupBy(identity)
       .mapValues(_.size)
-    val types = typeMap
-      .toList
+    val types = typeMap.toList
       .sortBy(_._1)
     logger.info("types = {}", types)
     typeMap
@@ -84,10 +83,13 @@ object ReduceOSM2 extends StrictLogging {
     var singlePathCounter = 0
     var removeCounter = 0
 
-    def testRemoval(myEdge: MyEdge, lengthMap: Map[MyEdge, Double]): Boolean = {
+    def testRemoval(myEdge: MyEdge) = {
       counter += 1
-      if (counter % 100 == 0) logger.info(s"Processed $counter edges, to be removed = $removeCounter" +
-        s", single path = $singlePathCounter")
+      if (counter % 100 == 0)
+        logger.info(
+          s"Processed $counter edges, to be removed = $removeCounter" +
+          s", single path = $singlePathCounter"
+        )
       val way: Way = osm.ways.get(myEdge.wayId)
       val source = way.nodes(myEdge.number)
       val target = way.nodes(myEdge.number + 1)
@@ -98,14 +100,8 @@ object ReduceOSM2 extends StrictLogging {
         false
       }*/
       g.removeEdge(myEdge)
-      val dijkstraAlg = new DijkstraShortestPath[Long, MyEdge](g)
-      val iPaths = dijkstraAlg.getPaths(source)
-      val path: GraphPath[Long, MyEdge] = iPaths.getPath(target)
-      val pathLength: Double = if (path != null) path.getEdgeList.asScala.map(lengthMap).sum else {
-        singlePathCounter += 1
-        Double.MaxValue
-      }
-      if (pathLength < 10 * lengthMap(myEdge)) {
+      val shortWayExists = findNodeInDepth(g, 5, source, target)
+      if (shortWayExists) {
         removeCounter += 1
         true
       } else {
@@ -114,27 +110,33 @@ object ReduceOSM2 extends StrictLogging {
       }
     }
 
-    def length(way: Way) = {
-      val n1 = osm.nodes.get(way.nodes.head)
-      val n2 = osm.nodes.get(way.nodes.last)
-      if (n1 != null && n2 != null) {
-        geoUtils.distLatLon2Meters(new Coord(n1.getLat, n1.getLon), new Coord(n2.getLat, n2.getLon))
+    g.edgeSet()
+      .asScala
+      .filter(myEdge => osm.ways.get(myEdge.wayId).getTag("highway") == wayType)
+      .filter((myEdge: MyEdge) => testRemoval(myEdge))
+  }
+
+  private def findNodeInDepth(g: Graph[Long, MyEdge], maxDepth: Int, startNode: Long, endNode: Long): Boolean = {
+    @tailrec
+    def processIter(iter: BreadthFirstIterator[Long, MyEdge], maxDepth: Int): Boolean = {
+      if (iter.hasNext) {
+        val v = iter.next()
+        if (v == endNode) {
+          true
+        } else if (iter.getDepth(v) <= maxDepth) {
+          processIter(iter, maxDepth)
+        } else {
+          false
+        }
       } else {
-        Double.MaxValue
+        false
       }
     }
 
-    val lengthMap: Map[MyEdge, Double] = g
-      .edgeSet()
-      .asScala
-      .map { myEdge =>
-        val way = osm.ways.get(myEdge.wayId)
-        myEdge -> length(way)
-      }
-      .toMap
-    g.edgeSet().asScala
-      .filter(myEdge => osm.ways.get(myEdge.wayId).getTag("highway") == wayType)
-      .filter(testRemoval(_, lengthMap))
+    val iter = new BreadthFirstIterator(g, startNode)
+    iter.next()
+
+    processIter(iter, maxDepth)
   }
 
   private def toGraph(osm: OSM): Graph[Long, MyEdge] = {
@@ -142,10 +144,11 @@ object ReduceOSM2 extends StrictLogging {
     osm.ways.forEach { (wayId, way) =>
       val allNodesOk = way.nodes.forall(osm.nodes.containsKey(_))
       if (allNodesOk) {
-        way.nodes.zip(way.nodes.tail).zipWithIndex.foreach { case ((source, target), ind) =>
-          g.addVertex(source)
-          g.addVertex(target)
-          g.addEdge(source, target, MyEdge(wayId, ind))
+        way.nodes.zip(way.nodes.tail).zipWithIndex.foreach {
+          case ((source, target), ind) =>
+            g.addVertex(source)
+            g.addVertex(target)
+            g.addEdge(source, target, MyEdge(wayId, ind))
         }
       }
     }
@@ -165,59 +168,121 @@ object ReduceOSM2 extends StrictLogging {
       .weighted(false)
       .buildGraph
 
-  def reduceOSM(osm: OSM, toRemove: List[Long]): OSM = {
-    val selectedNodes = mutable.HashSet.empty[Long]
+  def copy(way: Way, withNodes: Array[Long]): Way = {
+    val c = new Way
+    c.tags = way.tags
+    c.nodes = way.nodes
+    c
+  }
 
-    val reduced = new OSM(null)
-    reduced.writeBegin()
+  def generateWays(osm: OSM, waysToRemove: Map[Long, List[Int]]): Map[Long, Way] = {
+    var maxWayId = osm.ways.keySet().iterator().asScala.max.toLong
+    val untouched = osm.ways.asScala.filter { case (id, _) => !waysToRemove.contains(id) }
+    val completelyRemoved = waysToRemove.filter {
+      case (id, links) =>
+        val way = osm.ways.get(id)
+        way.nodes.length - 1 == links.size
+    }
+    val toGen = waysToRemove.filter { case (id, _) => !completelyRemoved.contains(id) }
+    val gen = toGen
+      .map {
+        case (id, links) =>
+          val grouped = groupLinks(links)
+          val head :: tail = grouped
+          val way = osm.ways.get(id)
+          val newWay = copy(way, way.nodes.slice(head.head, head.last + 2))
+          val others = tail.map(links => copy(way, way.nodes.slice(links.head, links.last + 2)))
+          (id -> newWay) :: others.map { w =>
+            maxWayId += 1
+            maxWayId -> w
+          }
+      }
+      .flatten
+      .toMap
+    untouched.map { case (id, way) => id.toLong -> way }.toMap ++ gen
+  }
+
+  private def groupLinks(links: List[Int]): List[List[Int]] = {
+    val grouped = links
+      .foldLeft(List(List.empty[Int]), links.head - 1) {
+        case ((acc, prev), link) =>
+          if (prev + 1 == link) {
+            val head :: tail = acc
+            ((link :: head) :: tail) -> link
+          } else {
+            (List(link) :: acc) -> link
+          }
+      }
+      ._1
+    grouped.map(_.reverse).reverse
+  }
+
+  def reduceOSM(osm: OSM, toRemove: Set[MyEdge]): OSM = {
+//    val selectedNodes = mutable.HashSet.empty[Long]
+    val waysToRemove: Map[Long, List[Int]] = toRemove
+      .foldLeft(Map.empty[Long, List[Int]]) { (map, myEdge) =>
+        val links = map.getOrElse(myEdge.wayId, Nil)
+        map + (myEdge.wayId -> (myEdge.number :: links))
+      }
+      .mapValues(_.sorted)
+
+    val result = new OSM(null)
+    result.writeBegin()
 
     val secondsSinceEpoch: Long = System.currentTimeMillis / 1000
-    reduced.setReplicationTimestamp(secondsSinceEpoch)
+    result.setReplicationTimestamp(secondsSinceEpoch)
 
-    val livingWays = osm.ways.asScala.filter {
-      case (wayId, _) => !toRemove.contains(wayId)
-    }
+    val livingWays = generateWays(osm, waysToRemove)
     val livingNodes = livingWays.values.flatMap(_.nodes).toSet
     livingWays.foreach {
       case (wayId, way) =>
-        reduced.writeWay(wayId, way)
+        result.writeWay(wayId, way)
     }
 
     osm.nodes.asScala
       .foreach {
-        case (nodeId, node) if livingNodes.contains(nodeId) => reduced.writeNode(nodeId, node)
+        case (nodeId: java.lang.Long, node) =>
+          if (livingNodes.contains(nodeId.toLong))
+            result.writeNode(nodeId, node)
       }
 
     osm.relations.asScala.foreach {
-      case (relationId, relation) => reduced.writeRelation(relationId, relation)
+      case (relationId, relation) => result.writeRelation(relationId, relation)
     }
 
-    reduced
+    result
   }
 
   def main(args: Array[String]): Unit = {
     if (args.length != 3) {
       println("Usage: program path/to/input/osm wayType path/to/output/osm")
-      println("example: program test/input/detroit/r5/detroit-big.osm.pbf residential" +
-        " test/input/detroit/r5/detroit-big-reduced.osm.pbf")
+      println(
+        "example: program test/input/detroit/r5/detroit-big.osm.pbf residential" +
+        " test/input/detroit/r5/detroit-big-reduced.osm.pbf"
+      )
       System.exit(1)
     }
     val mapPath = args(0)
     val wayType = args(1)
     val outPath = args(2)
 
-    val map = readMap(mapPath)
-    val types = getInfo(map)
+    val osm = readMap(mapPath)
+    val types = getInfo(osm)
 
-    if(!types.contains(wayType)) {
+    if (!types.contains(wayType)) {
       println(s"This file doesn't contain ways of type '$wayType'")
       System.exit(2)
     }
 
-    val canBeRemoved = findUnneededWayIds(map, wayType)
+    val canBeRemoved = findUnneededWayIds(osm, wayType)
     println(s"canBeRemoved.size = ${canBeRemoved.size}")
     println(s"canBeRemoved = ${canBeRemoved.size.toDouble / types(wayType)}")
 
+    val reduced = reduceOSM(osm, canBeRemoved.toSet)
+
+    logger.info("reduced map statistic")
+    getInfo(reduced)
+    reduced.writeToFile(outPath)
 
   }
 
