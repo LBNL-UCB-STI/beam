@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern._
-import akka.stream.ActorMaterializer
+
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -71,7 +71,6 @@ object R5RoutingApp extends BeamHelper {
     LoggingUtil.initLogger(outputDirectory, true)
 
     implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
 
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)

@@ -47,7 +47,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.22"
+def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "2.0.3"
@@ -261,7 +261,7 @@ dependencies {
     //compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
+    compile group: 'com.typesafe.akka', name: "akka-cluster-tools_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
