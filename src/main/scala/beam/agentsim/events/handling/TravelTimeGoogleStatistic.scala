@@ -3,6 +3,7 @@ package beam.agentsim.events.handling
 import java.nio.file.Paths
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.Objects
+import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
@@ -15,7 +16,6 @@ import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
 import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.codec.digest.DigestUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -147,8 +147,12 @@ class TravelTimeGoogleStatistic(
     seq.size
   }
 
-  private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int) =
-    Random.shuffle(events).take(numEventsPerHour)
+  private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
+    val chosenEvents = Random.shuffle(events).take(numEventsPerHour)
+    // Use the same events, but with departure time on 3am
+    val offPeakEvents = chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
+    chosenEvents ++ offPeakEvents
+  }
 
   private def getQueryDate(dateStr: String) = {
     val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureDate())
