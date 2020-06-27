@@ -150,14 +150,10 @@ object R5Requester extends BeamHelper {
   def main(args: Array[String]): Unit = {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
 
-    //  private val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051))
-    //  private val destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839))
-
-
     val r5Wrapper = createR5Wrapper(cfg)
 
     val filePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.csv"
-    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.cut-without-residential.responses.csv"
+    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.cut.responses.csv"
     val requests = readRequestsFromFile(filePath)
 
     val csvWriter = new CsvWriter(
@@ -213,12 +209,17 @@ object R5Requester extends BeamHelper {
     val oneProgressPiece = requests.size / divider
     var piecesDone = 0
     var numberOfProcessedRequests = 0
+    var progressStartTimeMillis = System.currentTimeMillis()
+    var progressEndTimeMillis = System.currentTimeMillis()
     def progress(): Unit = {
       numberOfProcessedRequests += 1
       if (numberOfProcessedRequests >= oneProgressPiece) {
+        progressEndTimeMillis = System.currentTimeMillis()
+        val progressStepSeconds = (progressEndTimeMillis - progressStartTimeMillis) / 1000.0
+        progressStartTimeMillis = progressEndTimeMillis
         piecesDone += 1
         numberOfProcessedRequests = 0
-        println(s"$piecesDone / $divider done")
+        println(s"$piecesDone / $divider done. took $progressStepSeconds seconds")
       }
     }
 
