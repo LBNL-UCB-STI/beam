@@ -1,10 +1,6 @@
 package beam.utils
 
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.mockito.Mockito.{when, withSettings}
-import org.scalatest.mockito.MockitoSugar
 
 object TestConfigUtils {
   val testOutputDir = "output/test/"

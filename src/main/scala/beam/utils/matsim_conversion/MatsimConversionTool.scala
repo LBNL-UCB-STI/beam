@@ -4,8 +4,11 @@ import java.io.{File, FileWriter}
 import java.nio.file.Paths
 import java.util
 
+import scala.collection.JavaConverters._
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.{Biodiesel, Diesel, Electricity, Gasoline}
+import beam.agentsim.infrastructure.taz.CsvTaz
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -14,11 +17,9 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.vehicles.{EngineInformationImpl, VehicleCapacityImpl, VehicleType, VehicleUtils}
+import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuelType}
 import org.supercsv.io.{CsvMapWriter, ICsvMapWriter}
 import org.supercsv.prefs.CsvPreference
-import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuelType}
-
-import scala.collection.JavaConverters._
 
 object MatsimConversionTool extends App {
 
@@ -71,7 +72,7 @@ object MatsimConversionTool extends App {
   }
 
   def generateSingleDefaultTaz(
-    default: ShapeUtils.CsvTaz,
+    default: CsvTaz,
     outputFilePath: String,
     localCRS: String
   ): Unit = {
@@ -101,7 +102,7 @@ object MatsimConversionTool extends App {
     }
   }
 
-  def getDefaultTaz(network: Network, localCRS: String): ShapeUtils.CsvTaz = {
+  private def getDefaultTaz(network: Network, localCRS: String): CsvTaz = {
     val boundingBox = ConversionConfig.getBoundingBoxConfig(network, localCRS)
     val minX = boundingBox.left
     val maxX = boundingBox.right
@@ -111,7 +112,7 @@ object MatsimConversionTool extends App {
     val midX = (maxX + minX) / 2
     val midY = (maxY + minY) / 2
 
-    ShapeUtils.CsvTaz("1", midX, midY, 1)
+    CsvTaz("1", midX, midY, 1)
   }
 
   def parseFileSubstitutingInputDirectory(fileName: String): com.typesafe.config.Config = {

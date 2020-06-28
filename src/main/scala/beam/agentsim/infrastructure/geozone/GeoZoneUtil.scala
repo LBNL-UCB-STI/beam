@@ -74,7 +74,7 @@ object GeoZoneUtil extends LazyLogging {
         case (polygon, indexValue, indexSize, resolution) =>
           pf.createPolygon(
             polygon.getCoordinates,
-            Array[Object](indexValue, new Integer(indexSize), new Integer(resolution)),
+            Array[Object](indexValue, Integer.valueOf(indexSize), Integer.valueOf(resolution)),
             null
           )
       }

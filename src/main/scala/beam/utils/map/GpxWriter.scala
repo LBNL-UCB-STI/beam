@@ -61,17 +61,16 @@ object GpxWriter {
     outWriter.newLine()
 
     try {
-      points.foreach {
-        case point =>
-          val longitude = point.wgsCoord.getX
-          val latitude = point.wgsCoord.getY
-          val name = point.name
-          outWriter.write(s"""<wpt lat="$latitude" lon="$longitude">""")
-          outWriter.newLine()
-          outWriter.write(s"""<name>$name</name>""")
-          outWriter.newLine()
-          outWriter.write("</wpt>")
-          outWriter.newLine()
+      points.foreach { point =>
+        val longitude = point.wgsCoord.getX
+        val latitude = point.wgsCoord.getY
+        val name = point.name
+        outWriter.write(s"""<wpt lat="$latitude" lon="$longitude">""")
+        outWriter.newLine()
+        outWriter.write(s"""<name>$name</name>""")
+        outWriter.newLine()
+        outWriter.write("</wpt>")
+        outWriter.newLine()
       }
     } finally {
       outWriter.write(GPX_END)
@@ -84,11 +83,10 @@ object GpxWriter {
   def drawRectangle(outWriter: BufferedWriter, geoUtils: GeoUtils, envelopePoints: Array[GpxPoint]): Unit = {
     val p = envelopePoints.sliding(2).toArray :+ Array(envelopePoints(0), envelopePoints(3))
 
-    p.foreach {
-      case p =>
-        val source = p(0)
-        val dest = p(1)
-        drawSourceToDest(outWriter, geoUtils, source, dest)
+    p.foreach { p =>
+      val source = p(0)
+      val dest = p(1)
+      drawSourceToDest(outWriter, geoUtils, source, dest)
     }
   }
 

@@ -14,8 +14,9 @@ import beam.agentsim.infrastructure.geozone._
 import beam.agentsim.infrastructure.taz.H3TAZ
 import beam.router.BeamRouter.{RoutingFailure, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -78,7 +79,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
   private val transformation: GeotoolsTransformation =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamServices.beamConfig.matsim.modules.global.coordinateSystem)
 
-  private val h3Indexes = summary.items.sortBy(x => -x.size)
+  private val h3Indexes = summary.items.sortBy(x => -x.size).take(100)
 
   private val h3IndexPairs = h3Indexes
     .flatMap { srcGeo =>
@@ -87,7 +88,17 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       }
     }
 
-  private val beamModes: Array[BeamMode] = Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT)
+  val odSkimmer: ODSkimmer = Skims.get(Skims.SkimType.OD_SKIMMER).asInstanceOf[ODSkimmer]
+  odSkimmer.currentSkim.map {
+    case (key, value) =>
+      val odSkimmerKey = key.asInstanceOf[ODSkimmerKey]
+      val skimInternal = value.asInstanceOf[ODSkimmerInternal]
+      println(s"key: $odSkimmerKey")
+      println(s"value: $skimInternal")
+  }
+
+  private val beamModes: Array[BeamMode] =
+    Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT, BeamMode.DRIVE_TRANSIT)
 
   private val thresholdDistanceForBikeMeteres: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
@@ -131,8 +142,9 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   def isDinstanceWithinRange(mode: BeamMode, dist: Double): Boolean = {
     mode match {
-      case BeamMode.CAR          => true
-      case BeamMode.WALK_TRANSIT => true
+      case BeamMode.CAR           => true
+      case BeamMode.DRIVE_TRANSIT => true
+      case BeamMode.WALK_TRANSIT  => true
       case BeamMode.BIKE =>
         dist < thresholdDistanceForBikeMeteres
       case x => throw new IllegalStateException(s"Don't know what to do with $x")
@@ -141,12 +153,12 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   def createStreetVehicle(mode: BeamMode, requestTime: Int, srcCoord: Coord): StreetVehicle = {
     val streetVehicle: StreetVehicle = mode match {
-      case BeamMode.CAR =>
+      case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
         StreetVehicle(
           Id.createVehicleId("dummy-car-for-skim-observations"),
           dummyCarVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
-          mode,
+          BeamMode.CAR,
           asDriver = true
         )
       case BeamMode.BIKE =>
@@ -154,7 +166,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
           Id.createVehicleId("dummy-bike-for-skim-observations"),
           dummyBikeVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
-          mode,
+          BeamMode.BIKE,
           asDriver = true
         )
       case BeamMode.WALK_TRANSIT =>
@@ -213,9 +225,10 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
     val onePct = (h3IndexPairs.length.toDouble * 0.01).toInt
     logger.info(s"One percent from ${h3IndexPairs.length} is $onePct")
     val nonEmptyRoutesPerType = Map[BeamMode, AtomicInteger](
-      BeamMode.CAR          -> new AtomicInteger(0),
-      BeamMode.WALK_TRANSIT -> new AtomicInteger(0),
-      BeamMode.BIKE         -> new AtomicInteger(0)
+      BeamMode.CAR           -> new AtomicInteger(0),
+      BeamMode.WALK_TRANSIT  -> new AtomicInteger(0),
+      BeamMode.BIKE          -> new AtomicInteger(0),
+      BeamMode.DRIVE_TRANSIT -> new AtomicInteger(0)
     )
 
     val requests = ProfilingUtils.timed("Creating routing requests", logger.info(_)) {
@@ -238,40 +251,47 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       }.seq
     }
 
-    val futures = requests.map {
-      case (src, dst, considerModes, routingReq) =>
-        r5Router.ask(routingReq).map {
-          case resp: RoutingResponse =>
-            val processed = processedAtomic.getAndIncrement()
-            if (processed > 0 && processed % onePct == 0) {
-              val diff = System.currentTimeMillis() - started
-              val rps = processed.toDouble / diff * 1000 // Average per second
-              val pct = 100 * processed.toDouble / h3IndexPairs.length
-              logger.info(
-                s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
-                  .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
-              )
-              logger.info(s"Non-empty routes per mode: ")
-              nonEmptyRoutesPerType.foreach {
-                case (mode, counter) =>
-                  logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
-              }
-            }
-            resp.itineraries.foreach { trip =>
-              nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
-            }
-            Success(Container(src, dst, considerModes, routingReq, resp))
-          case failure: RoutingFailure =>
-            failedRoutes.getAndIncrement()
-            Failure(failure.cause)
-          case x =>
-            Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
-        }
-    }
     val waitDuration = 5.hours
-    val results = ProfilingUtils.timed(s"Computed ${futures.length}", logger.info(_)) {
-      Await.result(Future.sequence(futures), waitDuration)
-    }
+    val results = requests
+      .grouped(onePct)
+      .flatMap { it =>
+        val onePctFuture = it.map {
+          case (src, dst, considerModes, routingReq) =>
+            r5Router.ask(routingReq).map {
+              case resp: RoutingResponse =>
+                val processed = processedAtomic.getAndIncrement()
+                if (processed > 0 && processed % onePct == 0) {
+                  val diff = System.currentTimeMillis() - started
+                  val rps = processed.toDouble / diff * 1000 // Average per second
+                  val pct = 100 * processed.toDouble / h3IndexPairs.length
+                  logger.info(
+                    s"Processed $processed routes, $pct % in $diff ms, AVG per second: $rps. Failed: ${failedRoutes
+                      .get()}, empty: ${emptyItineraries.get()}, non-empty: ${computedRoutes.get}"
+                  )
+                  logger.info(s"Non-empty routes per mode: ")
+                  nonEmptyRoutesPerType.foreach {
+                    case (mode, counter) =>
+                      logger.info(s"Non-empty route for $mode\t\t${counter.get()}")
+                  }
+                }
+                resp.itineraries.foreach { trip =>
+                  nonEmptyRoutesPerType.get(trip.tripClassifier).foreach(_.getAndIncrement())
+                }
+                Success(Container(src, dst, considerModes, routingReq, resp))
+              case failure: RoutingFailure =>
+                failedRoutes.getAndIncrement()
+                Failure(failure.cause)
+              case x =>
+                Failure(new IllegalStateException(s"Didn't expect ${x.getClass} type here"))
+            }
+        }
+        val results = ProfilingUtils.timed(s"Computed ${onePctFuture.length}", logger.info(_)) {
+          Await.result(Future.sequence(onePctFuture), waitDuration)
+        }
+        results
+      }
+      .toArray
+
     var nSkimEvents: Int = 0
     results.foreach {
       case Success(
@@ -383,7 +403,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       householdAttributes = dummyHouseholdAttributes,
       modalityStyle = None,
       isMale = true,
-      availableModes = Seq(CAR, WALK_TRANSIT, BIKE),
+      availableModes = Seq(CAR, WALK_TRANSIT, BIKE, DRIVE_TRANSIT),
       valueOfTime = personVOTT,
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)
