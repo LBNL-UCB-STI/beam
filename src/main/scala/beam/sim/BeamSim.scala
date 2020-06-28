@@ -18,7 +18,7 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector, VMInformationWriter}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -140,6 +140,8 @@ class BeamSim @Inject()(
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
+  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
+
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -248,6 +250,11 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
+      vmInformationWriter.writeVMInfo(event.getIteration, "start")
+    }
+
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()
@@ -291,6 +298,9 @@ class BeamSim @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
+      vmInformationWriter.writeVMInfo(event.getIteration, "end")
+    }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(
@@ -422,7 +432,7 @@ class BeamSim @Inject()(
           event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
         val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
           "src/main/python/events_analysis/analyze_events.py",
-          if ((new File(currentEventsFilePath)).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
+          if (new File(currentEventsFilePath).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
         )
         runningPythonScripts += pythonProcess
       }
@@ -679,9 +689,9 @@ class BeamSim @Inject()(
               .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))
           )
         )
-        logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getAbsoluteFile)
         try {
           if (file != newFile && !newFile.exists()) {
+            logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getName)
             file.renameTo(newFile)
           }
           newFile
