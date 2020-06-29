@@ -564,7 +564,7 @@ Scala Collection
 Use ``mutable`` buffer instead of ``immutable var``:
 ****************************************************
 
-::
+.. code-block:: scala
 
    // Before
    var buffer = scala.collection.immutable.Vector.empty[Int]
@@ -578,7 +578,7 @@ Use ``mutable`` buffer instead of ``immutable var``:
    
 **Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
 
-::
+.. code-block:: scala
 
    val mutableList = scala.collection.mutable.MutableList(1,2)
    mutableList += 3
@@ -589,7 +589,7 @@ Use ``mutable`` buffer instead of ``immutable var``:
 Don’t create temporary collections, use `view`_:
 ************************************************
 
-::
+.. code-block:: scala
 
    val seq: Seq[Int] = Seq(1, 2, 3, 4, 5)
 
@@ -602,7 +602,7 @@ Don’t create temporary collections, use `view`_:
 Don’t emulate ``collectFirst`` and ``collect``:
 ***********************************************
 
-::
+.. code-block:: scala
 
    // collectFirst
    // Get first number >= 4
@@ -629,7 +629,7 @@ Don’t emulate ``collectFirst`` and ``collect``:
 Prefer ``nonEmpty`` over ``size > 0``:
 **************************************
 
-::
+.. code-block:: scala
  
   // Before
   (1 to x).size > 0
@@ -642,7 +642,7 @@ Prefer ``nonEmpty`` over ``size > 0``:
 Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
 **********************************************************************
 
-::
+.. code-block:: scala
 
    // Get odd elements of sequence s
    val predicate: Int => Boolean = (idx: Int)  => { idx % 2 == 1 }
@@ -679,7 +679,7 @@ When you log, prefer to use API which are lazy. If you use
 Akka, you should not use `string interpolation`_, but use method with
 replacement arguments:
 
-::
+.. code-block:: scala
 
    // Before
    log.debug(s"Hello: $name")
