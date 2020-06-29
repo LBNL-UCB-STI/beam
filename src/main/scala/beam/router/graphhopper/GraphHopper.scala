@@ -34,42 +34,49 @@ class GraphHopper(graphDir: String, geo: GeoUtils) extends Router {
   }
 
   override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+    assert(!routingRequest.withTransit, "Can't route transit yet")
+    assert(routingRequest.streetVehicles.size == 1, "Can only route unimodal trips without choice so far")
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
+    val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
     request.setProfile("fastest_car")
+    request.setPathDetails(Seq("edge_key","time").asJava)
     val response = graphHopper.route(request)
     if (response.hasErrors) {
       RoutingResponse(Seq(), 0, None, isEmbodyWithCurrentTravelTime = false)
     } else {
-      println(response.getDebugInfo)
       val trips = response.getAll.asScala.map(responsePath => {
+        val totalTravelTime = (responsePath.getTime / 1000).toInt
+        val linkTravelTimes = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
+        val partialFirstLinkTravelTime = linkTravelTimes.headOption.getOrElse(0.0)
+        val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
         EmbodiedBeamTrip(
           IndexedSeq(
             EmbodiedBeamLeg(
               BeamLeg(
                 routingRequest.departureTime,
                 Modes.BeamMode.CAR,
-                (responsePath.getTime / 1000).toInt,
+                beamTotalTravelTime,
                 BeamPath(
-                  IndexedSeq(),
-                  IndexedSeq(),
+                  responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq,
+                  responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq,
                   None,
                   SpaceTime(origin, routingRequest.departureTime),
-                  SpaceTime(destination, routingRequest.departureTime + (responsePath.getTime / 1000).toInt),
+                  SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
                   responsePath.getDistance
                 )
               ),
-              Id.create("", classOf[BeamVehicle]),
-              Id.create("", classOf[BeamVehicleType]),
-              true,
+              streetVehicle.id,
+              streetVehicle.vehicleTypeId,
+              asDriver = true,
               0,
-              true
+              unbecomeDriverOnCompletion = true
             )
           )
         )
       })
-      RoutingResponse(trips, 0, None, isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(trips, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
     }
   }
 

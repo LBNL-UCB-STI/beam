@@ -102,6 +102,13 @@ allprojects {
         jcenter()
         maven { url "http://nexus.onebusaway.org/content/groups/public/" }
         maven { url "https://jitpack.io" }
+        maven {
+            url = "https://maven.pkg.github.com/graphhopper/graphhopper"
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
+            }
+        }
     }
 }
 
@@ -175,7 +182,7 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
 
-    compile "com.graphhopper:graphhopper-core:1.0"
+    compile "com.graphhopper:graphhopper-core:3a31fd641e5cfa864931397f7b28fcacc9b804f4"
 
     compile "com.sigopt:sigopt-java:4.9.0"
 
