@@ -17,10 +17,10 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
 
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail", "others"));
 
-    private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
-    private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
-    private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
-    private static final Map<String, Integer> modePerson = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
+    private final Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
     private static final String xAxisLabel = "time (binSize=<?> sec)";
     private final PlotGraph plotGraph = new PlotGraph();
