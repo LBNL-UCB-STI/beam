@@ -3,7 +3,6 @@ package beam.utils.osm
 import java.util.Objects
 
 import beam.sim.common.GeoUtils
-import beam.utils.csv.CsvWriter
 import com.conveyal.osmlib.{OSM, Way}
 import com.typesafe.scalalogging.StrictLogging
 import org.jgrapht.Graph
@@ -46,36 +45,6 @@ object ReduceOSM2 extends StrictLogging {
     typeMap
   }
 
-  def writeTagToWay(osm: OSM, outputCSVFilePath: String): Unit = {
-    val tagValToWay = mutable.Map.empty[String, Int]
-    def plusTagWay(tagVal: String): Unit = {
-      tagValToWay.get(tagVal) match {
-        case Some(count) => tagValToWay(tagVal) = count + 1
-        case None        => tagValToWay(tagVal) = 1
-      }
-    }
-
-    osm.ways.asScala.foreach {
-      case (_, way) =>
-        if (way.tags == null) plusTagWay("empty-tag")
-        else way.tags.asScala.foreach(osmTag => plusTagWay(s"${osmTag.key}+${osmTag.value}"))
-    }
-
-    val csvWriter = new CsvWriter(
-      outputCSVFilePath,
-      Vector(
-        "tag+value",
-        "wayCnt",
-      )
-    )
-
-    tagValToWay.toSeq.sortBy(_._2).foreach {
-      case (tag, cnt) => csvWriter.writeRow(IndexedSeq("\"" + tag.replace(',', '.') + "\"", cnt))
-    }
-
-    csvWriter.close()
-  }
-
   private def findUnneededWayIds(osm: OSM, wayType: String): mutable.Set[MyEdge] = {
     val g = toGraph(osm)
 
@@ -85,7 +54,7 @@ object ReduceOSM2 extends StrictLogging {
 
     def testRemoval(myEdge: MyEdge) = {
       counter += 1
-      if (counter % 100 == 0)
+      if (counter % 1000 == 0)
         logger.info(
           s"Processed $counter edges, to be removed = $removeCounter" +
           s", single path = $singlePathCounter"
@@ -176,13 +145,16 @@ object ReduceOSM2 extends StrictLogging {
   }
 
   def generateWays(osm: OSM, waysToRemove: Map[Long, List[Int]]): Map[Long, Way] = {
+    logger.info("waysToRemove = {}", waysToRemove.size)
     var maxWayId = osm.ways.keySet().iterator().asScala.max.toLong
     val untouched = osm.ways.asScala.filter { case (id, _) => !waysToRemove.contains(id) }
+    logger.info("untouched = {}", untouched.size)
     val completelyRemoved = waysToRemove.filter {
       case (id, links) =>
         val way = osm.ways.get(id)
         way.nodes.length - 1 == links.size
     }
+    logger.info("completelyRemoved = {}", completelyRemoved.size)
     val toGen = waysToRemove.filter { case (id, _) => !completelyRemoved.contains(id) }
     val gen = toGen
       .map {
@@ -199,6 +171,7 @@ object ReduceOSM2 extends StrictLogging {
       }
       .flatten
       .toMap
+    logger.info("gen = {}", gen.size)
     untouched.map { case (id, way) => id.toLong -> way }.toMap ++ gen
   }
 
@@ -218,7 +191,7 @@ object ReduceOSM2 extends StrictLogging {
   }
 
   def reduceOSM(osm: OSM, toRemove: Set[MyEdge]): OSM = {
-//    val selectedNodes = mutable.HashSet.empty[Long]
+    logger.info("edges toRemove = {}", toRemove.size)
     val waysToRemove: Map[Long, List[Int]] = toRemove
       .foldLeft(Map.empty[Long, List[Int]]) { (map, myEdge) =>
         val links = map.getOrElse(myEdge.wayId, Nil)

@@ -3,18 +3,15 @@ package beam.utils.osm
 import java.util.Objects
 
 import beam.sim.common.GeoUtils
-import beam.utils.csv.CsvWriter
 import com.conveyal.osmlib.{OSM, Way}
 import com.typesafe.scalalogging.StrictLogging
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath
+import org.jgrapht.Graph
 import org.jgrapht.traverse.BreadthFirstIterator
-import org.jgrapht.{Graph, GraphPath}
 import org.matsim.api.core.v01.Coord
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Try
 
 /**
   * @author Dmitry Openkov
@@ -43,41 +40,10 @@ object ReduceOSM extends StrictLogging {
       .map(way => Objects.toString(way.getTag("highway")))
       .groupBy(identity)
       .mapValues(_.size)
-    val types = typeMap
-      .toList
+    val types = typeMap.toList
       .sortBy(_._1)
     logger.info("types = {}", types)
     typeMap
-  }
-
-  def writeTagToWay(osm: OSM, outputCSVFilePath: String): Unit = {
-    val tagValToWay = mutable.Map.empty[String, Int]
-    def plusTagWay(tagVal: String): Unit = {
-      tagValToWay.get(tagVal) match {
-        case Some(count) => tagValToWay(tagVal) = count + 1
-        case None        => tagValToWay(tagVal) = 1
-      }
-    }
-
-    osm.ways.asScala.foreach {
-      case (_, way) =>
-        if (way.tags == null) plusTagWay("empty-tag")
-        else way.tags.asScala.foreach(osmTag => plusTagWay(s"${osmTag.key}+${osmTag.value}"))
-    }
-
-    val csvWriter = new CsvWriter(
-      outputCSVFilePath,
-      Vector(
-        "tag+value",
-        "wayCnt",
-      )
-    )
-
-    tagValToWay.toSeq.sortBy(_._2).foreach {
-      case (tag, cnt) => csvWriter.writeRow(IndexedSeq("\"" + tag.replace(',', '.') + "\"", cnt))
-    }
-
-    csvWriter.close()
   }
 
   private def findUnneededWayIds(osm: OSM, wayType: String): mutable.Set[Long] = {
@@ -216,8 +182,10 @@ object ReduceOSM extends StrictLogging {
   def main(args: Array[String]): Unit = {
     if (args.length != 3) {
       println("Usage: program path/to/input/osm wayType path/to/output/osm")
-      println("example: program test/input/detroit/r5/detroit-big.osm.pbf residential" +
-        " test/input/detroit/r5/detroit-big-reduced.osm.pbf")
+      println(
+        "example: program test/input/detroit/r5/detroit-big.osm.pbf residential" +
+        " test/input/detroit/r5/detroit-big-reduced.osm.pbf"
+      )
       System.exit(1)
     }
     val mapPath = args(0)
@@ -227,7 +195,7 @@ object ReduceOSM extends StrictLogging {
     val map = readMap(mapPath)
     val types = getInfo(map)
 
-    if(!types.contains(wayType)) {
+    if (!types.contains(wayType)) {
       println(s"This file doesn't contain ways of type '$wayType'")
       System.exit(2)
     }
@@ -235,7 +203,6 @@ object ReduceOSM extends StrictLogging {
     val canBeRemoved = findUnneededWayIds(map, wayType)
     println(s"canBeRemoved.size = ${canBeRemoved.size}")
     println(s"canBeRemoved = ${canBeRemoved.size.toDouble / types(wayType)}")
-
 
   }
 

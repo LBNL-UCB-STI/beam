@@ -153,11 +153,10 @@ object R5Requester extends BeamHelper {
     //  private val originUTM = geo.wgs2Utm(new Coord(-83.12597352, 42.391160051))
     //  private val destinationUTM = geo.wgs2Utm(new Coord(-83.037062772, 42.514944839))
 
-
     val r5Wrapper = createR5Wrapper(cfg)
 
-    val filePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.csv"
-    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.cut-without-residential.responses.csv"
+    val filePath = "../../data/r5requester-data/routes.detroit.2k.csv"
+    val csvFilePath = "output/detroit/routes.detroit.2k.big.responses.csv"
     val requests = readRequestsFromFile(filePath)
 
     val csvWriter = new CsvWriter(
