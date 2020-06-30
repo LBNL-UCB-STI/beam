@@ -147,7 +147,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   override def preStart(): Unit = {
     createGraphHopperDirectoryIfNotExisting()
-    graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
+    graphHopper =
+      new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
     askForMoreWork()
   }
 

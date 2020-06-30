@@ -22,7 +22,12 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.JavaConverters._
 
-class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType], fuelTypePrices: FuelTypePrices) extends Router {
+class GraphHopper(
+  graphDir: String,
+  geo: GeoUtils,
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  fuelTypePrices: FuelTypePrices
+) extends Router {
 
   private val graphHopper = {
     val graphHopper = new com.graphhopper.GraphHopper()
@@ -37,21 +42,29 @@ class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehi
 
   override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
-    assert(routingRequest.streetVehicles.size == 1, "Can only route unimodal trips with single available vehicle so far")
+    assert(
+      routingRequest.streetVehicles.size == 1,
+      "Can only route unimodal trips with single available vehicle so far"
+    )
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
     request.setProfile("fastest_car")
-    request.setPathDetails(Seq("edge_key","time").asJava)
+    request.setPathDetails(Seq("edge_key", "time").asJava)
     val response = graphHopper.route(request)
     val alternatives = if (response.hasErrors) {
       Seq()
     } else {
       response.getAll.asScala.map(responsePath => {
         val totalTravelTime = (responsePath.getTime / 1000).toInt
-        var linkIds: IndexedSeq[Int] = responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
-        var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
+        var linkIds: IndexedSeq[Int] =
+          responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
+        var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
+          .asScala("time")
+          .asScala
+          .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+          .toIndexedSeq
         if (linkIds.isEmpty) {
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
