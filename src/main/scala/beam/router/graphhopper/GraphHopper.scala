@@ -1,5 +1,7 @@
 package beam.router.graphhopper
 
+import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -20,7 +22,7 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.JavaConverters._
 
-class GraphHopper(graphDir: String, geo: GeoUtils) extends Router {
+class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType], fuelTypePrices: FuelTypePrices) extends Router {
 
   private val graphHopper = {
     val graphHopper = new com.graphhopper.GraphHopper()
@@ -51,26 +53,27 @@ class GraphHopper(graphDir: String, geo: GeoUtils) extends Router {
         val linkTravelTimes = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
         val partialFirstLinkTravelTime = linkTravelTimes.headOption.getOrElse(0.0)
         val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
+        val beamLeg = BeamLeg(
+          routingRequest.departureTime,
+          Modes.BeamMode.CAR,
+          beamTotalTravelTime,
+          BeamPath(
+            responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq,
+            responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq,
+            None,
+            SpaceTime(origin, routingRequest.departureTime),
+            SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
+            responsePath.getDistance
+          )
+        )
         EmbodiedBeamTrip(
           IndexedSeq(
             EmbodiedBeamLeg(
-              BeamLeg(
-                routingRequest.departureTime,
-                Modes.BeamMode.CAR,
-                beamTotalTravelTime,
-                BeamPath(
-                  responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq,
-                  responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq,
-                  None,
-                  SpaceTime(origin, routingRequest.departureTime),
-                  SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
-                  responsePath.getDistance
-                )
-              ),
+              beamLeg,
               streetVehicle.id,
               streetVehicle.vehicleTypeId,
               asDriver = true,
-              0,
+              DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
               unbecomeDriverOnCompletion = true
             )
           )

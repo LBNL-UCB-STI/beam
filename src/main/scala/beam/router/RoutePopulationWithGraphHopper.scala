@@ -35,7 +35,7 @@ object RoutePopulationWithGraphHopper extends BeamHelper {
         graphDir
       )
     val geo = new GeoUtilsImpl(executionConfig.beamConfig)
-    val graphHopper = new GraphHopper(graphDir, geo)
+    val graphHopper = new GraphHopper(graphDir, geo, beamScenario.vehicleTypes, beamScenario.fuelTypePrices)
     val r5 = new R5(
       R5Parameters(
         executionConfig.beamConfig,
