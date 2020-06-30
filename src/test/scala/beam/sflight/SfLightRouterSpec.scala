@@ -301,6 +301,36 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(carOption.legs(1).unbecomeDriverOnCompletion)
     }
 
+    "respond with a car route for going from downtown SF to Treasure Island" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.439194, 37.785368))
+      val destination = services.geo.wgs2Utm(new Coord(-122.3712, 37.815819))
+      val time = 27840
+      router ! RoutingRequest(
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
+        withTransit = false,
+        streetVehicles = Vector(
+          StreetVehicle(
+            Id.createVehicleId("116378-2"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(origin, 0),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.exists(_.tripClassifier == CAR))
+
+      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
+      assert(carOption.costEstimate > 1.0)
+      val carTrip = carOption.toBeamTrip
+      val actualModesOfCarOption = carTrip.legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(CAR)
+      assert(carOption.legs(0).unbecomeDriverOnCompletion)
+    }
+
     "respond with a unlimited transfer route having cost 2.75 USD." in {
       val origin = new Coord(549598.9574660371, 4176177.2431860007)
       val destination = new Coord(544417.3891361314, 4177016.733758491)

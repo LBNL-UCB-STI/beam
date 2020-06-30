@@ -13,7 +13,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
-import com.graphhopper.routing.util.{BikeFlagEncoder, CarFlagEncoder, EncodingManager, FootFlagEncoder}
+import com.graphhopper.routing.util.{BikeFlagEncoder, CarFlagEncoder, EdgeFilter, EncodingManager, FootFlagEncoder}
 import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, PointList}
@@ -50,16 +50,24 @@ class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehi
     } else {
       response.getAll.asScala.map(responsePath => {
         val totalTravelTime = (responsePath.getTime / 1000).toInt
-        val linkTravelTimes = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
-        val partialFirstLinkTravelTime = linkTravelTimes.headOption.getOrElse(0.0)
+        var linkIds: IndexedSeq[Int] = responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
+        var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
+        if (linkIds.isEmpty) {
+          // An empty path by GH's definition. But we still want it to be from a link to a link.
+          val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
+          val edgeId = snappedPoint.getClosestEdge.getEdge * 2
+          linkIds = IndexedSeq(edgeId, edgeId)
+          linkTravelTimes = IndexedSeq(0.0, 0.0)
+        }
+        val partialFirstLinkTravelTime = linkTravelTimes.head
         val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
         val beamLeg = BeamLeg(
           routingRequest.departureTime,
           Modes.BeamMode.CAR,
           beamTotalTravelTime,
           BeamPath(
-            responsePath.getPathDetails.asScala("edge_key").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq,
-            responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq,
+            linkIds,
+            linkTravelTimes,
             None,
             SpaceTime(origin, routingRequest.departureTime),
             SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),

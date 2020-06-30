@@ -1,5 +1,6 @@
 package beam.router
 
+import java.io.File
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.{ExecutorService, Executors}
@@ -12,7 +13,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.graphhopper.GraphHopper
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
@@ -23,6 +25,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils._
+import com.conveyal.osmlib.OSM
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
@@ -129,6 +132,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
 
+  private val graphHopperDir: String = workerParams.beamConfig.beam.inputDirectory + "/graphhopper"
+  private var graphHopper: GraphHopper = _
+
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
       .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
@@ -140,6 +146,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   override def preStart(): Unit = {
+    createGraphHopperDirectoryIfNotExisting()
+    graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
     askForMoreWork()
   }
 
@@ -188,7 +196,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          r5.calcRoute(request)
+          if (!request.withTransit && request.streetVehicles.size == 1 && request.streetVehicles.head.mode == CAR)
+            graphHopper.calcRoute(request)
+          else
+            r5.calcRoute(request)
         }
       }
       eventualResponse.recover {
@@ -233,6 +244,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
+
+  private def createGraphHopperDirectoryIfNotExisting(): Unit = {
+    if (!new File(graphHopperDir).exists())
+      GraphHopper.createGraphDirectoryFromR5(
+        workerParams.transportNetwork,
+        new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
+        graphHopperDir
+      )
+  }
 }
 
 object RoutingWorker {
