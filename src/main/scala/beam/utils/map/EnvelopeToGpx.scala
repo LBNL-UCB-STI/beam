@@ -7,7 +7,7 @@ import org.matsim.api.core.v01.Coord
 class EnvelopeToGpx extends LazyLogging {
 
   val geoUtils = new beam.sim.common.GeoUtils {
-    override def localCRS: String = "epsg:26910"
+    override def localCRS: String = "EPSG:4326"
   }
 
   def render(envelope: Envelope, wgsCoordOpt: Option[Coord], outputPath: String): Unit = {
@@ -64,8 +64,19 @@ object EnvelopeToGpx {
   def latitude(coord: Coord): Double = coord.getY
 
   def main(args: Array[String]): Unit = {
-    val en1 = new Envelope(-122.5447336, -122.3592068, 37.6989794, 37.843628)
-    val envelopeToGpx = new EnvelopeToGpx
-    envelopeToGpx.render(en1, Some(new Coord(-123.180062255, 38.7728279981)), "ex1.gpx")
+    // -75.8600, 40.8800, -73.2500, 45.0300
+    val en1 = new Envelope(-75.8600, -73.2500, 40.8800, 45.0300)
+    val envelopeToGpx1 = new EnvelopeToGpx
+    envelopeToGpx1.render(en1, None, "envelope_of_EPSG:2260.gpx")
+
+    // -74.2700, -71.7500, 40.4700, 41.3100
+    val en2 = new Envelope(-74.2700, -71.7500, 40.4700, 41.3100)
+    val envelopeToGpx2 = new EnvelopeToGpx
+    envelopeToGpx2.render(en2, None, "envelope_of_EPSG:2263.gpx")
+
+    // val en1 = new Envelope(-74.5999979, -73.6000019,  41.2999981,  40.300004)
+    val en3 = new Envelope(-74.5999979, -73.6000019,  41.2999981,  40.300004)
+    val envelopeToGpx3 = new EnvelopeToGpx
+    envelopeToGpx3.render(en3, None, "envelope_of_MAP.gpx")
   }
 }
