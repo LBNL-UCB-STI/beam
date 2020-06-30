@@ -1,8 +1,8 @@
 package beam.router.graphhopper
 
 import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -37,7 +37,7 @@ class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehi
 
   override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
-    assert(routingRequest.streetVehicles.size == 1, "Can only route unimodal trips without choice so far")
+    assert(routingRequest.streetVehicles.size == 1, "Can only route unimodal trips with single available vehicle so far")
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
     val streetVehicle = routingRequest.streetVehicles.head
@@ -45,10 +45,10 @@ class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehi
     request.setProfile("fastest_car")
     request.setPathDetails(Seq("edge_key","time").asJava)
     val response = graphHopper.route(request)
-    if (response.hasErrors) {
-      RoutingResponse(Seq(), 0, None, isEmbodyWithCurrentTravelTime = false)
+    val alternatives = if (response.hasErrors) {
+      Seq()
     } else {
-      val trips = response.getAll.asScala.map(responsePath => {
+      response.getAll.asScala.map(responsePath => {
         val totalTravelTime = (responsePath.getTime / 1000).toInt
         val linkTravelTimes = responsePath.getPathDetails.asScala("time").asScala.map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0).toIndexedSeq
         val partialFirstLinkTravelTime = linkTravelTimes.headOption.getOrElse(0.0)
@@ -79,8 +79,8 @@ class GraphHopper(graphDir: String, geo: GeoUtils, vehicleTypes: Map[Id[BeamVehi
           )
         )
       })
-      RoutingResponse(trips, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
     }
+    RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
   }
 
 }
