@@ -225,13 +225,12 @@ class SimpleScenarioGenerator(
           case ((household, personsWithData), wgsHouseholdLocation) =>
             val householdCheckResult = geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)
             if (householdCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
-              val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
                 household.numOfVehicles,
                 household.income,
-                utmHouseholdCoord.getX,
-                utmHouseholdCoord.getY
+                wgsHouseholdLocation.getX,
+                wgsHouseholdLocation.getY
               )
 
               val (personsAndPlans, lastPersonId) =
@@ -262,30 +261,32 @@ class SimpleScenarioGenerator(
                             planElementType = "activity",
                             planElementIndex = 1,
                             activityType = Some("Home"),
-                            activityLocationX = Some(utmHouseholdCoord.getX),
-                            activityLocationY = Some(utmHouseholdCoord.getY),
+                            activityLocationX = Some(wgsHouseholdLocation.getX),
+                            activityLocationY = Some(wgsHouseholdLocation.getY),
                             activityEndTime = Some(timeLeavingHomeSeconds / 3600.0)
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
                             .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
 
-                          val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                          val margin = 1.3
-                          val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
-                          val travelTime =
-                            estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
-                          val workStartTime = timeLeavingHomeSeconds + travelTime
-                          val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                          val timeLeavingWorkSeconds = workStartTime + workingDuration
+                          val timeLeavingWorkSeconds = {
+                            val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+                            val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
+                            val margin = 1.3
+                            val travelTime =
+                              estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
+                            val workStartTime = timeLeavingHomeSeconds + travelTime
+                            val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
+                            workStartTime + workingDuration
+                          }
 
                           val leavingWorkActivity = planElementTemplate.copy(
                             personId = createdPerson.personId,
                             planElementType = "activity",
                             planElementIndex = 3,
                             activityType = Some("Work"),
-                            activityLocationX = Some(utmWorkingLocation.getX),
-                            activityLocationY = Some(utmWorkingLocation.getY),
+                            activityLocationX = Some(wgsWorkingLocation.getX),
+                            activityLocationY = Some(wgsWorkingLocation.getY),
                             activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
                           )
                           val leavingWorkLeg = planElementTemplate
@@ -297,8 +298,8 @@ class SimpleScenarioGenerator(
                             planElementType = "activity",
                             planElementIndex = 5,
                             activityType = Some("Home"),
-                            activityLocationX = Some(utmHouseholdCoord.getX),
-                            activityLocationY = Some(utmHouseholdCoord.getY)
+                            activityLocationX = Some(wgsHouseholdLocation.getX),
+                            activityLocationY = Some(wgsHouseholdLocation.getY)
                           )
 
                           val personWithPlans = PersonWithPlans(
