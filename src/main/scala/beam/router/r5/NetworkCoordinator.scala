@@ -10,7 +10,7 @@ import beam.utils.BeamVehicleUtils
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
@@ -27,7 +27,7 @@ case class LinkParam(
   lanes: Option[Int]
 ) {
 
-  def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
+  def overwriteFor(link: Link, cursor: EdgeStore#Edge, logger: Logger): Unit = {
     capacity.foreach(value => link.setCapacity(value))
     freeSpeed.foreach { value =>
       // !!! The speed for R5 is rounded (m/s * 100) (2 decimal places)
@@ -36,7 +36,10 @@ case class LinkParam(
     }
     length.foreach { value =>
       // Provided length is in meters, convert them to millimeters
-      cursor.setLengthMm((value * 1000).toInt)
+      val oldLenght = cursor.getLengthMm
+      val newLength = (value * 1000).toInt
+      logger.debug(s"overwriting link length value: $oldLenght with: $newLength difference: ${oldLenght - newLength}")
+      cursor.setLengthMm(newLength)
       link.setLength(value)
     }
     lanes.foreach { value =>
@@ -108,7 +111,7 @@ trait NetworkCoordinator extends LazyLogging {
         require(link != null, s"Could not find link with id $linkId")
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         // Overwrite params
-        param.overwriteFor(link, edge)
+        param.overwriteFor(link, edge, logger)
     }
   }
 
@@ -180,7 +183,7 @@ trait NetworkCoordinator extends LazyLogging {
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
+        val ret = BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
           case (line: java.util.Map[String, String], z) =>
             val linkId = line.get("link_id").toInt
             val capacity = Option(line.get("capacity")).map(_.toDouble)
@@ -190,6 +193,7 @@ trait NetworkCoordinator extends LazyLogging {
             val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
             z += ((linkId, lp))
         }
+        ret
       } catch {
         case NonFatal(ex) =>
           logger.error(s"Could not load link's params from $path: ${ex.getMessage}", ex)
