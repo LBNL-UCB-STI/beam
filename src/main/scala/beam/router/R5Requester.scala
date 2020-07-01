@@ -152,8 +152,8 @@ object R5Requester extends BeamHelper {
 
     val r5Wrapper = createR5Wrapper(cfg)
 
-    val filePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.csv"
-    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.20k.cut.responses.csv"
+    val filePath = "/home/nikolay/.jupyter-files/routes.detroit.2k.csv"
+    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.2k.cut.responses.csv"
     val requests = readRequestsFromFile(filePath)
 
     val csvWriter = new CsvWriter(

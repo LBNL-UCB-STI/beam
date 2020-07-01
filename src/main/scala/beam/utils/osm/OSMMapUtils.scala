@@ -24,11 +24,30 @@ object OSMMapUtils {
   }
 
   def showInfo(osm: OSM): Unit = {
-    val totalWays = osm.ways.size()
-
     println(s"count of nodes is: ${osm.nodes.size()}")
-    println(s"count of ways is: $totalWays")
+    println(s"count of ways is: ${osm.ways.size()}")
     println(s"count of relations is: ${osm.relations.size()}")
+
+    val wayTypes = mutable.HashMap.empty[String, Long]
+    def countHighway(highwayType: String): Unit = {
+      wayTypes.get(highwayType) match {
+        case Some(count) => wayTypes(highwayType) = count + 1
+        case None        => wayTypes(highwayType) = 1
+      }
+    }
+
+    osm.ways.asScala.foreach {
+      case (_, way) if way.tags != null =>
+        way.tags.asScala.find(tag => tag.key == "highway") match {
+          case Some(tag) => countHighway(tag.value)
+          case _         => countHighway("other")
+        }
+      case _ => countHighway("empty")
+    }
+
+    wayTypes.toSeq.sortBy { case (_, count) => count }.reverse.take(5).foreach {
+      case (wayType, count) => println(s"$wayType : $count")
+    }
   }
 
   def getNodeCoord(osm: OSM, nodeId: Long): Coord = {
@@ -67,7 +86,28 @@ object OSMMapUtils {
     csvWriter.close()
   }
 
-  def removeShortWays(osm: OSM, minDistanceInMeters: Double): OSM = {
+  class Progress(val multiplicator: Int, val maxProgress: Int) {
+    private val onePiece = maxProgress / multiplicator
+    println(s"1/$multiplicator is $onePiece ways")
+    var processed = 0
+    var pieces = 0
+
+    def plusOne(): Unit = {
+      processed += 1
+      if (processed >= onePiece) {
+        processed = 0
+        pieces += 1
+        println(s"$pieces/$multiplicator done")
+      }
+    }
+  }
+
+  def removeShortWays(
+    osm: OSM,
+    highwayTypeToProcess: Set[String],
+    minDistanceInMeters: Double,
+    maxIterations: Int = 5
+  ): OSM = {
     var nextNodeId: Long = osm.nodes.asScala.keys.max + 1
     class NodeGroup(val nodesIds: Set[Long]) {
       val nodes: Map[lang.Long, Node] = osm.nodes.asScala.filter { case (nodeId, _) => nodesIds.contains(nodeId) }.toMap
@@ -95,9 +135,13 @@ object OSMMapUtils {
       }
     }
 
-    val shortWays = osm.ways.asScala.filter {
-      case (_, way) => getWayLen(osm, way) < minDistanceInMeters
-    }.toArray
+    def waySelected(way: Way): Boolean = {
+      way.tags != null &&
+      way.tags.asScala.exists(tag => tag.key == "highway" && highwayTypeToProcess.contains(tag.value)) &&
+      getWayLen(osm, way) < minDistanceInMeters
+    }
+
+    val shortWays = osm.ways.asScala.filter { case (_, way) => waySelected(way) }.toArray
 
     println(s"got ${shortWays.length} ways with len less than $minDistanceInMeters")
 
@@ -105,13 +149,17 @@ object OSMMapUtils {
     val affectedNodes = mutable.HashMap.empty[Long, NodeGroup]
     val groupedNodes = mutable.ListBuffer.empty[NodeGroup]
 
+    print("processing short ways to find all ways to remove. ")
+    val progress = new Progress(7, shortWays.length)
+
     shortWays.foreach {
       case (wayId, way) if !way.nodes.exists(affectedNodes.contains) =>
         waysToRemove(wayId) = way
         val group = new NodeGroup(way.nodes.toSet)
         groupedNodes += group
         way.nodes.foreach(nodeId => affectedNodes(nodeId) = group)
-      case _ =>
+        progress.plusOne()
+      case _ => progress.plusOne()
     }
 
     val copy = new OSM(null)
@@ -119,6 +167,9 @@ object OSMMapUtils {
 
     val secondsSinceEpoch: Long = System.currentTimeMillis / 1000
     copy.setReplicationTimestamp(secondsSinceEpoch)
+
+    print("processing all ways. ")
+    val progress2 = new Progress(13, osm.ways.size())
 
     osm.ways.asScala.foreach {
       case (wayId, way) if !waysToRemove.contains(wayId) =>
@@ -143,7 +194,8 @@ object OSMMapUtils {
         } else {
           copy.writeWay(wayId, way)
         }
-      case _ =>
+        progress2.plusOne()
+      case _ => progress2.plusOne()
     }
 
     osm.nodes.asScala.foreach {
@@ -198,18 +250,23 @@ object OSMMapUtils {
       showInfo(map)
     }
 
-//    printInfo("/mnt/data/work/beam/detroit-scenario-data/detroit-big-filtered.osm.pbf")
+    printInfo("/mnt/data/work/beam/newyork-scenario-data/newyork-big-filtered.osm.pbf")
+    printInfo("/mnt/data/work/beam/newyork-scenario-data/newyork-big-original.osm.pbf")
+    printInfo("/mnt/data/work/beam/newyork-scenario-data/newyork-big-without-residential.osm.pbf")
+
 //    printInfo("/mnt/data/work/beam/detroit-scenario-data/detroit-big-cut-0.8.osm.pbf")
-//    printInfo("/mnt/data/work/beam/detroit-scenario-data/detroit-big.osm.pbf")
+//    printInfo("/mnt/data/work/beam/detroit-scenario-data/detroit-tiny.osm.pbf")
+//    printInfo("/mnt/data/work/beam/newyork-scenario-data/newyork-simplified.osm.pbf")
+//    printInfo("/mnt/data/work/beam/newyork-scenario-data/newyork-filtered.osm.pbf")
 
-    val mapPath = "/mnt/data/work/beam/detroit-scenario-data/detroit-tiny.osm.pbf"
-    val cutMapPath = "/mnt/data/work/beam/detroit-scenario-data/detroit-tiny-simplified.osm.pbf"
-    val map = readMap(mapPath)
-    showInfo(map)
-
-    val copy = removeShortWays(map, 30.0)
-    showInfo(copy)
-    copy.writeToFile(cutMapPath)
+//    val mapPath = "/mnt/data/work/beam/detroit-scenario-data/detroit-tiny.osm.pbf"
+//    val cutMapPath = "/mnt/data/work/beam/detroit-scenario-data/detroit-tiny-simplified.osm.pbf"
+//    val map = readMap(mapPath)
+//    showInfo(map)
+//
+//    val copy = removeShortWays(map, "residential", 30.0)
+//    showInfo(copy)
+//    copy.writeToFile(cutMapPath)
 
 //    writeOSMInfo(map, "/home/nikolay/.jupyter-files/detroit.tiny.stats.csv")
 //    val random = new Random()
