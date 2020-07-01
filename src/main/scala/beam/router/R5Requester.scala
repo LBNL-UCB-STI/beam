@@ -148,16 +148,27 @@ object R5Requester extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
-    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
+    val (_, cfg) = prepareConfig(args.take(2), isConfigArgRequired = true)
+
+    val requestsPath = {
+      if (args.length > 2) args(2)
+      else "/home/nikolay/.jupyter-files/routes.detroit.2k.csv"
+    }
+    val responsesPath = {
+      if (args.length > 3) args(3)
+      else "/home/nikolay/.jupyter-files/routes.detroit.2k.original.responses.csv"
+    }
+
+    println(s"configuration: ${args(1)}")
+    println(s"requests path: $requestsPath")
+    println(s"responses path: $responsesPath")
+
+    val requests = readRequestsFromFile(requestsPath)
 
     val r5Wrapper = createR5Wrapper(cfg)
 
-    val filePath = "/home/nikolay/.jupyter-files/routes.detroit.2k.csv"
-    val csvFilePath = "/home/nikolay/.jupyter-files/routes.detroit.2k.cut.responses.csv"
-    val requests = readRequestsFromFile(filePath)
-
     val csvWriter = new CsvWriter(
-      csvFilePath,
+      responsesPath,
       Vector(
         "routeNumber",
         "mode",
@@ -239,7 +250,7 @@ object R5Requester extends BeamHelper {
     println(s"calculation took $durationSeconds seconds")
     println(s"number of empty routes: ${ResultStats.numberOfEmptyRoutes}")
     println(s"number of success routes: ${ResultStats.numberOfSuccessRoutes}")
-    println(s"results are written into $csvFilePath")
+    println(s"results are written into $responsesPath")
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
