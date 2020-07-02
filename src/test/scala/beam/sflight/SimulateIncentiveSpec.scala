@@ -33,9 +33,7 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
     "run 1k scenario with different incentives" taggedAs (Periodic, ExcludeRegular) in {
       val lastIteration = 0
       val avg1 = runSimulationAndReturnModeChoiceColumnSum(lastIteration, "incentives.csv")
-      println(avg1)
       val avg2 = runSimulationAndReturnModeChoiceColumnSum(lastIteration, "incentives-ride_hail.csv")
-      println(avg2)
       assert(avg1 <= avg2)
     }
   }
