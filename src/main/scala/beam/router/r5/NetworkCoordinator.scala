@@ -6,7 +6,7 @@ import java.nio.file.{Files, Paths}
 
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
-import beam.utils.BeamVehicleUtils
+import beam.utils.CsvFileUtils
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
@@ -48,28 +48,26 @@ case class LinkParam(
 trait NetworkCoordinator extends LazyLogging {
 
   val beamConfig: BeamConfig
+  var transportNetwork: TransportNetwork = _
+  var network: Network = _
 
-  var transportNetwork: TransportNetwork
-
-  var network: Network
-
-  protected def preprocessing(): Unit
+  protected def preLoad(): Unit
+  protected def postLoad(): Unit
 
   def init(): Unit = {
-    preprocessing()
+    preLoad()
     loadNetwork()
-    postProcessing()
+    postLoad()
+    convertFrequenciesToTrips()
   }
 
-  protected def postProcessing(): Unit
-
   def loadNetwork(): Unit = {
-    val GRAPH_FILE = "/network.dat"
-    if (exists(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE))) {
-      logger.info(
-        s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
-      )
-      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+    val r5DirPath = Paths.get(beamConfig.beam.routing.r5.directory)
+    val graphFilePath = Paths.get(beamConfig.beam.routing.r5.directory, "/network.dat")
+
+    if (exists(graphFilePath)) {
+      logger.info(s"Initializing router by reading network from: ${graphFilePath.toAbsolutePath}")
+      transportNetwork = KryoNetworkSerializer.read(graphFilePath.toFile)
       if (exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))) {
         network = NetworkUtils.createNetwork()
         new MatsimNetworkReader(network)
@@ -78,9 +76,7 @@ trait NetworkCoordinator extends LazyLogging {
         createPhyssimNetwork()
       }
     } else {
-      logger.info(
-        s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
-      )
+      logger.info(s"Initializing router by creating network from directory: ${r5DirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(
         Paths.get(beamConfig.beam.routing.r5.directory).toFile,
         true,
@@ -91,14 +87,14 @@ trait NetworkCoordinator extends LazyLogging {
       // Please, fix me in the future
       createPhyssimNetwork()
 
-      KryoNetworkSerializer.write(transportNetwork, Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      KryoNetworkSerializer.write(transportNetwork, graphFilePath.toFile)
       // Needed because R5 closes DB on write
-      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork = KryoNetworkSerializer.read(graphFilePath.toFile)
     }
   }
 
   def overwriteLinkParams(
-    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+    overwriteLinkParamMap: Map[Int, LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
@@ -175,20 +171,19 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork.transitLayer.hasFrequencies = false
   }
 
-  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
+  private def getOverwriteLinkParam(beamConfig: BeamConfig): Map[Int, LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
-          case (line: java.util.Map[String, String], z) =>
-            val linkId = line.get("link_id").toInt
-            val capacity = Option(line.get("capacity")).map(_.toDouble)
-            val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
-            val length = Option(line.get("length")).map(_.toDouble)
-            val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
-            z += ((linkId, lp))
+        CsvFileUtils.readCsvFileByLineToMap[Int, LinkParam](path) { line =>
+          val linkId = line.get("link_id").toInt
+          val capacity = Option(line.get("capacity")).map(_.toDouble)
+          val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
+          val length = Option(line.get("length")).map(_.toDouble)
+          val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
+          val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
+          (linkId, lp)
         }
       } catch {
         case NonFatal(ex) =>
@@ -203,6 +198,14 @@ trait NetworkCoordinator extends LazyLogging {
 }
 
 object NetworkCoordinator {
+
+  def create(beamConfig: BeamConfig): NetworkCoordinator =
+    if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
+      FrequencyAdjustingNetworkCoordinator(beamConfig)
+    } else {
+      DefaultNetworkCoordinator(beamConfig)
+    }
+
   private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
     if (!highwayType.enabled) {
       HighwaySetting.empty()
