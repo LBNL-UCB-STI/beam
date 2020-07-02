@@ -305,7 +305,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private boolean shouldWriteInIteration(int iterationNumber, int interval) {
-        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+        return interval == 1 || (interval > 0 && iterationNumber >= interval && iterationNumber % interval == 0);
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {
