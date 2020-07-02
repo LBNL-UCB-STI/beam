@@ -39,13 +39,13 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
   }
 
   private def runSimulationAndReturnModeChoiceColumnSum(iterationNumber: Int, incentivesFile: String): Double = {
-    val sfLightFolder = "test/input/sf-light/"
+    val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = $iterationNumber
-                      |beam.agentsim.agents.modeIncentive.filePath = "$sfLightFolder$incentivesFile"
+                      |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
                    """.stripMargin)
-      .withFallback(testConfig(s"${sfLightFolder}sf-light-1k.conf"))
+      .withFallback(testConfig(s"${beamVilleFolder}beam.conf"))
       .resolve()
 
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
@@ -91,7 +91,7 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
 object SimulateIncentiveSpec {
 
   def avgRideHailModeFromCsv(filePath: String): Double = {
-    val carLine = using(Source.fromFile(filePath)) { source =>
+    val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
       source.getLines().find(isRideHail)
     }
 
@@ -110,13 +110,5 @@ object SimulateIncentiveSpec {
   }
 
   private val rideHailValues = Set(BeamMode.RIDE_HAIL.value, BeamMode.RIDE_HAIL_POOLED.value)
-
-  def using[A <: AutoCloseable, B](resource: A)(f: A => B): B = {
-    try {
-      f(resource)
-    } finally {
-      resource.close()
-    }
-  }
 
 }
