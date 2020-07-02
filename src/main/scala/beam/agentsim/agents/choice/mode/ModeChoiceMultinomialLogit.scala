@@ -248,11 +248,11 @@ class ModeChoiceMultinomialLogit(
         getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
       )
       ModeCostTimeTransfer(
-        mode,
-        incentivizedCost,
-        scaledTime,
-        numTransfers,
-        altAndIdx._2
+        mode = mode,
+        cost = incentivizedCost,
+        scaledTime = scaledTime,
+        numTransfers = numTransfers,
+        index = altAndIdx._2
       )
     }
   }
