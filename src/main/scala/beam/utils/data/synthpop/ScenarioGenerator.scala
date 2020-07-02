@@ -567,33 +567,13 @@ object SimpleScenarioGenerator {
     val householdFilePath = s"$pathToOutput/households.csv"
     CsvHouseholdInfoWriter.write(householdFilePath, households)
     println(s"Wrote households information to $householdFilePath")
-    val readHouseholds = CsvHouseholdInfoReader.read(householdFilePath)
-    val areHouseholdsEqual = readHouseholds.toVector == households
-    println(s"areHouseholdsEqual: $areHouseholdsEqual")
-
-    // TODO: Remove once it is ready to be merged
-    households.foreach { hh =>
-      if (!gen.boundingBoxUTM.contains(hh.locationX, hh.locationY)) {
-        println(s"$hh is outside of bounding box!")
-      }
-    }
 
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
     val personsFilePath = s"$pathToOutput/persons.csv"
     CsvPersonInfoWriter.write(personsFilePath, persons)
     println(s"Wrote persons information to $personsFilePath")
-    val readPersons = CsvPersonInfoReader.read(personsFilePath)
-    val arePersonsEqual = readPersons.toVector == persons
-    println(s"arePersonsEqual: $arePersonsEqual")
 
-    // TODO: Remove once it is ready to be merged
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    planElements.filter(_.planElementType == "activity").foreach { plan =>
-      if (!gen.boundingBoxUTM.contains(plan.activityLocationX.get, plan.activityLocationY.get)) {
-        println(s"$plan is outside of bounding box!")
-      }
-    }
-
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = parsedArgs.localCRS
     }
@@ -605,10 +585,6 @@ object SimpleScenarioGenerator {
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
     println(s"Wrote plans information to $plansFilePath")
-    val readPlanElements = CsvPlanElementReader.read(plansFilePath)
-    val arePlanElementsEqual = readPlanElements.toVector == planElements
-    println(s"arePlanElementsEqual: $arePlanElementsEqual")
-
   }
 
   def main(args: Array[String]): Unit = {
