@@ -32,24 +32,22 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
     private final double caccMinRoadCapacity;
     private final double caccMinSpeedMetersPerSec;
-    private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads = 0;
-    private int numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads = 0;
-    private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads = 0;
-
-    private double capacityIncreaseSum = 0;
-    private double percentageCapacityIncreaseSum = 0;
     private final int currentIterationNumber;
-    private int writeInterval;
     private final boolean writeGraphs;
     private final OutputDirectoryHierarchy controllerIO;
-
-    private int nonCACCCategoryRoadsTravelled = 0;
-    private int caccCategoryRoadsTravelled = 0;
     private final MultiValuedMap<Double, Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
     private final Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
     private final Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
-
     private final Optional<ICsvMapWriter> csvWriter;
+
+    private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads = 0;
+    private int numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads = 0;
+    private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads = 0;
+    private double capacityIncreaseSum = 0;
+    private double percentageCapacityIncreaseSum = 0;
+    private int writeInterval;
+    private int nonCACCCategoryRoadsTravelled = 0;
+    private int caccCategoryRoadsTravelled = 0;
 
     public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig, int iterationNumber, OutputDirectoryHierarchy controllerIO, BeamConfigChangesObservable beamConfigChangesObservable) {
         double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
@@ -156,9 +154,11 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     public void reset() {
         caccCapacityIncrease.clear();
         csvWriter.ifPresent(writer -> {
-           try { writer.close();}
-           catch(Exception ex){
-           }
+            try {
+                writer.close();
+            } catch (Exception ex) {
+                log.warn("Error closing the writer", ex);
+            }
         });
     }
 
