@@ -122,8 +122,8 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
     }.sum
 
     val totalLinkCount = routes.map { route =>
-      // route.getLinkIds does not contain start and end links, so that's why 2 +
-      2 + route.getLinkIds.size()
+      val constantToCompensateRouteAbsenceOfStartAndEndLinks = 2
+      constantToCompensateRouteAbsenceOfStartAndEndLinks + route.getLinkIds.size()
     }.sum
 
     val avgRouteLen = totalRouteLen / routes.size
