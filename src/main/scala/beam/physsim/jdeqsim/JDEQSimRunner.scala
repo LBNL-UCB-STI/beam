@@ -108,7 +108,7 @@ class JDEQSimRunner(
         new PlotGraph().writeGraphic(
           legHistogram,
           controlerIO,
-          s"${currentPhysSimIter}.physsimTripHistogram",
+          s"$currentPhysSimIter.physsimTripHistogram",
           "time (binSize=<?> sec)",
           mode,
           agentSimIterationNumber,
