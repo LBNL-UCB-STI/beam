@@ -8,17 +8,15 @@ import beam.sflight.CaccSpec.NotFoundCarInTravelTimeMode
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
-import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -29,16 +27,21 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
     super.afterAll()
   }
 
-  "SF Light" must {
-    "run 1k scenario with different incentives" taggedAs (Periodic, ExcludeRegular) in {
+  "BeamVille with a lot of ride_hail incentives" must {
+    "choose ride_hail more times than without/less incentives" in {
       val lastIteration = 0
-      val avg1 = runSimulationAndReturnModeChoiceColumnSum(lastIteration, "incentives.csv")
-      val avg2 = runSimulationAndReturnModeChoiceColumnSum(lastIteration, "incentives-ride_hail.csv")
-      assert(avg1 <= avg2)
+      val avgChoicesWithoutRideHailIncentive =
+        runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
+      val avgChoicesWithRideHailIncentives =
+        runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
+      assert(avgChoicesWithoutRideHailIncentive <= avgChoicesWithRideHailIncentives)
     }
   }
 
-  private def runSimulationAndReturnModeChoiceColumnSum(iterationNumber: Int, incentivesFile: String): Double = {
+  private def runSimulationAndCalculateAverageOfRideHailChoices(
+    iterationNumber: Int,
+    incentivesFile: String
+  ): Double = {
     val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
       .parseString(s"""
@@ -66,14 +69,11 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
     val controller = services.controler
     controller.run()
 
-    val fileName = extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber)
-    println(fileName)
-    SimulateIncentiveSpec.avgRideHailModeFromCsv(fileName)
+    val fileName = extractFileName(outputDir, iterationNumber)
+    BeamIncentiveSpec.avgRideHailModeFromCsv(fileName)
   }
 
   private def extractFileName(
-    matsimConfig: Config,
-    beamConfig: BeamConfig,
     outputDir: String,
     iterationNumber: Int
   ): String = {
@@ -88,7 +88,7 @@ class SimulateIncentiveSpec extends WordSpecLike with Matchers with BeamHelper w
 
 }
 
-object SimulateIncentiveSpec {
+object BeamIncentiveSpec {
 
   def avgRideHailModeFromCsv(filePath: String): Double = {
     val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
@@ -105,9 +105,7 @@ object SimulateIncentiveSpec {
     relevantTimes.sum / relevantTimes.length
   }
 
-  def isRideHail(value: String): Boolean = {
-    rideHailValues.exists(value.startsWith)
-  }
+  def isRideHail(value: String): Boolean = rideHailValues.exists(value.startsWith)
 
   private val rideHailValues = Set(BeamMode.RIDE_HAIL.value, BeamMode.RIDE_HAIL_POOLED.value)
 
