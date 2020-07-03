@@ -115,7 +115,7 @@ class PhysSim(
       )
       carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
-        val rerouter = new Rerouter(workerParams, beamServices)
+        val rerouter = new ReRouter(workerParams, beamServices)
         val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
@@ -194,7 +194,7 @@ class PhysSim(
     carPeople
   }
 
-  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: Rerouter): Statistics = {
+  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: ReRouter): Statistics = {
     val rightPeopleToReplan = getCarPeople(population)
     val pctToNumberPersonToTake = (rightPeopleToReplan.size * reroutePerIterPct).toInt
     val takeN =
