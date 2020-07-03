@@ -36,8 +36,8 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
         plan.getPerson -> route
       }
       val result = getNewRoutes(toReroute, personToRoutes, travelTime)
-      var oldTravelTimes = new ArrayBuffer[Double]()
-      var newTravelTimes = new ArrayBuffer[Double]()
+      val oldTravelTimes = new ArrayBuffer[Double]()
+      val newTravelTimes = new ArrayBuffer[Double]()
       ProfilingUtils.timed(s"Update routes for ${toReroute.size} people", x => logger.info(x)) {
         updatePlans(oldTravelTimes, newTravelTimes, result)
         // We're assuming this should go down
