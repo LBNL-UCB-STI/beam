@@ -397,9 +397,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 try {
                     Attributes attributes = personToCopyFrom.getAttributes();
                     Stream<String> keys = Arrays.stream(attributes.toString().split("\\{ key=")).filter(x -> x.contains(";")).map(z -> z.split(";")[0]);
-                    keys.forEach(key -> {
-                        person.getAttributes().putAttribute(key, attributes.getAttribute(key));
-                    });
+                    keys.forEach(key -> person.getAttributes().putAttribute(key, attributes.getAttribute(key)));
                     final Household hh = personToHouseHold.get(personToCopyFrom.getId());
                     final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), beamServices.matsimServices().getScenario().getPopulation(), personToCopyFrom, hh);
                     person.getCustomAttributes().put(PopulationAdjustment.BEAM_ATTRIBUTES(), attributesOfIndividual);
