@@ -22,7 +22,7 @@ import scala.util.Try
 
 class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
 
-  private val (carVehId: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
+  private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
     .maxBy(_._2.sampleProbabilityWithinCategory)
 
