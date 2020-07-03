@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
+class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
 
   private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }

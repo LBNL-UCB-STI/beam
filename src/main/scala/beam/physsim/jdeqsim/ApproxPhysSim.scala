@@ -167,7 +167,7 @@ class ApproxPhysSim(
         )
       )
       carTravelTimeWriter.flush()
-      val rerouter = new Rerouter(workerParams, beamServices)
+      val rerouter = new ReRouter(workerParams, beamServices)
       val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", finalPopulation)
       //        logger.info("AverageCarTravelTime before replanning")
       //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
