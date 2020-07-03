@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
+package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions;
 
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.lang.ArrayUtils;

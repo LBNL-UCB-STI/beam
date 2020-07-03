@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
+package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions;
 
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamConfigChangesObserver;
