@@ -25,7 +25,7 @@ class ApproxPhysSim(
   val agentSimScenario: Scenario,
   val population: Population,
   val beamServices: BeamServices,
-  val controlerIO: OutputDirectoryHierarchy,
+  val controllerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
   val agentSimIterationNumber: Int,
@@ -84,12 +84,12 @@ class ApproxPhysSim(
 
   def run(travelTime: TravelTime): TravelTime = {
     val carTravelTimeWriter: CsvWriter = {
-      val fileName = controlerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
+      val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     val reroutedTravelTimeWriter: CsvWriter = {
       val fileName =
-        controlerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
+        controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     try {
@@ -147,7 +147,7 @@ class ApproxPhysSim(
         jdeqSimScenario,
         finalPopulation,
         beamServices,
-        controlerIO,
+        controllerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
         agentSimIterationNumber
