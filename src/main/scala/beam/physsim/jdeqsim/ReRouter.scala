@@ -35,46 +35,11 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
         }.toVector
         plan.getPerson -> route
       }
-
       val result = getNewRoutes(toReroute, personToRoutes, travelTime)
+      var oldTravelTimes = new ArrayBuffer[Double]()
       var newTravelTimes = new ArrayBuffer[Double]()
       ProfilingUtils.timed(s"Update routes for ${toReroute.size} people", x => logger.info(x)) {
-        var oldTravelTimes = new ArrayBuffer[Double]()
-        // Update plans
-        result.foreach {
-          case (person, xs) =>
-            val elems = person.getSelectedPlan.getPlanElements.asScala
-            xs.foreach {
-              case ElementIndexToRoutingResponse(index, maybeResp) =>
-                elems(index) match {
-                  case leg: Leg =>
-                    maybeResp.fold(
-                      ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
-                      (resp: RoutingResponse) => {
-                        resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
-                          case Some(beamLeg) =>
-                            oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
-                            newTravelTimes += beamLeg.duration.toDouble
-
-                            val javaLinkIds = beamLeg.travelPath.linkIds
-                              .map(beamServices.networkHelper.getLinkUnsafe)
-                              .map(_.getId)
-                              .asJava
-                            val newRoute = RouteUtils
-                              .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
-                            leg.setRoute(newRoute)
-                            leg.setDepartureTime(beamLeg.startTime)
-                            leg.setTravelTime(0)
-                            leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
-                            leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
-                          case _ =>
-                        }
-                      }
-                    )
-                  case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
-                }
-            }
-        }
+        updatePlans(oldTravelTimes, newTravelTimes, result)
         // We're assuming this should go down
         logger.info(
           s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
@@ -86,6 +51,47 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
       Statistics(newTravelTimes.map(x => x / 60).toArray)
     } else
       Statistics(Array.empty[Double])
+  }
+
+  private def updatePlans(
+    newTravelTimes: ArrayBuffer[Double],
+    oldTravelTimes: ArrayBuffer[Double],
+    result: Seq[(Person, Vector[ElementIndexToRoutingResponse])]
+  ): Unit = {
+    result.foreach {
+      case (person, xs) =>
+        val elems = person.getSelectedPlan.getPlanElements.asScala
+        xs.foreach {
+          case ElementIndexToRoutingResponse(index, maybeResp) =>
+            elems(index) match {
+              case leg: Leg =>
+                maybeResp.fold(
+                  ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
+                  (resp: RoutingResponse) => {
+                    resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
+                      case Some(beamLeg) =>
+                        oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
+                        newTravelTimes += beamLeg.duration.toDouble
+
+                        val javaLinkIds = beamLeg.travelPath.linkIds
+                          .map(beamServices.networkHelper.getLinkUnsafe)
+                          .map(_.getId)
+                          .asJava
+                        val newRoute = RouteUtils
+                          .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
+                        leg.setRoute(newRoute)
+                        leg.setDepartureTime(beamLeg.startTime)
+                        leg.setTravelTime(0)
+                        leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
+                        leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
+                      case _ =>
+                    }
+                  }
+                )
+              case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
+            }
+        }
+    }
   }
 
   private def getNewRoutes(
