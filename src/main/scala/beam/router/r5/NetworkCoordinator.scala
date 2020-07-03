@@ -51,14 +51,9 @@ trait NetworkCoordinator extends LazyLogging {
   var transportNetwork: TransportNetwork = _
   var network: Network = _
 
-  protected def preLoad(): Unit
-  protected def postLoad(): Unit
-
   def init(): Unit = {
-    preLoad()
     loadNetwork()
-    postLoad()
-    convertFrequenciesToTrips()
+    postLoadNetwork()
   }
 
   def loadNetwork(): Unit = {
@@ -93,7 +88,11 @@ trait NetworkCoordinator extends LazyLogging {
     }
   }
 
-  def overwriteLinkParams(
+  protected[r5] def postLoadNetwork(): Unit = {
+    convertFrequenciesToTrips()
+  }
+
+  private def overwriteLinkParams(
     overwriteLinkParamMap: Map[Int, LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
@@ -108,7 +107,7 @@ trait NetworkCoordinator extends LazyLogging {
     }
   }
 
-  def createPhyssimNetwork(): Unit = {
+  private def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
     val rmNetBuilder = new R5MnetBuilder(
       transportNetwork,
@@ -137,7 +136,7 @@ trait NetworkCoordinator extends LazyLogging {
     logger.info(s"MATSim network written")
   }
 
-  def convertFrequenciesToTrips(): Unit = {
+  private def convertFrequenciesToTrips(): Unit = {
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>

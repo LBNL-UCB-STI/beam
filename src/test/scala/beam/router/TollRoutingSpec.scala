@@ -55,8 +55,7 @@ class TollRoutingSpec
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    networkCoordinator.init()
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
