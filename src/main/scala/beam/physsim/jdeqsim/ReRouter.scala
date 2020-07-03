@@ -1,5 +1,9 @@
 package beam.physsim.jdeqsim
 
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
+import scala.util.Try
+
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -15,10 +19,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
-
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
-import scala.util.Try
 
 class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
 
@@ -36,14 +36,7 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
         plan.getPerson -> route
       }
 
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
-      // Get new routes
-      val result = ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
-        personToRoutes.par.map {
-          case (person, xs) =>
-            reroute(r5Wrapper, person, xs)
-        }.seq
-      }
+      val result = getNewRoutes(toReroute, personToRoutes, travelTime)
       var newTravelTimes = new ArrayBuffer[Double]()
       ProfilingUtils.timed(s"Update routes for ${toReroute.size} people", x => logger.info(x)) {
         var oldTravelTimes = new ArrayBuffer[Double]()
@@ -93,6 +86,20 @@ class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamService
       Statistics(newTravelTimes.map(x => x / 60).toArray)
     } else
       Statistics(Array.empty[Double])
+  }
+
+  private def getNewRoutes(
+    toReroute: Vector[Person],
+    personToRoutes: Vector[(Person, Vector[ElementIndexToLeg])],
+    travelTime: TravelTime
+  ): Seq[(Person, Vector[ElementIndexToRoutingResponse])] = {
+    val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
+    ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
+      personToRoutes.par.map {
+        case (person, xs) =>
+          reroute(r5Wrapper, person, xs)
+      }.seq
+    }
   }
 
   def printRouteStats(str: String, population: Population): RerouteStats = {
