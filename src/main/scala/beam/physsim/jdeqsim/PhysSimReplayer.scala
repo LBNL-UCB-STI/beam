@@ -16,8 +16,6 @@ import org.matsim.core.events.EventsManagerImpl
 import scala.io.Source
 import scala.util.Try
 
-class PhysSimReplayer {}
-
 object PhysSimReplayer extends StrictLogging {
 
   def eventsFilter(event: Event): Boolean = {
