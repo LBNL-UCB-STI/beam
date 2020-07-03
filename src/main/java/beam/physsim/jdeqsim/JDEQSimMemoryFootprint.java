@@ -8,9 +8,9 @@ import org.slf4j.LoggerFactory;
 
 public class JDEQSimMemoryFootprint implements BasicEventHandler {
 
-    int prevHour = 0;
-    boolean debugMode = false;
-    private final Logger log = LoggerFactory.getLogger(JDEQSimMemoryFootprint.class);
+    private static final Logger log = LoggerFactory.getLogger(JDEQSimMemoryFootprint.class);
+    private final boolean debugMode;
+    private int prevHour = 0;
 
     public JDEQSimMemoryFootprint(boolean debugMode) {
         this.debugMode = debugMode;
