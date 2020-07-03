@@ -21,11 +21,6 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
-  private val shouldLogWhenLinksAreNotTheSame: Boolean = false
-
-  private val bodyType: BeamVehicleType = beamServices.beamScenario.vehicleTypes(
-    Id.create(beamServices.beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
-  )
 
   private val (carVehId: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
