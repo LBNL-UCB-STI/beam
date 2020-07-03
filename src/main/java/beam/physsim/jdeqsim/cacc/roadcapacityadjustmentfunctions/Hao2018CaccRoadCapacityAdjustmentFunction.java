@@ -52,15 +52,14 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private final Optional<ICsvMapWriter> csvWriter;
 
     public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig, int iterationNumber, OutputDirectoryHierarchy controllerIO, BeamConfigChangesObservable beamConfigChangesObservable) {
-        final BeamConfig.Beam.Physsim.Jdeqsim.Cacc caccConfig = beamConfig.beam().physsim().jdeqsim().cacc();
-        double caccMinRoadCapacity = caccConfig.minRoadCapacity();
-        double caccMinSpeedMetersPerSec = caccConfig.minSpeedMetersPerSec();
+        double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
+        double caccMinSpeedMetersPerSec = beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec();
         log.info("caccMinRoadCapacity: {}, caccMinSpeedMetersPerSec: {}", caccMinRoadCapacity, caccMinSpeedMetersPerSec);
         this.caccMinRoadCapacity = caccMinRoadCapacity;
         this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
         this.currentIterationNumber = iterationNumber;
         this.controllerIO = controllerIO;
-        this.writeInterval = caccConfig.capacityPlansWriteInterval();
+        this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
         this.writeGraphs = beamConfig.beam().outputs().writeGraphs();
         beamConfigChangesObservable.addObserver(this);
 
