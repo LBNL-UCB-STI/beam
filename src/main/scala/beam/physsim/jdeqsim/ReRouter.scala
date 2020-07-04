@@ -1,5 +1,9 @@
 package beam.physsim.jdeqsim
 
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
+import scala.util.Try
+
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -16,18 +20,9 @@ import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
-import scala.util.Try
+class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
 
-class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
-  private val shouldLogWhenLinksAreNotTheSame: Boolean = false
-
-  private val bodyType: BeamVehicleType = beamServices.beamScenario.vehicleTypes(
-    Id.create(beamServices.beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
-  )
-
-  private val (carVehId: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
+  private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
     .maxBy(_._2.sampleProbabilityWithinCategory)
 
@@ -40,53 +35,11 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
         }.toVector
         plan.getPerson -> route
       }
-
-      val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
-      // Get new routes
-      val result = ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
-        personToRoutes.par.map {
-          case (person, xs) =>
-            reroute(r5Wrapper, person, xs)
-        }.seq
-      }
-      var newTravelTimes = new ArrayBuffer[Double]()
+      val result = getNewRoutes(toReroute, personToRoutes, travelTime)
+      val oldTravelTimes = new ArrayBuffer[Double]()
+      val newTravelTimes = new ArrayBuffer[Double]()
       ProfilingUtils.timed(s"Update routes for ${toReroute.size} people", x => logger.info(x)) {
-        var oldTravelTimes = new ArrayBuffer[Double]()
-        // Update plans
-        result.foreach {
-          case (person, xs) =>
-            val elems = person.getSelectedPlan.getPlanElements.asScala
-            xs.foreach {
-              case ElementIndexToRoutingResponse(index, maybeResp) =>
-                elems(index) match {
-                  case leg: Leg =>
-                    maybeResp.fold(
-                      ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
-                      (resp: RoutingResponse) => {
-                        resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
-                          case Some(beamLeg) =>
-                            oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
-                            newTravelTimes += beamLeg.duration.toDouble
-
-                            val javaLinkIds = beamLeg.travelPath.linkIds
-                              .map(beamServices.networkHelper.getLinkUnsafe)
-                              .map(_.getId)
-                              .asJava
-                            val newRoute = RouteUtils
-                              .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
-                            leg.setRoute(newRoute)
-                            leg.setDepartureTime(beamLeg.startTime)
-                            leg.setTravelTime(0)
-                            leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
-                            leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
-                          case _ =>
-                        }
-                      }
-                    )
-                  case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
-                }
-            }
-        }
+        updatePlans(oldTravelTimes, newTravelTimes, result)
         // We're assuming this should go down
         logger.info(
           s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
@@ -98,6 +51,61 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
       Statistics(newTravelTimes.map(x => x / 60).toArray)
     } else
       Statistics(Array.empty[Double])
+  }
+
+  private def updatePlans(
+    newTravelTimes: ArrayBuffer[Double],
+    oldTravelTimes: ArrayBuffer[Double],
+    result: Seq[(Person, Vector[ElementIndexToRoutingResponse])]
+  ): Unit = {
+    result.foreach {
+      case (person, xs) =>
+        val elems = person.getSelectedPlan.getPlanElements.asScala
+        xs.foreach {
+          case ElementIndexToRoutingResponse(index, maybeResp) =>
+            elems(index) match {
+              case leg: Leg =>
+                maybeResp.fold(
+                  ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
+                  (resp: RoutingResponse) => {
+                    resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
+                      case Some(beamLeg) =>
+                        oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
+                        newTravelTimes += beamLeg.duration.toDouble
+
+                        val javaLinkIds = beamLeg.travelPath.linkIds
+                          .map(beamServices.networkHelper.getLinkUnsafe)
+                          .map(_.getId)
+                          .asJava
+                        val newRoute = RouteUtils
+                          .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
+                        leg.setRoute(newRoute)
+                        leg.setDepartureTime(beamLeg.startTime)
+                        leg.setTravelTime(0)
+                        leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
+                        leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
+                      case _ =>
+                    }
+                  }
+                )
+              case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
+            }
+        }
+    }
+  }
+
+  private def getNewRoutes(
+    toReroute: Vector[Person],
+    personToRoutes: Vector[(Person, Vector[ElementIndexToLeg])],
+    travelTime: TravelTime
+  ): Seq[(Person, Vector[ElementIndexToRoutingResponse])] = {
+    val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
+    ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
+      personToRoutes.par.map {
+        case (person, xs) =>
+          reroute(r5Wrapper, person, xs)
+      }.seq
+    }
   }
 
   def printRouteStats(str: String, population: Population): RerouteStats = {
@@ -120,8 +128,8 @@ class Rerouter(val workerParams: WorkerParameters, val beamServices: BeamService
     }.sum
 
     val totalLinkCount = routes.map { route =>
-      // route.getLinkIds does not contain start and end links, so that's why 2 +
-      2 + route.getLinkIds.size()
+      val constantToCompensateRouteAbsenceOfStartAndEndLinks = 2
+      constantToCompensateRouteAbsenceOfStartAndEndLinks + route.getLinkIds.size()
     }.sum
 
     val avgRouteLen = totalRouteLen / routes.size
