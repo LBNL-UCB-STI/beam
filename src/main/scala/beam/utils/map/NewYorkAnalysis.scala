@@ -1,6 +1,7 @@
 package beam.utils.map
 
 import beam.sim.common.GeoUtils
+import beam.utils.csv.CsvWriter
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import beam.utils.shape.{NoAttributeShapeWriter, ShapeWriter}
 import com.conveyal.osmlib.OSM
@@ -15,13 +16,31 @@ object NewYorkAnalysis {
   private val geometryFactory = new GeometryFactory()
 
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
-    override def localCRS: String = "epsg:26910"
+    override def localCRS: String = "epsg:2263"
   }
 
   def main(args: Array[String]): Unit = {
-    val pathToNetwork = "C:/repos/beam/test/input/newyork/r5-prod/newyork-simplified.osm.pbf"
-    val pathToPlans = "D:/Work/beam/NewYork/results_06-30-2020_01-47-08/plans.csv"
+    val pathToNetwork = "D:/Work/beam/NewYork/input/OSM/newyork-simplified.osm.pbf"
+    val pathToPlans = "D:/Work/beam/NewYork/results_06-30-2020_10-36-34/plans.csv"
 
+    val activities = CsvPlanElementReader.read(pathToPlans).filter(x => x.planElementType.equalsIgnoreCase("activity"))
+
+    val coords = activities.map { activity =>
+      val wgsCoord = new Coord(activity.activityLocationX.get, activity.activityLocationY.get)
+      val utm = geoUtils.wgs2Utm(wgsCoord)
+      val wgsBack = geoUtils.utm2Wgs(utm)
+      val distance = geoUtils.distLatLon2Meters(wgsBack, wgsCoord)
+      (distance, wgsCoord, wgsBack)
+    }.sortBy { case (diff, _, _) => -diff }
+    println(s"wgsCoords1: ${coords.length}")
+
+    val csvWriter = new CsvWriter("coords.csv", Array("original_x", "original_y", "converted_x", "converted_y", "distance"))
+    coords.foreach { case (distance, originalWgs, convertedWgs) =>
+      csvWriter.write(originalWgs.getX, originalWgs.getY, convertedWgs.getX, convertedWgs.getY, distance)
+    }
+    csvWriter.close()
+
+    val wgsCoords1 = coords.map(_._2)
 
     val boundingBox: Envelope = new Envelope()
     val allCoords = ArrayBuffer[Coordinate]()
@@ -38,7 +57,6 @@ object NewYorkAnalysis {
     } finally {
       Try(osm.close())
     }
-    val activities = CsvPlanElementReader.read(pathToPlans).filter(x => x.planElementType.equalsIgnoreCase("activity"))
 
     val ch = new ConvexHull(allCoords.toArray, geometryFactory).getConvexHull
     val polygon: Polygon = geometryFactory.createPolygon(ch.getCoordinates)
@@ -47,10 +65,6 @@ object NewYorkAnalysis {
     val boundingBoxPolygon = geometryFactory.toGeometry(boundingBox).asInstanceOf[Polygon]
     writePolygon(boundingBoxPolygon, "bounding_box.shp")
 
-    val wgsCoords1 = activities.map { activity =>
-      val wgsCoord = new Coord(activity.activityLocationX.get, activity.activityLocationY.get)
-      wgsCoord
-    }
     showDistribution(boundingBox, wgsCoords1)
 
     val withinBoundingBox = NoAttributeShapeWriter.worldGeodetic[Point]("withinBoundingBox.shp")
