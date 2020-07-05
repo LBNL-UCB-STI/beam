@@ -55,31 +55,31 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    *
    * See Pooling for an example of an algorithm that uses removeRequestFromBuffer
    */
-  def addRequestToBuffer(request: RideHailRequest) = {
+  def addRequestToBuffer(request: RideHailRequest): Unit = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
 
-  def addRequestToSecondaryBuffer(request: RideHailRequest) = {
+  def addRequestToSecondaryBuffer(request: RideHailRequest): Unit = {
     secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
   }
 
-  def clearPrimaryBufferAndFillFromSecondary = {
+  def clearPrimaryBufferAndFillFromSecondary: Unit = {
     bufferedRideHailRequests = secondaryBufferedRideHailRequests
     secondaryBufferedRideHailRequests = Map()
   }
 
-  def getBufferSize = bufferedRideHailRequests.size
+  def getBufferSize: Int = bufferedRideHailRequests.size
 
-  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse): Unit = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
     if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
-  def removeRequestFromBuffer(request: RideHailRequest) = {
+  def removeRequestFromBuffer(request: RideHailRequest): Unit = {
     bufferedRideHailRequests -= request
   }
-  def isBufferEmpty = bufferedRideHailRequests.isEmpty
+  def isBufferEmpty: Boolean = bufferedRideHailRequests.isEmpty
 
   def allocateVehiclesToCustomers(tick: Int, beamServices: BeamServices): AllocationResponse = {
     var allocationResponse =

@@ -7,6 +7,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocatio
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
@@ -21,29 +22,29 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  val repositioningConfig =
+  val repositioningConfig: AllocationManager.RepositionLowWaitingTimes =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
   // TODO: get proper number here from rideHailManager
-  val timeWindowSizeInSecForDecidingAboutRepositioning =
+  val timeWindowSizeInSecForDecidingAboutRepositioning: Double =
     repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
 
-  val percentageOfVehiclesToReposition =
+  val percentageOfVehiclesToReposition: Double =
     repositioningConfig.percentageOfVehiclesToReposition
 
-  val maxNumberOfVehiclesToReposition =
+  val maxNumberOfVehiclesToReposition: Int =
     (rideHailManager.fleetSize * percentageOfVehiclesToReposition).toInt
 
-  var repositionCircleRadiusInMeters =
+  var repositionCircleRadiusInMeters: Double =
     repositioningConfig.repositionCircleRadiusInMeters
 
-  val minimumNumberOfIdlingVehiclesThresholdForRepositioning =
+  val minimumNumberOfIdlingVehiclesThresholdForRepositioning: Int =
     repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
 
-  val allowIncreasingRadiusIfDemandInRadiusLow =
+  val allowIncreasingRadiusIfDemandInRadiusLow: Boolean =
     repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
 
-  val minDemandPercentageInRadius =
+  val minDemandPercentageInRadius: Double =
     repositioningConfig.minDemandPercentageInRadius
 
   override def repositionVehicles(

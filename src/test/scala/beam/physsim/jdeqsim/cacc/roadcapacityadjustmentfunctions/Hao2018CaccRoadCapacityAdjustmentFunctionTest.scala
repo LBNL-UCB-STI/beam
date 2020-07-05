@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions
+package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions
 import java.util.concurrent.ThreadLocalRandom
 
 import beam.sim.BeamConfigChangesObservable

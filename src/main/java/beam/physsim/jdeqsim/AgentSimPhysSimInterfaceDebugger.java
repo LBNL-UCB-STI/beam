@@ -8,7 +8,6 @@ import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.utils.collections.Tuple;
 
 import java.util.LinkedList;
 import java.util.Map;
@@ -32,15 +31,12 @@ public class AgentSimPhysSimInterfaceDebugger {
         String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
         String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
         String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
-        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL()));
 
         if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();
         }
 
         LinkedList<String> linkIds_ = PathTraversalLib.getLinkIdList(links_, ",");
-
-        Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(eventAttributes);
 
         for (int i = 0; i < linkIds_.size() - 1; i++) {
             int linkIdInt = Integer.parseInt(linkIds_.get(i));
