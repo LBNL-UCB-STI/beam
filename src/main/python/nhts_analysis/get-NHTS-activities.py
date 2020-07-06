@@ -4,16 +4,26 @@ import numpy as np
 import scipy.ndimage
 
 # %%
-trips_all = pd.read_csv('Data/NHTS/trippub.csv',
+trips_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/trippub.csv.gz',
                     usecols=[0, 1, 2, 3, 4, 5, 6, 7, 17, 26, 28, 58, 59, 60, 61, 64, 69, 70, 71, 72, 73, 74, 84, 89, 93,
                              102, 103])
 
-persons_all = pd.read_csv('Data/NHTS/perpub.csv')
+persons_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/perpub.csv.gz')
 
 #%%
 
 
 actnames = {1:'Home',2:'Home',3:'Work',8:'Work',11:'Shopping',12:'Shopping',13:'Meal',15:'SocRec',16:'SocRec',17:'SocRec',19:'SocRec'}
+
+modenames = {1:'Walk',2:'Bike',3:'Car',4:'Car',5:'Car',6:'Car',7:'Car',8:'Car',9:'Car',10:'Bus',11:'Bus',13:'Bus',14:'Bus',15:'Rail',16:'Rail',17:'Ridehail',18:'Rental Car'}
+
+
+def getModeShare(trips):
+    modes = [modenames.get(val, 'Other') for val in trips.TRPTRANS]
+    trips['modename'] = modes
+    all_mode_share = trips.groupby('modename').agg({'WTTRDFIN':'sum'})/trips['WTTRDFIN'].sum()
+    work_mode_share = trips.loc[trips.toWork | trips.fromWork].groupby('modename').agg({'WTTRDFIN':'sum'})/trips.loc[trips.toWork | trips.fromWork]['WTTRDFIN'].sum()
+    return pd.concat([all_mode_share.rename(columns={"WTTRDFIN":"All Trips"}),work_mode_share.rename(columns={"WTTRDFIN":"Work Trips"})], axis=1)
 
 def getActivities(trips):
     locations = np.append(trips.WHYFROM.values,trips.WHYTO.values[-1])
@@ -46,7 +56,7 @@ def getIntercepts(activities):
     for location in locations:
         counts, bins = np.histogram(activities.loc[activities.location == location,'startTime'],range(26), weights = activities.loc[activities.location == location,'weight'])
         counts = counts / nPeople *24
-        counts[counts < 0.025] = 0.0
+        counts[counts < 0.015] = 0.0
         intercepts[location] = counts
     df = pd.DataFrame(intercepts, columns=locations)
     df.index.name = 'Hour'
@@ -74,7 +84,7 @@ def getCalibration(trips):
     df.index.name = 'Trip Purpose'
     return df
 #%%
-for cbsa in persons_all.HH_CBSA.unique():#['12420']:
+for cbsa in ['12420','35620','41860','19820']:
     trips = trips_all.loc[(trips_all['HH_CBSA'] == cbsa) , :]
 
 
@@ -88,6 +98,9 @@ for cbsa in persons_all.HH_CBSA.unique():#['12420']:
     trips['endHour'] = np.floor(trips.ENDTIME / 100) + np.mod(trips.ENDTIME, 100) / 60
     trips['toWork'] = (trips.WHYTO == 3) | (trips.WHYTO == 4)
     trips['fromWork'] = (trips.WHYFROM == 3) | (trips.WHYFROM == 4)
+    
+    modeshares = getModeShare(trips)
+    modeshares.to_csv('outputs/mode-shares-'+cbsa+'.csv')
     
     out = trips.groupby('UniquePID').apply(getActivities)
     out = out[out['startTime'] > 0]
