@@ -10,16 +10,37 @@ import scala.collection.JavaConverters._
 
 class DefaultNetworkCoordinatorSpec extends WordSpecLike with Matchers with MockitoSugar {
 
-  private val config = ConfigFactory.load(testConfig("test/input/beamville/beam.conf"))
+  private val beamR5Dir = getClass.getResource("/r5").getPath
+
+  private val config = ConfigFactory
+    .parseString(s"""
+                    |beam.routing {
+                    |  baseDate = "2016-10-17T00:00:00-07:00"
+                    |  transitOnStreetNetwork = true
+                    |  r5 {
+                    |    directory = $beamR5Dir
+                    |    osmFile = $beamR5Dir"/test.osm.pbf"
+                    |    osmMapdbFile = $beamR5Dir"/osm.mapdb"
+                    |  }
+                    |  startingIterationForTravelTimesMSA = 1
+                    |}
+                    |""".stripMargin)
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
   "DefaultNetworkCoordinator" should {
     val beamConfig = BeamConfig(config)
-    val networkCoordinator = NetworkCoordinator.create(beamConfig)
-    networkCoordinator shouldBe a[DefaultNetworkCoordinator]
 
-    networkCoordinator.loadNetwork()
+    "be instance of a DefaultNetworkCoordinator" in {
+      val networkCoordinator = NetworkCoordinator.create(beamConfig)
+      networkCoordinator shouldBe a[DefaultNetworkCoordinator]
+
+    }
 
     "load GTFS files into a transit layer" in {
+      val networkCoordinator = NetworkCoordinator.create(beamConfig)
+      networkCoordinator.loadNetwork()
+
       val transitLayer = networkCoordinator.transportNetwork.transitLayer
       transitLayer.hasFrequencies shouldBe true
 
@@ -66,7 +87,9 @@ class DefaultNetworkCoordinatorSpec extends WordSpecLike with Matchers with Mock
       )
     }
 
-    "convert frequencies to trips in post load network" in {
+    "convert frequencies to trips in post load network without adjustments" in {
+      val networkCoordinator = NetworkCoordinator.create(beamConfig)
+      networkCoordinator.loadNetwork()
       networkCoordinator.postLoadNetwork()
 
       val transitLayer = networkCoordinator.transportNetwork.transitLayer

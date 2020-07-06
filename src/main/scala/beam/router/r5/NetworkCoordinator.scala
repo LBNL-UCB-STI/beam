@@ -199,7 +199,7 @@ trait NetworkCoordinator extends LazyLogging {
 object NetworkCoordinator {
 
   def create(beamConfig: BeamConfig): NetworkCoordinator =
-    if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
+    if (beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile.isDefined) {
       FrequencyAdjustingNetworkCoordinator(beamConfig)
     } else {
       DefaultNetworkCoordinator(beamConfig)

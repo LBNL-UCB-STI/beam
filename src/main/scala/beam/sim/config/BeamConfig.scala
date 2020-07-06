@@ -1439,7 +1439,7 @@ object BeamConfig {
       }
 
       case class Scenarios(
-        frequencyAdjustmentFile: java.lang.String
+        frequencyAdjustmentFile: scala.Option[java.lang.String]
       )
 
       object Scenarios {
@@ -1447,8 +1447,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Scenarios = {
           BeamConfig.Beam.Agentsim.Scenarios(
             frequencyAdjustmentFile =
-              if (c.hasPathOrNull("frequencyAdjustmentFile")) c.getString("frequencyAdjustmentFile")
-              else "/test/input/beamville/r5/FrequencyAdjustment.csv"
+              if (c.hasPathOrNull("frequencyAdjustmentFile")) Some(c.getString("frequencyAdjustmentFile")) else None
           )
         }
       }
