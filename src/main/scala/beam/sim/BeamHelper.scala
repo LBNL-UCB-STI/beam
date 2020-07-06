@@ -674,7 +674,6 @@ trait BeamHelper extends LazyLogging {
     fileWriter.close
   }
 
-  // TODO test
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
     val networkCoordinator = NetworkCoordinator.create(beamConfig)
     networkCoordinator.init()
