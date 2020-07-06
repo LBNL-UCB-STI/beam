@@ -8,7 +8,7 @@ import scala.reflect.io.File
 
 class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
 
-  "CarRideStatsFromPathTraversalEventHandlerSpec" must {
+  "CarTripStatsFromPathTraversalEventHandler" must {
     "write speed statistics files" in {
       val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
