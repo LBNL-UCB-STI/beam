@@ -12,11 +12,9 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.sys.process.Process
 
-
 object PrepareOsmToR5 extends App {
   if (args.length == 0) {
-    println(
-      """
+    println("""
 Usage: [options] -i inputFilePath -o outputFilePath
   -f
     filter input file by osmium-tool
@@ -35,12 +33,12 @@ Usage: [options] -i inputFilePath -o outputFilePath
 
   def nextOption(map: Map[String, String], list: List[String]): Map[String, String] = {
     list match {
-      case Nil => map
-      case "-f" :: tail => nextOption(map ++ Map("filter" -> ""), tail)
+      case Nil                   => map
+      case "-f" :: tail          => nextOption(map ++ Map("filter" -> ""), tail)
       case "-s" :: value :: tail => nextOption(map ++ Map("simplify" -> value), tail)
       case "-i" :: value :: tail => nextOption(map ++ Map("input" -> value), tail)
       case "-o" :: value :: tail => nextOption(map ++ Map("output" -> value), tail)
-      case "--stats" :: tail => nextOption(map ++ Map("stats" -> "true"), tail)
+      case "--stats" :: tail     => nextOption(map ++ Map("stats" -> "true"), tail)
       case option :: tail => {
         println(s"Unknown option $option")
         System.exit(1)
@@ -79,7 +77,10 @@ Usage: [options] -i inputFilePath -o outputFilePath
 
 class PrepareOsmToR5 extends LazyLogging {
   private val toolDockerImage = "stefda/osmium-tool"
-  private val tagKeys = "traffic_signal:direction, traffic_signals:direction, destination, vehicle, motor_vehicle, bridge:support, motorcar, bicycle, traffic_calming, maxspeed, lanes:both_ways, side, lanes, bicycle_parking, point_mile, direction, traffic_signals:light, lanes:forward, turn:lanes:forward, turn:lanes:backward, traffic_signals:sound, service:bicycle:tools, traffic_sign, destination:lanes, public_transport, turning_circle, railway, bridge, motorcycle, service:bicycle:pump, cycleway, stop, traffic_sign:direction, kerb, barrier:rfid, highway, tunnel, railway:position:exact, traffic_signals, foot, lanes:backward, bus".split(",").map(_.trim)
+  private val tagKeys =
+    "traffic_signal:direction, traffic_signals:direction, destination, vehicle, motor_vehicle, bridge:support, motorcar, bicycle, traffic_calming, maxspeed, lanes:both_ways, side, lanes, bicycle_parking, point_mile, direction, traffic_signals:light, lanes:forward, turn:lanes:forward, turn:lanes:backward, traffic_signals:sound, service:bicycle:tools, traffic_sign, destination:lanes, public_transport, turning_circle, railway, bridge, motorcycle, service:bicycle:pump, cycleway, stop, traffic_sign:direction, kerb, barrier:rfid, highway, tunnel, railway:position:exact, traffic_signals, foot, lanes:backward, bus"
+      .split(",")
+      .map(_.trim)
 
   private val geo: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:2808"
@@ -119,37 +120,39 @@ class PrepareOsmToR5 extends LazyLogging {
     def simplifyInner() = {
       def simplifyWays() = {
         val nodeToWayMap = new mutable.HashMap[Long, mutable.ListBuffer[Long]]()
-        osm.ways.asScala.foreach { case (id, way) =>
-          for (i <- way.nodes.indices) {
-            val node = way.nodes(i)
-            nodeToWayMap.get(node) match {
-              case Some(value) => value += id
-              case None =>
-                val list = new mutable.ListBuffer[Long]()
-                list += id
-                nodeToWayMap.put(node, list)
+        osm.ways.asScala.foreach {
+          case (id, way) =>
+            for (i <- way.nodes.indices) {
+              val node = way.nodes(i)
+              nodeToWayMap.get(node) match {
+                case Some(value) => value += id
+                case None =>
+                  val list = new mutable.ListBuffer[Long]()
+                  list += id
+                  nodeToWayMap.put(node, list)
+              }
             }
-          }
         }
 
-        val simplifiedWays = osm.ways.asScala.map { case (id, way) =>
-          val newNodes = new ListBuffer[Long]()
+        val simplifiedWays = osm.ways.asScala.map {
+          case (id, way) =>
+            val newNodes = new ListBuffer[Long]()
 
-          newNodes += way.nodes(0)
-          for (i <- 1 until way.nodes.length - 1) {
-            val nodeTags = osm.nodes.get(way.nodes(i)).tags
-            if (nodeToWayMap(way.nodes(i)).size > 1 ||
-              (nodeTags != null && nodeTags.asScala.exists(tags => tagKeys.contains(tags.key)))) {
-              newNodes += way.nodes(i)
-            } else {
-              val distanceToNextNode = getDistance(osm, newNodes.last, way.nodes(i))
-              if (distanceToNextNode > distance) {
-                newNodes += way.nodes(i)
-              } else if (i + 1 > way.nodes.length) {
+            newNodes += way.nodes(0)
+            for (i <- 1 until way.nodes.length - 1) {
+              val nodeTags = osm.nodes.get(way.nodes(i)).tags
+              if (nodeToWayMap(way.nodes(i)).size > 1 ||
+                  (nodeTags != null && nodeTags.asScala.exists(tags => tagKeys.contains(tags.key)))) {
                 newNodes += way.nodes(i)
               } else {
-                // check angle to determine turn
-                // not work because nodes i and i+1 too close
+                val distanceToNextNode = getDistance(osm, newNodes.last, way.nodes(i))
+                if (distanceToNextNode > distance) {
+                  newNodes += way.nodes(i)
+                } else if (i + 1 > way.nodes.length) {
+                  newNodes += way.nodes(i)
+                } else {
+                  // check angle to determine turn
+                  // not work because nodes i and i+1 too close
 
 //                val a = getDistance(osm, way.nodes(i), way.nodes(i + 1))
 //                val b = distanceToNextNode
@@ -159,14 +162,14 @@ class PrepareOsmToR5 extends LazyLogging {
 //                if (angle < 120.0) {
 //                  newNodes += way.nodes(i)
 //                }
+                }
               }
             }
-          }
-          if (way.nodes.length > 1) {
-            newNodes += way.nodes(way.nodes.length - 1)
-          }
+            if (way.nodes.length > 1) {
+              newNodes += way.nodes(way.nodes.length - 1)
+            }
 
-          id -> newNodes
+            id -> newNodes
         }
 
         simplifiedWays
@@ -180,19 +183,21 @@ class PrepareOsmToR5 extends LazyLogging {
       val secondsSinceEpoch: Long = System.currentTimeMillis / 1000
       copy.setReplicationTimestamp(secondsSinceEpoch)
 
-      osm.ways.asScala.foreach { case (id, way) =>
-        if (simplifiedWays.contains(id)) {
-          way.nodes = simplifiedWays(id).toArray
-          copy.writeWay(id, way)
-        }
+      osm.ways.asScala.foreach {
+        case (id, way) =>
+          if (simplifiedWays.contains(id)) {
+            way.nodes = simplifiedWays(id).toArray
+            copy.writeWay(id, way)
+          }
       }
 
       simplifiedWays.values.flatten.foreach { nodeId =>
         copy.writeNode(nodeId, osm.nodes.get(nodeId))
       }
 
-      osm.relations.asScala.foreach { case (id, rel) =>
-        copy.writeRelation(id, rel)
+      osm.relations.asScala.foreach {
+        case (id, rel) =>
+          copy.writeRelation(id, rel)
       }
 
       copy.writeEnd()
