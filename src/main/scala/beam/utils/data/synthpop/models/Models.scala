@@ -38,7 +38,7 @@ object Models {
   }
 
   case class BlockGroupGeoId(state: State, county: County, tract: String, blockGroup: String) {
-    def asUniqueKey: String = s"${state.value}${county.value}${tract}${blockGroup}"
+    def asUniqueKey: String = s"${state.value}-${county.value}-${tract}-${blockGroup}"
   }
 
   case class TazGeoId(state: State, county: County, taz: String) {

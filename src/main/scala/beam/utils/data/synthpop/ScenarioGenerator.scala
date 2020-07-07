@@ -21,7 +21,7 @@ import beam.utils.data.synthpop.generators.{
   WorkedDurationGeneratorImpl
 }
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, TazGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, State, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
@@ -86,7 +86,8 @@ class SimpleScenarioGenerator(
     legRouteEndLink = None,
     legRouteTravelTime = None,
     legRouteDistance = None,
-    legRouteLinks = Seq.empty
+    legRouteLinks = Seq.empty,
+    geoId = None
   )
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
@@ -136,14 +137,6 @@ class SimpleScenarioGenerator(
     uniqueGeoIds,
     geoUtils
   )
-
-  val boundingBoxUTM: Envelope = {
-    val maxCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMaxX, geoSvc.mapBoundingBox.getMaxY))
-    val minCoord = geoUtils.wgs2Utm(new Coord(geoSvc.mapBoundingBox.getMinX, geoSvc.mapBoundingBox.getMinY))
-    val envelope = new Envelope(maxCoord.getX, minCoord.getX, maxCoord.getY, minCoord.getY)
-    logger.info(s"mapBoundingBoxUTM: ${envelope}")
-    envelope
-  }
 
   val blockGroupToToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = ProfilingUtils.timed(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
@@ -222,7 +215,7 @@ class SimpleScenarioGenerator(
           )
         }
         val res = householdsWithPersonData.zip(householdLocation).map {
-          case ((household, personsWithData), wgsHouseholdLocation) =>
+          case ((household: Models.Household, personsWithData: Seq[PersonWithExtraInfo]), wgsHouseholdLocation) =>
             val householdCheckResult = geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)
             if (householdCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
               val createdHousehold = HouseholdInfo(
@@ -235,10 +228,13 @@ class SimpleScenarioGenerator(
 
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case ((xs, nextPersonId), PersonWithExtraInfo(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
-                    val workLocations = tazGeoIdToWorkingLocations(workDestPumaGeoId)
-                    val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
-                    nextWorkLocation.update(workDestPumaGeoId, offset + 1)
+                  case (
+                      (xs, nextPersonId: Int),
+                      PersonWithExtraInfo(person, workTazGeoId: TazGeoId, timeLeavingHomeRange)
+                      ) =>
+                    val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
+                    val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
+                    nextWorkLocation.update(workTazGeoId, offset + 1)
                     workLocations.lift(offset) match {
                       case Some(wgsWorkingLocation) =>
                         val workingLocationCheckResult = geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)
@@ -263,7 +259,8 @@ class SimpleScenarioGenerator(
                             activityType = Some("Home"),
                             activityLocationX = Some(wgsHouseholdLocation.getX),
                             activityLocationY = Some(wgsHouseholdLocation.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0)
+                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                            geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
@@ -287,7 +284,8 @@ class SimpleScenarioGenerator(
                             activityType = Some("Work"),
                             activityLocationX = Some(wgsWorkingLocation.getX),
                             activityLocationY = Some(wgsWorkingLocation.getY),
-                            activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
+                            activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
+                            geoId = Some(toStateGeoId(workTazGeoId.state, workTazGeoId.county))
                           )
                           val leavingWorkLeg = planElementTemplate
                             .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
@@ -299,7 +297,8 @@ class SimpleScenarioGenerator(
                             planElementIndex = 5,
                             activityType = Some("Home"),
                             activityLocationX = Some(wgsHouseholdLocation.getX),
-                            activityLocationY = Some(wgsHouseholdLocation.getY)
+                            activityLocationY = Some(wgsHouseholdLocation.getY),
+                            geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
                           )
 
                           val personWithPlans = PersonWithPlans(
@@ -514,6 +513,9 @@ class SimpleScenarioGenerator(
     }
   }
 
+  def toStateGeoId(state: State, county: County): String = {
+    s"${state.value}-${county.value}"
+  }
 }
 
 object SimpleScenarioGenerator {
