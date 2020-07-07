@@ -54,6 +54,7 @@ trait NetworkCoordinator extends LazyLogging {
   def init(): Unit = {
     loadNetwork()
     postLoadNetwork()
+    convertFrequenciesToTrips()
   }
 
   def loadNetwork(): Unit = {
@@ -88,9 +89,7 @@ trait NetworkCoordinator extends LazyLogging {
     }
   }
 
-  protected[r5] def postLoadNetwork(): Unit = {
-    convertFrequenciesToTrips()
-  }
+  protected[r5] def postLoadNetwork(): Unit = {}
 
   private def overwriteLinkParams(
     overwriteLinkParamMap: Map[Int, LinkParam],

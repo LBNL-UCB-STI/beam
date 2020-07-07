@@ -59,10 +59,10 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
           ts.arrivals.mkString(","),
           ts.departures.mkString(",")
         )
-      } should contain allElementsOf expectedTripSchedules
+      } should contain allElementsOf expectedNotAdjustedTripSchedules
     }
 
-    "load GTFS files into a transit layer and apply adjustment without changes" in {
+    "load GTFS files into a transit layer and apply adjustment csv without any changes" in {
       val networkCoordinator = FrequencyAdjustingNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.postLoadNetwork()
@@ -88,13 +88,15 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
           )
         }
         .map { v =>
-          // for debug purposes
+          // TODO for debug purposes
           println(v)
           v
-        } should contain allElementsOf expectedTripSchedules
+        } should contain allElementsOf expectedNotAdjustedTripSchedules // FIXME it fails
     }
 
-    def expectedTripSchedules = List(
+    "load GTFS files into a transit layer and apply adjustment csv with some changes" ignore {}
+
+    def expectedNotAdjustedTripSchedules = Seq(
       ("bus:B1-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
       ("bus:B1-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
       ("bus:B2-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
@@ -105,7 +107,9 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
       ("train:R2-SOUTH-1", "21600", "79200", "600", "0,900", "660,1560")
     )
 
-    "apply adjustment and convert frequencies to trips in post load network" ignore {
+    def expectedAdjustedTripSchedules = Seq() // TODO
+
+    "convert frequencies to trips after loading network without any adjustments" ignore {
       val networkCoordinator = FrequencyAdjustingNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.postLoadNetwork()
@@ -192,5 +196,7 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
 //        ("train:R2-NORTH-1-191", null, null, null, null, "82500,82740", "82500,83400")
 //      )
     }
+
+    "convert frequencies to trips after loading network with some adjustments" ignore {}
   }
 }

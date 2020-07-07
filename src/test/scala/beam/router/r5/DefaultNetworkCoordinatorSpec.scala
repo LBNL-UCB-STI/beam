@@ -56,41 +56,52 @@ class DefaultNetworkCoordinatorSpec extends WordSpecLike with Matchers with Mock
           ts.startTimes.mkString(","),
           ts.endTimes.mkString(","),
           ts.headwaySeconds.mkString(","),
-          ts.frequencyEntryIds.mkString(","),
+          ts.arrivals.mkString(","),
+          ts.departures.mkString(",")
         )
-      } should contain allOf (
-        ("bus:B1-EAST-1", "21600", "79200", "300", "bus:B1-EAST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("bus:B1-WEST-1", "21600", "79200", "300", "bus:B1-WEST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("bus:B2-EAST-1", "21600", "79200", "300", "bus:B2-EAST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("bus:B2-WEST-1", "21600", "79200", "300", "bus:B2-WEST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("bus:B3-EAST-1", "21600", "79200", "300", "bus:B3-EAST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("bus:B3-WEST-1", "21600", "79200", "300", "bus:B3-WEST-1_06:00:00_to_22:00:00_every_5m00s"),
-        ("train:R2-NORTH-1", "21600", "79200", "600", "train:R2-NORTH-1_06:00:00_to_22:00:00_every_10m00s"),
-        ("train:R2-SOUTH-1", "21600", "79200", "600", "train:R2-SOUTH-1_06:00:00_to_22:00:00_every_10m00s")
-      )
+      } should contain allElementsOf expectedTripSchedules
+    }
+
+    "load GTFS files into a transit layer without any adjustments in postLoad" in {
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+      networkCoordinator.loadNetwork()
+      networkCoordinator.postLoadNetwork()
+
+      val transitLayer = networkCoordinator.transportNetwork.transitLayer
+      transitLayer.hasFrequencies shouldBe true
+
+      val tripPatterns = transitLayer.tripPatterns.asScala
+      tripPatterns should have size 8
+
+      val tripSchedules = tripPatterns.flatMap(_.tripSchedules.asScala)
+      tripSchedules should have size 8
 
       tripSchedules.map { ts =>
         (
           ts.tripId,
+          ts.startTimes.mkString(","),
+          ts.endTimes.mkString(","),
+          ts.headwaySeconds.mkString(","),
           ts.arrivals.mkString(","),
           ts.departures.mkString(",")
         )
-      } should contain allOf (
-        ("bus:B1-EAST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("bus:B1-WEST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("bus:B2-EAST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("bus:B2-WEST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("bus:B3-EAST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("bus:B3-WEST-1", "0,210,420,630,840", "120,330,540,750,960"),
-        ("train:R2-NORTH-1", "0,900", "660,1560"),
-        ("train:R2-SOUTH-1", "0,900", "660,1560")
-      )
+      } should contain allElementsOf expectedTripSchedules
     }
 
-    "convert frequencies to trips in post load network without adjustments" in {
-      val networkCoordinator = NetworkCoordinator.create(beamConfig)
-      networkCoordinator.loadNetwork()
-      networkCoordinator.postLoadNetwork()
+    def expectedTripSchedules = Seq(
+      ("bus:B1-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("bus:B1-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("bus:B2-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("bus:B2-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("bus:B3-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("bus:B3-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
+      ("train:R2-NORTH-1", "21600", "79200", "600", "0,900", "660,1560"),
+      ("train:R2-SOUTH-1", "21600", "79200", "600", "0,900", "660,1560")
+    )
+
+    "convert frequencies to trips after loading network without adjustments" in {
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+      networkCoordinator.init() // is for load(), postLoad() and convertFrequenciesToTrips()
 
       val transitLayer = networkCoordinator.transportNetwork.transitLayer
       transitLayer.hasFrequencies shouldBe false
