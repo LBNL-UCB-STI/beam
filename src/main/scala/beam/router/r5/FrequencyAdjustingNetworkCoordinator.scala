@@ -23,7 +23,8 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     this.transportNetwork =
       buildFrequencyAdjustmentScenario(loadFrequencyAdjustmentsFromCsvFile(frequencyAdjustmentFile))
         .applyToTransportNetwork(transportNetwork)
-    super.postLoadNetwork()
+    // TODO uncomment after figuring out how AdjustFrequency is modifying the transitLayer
+    // super.postLoadNetwork()
   }
 
   private def buildFrequencyAdjustmentScenario(frequencyAdjustments: Set[FrequencyAdjustment]): Scenario = {

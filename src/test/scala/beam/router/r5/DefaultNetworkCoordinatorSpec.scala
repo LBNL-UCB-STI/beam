@@ -31,14 +31,14 @@ class DefaultNetworkCoordinatorSpec extends WordSpecLike with Matchers with Mock
   "DefaultNetworkCoordinator" should {
     val beamConfig = BeamConfig(config)
 
-    "be instance of a DefaultNetworkCoordinator" in {
+    "could be created from via factory method of NetworkCoordinator" in {
       val networkCoordinator = NetworkCoordinator.create(beamConfig)
       networkCoordinator shouldBe a[DefaultNetworkCoordinator]
 
     }
 
     "load GTFS files into a transit layer" in {
-      val networkCoordinator = NetworkCoordinator.create(beamConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
 
       val transitLayer = networkCoordinator.transportNetwork.transitLayer
