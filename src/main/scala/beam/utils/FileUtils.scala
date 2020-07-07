@@ -11,6 +11,7 @@ import java.util.zip.GZIPInputStream
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.io
 import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
@@ -336,5 +337,22 @@ object FileUtils extends LazyLogging {
         }
     }
     Await.result(Future.sequence(futures), atMost)
+  }
+
+  def gzipFile(file: String, deleteSourceFile: Boolean = false): Unit = {
+    val filePath = Paths.get(file)
+    if (!filePath.toFile.isFile) {
+      throw new IllegalStateException(s"Not a file: `$file`")
+    }
+
+    using(IOUtils.getBufferedWriter(file, true)) { bw =>
+      using(IOUtils.getBufferedReader(file)) { br =>
+        io.IOUtils.copyLarge(br, bw)
+      }
+    }
+
+    if (deleteSourceFile) {
+      Files.deleteIfExists(filePath)
+    }
   }
 }

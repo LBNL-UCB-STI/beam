@@ -6,6 +6,7 @@ import beam.sim.BeamServices
 import beam.utils.CloseableUtil._
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -131,19 +132,18 @@ class DockerRoutingFrameworkWrapper(
 
   def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
     itHourRelatedPath(tempDirPath, iteration, hour, "").toFile.mkdirs()
-    val odPairsFile = odPairsFileInTempDir(iteration, hour).toFile
+    val odPairsFile = odPairsFileInTempDir(iteration, hour).toString
 
-    val writer = new BufferedWriter(new FileWriter(odPairsFile))
-    writer.write("origin,destination")
-    writer.newLine()
+    FileUtils.using(IOUtils.getBufferedWriter(odPairsFile)) { bw =>
+      bw.write("origin,destination")
+      bw.newLine()
 
-    ods.foreach {
-      case OD(first, second) =>
-        writer.write(s"$first,$second")
-        writer.newLine()
+      ods.foreach {
+        case OD(first, second) =>
+          bw.write(s"$first,$second")
+          bw.newLine()
+      }
     }
-
-    writer.close()
   }
 
   override def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double] = {
@@ -175,10 +175,16 @@ class DockerRoutingFrameworkWrapper(
 
     assignTrafficOutput.lineStream.foreach(v => logger.info(v))
 
+    val flowFile = itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toString
+    FileUtils.gzipFile(flowFile, deleteSourceFile = true)
+    FileUtils.gzipFile(itHourRelatedPath(tempDirPath, iteration, hour, "dist.csv").toString, deleteSourceFile = true)
+    FileUtils.gzipFile(itHourRelatedPath(tempDirPath, iteration, hour, "stat.csv").toString, deleteSourceFile = true)
+    FileUtils.gzipFile(odPairsFileInTempDir(iteration, hour).toString, deleteSourceFile = true)
+
     var curIter = -1
     val wayId2TravelTime = new mutable.HashMap[Long, Double]()
 
-    val reader = FileUtils.readerFromFile(itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toString)
+    val reader = FileUtils.readerFromFile(s"$flowFile.gz")
     //skip first line, which contains debug info
     reader.readLine()
     //file format : iteration,vol,sat,travel_time,way_id,bpr_result
@@ -207,19 +213,6 @@ class DockerRoutingFrameworkWrapper(
               }
           }
       }
-
-    val iterationFolder = toUnixPath(Paths.get("/work", s"Iter.$iteration"))
-    val zipFilePath = toUnixPath(Paths.get(iterationFolder, s"Hour.$hour.tar.gz"))
-    val zipQuery = s"""
-                   |docker run --rm
-                   | -v $tempDir:/work
-                   | $toolDockerImage
-                   | tar -czvf $zipFilePath -C $iterationFolder Hour.$hour --remove-files
-      """.stripMargin.replace("\n", "")
-
-    logger.info("Docker zip resources")
-    val zipOutput = Process(zipQuery)
-    zipOutput.lineStream.foreach(logger.info(_))
 
     wayId2TravelTime.toMap
   }
