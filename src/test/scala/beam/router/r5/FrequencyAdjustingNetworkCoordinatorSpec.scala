@@ -1,20 +1,14 @@
 package beam.router.r5
 
-import java.nio.file.{Files, Paths}
-
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 
-class FrequencyAdjustingNetworkCoordinatorSpec
-    extends WordSpecLike
-    with Matchers
-    with MockitoSugar
-    with BeforeAndAfterAll {
+class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matchers with MockitoSugar {
 
   private val beamR5Dir = getClass.getResource("/r5").getPath
 
@@ -110,10 +104,10 @@ class FrequencyAdjustingNetworkCoordinatorSpec
       tripSchedules.map { ts =>
         (
           ts.tripId,
-          ts.startTimes,
-          ts.endTimes,
-          ts.headwaySeconds,
-          ts.frequencyEntryIds,
+          ts.startTimes.mkString(","),
+          ts.endTimes.mkString(","),
+          ts.headwaySeconds.mkString(","),
+          ts.frequencyEntryIds.mkString(","),
           ts.arrivals.mkString(","),
           ts.departures.mkString(",")
         )
@@ -180,9 +174,5 @@ class FrequencyAdjustingNetworkCoordinatorSpec
 //        ("train:R2-NORTH-1-191", null, null, null, null, "82500,82740", "82500,83400")
 //      )
     }
-  }
-
-  override def afterAll() {
-    Files.delete(Paths.get(beamR5Dir, "/network.dat"))
   }
 }
