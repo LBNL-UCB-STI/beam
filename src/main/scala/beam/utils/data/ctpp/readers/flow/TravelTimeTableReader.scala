@@ -2,10 +2,12 @@ package beam.utils.data.ctpp.readers.flow
 
 import java.util.concurrent.TimeUnit
 
+import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
+import beam.utils.data.synthpop.models.Models.TazGeoId
 
 class TravelTimeTableReader(
   dbInfo: CTPPDatabaseInfo,
@@ -88,17 +90,29 @@ class TravelTimeTableReader(
 object TravelTimeTableReader {
 
   def main(args: Array[String]): Unit = {
-    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
-    val rdr = new TravelTimeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
+    val databaseInfo = CTPPDatabaseInfo(PathToData(" /mnt/data/work/beam/scenario-generation/cttp"), Set("34", "36"))
+
+    val rdr = new TravelTimeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`State-County To State-County`)
     val readData = rdr.read().toVector
 
     val nonZeros = readData.filter(x => x.value != 0.0)
-    val distinctHomeLocations = readData.map(_.source).distinct.size
-    val distintWorkLocations = readData.map(_.destination).distinct.size
+    val distinctHomeLocations = readData.map(_.source).distinct
+    val distintWorkLocations = readData.map(_.destination).distinct
     val sumOfValues = readData.map(_.value).sum
     println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
-    println(s"distinctHomeLocations: $distinctHomeLocations")
-    println(s"distintWorkLocations: $distintWorkLocations")
+    println(s"distinctHomeLocations: ${distinctHomeLocations.size}")
+    println(s"distintWorkLocations: ${distintWorkLocations.size}")
     println(s"sumOfValues: $sumOfValues")
+
+    if (true) {
+      val outputPath = "travelTimeTable_statePlace.csv"
+      val writer =
+        new CsvWriter(outputPath, IndexedSeq("src", "dest", "value"))
+      readData.foreach { line =>
+        writer.writeRow(IndexedSeq(line.source, line.destination, line.value))
+      }
+      writer.close()
+      println(s"Read data written to $outputPath")
+    }
   }
 }
