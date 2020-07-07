@@ -11,12 +11,14 @@ object Skims extends LazyLogging {
   lazy val od_skimmer: ODSkims = lookup(SkimType.OD_SKIMMER).asInstanceOf[ODSkims]
   lazy val taz_skimmer: TAZSkims = lookup(SkimType.TAZ_SKIMMER).asInstanceOf[TAZSkims]
   lazy val dt_skimmer: DriveTimeSkims = lookup(SkimType.DT_SKIMMER).asInstanceOf[DriveTimeSkims]
+  lazy val tc_skimmer: TransitCrowdingSkims = lookup(SkimType.TC_SKIMMER).asInstanceOf[TransitCrowdingSkims]
 
   def setup(implicit beamServices: BeamServices): Unit = {
     val skimConfig = beamServices.beamConfig.beam.router.skim
     skims.put(SkimType.OD_SKIMMER, addEvent(new ODSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.TAZ_SKIMMER, addEvent(new TAZSkimmer(beamServices, skimConfig)))
     skims.put(SkimType.DT_SKIMMER, addEvent(new DriveTimeSkimmer(beamServices, skimConfig)))
+    skims.put(SkimType.TC_SKIMMER, addEvent(new TransitCrowdingSkimmer(beamServices, skimConfig)))
 
   }
 
@@ -30,6 +32,7 @@ object Skims extends LazyLogging {
     val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
+    val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
   }
 
   private def addEvent(skimmer: AbstractSkimmer)(implicit beamServices: BeamServices): AbstractSkimmer = {
