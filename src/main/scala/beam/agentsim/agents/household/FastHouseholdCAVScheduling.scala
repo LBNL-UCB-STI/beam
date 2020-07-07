@@ -395,7 +395,7 @@ case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperIm
 object HouseholdTripsHelper {
 
   import scala.util.control.Breaks._
-  val logger = HouseholdTripsLogger(getClass.getName)
+  val logger: HouseholdTripsLogger = HouseholdTripsLogger(getClass.getName)
 
   def getDefaultMode(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
     legOption

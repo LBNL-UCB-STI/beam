@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-
 public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulation {
     private final static Logger log = LoggerFactory.getLogger(JDEQSimulation.class);
 

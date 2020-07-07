@@ -130,7 +130,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
 
   private val tickTask: Cancellable =
-    context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private var msgs: Long = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)

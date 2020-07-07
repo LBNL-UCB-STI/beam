@@ -4,7 +4,6 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.groups.PlansConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
-
 public class Vehicle extends org.matsim.core.mobsim.jdeqsim.Vehicle {
     private final Boolean isCACCVehicle;
 

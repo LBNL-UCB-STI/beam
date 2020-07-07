@@ -47,10 +47,10 @@ class ParallelParkingManagerSpec
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
 
-  val beamConfig = BeamConfig(system.settings.config)
+  val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  val emergencyId0 = Id.create("emergency-0", classOf[TAZ])
+  val emergencyId0: Id[TAZ] = Id.create("emergency-0", classOf[TAZ])
 
   describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {

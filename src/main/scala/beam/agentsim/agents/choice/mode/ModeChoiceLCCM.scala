@@ -99,7 +99,7 @@ class ModeChoiceLCCM(
         lccm.classMembershipModels.head._2.utilityFunctions.keySet.map { theClassName =>
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
-            .getExpectedMaximumUtility(modeChoiceInputData.toMap)
+            .getExpectedMaximumUtility(modeChoiceInputData)
           val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility.getOrElse(0))
           (theClassName, attribIndivData.head._2 ++ surplusAttrib)
