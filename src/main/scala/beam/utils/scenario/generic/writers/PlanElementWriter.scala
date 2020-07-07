@@ -29,7 +29,8 @@ object CsvPlanElementWriter extends PlanElementWriter {
     "legRouteEndLink",
     "legRouteTravelTime",
     "legRouteDistance",
-    "legRouteLinks"
+    "legRouteLinks",
+    "geoId"
   )
 
   override def write(path: String, xs: Iterable[PlanElement]): Unit = {
@@ -56,7 +57,8 @@ object CsvPlanElementWriter extends PlanElementWriter {
           planElement.legRouteEndLink,
           planElement.legRouteTravelTime,
           planElement.legRouteDistance,
-          legRouteLinks
+          legRouteLinks,
+          planElement.geoId.getOrElse("")
         )
       }
     } finally {

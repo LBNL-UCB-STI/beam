@@ -77,7 +77,8 @@ class PumaLevelScenarioGenerator(
     legRouteEndLink = None,
     legRouteTravelTime = None,
     legRouteDistance = None,
-    legRouteLinks = Seq.empty
+    legRouteLinks = Seq.empty,
+    geoId = None
   )
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
@@ -197,7 +198,7 @@ class PumaLevelScenarioGenerator(
           )
         }
         val res = householdsWithPersonData.zip(householdLocation).flatMap {
-          case ((household, personsWithData), wgsHouseholdLocation) =>
+          case ((household: Models.Household, personsWithData), wgsHouseholdLocation) =>
             if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
@@ -237,7 +238,8 @@ class PumaLevelScenarioGenerator(
                             activityType = Some("Home"),
                             activityLocationX = Some(utmHouseholdCoord.getX),
                             activityLocationY = Some(utmHouseholdCoord.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0)
+                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                            geoId = Some(household.geoId.asUniqueKey)
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
