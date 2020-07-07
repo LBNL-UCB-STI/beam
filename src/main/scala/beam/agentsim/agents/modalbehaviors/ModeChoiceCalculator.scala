@@ -6,6 +6,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
@@ -117,6 +118,7 @@ object ModeChoiceCalculator {
     classname: String,
     beamServices: BeamServices,
     configHolder: BeamConfigHolder,
+    transitCrowding: TransitCrowdingSkims,
     eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
@@ -129,6 +131,7 @@ object ModeChoiceCalculator {
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle),
                 configHolder,
+                transitCrowding,
                 eventsManager
               )
             case _ =>
@@ -149,7 +152,7 @@ object ModeChoiceCalculator {
       case "ModeChoiceMultinomialLogit" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, eventsManager)
+          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, transitCrowding, eventsManager)
     }
   }
   sealed trait ModeVotMultiplier

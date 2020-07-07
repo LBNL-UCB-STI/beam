@@ -14,9 +14,7 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.{immutable, mutable}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.reflect.io.File
 import scala.util.control.NonFatal
 
@@ -31,9 +29,7 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime)
-    with ScalaEvent {
+abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
 
   def getKey: AbstractSkimmerKey
