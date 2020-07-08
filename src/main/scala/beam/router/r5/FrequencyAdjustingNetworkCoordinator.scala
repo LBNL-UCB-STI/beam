@@ -18,11 +18,10 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     if (!Files.exists(Paths.get(frequencyAdjustmentFile))) {
       generateFrequencyAdjustmentsCsvFile(this.transportNetwork.transitLayer, frequencyAdjustmentFile)
     }
+    val freqAdjustments = loadFrequencyAdjustmentsFromCsvFile(frequencyAdjustmentFile)
 
     this.transportNetwork.transitLayer.buildDistanceTables(null)
-    this.transportNetwork =
-      buildFrequencyAdjustmentScenario(loadFrequencyAdjustmentsFromCsvFile(frequencyAdjustmentFile))
-        .applyToTransportNetwork(transportNetwork)
+    this.transportNetwork = buildFrequencyAdjustmentScenario(freqAdjustments).applyToTransportNetwork(transportNetwork)
   }
 
   private def buildFrequencyAdjustmentScenario(frequencyAdjustments: Set[FrequencyAdjustment]): Scenario = {
