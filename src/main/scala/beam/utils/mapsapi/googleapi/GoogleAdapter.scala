@@ -12,7 +12,7 @@ import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
+
 import akka.stream.scaladsl.StreamConverters
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.Segment
@@ -22,7 +22,6 @@ import play.api.libs.json.{JsArray, JsLookupResult, JsObject, JsValue, Json}
 
 class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) extends AutoCloseable {
   private implicit val system: ActorSystem = ActorSystem()
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
@@ -100,7 +99,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None) e
     Http().shutdownAllConnectionPools
       .andThen {
         case _ =>
-          if (!materializer.isShutdown) materializer.shutdown()
           system.terminate()
       }
   }

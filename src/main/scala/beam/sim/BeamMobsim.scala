@@ -480,7 +480,7 @@ class BeamMobsimIteration(
   ): Cancellable = {
     import system.dispatcher
 
-    val cancellable = system.scheduler.schedule(
+    val cancellable = system.scheduler.scheduleWithFixedDelay(
       0.milliseconds,
       (timeoutInSeconds * 1000).milliseconds,
       memoryLoggingTimerActorRef,

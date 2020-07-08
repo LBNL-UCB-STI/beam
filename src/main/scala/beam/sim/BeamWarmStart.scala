@@ -4,13 +4,19 @@ import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
+import scala.collection.concurrent.TrieMap
+import scala.compat.java8.StreamConverters._
+import scala.util.Try
+import scala.util.control.NonFatal
+
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
-import beam.sim.config.BeamConfig.Beam
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
-import beam.utils.UnzipUtility._
+import beam.sim.config.BeamConfig.Beam
+import beam.sim.BeamWarmStart.WarmStartConfigProperties
 import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
+import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
@@ -18,23 +24,13 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
 
-import scala.Option
-import scala.compat.java8.StreamConverters._
+class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends LazyLogging {
 
-import scala.util.Try
-import scala.util.control.NonFatal
-
-class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
-  val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
-  if (!isWarmMode) {
-    throw new IllegalStateException("BeamWarmStart cannot be initialized since warmstart is disabled")
-  }
-
-  private val srcPath = beamConfig.beam.warmStart.path
+  private val srcPath: String = warmConfig.warmStartPath
 
   def readTravelTime: Option[TravelTime] = {
     getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
-      case Some(statsPath) if isWarmMode =>
+      case Some(statsPath) =>
         if (Files.isRegularFile(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
           logger.info("Read travel times from {}.", statsPath)
@@ -61,16 +57,6 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
           throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
-        throwErrorFileNotFound(description, srcPath)
-    }
-  }
-
-  private def notCompressedLocation(description: String, fileName: String, rootFirst: Boolean): String = {
-    getWarmStartFilePath(fileName, rootFirst) match {
-      case Some(fileFullPath) if Files.isRegularFile(Paths.get(fileFullPath)) =>
-        logger.info(s"**** warmStartFile method fileName:[$fileName]. notCompressedFile:[$fileFullPath]")
-        fileFullPath
-      case _ =>
         throwErrorFileNotFound(description, srcPath)
     }
   }
@@ -163,28 +149,60 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
 
   private def getTravelTime(statsFile: String): TravelTime = {
-    val binSize = beamConfig.beam.agentsim.timeBinSize
-
-    new LinkTravelTimeContainer(statsFile, binSize, maxHour)
+    val binSize: Int = warmConfig.agentsimTimeBinSize
+    new LinkTravelTimeContainer(statsFile, binSize, warmConfig.maxHour)
   }
+
 }
 
 object BeamWarmStart extends LazyLogging {
-  val fileNameSubstringToDetectIfReadSkimsInParallelMode = "_part"
+  private val instances = TrieMap.empty[WarmStartConfigProperties, BeamWarmStart]
 
-  // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
-  def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-    new BeamWarmStart(beamConfig, maxHour)
+  private[sim] case class WarmStartConfigProperties(
+    warmStartPath: String,
+    agentsimTimeBinSize: Int,
+    maxHour: Int
+  )
+
+  private def buildWarmConfig(beamConfig: BeamConfig, maxHour: Int): WarmStartConfigProperties = {
+    WarmStartConfigProperties(
+      warmStartPath = beamConfig.beam.warmStart.path,
+      agentsimTimeBinSize = beamConfig.beam.agentsim.timeBinSize,
+      maxHour = maxHour
+    )
   }
 
-  def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
-    val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
-      scenario.getNetwork.getLinks.values(),
-      travelTime,
-      maxHour
-    )
-    beamRouter ! UpdateTravelTimeRemote(map)
+  private val singletonTraveltimeCalculator = new TravelTimeCalculatorConfigGroup()
+  val fileNameSubstringToDetectIfReadSkimsInParallelMode = "_part"
+
+  def apply(
+    beamConfig: BeamConfig,
+    travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = singletonTraveltimeCalculator
+  ): BeamWarmStart = {
+    val maxHour = TimeUnit.SECONDS.toHours(travelTimeCalculatorConfigGroup.getMaxTime).toInt
+    apply(beamConfig, maxHour)
+  }
+
+  def apply(
+    beamConfig: BeamConfig,
+    maxHour: Int
+  ): BeamWarmStart = {
+    if (beamConfig.beam.warmStart.enabled) {
+      val warmConfig = buildWarmConfig(beamConfig, maxHour)
+      instances.getOrElseUpdate(
+        warmConfig, {
+          val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
+          if (instances.isEmpty) {
+            logger.info(msg)
+          } else {
+            logger.warn(msg)
+          }
+          new BeamWarmStart(warmConfig)
+        }
+      )
+    } else {
+      throw new IllegalArgumentException("BeamWarmStart cannot be initialized since warmstart is disabled")
+    }
   }
 
   def warmStartTravelTime(
@@ -195,13 +213,22 @@ object BeamWarmStart extends LazyLogging {
   ): Unit = {
     if (beamConfig.beam.warmStart.enabled) {
       val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
-      val warm = new BeamWarmStart(beamConfig, maxHour)
+      val warm = BeamWarmStart(beamConfig, maxHour)
       warm.readTravelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
         logger.info("Travel times successfully warm started from")
       }
     }
+  }
+
+  def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
+    val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
+      scenario.getNetwork.getLinks.values(),
+      travelTime,
+      maxHour
+    )
+    beamRouter ! UpdateTravelTimeRemote(map)
   }
 
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
@@ -215,12 +242,10 @@ object BeamWarmStart extends LazyLogging {
           "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
         )
       }
-      val instance = {
-        val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
-        new BeamWarmStart(beamConfig, maxHour)
-      }
 
-      val newWarmStart = {
+      val instance = BeamWarmStart(beamConfig, matsimConfig.travelTimeCalculator())
+
+      val newWarmStartConfig: Beam.WarmStart = {
         val newSkimsFilePath = Try(instance.compressedLocation("Skims file", beamConfig.beam.warmStart.skimsFileName))
           .getOrElse(instance.parentRunPath)
         val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
@@ -236,10 +261,10 @@ object BeamWarmStart extends LazyLogging {
 
       val newBeamConfig = getAgentSimExchangeTuple(instance, beamConfig, matsimConfig) match {
         case Some((agentSim, exchange)) =>
-          val newBeam = beamConfig.beam.copy(agentsim = agentSim, exchange = exchange, warmStart = newWarmStart)
+          val newBeam = beamConfig.beam.copy(agentsim = agentSim, exchange = exchange, warmStart = newWarmStartConfig)
           beamConfig.copy(beam = newBeam)
         case None =>
-          val newBeam = beamConfig.beam.copy(warmStart = newWarmStart)
+          val newBeam = beamConfig.beam.copy(warmStart = newWarmStartConfig)
           beamConfig.copy(beam = newBeam)
       }
 
@@ -255,7 +280,6 @@ object BeamWarmStart extends LazyLogging {
     matsimConfig: Config
   ): Option[(Beam.Agentsim, Beam.Exchange)] = {
     val configAgents = beamConfig.beam.agentsim.agents
-    val scenarioConfig = beamConfig.beam.exchange.scenario
     try {
       val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
@@ -309,4 +333,5 @@ object BeamWarmStart extends LazyLogging {
         None
     }
   }
+
 }
