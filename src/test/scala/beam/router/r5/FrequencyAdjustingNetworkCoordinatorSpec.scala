@@ -1,8 +1,10 @@
 package beam.router.r5
 
+import java.io.File
+
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -10,21 +12,21 @@ import scala.collection.JavaConverters._
 
 class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matchers with MockitoSugar {
 
-  private val beamR5Dir = getClass.getResource("/r5").getPath
+  private val beamR5Dir: String = new File(getClass.getResource("/r5").getFile).getAbsolutePath.replace('\\', '/')
 
-  private val config = ConfigFactory
+  private val config: Config = ConfigFactory
     .parseString(s"""
          |beam.routing {
          |  baseDate = "2016-10-17T00:00:00-07:00"
          |  transitOnStreetNetwork = true
          |  r5 {
-         |    directory = $beamR5Dir
-         |    osmFile = $beamR5Dir"/test.osm.pbf"
-         |    osmMapdbFile = $beamR5Dir"/osm.mapdb"
+         |    directory = "$beamR5Dir"
+         |    osmFile = "$beamR5Dir/test.osm.pbf"
+         |    osmMapdbFile = "$beamR5Dir/osm.mapdb"
          |  }
          |  startingIterationForTravelTimesMSA = 1
          |}
-         |beam.agentsim.scenarios.frequencyAdjustmentFile = $beamR5Dir"/FrequencyAdjustment.csv"
+         |beam.agentsim.scenarios.frequencyAdjustmentFile = "$beamR5Dir/FrequencyAdjustment.csv"
          |""".stripMargin)
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
