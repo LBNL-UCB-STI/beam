@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
@@ -354,10 +355,11 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, agentTripScoreFileBaseName + ".csv.gz")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val filePath = ioController.getIterationFilename(0, agentTripScoreFileBaseName + ".csv.gz")
+    val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val outputDataDescription =
       OutputDataDescription(classOf[BeamScoringFunctionFactory].getSimpleName.dropRight(1), relativePath, "", "")

@@ -9,7 +9,6 @@ import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.StreamConverters
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
@@ -17,7 +16,6 @@ import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 class HereAdapter(apiKey: String) extends AutoCloseable {
 
   private implicit val system: ActorSystem = ActorSystem()
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
@@ -83,7 +81,6 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     Http().shutdownAllConnectionPools
       .andThen {
         case _ =>
-          if (!materializer.isShutdown) materializer.shutdown()
           system.terminate()
       }
   }

@@ -1,11 +1,11 @@
 package beam.analysis.via
 
-import java.util.{ArrayList, Collections, List}
+import java.util.Collections
 import java.util
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object ExpectedMaxUtilityHeatMapObject extends OutputDataDescriptor {
 
@@ -16,7 +16,7 @@ object ExpectedMaxUtilityHeatMapObject extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  def getOutputDataDescriptions: util.List[OutputDataDescription] = {
+  def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
     Collections.emptyList()
     // TODO: what should be the value of controlerIO?
 //    val outputFilePath: String = controlerIO.getIterationFilename(0, fileBaseName + ".csv")

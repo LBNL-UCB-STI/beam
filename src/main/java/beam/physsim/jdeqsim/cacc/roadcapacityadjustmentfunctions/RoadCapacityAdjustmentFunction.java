@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
+package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions;
 
 import org.matsim.api.core.v01.network.Link;
 

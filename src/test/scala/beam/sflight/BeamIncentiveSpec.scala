@@ -2,22 +2,21 @@ package beam.sflight
 
 import scala.io.Source
 
-import beam.analysis.plots.PersonTravelTimeAnalysis
+import beam.analysis.plots.ModeChosenAnalysis
 import beam.router.Modes.BeamMode
+import beam.sflight.CaccSpec.NotFoundCarInTravelTimeMode
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
-import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -28,20 +27,31 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     super.afterAll()
   }
 
-  private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
+  "BeamVille with a lot of ride_hail incentives" must {
+    "choose ride_hail more times than without/less incentives" in {
+      val lastIteration = 0
+      val avgChoicesWithoutRideHailIncentive =
+        runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
+      val avgChoicesWithRideHailIncentives =
+        runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
+      assert(avgChoicesWithoutRideHailIncentive <= avgChoicesWithRideHailIncentives)
+    }
+  }
+
+  private def runSimulationAndCalculateAverageOfRideHailChoices(
+    iterationNumber: Int,
+    incentivesFile: String
+  ): Double = {
+    val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
       .parseString(s"""
-                     |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.lastIteration = $iterationNumber
-                     |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
-                     |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
-                     |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
+                      |beam.agentsim.lastIteration = $iterationNumber
+                      |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
                    """.stripMargin)
-      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+      .withFallback(testConfig(s"${beamVilleFolder}beam.conf"))
       .resolve()
 
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
-    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     val beamConfig = BeamConfig(config)
 
@@ -59,39 +69,30 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val controller = services.controler
     controller.run()
 
-    val fileName = extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber)
-    CaccSpec.avgCarModeFromCsv(fileName)
+    val fileName = extractFileName(outputDir, iterationNumber)
+    BeamIncentiveSpec.avgRideHailModeFromCsv(fileName)
   }
 
   private def extractFileName(
-    matsimConfig: Config,
-    beamConfig: BeamConfig,
     outputDir: String,
     iterationNumber: Int
   ): String = {
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(iterationNumber, PersonTravelTimeAnalysis.fileBaseName + ".csv")
-  }
-
-  "SF Light" must {
-    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" taggedAs (Periodic, ExcludeRegular) in {
-      val iteration = 1
-      val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = true, iteration)
-      val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = false, iteration)
-
-      assert(avgWithCaccEnabled <= avgWithCaccDisabled)
-    }
+    outputDirectoryHierarchy.getIterationFilename(
+      iterationNumber,
+      ModeChosenAnalysis.getModeChoiceFileBaseName + ".csv"
+    )
   }
 
 }
 
-object CaccSpec {
+object BeamIncentiveSpec {
 
-  def avgCarModeFromCsv(filePath: String): Double = {
+  def avgRideHailModeFromCsv(filePath: String): Double = {
     val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
-      source.getLines().find(isCar)
+      source.getLines().find(isRideHail)
     }
 
     val allHourAvg = carLine
@@ -104,15 +105,8 @@ object CaccSpec {
     relevantTimes.sum / relevantTimes.length
   }
 
-  def isCar(value: String): Boolean = {
-    carTravelTimeValues.exists(value.startsWith)
-  }
+  def isRideHail(value: String): Boolean = rideHailValues.exists(value.startsWith)
 
-  private val carTravelTimeValues = Set(BeamMode.CAR.value, BeamMode.CAV.value)
-
-  case object NotFoundCarInTravelTimeMode
-      extends IllegalStateException(
-        s"The line does not contain ${carTravelTimeValues.mkString("'", "', '", "'")} as TravelTimeMode"
-      )
+  private val rideHailValues = Set(BeamMode.RIDE_HAIL.value, BeamMode.RIDE_HAIL_POOLED.value)
 
 }

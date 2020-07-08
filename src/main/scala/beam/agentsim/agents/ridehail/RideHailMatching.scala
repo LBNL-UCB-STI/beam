@@ -121,7 +121,7 @@ object RideHailMatching {
   }
 
   def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices): ODSkimmer.Skim = {
-    Skims.od_skimmer.getTimeDistanceAndCost(
+    beamServices.skims.od_skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
       src.baselineNonPooledTime,
@@ -242,7 +242,7 @@ object RideHailMatching {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
-    val skim = Skims.od_skimmer
+    val skim = beamServices.skims.od_skimmer
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
         p1Act2.getCoord,
