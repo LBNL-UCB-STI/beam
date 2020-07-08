@@ -127,9 +127,11 @@ object ModeChoiceCalculator {
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+              val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
-                lccm.modeChoiceModels(Mandatory)(modalityStyle),
+                model,
+                modeModel,
                 configHolder,
                 transitCrowding,
                 eventsManager
@@ -150,9 +152,9 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (logit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, transitCrowding, eventsManager)
+          new ModeChoiceMultinomialLogit(beamServices, logit, modeLogit, configHolder, transitCrowding, eventsManager)
     }
   }
   sealed trait ModeVotMultiplier

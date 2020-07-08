@@ -1,6 +1,8 @@
 package beam.agentsim.agents.choice.logit
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, NonMandatory, TourType}
+import beam.router.Modes.BeamMode
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -22,7 +24,8 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
     lccmData
   )
 
-  val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
+  val modeChoiceModels
+    : Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
     extractModeChoiceModels(lccmData)
   }
 
@@ -69,7 +72,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
    */
   def extractModeChoiceModels(
     lccmData: Seq[LccmData]
-  ): Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
+  ): Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
     val uniqueClasses = lccmData.map(_.latentClass).distinct
     val modeChoiceData = lccmData.filter(_.model == "modeChoice")
     Vector[TourType](Mandatory, NonMandatory).map { theTourType: TourType =>
@@ -83,10 +86,13 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
         } yield {
           (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
+        val ufm = utilityFunctions.toMap
 
-        theLatentClass -> MultinomialLogit(
-          utilityFunctions.toMap
-        )
+        theLatentClass -> (new MultinomialLogit[EmbodiedBeamTrip, String](
+          trip => ufm.get(trip.tripClassifier.value),
+          Map.empty
+        ),
+        new MultinomialLogit[BeamMode, String](mode => ufm.get(mode.value), Map.empty))
       }.toMap
     }.toMap
   }
