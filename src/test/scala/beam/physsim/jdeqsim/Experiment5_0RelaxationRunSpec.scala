@@ -22,7 +22,7 @@ class Experiment5_0RelaxationRunSpec
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
 
-      val (_, output) = runBeamWithConfig(baseConf)
+      runBeamWithConfig(baseConf)
     }
   }
 }

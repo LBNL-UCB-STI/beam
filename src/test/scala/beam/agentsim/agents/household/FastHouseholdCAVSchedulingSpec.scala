@@ -6,7 +6,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils
@@ -64,7 +63,6 @@ class FastHouseholdCAVSchedulingSpec
 
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {
-      Skims.setup(services)
       val cavs = List[BeamVehicle](
         new BeamVehicle(
           Id.createVehicleId("id1"),
@@ -82,11 +80,9 @@ class FastHouseholdCAVSchedulingSpec
       schedules should have length 1
       schedules foreach (_.schedulesMap(cavs.head).schedule should have length 6)
       println(s"*** scenario 1 *** ${schedules.size} combinations")
-      Skims.clear()
     }
 
     it("pool two persons for both trips") {
-      Skims.setup(services)
       val cavs = List[BeamVehicle](
         new BeamVehicle(
           Id.createVehicleId("id1"),
@@ -113,11 +109,9 @@ class FastHouseholdCAVSchedulingSpec
       schedules should have length 3
       schedules foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
       println(s"*** scenario 2 *** ${schedules.size} combinations")
-      Skims.clear()
     }
 
     it("pool both agents in different CAVs") {
-      Skims.setup(services)
       val cavs = List[BeamVehicle](
         new BeamVehicle(
           Id.createVehicleId("id1"),
@@ -151,7 +145,6 @@ class FastHouseholdCAVSchedulingSpec
       // third check
       val schedules3 = alg.getKBestSchedules(1)
       schedules3.head.foldLeft(0)(_ + _.schedule.size) shouldBe 10
-      Skims.clear()
     }
   }
 
