@@ -271,7 +271,7 @@ class SupplementaryTripGenerator(
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
         val accessTripSkim =
-          Skims.od_skimmer.getTimeDistanceAndCost(
+          beamServices.skims.od_skimmer.getTimeDistanceAndCost(
             alternativeActivity.getCoord,
             additionalActivity.getCoord,
             desiredDepartTimeBin,
@@ -280,7 +280,7 @@ class SupplementaryTripGenerator(
             beamServices.beamScenario
           )
         val egressTripSkim =
-          Skims.od_skimmer.getTimeDistanceAndCost(
+          beamServices.skims.od_skimmer.getTimeDistanceAndCost(
             additionalActivity.getCoord,
             alternativeActivity.getCoord,
             desiredReturnTimeBin,
