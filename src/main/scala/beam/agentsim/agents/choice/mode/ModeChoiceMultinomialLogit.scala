@@ -49,16 +49,26 @@ class ModeChoiceMultinomialLogit(
     destinationActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
+
+    def getBestNonTransit(modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer]): Iterable[ModeCostTimeTransfer] = {
+      modeCostTimeTransfers.filter(!_.embodiedBeamTrip.tripClassifier.isTransit)
+        .groupBy(_.embodiedBeamTrip.tripClassifier)
+        .map {
+          case (_, group) => group minBy timeAndCost
+        }
+    }
+
+    def getAllTransit(modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer]): Iterable[ModeCostTimeTransfer] = {
+      modeCostTimeTransfers.filter(_.embodiedBeamTrip.tripClassifier.isTransit)
+    }
+
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
-      val bestInGroup =
-      modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
-        case (_, group) => group minBy timeAndCost
-      }
-      val inputData = bestInGroup.map { mct =>
+      val bests = getBestNonTransit(modeCostTimeTransfers) ++ getAllTransit(modeCostTimeTransfers)
+      val inputData = bests.map { mct =>
         val theParams: Map[String, Double] =
           Map("cost" -> (mct.cost + mct.scaledTime))
         val transferParam: Map[String, Double] = if (mct.embodiedBeamTrip.tripClassifier.isTransit) {
@@ -82,7 +92,7 @@ class ModeChoiceMultinomialLogit(
               |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
               |@@@[$personId]DestinationActivity:${destinationActivity}
               |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
-              |@@@[$personId]bestInGroup:$bestInGroup
+              |@@@[$personId]bests:$bests
               |@@@[$personId]inputData:$inputData
               |@@@[$personId]chosenModeOpt:${chosenModeOpt}
               |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
@@ -94,7 +104,7 @@ class ModeChoiceMultinomialLogit(
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bestInGroup.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
+            bests.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -120,7 +130,7 @@ class ModeChoiceMultinomialLogit(
     alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[EmbodiedBeamTrip]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    chosenModeCostTime: immutable.Iterable[ModeCostTimeTransfer]
+    chosenModeCostTime: Iterable[ModeCostTimeTransfer]
   ): Option[ModeChoiceOccurredEvent] = {
     person match {
       case Some(p) =>
