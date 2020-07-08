@@ -23,9 +23,18 @@ import scala.collection.JavaConverters._
   *
   * @return set of FrequencyAdjustment objects
   */
-object FrequencyAdjustmentsUtils {
+object FrequencyAdjustmentUtils {
 
-  def generateFrequencyAdjustmentsCsvFile(transitLayer: TransitLayer, freqAdjustmentFilePath: String): Unit = {
+  case class FrequencyAdjustment(
+    routeId: String,
+    tripId: String,
+    startTime: LocalTime,
+    endTime: LocalTime,
+    headwaySecs: Int,
+    exactTimes: Option[Int] = None
+  )
+
+  def generateFrequencyAdjustmentCsvFile(transitLayer: TransitLayer, freqAdjustmentFilePath: String): Unit = {
     val rows = if (transitLayer.hasFrequencies) {
       transitLayer.tripPatterns.asScala.flatMap { tp =>
         tp.tripSchedules.asScala.flatMap { ts =>
@@ -47,7 +56,7 @@ object FrequencyAdjustmentsUtils {
     )
   }
 
-  def loadFrequencyAdjustmentsFromCsvFile(freqAdjustmentFilePath: String): Set[FrequencyAdjustment] =
+  def loadFrequencyAdjustmentCsvFile(freqAdjustmentFilePath: String): Set[FrequencyAdjustment] =
     CsvFileUtils
       .readCsvFileByLineToList(freqAdjustmentFilePath) { row =>
         FrequencyAdjustment(

@@ -51,7 +51,6 @@ test/input/siouxfalls/*.csv
 osm.mapdb
 osm.mapdb.p
 network.dat
-r5/FrequencyAdjustment.csv
 physsim-network.xml
 src/main/scala/beam/sandbox
 test/scala/beam/sandbox

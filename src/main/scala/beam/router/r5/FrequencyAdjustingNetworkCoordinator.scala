@@ -1,24 +1,18 @@
 package beam.router.r5
 
-import java.nio.file.{Files, Paths}
-
 import beam.sim.config.BeamConfig
-import beam.utils.transit.FrequencyAdjustment
-import beam.utils.transit.FrequencyAdjustmentsUtils._
+import beam.utils.transit.FrequencyAdjustmentUtils._
 import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
 
 import scala.collection.JavaConverters._
 
+// TODO try onebusaway-gtfs-modules
 case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinator {
 
-  val frequencyAdjustmentFile: String = beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile
-    .getOrElse(throw new RuntimeException("frequencyAdjustmentFile value is empty"))
-
   override def postLoadNetwork(): Unit = {
-    if (!Files.exists(Paths.get(frequencyAdjustmentFile))) {
-      generateFrequencyAdjustmentsCsvFile(this.transportNetwork.transitLayer, frequencyAdjustmentFile)
-    }
-    val freqAdjustments = loadFrequencyAdjustmentsFromCsvFile(frequencyAdjustmentFile)
+    val freqAdjustments = loadFrequencyAdjustmentCsvFile(
+      beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile
+    )
 
     this.transportNetwork.transitLayer.buildDistanceTables(null)
     this.transportNetwork = buildFrequencyAdjustmentScenario(freqAdjustments).applyToTransportNetwork(transportNetwork)
@@ -29,15 +23,13 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
 
     frequencyAdjustments
       .groupBy(_.routeId)
-      .map {
+      .foreach {
         case (routeId, adjustments) =>
-          new AdjustFrequency {
-            route = routeId
-            entries = adjustments.map(adjustTripFrequency).toList.asJava
-          }
-      }
-      .foreach { adjustFrequency =>
-        scenario.modifications.add(adjustFrequency)
+          val adjustFrequency = new AdjustFrequency
+          adjustFrequency.route = routeId
+          adjustFrequency.entries = adjustments.map(adjustTripFrequency).toList.asJava
+
+          scenario.modifications.add(adjustFrequency)
       }
 
     scenario

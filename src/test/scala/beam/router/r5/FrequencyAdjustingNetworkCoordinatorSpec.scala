@@ -1,18 +1,37 @@
 package beam.router.r5
 
+import java.nio.file.{Files, Paths}
+
 import java.io.File
 
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.transit.FrequencyAdjustmentUtils
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 
-class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matchers with MockitoSugar {
+class FrequencyAdjustingNetworkCoordinatorSpec
+    extends WordSpecLike
+    with Matchers
+    with MockitoSugar
+    with BeforeAndAfterAll {
 
   private val beamR5Dir: String = new File(getClass.getResource("/r5").getFile).getAbsolutePath.replace('\\', '/')
+  private val frequencyAdjustmentFile = s"$beamR5Dir/FrequencyAdjustment.csv"
+
+  override def beforeAll(): Unit = {
+    if (!Files.exists(Paths.get(frequencyAdjustmentFile))) {
+      val network = DefaultNetworkCoordinator(BeamConfig(config))
+      network.loadNetwork()
+      FrequencyAdjustmentUtils.generateFrequencyAdjustmentCsvFile(
+        network.transportNetwork.transitLayer,
+        frequencyAdjustmentFile
+      )
+    }
+  }
 
   private val config: Config = ConfigFactory
     .parseString(s"""
@@ -26,7 +45,7 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
          |  }
          |  startingIterationForTravelTimesMSA = 1
          |}
-         |beam.agentsim.scenarios.frequencyAdjustmentFile = "$beamR5Dir/FrequencyAdjustment.csv"
+         |beam.agentsim.scenarios.frequencyAdjustmentFile = $frequencyAdjustmentFile
          |""".stripMargin)
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
@@ -61,7 +80,7 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
           ts.arrivals.mkString(","),
           ts.departures.mkString(",")
         )
-      } should contain only (expectedNotAdjustedTripSchedules: _*)
+      } should contain only (expectedNotAdjustedTripsSchedules: _*)
     }
 
     "load GTFS files into a transit layer and apply adjustment csv without any changes" in {
@@ -121,14 +140,14 @@ class FrequencyAdjustingNetworkCoordinatorSpec extends WordSpecLike with Matcher
 //            ts.arrivals.mkString(","),
 //            ts.departures.mkString(",")
 //          )
-//        } should contain only (expectedNotAdjustedTripSchedules: _*) // FIXME it fails
+//        } should contain only (expectedNotAdjustedTripsSchedules: _*) // FIXME it fails
     }
 
     "load GTFS files into a transit layer and apply adjustment csv with some changes" ignore {
       // TODO implement changes in FrequencyAdjustment.csv file after generating it
     }
 
-    def expectedNotAdjustedTripSchedules = Seq(
+    def expectedNotAdjustedTripsSchedules = Seq(
       ("bus:B1-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
       ("bus:B1-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
       ("train:R2-NORTH-1", "21600", "79200", "600", "0,900", "660,1560"),

@@ -7,15 +7,15 @@ import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.r5.transit.TransitLayer
 import org.scalatest.{Matchers, WordSpecLike}
 
-class FrequencyAdjustmentsUtilsSpec extends WordSpecLike with Matchers {
+class FrequencyAdjustmentUtilsSpec extends WordSpecLike with Matchers {
 
-  "FrequencyAdjustmentsUtils" should {
+  "FrequencyAdjustmentUtils" should {
     "generate FrequencyAdjustment.csv from transitLayer with frequencies" in {
       val transitLayer = new TransitLayer
       loadGtfsIntoToTransitLayer("r5", transitLayer)
 
       val frequencyAdjustmentCsvFile = getClass.getResource("/r5").getPath + "/FrequencyAdjustment.csv"
-      FrequencyAdjustmentsUtils.generateFrequencyAdjustmentsCsvFile(transitLayer, frequencyAdjustmentCsvFile)
+      FrequencyAdjustmentUtils.generateFrequencyAdjustmentCsvFile(transitLayer, frequencyAdjustmentCsvFile)
 
       FileUtils.readAllLines(frequencyAdjustmentCsvFile) shouldBe Seq(
         "trip_id,start_time,end_time,headway_secs,exact_times",
@@ -36,7 +36,7 @@ class FrequencyAdjustmentsUtilsSpec extends WordSpecLike with Matchers {
       loadGtfsIntoToTransitLayer("r5-no-freqs", transitLayer)
 
       val frequencyAdjustmentCsvFile = getClass.getResource("/r5-no-freqs").getPath + "/FrequencyAdjustment.csv"
-      FrequencyAdjustmentsUtils.generateFrequencyAdjustmentsCsvFile(transitLayer, frequencyAdjustmentCsvFile)
+      FrequencyAdjustmentUtils.generateFrequencyAdjustmentCsvFile(transitLayer, frequencyAdjustmentCsvFile)
 
       FileUtils.readAllLines(frequencyAdjustmentCsvFile) shouldBe Seq(
         "trip_id,start_time,end_time,headway_secs,exact_times"

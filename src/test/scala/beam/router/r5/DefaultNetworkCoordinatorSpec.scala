@@ -15,6 +15,7 @@ class DefaultNetworkCoordinatorSpec
     with MockitoSugar
     with TableDrivenPropertyChecks {
 
+  // TODO check test on Windows
   private val beamR5Dir = getClass.getResource("/r5").getPath
   private val beamR5NoFreqsDir = getClass.getResource("/r5-no-freqs").getPath
 
@@ -72,7 +73,7 @@ class DefaultNetworkCoordinatorSpec
               ts.arrivals.mkString(","),
               ts.departures.mkString(",")
             )
-          } should contain only (expectedTripSchedules: _*)
+          } should contain only (expectedTripsSchedules: _*)
         } else {
           tripSchedules.map { ts =>
             (
@@ -83,7 +84,7 @@ class DefaultNetworkCoordinatorSpec
               ts.arrivals.mkString(","),
               ts.departures.mkString(",")
             )
-          } should contain only (expectedTripNoSchedules: _*)
+          } should contain only (expectedTripsNoSchedules: _*)
         }
       }
 
@@ -111,7 +112,7 @@ class DefaultNetworkCoordinatorSpec
               ts.arrivals.mkString(","),
               ts.departures.mkString(",")
             )
-          } should contain only (expectedTripSchedules: _*)
+          } should contain only (expectedTripsSchedules: _*)
         } else {
           tripSchedules.map { ts =>
             (
@@ -122,18 +123,18 @@ class DefaultNetworkCoordinatorSpec
               ts.arrivals.mkString(","),
               ts.departures.mkString(",")
             )
-          } should contain only (expectedTripNoSchedules: _*)
+          } should contain only (expectedTripsNoSchedules: _*)
         }
       }
 
-      def expectedTripSchedules = Seq(
+      def expectedTripsSchedules = Seq(
         ("bus:B1-EAST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
         ("bus:B1-WEST-1", "21600", "79200", "300", "0,210,420,630,840", "120,330,540,750,960"),
         ("train:R2-NORTH-1", "21600", "79200", "600", "0,900", "660,1560"),
         ("train:R2-SOUTH-1", "21600", "79200", "600", "0,900", "660,1560")
       )
 
-      def expectedTripNoSchedules = Seq(
+      def expectedTripsNoSchedules = Seq(
         ("bus:B1-EAST-1", null, null, null, "21480,21690,21900,22110,22320", "21600,21810,22020,22230,22440"),
         ("bus:B1-WEST-1", null, null, null, "21480,21690,21900,22110,22320", "21600,21810,22020,22230,22440"),
         ("train:R2-NORTH-1", null, null, null, "20940,21840", "21600,22500"),
