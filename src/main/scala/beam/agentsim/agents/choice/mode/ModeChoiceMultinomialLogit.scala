@@ -28,7 +28,8 @@ import scala.collection.{immutable, mutable}
   */
 class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
-  val model: MultinomialLogit[String, String],
+  val model: MultinomialLogit[EmbodiedBeamTrip, String],
+  val modeModel: MultinomialLogit[BeamMode, String],
   beamConfigHolder: BeamConfigHolder,
   transitCrowding: TransitCrowdingSkims,
   val eventsManager: EventsManager
@@ -54,18 +55,18 @@ class ModeChoiceMultinomialLogit(
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
       val bestInGroup =
-      modeCostTimeTransfers groupBy (_.mode) map {
+      modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
         case (_, group) => group minBy timeAndCost
       }
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
           Map("cost" -> (mct.cost + mct.scaledTime))
-        val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
+        val transferParam: Map[String, Double] = if (mct.embodiedBeamTrip.tripClassifier.isTransit) {
           Map("transfer" -> mct.numTransfers, "transitOccupancyLevel" -> mct.transitOccupancyLevel)
         } else {
           Map()
         }
-        (mct.mode.value, theParams ++ transferParam)
+        (mct.embodiedBeamTrip, theParams ++ transferParam)
       }.toMap
 
       val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
@@ -93,7 +94,7 @@ class ModeChoiceMultinomialLogit(
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
+            bestInGroup.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -116,7 +117,7 @@ class ModeChoiceMultinomialLogit(
 
   def createModeChoiceOccurredEvent(
     person: Option[Person],
-    alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]],
+    alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[EmbodiedBeamTrip]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     chosenModeCostTime: immutable.Iterable[ModeCostTimeTransfer]
@@ -126,7 +127,7 @@ class ModeChoiceMultinomialLogit(
         val altUtility = alternativesWithUtility
           .map(
             au =>
-              au.alternative.toLowerCase() -> ModeChoiceOccurredEvent
+              au.alternative.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
                 .AltUtility(au.utility, au.expUtility)
           )
           .toMap
@@ -134,7 +135,7 @@ class ModeChoiceMultinomialLogit(
         val altCostTimeTransfer = modeCostTimeTransfers
           .map(
             mctt =>
-              mctt.mode.value.toLowerCase() -> ModeChoiceOccurredEvent
+              mctt.embodiedBeamTrip.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
                 .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
           )
           .toMap
@@ -252,7 +253,7 @@ class ModeChoiceMultinomialLogit(
       val maxOccupancyLevel: Double = getMaxTransitOccupancyLevel(altAndIdx._1)
 
       ModeCostTimeTransfer(
-        mode,
+        altAndIdx._1,
         incentivizedCost,
         scaledTime,
         numTransfers,
@@ -264,7 +265,7 @@ class ModeChoiceMultinomialLogit(
 
   private def getMaxTransitOccupancyLevel(trip: EmbodiedBeamTrip): Double = {
     val maxOccupancyLevels = for {
-      transitLeg   <- trip.legs.filter(leg => leg.beamLeg.mode.r5Mode.exists(x => x.isRight))
+      transitLeg   <- trip.legs.filter(leg => leg.beamLeg.mode.isTransit)
       transitStops <- transitLeg.beamLeg.travelPath.transitStops
       maxSkim <- transitCrowding.getMaxPassengerSkim(
         transitLeg.beamVehicleId,
@@ -341,21 +342,32 @@ class ModeChoiceMultinomialLogit(
     val modeCostTimeTransfer =
       altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual, destinationActivity).head
     utilityOf(
-      modeCostTimeTransfer.mode,
+      modeCostTimeTransfer.embodiedBeamTrip,
       modeCostTimeTransfer.cost + modeCostTimeTransfer.scaledTime,
       modeCostTimeTransfer.transitOccupancyLevel,
       modeCostTimeTransfer.numTransfers
     )
   }
 
-  def utilityOf(mode: BeamMode, cost: Double, transitOccupancyLevel: Double, numTransfers: Int = 0): Double = {
-    val variables =
-      Map(
-        "transfer"              -> numTransfers.toDouble,
-        "cost"                  -> cost,
-        "transitOccupancyLevel" -> transitOccupancyLevel
-      )
-    model.getUtilityOfAlternative(mode.value, variables).getOrElse(0)
+  private def utilityOf(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    cost: Double,
+    transitOccupancyLevel: Double,
+    numTransfers: Int
+  ): Double = {
+    model.getUtilityOfAlternative(embodiedBeamTrip, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+  }
+
+  override def utilityOf(mode: BeamMode, cost: Double, transitOccupancyLevel: Double, numTransfers: Int = 0): Double = {
+    modeModel.getUtilityOfAlternative(mode, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+  }
+
+  private def attributes(cost: Double, transitOccupancyLevel: Double, numTransfers: Int) = {
+    Map(
+      "transfer"              -> numTransfers.toDouble,
+      "cost"                  -> cost,
+      "transitOccupancyLevel" -> transitOccupancyLevel
+    )
   }
 
   override def computeAllDayUtility(
@@ -367,7 +379,9 @@ class ModeChoiceMultinomialLogit(
 
 object ModeChoiceMultinomialLogit {
 
-  def buildModelFromConfig(configHolder: BeamConfigHolder): MultinomialLogit[String, String] = {
+  def buildModelFromConfig(
+    configHolder: BeamConfigHolder
+  ): (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String]) = {
 
     val params = configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
     val commonUtility: Map[String, UtilityFunctionOperation] = Map(
@@ -403,15 +417,22 @@ object ModeChoiceMultinomialLogit {
       )
     )
 
-    logit.MultinomialLogit(
-      mnlUtilityFunctions,
-      commonUtility,
-      scale_factor
+    (
+      new logit.MultinomialLogit(
+        trip => mnlUtilityFunctions.get(trip.tripClassifier.value),
+        commonUtility,
+        scale_factor
+      ),
+      new logit.MultinomialLogit(
+        mode => mnlUtilityFunctions.get(mode.value),
+        commonUtility,
+        scale_factor
+      )
     )
   }
 
   case class ModeCostTimeTransfer(
-    mode: BeamMode,
+    embodiedBeamTrip: EmbodiedBeamTrip,
     cost: Double,
     scaledTime: Double,
     numTransfers: Int,
