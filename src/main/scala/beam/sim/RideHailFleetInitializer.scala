@@ -8,6 +8,7 @@ import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -197,10 +198,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, outputFileBaseName + ".csv.gz")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val filePath = ioController.getIterationFilename(0, outputFileBaseName + ".csv.gz")
+    val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val list: java.util.List[OutputDataDescription] = new java.util.ArrayList[OutputDataDescription]
     list
