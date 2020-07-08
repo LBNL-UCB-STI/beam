@@ -73,7 +73,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     origin: Location,
     destination: Location,
     departureTime: Int,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType]
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
+    beamServices: BeamServices
   ): (Double, Double) = {
     val tazTreeMap = beamServices.beamScenario.tazTreeMap
     val beamConfig = beamServices.beamConfig
