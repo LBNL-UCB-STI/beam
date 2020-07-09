@@ -50,16 +50,21 @@ class ModeChoiceMultinomialLogit(
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
 
-    def getBestNonTransit(modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer]): Iterable[ModeCostTimeTransfer] = {
-      modeCostTimeTransfers.filter(!_.embodiedBeamTrip.tripClassifier.isTransit)
-        .groupBy(_.embodiedBeamTrip.tripClassifier)
-        .map {
-          case (_, group) => group minBy timeAndCost
-        }
-    }
-
-    def getAllTransit(modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer]): Iterable[ModeCostTimeTransfer] = {
-      modeCostTimeTransfers.filter(_.embodiedBeamTrip.tripClassifier.isTransit)
+    def findBestIn(group: IndexedSeq[ModeCostTimeTransfer]): ModeCostTimeTransfer = {
+      if (group.size == 1) {
+        group.head
+      } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
+        val inputData = group.map(
+          mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
+        ).toMap
+        val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+        val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+        chosenModeOpt
+          .flatMap(sample => group.find(_.embodiedBeamTrip == sample.alternativeType))
+          .getOrElse(group minBy timeAndCost)
+      } else {
+        group minBy timeAndCost
+      }
     }
 
     if (alternatives.isEmpty) {
@@ -67,10 +72,13 @@ class ModeChoiceMultinomialLogit(
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
-      val bests = getBestNonTransit(modeCostTimeTransfers) ++ getAllTransit(modeCostTimeTransfers)
-      val inputData = bests.map { mct =>
+      val bestInGroup =
+      modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
+        case (_, group) => findBestIn(group)
+      }
+      val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
-          Map("cost" -> (mct.cost + mct.scaledTime))
+          Map("cost" -> timeAndCost(mct))
         val transferParam: Map[String, Double] = if (mct.embodiedBeamTrip.tripClassifier.isTransit) {
           Map("transfer" -> mct.numTransfers, "transitOccupancyLevel" -> mct.transitOccupancyLevel)
         } else {
@@ -92,7 +100,7 @@ class ModeChoiceMultinomialLogit(
               |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
               |@@@[$personId]DestinationActivity:${destinationActivity}
               |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
-              |@@@[$personId]bests:$bests
+              |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
               |@@@[$personId]chosenModeOpt:${chosenModeOpt}
               |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
@@ -104,7 +112,7 @@ class ModeChoiceMultinomialLogit(
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bests.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
+            bestInGroup.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -351,21 +359,13 @@ class ModeChoiceMultinomialLogit(
   ): Double = {
     val modeCostTimeTransfer =
       altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual, destinationActivity).head
-    utilityOf(
-      modeCostTimeTransfer.embodiedBeamTrip,
-      modeCostTimeTransfer.cost + modeCostTimeTransfer.scaledTime,
-      modeCostTimeTransfer.transitOccupancyLevel,
-      modeCostTimeTransfer.numTransfers
-    )
+    utilityOf(modeCostTimeTransfer)
   }
 
-  private def utilityOf(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    cost: Double,
-    transitOccupancyLevel: Double,
-    numTransfers: Int
-  ): Double = {
-    model.getUtilityOfAlternative(embodiedBeamTrip, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+  private def utilityOf(mct: ModeCostTimeTransfer): Double = {
+    model
+      .getUtilityOfAlternative(mct.embodiedBeamTrip, attributes(mct.cost, mct.transitOccupancyLevel, mct.numTransfers))
+      .getOrElse(0)
   }
 
   override def utilityOf(mode: BeamMode, cost: Double, transitOccupancyLevel: Double, numTransfers: Int = 0): Double = {
