@@ -412,7 +412,14 @@ object BeamVehicle {
   )
 
   def noSpecialChars(theString: String): String =
-    theString.replaceAll("[\\\\|\\\\^]+", ":")
+    theString
+      .replaceAll("[\\\\|\\\\^]+", ":")
+      .replace("[", "")
+      .replace("]", "")
+      .replace("(", "")
+      .replace(")", "")
+      .replace("/", "")
+      .replace("\\", "")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
     createId(id.toString, prefix)

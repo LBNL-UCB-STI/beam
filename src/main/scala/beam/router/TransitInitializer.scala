@@ -146,7 +146,7 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
-          val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
+          val tripVehId = Id.create(BeamVehicle.noSpecialChars(tripSchedule.tripId), classOf[BeamVehicle])
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)
