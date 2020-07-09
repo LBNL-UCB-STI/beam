@@ -3,23 +3,24 @@ package beam.router.skim
 import java.math.RoundingMode
 
 import beam.router.skim.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.google.common.math.IntMath
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
 
 /**
   *
   * @author Dmitry Openkov
   */
-class TransitCrowdingSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
-    extends AbstractSkimmer(beamServices, config) {
+class TransitCrowdingSkimmer @Inject()(matsimServices: MatsimServices, beamConfig: BeamConfig)
+    extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   override protected[skim] val readOnlySkim = new TransitCrowdingSkims()
-  override protected val skimFileBaseName = config.transit_crowding_skimmer.fileBaseName
+  override protected val skimFileBaseName = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
   override protected val skimFileHeader = "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,iterations"
-  override protected val skimName = config.transit_crowding_skimmer.name
+  override protected val skimName = beamConfig.beam.router.skim.transit_crowding_skimmer.name
 
   override protected def fromCsv(
     line: collection.Map[String, String]

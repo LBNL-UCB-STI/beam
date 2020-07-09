@@ -246,7 +246,7 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       beamServices,
       configHolder,
-      Skims.tc_skimmer,
+      beamServices.skims.tc_skimmer,
       eventsManager
     )
 
