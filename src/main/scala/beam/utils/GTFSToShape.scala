@@ -82,8 +82,8 @@ object GTFSToShape extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    val srcFile = if (args.length > 1) args(1) else "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
-    val outFile = if (args.length > 2) args(2) else "/mnt/data/work/beam/gtfs-NY.shp"
+    val srcFile = if (args.length > 0) args(0) else "" //"/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
+    val outFile = if (args.length > 1) args(1) else "" //"/mnt/data/work/beam/gtfs-NY.shp"
 
     val f = new File(srcFile);
     if (f.exists && f.isDirectory) {
