@@ -12,6 +12,7 @@ import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.vehicles.Vehicle
 
@@ -50,7 +51,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     */
   override def createGraph(event: IterationEndsEvent): Unit = {
     //write the parking stats collected by time bin and parking TAZ to a csv file
-    writeToCsv(event.getIteration, parkingStatsByBinAndTaz)
+    writeToCsv(event.getIteration, parkingStatsByBinAndTaz, event.getServices.getControlerIO)
   }
 
   /**
@@ -302,12 +303,12 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     */
   private def writeToCsv(
     iterationNumber: Int,
-    parkingStatsByBinAndTaz: mutable.LinkedHashMap[(Int, String), ParkingStatsCollector.ParkingStats]
+    parkingStatsByBinAndTaz: mutable.LinkedHashMap[(Int, String), ParkingStatsCollector.ParkingStats],
+    ioController: OutputDirectoryHierarchy
   ): Unit = {
     try {
       val header = "timeBin,TAZ,outboundParkingOverheadTime,inboundParkingOverheadTime,inboundParkingOverheadCost"
-      val csvFilePath =
-        GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv")
+      val csvFilePath = ioController.getIterationFilename(iterationNumber, fileBaseName + ".csv")
       val data = parkingStatsByBinAndTaz map {
         case ((bin, taz), parkingStats) =>
           val outboundParkingTime: Double = parkingStats.outboundParkingTimeOverhead match {
@@ -385,12 +386,11 @@ object ParkingStatsCollector extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
+  override def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
 
     val outputFileBaseName = "parkingStats"
-    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, outputFileBaseName + ".csv")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val filePath = ioController.getIterationFilename(0, outputFileBaseName + ".csv")
+    val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val outputDataDescription =
       OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName.dropRight(1), relativePath, "", "")

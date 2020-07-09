@@ -46,7 +46,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => Skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }
@@ -79,7 +79,7 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = Skims.od_skimmer.getTimeDistanceAndCost(
+        val skim = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,

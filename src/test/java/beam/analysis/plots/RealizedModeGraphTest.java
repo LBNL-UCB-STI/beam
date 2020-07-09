@@ -11,7 +11,6 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,7 +47,7 @@ public class RealizedModeGraphTest {
             return super.compute(stat);
         }
 
-    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()));
+    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()), null);
 
     @Before
     public void setUpCRC() {

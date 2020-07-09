@@ -64,6 +64,7 @@ import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.OutputDirectoryHierarchy
 //import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -164,10 +165,9 @@ object RideHailManager {
       *
       * @return list of data description objects
       */
-    override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-      val outputFilePath =
-        GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, fileBaseName + ".csv")
-      val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    override def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+      val outputFilePath = ioController.getIterationFilename(0, fileBaseName + ".csv")
+      val outputDirPath = ioController.getOutputPath
       val relativePath = outputFilePath.replace(outputDirPath, "")
       val list = new util.ArrayList[OutputDataDescription]
       list.add(

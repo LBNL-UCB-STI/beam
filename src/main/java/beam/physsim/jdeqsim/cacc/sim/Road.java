@@ -1,10 +1,11 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunction;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.DeadlockPreventionMessage;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
 import java.util.HashMap;
@@ -17,12 +18,15 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     private final HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
     private final double speedAdjustmentFactor;
     private final double minimumRoadSpeedInMetersPerSecond;
+    private final HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads;
 
-    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond) {
+    public Road(Scheduler scheduler, Link link, double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond,
+                JDEQSimConfigGroup config, HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads) {
 
-        super(scheduler, link);
+        super(scheduler, link, config);
         this.speedAdjustmentFactor = speedAdjustmentFactor;
         this.minimumRoadSpeedInMetersPerSecond = minimumRoadSpeedInMetersPerSecond;
+        this.allRoads = allRoads;
     }
 
     public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
@@ -191,8 +195,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             nextStuckTime=simTime + config.getSqueezeTime();
         }
 
-        if (!Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
-            Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
+        if (!getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)){
+            getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.put(vehicle,simTime + link.getLength()/minimumRoadSpeedInMetersPerSecond);
         }
 
         double minTimeForNextDeadlockPreventionMessageTime=0;
@@ -200,14 +204,14 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
                 getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+INCREASE_TIMESTAMP; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
 
-        double timeToLeaveRoad=Math.max(Math.min(Road.getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
+        double timeToLeaveRoad=Math.max(Math.min(getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
 
         getDeadlockPreventionMessages().add(vehicle.scheduleDeadlockPreventionMessage(timeToLeaveRoad, this));
 
         assert (getInterestedInEnteringRoad().size()== getDeadlockPreventionMessages().size()) :getInterestedInEnteringRoad().size() + " - " + getDeadlockPreventionMessages().size();
     }
 
-    public static Road getRoad(Id<Link> linkId) {
-        return (Road) getAllRoads().get(linkId);
+    public Road getRoad(Id<Link> linkId) {
+        return (Road) allRoads.get(linkId);
     }
 }
