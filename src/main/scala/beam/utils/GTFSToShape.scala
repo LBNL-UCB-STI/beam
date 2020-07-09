@@ -85,10 +85,11 @@ object GTFSToShape extends LazyLogging {
     val srcFile = if (args.length > 0) args(0) else "" //"/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
     val outFile = if (args.length > 1) args(1) else "" //"/mnt/data/work/beam/gtfs-NY.shp"
 
+    logger.info(s"gtfs zip folder: '$srcFile'")
+    logger.info(s"stops coordinate will be in shape file: '$outFile'")
+
     val f = new File(srcFile);
     if (f.exists && f.isDirectory) {
-      logger.info(s"gtfs zip archives will be read from folder: '$srcFile'")
-      logger.info(s"stops coordinate will be in shape file: '$outFile'")
       writeShapeFile(srcFile, outFile)
     } else {
       if (!f.exists) {
