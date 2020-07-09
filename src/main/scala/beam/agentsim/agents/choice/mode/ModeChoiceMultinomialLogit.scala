@@ -54,9 +54,11 @@ class ModeChoiceMultinomialLogit(
       if (group.size == 1) {
         group.head
       } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
-        val inputData = group.map(
-          mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
-        ).toMap
+        val inputData = group
+          .map(
+            mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
+          )
+          .toMap
         val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
         val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
         chosenModeOpt
