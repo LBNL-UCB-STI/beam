@@ -46,35 +46,55 @@ object GTFSToShape extends LazyLogging {
     ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
   }
 
-  def writeShapeFile(zipFilePath: String, outputPath: String): Unit = {
-    val zipFile = new ZipFile(zipFilePath);
+  def writeShapeFile(zipFolderPath: String, outputPath: String): Unit = {
 
-    try {
+    def getCoords(zipFile: ZipFile): Set[WgsCoordinate] = {
       val entry = zipFile.getEntry("stops.txt")
-      val stream = zipFile.getInputStream(entry);
-      val coords = readWgsCoordinates(stream)
-      createShapeFile(coords, outputPath)
-    } catch {
-      case ioexc: IOException => logger.error(s"IOException happened: $ioexc")
-    } finally {
-      zipFile.close()
+      if (entry == null) {
+        Set.empty[WgsCoordinate]
+      } else {
+        val stream = zipFile.getInputStream(entry);
+        readWgsCoordinates(stream)
+      }
     }
+    val gtfsFolder = new File(zipFolderPath);
+    val gtfsFiles = gtfsFolder.listFiles();
+
+    val coords = scala.collection.mutable.ListBuffer.empty[Set[WgsCoordinate]]
+
+    for (zipFilePath <- gtfsFiles.filter(file => file.isFile && file.getName.endsWith(".zip"))) {
+      val zipFile = new ZipFile(zipFilePath)
+
+      try {
+        val gtfsCoords = getCoords(zipFile)
+        logger.info(s"got ${gtfsCoords.size} coordinates from $zipFilePath")
+        coords += gtfsCoords
+      } catch {
+        case ioexc: IOException => logger.error(s"IOException happened: $ioexc")
+      } finally {
+        zipFile.close()
+      }
+    }
+
+    val allCoords = coords.flatten
+    createShapeFile(allCoords, outputPath)
+    logger.info(s"${allCoords.size} coordinates written into shape file")
   }
 
   def main(args: Array[String]): Unit = {
-    val srcFile = if (args.length > 1) args(1) else "/mnt/data/work/beam/gtfs-detroit.zip"
-    val outFile = if (args.length > 2) args(2) else "/mnt/data/work/beam/gtfs-detroit.shp"
+    val srcFile = if (args.length > 1) args(1) else "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
+    val outFile = if (args.length > 2) args(2) else "/mnt/data/work/beam/gtfs-NY.shp"
 
     val f = new File(srcFile);
-    if (f.exists && !f.isDirectory) {
-      logger.info(s"gtfs zip archive will be read from: '$srcFile'")
+    if (f.exists && f.isDirectory) {
+      logger.info(s"gtfs zip archives will be read from folder: '$srcFile'")
       logger.info(s"stops coordinate will be in shape file: '$outFile'")
       writeShapeFile(srcFile, outFile)
     } else {
       if (!f.exists) {
-        logger.error(s"given path to gtfs zip archive does not exist")
+        logger.error(s"given path to gtfs zip archives does not exist")
       } else {
-        logger.error(s"given path to gtfs zip archive is a folder not an archive")
+        logger.error(s"given path to gtfs zip archives is not a folder")
       }
     }
 
