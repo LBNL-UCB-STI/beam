@@ -271,12 +271,12 @@ class ModeChoiceMultinomialLogit(
       val maxOccupancyLevel: Double = getMaxTransitOccupancyLevel(altAndIdx._1)
 
       ModeCostTimeTransfer(
-        altAndIdx._1,
-        incentivizedCost,
-        scaledTime,
-        numTransfers,
-        maxOccupancyLevel,
-        altAndIdx._2
+        embodiedBeamTrip = altAndIdx._1,
+        cost = incentivizedCost,
+        scaledTime = scaledTime,
+        numTransfers = numTransfers,
+        transitOccupancyLevel = maxOccupancyLevel,
+        index = altAndIdx._2
       )
     }
   }
