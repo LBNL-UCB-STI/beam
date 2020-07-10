@@ -2,7 +2,7 @@ package beam.utils.data.synthpop.generators
 
 import java.util.concurrent.TimeUnit
 
-import beam.utils.Statistics
+import beam.utils.{ProfilingUtils, Statistics}
 import beam.utils.data.ctpp.JointDistribution
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
@@ -42,8 +42,9 @@ class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGener
     val startTimeIndexStr = s"$startHour, $endHour"
     try {
       val sample = jd.getSample(true, ("startTimeIndex", Left(startTimeIndexStr)))
-      val workDuration = sample("durationIndex").toDouble
-      TimeUnit.HOURS.toSeconds(workDuration.toLong).toInt
+      val workDurationInHours = sample("durationIndex").toDouble
+      val workDurationInSeconds = (workDurationInHours * 3600).toInt
+      workDurationInSeconds
     } catch {
       case NonFatal(ex) =>
         logger.warn(
@@ -60,11 +61,15 @@ class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGener
 object WorkedDurationGeneratorImpl {
 
   def main(args: Array[String]): Unit = {
-    val path = """D:\Work\beam\Austin\input\work_activities_all_us.csv"""
+    val path = "D:/Work/beam/NewYork/work_activities_35620.csv"
     val w = new WorkedDurationGeneratorImpl(path, new MersenneTwister(42))
     val timeWhenLeaveHome = Range(TimeUnit.HOURS.toSeconds(10).toInt, TimeUnit.HOURS.toSeconds(11).toInt)
-    val allDurations = (1 to 10000).map { _ =>
-      w.next(timeWhenLeaveHome) / 3600.0
+
+    val n: Int = 10000
+    val allDurations = ProfilingUtils.timed(s"Generated $n work durations", x => println(x)) {
+      (1 to n).map { _ =>
+        w.next(timeWhenLeaveHome) / 3600.0
+      }
     }
 
     println(s"Duration stats: ${Statistics(allDurations.map(_.toDouble))}")
