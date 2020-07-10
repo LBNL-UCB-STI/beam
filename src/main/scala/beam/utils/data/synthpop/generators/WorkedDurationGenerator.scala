@@ -2,7 +2,7 @@ package beam.utils.data.synthpop.generators
 
 import java.util.concurrent.TimeUnit
 
-import beam.utils.{ProfilingUtils, Statistics}
+import beam.utils.{MathUtils, ProfilingUtils, Statistics}
 import beam.utils.data.ctpp.JointDistribution
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
@@ -37,8 +37,8 @@ class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGener
     * @return Worked duration in seconds
     */
   override def next(rangeWhenLeftHome: Range): Int = {
-    val startHour = roundToFraction(rangeWhenLeftHome.start / 3600.0, 2)
-    val endHour = roundToFraction(rangeWhenLeftHome.end / 3600.0, 2)
+    val startHour = MathUtils.roundToFraction(rangeWhenLeftHome.start / 3600.0, 2)
+    val endHour = MathUtils.roundToFraction(rangeWhenLeftHome.end / 3600.0, 2)
     val startTimeIndexStr = s"$startHour, $endHour"
     try {
       val sample = jd.getSample(true, ("startTimeIndex", Left(startTimeIndexStr)))
@@ -55,7 +55,6 @@ class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGener
     }
   }
 
-  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 }
 
 object WorkedDurationGeneratorImpl {
@@ -63,7 +62,8 @@ object WorkedDurationGeneratorImpl {
   def main(args: Array[String]): Unit = {
     val path = "D:/Work/beam/NewYork/work_activities_35620.csv"
     val w = new WorkedDurationGeneratorImpl(path, new MersenneTwister(42))
-    val timeWhenLeaveHome = Range(TimeUnit.HOURS.toSeconds(10).toInt, TimeUnit.HOURS.toSeconds(11).toInt)
+    // val timeWhenLeaveHome = Range(TimeUnit.HOURS.toSeconds(10).toInt, TimeUnit.HOURS.toSeconds(11).toInt)
+    val timeWhenLeaveHome = Range(14400, 15300)
 
     val n: Int = 10000
     val allDurations = ProfilingUtils.timed(s"Generated $n work durations", x => println(x)) {

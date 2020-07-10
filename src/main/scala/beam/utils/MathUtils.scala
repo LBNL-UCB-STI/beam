@@ -42,4 +42,5 @@ object MathUtils {
     number > 0 && ((number & (number - 1)) == 0)
   }
 
+  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 }
