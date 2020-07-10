@@ -342,7 +342,7 @@ class PersonAgent(
             .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
-                  Skims.od_skimmer
+                  beamServices.skims.od_skimmer
                     .getTimeDistanceAndCost(
                       pair.head.activity.getCoord,
                       pair.last.activity.getCoord,

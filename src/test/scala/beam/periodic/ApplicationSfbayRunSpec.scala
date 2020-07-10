@@ -31,7 +31,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
 
       config.getInt(LAST_ITER_CONF_PATH) should be(totalIterations - 1)
 
-      val (_, output) = runBeamWithConfig(config)
+      val (_, output, _) = runBeamWithConfig(config)
 
       val outDir = Paths.get(output).toFile
 
