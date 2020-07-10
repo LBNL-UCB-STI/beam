@@ -16,15 +16,10 @@ import org.matsim.core.events.EventsManagerImpl
 import scala.io.Source
 import scala.util.Try
 
-class PhysSimReplayer {}
-
 object PhysSimReplayer extends StrictLogging {
 
   def eventsFilter(event: Event): Boolean = {
-    val attribs = event.getAttributes
-    // We need only PathTraversal
-    val isNeededEvent = event.getEventType == "PathTraversal"
-    isNeededEvent
+    event.getEventType == "PathTraversal"
   }
 
   def main(args: Array[String]): Unit = {
