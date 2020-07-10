@@ -1,4 +1,4 @@
-package beam.utils
+package beam.utils.gtfs
 
 import java.io.{Closeable, File, IOException, InputStream}
 import java.util.zip.ZipFile
@@ -10,7 +10,6 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 object GTFSToShape extends LazyLogging {
