@@ -105,7 +105,7 @@ class ModeChoiceMultinomialLogit(
               |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
               |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]expectedMaximumUtility:${expectedMaximumUtility}
               |@@@[$personId]-----------------------------------------
               |""".stripMargin
         logger.debug(msgToLog)
@@ -413,8 +413,9 @@ object ModeChoiceMultinomialLogit {
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),
       "ride_hail_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
+        "intercept"             -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept)),
       "walk_transit" -> Map(
