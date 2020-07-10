@@ -132,7 +132,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
         CheckResult.InsideBoundingBoxAndFeasbleForR5
       }
     } else {
-      CheckResult.OutsideOfBoundingBox
+      CheckResult.OutsideOfBoundingBox(mapBoundingBox)
     }
   }
 }
@@ -230,6 +230,6 @@ object GeoService {
 
     final case object InsideBoundingBoxAndFeasbleForR5 extends CheckResult
 
-    final case object OutsideOfBoundingBox extends CheckResult
+    final case class OutsideOfBoundingBox(boundingBox: Envelope) extends CheckResult
   }
 }

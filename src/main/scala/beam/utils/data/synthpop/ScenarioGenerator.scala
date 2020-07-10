@@ -173,6 +173,9 @@ class SimpleScenarioGenerator(
         logger.info(s"$tazGeoId => $cnt")
     }
     logger.info(s"Generating TAZ geo id to working locations...")
+
+    val nPointsMultiplier: Double = 3.0
+
     // Generate all work destinations which will be later assigned to people
     val tazGeoIdToWorkingLocations =
       ProfilingUtils.timed("Generated TAZ geo id to working locations", x => logger.info(x)) {
@@ -181,7 +184,15 @@ class SimpleScenarioGenerator(
             val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
               case Some(geom) =>
                 ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
-                  pointsGenerator.generate(geom, nWorkingPlaces)
+                  val initLocations = pointsGenerator.generate(geom, (nPointsMultiplier * nWorkingPlaces).toInt)
+                  val withinMapConstrains = initLocations.filter(
+                    c => geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
+                  )
+                  val finalLocations = withinMapConstrains.take(nWorkingPlaces)
+                  logger.info(
+                    s"${tazGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+                  )
+                  finalLocations
                 }
               case None =>
                 logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
@@ -197,10 +208,16 @@ class SimpleScenarioGenerator(
         blockGroupGeoIdToHouseholds.par.map {
           case (blockGroupGeoId, householdsWithPersonData) =>
             val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
-            blockGroupGeoId -> pointsGenerator.generate(
-              blockGeomOfHousehold,
-              householdsWithPersonData.size
+            val initLocations =
+              pointsGenerator.generate(blockGeomOfHousehold, (nPointsMultiplier * householdsWithPersonData.size).toInt)
+            val withinMapConstrains = initLocations.filter(
+              c => geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
             )
+            val finalLocations = withinMapConstrains.take(householdsWithPersonData.size)
+            logger.info(
+              s"${blockGroupGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+            )
+            blockGroupGeoId -> finalLocations
         }.seq
       }
 
@@ -216,127 +233,103 @@ class SimpleScenarioGenerator(
         }
         val res = householdsWithPersonData.zip(householdLocation).map {
           case ((household: Models.Household, personsWithData: Seq[PersonWithExtraInfo]), wgsHouseholdLocation) =>
-            val householdCheckResult = geoSvc.coordinatesWithinBoundaries(wgsHouseholdLocation)
-            if (householdCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
-              val createdHousehold = HouseholdInfo(
-                HouseholdId(household.fullId),
-                household.numOfVehicles,
-                household.income,
-                wgsHouseholdLocation.getX,
-                wgsHouseholdLocation.getY
-              )
+            val createdHousehold = HouseholdInfo(
+              HouseholdId(household.fullId),
+              household.numOfVehicles,
+              household.income,
+              wgsHouseholdLocation.getX,
+              wgsHouseholdLocation.getY
+            )
 
-              val (personsAndPlans, lastPersonId) =
-                personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case (
-                      (xs, nextPersonId: Int),
-                      PersonWithExtraInfo(person, workTazGeoId: TazGeoId, timeLeavingHomeRange)
-                      ) =>
-                    val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
-                    val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
-                    nextWorkLocation.update(workTazGeoId, offset + 1)
-                    workLocations.lift(offset) match {
-                      case Some(wgsWorkingLocation) =>
-                        val workingLocationCheckResult = geoSvc.coordinatesWithinBoundaries(wgsWorkingLocation)
-                        if (workingLocationCheckResult == CheckResult.InsideBoundingBoxAndFeasbleForR5) {
-                          val valueOfTime =
-                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
-                          val createdPerson = beam.utils.scenario.PersonInfo(
-                            personId = PersonId(nextPersonId.toString),
-                            householdId = createdHousehold.householdId,
-                            rank = 0,
-                            age = person.age,
-                            isFemale = person.gender == Gender.Female,
-                            valueOfTime = valueOfTime
-                          )
-                          val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
+            val (personsAndPlans, lastPersonId) =
+              personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
+                case (
+                    (xs, nextPersonId: Int),
+                    PersonWithExtraInfo(person, workTazGeoId: TazGeoId, timeLeavingHomeRange)
+                    ) =>
+                  val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
+                  val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
+                  nextWorkLocation.update(workTazGeoId, offset + 1)
+                  workLocations.lift(offset) match {
+                    case Some(wgsWorkingLocation) =>
+                      val valueOfTime =
+                        PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                      val createdPerson = beam.utils.scenario.PersonInfo(
+                        personId = PersonId(nextPersonId.toString),
+                        householdId = createdHousehold.householdId,
+                        rank = 0,
+                        age = person.age,
+                        isFemale = person.gender == Gender.Female,
+                        valueOfTime = valueOfTime
+                      )
+                      val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
-                          // Create Home Activity: end time is when a person leaves a home
-                          val leavingHomeActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 1,
-                            activityType = Some("Home"),
-                            activityLocationX = Some(wgsHouseholdLocation.getX),
-                            activityLocationY = Some(wgsHouseholdLocation.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
-                            geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
-                          )
-                          // Create Leg
-                          val leavingHomeLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+                      // Create Home Activity: end time is when a person leaves a home
+                      val leavingHomeActivity = planElementTemplate.copy(
+                        personId = createdPerson.personId,
+                        planElementType = "activity",
+                        planElementIndex = 1,
+                        activityType = Some("Home"),
+                        activityLocationX = Some(wgsHouseholdLocation.getX),
+                        activityLocationY = Some(wgsHouseholdLocation.getY),
+                        activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                        geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
+                      )
+                      // Create Leg
+                      val leavingHomeLeg = planElementTemplate
+                        .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
 
-                          val timeLeavingWorkSeconds = {
-                            val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
-                            val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                            val margin = 1.3
-                            val travelTime =
-                              estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
-                            val workStartTime = timeLeavingHomeSeconds + travelTime
-                            val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                            workStartTime + workingDuration
-                          }
+                      val timeLeavingWorkSeconds = {
+                        val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+                        val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
+                        val margin = 1.3
+                        val travelTime =
+                          estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
+                        val workStartTime = timeLeavingHomeSeconds + travelTime
+                        val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
+                        workStartTime + workingDuration
+                      }
 
-                          val leavingWorkActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 3,
-                            activityType = Some("Work"),
-                            activityLocationX = Some(wgsWorkingLocation.getX),
-                            activityLocationY = Some(wgsWorkingLocation.getY),
-                            activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
-                            geoId = Some(toStateGeoId(workTazGeoId.state, workTazGeoId.county))
-                          )
-                          val leavingWorkLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+                      val leavingWorkActivity = planElementTemplate.copy(
+                        personId = createdPerson.personId,
+                        planElementType = "activity",
+                        planElementIndex = 3,
+                        activityType = Some("Work"),
+                        activityLocationX = Some(wgsWorkingLocation.getX),
+                        activityLocationY = Some(wgsWorkingLocation.getY),
+                        activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
+                        geoId = Some(toStateGeoId(workTazGeoId.state, workTazGeoId.county))
+                      )
+                      val leavingWorkLeg = planElementTemplate
+                        .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
 
-                          // Create Home Activity: end time not defined
-                          val homeActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 5,
-                            activityType = Some("Home"),
-                            activityLocationX = Some(wgsHouseholdLocation.getX),
-                            activityLocationY = Some(wgsHouseholdLocation.getY),
-                            geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
-                          )
+                      // Create Home Activity: end time not defined
+                      val homeActivity = planElementTemplate.copy(
+                        personId = createdPerson.personId,
+                        planElementType = "activity",
+                        planElementIndex = 5,
+                        activityType = Some("Home"),
+                        activityLocationX = Some(wgsHouseholdLocation.getX),
+                        activityLocationY = Some(wgsHouseholdLocation.getY),
+                        geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
+                      )
 
-                          val personWithPlans = PersonWithPlans(
-                            createdPerson,
-                            List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
-                          )
-                          (personWithPlans :: xs, nextPersonId + 1)
-                        } else {
-                          logger
-                            .info(
-                              s"Working location $wgsWorkingLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $workingLocationCheckResult"
-                            )
-                          (xs, nextPersonId + 1)
-                        }
-                      case None =>
-                        (xs, nextPersonId + 1)
-                    }
-                }
-              globalPersonId = lastPersonId
-              if (personsAndPlans.size == personsWithData.size) {
-                Some((createdHousehold, personsAndPlans))
-              } else None
-            } else {
-              logger
-                .info(
-                  s"Household $wgsHouseholdLocation does not belong to bounding box ${geoSvc.mapBoundingBox} or it is not feasible for R5. Actual reason: $householdCheckResult"
-                )
-              None
-            }
+                      val personWithPlans = PersonWithPlans(
+                        createdPerson,
+                        List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
+                      )
+                      (personWithPlans :: xs, nextPersonId + 1)
+                    case None =>
+                      (xs, nextPersonId + 1)
+                  }
+              }
+            globalPersonId = lastPersonId
+            if (personsAndPlans.size == personsWithData.size) {
+              Some((createdHousehold, personsAndPlans))
+            } else None
         }
         blockGroupGeoId -> res
     }
-
-    val outOfBoundingBoxCnt = finalResult.values.flatten.count(x => x.isEmpty)
-    if (outOfBoundingBoxCnt != 0)
-      logger.warn(
-        s"There were ${outOfBoundingBoxCnt} households which locations do not belong to bounding box ${geoSvc.mapBoundingBox}"
-      )
     finalResult.values.flatten.flatten
   }
 
@@ -518,7 +511,7 @@ class SimpleScenarioGenerator(
   }
 }
 
-object SimpleScenarioGenerator {
+object SimpleScenarioGenerator extends StrictLogging {
   case class Arguments(
     sythpopDataFolder: String,
     ctppFolder: String,
@@ -562,18 +555,18 @@ object SimpleScenarioGenerator {
     gen.writeTazCenters(pathToOutput)
 
     val generatedData = gen.generate
-    println(s"Number of households: ${generatedData.size}")
-    println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+    logger.info(s"Number of households: ${generatedData.size}")
+    logger.info(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 
     val households = generatedData.map(_._1).toVector
     val householdFilePath = s"$pathToOutput/households.csv"
     CsvHouseholdInfoWriter.write(householdFilePath, households)
-    println(s"Wrote households information to $householdFilePath")
+    logger.info(s"Wrote households information to $householdFilePath")
 
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
     val personsFilePath = s"$pathToOutput/persons.csv"
     CsvPersonInfoWriter.write(personsFilePath, persons)
-    println(s"Wrote persons information to $personsFilePath")
+    logger.info(s"Wrote persons information to $personsFilePath")
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
     val geoUtils: GeoUtils = new GeoUtils {
@@ -586,7 +579,7 @@ object SimpleScenarioGenerator {
 
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
-    println(s"Wrote plans information to $plansFilePath")
+    logger.info(s"Wrote plans information to $plansFilePath")
   }
 
   def main(args: Array[String]): Unit = {
@@ -609,7 +602,7 @@ object SimpleScenarioGenerator {
     '--outputFolder', 'D:/Work/beam/NewYork/results'
     "] -PlogbackCfg=logback.xml
      */
-    ProfilingUtils.timed("Scenario generation", x => println(x)) {
+    ProfilingUtils.timed("Scenario generation", x => logger.info(x)) {
       SimpleScenarioGeneratorArgParser.parseArguments(args) match {
         case None =>
           throw new IllegalStateException("Unable to parse arguments. Check the logs")
