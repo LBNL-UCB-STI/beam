@@ -144,7 +144,7 @@ class SimpleScenarioGenerator(
   ) {
     getBlockGroupToTazs
   }
-  logger.info(s"blockGroupToPumaMap: ${blockGroupToToTazs.size}")
+  logger.info(s"blockGroupToToTazs: ${blockGroupToToTazs.size}")
 
   logger.info(s"Initializing finished")
 
@@ -222,9 +222,11 @@ class SimpleScenarioGenerator(
       }
 
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
+    var cnt: Int = 0
     val finalResult = blockGroupGeoIdToHouseholds.map {
       case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
-        logger.info(s"$blockGroupGeoId contains ${householdsWithPersonData.size} households")
+        val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
+        logger.info("$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%")
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
           logger.warn(
@@ -328,6 +330,7 @@ class SimpleScenarioGenerator(
               Some((createdHousehold, personsAndPlans))
             } else None
         }
+        cnt += 1
         blockGroupGeoId -> res
     }
     finalResult.values.flatten.flatten
@@ -569,6 +572,10 @@ object SimpleScenarioGenerator extends StrictLogging {
     logger.info(s"Wrote persons information to $personsFilePath")
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
+    val plansFilePath = s"$pathToOutput/plans.csv"
+    CsvPlanElementWriter.write(plansFilePath, planElements)
+    logger.info(s"Wrote plans information to $plansFilePath")
+
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = parsedArgs.localCRS
     }
@@ -576,10 +583,6 @@ object SimpleScenarioGenerator extends StrictLogging {
       geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
     }
     gen.writeH3(pathToOutput, allActivities, 1000)
-
-    val plansFilePath = s"$pathToOutput/plans.csv"
-    CsvPlanElementWriter.write(plansFilePath, planElements)
-    logger.info(s"Wrote plans information to $plansFilePath")
   }
 
   def main(args: Array[String]): Unit = {
