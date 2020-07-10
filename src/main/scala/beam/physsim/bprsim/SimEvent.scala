@@ -16,7 +16,14 @@ import scala.language.implicitConversions
   *
   * @author Dmitry Openkov
   */
-abstract class SimEvent(val time: Double, val priority: Int, val person: Person, val legIdx: Int, val linkIdx: Int) {
+abstract class SimEvent(
+  val time: Double,
+  val priority: Int,
+  val person: Person,
+  val isCACC: Boolean,
+  val legIdx: Int,
+  val linkIdx: Int
+) {
   def previousActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx - 1).asInstanceOf[Activity]
   def nextActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx + 1).asInstanceOf[Activity]
   val leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
@@ -43,8 +50,8 @@ object SimEvent {
   }
 }
 
-class StartLegSimEvent(time: Double, priority: Int, person: Person, legIdx: Int)
-    extends SimEvent(time, priority, person, legIdx, -1) {
+class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int)
+    extends SimEvent(time, priority, person, isCACC, legIdx, -1) {
   override def execute(scenario: Scenario, params: BPRSimParams) = {
     val events = List(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
@@ -62,13 +69,13 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, legIdx: Int)
         if (emptyLeg) {
           // move to first link in next leg and schedule an end leg message
           // duration of leg = 0 (departure and arrival time is the same)
-          new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)
+          new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, isCACC, legIdx, linkIdx)
         } else {
           // car trying to enter traffic
-          new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, legIdx, linkIdx)
+          new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, isCACC, legIdx, linkIdx)
         }
       case _ =>
-        new EndLegSimEvent(immidiateTime + leg.getTravelTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)
+        new EndLegSimEvent(immidiateTime + leg.getTravelTime, PRIORITY_ARRIVAL_MESSAGE, person, isCACC, legIdx, linkIdx)
     }
     (events, Some(simEvent))
   }
@@ -78,9 +85,10 @@ class EndLegSimEvent(
   time: Double,
   priority: Int,
   person: Person,
+  isCACC: Boolean,
   legIdx: Int,
   linkIdx: Int,
-) extends SimEvent(time, priority, person, legIdx, linkIdx) {
+) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
   override def execute(scenario: Scenario, params: BPRSimParams) = {
     val nextAct = nextActivity
 
@@ -103,7 +111,7 @@ class EndLegSimEvent(
       val activityDurationInterpretation = scenario.getConfig.plans.getActivityDurationInterpretation
       val departureTime = ActivityDurationUtils.calculateDepartureTime(nextAct, time, activityDurationInterpretation)
       val nextLegStart = Math.max(immidiateTime, departureTime)
-      Some(new StartLegSimEvent(nextLegStart, PRIORITY_DEPARTUARE_MESSAGE, person, legIdx + 2))
+      Some(new StartLegSimEvent(nextLegStart, PRIORITY_DEPARTUARE_MESSAGE, person, isCACC, legIdx + 2))
     } else {
       None
     }
@@ -111,52 +119,67 @@ class EndLegSimEvent(
   }
 }
 
-class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, legIdx: Int, linkIdx: Int)
-    extends SimEvent(time, priority, person, legIdx, linkIdx) {
+class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int, linkIdx: Int)
+    extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
   override def execute(scenario: Scenario, params: BPRSimParams) = {
-    //simplification: When a vehicle is entering road it enters road immediately
+    //simplification: When a vehicle is entering a road it enters the road immediately
     val vehicleId = createVehicleId(person)
     val event =
       if (isLegStart) new VehicleEntersTrafficEvent(time, person.getId, linkId, vehicleId, null, 1.0)
       else new LinkEnterEvent(time, vehicleId, linkId)
     val events = List(event)
-    params.volumeCalculator.vehicleEntered(linkId, time)
+    params.volumeCalculator.vehicleEntered(linkId, time, isCACC)
 
     val link = scenario.getNetwork.getLinks.get(linkId)
     // calculate time, when the car reaches the end of the link
-    val volume: Double = params.volumeCalculator.getVolume(linkId, time)
-    val linkTravelTime = params.config.travelTimeFunction(time, link, volume)
+    val (volume: Double, caccShare: Double) = params.volumeCalculator.getVolumeAndCACCShare(linkId, time)
+    val linkTravelTime = params.config.travelTimeFunction(time, link, caccShare, volume)
 
     (
       events,
-      Some(new EndLinkSimEvent(immidiateTime + linkTravelTime, PRIORITY_LEAVE_ROAD_MESSAGE, person, legIdx, linkIdx))
+      Some(
+        new EndLinkSimEvent(
+          immidiateTime + linkTravelTime,
+          PRIORITY_LEAVE_ROAD_MESSAGE,
+          person,
+          isCACC,
+          legIdx,
+          linkIdx
+        )
+      )
     )
   }
 }
 
-class EnteringActivityLinkSimEvent(time: Double, priority: Int, person: Person, legIdx: Int, linkIdx: Int)
-    extends SimEvent(time, priority, person, legIdx, linkIdx) {
+class EnteringActivityLinkSimEvent(
+  time: Double,
+  priority: Int,
+  person: Person,
+  isCACC: Boolean,
+  legIdx: Int,
+  linkIdx: Int
+) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
   override def execute(scenario: Scenario, params: BPRSimParams) = {
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
     val events = List(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
-    params.volumeCalculator.vehicleEntered(linkId, time)
+    params.volumeCalculator.vehicleEntered(linkId, time, isCACC)
 
-    (events, Some(new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, legIdx, linkIdx)))
+    (events, Some(new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, isCACC, legIdx, linkIdx)))
   }
 }
 
-class EndLinkSimEvent(time: Double, priority: Int, person: Person, legIdx: Int, linkIdx: Int)
-    extends SimEvent(time, priority, person, legIdx, linkIdx) {
+class EndLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int, linkIdx: Int)
+    extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
 
   override def execute(scenario: Scenario, params: BPRSimParams) = {
     val vehicleId = createVehicleId(person)
     val events = List(new LinkLeaveEvent(time, vehicleId, linkId))
     val simEvent = if (lastLink) {
       //one needs to enter the next activity link, and then finish the leg
-      new EnteringActivityLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, legIdx, linkIdx)
+      new EnteringActivityLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, isCACC, legIdx, linkIdx)
     } else {
-      new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, legIdx, linkIdx + 1)
+      new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, isCACC, legIdx, linkIdx + 1)
     }
     (events, Some(simEvent))
   }

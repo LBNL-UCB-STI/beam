@@ -24,8 +24,9 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
 
   def init(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
+    val caccMap = params.config.caccSettings.map(_.isCACCVehicle).getOrElse(java.util.Collections.emptyMap())
     persons
-      .map(person => BPRSimulation.startingEvent(person, firstAct => myLinks.contains(firstAct.getLinkId)))
+      .map(person => BPRSimulation.startingEvent(person, caccMap, firstAct => myLinks.contains(firstAct.getLinkId)))
       .flatMap(_.iterator)
       .foreach(se => acceptSimEvent(se))
   }

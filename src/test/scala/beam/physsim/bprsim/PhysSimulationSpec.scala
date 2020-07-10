@@ -67,8 +67,10 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
           jdeqConfig.getSimulationEndTime,
           1,
           0,
+          1.0,
           900,
-          (time, link, _) => link.getLength / link.getFreespeed(time)
+          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          None,
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new BPRSimulation(scenario, bprConfig, eventManager)
@@ -84,8 +86,10 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
           jdeqConfig.getSimulationEndTime,
           8,
           60,
+          1.0,
           900,
-          (time, link, _) => link.getLength / link.getFreespeed(time)
+          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          None,
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)

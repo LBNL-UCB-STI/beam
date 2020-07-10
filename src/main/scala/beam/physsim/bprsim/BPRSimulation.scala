@@ -21,8 +21,9 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
 
   override def run(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
+    val caccMap = params.config.caccSettings.map(_.isCACCVehicle).getOrElse(java.util.Collections.emptyMap())
     persons
-      .map(person => BPRSimulation.startingEvent(person, _ => true))
+      .map(person => BPRSimulation.startingEvent(person, caccMap, _ => true))
       .flatMap(_.iterator)
       .foreach(queue.enqueue(_))
 
@@ -55,7 +56,11 @@ object BPRSimulation {
     if (c1 != 0) c1 else java.lang.Integer.compare(x.priority, y.priority)
   }
 
-  private[bprsim] def startingEvent(person: Person, accept: Activity => Boolean): Option[StartLegSimEvent] = {
+  private[bprsim] def startingEvent(
+    person: Person,
+    caccMap: java.util.Map[String, java.lang.Boolean],
+    accept: Activity => Boolean
+  ): Option[StartLegSimEvent] = {
     val plan = person.getSelectedPlan
     if (plan == null || plan.getPlanElements.size() <= 1)
       None
@@ -67,7 +72,8 @@ object BPRSimulation {
         val departureTime = firstAct.getEndTime
 
         // schedule start leg message
-        Some(new StartLegSimEvent(departureTime, PRIORITY_DEPARTUARE_MESSAGE, person, 1))
+        val isCACC = caccMap.getOrDefault(person.getId, false)
+        Some(new StartLegSimEvent(departureTime, PRIORITY_DEPARTUARE_MESSAGE, person, isCACC, 1))
       } else {
         None
       }
