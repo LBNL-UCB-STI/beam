@@ -140,7 +140,7 @@ trait BeamHelper extends LazyLogging {
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
-          install(new ConfigModule(typesafeConfig))
+          install(new ConfigModule(typesafeConfig, beamConfig))
           install(new BeamAgentModule(beamConfig))
           install(new UtilsModule)
         }
