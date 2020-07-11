@@ -76,6 +76,71 @@ case class BeamPath(
 }
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
-object BeamPath {
-  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, null, null, 0)
+object BeamPath extends Ordering[BeamPath] {
+  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
+
+  import scala.annotation.tailrec
+
+  def compareSeq[T: Numeric](xArr: IndexedSeq[T], yArr: IndexedSeq[T])(implicit ev: Numeric[T]): Int = {
+    @tailrec
+    def loop(idx: Int, shouldStop: Boolean, result: Int): Int = {
+      if (shouldStop || idx >= xArr.length) result
+      else {
+        val a = xArr(idx)
+        val b = yArr(idx)
+        val res = ev.compare(a, b)
+        if (res != 0) {
+          // Found the first pairs which are not equal, so the `res` is our result and we should stop immediately
+          loop(idx = idx + 1, shouldStop = true, result = res)
+        } else {
+          // Two elements are equal, keep moving forward
+          loop(idx = idx + 1, shouldStop = false, result = res)
+        }
+      }
+    }
+    loop(idx = 0, shouldStop = false, result = 0)
+  }
+
+  // TODO: Unit test this!
+  override def compare(x: BeamPath, y: BeamPath): Int = {
+    import scala.math.Ordered.orderingToOrdered
+
+    // Compare distance
+    var r = x.distanceInM.compare(y.distanceInM)
+    if (r != 0) r
+    else {
+      // Compare start point
+      r = x.startPoint.compare(y.startPoint)
+      if (r != 0) r
+      else {
+        // Compare end point
+        r = x.endPoint.compare(y.endPoint)
+        if (r != 0) r
+        else {
+          // Transform to the tuples
+          val xTransitTuple = x.transitStops.map(TransitStopsInfo.unapply(_).get)
+          val yTransitTuple = y.transitStops.map(TransitStopsInfo.unapply(_).get)
+          // And compare tuples
+          r = xTransitTuple.compareTo(yTransitTuple)
+          if (r != 0) r
+          else {
+            // Compare the length of `linkIds` vector. Keep in mind that `linkIds` and `linkTravelTime` have the same size
+            r = x.linkIds.length.compareTo(y.linkIds.length)
+            if (r != 0) r
+            else {
+              // Compare the elements of `linkIds`
+              r = BeamPath.compareSeq(x.linkIds, y.linkIds)
+              if (r != 0) r
+              else {
+                // Compare the elements of `linkTravelTime`
+                r = BeamPath.compareSeq(x.linkTravelTime, y.linkTravelTime)
+                r
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
 }
