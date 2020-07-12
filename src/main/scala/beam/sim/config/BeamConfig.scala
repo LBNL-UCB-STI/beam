@@ -26,7 +26,6 @@ object BeamConfig {
     routing: BeamConfig.Beam.Routing,
     sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
-    urbansim: BeamConfig.Beam.Urbansim,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
   )
@@ -3208,22 +3207,6 @@ object BeamConfig {
       }
     }
 
-    case class Urbansim(
-      allTAZSkimsPeakHour: scala.Double,
-      allTAZSkimsWriteInterval: scala.Int
-    )
-
-    object Urbansim {
-
-      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
-        BeamConfig.Beam.Urbansim(
-          allTAZSkimsPeakHour = if (c.hasPathOrNull("allTAZSkimsPeakHour")) c.getDouble("allTAZSkimsPeakHour") else 8.5,
-          allTAZSkimsWriteInterval =
-            if (c.hasPathOrNull("allTAZSkimsWriteInterval")) c.getInt("allTAZSkimsWriteInterval") else 0
-        )
-      }
-    }
-
     case class WarmStart(
       enabled: scala.Boolean,
       path: java.lang.String,
@@ -3320,10 +3303,6 @@ object BeamConfig {
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
           else com.typesafe.config.ConfigFactory.parseString("spatial{}")
-        ),
-        urbansim = BeamConfig.Beam.Urbansim(
-          if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
-          else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
         ),
         useLocalWorker = !c.hasPathOrNull("useLocalWorker") || c.getBoolean("useLocalWorker"),
         warmStart = BeamConfig.Beam.WarmStart(
