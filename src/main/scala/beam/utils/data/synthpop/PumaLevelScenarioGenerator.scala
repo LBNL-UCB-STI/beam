@@ -137,7 +137,7 @@ class PumaLevelScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
+  override def generate: ScenarioResult = {
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -304,7 +304,7 @@ class PumaLevelScenarioGenerator(
         blockGroupGeoId -> res
     }
 
-    finalResult.values.flatten
+    ScenarioResult(finalResult.values.flatten, Map.empty)
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
@@ -472,7 +472,8 @@ object PumaLevelScenarioGenerator {
         42
       )
 
-    val generatedData = gen.generate
+    val scenarioResult = gen.generate
+    val generatedData = scenarioResult.householdWithTheirPeople
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 
