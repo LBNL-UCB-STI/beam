@@ -36,7 +36,7 @@ object CsvParkingInfoWriter extends ParkingInfoWriter {
             case (parkingType, (spots, cost)) =>
               if (spots > 0) {
                 csvWriter.write(
-                  tazGeoId.asInstanceOf[TazGeoId].taz,
+                  tazGeoId.asInstanceOf[TazGeoId].asUniqueKey,
                   parkingType,
                   "Block",
                   "None",
