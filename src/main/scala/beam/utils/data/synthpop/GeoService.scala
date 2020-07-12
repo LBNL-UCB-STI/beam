@@ -31,7 +31,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     extends StrictLogging {
   import GeoService._
 
-  private val crsCode: String = "EPSG:4326"
+  val crsCode: String = "EPSG:4326"
   private val THRESHOLD_IN_METERS: Double = 1000.0
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)

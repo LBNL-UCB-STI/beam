@@ -21,10 +21,15 @@ import beam.utils.data.synthpop.generators.{
   WorkedDurationGeneratorImpl
 }
 import beam.utils.data.synthpop.models.Models
-import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, State, TazGeoId}
+import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
-import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
+import beam.utils.scenario.generic.writers.{
+  CsvHouseholdInfoWriter,
+  CsvParkingInfoWriter,
+  CsvPersonInfoWriter,
+  CsvPlanElementWriter
+}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
@@ -34,11 +39,21 @@ import scala.collection.mutable
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
-  def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])]
+  def generate: ScenarioResult
 }
 
-case class PersonWithExtraInfo(person: Models.Person, workDest: TazGeoId, timeLeavingHomeRange: Range)
+case class PersonWithExtraInfo(
+  person: Models.Person,
+  homeLoc: TazGeoId,
+  workDest: TazGeoId,
+  timeLeavingHomeRange: Range
+)
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
+
+case class ScenarioResult(
+  householdWithTheirPeople: Iterable[(HouseholdInfo, List[PersonWithPlans])],
+  geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
+)
 
 class SimpleScenarioGenerator(
   val pathToSythpopDataFolder: String,
@@ -148,13 +163,29 @@ class SimpleScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
+  override def generate: ScenarioResult = {
     var globalPersonId: Int = 0
 
     logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
       assignWorkingLocations
     }
+
+    val geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)] = blockGroupGeoIdToHouseholds.values
+      .flatMap { x: Iterable[(Models.Household, Seq[PersonWithExtraInfo])] =>
+        x.flatMap { hh: (Models.Household, Seq[PersonWithExtraInfo]) =>
+          hh._2.map { y: PersonWithExtraInfo =>
+            (y.homeLoc, y.workDest)
+          }
+        }
+      }
+      .foldLeft(mutable.Map.empty[GenericGeoId, (Int, Int)].withDefaultValue((0, 0)))((acc, tazs) => {
+        acc.put(tazs._1, (acc(tazs._1)._1 + 1, acc(tazs._1)._2))
+        acc.put(tazs._2, (acc(tazs._2)._1, acc(tazs._2)._2 + 1))
+        acc
+      })
+      .toMap
+    logger.info(s"Finished taz mapping")
 
     // Build work destination to the number of occurrences
     // We need this to be able to generate random work destinations inside geometry.
@@ -227,7 +258,7 @@ class SimpleScenarioGenerator(
       case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
         val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
         logger.info(
-          "$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
+          s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
         )
         val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
         if (householdLocation.size != householdsWithPersonData.size) {
@@ -249,7 +280,7 @@ class SimpleScenarioGenerator(
               personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
                 case (
                     (xs, nextPersonId: Int),
-                    PersonWithExtraInfo(person, workTazGeoId: TazGeoId, timeLeavingHomeRange)
+                    PersonWithExtraInfo(person, homeLocGeoId, workTazGeoId, timeLeavingHomeRange)
                     ) =>
                   val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
                   val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
@@ -335,7 +366,10 @@ class SimpleScenarioGenerator(
         cnt += 1
         blockGroupGeoId -> res
     }
-    finalResult.values.flatten.flatten
+    ScenarioResult(
+      householdWithTheirPeople = finalResult.values.flatten.flatten,
+      geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
+    )
   }
 
   private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
@@ -380,6 +414,7 @@ class SimpleScenarioGenerator(
               Some(
                 PersonWithExtraInfo(
                   person = person,
+                  homeLoc = tazGeoId,
                   workDest = tazWorkDest,
                   timeLeavingHomeRange = timeLeavingHomeRange
                 )
@@ -559,9 +594,14 @@ object SimpleScenarioGenerator extends StrictLogging {
 
     gen.writeTazCenters(pathToOutput)
 
-    val generatedData = gen.generate
+    val scenarioResult = gen.generate
+    val generatedData = scenarioResult.householdWithTheirPeople
     logger.info(s"Number of households: ${generatedData.size}")
     logger.info(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+
+    val parkingFilePath = s"$pathToOutput/taz-parking.csv"
+    CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, scenarioResult.geoIdToAreaResidentsAndWorkers)
+    println(s"Wrote parking information to $parkingFilePath")
 
     val households = generatedData.map(_._1).toVector
     val householdFilePath = s"$pathToOutput/households.csv"
