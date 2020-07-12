@@ -6,13 +6,13 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
 import beam.sim.RideHailState
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.utils.collections.QuadTree
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -139,7 +139,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     }
   }
 
-  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[BeamVehicle], Coord)], tick: Double): Unit = {
+  def writeRepositioningToCSV(
+    ioController: OutputDirectoryHierarchy,
+    repositioningVehicles: Vector[(Id[BeamVehicle], Coord)],
+    tick: Double
+  ): Unit = {
     // TODO: write in the output folder graph
 
     // draw all content in quadTree with color blue
@@ -177,10 +181,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     }
 
     val iterationNumber = rideHailManager.beamServices.matsimServices.getIterationNumber
-    val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
-    val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(iterationNumber, RandomRepositioning.COORD_OUTPUT_FILE)
+    val quadFileName = ioController.getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
+    val coordFileName = ioController.getIterationFilename(iterationNumber, RandomRepositioning.COORD_OUTPUT_FILE)
 
     writeCSV(quadFileName, Seq("time", "x", "y", "activity"), quad)
     writeCSV(coordFileName, Seq("time", "x1", "y1", "x2", "y2"), coord)

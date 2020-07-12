@@ -2,10 +2,10 @@ package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
+case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
   def getLatestSkim(
     time: Int,
@@ -25,7 +25,7 @@ case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly 
     actor: String,
     key: String
   ): Option[TAZSkimmerInternal] = {
-    getLatestSkim(time, beamServices.beamScenario.h3taz.getTAZ(hex), hex, actor, key)
+    getLatestSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)
   }
 
   def getLatestSkimByTAZ(
@@ -34,7 +34,7 @@ case class TAZSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly 
     actor: String,
     key: String
   ): Option[TAZSkimmerInternal] = {
-    beamServices.beamScenario.h3taz
+    beamScenario.h3taz
       .getIndices(taz)
       .flatMap(hex => getLatestSkim(time, taz, hex, actor, key))
       .foldLeft[Option[TAZSkimmerInternal]](None) {

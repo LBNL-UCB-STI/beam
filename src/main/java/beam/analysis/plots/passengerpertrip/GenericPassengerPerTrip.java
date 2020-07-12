@@ -2,6 +2,7 @@ package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.GraphUtils;
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -49,9 +50,9 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
         double[][] matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
 
         CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode ", "", matrixDataSet);
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle, event.getServices().getControlerIO());
 
-        writeCSV(matrixDataSet, event.getIteration());
+        writeCSV(matrixDataSet, event.getIteration(), event.getServices().getControlerIO());
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
