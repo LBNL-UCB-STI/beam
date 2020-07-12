@@ -5,7 +5,6 @@ import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.github.beam.HelicsLoader
 import com.java.helics.helicsJNI.{helics_property_int_log_level_get, helics_property_time_delta_get}
 import com.java.helics.{helics, SWIGTYPE_p_void}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -69,7 +68,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   private def createBrokerAndReaderFederate(): Unit = {
-    HelicsLoader.load()
+    BeamFederate.loadHelics
+
     val broker = helics.helicsCreateBroker("zmq", "", "-f 2 --name=BeamBrokerTemp")
     val fedName = "BeamFederateTemp"
     val fedInfo = helics.helicsCreateFederateInfo()
