@@ -25,10 +25,10 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
 
     assert(skims.keys.exists(x => x.mode.value.equalsIgnoreCase("CAR")), error("mode"))
     assert(skims.keys.exists(x => x.mode.value.equalsIgnoreCase("RIDE_HAIL")), error("mode"))
-    assert(skims.keys.exists(x => x.origin == "101241"), error("originTaz"))
-    assert(skims.keys.exists(x => x.origin == "101245"), error("originTaz"))
-    assert(skims.keys.exists(x => x.destination == "101243"), error("destinationTaz"))
-    assert(skims.keys.exists(x => x.destination == "101246"), error("destinationTaz"))
+    assert(skims.keys.exists(x => x.originTaz == Id.create("101241", TAZ.getClass)), error("originTaz"))
+    assert(skims.keys.exists(x => x.originTaz == Id.create("101245", TAZ.getClass)), error("originTaz"))
+    assert(skims.keys.exists(x => x.destinationTaz == Id.create("101243", TAZ.getClass)), error("destinationTaz"))
+    assert(skims.keys.exists(x => x.destinationTaz == Id.create("101246", TAZ.getClass)), error("destinationTaz"))
 
     checkSkimmerField[Int, ODSkimmerKey]("travelTimeInS", 0, 4, skims.keys, x => x.hour)
     checkSkimmerField[Double, ODSkimmerInternal]("cost", 3, 50, skims.values, x => x.cost)

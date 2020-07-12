@@ -32,7 +32,9 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
+abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
+    extends Event(eventTime)
+    with ScalaEvent {
   protected val skimName: String
 
   def getKey: AbstractSkimmerKey
@@ -58,7 +60,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
   protected val skimName: String
-  lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
   private val awaitSkimLoading = 20.minutes
