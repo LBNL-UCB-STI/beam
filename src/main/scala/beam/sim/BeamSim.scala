@@ -718,48 +718,4 @@ class BeamSim @Inject()(
         }
       }
   }
-
-  private def generateRandomCoordinates(): Unit = {
-    val boundingBox = beamServices.beamScenario.transportNetwork.streetLayer.envelope
-
-    val personToHh = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { h =>
-        h.getMemberIds.asScala.map { m =>
-          (m, h)
-        }
-      }
-      .toMap
-
-    scenario.getPopulation.getPersons.values.asScala.foreach { p =>
-      p.getPlans.asScala.foreach { plan =>
-        plan.getPlanElements.asScala.collect { case act: Activity => act }.zipWithIndex.foreach {
-          case (act: Activity, idx: Int) =>
-            val x = ThreadLocalRandom.current().nextDouble(boundingBox.getMinX, boundingBox.getMaxX)
-            val y = ThreadLocalRandom.current().nextDouble(boundingBox.getMinY, boundingBox.getMaxY)
-            val newCoord = beamServices.geo.wgs2Utm(new Coord(x, y))
-            act.setCoord(newCoord)
-            if (act.getType == "Home") {
-              val hh = personToHh(p.getId)
-              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordx", newCoord.getX)
-              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordy", newCoord.getY)
-            }
-
-          //            if (idx % 2 == 0) {
-//              val x = ThreadLocalRandom.current().nextDouble(-97.781, -97.770)
-//              val y = ThreadLocalRandom.current().nextDouble(30.295, 30.310)
-//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
-//            }
-//            else if (idx % 2 == 1) {
-//              val x = ThreadLocalRandom.current().nextDouble(-97.712, -97.705)
-//              val y = ThreadLocalRandom.current().nextDouble(30.231, 30.237)
-//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
-//            }
-          // logger.info(s"act: $act")
-          case _ =>
-        }
-      }
-    }
-  }
 }
