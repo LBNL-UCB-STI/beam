@@ -156,7 +156,7 @@ class FastHouseholdCAVScheduling(
 
       sortedRequests.drop(1).foreach { curReq =>
         val prevReq = newHouseholdSchedule.last
-        val metric = Skims.od_skimmer.getTimeDistanceAndCost(
+        val metric = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           prevReq.activity.getCoord,
           curReq.activity.getCoord,
           prevReq.baselineNonPooledTime,
@@ -465,7 +465,7 @@ object HouseholdTripsHelper {
     val legTrip = curTrip.leg
     val defaultMode = getDefaultMode(legTrip, counter)
 
-    val skim = Skims.od_skimmer.getTimeDistanceAndCost(
+    val skim = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
       prevTrip.activity.getCoord,
       curTrip.activity.getCoord,
       0,

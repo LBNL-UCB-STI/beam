@@ -47,8 +47,6 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
-import org.matsim.core.mobsim.jdeqsim.Message;
-import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
@@ -77,10 +75,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String CAR = "car";
     public static final String BUS = "bus";
     private static final String DUMMY_ACTIVITY = "DummyActivity";
-    private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
-    private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
-    private static PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
-    private static PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
+    private final PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
+    private final PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
+    private final PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
+    private final PhyssimNetworkComparisonEuclideanVsLengthAttribute physsimNetworkEuclideanVsLengthAttribute;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -243,9 +241,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
+        int lastIteration = beamConfig.matsim().modules().controler().lastIteration();
         // We write travel time map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel time will be used in the next iteration
         // It's needed to be in sync with `RouteDumper` and allow us to reproduce routes calculation
-        if (iterationNumber == 0 || (iterationNumber + 1) % beamConfig.beam().outputs().writeEventsInterval() == 0) {
+        if ((iterationNumber == lastIteration) || beamConfig.beam().outputs().writeEventsInterval() > 0 &&
+                iterationNumber % beamConfig.beam().outputs().writeEventsInterval() == 0) {
             String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
             try {
                 try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
@@ -276,10 +276,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         completableFutures.add(CompletableFuture.runAsync(() -> physsimNetworkEuclideanVsLengthAttribute.notifyIterationEnds(iterationNumber)));
 
         writeIterationCsv(iterationNumber);
-        Road.setAllRoads(null);
-        Message.setEventsManager(null);
 
-        if (iterationNumber == beamConfig.matsim().modules().controler().lastIteration()) {
+        if (iterationNumber == lastIteration) {
             try {
                 CompletableFuture allOfLinStatFutures = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
                 log.info("Waiting started on link stats file dump.");

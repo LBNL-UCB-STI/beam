@@ -10,6 +10,7 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
 
 import scala.collection.JavaConverters._
@@ -37,7 +38,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     val descriptors
       : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
       classRef =>
-        classRef.getOutputDataDescriptions.asScala.toList
+        classRef.getOutputDataDescriptions(event.getServices().getControlerIO()).asScala.toList
     }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
@@ -117,9 +118,11 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("scorestats.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getOutputFilename("scorestats.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(
@@ -168,9 +171,11 @@ object StopWatchOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("stopwatch.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getOutputFilename("stopwatch.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(
@@ -339,9 +344,11 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("summaryStats.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getOutputFilename("summaryStats.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(
@@ -622,9 +629,11 @@ object CountsCompareOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "countsCompare.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "countsCompare.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(
@@ -690,9 +699,11 @@ object EventOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "events.csv")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "events.csv")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(
@@ -974,9 +985,11 @@ object LegHistogramOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "legHistogram.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "legHistogram.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "time", "Time"))
@@ -1187,10 +1200,11 @@ object RideHailTripDistanceOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "rideHailTripDistance.csv")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "rideHailTripDistance.csv")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "hour", "Hour of the day"))
@@ -1221,9 +1235,11 @@ object TripDurationOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "tripDuration.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "tripDuration.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "pattern", "Pattern"))
@@ -1239,10 +1255,11 @@ object BiasErrorGraphDataOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "biasErrorGraphData.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "biasErrorGraphData.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "hour", "Hour of the day"))
@@ -1268,10 +1285,11 @@ object BiasNormalizedErrorGraphDataOutputs extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val outputFilePath =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "biasNormalizedErrorGraphData.txt")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val outputFilePath = ioController.getIterationFilename(0, "biasNormalizedErrorGraphData.txt")
+    val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "hour", "Hour of the day"))

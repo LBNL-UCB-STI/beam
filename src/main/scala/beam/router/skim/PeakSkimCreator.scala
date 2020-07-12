@@ -88,15 +88,6 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
       }
     }
 
-  val odSkimmer: ODSkimmer = Skims.get(Skims.SkimType.OD_SKIMMER).asInstanceOf[ODSkimmer]
-  odSkimmer.currentSkim.map {
-    case (key, value) =>
-      val odSkimmerKey = key.asInstanceOf[ODSkimmerKey]
-      val skimInternal = value.asInstanceOf[ODSkimmerInternal]
-      println(s"key: $odSkimmerKey")
-      println(s"value: $skimInternal")
-  }
-
   private val beamModes: Array[BeamMode] =
     Array(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK_TRANSIT, BeamMode.DRIVE_TRANSIT)
 
@@ -108,7 +99,7 @@ class PeakSkimCreator(val beamServices: BeamServices, val config: BeamConfig, va
 
   def write(iteration: Int): Unit = {
     try {
-      val skimmer = new ODSkimmer(beamServices, config.beam.router.skim) {
+      val skimmer = new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, config) {
         override def writeToDisk(event: IterationEndsEvent): Unit = {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,

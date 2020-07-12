@@ -1,7 +1,6 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.CACCSettings;
-import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
@@ -14,7 +13,6 @@ import javax.inject.Inject;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,7 +49,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
                 isCaccEnabled = value;
             }
             // the vehicle registers itself to the scheduler
-            new Vehicle(getScheduler(), person, activityDurationInterpretation, isCaccEnabled);
+            new Vehicle(getScheduler(), person, activityDurationInterpretation, isCaccEnabled, allRoads, messageFactory);
         }
 
         logInitializeVehiclesOutcome(vehicleNotFound, isCACCVehicle);
@@ -72,11 +70,11 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
     @Override
     protected void initializeRoads() {
         Scheduler scheduler = getScheduler();
-        HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
+        allRoads.clear();
         for (Link link : scenario.getNetwork().getLinks().values()) {
-            allRoads.put(link.getId(), new Road(scheduler, link, speedAdjustmentFactor, adjustedMinimumRoadSpeedInMetersPerSecond));
+            allRoads.put(link.getId(), new Road(scheduler, link, speedAdjustmentFactor,
+                    adjustedMinimumRoadSpeedInMetersPerSecond, getConfig(), allRoads));
         }
-        Road.setAllRoads(allRoads);
     }
 
     @Override

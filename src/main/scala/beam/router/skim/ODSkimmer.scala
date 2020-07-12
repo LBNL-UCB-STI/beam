@@ -4,21 +4,24 @@ import java.io.BufferedWriter
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.util.control.NonFatal
 
-class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
-    extends AbstractSkimmer(beamServices, config) {
-  import ODSkimmer._
-  import beamServices._
+class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
+    extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
+  private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
+  import ODSkimmer._
+
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamConfig, beamScenario)
 
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
@@ -96,7 +99,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       cost = (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energy = (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       observations = prevSkim.observations + currSkim.observations,
-      iterations = beamServices.matsimServices.getIterationNumber + 1
+      iterations = matsimServices.getIterationNumber + 1
     )
   }
 
@@ -212,7 +215,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                           newDestCoord,
                           timeBin * 3600,
                           dummyId,
-                          beamServices.beamScenario
+                          beamScenario
                         )
                     } else {
                       readOnlySkim
@@ -223,7 +226,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                           destination.center,
                           timeBin * 3600,
                           dummyId,
-                          beamServices.beamScenario
+                          beamScenario
                         )
                     }
                   }
@@ -275,7 +278,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
               adjustedDestCoord,
               timeBin * 3600,
               dummyId,
-              beamServices.beamScenario
+              beamScenario
             )
         }
     }
