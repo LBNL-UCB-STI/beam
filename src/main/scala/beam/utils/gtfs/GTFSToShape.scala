@@ -1,38 +1,22 @@
 package beam.utils.gtfs
 
-import java.io.{Closeable, File, IOException, InputStream}
+import java.io.{File, IOException}
 import java.util.zip.ZipFile
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import beam.utils.csv.GenericCsvReader
+import beam.utils.gtfs.Model._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object GTFSToShape extends LazyLogging {
 
-  def readWgsCoordinates(stream: InputStream): Set[WgsCoordinate] = {
-    val (iter: Iterator[WgsCoordinate], toClose: Closeable) =
-      GenericCsvReader.readFromStreamAs[WgsCoordinate](stream, toWgsCoordinate, _ => true)
-    try {
-      iter.toSet
-    } finally {
-      toClose.close()
-    }
-  }
-
-  def toWgsCoordinate(rec: java.util.Map[String, String]): WgsCoordinate = {
-    WgsCoordinate(
-      latitude = rec.get("stop_lat").toDouble,
-      longitude = rec.get("stop_lon").toDouble
-    )
-  }
-
-  def createShapeFile(coords: Traversable[WgsCoordinate], shapeFileOutputPath: String): Unit = {
-    val features = ArrayBuffer[SimpleFeature]()
+  def coordsToShapefile(coords: Traversable[WgsCoordinate], shapeFileOutputPath: String): Unit = {
+    val features = mutable.ArrayBuffer[SimpleFeature]()
     val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
       .setCrs(MGC.getCRS("EPSG:4326"))
       .setName("nodes")
@@ -42,32 +26,57 @@ object GTFSToShape extends LazyLogging {
       val feature = pointf.createPoint(coord)
       features += feature
     }
+    logger.info(s"Creating of $shapeFileOutputPath shape file with ${features.size} features")
     ShapeFileWriter.writeGeometries(features.asJava, shapeFileOutputPath)
   }
 
-  def writeShapeFile(zipFolderPath: String, outputPath: String): Unit = {
-
-    def getCoords(zipFile: ZipFile): Set[WgsCoordinate] = {
-      val entry = zipFile.getEntry("stops.txt")
-      if (entry == null) {
-        Set.empty[WgsCoordinate]
-      } else {
-        val stream = zipFile.getInputStream(entry);
-        readWgsCoordinates(stream)
-      }
-    }
+  def gtfsToShapefiles(zipFolderPath: String, outputPath: String): Unit = {
     val gtfsFolder = new File(zipFolderPath);
     val gtfsFiles = gtfsFolder.listFiles();
 
-    val coords = scala.collection.mutable.ListBuffer.empty[Set[WgsCoordinate]]
+    val routeTypeToCoords = mutable.HashMap.empty[String, mutable.Buffer[WgsCoordinate]]
+    val routeTypeToRoutes = mutable.HashMap.empty[String, mutable.Buffer[Route]]
 
-    for (zipFilePath <- gtfsFiles.filter(file => file.isFile && file.getName.endsWith(".zip"))) {
-      val zipFile = new ZipFile(zipFilePath)
+    for (sourceFile <- gtfsFiles.filter(file => file.isFile && file.getName.endsWith(".zip"))) {
+      val zipFile = new ZipFile(sourceFile)
+      val zipFileName = sourceFile.getName
+      logger.info(s"processing $zipFileName")
+
+      // routes.txt     : route_id -> route_type, route_long_name
+      // trips.txt      : route_id -> trip_id
+      // stop_times.txt : trip_id -> stop_id
+      // stops.txt      : stop_id -> stop_lan, stop_lon
 
       try {
-        val gtfsCoords = getCoords(zipFile)
-        logger.info(s"got ${gtfsCoords.size} coordinates from $zipFilePath")
-        coords += gtfsCoords
+        val routes = GTFSReader.readRoutes(zipFile, zipFileName)
+        val trips = GTFSReader.readTrips(zipFile)
+        val stopTimes = GTFSReader.readStopTimes(zipFile)
+        val stops = GTFSReader.readStops(zipFile)
+
+        // write a shapefile for current GTFS data source
+        coordsToShapefile(stops.map(s => s.wgsPoint), s"$outputPath/$zipFileName.shp")
+
+        // group all data by route type
+        routes.foreach{ route =>
+          routeTypeToRoutes.get(route.routeType) match {
+            case Some(rts) => rts += route
+            case None => routeTypeToRoutes(route.routeType) = mutable.Buffer(route)
+          }
+        }
+
+        val routeIdToRoute = routes.map(r => r.id         -> r).toMap
+        val tripIdToRoute = trips.map(t => t.tripId       -> routeIdToRoute.get(t.routeId)).toMap
+        val stopIdToRoute = stopTimes.map(st => st.stopId -> tripIdToRoute.get(st.tripId).flatten).toMap
+        val stopToRoute = stops.map(s => (s, stopIdToRoute.get(s.id).flatten))
+        stopToRoute.foreach {
+          case (stop, Some(route)) =>
+            routeTypeToCoords.get(route.routeType) match {
+              case Some(coords) => coords += stop.wgsPoint
+              case None         => routeTypeToCoords(route.routeType) = mutable.Buffer(stop.wgsPoint)
+            }
+          case (stop, None) => logger.error(s"Stop ID:${stop.id} lat:${stop.lat} lon:${stop.lon} does not have a route.")
+        }
+
       } catch {
         case ioexc: IOException => logger.error(s"IOException happened: $ioexc")
       } finally {
@@ -75,28 +84,55 @@ object GTFSToShape extends LazyLogging {
       }
     }
 
-    val allCoords = coords.flatten
-    createShapeFile(allCoords, outputPath)
-    logger.info(s"${allCoords.size} coordinates written into shape file")
+    routeTypeToCoords.foreach{ case (routeType, coords) =>
+      coordsToShapefile(coords, s"$outputPath/routeType.$routeType.stops.shp")
+    }
+
   }
 
   def main(args: Array[String]): Unit = {
-    val srcFile = if (args.length > 0) args(0) else "" //"/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
-    val outFile = if (args.length > 1) args(1) else "" //"/mnt/data/work/beam/gtfs-NY.shp"
+    val srcDir = if (args.length > 0) args(0) else "" // "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
+    val outDir = if (args.length > 1) args(1) else "" // "/mnt/data/work/beam/gtfs-NY"
 
-    logger.info(s"gtfs zip folder: '$srcFile'")
-    logger.info(s"stops coordinate will be in shape file: '$outFile'")
+    logger.info(s"gtfs zip sources folder: '$srcDir'")
+    logger.info(s"shapefiles output folder: '$outDir'")
 
-    val f = new File(srcFile);
-    if (f.exists && f.isDirectory) {
-      writeShapeFile(srcFile, outFile)
-    } else {
-      if (!f.exists) {
-        logger.error(s"given path to gtfs zip archives does not exist")
+    val od = new File(outDir)
+    val outputIsReady = {
+      if (od.exists) {
+        if (od.isDirectory) {
+          true
+        } else {
+          logger.error(s"The output path $outDir is not a folder.")
+          false
+        }
       } else {
-        logger.error(s"given path to gtfs zip archives is not a folder")
+        if (od.mkdir) {
+          true
+        } else {
+          logger.error(s"An attempt to create the folder $outDir failed.")
+          false
+        }
       }
     }
 
+    val f = new File(srcDir);
+    val inputLooksFine = {
+      if (f.exists) {
+        if (f.isDirectory) {
+          true
+        } else {
+          logger.error(s"Given path to gtfs zip archives is not a folder.")
+          false
+        }
+      } else {
+        logger.error(s"Given path to gtfs zip archives does not exist.")
+        false
+      }
+    }
+
+    if (inputLooksFine && outputIsReady) {
+      gtfsToShapefiles(srcDir, outDir)
+    }
   }
 }
