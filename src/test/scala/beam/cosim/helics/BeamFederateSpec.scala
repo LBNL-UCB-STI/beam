@@ -1,5 +1,7 @@
 package beam.cosim.helics
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
@@ -10,13 +12,20 @@ import com.java.helics.{helics, SWIGTYPE_p_void}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
+class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
+  override def beforeAll(): Unit = {
+    BeamFederate.loadHelics
+  }
+
+  override def afterAll(): Unit = {
+    helics.helicsCloseLibrary()
+  }
 
   "Running a beamville scenario with cosimulation" must "result event being published and read" in {
     val config = ConfigFactory
@@ -31,7 +40,10 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
-    val f1 = Future { createBrokerAndReaderFederate() }
+    val chargingPlugInEvents = new AtomicInteger(0)
+    val chargingPlugOutEvents = new AtomicInteger(0)
+
+    val f1 = Future { createBrokerAndReaderFederate(chargingPlugInEvents, chargingPlugOutEvents) }
     val f2 = Future { runCosimulationTest(config) }
     val aggregatedFuture = for {
       f1Result <- f1
@@ -39,9 +51,11 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     } yield (f1Result, f2Result)
     try {
       Await.result(aggregatedFuture, 5.minutes)
+      require(chargingPlugInEvents.get() > 0)
+      require(chargingPlugOutEvents.get() > 0)
     } catch {
       case _: TimeoutException =>
-        assume(false, "something went wrong with the cosimulation")
+        fail("something went wrong with the cosimulation")
     }
   }
 
@@ -67,10 +81,11 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
     controler.run()
   }
 
-  private def createBrokerAndReaderFederate(): Unit = {
-    BeamFederate.loadHelics
-
-    val broker = helics.helicsCreateBroker("zmq", "", "-f 2 --name=BeamBrokerTemp")
+  private def createBrokerAndReaderFederate(
+    chargingPlugInEvents: AtomicInteger,
+    chargingPlugOutEvents: AtomicInteger
+  ): Unit = {
+    val broker = helics.helicsCreateBroker("zmq", "", s"-f 2 --name=BeamBrokerTemp")
     val fedName = "BeamFederateTemp"
     val fedInfo = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
@@ -85,6 +100,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
       helics.helicsFederateRegisterSubscription(fedComb, "BeamFederate/chargingPlugOut", "string")
     helics.helicsFederateEnterInitializingMode(fedComb)
     helics.helicsFederateEnterExecutingMode(fedComb)
+
     val timeBin = 300
     var currentTime: Double = 0.0
     (1 to 360).foreach { i =>
@@ -96,19 +112,21 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper {
         helics.helicsInputGetString(subsChargingPlugIn, buffer, bufferInt)
         val chargingPlugInEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
         val arr = chargingPlugInEvent.split(",")
-        assume(arr.size == 4, "chargingPlugIn is not transmitting four values")
+        require(arr.size == 4, "chargingPlugIn is not transmitting four values")
+        chargingPlugInEvents.incrementAndGet()
       }
       if (helics.helicsInputIsUpdated(subsChargingPlugOut) == 1) {
         helics.helicsInputGetString(subsChargingPlugOut, buffer, bufferInt)
         val chargingPlugOutEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
         val arr = chargingPlugOutEvent.split(",")
-        assume(arr.size == 4, "chargingPlugOut is not transmitting four values")
+        require(arr.size == 4, "chargingPlugOut is not transmitting four values")
+        chargingPlugOutEvents.incrementAndGet()
+
       }
     }
     helics.helicsFederateFinalize(fedComb)
     helics.helicsFederateDestroy(fedComb)
     helics.helicsFederateFree(fedComb)
     helics.helicsBrokerFree(broker)
-    helics.helicsCloseLibrary()
   }
 }
