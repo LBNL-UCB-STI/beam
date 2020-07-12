@@ -259,8 +259,8 @@ object SkimmerSpec extends LazyLogging {
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        origin = row("origTaz"),
-        destination = row("destTaz")
+        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
+        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
       ),
       ODSkimmerInternal(
         travelTimeInS = row("travelTimeInS").toDouble,
