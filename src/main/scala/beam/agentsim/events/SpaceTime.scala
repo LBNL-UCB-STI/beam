@@ -5,16 +5,15 @@ import io.circe.{Encoder, Json}
 import org.matsim.api.core.v01.Coord
 
 case class SpaceTime(loc: Coord, time: Int) extends Ordered[SpaceTime] {
-  import scala.math.Ordered.orderingToOrdered
-
   override def compare(that: SpaceTime): Int = {
-    // FIXME Heap allocations, if it is hot place, replace it by good old if else
-    val thisCord = (loc.getX, loc.getY)
-    val thatCord = (that.loc.getX, that.loc.getY)
-    val r = thisCord.compareTo(thatCord)
+    var r = loc.getX.compare(that.loc.getX)
     if (r != 0) r
     else {
-      time.compareTo(that.time)
+      r = loc.getY.compare(that.loc.getY)
+      if (r != 0) r
+      else {
+        time.compareTo(that.time)
+      }
     }
   }
 }
