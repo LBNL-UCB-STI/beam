@@ -98,10 +98,13 @@ object BeamPath extends Ordering[BeamPath] {
         }
       }
     }
-    loop(idx = 0, shouldStop = false, result = 0)
+    val r = xArr.length.compareTo(yArr.length)
+    if (r != 0) r
+    else {
+      loop(idx = 0, shouldStop = false, result = 0)
+    }
   }
 
-  // TODO: Unit test this!
   override def compare(x: BeamPath, y: BeamPath): Int = {
     import scala.math.Ordered.orderingToOrdered
 
