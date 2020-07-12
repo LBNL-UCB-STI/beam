@@ -284,18 +284,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         traversalEventsForPhysSimulation.clear();
     }
 
-    private void writeTravelTimeMap(int iteration, Map<String,double[]> map) {
-        String filePath = controlerIO.getIterationFilename(iteration, "travelTime.bin");
-        try (FileOutputStream fos= new FileOutputStream(filePath)) {
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(map);
-            oos.flush();
-            oos.close();
-        } catch (Exception ex) {
-            log.error("Can't write travel time map", ex);
-        }
-    }
-
     private boolean shouldWritePlans(int iterationNumber) {
         return shouldWriteInIteration(iterationNumber, beamConfig.beam().physsim().writePlansInterval());
     }
