@@ -119,8 +119,9 @@ class BeamMobsim @Inject()(
     eventsManager.initProcessing()
 
     clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
-
-    fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+    if (beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+    }
 
     val iteration = actorSystem.actorOf(
       Props(
@@ -174,7 +175,7 @@ class BeamMobsim @Inject()(
 
       persons.foreach { person =>
         if (beamServices.matsimServices.getIterationNumber == 0) {
-          val addSupplementaryTrips = new AddSupplementaryTrips()
+          val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
           addSupplementaryTrips.run(person)
         }
 
