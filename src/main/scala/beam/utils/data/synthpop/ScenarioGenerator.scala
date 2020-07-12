@@ -164,8 +164,6 @@ class SimpleScenarioGenerator(
   logger.info(s"Initializing finished")
 
   override def generate: ScenarioResult = {
-    var globalPersonId: Int = 0
-
     logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
       assignWorkingLocations
@@ -252,6 +250,7 @@ class SimpleScenarioGenerator(
         }.seq
       }
 
+    var globalPersonId: Int = 0
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     var cnt: Int = 0
     val finalResult = blockGroupGeoIdToHouseholds.map {
