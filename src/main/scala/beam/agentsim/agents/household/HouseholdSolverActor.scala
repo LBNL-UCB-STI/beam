@@ -44,7 +44,7 @@ class HouseholdSolverActor extends Actor with ActorLogging {
     This is just a simple equation, and should be changed to handle whichever you feel is needed
    */
   def solve: Unit = {
-    implicit val model = MPModel(SolverLib.oJSolver)
+    implicit val model: MPModel = MPModel(SolverLib.oJSolver)
     val x1 = MPFloatVar("x1", 0, INFINITE)
     val x2 = MPFloatVar("x2", 0, INFINITE)
     val x3 = MPFloatVar("x3", 0, INFINITE)

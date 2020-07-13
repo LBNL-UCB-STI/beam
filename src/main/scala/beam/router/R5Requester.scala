@@ -39,8 +39,6 @@ object R5Requester extends BeamHelper {
     override def localCRS: String = "epsg:2263"
   }
 
-
-
   private val baseRoutingRequest: RoutingRequest = {
     val originUTM = new Location(2961475.272057291, 3623253.4635826824)
     val personAttribs = AttributesOfIndividual(

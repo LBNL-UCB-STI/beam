@@ -11,7 +11,7 @@ class DebugRepositioning {}
 
 object DebugRepositioning {
 
-  def produceRepositioningDebugImages(tick: Int, rideHailManager: RideHailManager) = {
+  def produceRepositioningDebugImages(tick: Int, rideHailManager: RideHailManager): Unit = {
     if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
       val spatialPlot = new SpatialPlot(1100, 1100, 50)
 

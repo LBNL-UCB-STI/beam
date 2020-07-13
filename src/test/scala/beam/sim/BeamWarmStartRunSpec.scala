@@ -26,7 +26,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
         .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
         .resolve()
 
-      val (_, output) = runBeamWithConfig(baseConf)
+      val (_, output, _) = runBeamWithConfig(baseConf)
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 1))
       averageCarSpeedIt0 should equal(4.0 +- 1.6)
@@ -39,7 +39,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(iterationNumber, "personal.CarRideStats.csv.gz")
+    outputDirectoryHierarchy.getIterationFilename(iterationNumber, "CarRideStats.personal.csv.gz")
   }
 
 }

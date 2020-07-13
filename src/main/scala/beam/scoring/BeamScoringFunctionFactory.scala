@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
@@ -297,11 +298,11 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * @param score score calculated for the person
     * @return
     */
-  def setPersonScore(personId: String, score: String) = {
+  def setPersonScore(personId: String, score: String): Option[String] = {
     personTripScores.put(personId, score)
   }
 
-  def setGeneralizedLinkStats(linkId: Int, stats: String) = {
+  def setGeneralizedLinkStats(linkId: Int, stats: String): Option[String] = {
     generalizedLinkStats.put(linkId, stats)
   }
 
@@ -309,18 +310,18 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * Returns the stored person scores
     * @return
     */
-  def getPersonScores = {
+  def getPersonScores: mutable.HashMap[String, String] = {
     personTripScores
   }
 
-  def getAllGeneralizedLinkStats = {
+  def getAllGeneralizedLinkStats: mutable.HashMap[Int, String] = {
     generalizedLinkStats
   }
 
   /**
     * Resets the scores
     */
-  def reset() = {
+  def reset(): Unit = {
     personTripScores.clear()
     linkAverageTravelTimes.clear()
     linkAverageCosts.clear()
@@ -333,10 +334,11 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
-    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, agentTripScoreFileBaseName + ".csv.gz")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  override def getOutputDataDescriptions(
+    ioController: OutputDirectoryHierarchy
+  ): java.util.List[OutputDataDescription] = {
+    val filePath = ioController.getIterationFilename(0, agentTripScoreFileBaseName + ".csv.gz")
+    val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val outputDataDescription =
       OutputDataDescription(classOf[BeamScoringFunctionFactory].getSimpleName.dropRight(1), relativePath, "", "")

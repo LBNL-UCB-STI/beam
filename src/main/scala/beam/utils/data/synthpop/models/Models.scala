@@ -11,7 +11,9 @@ object Models {
   case class State(value: String) extends AnyVal
   case class County(value: String) extends AnyVal
 
-  case class PumaGeoId(state: State, puma: String) {
+  abstract class GenericGeoId()
+
+  case class PumaGeoId(state: State, puma: String) extends GenericGeoId {
     def asUniqueKey: String = s"${state.value}${puma}"
   }
 
@@ -37,11 +39,11 @@ object Models {
     }
   }
 
-  case class BlockGroupGeoId(state: State, county: County, tract: String, blockGroup: String) {
-    def asUniqueKey: String = s"${state.value}${county.value}${tract}${blockGroup}"
+  case class BlockGroupGeoId(state: State, county: County, tract: String, blockGroup: String) extends GenericGeoId {
+    def asUniqueKey: String = s"${state.value}-${county.value}-${tract}-${blockGroup}"
   }
 
-  case class TazGeoId(state: State, county: County, taz: String) {
+  case class TazGeoId(state: State, county: County, taz: String) extends GenericGeoId {
     def asUniqueKey: String = s"${state.value}${county.value}${taz}"
   }
 

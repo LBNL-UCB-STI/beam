@@ -26,7 +26,6 @@ object BeamConfig {
     routing: BeamConfig.Beam.Routing,
     sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
-    urbansim: BeamConfig.Beam.Urbansim,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
   )
@@ -1799,7 +1798,8 @@ object BeamConfig {
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
-      vmInformation: BeamConfig.Beam.Debug.VmInformation
+      vmInformation: BeamConfig.Beam.Debug.VmInformation,
+      writeModeChoiceAlternatives: scala.Boolean
     )
 
     object Debug {
@@ -1926,20 +1926,14 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        gcClassHistogramAtIterationEnd: scala.Boolean,
-        gcClassHistogramAtIterationStart: scala.Boolean
+        createGCClassHistogram: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            gcClassHistogramAtIterationEnd = c.hasPathOrNull("gcClassHistogramAtIterationEnd") && c.getBoolean(
-              "gcClassHistogramAtIterationEnd"
-            ),
-            gcClassHistogramAtIterationStart = c.hasPathOrNull("gcClassHistogramAtIterationStart") && c.getBoolean(
-              "gcClassHistogramAtIterationStart"
-            )
+            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
           )
         }
       }
@@ -1977,6 +1971,9 @@ object BeamConfig {
           vmInformation = BeamConfig.Beam.Debug.VmInformation(
             if (c.hasPathOrNull("vmInformation")) c.getConfig("vmInformation")
             else com.typesafe.config.ConfigFactory.parseString("vmInformation{}")
+          ),
+          writeModeChoiceAlternatives = c.hasPathOrNull("writeModeChoiceAlternatives") && c.getBoolean(
+            "writeModeChoiceAlternatives"
           )
         )
       }
@@ -3210,22 +3207,6 @@ object BeamConfig {
       }
     }
 
-    case class Urbansim(
-      allTAZSkimsPeakHour: scala.Double,
-      allTAZSkimsWriteInterval: scala.Int
-    )
-
-    object Urbansim {
-
-      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
-        BeamConfig.Beam.Urbansim(
-          allTAZSkimsPeakHour = if (c.hasPathOrNull("allTAZSkimsPeakHour")) c.getDouble("allTAZSkimsPeakHour") else 8.5,
-          allTAZSkimsWriteInterval =
-            if (c.hasPathOrNull("allTAZSkimsWriteInterval")) c.getInt("allTAZSkimsWriteInterval") else 0
-        )
-      }
-    }
-
     case class WarmStart(
       enabled: scala.Boolean,
       path: java.lang.String,
@@ -3322,10 +3303,6 @@ object BeamConfig {
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
           else com.typesafe.config.ConfigFactory.parseString("spatial{}")
-        ),
-        urbansim = BeamConfig.Beam.Urbansim(
-          if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
-          else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
         ),
         useLocalWorker = !c.hasPathOrNull("useLocalWorker") || c.getBoolean("useLocalWorker"),
         warmStart = BeamConfig.Beam.WarmStart(
