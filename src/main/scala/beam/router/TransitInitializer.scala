@@ -44,11 +44,17 @@ class TransitInitializer(
    * be used to decide what type of vehicle to assign
    *
    */
-  def initMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
+  def initMap: Map[Id[BeamVehicle], (RouteInfo, Array[BeamLeg])] = {
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = TrieMap[(Int, Int), Option[StreetPath]]()
-    def pathWithoutStreetRoute(fromStop: Int, toStop: Int, fromStopIdx: Int, toStopIdx: Int) = {
+
+    def pathWithoutStreetRoute(
+      fromStop: Int,
+      toStop: Int,
+      fromStopIdx: Int,
+      toStopIdx: Int
+    ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
       val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
@@ -126,10 +132,10 @@ class TransitInitializer(
         )
     }
 
-    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.toStream.par.flatMap { tripPattern =>
+    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.par.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val transitPaths = tripPattern.stops.indices
+      val transitPaths: Seq[(Int, Int, Id[Vehicle]) => BeamPath] = tripPattern.stops.indices
         .sliding(2)
         .map {
           case IndexedSeq(fromStopIdx, toStopIdx) =>
@@ -169,7 +175,7 @@ class TransitInitializer(
                     transitPaths(from)(departureTimeFrom, duration, tripVehId)
                   ).scaleToNewDuration(duration)
               }
-              .toSeq
+              .toArray
           (tripVehId, (route, legs))
         }
     }
