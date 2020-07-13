@@ -18,6 +18,7 @@ import beam.analysis.{
   IterationStatsProvider,
   ModeChoiceAlternativesCollector,
   RideHailUtilizationCollector,
+  TransitOccupancyByStopAnalysis,
   VMInformationCollector
 }
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
@@ -110,6 +111,8 @@ class BeamSim @Inject()(
 
   val routeDumper: RouteDumper = new RouteDumper(beamServices)
 
+  val transitOccupancyByStop = new TransitOccupancyByStopAnalysis()
+
   val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
     List(routeDumper)
 
@@ -141,6 +144,7 @@ class BeamSim @Inject()(
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
 
+    eventsManager.addHandler(transitOccupancyByStop)
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
     eventsManager.addHandler(carTravelTimeFromPte)
@@ -288,6 +292,7 @@ class BeamSim @Inject()(
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPte.notifyIterationEnds(event)
+    transitOccupancyByStop.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
