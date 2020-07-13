@@ -17,6 +17,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
+import scala.util.Try
 
 class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
   override def beforeAll(): Unit = {
@@ -24,6 +25,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
   }
 
   override def afterAll(): Unit = {
+    helics.helicsCleanupLibrary()
     helics.helicsCloseLibrary()
   }
 
@@ -101,32 +103,35 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     helics.helicsFederateEnterInitializingMode(fedComb)
     helics.helicsFederateEnterExecutingMode(fedComb)
 
-    val timeBin = 300
-    var currentTime: Double = 0.0
-    (1 to 360).foreach { i =>
-      val t: Double = i * timeBin
-      while (currentTime < t) currentTime = helics.helicsFederateRequestTime(fedComb, t)
-      val buffer = new Array[Byte](1000)
-      val bufferInt = new Array[Int](1)
-      if (helics.helicsInputIsUpdated(subsChargingPlugIn) == 1) {
-        helics.helicsInputGetString(subsChargingPlugIn, buffer, bufferInt)
-        val chargingPlugInEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
-        val arr = chargingPlugInEvent.split(",")
-        require(arr.size == 4, "chargingPlugIn is not transmitting four values")
-        chargingPlugInEvents.incrementAndGet()
-      }
-      if (helics.helicsInputIsUpdated(subsChargingPlugOut) == 1) {
-        helics.helicsInputGetString(subsChargingPlugOut, buffer, bufferInt)
-        val chargingPlugOutEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
-        val arr = chargingPlugOutEvent.split(",")
-        require(arr.size == 4, "chargingPlugOut is not transmitting four values")
-        chargingPlugOutEvents.incrementAndGet()
+    try {
+      val timeBin = 300
+      var currentTime: Double = 0.0
+      (1 to 360).foreach { i =>
+        val t: Double = i * timeBin
+        while (currentTime < t) currentTime = helics.helicsFederateRequestTime(fedComb, t)
+        val buffer = new Array[Byte](1000)
+        val bufferInt = new Array[Int](1)
+        if (helics.helicsInputIsUpdated(subsChargingPlugIn) == 1) {
+          helics.helicsInputGetString(subsChargingPlugIn, buffer, bufferInt)
+          val chargingPlugInEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
+          val arr = chargingPlugInEvent.split(",")
+          require(arr.size == 4, "chargingPlugIn is not transmitting four values")
+          chargingPlugInEvents.incrementAndGet()
+        }
+        if (helics.helicsInputIsUpdated(subsChargingPlugOut) == 1) {
+          helics.helicsInputGetString(subsChargingPlugOut, buffer, bufferInt)
+          val chargingPlugOutEvent = buffer.take(bufferInt(0)).map(_.toChar).mkString
+          val arr = chargingPlugOutEvent.split(",")
+          require(arr.size == 4, "chargingPlugOut is not transmitting four values")
+          chargingPlugOutEvents.incrementAndGet()
 
+        }
       }
+    } finally {
+      Try(helics.helicsFederateFinalize(fedComb))
+      Try(helics.helicsFederateDestroy(fedComb))
+      Try(helics.helicsFederateFree(fedComb))
+      Try(helics.helicsBrokerFree(broker))
     }
-    helics.helicsFederateFinalize(fedComb)
-    helics.helicsFederateDestroy(fedComb)
-    helics.helicsFederateFree(fedComb)
-    helics.helicsBrokerFree(broker)
   }
 }
