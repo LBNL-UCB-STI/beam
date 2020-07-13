@@ -119,7 +119,9 @@ class BeamMobsim @Inject()(
     eventsManager.initProcessing()
 
     clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
-    if (beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+
+    if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+      logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
     }
 
@@ -201,11 +203,9 @@ class BeamMobsim @Inject()(
         }
       }
 
-      // val newP  = beamServices.matsimServices.getScenario.getPopulation.getPersons.values()
-
-      logger.info("Done filling in secondary trips in plans")
     }
 
+    logger.info("Done filling in secondary trips in plans")
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
