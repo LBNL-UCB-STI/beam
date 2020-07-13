@@ -26,11 +26,12 @@ class ParallelParkingManagerSpec
     extends TestKit(
       ActorSystem(
         "ParallelParkingManagerSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+        ConfigFactory
+          .parseString("""akka.log-dead-letters = 10
+        |akka.actor.debug.fsm = true
+        |akka.loglevel = debug
+        |akka.test.timefactor = 2""".stripMargin)
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
