@@ -26,7 +26,7 @@ object ReplanningUtil {
         experiencedPlan.getPlanElements.get(i) match {
           case leg: Leg =>
             // Make sure it is not `null`
-            Option(person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
+            Option(x = person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
               attibValue =>
                 leg.getAttributes.putAttribute("vehicles", attibValue)
             }
@@ -106,6 +106,17 @@ object ReplanningUtil {
         val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
         newPlan.getPlanElements.add(newLeg)
       }
+    }
+    newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
+    newPlan
+  }
+
+  def addNoModeBeamTripsToPlanWithOnlyActivities(originalPlan: Plan): Plan = {
+    val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
+      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
+      val newLeg = PopulationUtils.createLeg("")
+      newPlan.getPlanElements.add(newLeg)
     }
     newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
     newPlan
