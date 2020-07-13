@@ -25,10 +25,14 @@ class TransitCrowdingSkims extends AbstractSkimmerReadOnly {
         transitStops.toIdx
       )
     } yield internal.numberOfPassengers.toDouble / internal.capacity
-    val p = new Percentile()
 
-    p.setData(occupancyLevels.toArray)
-    p.evaluate(percentile)
+    if (occupancyLevels.isEmpty) {
+      0
+    } else {
+      val p = new Percentile()
+      p.setData(occupancyLevels.toArray)
+      p.evaluate(percentile)
+    }
   }
 
   def getListOfTransitCrowdingInternals(
