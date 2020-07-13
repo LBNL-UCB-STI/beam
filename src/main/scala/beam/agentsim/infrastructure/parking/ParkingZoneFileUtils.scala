@@ -395,7 +395,7 @@ object ParkingZoneFileUtils extends LazyLogging {
       TazFileRegex(tazId) <- tazRows
       parkingType         <- parkingTypes
       // We have to pass parking types: Some(CustomChargingPoint) and None
-      // None is `NoCharger` which is will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
+      // None is `NoCharger` which will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
       maybeChargingPoint <- Seq(Some(ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")), None) // NoCharger
     } yield {
       defaultParkingRow(tazId, parkingType, maybeChargingPoint)

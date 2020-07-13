@@ -25,18 +25,22 @@ object NewYorkAnalysis {
 
     val activities = CsvPlanElementReader.read(pathToPlans).filter(x => x.planElementType.equalsIgnoreCase("activity"))
 
-    val coords = activities.map { activity =>
-      val wgsCoord = new Coord(activity.activityLocationX.get, activity.activityLocationY.get)
-      val utm = geoUtils.wgs2Utm(wgsCoord)
-      val wgsBack = geoUtils.utm2Wgs(utm)
-      val distance = geoUtils.distLatLon2Meters(wgsBack, wgsCoord)
-      (distance, wgsCoord, wgsBack)
-    }.sortBy { case (diff, _, _) => -diff }
+    val coords = activities
+      .map { activity =>
+        val wgsCoord = new Coord(activity.activityLocationX.get, activity.activityLocationY.get)
+        val utm = geoUtils.wgs2Utm(wgsCoord)
+        val wgsBack = geoUtils.utm2Wgs(utm)
+        val distance = geoUtils.distLatLon2Meters(wgsBack, wgsCoord)
+        (distance, wgsCoord, wgsBack)
+      }
+      .sortBy { case (diff, _, _) => -diff }
     println(s"wgsCoords1: ${coords.length}")
 
-    val csvWriter = new CsvWriter("coords.csv", Array("original_x", "original_y", "converted_x", "converted_y", "distance"))
-    coords.foreach { case (distance, originalWgs, convertedWgs) =>
-      csvWriter.write(originalWgs.getX, originalWgs.getY, convertedWgs.getX, convertedWgs.getY, distance)
+    val csvWriter =
+      new CsvWriter("coords.csv", Array("original_x", "original_y", "converted_x", "converted_y", "distance"))
+    coords.foreach {
+      case (distance, originalWgs, convertedWgs) =>
+        csvWriter.write(originalWgs.getX, originalWgs.getY, convertedWgs.getX, convertedWgs.getY, distance)
     }
     csvWriter.close()
 

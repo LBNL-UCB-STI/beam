@@ -29,7 +29,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param population The population in the scenario
     * @return updated population
     */
-  def updateAttributes(population: MPopulation): MPopulation = {
+  private def updateAttributes(population: MPopulation): MPopulation = {
     val personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -52,9 +52,9 @@ trait PopulationAdjustment extends LazyLogging {
     * @return updated population
     */
   final def update(scenario: Scenario): MPopulation = {
-    val result = updatePopulation(scenario)
-    logModes(result)
-    updateAttributes(result)
+    val populationWithAttributes = updateAttributes(scenario.getPopulation)
+    updatePopulation(scenario)
+    logModes(populationWithAttributes)
   }
 
   /**
@@ -62,7 +62,7 @@ trait PopulationAdjustment extends LazyLogging {
     *
     * @param population population from the scenario
     */
-  protected final def logModes(population: MPopulation): Unit = {
+  protected final def logModes(population: MPopulation): MPopulation = {
 
     // initialize all excluded modes to empty array
     var allExcludedModes: Array[String] = Array.empty
@@ -91,6 +91,7 @@ trait PopulationAdjustment extends LazyLogging {
     if (!allAgentsHaveAttributes) {
       logger.error("Not all agents have person attributes - is attributes file missing ?")
     }
+    population
   }
 
   protected def updatePopulation(scenario: Scenario): MPopulation
@@ -149,7 +150,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param modeToRemove mode to be removed
     */
   protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
-    population.getPersons.keySet() forEach { personId =>
+    population.getPersons.keySet().forEach { personId =>
       this.removeMode(population, personId.toString, modeToRemove: _*)
     }
   }

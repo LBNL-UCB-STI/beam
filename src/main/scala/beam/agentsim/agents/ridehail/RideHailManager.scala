@@ -49,6 +49,7 @@ import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.vehicles.VehiclesAdjustment
@@ -63,6 +64,7 @@ import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.OutputDirectoryHierarchy
 //import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -163,10 +165,9 @@ object RideHailManager {
       *
       * @return list of data description objects
       */
-    override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-      val outputFilePath =
-        GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, fileBaseName + ".csv")
-      val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    override def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+      val outputFilePath = ioController.getIterationFilename(0, fileBaseName + ".csv")
+      val outputDirPath = ioController.getOutputPath
       val relativePath = outputFilePath.replace(outputDirPath, "")
       val list = new util.ArrayList[OutputDataDescription]
       list.add(
@@ -345,7 +346,8 @@ class RideHailManager(
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
   // parking choice function parameters
-  val mnlParamsFromConfig = beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
+  val mnlParamsFromConfig: MulitnomialLogit.Params =
+    beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params
 
   val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
     ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
@@ -360,7 +362,7 @@ class RideHailManager(
   )
 
   // provides tracking of parking/charging alternatives and their availability
-  val rideHailDepotParkingManager = RideHailDepotParkingManager(
+  val rideHailDepotParkingManager: RideHailDepotParkingManager = RideHailDepotParkingManager(
     parkingFilePath,
     beamServices.beamConfig.beam.agentsim.taz.filePath,
     beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
@@ -372,7 +374,7 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
-  val stalls = rideHailDepotParkingManager.rideHailParkingStalls
+  val stalls: Array[ParkingZone] = rideHailDepotParkingManager.rideHailParkingStalls
 
   private var cntEVCAV = 0
   private var cntEVnCAV = 0

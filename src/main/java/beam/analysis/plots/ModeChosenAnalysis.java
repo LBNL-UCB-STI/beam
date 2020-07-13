@@ -53,22 +53,24 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
     private final SimulationMetricCollector simMetricCollector;
     private final FilterEvent filterEvent;
+    private final OutputDirectoryHierarchy ioController;
 
-    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig, FilterEvent filterEvent) {
+    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig, FilterEvent filterEvent, OutputDirectoryHierarchy ioController) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.simMetricCollector = simMetricCollector;
         this.statComputation = statComputation;
         this.filterEvent = filterEvent;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
+        this.ioController = ioController;
     }
 
-    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
-        this(simMetricCollector, statComputation, beamConfig, AllEventsFilter$.MODULE$);
+    public ModeChosenAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig, OutputDirectoryHierarchy ioController) {
+        this(simMetricCollector, statComputation, beamConfig, AllEventsFilter$.MODULE$, ioController);
     }
 
     private OutputDirectoryHierarchy controllerIo() {
-        return GraphsStatsAgentSimEventsListener.CONTROLLER_IO;
+        return ioController;
     }
 
     private String iterationFilename(final int iterationNumber, final String fileName, final String suffix) {

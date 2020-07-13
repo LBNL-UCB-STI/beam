@@ -77,7 +77,7 @@ case class BeamPath(
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
 object BeamPath extends Ordering[BeamPath] {
-  val empty = BeamPath(Vector[Int](), Vector(), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
+  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
 
   import scala.annotation.tailrec
 
@@ -98,10 +98,13 @@ object BeamPath extends Ordering[BeamPath] {
         }
       }
     }
-    loop(idx = 0, shouldStop = false, result = 0)
+    val r = xArr.length.compareTo(yArr.length)
+    if (r != 0) r
+    else {
+      loop(idx = 0, shouldStop = false, result = 0)
+    }
   }
 
-  // TODO: Unit test this!
   override def compare(x: BeamPath, y: BeamPath): Int = {
     import scala.math.Ordered.orderingToOrdered
 

@@ -8,7 +8,7 @@ import scala.reflect.io.File
 
 class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
 
-  "CarRideStatsFromPathTraversalEventHandlerSpec" must {
+  "CarTripStatsFromPathTraversalEventHandler" must {
     "write speed statistics files" in {
       val handler = new CarTripStatsFromPathTraversalEventHandler(
         this.networkHelper,
@@ -46,11 +46,16 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
     }
   }
 
-  private def checkFileExistenceInRoot(file: String): Assertion = {
-    File(beamServices.matsimServices.getControlerIO.getOutputFilename(file)).isFile shouldEqual true
+  private def checkFileExistenceInRoot(file: String): Unit = {
+    val path = beamServices.matsimServices.getControlerIO.getOutputFilename(file)
+    require(File(path).isFile, s"${file} with full path ${path} does not exist or it is not a file")
   }
 
-  private def checkFileExistenceInIterFolder(file: String, iteration: Int): Assertion = {
-    File(beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, file)).isFile shouldEqual true
+  private def checkFileExistenceInIterFolder(file: String, iteration: Int): Unit = {
+    val path = beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, file)
+    require(
+      File(path).isFile,
+      s"${file} for iteration $iteration with full path ${path} does not exist or it is not a file"
+    )
   }
 }

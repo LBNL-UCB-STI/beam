@@ -4,18 +4,19 @@ import java.util
 
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object ModeChosenAnalysisObject extends OutputDataDescriptor {
 
   private val modeChoiceFileBaseName = ModeChosenAnalysis.modeChoiceFileBaseName
   private val referenceModeChoiceFileBaseName = ModeChosenAnalysis.referenceModeChoiceFileBaseName
 
-  def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-    val modeChoiceOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+  def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+    val modeChoiceOutputFilePath: String = ioController
       .getOutputFilename(modeChoiceFileBaseName + ".csv")
-    val referenceModeChoiceOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+    val referenceModeChoiceOutputFilePath: String = ioController
       .getOutputFilename(referenceModeChoiceFileBaseName + ".csv")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val outputDirPath: String = ioController.getOutputPath
     val modeChoiceRelativePath: String = modeChoiceOutputFilePath.replace(outputDirPath, "")
     val referenceModeChoiceRelativePath: String = referenceModeChoiceOutputFilePath.replace(outputDirPath, "")
     val list: util.List[OutputDataDescription] = new util.ArrayList[OutputDataDescription]

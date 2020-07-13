@@ -18,7 +18,13 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector, VMInformationWriter}
+import beam.analysis.{
+  DelayMetricAnalysis,
+  IterationStatsProvider,
+  ModeChoiceAlternativesCollector,
+  RideHailUtilizationCollector,
+  VMInformationCollector
+}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -101,13 +107,17 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
+  private val modeChoiceAlternativesCollector: ModeChoiceAlternativesCollector = new ModeChoiceAlternativesCollector(
+    beamServices
+  )
+
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
-  val graphFileNameDirectory = mutable.Map[String, Int]()
+  val graphFileNameDirectory: mutable.Map[String, Int] = mutable.Map[String, Int]()
   // var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
-  val runningPythonScripts = mutable.ListBuffer.empty[PythonProcess]
+  val runningPythonScripts: ListBuffer[PythonProcess] = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
@@ -140,7 +150,9 @@ class BeamSim @Inject()(
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
-  val vmInformationWriter: VMInformationWriter = new VMInformationWriter(beamServices.matsimServices.getControlerIO);
+  val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
+    beamServices.matsimServices.getControlerIO
+  );
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -160,6 +172,7 @@ class BeamSim @Inject()(
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
 
+    eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
@@ -246,15 +259,9 @@ class BeamSim @Inject()(
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
-    Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
-    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationStart) {
-      vmInformationWriter.writeVMInfo(event.getIteration, "start")
-    }
-
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()
@@ -266,10 +273,15 @@ class BeamSim @Inject()(
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
+    if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
+      modeChoiceAlternativesCollector.notifyIterationStarts(event)
+    }
+
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       beamServices,
-      configHolder
+      configHolder,
+      eventsManager
     )
 
     ExponentialLazyLogging.reset()
@@ -298,9 +310,6 @@ class BeamSim @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
-    if (beamConfig.beam.debug.vmInformation.gcClassHistogramAtIterationEnd) {
-      vmInformationWriter.writeVMInfo(event.getIteration, "end")
-    }
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(
@@ -316,10 +325,14 @@ class BeamSim @Inject()(
     carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
+    if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
+      modeChoiceAlternativesCollector.notifyIterationEnds(event)
+    }
+
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
-        modalityStyleStats.buildModalityStyleGraph()
+        modalityStyleStats.buildModalityStyleGraph(event.getServices.getControlerIO)
       }
       createGraphsFromEvents.createGraphs(event)
 
@@ -401,13 +414,14 @@ class BeamSim @Inject()(
     }
 
     //    Tracer.currentContext.finish()
-//    metricsPrinter ! Print(
-//      Seq(
-//        "r5-plans-count"
-//      ),
-//      Nil
-//    )
-    //rename output files generated by matsim to follow the standard naming convention of camel case
+    //    metricsPrinter ! Print(
+    //      Seq(
+    //        "r5-plans-count"
+    //      ),
+    //      Nil
+    //    )
+
+    // rename output files generated by matsim to follow the standard naming convention of camel case
     renameGeneratedOutputFiles(event)
 
     if (beamConfig.beam.outputs.writeGraphs) {
@@ -416,6 +430,10 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+
+    if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
+      vmInformationWriter.notifyIterationEnds(event)
+    }
 
     writeEventsAnalysisUsing(event)
 
@@ -522,8 +540,6 @@ class BeamSim @Inject()(
         process.waitFor(5, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
-
-    Skims.clear()
 
     beamServices.simMetricCollector.close()
   }
@@ -701,49 +717,5 @@ class BeamSim @Inject()(
             file
         }
       }
-  }
-
-  private def generateRandomCoordinates(): Unit = {
-    val boundingBox = beamServices.beamScenario.transportNetwork.streetLayer.envelope
-
-    val personToHh = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { h =>
-        h.getMemberIds.asScala.map { m =>
-          (m, h)
-        }
-      }
-      .toMap
-
-    scenario.getPopulation.getPersons.values.asScala.foreach { p =>
-      p.getPlans.asScala.foreach { plan =>
-        plan.getPlanElements.asScala.collect { case act: Activity => act }.zipWithIndex.foreach {
-          case (act: Activity, idx: Int) =>
-            val x = ThreadLocalRandom.current().nextDouble(boundingBox.getMinX, boundingBox.getMaxX)
-            val y = ThreadLocalRandom.current().nextDouble(boundingBox.getMinY, boundingBox.getMaxY)
-            val newCoord = beamServices.geo.wgs2Utm(new Coord(x, y))
-            act.setCoord(newCoord)
-            if (act.getType == "Home") {
-              val hh = personToHh(p.getId)
-              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordx", newCoord.getX)
-              scenario.getHouseholds.getHouseholdAttributes.putAttribute(hh.getId.toString, "homecoordy", newCoord.getY)
-            }
-
-          //            if (idx % 2 == 0) {
-//              val x = ThreadLocalRandom.current().nextDouble(-97.781, -97.770)
-//              val y = ThreadLocalRandom.current().nextDouble(30.295, 30.310)
-//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
-//            }
-//            else if (idx % 2 == 1) {
-//              val x = ThreadLocalRandom.current().nextDouble(-97.712, -97.705)
-//              val y = ThreadLocalRandom.current().nextDouble(30.231, 30.237)
-//              act.setCoord(beamServices.geo.wgs2Utm(new Coord(x, y)))
-//            }
-          // logger.info(s"act: $act")
-          case _ =>
-        }
-      }
-    }
   }
 }
