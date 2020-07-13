@@ -21,7 +21,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 
 /**
   * BEAM
@@ -270,30 +270,19 @@ class ModeChoiceMultinomialLogit(
       val scaledTime = attributesOfIndividual.getVOT(
         getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
       )
-      val maxOccupancyLevel: Double = getMaxTransitOccupancyLevel(altAndIdx._1)
+      val percentile =
+        beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+      val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
 
       ModeCostTimeTransfer(
         embodiedBeamTrip = altAndIdx._1,
         cost = incentivizedCost,
         scaledTime = scaledTime,
         numTransfers = numTransfers,
-        transitOccupancyLevel = maxOccupancyLevel,
+        transitOccupancyLevel = occupancyLevel,
         index = altAndIdx._2
       )
     }
-  }
-
-  private def getMaxTransitOccupancyLevel(trip: EmbodiedBeamTrip): Double = {
-    val maxOccupancyLevels = for {
-      transitLeg   <- trip.legs.filter(leg => leg.beamLeg.mode.isTransit)
-      transitStops <- transitLeg.beamLeg.travelPath.transitStops
-      maxSkim <- transitCrowding.getMaxPassengerSkim(
-        transitLeg.beamVehicleId,
-        transitStops.fromIdx,
-        transitStops.toIdx
-      )
-    } yield maxSkim.numberOfPassengers.toDouble / maxSkim.capacity
-    maxOccupancyLevels.reduceOption(_ max _).getOrElse(0.0)
   }
 
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
