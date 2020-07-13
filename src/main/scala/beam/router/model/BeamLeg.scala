@@ -30,7 +30,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   def scaleToNewDuration(newDuration: Int): BeamLeg = {
-    val newTravelPath = this.travelPath.scaleTravelTimes(newDuration.toDouble / this.duration.toDouble)
+    val ratio = if (newDuration == 0 || this.duration == 0) 0 else newDuration.toDouble / this.duration.toDouble
+    val newTravelPath = this.travelPath.scaleTravelTimes(ratio)
     this
       .copy(
         duration = newDuration,

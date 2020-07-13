@@ -30,4 +30,6 @@ object AllNeededFormats {
   implicit val embodiedBeamLegFormat: Format[EmbodiedBeamLeg] = new Format[EmbodiedBeamLeg]
   implicit val embodiedBeamTripFormat: Format[EmbodiedBeamTrip] = new Format[EmbodiedBeamTrip]
   implicit val routingResponseFormat: Format[RoutingResponse] = new Format[RoutingResponse]
+
+  implicit val manifestFormat = ManifestFormat
 }
