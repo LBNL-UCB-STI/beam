@@ -1,5 +1,6 @@
 package beam.physsim.bprsim
 
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -15,13 +16,15 @@ import scala.collection.mutable
   *
   * @author Dmitry Openkov
   */
-class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager) extends Mobsim {
+class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager) extends Mobsim
+  with StrictLogging {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator(config.inFlowAggregationTimeWindow))
 
   override def run(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala
     val caccMap = params.config.caccSettings.map(_.isCACCVehicle).getOrElse(java.util.Collections.emptyMap())
+    logger.info(s"caccMap size = ${caccMap.size()}")
     persons
       .map(person => BPRSimulation.startingEvent(person, caccMap, _ => true))
       .flatMap(_.iterator)
