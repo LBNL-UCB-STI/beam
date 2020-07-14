@@ -1,4 +1,4 @@
-package helics
+package beam.cosim.helics
 
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.scheduler.Trigger
@@ -13,12 +13,18 @@ import org.matsim.api.core.v01.events.Event
 import scala.collection.mutable
 
 object BeamFederate {
+  // Lazy makes sure that it is initialized only once
+  lazy val loadHelics: Unit = {
+    HelicsLoader.load()
+  }
+
   case class BeamFederateTrigger(tick: Int) extends Trigger
+
   var beamFed = Option.empty[BeamFederate]
 
-  def getInstance(beamServices: BeamServices): BeamFederate = {
+  def getInstance(beamServices: BeamServices): BeamFederate = this.synchronized {
     if (beamFed.isEmpty) {
-      HelicsLoader.load()
+      loadHelics
       beamFed = Some(BeamFederate(beamServices))
     }
     beamFed.get
@@ -26,7 +32,6 @@ object BeamFederate {
 }
 
 case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
-  import BeamFederate._
   private val beamConfig = beamServices.beamScenario.beamConfig
   private val tazTreeMap = beamServices.beamScenario.tazTreeMap
   private val registeredEvents = mutable.HashMap.empty[String, SWIGTYPE_p_void]

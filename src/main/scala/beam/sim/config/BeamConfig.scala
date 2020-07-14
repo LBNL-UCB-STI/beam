@@ -64,6 +64,7 @@ object BeamConfig {
         ptFare: BeamConfig.Beam.Agentsim.Agents.PtFare,
         rideHail: BeamConfig.Beam.Agentsim.Agents.RideHail,
         rideHailTransit: BeamConfig.Beam.Agentsim.Agents.RideHailTransit,
+        tripBehaviors: BeamConfig.Beam.Agentsim.Agents.TripBehaviors,
         vehicles: BeamConfig.Beam.Agentsim.Agents.Vehicles
       )
 
@@ -1168,6 +1169,63 @@ object BeamConfig {
           }
         }
 
+        case class TripBehaviors(
+          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
+        )
+
+        object TripBehaviors {
+          case class MulitnomialLogit(
+            activity_file_path: java.lang.String,
+            additional_trip_utility: scala.Double,
+            destination_nest_scale_factor: scala.Double,
+            generate_secondary_activities: scala.Boolean,
+            intercept_file_path: java.lang.String,
+            max_destination_choice_set_size: scala.Int,
+            max_destination_distance_meters: scala.Double,
+            mode_nest_scale_factor: scala.Double,
+            trip_nest_scale_factor: scala.Double
+          )
+
+          object MulitnomialLogit {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
+                activity_file_path =
+                  if (c.hasPathOrNull("activity_file_path")) c.getString("activity_file_path") else "",
+                additional_trip_utility =
+                  if (c.hasPathOrNull("additional_trip_utility")) c.getDouble("additional_trip_utility") else 0.0,
+                destination_nest_scale_factor =
+                  if (c.hasPathOrNull("destination_nest_scale_factor")) c.getDouble("destination_nest_scale_factor")
+                  else 1.0,
+                generate_secondary_activities = c.hasPathOrNull("generate_secondary_activities") && c.getBoolean(
+                  "generate_secondary_activities"
+                ),
+                intercept_file_path =
+                  if (c.hasPathOrNull("intercept_file_path")) c.getString("intercept_file_path") else "",
+                max_destination_choice_set_size =
+                  if (c.hasPathOrNull("max_destination_choice_set_size")) c.getInt("max_destination_choice_set_size")
+                  else 20,
+                max_destination_distance_meters =
+                  if (c.hasPathOrNull("max_destination_distance_meters")) c.getDouble("max_destination_distance_meters")
+                  else 32000,
+                mode_nest_scale_factor =
+                  if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
+                trip_nest_scale_factor =
+                  if (c.hasPathOrNull("trip_nest_scale_factor")) c.getDouble("trip_nest_scale_factor") else 1.0
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
+            BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
+                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              )
+            )
+          }
+        }
+
         case class Vehicles(
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
@@ -1420,6 +1478,10 @@ object BeamConfig {
             rideHailTransit = BeamConfig.Beam.Agentsim.Agents.RideHailTransit(
               if (c.hasPathOrNull("rideHailTransit")) c.getConfig("rideHailTransit")
               else com.typesafe.config.ConfigFactory.parseString("rideHailTransit{}")
+            ),
+            tripBehaviors = BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              if (c.hasPathOrNull("tripBehaviors")) c.getConfig("tripBehaviors")
+              else com.typesafe.config.ConfigFactory.parseString("tripBehaviors{}")
             ),
             vehicles = BeamConfig.Beam.Agentsim.Agents.Vehicles(
               if (c.hasPathOrNull("vehicles")) c.getConfig("vehicles")
