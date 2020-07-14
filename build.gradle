@@ -298,6 +298,8 @@ dependencies {
 
     compile group: 'com.google.maps', name: 'google-maps-services', version: '0.14.0'
 
+    compile group: 'org.onebusaway', name: 'onebusaway-gtfs-transformer', version: '1.3.4'
+
 }
 
 // Autoformatting using scalafmt
