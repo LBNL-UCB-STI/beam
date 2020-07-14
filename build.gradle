@@ -300,6 +300,8 @@ dependencies {
 
 
     compile 'de.vandermeer:asciitable:0.3.2'
+
+    compile group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0'
 }
 
 // Autoformatting using scalafmt
