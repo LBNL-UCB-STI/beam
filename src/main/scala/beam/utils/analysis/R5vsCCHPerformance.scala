@@ -9,6 +9,7 @@ import beam.router.Modes.BeamMode
 import beam.router.graphhopper.GraphHopperRouteResolver
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
+import beam.sim.common.SimpleGeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.ProfilingUtils
 import com.graphhopper.GHResponse
@@ -87,6 +88,7 @@ object R5vsCCHPerformance extends BeamHelper {
     //)
     val gh = new GraphHopperRouteResolver(arguments.ghLocation.get)
     val ghResponses = ListBuffer.empty[GHResponse]
+    val utm2Wgs = SimpleGeoUtils().utm2Wgs
 
     ProfilingUtils.timed("GH performance check", x => logger.info(x)) {
       var i: Int = 0
@@ -94,7 +96,7 @@ object R5vsCCHPerformance extends BeamHelper {
         val (origin, dest) = p
         i += 1
 
-        ghResponses += gh.route(origin, dest)
+        ghResponses += gh.route(utm2Wgs.transform(origin), utm2Wgs.transform(dest))
       }
     }
     logger.info("GH performance check completed. Routes count: {}", ghResponses.size)
