@@ -42,7 +42,6 @@ object MathUtils {
     number > 0 && ((number & (number - 1)) == 0)
   }
 
-  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
   /**
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
@@ -105,4 +104,5 @@ object MathUtils {
     }
   }
 
+  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 }
