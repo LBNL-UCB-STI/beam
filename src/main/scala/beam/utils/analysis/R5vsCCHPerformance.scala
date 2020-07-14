@@ -97,7 +97,7 @@ object R5vsCCHPerformance extends BeamHelper {
         ghResponses += gh.route(origin, dest)
       }
     }
-    logger.info("GH performance check completed. Routes count: {}", r5Responses.size)
+    logger.info("GH performance check completed. Routes count: {}", ghResponses.size)
   }
 
   private def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
