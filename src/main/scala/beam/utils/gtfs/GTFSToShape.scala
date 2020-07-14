@@ -4,6 +4,7 @@ import java.io.{File, IOException}
 import java.util.zip.ZipFile
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.utils.csv.CsvWriter
 import beam.utils.gtfs.Model._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -34,47 +35,79 @@ object GTFSToShape extends LazyLogging {
     val gtfsFolder = new File(zipFolderPath);
     val gtfsFiles = gtfsFolder.listFiles();
 
-    val routeTypeToCoords = mutable.HashMap.empty[String, mutable.Buffer[WgsCoordinate]]
-    val routeTypeToRoutes = mutable.HashMap.empty[String, mutable.Buffer[Route]]
+    val agencyToStops = mutable.HashMap.empty[Agency, mutable.Buffer[WgsCoordinate]]
+    val sourceToStops = mutable.HashMap.empty[String, Int]
+
+    val sourceToOrphanStops = mutable.HashMap.empty[String, mutable.Buffer[WgsCoordinate]]
+    def takeIntoAccauntAnOrphaneStop(stop: Stop, source: String): Unit = {
+      sourceToOrphanStops.get(source) match {
+        case Some(orphanStops) => orphanStops += stop.wgsPoint
+        case None              => sourceToOrphanStops(source) = mutable.Buffer(stop.wgsPoint)
+      }
+    }
 
     for (sourceFile <- gtfsFiles.filter(file => file.isFile && file.getName.endsWith(".zip"))) {
       val zipFile = new ZipFile(sourceFile)
       val zipFileName = sourceFile.getName
       logger.info(s"processing $zipFileName")
 
-      // routes.txt     : route_id -> route_type, route_long_name
-      // trips.txt      : route_id -> trip_id
-      // stop_times.txt : trip_id -> stop_id
-      // stops.txt      : stop_id -> stop_lan, stop_lon
-
       try {
-        val routes = GTFSReader.readRoutes(zipFile, zipFileName)
+        val agencies = GTFSReader.readAgencies(zipFile, zipFileName)
+        val defaultAgency =
+          if (agencies.size == 1) Some(agencies.head)
+          else None
+        val defaultAgemcyId = defaultAgency.map(a => a.id).getOrElse("")
+
+        val routes = GTFSReader.readRoutes(zipFile, zipFileName, defaultAgemcyId)
         val trips = GTFSReader.readTrips(zipFile)
         val stopTimes = GTFSReader.readStopTimes(zipFile)
         val stops = GTFSReader.readStops(zipFile)
 
-        // write a shapefile for current GTFS data source
-        coordsToShapefile(stops.map(s => s.wgsPoint), s"$outputPath/$zipFileName.shp")
+        sourceToStops(zipFileName) = stops.size
 
-        // group all data by route type
-        routes.foreach{ route =>
-          routeTypeToRoutes.get(route.routeType) match {
-            case Some(rts) => rts += route
-            case None => routeTypeToRoutes(route.routeType) = mutable.Buffer(route)
+        // write a shapefile for current GTFS data source
+        coordsToShapefile(stops.map(s => s.wgsPoint), s"$outputPath/source.$zipFileName.shp")
+
+        agencies.foreach { agency =>
+          if (!agencyToStops.contains(agency)) {
+            agencyToStops(agency) = mutable.Buffer.empty[WgsCoordinate]
           }
         }
 
-        val routeIdToRoute = routes.map(r => r.id         -> r).toMap
-        val tripIdToRoute = trips.map(t => t.tripId       -> routeIdToRoute.get(t.routeId)).toMap
-        val stopIdToRoute = stopTimes.map(st => st.stopId -> tripIdToRoute.get(st.tripId).flatten).toMap
-        val stopToRoute = stops.map(s => (s, stopIdToRoute.get(s.id).flatten))
-        stopToRoute.foreach {
-          case (stop, Some(route)) =>
-            routeTypeToCoords.get(route.routeType) match {
-              case Some(coords) => coords += stop.wgsPoint
-              case None         => routeTypeToCoords(route.routeType) = mutable.Buffer(stop.wgsPoint)
-            }
-          case (stop, None) => logger.error(s"Stop ID:${stop.id} lat:${stop.lat} lon:${stop.lon} does not have a route.")
+        val agencyIdToAgency = agencies.map(a => a.id -> a).toMap
+        val routeIdToRoute = routes.map(r => r.id     -> r).toMap
+        val tripIdToRoute = trips
+          .map(t => {
+            val route = routeIdToRoute.get(t.routeId)
+            if (route.isEmpty) logger.warn(s"trip id:${t.tripId} can't find route by routeId:${t.routeId}.")
+            t.tripId -> route
+          })
+          .toMap
+        val stopIdToRoute = stopTimes
+          .map(st => {
+            val route = tripIdToRoute.get(st.tripId).flatten
+            if (route.isEmpty) logger.warn(s"stopTimes stopId:${st.stopId} can't find route by tripId:${st.tripId}")
+            st.stopId -> route
+          })
+          .toMap
+
+        val stopRouteAgency = stops.map(stop => {
+          val routeOpt: Option[Route] = stopIdToRoute.get(stop.id).flatten
+          val agencyOpt: Option[Agency] = routeOpt match {
+            case Some(r) => agencyIdToAgency.get(r.agencyId)
+            case None    => None
+          }
+          if (routeOpt.isEmpty || agencyOpt.isEmpty)
+            logger.warn(s"stop id:${stop.id} route:${routeOpt.toString} agency:${agencyOpt.toString}")
+
+          (stop, routeOpt, agencyOpt)
+        })
+
+        stopRouteAgency.foreach {
+          case (stop, _, Some(agency))                => agencyToStops(agency) += stop.wgsPoint
+          case (stop, _, _) if defaultAgency.nonEmpty => agencyToStops(defaultAgency.get) += stop.wgsPoint
+          case (stop, Some(route), _)                 => takeIntoAccauntAnOrphaneStop(stop, route.source)
+          case (stop, None, None)                     => takeIntoAccauntAnOrphaneStop(stop, zipFileName)
         }
 
       } catch {
@@ -84,9 +117,38 @@ object GTFSToShape extends LazyLogging {
       }
     }
 
-    routeTypeToCoords.foreach{ case (routeType, coords) =>
-      coordsToShapefile(coords, s"$outputPath/routeType.$routeType.stops.shp")
+    agencyToStops.groupBy { case (agency, _) => agency.name }.foreach {
+      case (agencyName, grouped) =>
+        val coordinates = grouped.values.flatten
+        if (coordinates.nonEmpty) {
+          coordsToShapefile(coordinates, s"$outputPath/agency.$agencyName.stops.shp")
+        }
     }
+
+    sourceToOrphanStops.foreach {
+      case (source, coordinates) =>
+        logger.warn(s"There are ${coordinates.length} stops without route or agency from $source gtfs source.")
+        coordsToShapefile(coordinates, s"$outputPath/orphan.$source.stops.shp")
+    }
+
+    val agencyCswWriter = new CsvWriter(
+      s"$outputPath/agencies.csv",
+      Vector("id", "name", "url", "# of stops", "source", "# of stops in source")
+    )
+
+    agencyToStops.foreach {
+      case (agency, stops) =>
+        agencyCswWriter.writeRow(
+          IndexedSeq(agency.id, agency.name, agency.url, stops.length, agency.source, sourceToStops(agency.source))
+        )
+    }
+
+    sourceToOrphanStops.foreach {
+      case (source, stops) =>
+        agencyCswWriter.writeRow(IndexedSeq("", "", "", stops.length, source, ""))
+    }
+
+    agencyCswWriter.close()
 
   }
 

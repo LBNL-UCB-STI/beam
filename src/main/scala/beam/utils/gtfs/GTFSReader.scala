@@ -42,7 +42,12 @@ object GTFSReader extends LazyLogging {
     }
   }
 
-  def readRoutes(gtfsZip: ZipFile, sourceName:String): Set[Route] = readGTFSArchive(gtfsZip, "routes.txt", Route.apply(sourceName))
+  def readRoutes(gtfsZip: ZipFile, sourceName: String, defaultAgencyId: String): Set[Route] =
+    readGTFSArchive(gtfsZip, "routes.txt", Route.apply(sourceName, defaultAgencyId))
+
+  def readAgencies(gtfsZip: ZipFile, sourceName: String): Set[Agency] =
+    readGTFSArchive(gtfsZip, "agency.txt", Agency.apply(sourceName))
+
   def readTrips(gtfsZip: ZipFile): Set[Trip] = readGTFSArchive(gtfsZip, "trips.txt", Trip.apply)
   def readStopTimes(gtfsZip: ZipFile): Set[StopTime] = readGTFSArchive(gtfsZip, "stop_times.txt", StopTime.apply)
   def readStops(gtfsZip: ZipFile): Set[Stop] = readGTFSArchive(gtfsZip, "stops.txt", Stop.apply)
