@@ -12,7 +12,6 @@ import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.ProfilingUtils
 import com.graphhopper.GHResponse
-import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable.ListBuffer
@@ -50,7 +49,8 @@ object R5vsCCHPerformance extends BeamHelper {
     // R5
 
     val (arguments, cfg) = prepareConfig(args, isConfigArgRequired = true)
-    val r5Wrapper = createR5Wrapper(cfg)
+    val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
+    val r5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
     val ods = readPlan(arguments.planLocation.get)
     val r5Responses = ListBuffer.empty[RoutingResponse]
 
@@ -79,6 +79,12 @@ object R5vsCCHPerformance extends BeamHelper {
 
     // GraphHopper
 
+    // setup GH location if needed
+    //GraphHopperRouteResolver.createGHLocationFromR5(
+    //  workerParams.transportNetwork,
+    //  new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5-prod/osm.mapdb"),
+    //  arguments.ghLocation.get
+    //)
     val gh = new GraphHopperRouteResolver(arguments.ghLocation.get)
     val ghResponses = ListBuffer.empty[GHResponse]
 
@@ -92,11 +98,6 @@ object R5vsCCHPerformance extends BeamHelper {
       }
     }
     logger.info("GH performance check completed. Routes count: {}", r5Responses.size)
-  }
-
-  private def createR5Wrapper(cfg: Config): R5Wrapper = {
-    val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
-    new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
   }
 
   private def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
@@ -169,4 +170,5 @@ object R5vsCCHPerformance extends BeamHelper {
 
     buffer
   }
+
 }
