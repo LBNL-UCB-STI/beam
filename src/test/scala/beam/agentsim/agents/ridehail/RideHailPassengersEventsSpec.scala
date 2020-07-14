@@ -13,7 +13,6 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 
 class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
@@ -109,17 +108,16 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
     }
 
     "all passengers leave" in {
-      val events = mutable.Set[String]()
-
+      val events = TrieMap[String, Int]()
       initialSetup {
         case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
           val vid = enterEvent.getVehicleId.toString
           val uid = enterEvent.getPersonId.toString
-          events += s"$vid.$uid"
+          events.put(s"$vid.$uid", 1)
         case leavesEvent: PersonLeavesVehicleEvent =>
           val vid = leavesEvent.getVehicleId.toString
           val uid = leavesEvent.getPersonId.toString
-          events -= s"$vid.$uid"
+          events.remove(s"$vid.$uid")
         case _ =>
       }
       events.isEmpty shouldBe true
