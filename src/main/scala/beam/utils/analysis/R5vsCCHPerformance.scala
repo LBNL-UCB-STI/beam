@@ -6,15 +6,23 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
+import beam.router.graphhopper.GraphHopperRouteResolver
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.ProfilingUtils
+import com.graphhopper.GHResponse
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable.ListBuffer
 
+/**
+ * #2804 Get R5 vs. CCH Graphhopper performance for urbansim routes
+ * Run from gradle:
+ * ./gradlew :execute -PmainClass=beam.utils.analysis.R5vsCCHPerformance -PmaxRAM=4 \
+ *   -PappArgs="['--config', 'test/input/texas/austin-prod-200k.conf', 'plans', '/path/to/plans.csv', 'ghloc', '/path/to/ghlocation']"
+ */
 object R5vsCCHPerformance extends BeamHelper {
 
   private val baseRoutingRequest: RoutingRequest = {
@@ -39,10 +47,12 @@ object R5vsCCHPerformance extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
+    // R5
+
     val (arguments, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val r5Wrapper = createR5Wrapper(cfg)
     val ods = readPlan(arguments.planLocation.get)
-    val responses = ListBuffer.empty[RoutingResponse]
+    val r5Responses = ListBuffer.empty[RoutingResponse]
 
     ProfilingUtils.timed("R5 performance check", x => logger.info(x)) {
       var i: Int = 0
@@ -51,7 +61,7 @@ object R5vsCCHPerformance extends BeamHelper {
         i += 1
 
         val carStreetVehicle = getStreetVehicle(
-          s"dummy-car-for-r5-vs-cch $i",
+          s"dummy-car-for-r5-vs-cch-$i",
           BeamMode.CAV,
           baseRoutingRequest.originUTM
         )
@@ -60,13 +70,28 @@ object R5vsCCHPerformance extends BeamHelper {
           originUTM = origin,
           destinationUTM = dest,
           streetVehicles = Vector(carStreetVehicle),
-          withTransit = false )
-          responses += r5Wrapper.calcRoute(req)
+          withTransit = false
+        )
+        r5Responses += r5Wrapper.calcRoute(req)
       }
     }
-    logger.info("R5 performance check completed. Routes count: {}", responses.size)
+    logger.info("R5 performance check completed. Routes count: {}", r5Responses.size)
 
-    println
+    // GraphHopper
+
+    val gh = new GraphHopperRouteResolver(arguments.ghLocation.get)
+    val ghResponses = ListBuffer.empty[GHResponse]
+
+    ProfilingUtils.timed("GH performance check", x => logger.info(x)) {
+      var i: Int = 0
+      ods.foreach { p =>
+        val (origin, dest) = p
+        i += 1
+
+        ghResponses += gh.route(origin, dest)
+      }
+    }
+    logger.info("GH performance check completed. Routes count: {}", r5Responses.size)
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
