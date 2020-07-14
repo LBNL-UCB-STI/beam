@@ -1,5 +1,7 @@
 package beam.router.r5
 
+import java.io.File
+import java.nio.file.Files
 import java.time.temporal.ChronoUnit
 import java.time.ZonedDateTime
 import java.util
@@ -10,7 +12,7 @@ import java.util.concurrent.ThreadLocalRandom
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
@@ -25,19 +27,24 @@ import beam.router.model.BeamLeg.dummyLeg
 import beam.router.Modes
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
+import beam.router.RouteHistory.LinkId
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.utils.FileUtils
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile.{McRaptorSuboptimalPathProfileRouter, ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransitLayer
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
-    extends MetricsSupport {
+    extends MetricsSupport
+    with StrictLogging {
+
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
@@ -56,6 +63,27 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
+  private val bikeLanesLinkIds = loadBikeLaneLinkIds()
+
+  def loadBikeLaneLinkIds(): Set[LinkId] = {
+    Try {
+      val result: Set[String] = {
+        val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
+        if (new File(bikeLaneLinkIdsPath).isFile) {
+          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
+        } else {
+          Set.empty
+        }
+      }
+      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
+    } match {
+      case Failure(exception) =>
+        logger.error("Could not load the bikeLaneLinkIds", exception)
+        Set.empty
+      case Success(value) => value
+    }
+  }
+
   // carlos:TODO here?
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -66,11 +94,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     val calculatedTravelTime: (Double, Int, StreetMode) => Double =
       travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false)
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-      leg.travelPath.linkIds,
-      leg.startTime,
-      calculatedTravelTime,
-      toR5StreetMode(leg.mode),
-      transportNetwork.streetLayer
+      linkIds = leg.travelPath.linkIds,
+      startTime = leg.startTime,
+      travelTimeByEnterTimeAndLinkId = calculatedTravelTime,
+      mode = toR5StreetMode(leg.mode),
+      streetLayer = transportNetwork.streetLayer
     )
     val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
     val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
@@ -1024,14 +1052,17 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
         val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
         // if is BIKE and dedicated line should give less travel time
-        if (vehicleType.vehicleCategory == VehicleCategory.Bike) {
-          println(s"@@@@ vehicleType: [$vehicleType]")
+        val decreaseFactor = {
+          if (vehicleType.vehicleCategory == VehicleCategory.Bike && bikeLanesLinkIds.contains(linkId)) {
+            beamConfig.beam.routing.r5.bikeLaneDecreaseTravelTimeFactor
+          } else {
+            1
+          }
         }
-        val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-        val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+        val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond * decreaseFactor
+        val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt * decreaseFactor
         if (streetMode != StreetMode.CAR) {
           minTravelTime
-          // what is the percentage? 20?
         } else {
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)

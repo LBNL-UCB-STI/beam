@@ -13,13 +13,13 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   */
 case class BeamPath(
   linkIds: IndexedSeq[Int],
+  // this is affected
   linkTravelTime: IndexedSeq[Double],
   transitStops: Option[TransitStopsInfo],
   startPoint: SpaceTime,
   endPoint: SpaceTime,
   distanceInM: Double
 ) {
-
   checkCoordinates(startPoint)
   checkCoordinates(endPoint)
 
