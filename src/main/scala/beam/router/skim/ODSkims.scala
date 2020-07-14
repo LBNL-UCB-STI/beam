@@ -35,6 +35,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     beamScenario: BeamScenario
   ): Skim = {
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
+    val votMultiplier: Double = mode match {
+      case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
+      case _   => 1.0
+    }
     val travelCost: Double = mode match {
       case CAR | CAV =>
         DrivingCost.estimateDrivingCost(
@@ -56,7 +60,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     }
     Skim(
       travelTime,
-      travelTime,
+      travelTime * votMultiplier,
       travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
       travelDistance,
       travelCost,

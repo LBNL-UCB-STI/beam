@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -19,12 +20,14 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
@@ -36,7 +39,9 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.utils.misc.Time
 import org.matsim.households
 import org.matsim.households.Household
 
@@ -175,8 +180,10 @@ object HouseholdActor {
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
             fleetManager
         }
+
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
+
         if (cavs.nonEmpty) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
@@ -262,6 +269,16 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val selectedPlan = person.getSelectedPlan
+          // Set zero endTime for plans with one activity. In other case agent sim will be started
+          // before all InitializeTrigger's are completed
+          if (selectedPlan.getPlanElements.size() == 1) {
+            selectedPlan.getPlanElements.get(0) match {
+              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case _              =>
+            }
+          }
+
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
@@ -276,7 +293,7 @@ object HouseholdActor {
               eventsManager,
               person.getId,
               self,
-              person.getSelectedPlan,
+              selectedPlan,
               fleetManagers ++: sharedVehicleFleets,
               routeHistory,
               boundingBox
