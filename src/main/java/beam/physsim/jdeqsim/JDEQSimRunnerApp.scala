@@ -13,6 +13,7 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 object JDEQSimRunnerApp extends StrictLogging {
 
@@ -22,8 +23,8 @@ object JDEQSimRunnerApp extends StrictLogging {
     val (_, config) = beamHelper.prepareConfig(args, true)
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
-    val networkFile = "d:/Work/beam/GPU/network-output.xml"
-    val populationFile = "d:/Work/beam/GPU/population_sampled.xml"
+    val networkFile = "output/sf-light/sf-light-1k_half_capacity/output_network.xml.gz"
+    val populationFile = "test/input/sf-light/sample/1k/population.xml.gz"
     val pathToOutput = s"${execCfg.outputDirectory}/phys-sym"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
@@ -54,12 +55,17 @@ object JDEQSimRunnerApp extends StrictLogging {
       new OutputDirectoryHierarchy(pathToOutput, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
     outputDirectoryHierarchy.createIterationDirectory(0)
 
+    val rnd = Random
+    val caccMap = scenario.getPopulation.getPersons.values().asScala
+      .map {person => person.getId.toString -> Boolean.box(rnd.nextBoolean())}
+      .toMap
+
     val physSim = new JDEQSimRunner(
       execCfg.beamConfig,
       scenario,
       scenario.getPopulation,
       outputDirectoryHierarchy,
-      new java.util.HashMap[String, java.lang.Boolean](),
+      caccMap.asJava,
       new BeamConfigChangesObservable(execCfg.beamConfig),
       agentSimIterationNumber = 0
     )
