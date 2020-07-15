@@ -5,17 +5,21 @@ import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.api.core.v01.population.Population;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
 public class ModalityStyleStats {
+    private final Logger log = LoggerFactory.getLogger(ModalityStyleStats.class);
+
     private final String graphTile;
     private final String xAxisTitle;
     private final String yAxisTitle;
@@ -34,11 +38,11 @@ public class ModalityStyleStats {
         attributeName = "modality-style";
     }
 
-    public void buildModalityStyleGraph() {
+    public void buildModalityStyleGraph(OutputDirectoryHierarchy ioController) {
         try {
-            buildGraphFromPopulationProcessDataSet();
+            buildGraphFromPopulationProcessDataSet(ioController);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -88,12 +92,7 @@ public class ModalityStyleStats {
             String className = classList.get(i);
             for (int j = 0; j < iterationCount.size(); j++) {
                 Map<String, Double> modalityData = iterationVsModalityClassCount.get(j);
-                Double classCount = modalityData.get(className);
-                if (classCount == null) {
-                    data[j] = 0;
-                } else {
-                    data[j] = classCount;
-                }
+                data[j] = modalityData.getOrDefault(className, 0D);
             }
             dataSet[i] = data;
         }
@@ -105,10 +104,10 @@ public class ModalityStyleStats {
         if (dataSet == null) {
             return null;
         }
-        return DatasetUtilities.createCategoryDataset("", "", dataSet);
+        return GraphUtils.createCategoryDataset("", "", dataSet);
     }
 
-    private void buildGraphFromPopulationProcessDataSet() throws IOException {
+    private void buildGraphFromPopulationProcessDataSet(OutputDirectoryHierarchy ioController) throws IOException {
         CategoryDataset categoryDataset = buildModalityStyleGraphDataSet();
         if (categoryDataset == null) {
             return;
@@ -117,9 +116,7 @@ public class ModalityStyleStats {
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(categoryDataset, graphTile, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, classList, categoryDataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName);
+        String graphImageFile = ioController.getOutputFilename(fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
-
-
 }

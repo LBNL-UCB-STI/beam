@@ -2,16 +2,18 @@ package beam.agentsim.infrastructure.parking
 
 import java.io.{BufferedReader, File, IOException}
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Random, Success, Try}
-import scala.util.matching.Regex
-import scala.collection.JavaConverters._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
+
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
+import scala.util.matching.{Regex, UnanchoredRegex}
+import scala.util.{Failure, Random, Success, Try}
 
 // utilities to read/write parking zone information from/to a file
 object ParkingZoneFileUtils extends LazyLogging {
@@ -150,13 +152,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     header: Boolean = true
   ): (Array[ParkingZone], ZoneSearchTree[TAZ]) =
     Try {
-      val reader = IOUtils.getBufferedReader(filePath)
+      val reader = FileUtils.getReader(filePath)
       if (header) reader.readLine()
       reader
     } match {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
           fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
+        reader.close()
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
         )
@@ -364,7 +367,7 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * the first column of the taz-centers file is an Id[Taz], which we extract. it can be alphanumeric.
     */
-  val TazFileRegex = """^(\w+),""".r.unanchored
+  val TazFileRegex: UnanchoredRegex = """^(\w+),""".r.unanchored
 
   /**
     * generates ubiquitous parking from the contents of a TAZ centers file

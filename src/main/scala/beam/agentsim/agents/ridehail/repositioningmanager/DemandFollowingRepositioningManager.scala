@@ -112,14 +112,14 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       // Filter out vehicles that don't have enough range
       newPositions
         .filter { vehAndNewLoc =>
-          Skims.od_skimmer
+          beamServices.skims.od_skimmer
             .getTimeDistanceAndCost(
               vehAndNewLoc._1.currentLocationUTM.loc,
               vehAndNewLoc._2,
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
-              beamServices
+              beamServices.beamScenario
             )
             .distance <= rideHailManager.vehicleManager
             .getVehicleState(vehAndNewLoc._1.vehicleId)

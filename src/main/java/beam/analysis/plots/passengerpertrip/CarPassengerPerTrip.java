@@ -1,9 +1,9 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.GraphUtils;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -19,7 +19,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
-    private static double[][] matriXDataSet;
 
     final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
@@ -29,24 +28,22 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public void collectEvent(PathTraversalEvent event) {
-
         eventCounter++;
 
         int h = getEventHour(event.getTime());
         maxHour = maxHour < h ? h : maxHour;
 
-
         Integer numPassengers = event.numberOfPassengers();
 
         Map<Integer, Integer> eventFrequencyBin = numPassengerToEventFrequencyBin.get(numPassengers);
-        if(eventFrequencyBin == null){
+        if(eventFrequencyBin == null) {
             eventFrequencyBin = new HashMap<>();
             eventFrequencyBin.put(h, 1);
-        }else{
+        } else {
             Integer frequency = eventFrequencyBin.get(h);
-            if(frequency == null){
+            if(frequency == null) {
                 frequency = 1;
-            }else{
+            } else {
                 frequency = frequency + 1;
             }
             eventFrequencyBin.put(h, frequency);
@@ -56,21 +53,21 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public void process(IterationEndsEvent event) throws IOException {
+        double[][] matrixDataSet = buildMatrixDataSet();
+        CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode ", "", matrixDataSet);
+        writeCSV(matrixDataSet, event.getIteration(), event.getServices().getControlerIO());
 
-        CategoryDataset dataSet = getCategoryDataSet();
-        writeCSV(matriXDataSet ,dataSet.getRowCount(), event.getIteration());
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle, event.getServices().getControlerIO());
     }
 
-    @Override
-    public CategoryDataset getCategoryDataSet() {
-        matriXDataSet = new double[maxPassengers + 1][maxHour + 1];
+    public double[][] buildMatrixDataSet() {
+        double[][] matrixDataSet = new double[maxPassengers + 1][maxHour + 1];
 
-        for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {
-            matriXDataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
+        for (int numberOfPassengers = 0; numberOfPassengers <= maxPassengers; numberOfPassengers++) {
+            matrixDataSet[numberOfPassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfPassengers, maxHour);
         }
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", matriXDataSet);
+        return matrixDataSet;
     }
 
     @Override

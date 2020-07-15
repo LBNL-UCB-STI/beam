@@ -11,12 +11,12 @@ import com.conveyal.r5.transit.TransportNetwork;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.misc.Time;
@@ -44,11 +44,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     public static final String RIDE_HAIL = "ride_hail";
     public static final String RIDE_HAIL_POOLED = "ride_hail_pooled";
     public static final String WALK_TRANSIT = "walk_transit";
+    private final OutputDirectoryHierarchy ioController;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
-                                   SimulationMetricCollector simMetricCollector) {
+                                   SimulationMetricCollector simMetricCollector, OutputDirectoryHierarchy ioController) {
         this.statComputation = statComputation;
         this.simMetricCollector = simMetricCollector;
+        this.ioController = ioController;
     }
 
     public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
@@ -153,19 +155,19 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private double lastMaximumTime = 0;
     private double lastHourWrittenToStats = 0;
     private boolean writeGraph;
-    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
-    private Map<String, Event> rideHailWaiting = new HashMap<>();
-    private Map<String, Double> ptWaiting = new HashMap<>();
-    private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-    private Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
+    private final List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+    private final Map<String, Event> rideHailWaiting = new HashMap<>();
+    private final Map<String, Double> ptWaiting = new HashMap<>();
+    private final Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private final Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
-    private static Double categoryValueMax = Double.MAX_VALUE;
-    private static Double categoryValueBeforeMax = 60.0;
+    private static final Double categoryValueMax = Double.MAX_VALUE;
+    private static final Double categoryValueBeforeMax = 60.0;
     private final SimulationMetricCollector simMetricCollector;
 
     private static int numberOfTimeBins;
@@ -177,13 +179,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                                    BeamConfig beamConfig,
                                    SimulationMetricCollector simMetricCollector,
                                    GeoUtils geo,
-                                   TransportNetwork transportNetwork) {
+                                   TransportNetwork transportNetwork, OutputDirectoryHierarchy ioController) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         this.simMetricCollector = simMetricCollector;
         this.geo = geo;
         this.transportNetwork = transportNetwork;
         numberOfTimeBins = calculateNumOfTimeBins(beamConfig);
+        this.ioController = ioController;
     }
 
     private int calculateNumOfTimeBins(BeamConfig beamConfig) {
@@ -274,17 +277,21 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
-        if (modesFrequencyDataset != null && writeGraph)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        if (writeGraph) {
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
+            if (modesFrequencyDataset != null) {
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            }
+        }
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
 
-        double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
-        CategoryDataset singleStatsDataset = DatasetUtilities.createCategoryDataset("", "", singleStatsData);
-        if (writeGraph)
+        if (writeGraph) {
+            double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
+            CategoryDataset singleStatsDataset = GraphUtils.createCategoryDataset("", "", singleStatsData);
             createSingleStatsGraph(singleStatsDataset, event.getIteration());
+        }
         writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
 
         writeWaitingTimeToStats(hoursTimesMap, listOfBounds);
@@ -299,8 +306,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
-
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds,modeChoice";
 
@@ -321,7 +327,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -337,7 +343,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeRideHailWaitingSingleStatCSV(int iteration, Map<Integer, Double> hourModeFrequency) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailWaitingSingleStatsFileBaseName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iteration, rideHailWaitingSingleStatsFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime(sec),Hour";
             out.write(heading);
@@ -345,13 +351,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             for (int i = 0; i < numberOfTimeBins; i++) {
                 Double inner = hourModeFrequency.get(i);
                 String line = (inner == null) ? "0" : "" + Math.round(inner * 100.0) / 100.0;
-                line += "," + (i + 1);
+                line += "," + i;
                 out.write(line);
                 out.newLine();
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -422,14 +428,12 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
-        CategoryDataset categoryDataset = null;
-        if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Time ", "", dataset);
-        return categoryDataset;
+        return dataset == null
+                ? null
+                : GraphUtils.createCategoryDataset("Time ", "", dataset);
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, true);
         CategoryPlot plot = chart.getCategoryPlot();
 
@@ -438,7 +442,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         GraphUtils.plotLegendItems(plot, legends, dataset.getRowCount());
 
         // Writing graph to image file
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -446,13 +450,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, false);
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
             out.write(heading);
@@ -468,9 +472,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
                     if (category > 60) {
-                        line = "60+," + (i + 1) + "," + line;
+                        line = "60+," + i + "," + line;
                     } else {
-                        line = _category + "," + (i + 1) + "," + line;
+                        line = _category + "," + i + "," + line;
                     }
                     out.write(line);
                     out.newLine();
@@ -478,7 +482,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

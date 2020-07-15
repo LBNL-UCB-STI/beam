@@ -44,7 +44,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         inquiry.departAt
       ) match {
       case Some(agentETA) =>
-        val timeCostFactors = Skims.od_skimmer.getRideHailPoolingTimeAndCostRatios(
+        val timeCostFactors = rideHailManager.beamServices.skims.od_skimmer.getRideHailPoolingTimeAndCostRatios(
           inquiry.pickUpLocationUTM,
           inquiry.destinationUTM,
           inquiry.departAt,
@@ -95,6 +95,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: Vector[VehicleAllocation] = Vector()
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
+    rideHailManager.doNotUseInAllocation.foreach { veh =>
+      alreadyAllocated = alreadyAllocated + veh.asInstanceOf[Id[BeamVehicle]]
+    }
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
         toAllocate += request
