@@ -4,6 +4,7 @@ import java.util
 
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object GraphSurgePricingObject extends OutputDataDescriptor {
 
@@ -12,14 +13,12 @@ object GraphSurgePricingObject extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-    val surgePricingOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, "rideHailSurgePriceLevel.csv")
-    val revenueOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, "rideHailRevenue.csv")
-    val surgePricingAndRevenueOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+  override def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+    val surgePricingOutputFilePath: String = ioController.getIterationFilename(0, "rideHailSurgePriceLevel.csv")
+    val revenueOutputFilePath: String = ioController.getIterationFilename(0, "rideHailRevenue.csv")
+    val surgePricingAndRevenueOutputFilePath: String = ioController
       .getIterationFilename(0, "tazRideHailSurgePriceLevel.csv.gz")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val outputDirPath: String = ioController.getOutputPath
     val surgePricingRelativePath: String = surgePricingOutputFilePath.replace(outputDirPath, "")
     val revenueRelativePath: String = revenueOutputFilePath.replace(outputDirPath, "")
     val surgePricingAndRevenueRelativePath: String = surgePricingAndRevenueOutputFilePath.replace(outputDirPath, "")

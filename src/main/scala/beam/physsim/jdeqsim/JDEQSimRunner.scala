@@ -1,22 +1,20 @@
 package beam.physsim.jdeqsim
 
-import java.util
-import java.util.stream.Collectors
-import java.util.{HashMap, List, Map}
+import scala.collection.JavaConverters._
+import scala.util.Try
 
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.{
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
   RoadCapacityAdjustmentFunction
 }
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
-import beam.utils.{DebugLib, FileUtils, ProfilingUtils}
+import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.commons.lang3.StringUtils
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
@@ -26,11 +24,6 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
-
-import scala.util.Try
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
@@ -52,7 +45,7 @@ class JDEQSimRunner(
       jdeqsimEvents,
       beamConfig.beam.outputs.stats.binSize,
       getNoOfBins(beamConfig.beam.outputs.stats.binSize)
-    );
+    )
 
     val linkStatsGraph = new PhyssimCalcLinkStats(
       jdeqSimScenario.getNetwork,
@@ -60,7 +53,7 @@ class JDEQSimRunner(
       beamServices.beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
       beamConfigChangesObservable
-    );
+    )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 
     val eventTypeCounter = new EventTypeCounter
@@ -99,12 +92,12 @@ class JDEQSimRunner(
         x => logger.info(x)
       ) {
         val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
-        logger.info(s"JDEQSim iteration $currentPhysSimIter start");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter start")
         if (beamConfig.beam.debug.debugEnabled) {
-          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "));
+          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "))
         }
         jdeqSimulation.run()
-        logger.info(s"JDEQSim iteration $currentPhysSimIter finished");
+        logger.info(s"JDEQSim iteration $currentPhysSimIter finished")
       }
 
     } finally {
@@ -118,7 +111,7 @@ class JDEQSimRunner(
         new PlotGraph().writeGraphic(
           legHistogram,
           controlerIO,
-          s"${currentPhysSimIter}.physsimTripHistogram",
+          s"$currentPhysSimIter.physsimTripHistogram",
           "time (binSize=<?> sec)",
           mode,
           agentSimIterationNumber,
@@ -156,7 +149,7 @@ class JDEQSimRunner(
         logger.info(
           "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
         )
-        val caccSettings = new CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
+        val caccSettings = CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
         val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
         val adjustedMinimumRoadSpeedInMetersPerSecond =
           beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond

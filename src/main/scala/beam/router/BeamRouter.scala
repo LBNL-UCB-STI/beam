@@ -119,7 +119,7 @@ class BeamRouter(
   val tick = "work-pull-tick"
 
   val tickTask: Cancellable =
-    context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, tick)(context.dispatcher)
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -491,7 +491,7 @@ object BeamRouter {
 
   object RoutingResponse {
 
-    val dummyRoutingResponse = Some(
+    val dummyRoutingResponse: Some[RoutingResponse] = Some(
       RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
     )
   }
@@ -602,7 +602,7 @@ object BeamRouter {
     )
   }
 
-  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork) = {
+  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork): Unit = {
     if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
           dates.localBaseDateTime
         )) {
