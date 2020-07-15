@@ -1,6 +1,6 @@
 package beam.router.skim
 
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
@@ -47,6 +47,7 @@ object ODSkimmerTest extends MockitoSugar {
     )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
+    when(services.beamScenario).thenReturn(mock[BeamScenario])
     when(services.matsimServices).thenReturn(mock[MatsimServices])
 
     val event = mock[IterationStartsEvent]

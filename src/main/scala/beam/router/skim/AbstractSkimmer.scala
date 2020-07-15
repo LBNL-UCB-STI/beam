@@ -92,8 +92,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
     if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
-      if (readOnlySkim.pastSkims.size == beamConfig.beam.router.skim.keepKLatestSkims) {
-        readOnlySkim.pastSkims.dropRight(1)
+      if (readOnlySkim.pastSkims.size >= beamConfig.beam.router.skim.keepKLatestSkims) {
+        val toBeRemoved = readOnlySkim.pastSkims.size - beamConfig.beam.router.skim.keepKLatestSkims + 1
+        readOnlySkim.pastSkims.remove(beamConfig.beam.router.skim.keepKLatestSkims - 1, toBeRemoved)
       }
       readOnlySkim.pastSkims.prepend(currentSkim.toMap)
     }
