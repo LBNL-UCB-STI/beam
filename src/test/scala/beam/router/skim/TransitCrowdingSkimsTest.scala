@@ -16,7 +16,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
 
   val constr: BeamServices => TransitCrowdingSkimmer =
-    services => new TransitCrowdingSkimmer(services.matsimServices, services.beamConfig)
+    services => new TransitCrowdingSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
 
   "TransitCrowdingSkims" should "calculate occupancy level correctly" in {
     val inputFilePath = getClass.getResource("/files/transit-crowding-test-data.csv").getFile
@@ -24,7 +24,7 @@ class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
 
     val trip = EmbodiedBeamTrip(IndexedSeq(createLeg("SF:7678110"), createLeg("BA:36R11")))
     val level = skimmer.readOnlySkim.getTransitOccupancyLevelForPercentile(trip, 90.1)
-    level should be(0.45 +- 0.01)
+    level should be(0.24 +- 0.01)
   }
 
   private def createLeg(id: String): EmbodiedBeamLeg = {
