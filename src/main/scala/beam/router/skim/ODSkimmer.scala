@@ -358,14 +358,26 @@ object ODSkimmer extends LazyLogging {
   }
 
   case class Skim(
-    time: Int,
-    generalizedTime: Double,
-    generalizedCost: Double,
-    distance: Double,
-    cost: Double,
-    count: Int,
-    energy: Double
-  )
+    time: Int = 0,
+    generalizedTime: Double = 0,
+    generalizedCost: Double = 0,
+    distance: Double = 0,
+    cost: Double = 0,
+    count: Int = 0,
+    energy: Double = 0
+  ) {
+
+    def +(that: Skim): Skim =
+      Skim(
+        this.time + that.time,
+        this.generalizedTime + that.generalizedTime,
+        this.generalizedCost + that.generalizedCost,
+        this.distance + that.distance,
+        this.cost + that.cost,
+        this.count + that.count,
+        this.energy + that.energy
+      )
+  }
 
   case class ExcerptData(
     timePeriodString: String,
