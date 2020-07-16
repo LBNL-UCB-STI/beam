@@ -8,11 +8,9 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
-
-import akka.stream.scaladsl.StreamConverters
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Keep, Sink, Source, StreamConverters}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
@@ -31,7 +29,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     extends AutoCloseable
     with LazyLogging {
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  private implicit val materializer: Materializer = Materializer(system)
 
   private val fileWriter = outputResponseToFile.map(path => system.actorOf(ResponseSaverActor.props(path.toFile)))
 
