@@ -71,7 +71,7 @@ class DockerRoutingFrameworkWrapper(
 
   private val graphReader: RoutingFrameworkGraphReader = new RoutingFrameworkGraphReaderImpl()
 
-  private val toolDockerImage = "beammodel/routing-framework:1.0"
+  private val toolDockerImage = "beammodel/routing-framework:1.1"
 
   private val basePath = "/routing-framework/Build/Devel"
   private val convertGraphLauncher = s"$basePath/RawData/ConvertGraph"
