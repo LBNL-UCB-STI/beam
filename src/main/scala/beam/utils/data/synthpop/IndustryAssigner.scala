@@ -49,10 +49,12 @@ object IndustryAssigner {
 
     val homeGeoIdToWorkGeoIdWithCounts = homeGeoIdToWorkGeoId
       .groupBy { case ((o, d), _) => (o, d) }
+      .toSeq
       .map {
         case ((o, d), xs) =>
           ((o, d), xs.map(_._2).sum)
       }
+      .sortBy(x => -x._2)
     println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")
 
   }
