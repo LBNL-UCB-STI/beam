@@ -1087,20 +1087,22 @@ object BeamConfig {
       }
             
       case class Tuning(
-        fuelCapacityInJoules : scala.Double,
-        rideHailPrice        : scala.Double,
-        tollPrice            : scala.Double,
-        transitCapacity      : scala.Option[scala.Double],
-        transitPrice         : scala.Double
+        bikeAttractivityFactor : scala.Double,
+        fuelCapacityInJoules   : scala.Double,
+        rideHailPrice          : scala.Double,
+        tollPrice              : scala.Double,
+        transitCapacity        : scala.Option[scala.Double],
+        transitPrice           : scala.Double
       )
       object Tuning {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Tuning = {
           BeamConfig.Beam.Agentsim.Tuning(
-            fuelCapacityInJoules = if(c.hasPathOrNull("fuelCapacityInJoules")) c.getDouble("fuelCapacityInJoules") else 86400000,
-            rideHailPrice        = if(c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
-            tollPrice            = if(c.hasPathOrNull("tollPrice")) c.getDouble("tollPrice") else 1.0,
-            transitCapacity      = if(c.hasPathOrNull("transitCapacity")) Some(c.getDouble("transitCapacity")) else None,
-            transitPrice         = if(c.hasPathOrNull("transitPrice")) c.getDouble("transitPrice") else 1.0
+            bikeAttractivityFactor = if(c.hasPathOrNull("bikeAttractivityFactor")) c.getDouble("bikeAttractivityFactor") else 1.0,
+            fuelCapacityInJoules   = if(c.hasPathOrNull("fuelCapacityInJoules")) c.getDouble("fuelCapacityInJoules") else 86400000,
+            rideHailPrice          = if(c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
+            tollPrice              = if(c.hasPathOrNull("tollPrice")) c.getDouble("tollPrice") else 1.0,
+            transitCapacity        = if(c.hasPathOrNull("transitCapacity")) Some(c.getDouble("transitCapacity")) else None,
+            transitPrice           = if(c.hasPathOrNull("transitPrice")) c.getDouble("transitPrice") else 1.0
           )
         }
       }
