@@ -19,18 +19,22 @@ class ModeIterationPlanCleaner @Inject()(config: BeamConfig, scenario: Scenario)
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     if (event.getIteration == clearModeIteration) {
-      logger.debug("Cleaning modes for iteration {}", event.getIteration)
+      logger.debug("Cleaning modes {} for iteration {}", clearModes.mkString("(", ", ", ")"), event.getIteration)
       replanModesForPopulation(scenario.getPopulation)
     }
   }
 
   private def replanModesForPopulation(population: Population): Unit = {
+    var counter = 0
     population.getPersons.asScala.foreach {
       case (_, person) =>
         person.getSelectedPlan.getPlanElements.forEach {
-          case leg: Leg if clearModes.contains(leg.getMode.toLowerCase) => leg.setMode("")
-          case _                                                        =>
+          case leg: Leg if clearModes.contains(leg.getMode.toLowerCase) =>
+            leg.setMode("")
+            counter += 1
+          case _ =>
         }
     }
+    logger.debug("Cleaned modes for {} legs", counter)
   }
 }
