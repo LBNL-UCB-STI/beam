@@ -10,6 +10,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
+import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.analysis.cartraveltime.{
   CarTripStatsFromPathTraversalEventHandler,
   StudyAreaTripFilter,
@@ -150,6 +151,13 @@ class BeamSim @Inject()(
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
+    new TravelTimeGoogleStatistic(
+      beamServices.beamConfig.beam.calibration.google.travelTimes,
+      actorSystem,
+      beamServices.geo
+    )
+
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
   );
@@ -174,6 +182,7 @@ class BeamSim @Inject()(
 
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
+    eventsManager.addHandler(travelTimeGoogleStatistic)
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
 
@@ -296,6 +305,7 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    travelTimeGoogleStatistic.reset(event.getIteration)
     startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
 
     beamServices.simMetricCollector.clear()
@@ -323,6 +333,7 @@ class BeamSim @Inject()(
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
+    travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
