@@ -129,6 +129,10 @@ class UrbanSimScenarioLoader(
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
+    val bikeVehicleType = beamScenario.vehicleTypes.values
+      .find(_.vehicleCategory == VehicleCategory.Bike)
+      .getOrElse(throw new RuntimeException("Bike not found in vehicle types."))
+
     assignVehicles(households, householdIdToPersons, personId2Score).foreach {
       case (householdInfo, nVehicles) =>
         val id = Id.create(householdInfo.householdId.id, classOf[Household])
@@ -161,13 +165,10 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        beamScenario.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike) match {
-          case Some(vehType) =>
-            vehicleTypes.append(vehType)
-          case None =>
-            throw new RuntimeException("Bike not found in vehicle types.")
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.bicycleHavingProbability) {
+          vehicleTypes.append(bikeVehicleType)
         }
+
         initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
 
