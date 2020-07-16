@@ -13,12 +13,14 @@ class ModeIterationPlanCleaner @Inject()(config: BeamConfig, scenario: Scenario)
     extends IterationStartsListener
     with LazyLogging {
 
-  private val clearModeIteration: Int = config.beam.replanning.clearModesAtStartOfIteration.atIteration
+  private val clearModeIteration: Int = config.beam.replanning.clearModes.iteration
   private val clearModes: Set[String] =
-    config.beam.replanning.clearModesAtStartOfIteration.modes.getOrElse(List.empty).map(_.toLowerCase).toSet
+    config.beam.replanning.clearModes.modes.getOrElse(List.empty).map(_.toLowerCase).toSet
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    if (event.getIteration == clearModeIteration) {
+    if (clearModes.nonEmpty && (event.getIteration == clearModeIteration
+        || event.getIteration > clearModeIteration
+        && "AtBeginningAndAllSubsequentIterations".equalsIgnoreCase(config.beam.replanning.clearModes.strategy))) {
       logger.debug("Cleaning modes {} for iteration {}", clearModes.mkString("(", ", ", ")"), event.getIteration)
       replanModesForPopulation(scenario.getPopulation)
     }

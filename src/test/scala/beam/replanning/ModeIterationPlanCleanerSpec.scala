@@ -29,8 +29,8 @@ class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelpe
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
            |beam.agentsim.agents.vehicles.sharedFleets = []
-           |beam.replanning.clearModesAtStartOfIteration.modes = ["walk", "bike"]
-           |beam.replanning.clearModesAtStartOfIteration.atIteration = 0
+           |beam.replanning.clearModes.modes = ["walk", "bike"]
+           |beam.replanning.clearModes.iteration = 0
            """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
