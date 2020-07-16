@@ -2944,23 +2944,25 @@ object BeamConfig {
       Module_2: java.lang.String,
       Module_3: java.lang.String,
       Module_4: java.lang.String,
-      clearModesAtStartOfIteration: BeamConfig.Beam.Replanning.ClearModesAtStartOfIteration,
+      clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int
     )
 
     object Replanning {
-      case class ClearModesAtStartOfIteration(
-        atIteration: scala.Int,
-        modes: scala.Option[scala.List[java.lang.String]]
+      case class ClearModes(
+        iteration: scala.Int,
+        modes: scala.Option[scala.List[java.lang.String]],
+        strategy: java.lang.String
       )
 
-      object ClearModesAtStartOfIteration {
+      object ClearModes {
 
-        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModesAtStartOfIteration = {
-          BeamConfig.Beam.Replanning.ClearModesAtStartOfIteration(
-            atIteration = if (c.hasPathOrNull("atIteration")) c.getInt("atIteration") else 0,
-            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModes = {
+          BeamConfig.Beam.Replanning.ClearModes(
+            iteration = if (c.hasPathOrNull("iteration")) c.getInt("iteration") else 0,
+            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None,
+            strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "AtBeginningOfIteration"
           )
         }
       }
@@ -2975,9 +2977,9 @@ object BeamConfig {
           Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
           Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
           Module_4 = if (c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
-          clearModesAtStartOfIteration = BeamConfig.Beam.Replanning.ClearModesAtStartOfIteration(
-            if (c.hasPathOrNull("clearModesAtStartOfIteration")) c.getConfig("clearModesAtStartOfIteration")
-            else com.typesafe.config.ConfigFactory.parseString("clearModesAtStartOfIteration{}")
+          clearModes = BeamConfig.Beam.Replanning.ClearModes(
+            if (c.hasPathOrNull("clearModes")) c.getConfig("clearModes")
+            else com.typesafe.config.ConfigFactory.parseString("clearModes{}")
           ),
           fractionOfIterationsToDisableInnovation =
             if (c.hasPathOrNull("fractionOfIterationsToDisableInnovation"))
