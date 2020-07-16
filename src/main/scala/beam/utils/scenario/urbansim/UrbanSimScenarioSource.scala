@@ -38,6 +38,7 @@ class UrbanSimScenarioSource(
         rank = person.rank,
         age = person.age,
         isFemale = person.isFemale,
+        industry = "",
         valueOfTime = person.valueOfTime
       )
     }

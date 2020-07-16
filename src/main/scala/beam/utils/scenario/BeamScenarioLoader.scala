@@ -150,7 +150,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "sex", sexChar)
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-
+      person.getAttributes.putAttribute("industry", personInfo.industry)
       result.addPerson(person)
     }
 

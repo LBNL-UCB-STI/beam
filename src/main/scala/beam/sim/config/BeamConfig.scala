@@ -677,13 +677,34 @@ object BeamConfig {
         }
 
         case class Population(
+          industryRemovalProbabilty: BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty,
           useVehicleSampling: scala.Boolean
         )
 
         object Population {
+          case class IndustryRemovalProbabilty(
+            inputFilePath: java.lang.String,
+            removeAgent: scala.Boolean
+          )
+
+          object IndustryRemovalProbabilty {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty = {
+              BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(
+                inputFilePath = if (c.hasPathOrNull("inputFilePath")) c.getString("inputFilePath") else "",
+                removeAgent = c.hasPathOrNull("removeAgent") && c.getBoolean("removeAgent")
+              )
+            }
+          }
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Population = {
             BeamConfig.Beam.Agentsim.Agents.Population(
+              industryRemovalProbabilty = BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(
+                if (c.hasPathOrNull("industryRemovalProbabilty")) c.getConfig("industryRemovalProbabilty")
+                else com.typesafe.config.ConfigFactory.parseString("industryRemovalProbabilty{}")
+              ),
               useVehicleSampling = c.hasPathOrNull("useVehicleSampling") && c.getBoolean("useVehicleSampling")
             )
           }

@@ -27,6 +27,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
     val age = getIfNotNull(rec, "age").toInt
     val isFemale = getIfNotNull(rec, "isFemale").toBoolean
     val rank = getIfNotNull(rec, "householdRank").toInt
+    val industry = getIfNotNull(rec, "industry")
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime")).getOrElse("0"), 0D)
     PersonInfo(
       personId = PersonId(personId),
@@ -34,6 +35,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
       rank = rank,
       age = age,
       isFemale = isFemale,
+      industry = industry,
       valueOfTime = valueOfTime
     )
   }
