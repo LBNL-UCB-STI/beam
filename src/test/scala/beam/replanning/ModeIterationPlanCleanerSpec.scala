@@ -1,17 +1,12 @@
 package beam.replanning
 import beam.agentsim.agents.PersonTestUtil
 import beam.router.Modes.BeamMode
+import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigFactory}
-import org.matsim.api.core.v01.population.PlanElement
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.Leg
-import org.matsim.core.controler.AbstractModule
-import org.matsim.core.controler.events.BeforeMobsimEvent
-import org.matsim.core.controler.listener.BeforeMobsimListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -30,19 +25,12 @@ class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelpe
            |beam.agentsim.lastIteration = 0
            |beam.agentsim.agents.vehicles.sharedFleets = []
            |beam.replanning.clearModes.modes = ["walk", "bike"]
-           |beam.replanning.clearModes.iteration = 0
+           |beam.replanning.clearModes.iteration = 1
+           |beam.replanning.clearModes.strategy = "AtBeginningOfIteration"
            """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
-    runSimulation(config)
-  }
 
-  private def setRandomMode(leg: Leg): Unit = {
-    val modesArray = Array[String]("car", "walk", "bike")
-    leg.setMode(modesArray(random.nextInt(3)))
-  }
-
-  private def runSimulation(config: Config) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -61,32 +49,27 @@ class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelpe
           }
         }
       }
-    var nonCarModes: Seq[PlanElement] = Seq.empty
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      new AbstractModule() {
-        override def install(): Unit = {
-          install(module(config, beamConfig, scenario, beamScenario))
-          addControlerListenerBinding().toInstance(new BeforeMobsimListener {
-            override def notifyBeforeMobsim(event: BeforeMobsimEvent): Unit = {
-              nonCarModes = event.getServices.getScenario.getPopulation.getPersons
-                .values()
-                .asScala
-                .view
-                .flatMap(_.getSelectedPlan.getPlanElements.asScala)
-                .filter {
-                  case l: Leg => l.getMode.nonEmpty && l.getMode.toLowerCase != "car"
-                  case _      => false
-                }
-                .toSeq
-            }
-          })
-        }
+    val planCleaner = new ModeIterationPlanCleaner(beamConfig, scenario)
+    planCleaner.clearModesAccordingToStrategy(0)
+    getNonCarLegs(scenario) should not be empty
+    planCleaner.clearModesAccordingToStrategy(2)
+    getNonCarLegs(scenario) should not be empty
+    planCleaner.clearModesAccordingToStrategy(1)
+    getNonCarLegs(scenario) shouldBe empty
+  }
+
+  private def getNonCarLegs(scenario: MutableScenario) = {
+    scenario.getPopulation.getPersons
+      .values()
+      .asScala
+      .flatMap(_.getSelectedPlan.getPlanElements.asScala)
+      .collect {
+        case l: Leg if l.getMode.nonEmpty && l.getMode.toLowerCase != "car" => l
       }
-    )
-    val services = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(services).update(scenario)
-    services.controler.run()
-    assume(nonCarModes.isEmpty, "Something's wildly broken, I am not seeing any trips.")
+  }
+
+  private def setRandomMode(leg: Leg): Unit = {
+    val modesArray = Array[String]("car", "walk", "bike")
+    leg.setMode(modesArray(random.nextInt(3)))
   }
 }
