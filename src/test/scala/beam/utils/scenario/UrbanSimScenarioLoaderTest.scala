@@ -129,7 +129,7 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Mockit
   private def household(cars: Int) = HouseholdInfo(HouseholdId(idIter.next().toString), cars, 123.0, 1.0, 1.0)
 
   private def person(householdId: HouseholdId) =
-    PersonInfo(PersonId(idIter.next().toString), householdId, 123, 30, false, 0.0)
+    PersonInfo(PersonId(idIter.next().toString), householdId, 123, 30, false, "", 0.0)
 
   private def assertCarNumbers(
     result: Iterable[(HouseholdInfo, Int)],
