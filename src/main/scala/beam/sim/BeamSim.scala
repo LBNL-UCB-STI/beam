@@ -473,7 +473,7 @@ class BeamSim @Inject()(
   }
 
   private def writeSummaryStats(summaryStatsFile: File, unProcessedStats: immutable.HashSet[String]): Unit = {
-    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.filter(unProcessedStats.contains).sorted
+    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
 
     val out = new BufferedWriter(new FileWriter(summaryStatsFile))
     out.write("Iteration,")
