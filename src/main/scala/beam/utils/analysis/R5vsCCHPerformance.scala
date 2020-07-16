@@ -11,9 +11,10 @@ import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
 import beam.sim.common.SimpleGeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.ProfilingUtils
+import beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.map.{GpxPoint, GpxWriter}
 import com.graphhopper.GHResponse
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable.ListBuffer
 
@@ -54,6 +55,8 @@ object R5vsCCHPerformance extends BeamHelper {
     val r5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
     val ods = readPlan(arguments.planLocation.get)
     val r5Responses = ListBuffer.empty[RoutingResponse]
+    val outputDir = workerParams.beamConfig.beam.outputs.baseOutputDirectory + "/R5vsGH"
+    FileUtils.createDirectoryIfNotExists(outputDir)
 
     ProfilingUtils.timed("R5 performance check", x => logger.info(x)) {
       var i: Int = 0
@@ -78,6 +81,19 @@ object R5vsCCHPerformance extends BeamHelper {
     }
     logger.info("R5 performance check completed. Routes count: {}", r5Responses.size)
 
+    r5Responses.zipWithIndex.foreach { case (r5Resp, r5RespIdx) =>
+      val r5GpxPoints: Seq[GpxPoint] = for {
+        itinerary <- r5Resp.itineraries
+        leg       <- itinerary.legs
+        linkId    <- leg.beamLeg.travelPath.linkIds
+        link      = workerParams.networkHelper.getLinkUnsafe(linkId)
+        wgsCoord  = workerParams.geo.utm2Wgs.transform(link.getCoord)
+      } yield GpxPoint(s"$linkId", wgsCoord)
+
+      val r5GpxFile = outputDir + s"/r5_$r5RespIdx.gpx"
+      GpxWriter.write(r5GpxFile, r5GpxPoints)
+    }
+
     // GraphHopper
 
     // setup GH location if needed
@@ -100,8 +116,37 @@ object R5vsCCHPerformance extends BeamHelper {
       }
     }
     logger.info("GH performance check completed. Routes count: {}", ghResponses.size)
+
+    var ghFailures: Int = 0
+    import collection.JavaConverters._
+    ghResponses.zipWithIndex.foreach { case (ghResp, ghRespIdx) =>
+
+      if (ghResp.hasErrors) {
+        ghFailures += 1
+        return
+      }
+
+      val path = ghResp.getBest
+
+      val ghPointsGpxPoints: Iterator[GpxPoint] = for {
+        (point, pointIdx) <- path.getPoints.iterator().asScala.zipWithIndex
+      } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
+      val ghPointsGpxFile = outputDir + s"/gh_points_$ghRespIdx.gpx"
+      GpxWriter.write(ghPointsGpxFile, ghPointsGpxPoints.toList)
+
+      // waypoints are just origin+destination pair
+      //val ghWaypointsGpxPoints: Iterator[GpxPoint] = for {
+      //  (point, pointIdx) <- path.getWaypoints.iterator().asScala.zipWithIndex
+      //} yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
+      //val ghWaypointsGpxFile = outputDir + s"/gh_waypoints_$ghRespIdx.gpx"
+      //GpxWriter.write(ghWaypointsGpxFile, ghWaypointsGpxPoints.toList)
+    }
+
+    logger.info(s"GraphHopper routing errors count: $ghFailures")
   }
 
+
+  //noinspection SameParameterValue
   private def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
     val vehicleTypeId = beamMode match {
       case BeamMode.CAR | BeamMode.CAV =>
@@ -110,7 +155,7 @@ object R5vsCCHPerformance extends BeamHelper {
         "FAST-BIKE"
       case BeamMode.WALK =>
         "BODY-TYPE-DEFAULT"
-      case x =>
+      case _ =>
         throw new IllegalStateException(s"Don't know what to do with BeamMode $beamMode")
     }
     StreetVehicle(
