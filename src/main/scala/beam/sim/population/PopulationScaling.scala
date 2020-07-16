@@ -1,13 +1,15 @@
 package beam.sim.population
 
-import java.io.FileWriter
+import java.io.{Closeable, File, FileWriter}
 
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.config.BeamConfig.Beam.Exchange.Scenario
+import beam.utils.WeightedRandomBag
+import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.population.PersonUtils
+import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdImpl}
 import org.matsim.vehicles.Vehicle
@@ -209,6 +211,68 @@ class PopulationScaling extends LazyLogging {
                    )}
                    |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
+  }
+
+  def removeAgent(scenario: MutableScenario, beamConfig: BeamConfig): Unit = {
+    val removeAgent = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removeAgent
+    if (removeAgent) {
+      val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
+      if (new File(industryFile).exists()) {
+        removePerson(scenario, industryFile)
+      } else {
+        logger.warn("Industry probability file not available!!!")
+      }
+    } else {
+      removeWorkPlan(scenario)
+    }
+  }
+
+  def removePerson(scenario: MutableScenario, filePath: String): Unit = {
+
+    val weightedRandomBag = new WeightedRandomBag[Person]()
+    val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
+      GenericCsvReader.readAs[mutable.Map[String, String]](filePath, rec => rec.asScala, _ => true)
+    try {
+      val industrialProbability = iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
+      val persons = scenario.getPopulation.getPersons.values()
+      persons.forEach(person => {
+        val industry = person.getAttributes.getAttribute("industry").toString
+        val probability = industrialProbability.getOrElse(industry, 0.0)
+        weightedRandomBag.addEntry(person, probability)
+      })
+      val removalItemSize = persons.asScala
+        .groupBy(_.getAttributes.getAttribute("industry").toString)
+        .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
+        .sum
+      (0 until Math.round(removalItemSize.toFloat)).map { _ =>
+        val person = weightedRandomBag.getRandom
+        scenario.getPopulation.getPersons.remove(person.getId)
+      }
+    } finally {
+      toClose.close()
+    }
+  }
+
+  def removeWorkPlan(scenario: MutableScenario): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { person: Person =>
+      val originalPlan = person.getSelectedPlan
+      val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+      val planElements = originalPlan.getPlanElements
+      planElements.removeIf(isWorkActivity)
+      newPlan.getPlanElements.addAll(planElements)
+      person.addPlan(newPlan)
+      person.removePlan(originalPlan)
+      person.setSelectedPlan(newPlan)
+    }
+  }
+
+  def isWorkActivity(plan: PlanElement): Boolean = {
+    plan match {
+      case activity: Activity =>
+        activity.getType.toLowerCase() == "work"
+      case _ =>
+        false
+    }
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {

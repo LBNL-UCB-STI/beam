@@ -10,6 +10,7 @@ case class PersonInfo(
   rank: Int,
   age: Int,
   isFemale: Boolean,
+  industry: String,
   valueOfTime: Double
 )
 
