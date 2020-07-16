@@ -3,7 +3,7 @@ package beam.router.r5
 import java.io.File
 
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl
-import org.onebusaway.gtfs.model.{AgencyAndId, Stop, StopTime, Trip}
+import org.onebusaway.gtfs.model.{Stop, StopTime, Trip}
 import org.onebusaway.gtfs.serialization.GtfsReader
 import org.onebusaway.gtfs.services.GtfsRelationalDao
 import org.onebusaway.gtfs_transformer.GtfsTransformer
@@ -32,92 +32,86 @@ class DefaultNetworkCoordinatorNYSpec
       val inputPath = new File(s"$rootPath/bus")
       val outputPath = new File(s"$rootPath/bus-out")
 
-      // 1. READ
-      val readerDao = new GtfsRelationalDaoImpl
+      // 1. Read
+      val dao = new GtfsRelationalDaoImpl
 
       val reader = new GtfsReader
       reader.setInputLocation(inputPath)
-      reader.setEntityStore(readerDao)
+      reader.setEntityStore(dao)
       reader.run()
 
-      // print source data
-      // printAllData(readerDao)
-
       // 2. Find Patterns
-      findRepeatingTrips(readerDao)
+      val repeatingTrips = findRepeatingTrips(dao)
 
-      // 3. MODIFY
-      // add stop times
-      val stopTime1 = createStopTime(readerDao, "bus", "B1-EAST-1-1", 5000, 4000, "1", 1)
-      val stopTime2 = createStopTime(readerDao, "bus", "B1-EAST-1-1", 6000, 7000, "2", 2)
-
+      // 3. Modify
+      // for simplicity add one more in the middle between two buses (factor = 2, like * 0.5)
+      // After the last bus on a route - the new one will be added between it and the midnight
+      val lastStopSeconds = 86400 // midnight
+      val factor = 2
       val strategy = new AddEntitiesTransformStrategy
-      strategy.addEntity(stopTime1)
-      strategy.addEntity(stopTime2)
+
+      repeatingTrips.foreach {
+        case (_, tripsWithOffset) =>
+          val trips = tripsWithOffset.map(_._1)
+          val lastTrip = trips.tail
+            .foldLeft(trips.head) {
+              case (previous, current) =>
+                val lowStopTimes = dao.getStopTimesForTrip(previous).asScala
+                val highStopTimes = dao.getStopTimesForTrip(current).asScala
+                lowStopTimes
+                  .zip(highStopTimes)
+                  .foreach {
+                    case (lowStopTime, highStopTime) =>
+                      val newStopTime = createStopTime(
+                        previous,
+                        lowStopTime.getDepartureTime + (highStopTime.getDepartureTime - lowStopTime.getDepartureTime) / factor,
+                        lowStopTime.getArrivalTime + (highStopTime.getArrivalTime - lowStopTime.getArrivalTime) / factor,
+                        lowStopTime.getStop,
+                        lowStopTime.getStopSequence
+                      )
+                      strategy.addEntity(newStopTime)
+                  }
+                current
+            }
+          // TODO move it into recursion
+          val lastStopTimes = dao.getStopTimesForTrip(lastTrip).asScala
+          val lastStopShift = lastStopSeconds - lastStopTimes.last.getArrivalTime
+          lastStopTimes.foreach { stopTime =>
+            val newStopTime = createStopTime(
+              stopTime.getTrip,
+              stopTime.getDepartureTime + lastStopShift / factor,
+              stopTime.getArrivalTime + lastStopShift / factor,
+              stopTime.getStop,
+              stopTime.getStopSequence
+            )
+            strategy.addEntity(newStopTime)
+          }
+      }
 
       val transformer = new GtfsTransformer
       transformer.setGtfsInputDirectory(inputPath)
       transformer.setOutputDirectory(outputPath)
-
       transformer.addTransform(strategy)
+
       transformer.run()
-
-      // 4. PRINT DATA
-      val transformerDao = transformer.getDao
-
-      // print transformed data
-      // printAllData(transformerDao)
-
     }
 
     def createStopTime(
-      dao: GtfsRelationalDao,
-      agency: String,
-      tripId: String,
+      trip: Trip,
       departureTime: Int,
       arrivalTime: Int,
-      stopId: String,
-      stopSeqNumber: Int
+      stop: Stop,
+      stopSequence: Int
     ): StopTime = {
       val stopTime = new StopTime
-      stopTime.setTrip(dao.getTripForId(new AgencyAndId(agency, tripId)))
+      stopTime.setTrip(trip)
       stopTime.setDepartureTime(departureTime)
       stopTime.setArrivalTime(arrivalTime)
-      stopTime.setStop(dao.getStopForId(new AgencyAndId(agency, stopId)))
-      stopTime.setStopSequence(stopSeqNumber)
+      stopTime.setStop(stop)
+      stopTime.setStopSequence(stopSequence)
       stopTime
     }
 
-    def printDiff(firstStopTime: StopTime, diffs: TripDiff, lastStopTime: StopTime) = {
-      println("arrivals diffs: " + diffs.arrivalDiffs)
-      println("departures  diffs: " + diffs.departureDiffs)
-      println("first stop:" + firstStopTime)
-      println("last stop:" + lastStopTime)
-      println("---")
-    }
-
-    def printAllData(dao: GtfsRelationalDao): Unit = {
-      printCollection("Agencies", dao.getAllAgencies)
-      printCollection("CalendarDates", dao.getAllCalendarDates)
-      printCollection("FeedInfos", dao.getAllFeedInfos)
-      printCollection("Frequencies", dao.getAllFrequencies)
-      printCollection("Routes", dao.getAllRoutes)
-      printCollection("ShapeIds", dao.getAllShapeIds)
-      printCollection("ShapePoints", dao.getAllShapePoints)
-      printCollection("StopTimes", dao.getAllStopTimes)
-      printCollection("Stops", dao.getAllStops)
-      printCollection("Trips", dao.getAllTrips)
-    }
-
-    def printCollection[A](name: String, c: java.util.Collection[A]): Unit = {
-      println(s"$name(${c.size}): ${c.toArray.take(100).mkString(", ")}")
-    }
-
-    def printCollectionS[A](name: String, c: scala.collection.Seq[A]): Unit = {
-      println(s"$name(${c.size}): ${c.take(100).mkString(", ")}")
-    }
-
-    // model
     case class TripDiff(
       trip: Trip,
       current: StopTime,
@@ -126,43 +120,36 @@ class DefaultNetworkCoordinatorNYSpec
       departureDiffs: List[Int],
       stops: List[Stop]
     )
-
-    case class FreqPattern(trip: Trip, prevTrip: Trip, headwaySeconds: Int)
+    case class FreqPattern(trip: Trip, prevTrip: Trip, offsetSeconds: Int)
     case class Acc(handledDiffs: List[TripDiff], repeatingTrips: TrieMap[String, Seq[(Trip, Int)]])
 
     def findRepeatingTrips(dao: GtfsRelationalDao) = {
-      val tripDiffs = dao.getAllTrips.asScala
-        .map { trip =>
+      val tripDiffs = dao.getAllTrips.asScala.toList
+        .flatMap { trip =>
           val stopTimes = dao.getStopTimesForTrip(trip).asScala
-          // printCollectionS(s"stop stopTimes for $trip", stopTimes)
-
-          val firstStopTime = stopTimes.head // TODO headOption?
-          val diffs = stopTimes.tail
-            .foldLeft(TripDiff(trip, firstStopTime, None, Nil, Nil, List(firstStopTime.getStop))) {
-              case (diff, nextStopTime) =>
-                val currentStopTime = diff.current
-                val arrivalDiff = nextStopTime.getArrivalTime - currentStopTime.getArrivalTime
-                val departureDiff = nextStopTime.getDepartureTime - currentStopTime.getDepartureTime
-                diff.copy(
-                  current = nextStopTime,
-                  previous = Some(currentStopTime),
-                  arrivalDiffs = diff.arrivalDiffs :+ arrivalDiff,
-                  departureDiffs = diff.departureDiffs :+ departureDiff,
-                  stops = diff.stops :+ nextStopTime.getStop
-                )
-            }
-          // printDiff(firstStopTime, diffs, lastStopTime = diffs.current)
-          diffs
+          stopTimes.headOption.map { firstStopTime =>
+            stopTimes.tail
+              .foldLeft(TripDiff(trip, firstStopTime, None, Nil, Nil, List(firstStopTime.getStop))) {
+                case (diff, nextStopTime) =>
+                  val currentStopTime = diff.current
+                  val arrivalDiff = nextStopTime.getArrivalTime - currentStopTime.getArrivalTime
+                  val departureDiff = nextStopTime.getDepartureTime - currentStopTime.getDepartureTime
+                  diff.copy(
+                    current = nextStopTime,
+                    previous = Some(currentStopTime),
+                    arrivalDiffs = diff.arrivalDiffs :+ arrivalDiff,
+                    departureDiffs = diff.departureDiffs :+ departureDiff,
+                    stops = diff.stops :+ nextStopTime.getStop
+                  )
+              }
+          }
         }
-        .toList
         .sortBy(_.current.getDepartureTime)
 
-      println(s"All trip diffs: \r\n${tripDiffs.mkString("\r\n")}")
-
-      val repeatingTripsWithHeadwaySeconds = tripDiffs
+      val repeatingTrips = tripDiffs
         .foldLeft(Acc(Nil, TrieMap.empty)) {
           case (Acc(processedDiffs, repeatingTrips), diff) =>
-            val (firstTrip, headwaySeconds) =
+            val (firstTrip, offsetSeconds) =
               processedDiffs
                 .find { d =>
                   (d.trip != diff.trip
@@ -174,11 +161,11 @@ class DefaultNetworkCoordinatorNYSpec
                 .getOrElse((diff.trip, 0))
 
             val key = firstTrip.getId.getId
-            val value = if (headwaySeconds == 0) {
+            val value = if (offsetSeconds == 0) {
               Seq(firstTrip -> 0)
             } else {
               val prevValue = repeatingTrips.getOrElseUpdate(key, Seq())
-              prevValue :+ (diff.trip -> headwaySeconds)
+              prevValue :+ (diff.trip -> offsetSeconds)
             }
 
             repeatingTrips.put(key, value)
@@ -188,11 +175,9 @@ class DefaultNetworkCoordinatorNYSpec
         .repeatingTrips
 
       println("==============")
-      println("Repeating trips (found patterns)")
-      repeatingTripsWithHeadwaySeconds.foreach(println)
-      println("==============")
-      repeatingTripsWithHeadwaySeconds
+      println("All trips grouped by repeating")
+      repeatingTrips.foreach(println)
+      repeatingTrips
     }
-
   }
 }
