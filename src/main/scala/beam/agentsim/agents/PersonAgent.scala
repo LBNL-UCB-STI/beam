@@ -342,7 +342,7 @@ class PersonAgent(
             .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
-                  Skims.od_skimmer
+                  beamServices.skims.od_skimmer
                     .getTimeDistanceAndCost(
                       pair.head.activity.getCoord,
                       pair.last.activity.getCoord,
@@ -439,7 +439,7 @@ class PersonAgent(
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
-          beamVehicles.foreach(idVehicleOrTokenTuple => {
+          (beamVehicles ++ potentiallyChargingBeamVehicles).foreach(idVehicleOrTokenTuple => {
             beamScenario.privateVehicles
               .get(idVehicleOrTokenTuple._1)
               .foreach(beamvehicle => {
@@ -716,6 +716,7 @@ class PersonAgent(
   when(TryingToBoardVehicle) {
     case Event(Boarded(vehicle), basePersonData: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
+      potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
@@ -1001,6 +1002,7 @@ class PersonAgent(
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
+                  potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
                   None

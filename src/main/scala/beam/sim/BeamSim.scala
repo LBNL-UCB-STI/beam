@@ -233,7 +233,6 @@ class BeamSim @Inject()(
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
-    Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
@@ -309,7 +308,7 @@ class BeamSim @Inject()(
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
-        modalityStyleStats.buildModalityStyleGraph()
+        modalityStyleStats.buildModalityStyleGraph(event.getServices.getControlerIO)
       }
       createGraphsFromEvents.createGraphs(event)
 
@@ -503,8 +502,6 @@ class BeamSim @Inject()(
         process.waitFor(5, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
-
-    Skims.clear()
 
     beamServices.simMetricCollector.close()
   }

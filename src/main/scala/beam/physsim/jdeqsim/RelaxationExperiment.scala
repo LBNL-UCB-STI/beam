@@ -16,7 +16,7 @@ sealed abstract class RelaxationExperiment(
   val agentSimScenario: Scenario,
   val population: Population,
   val beamServices: BeamServices,
-  val controlerIO: OutputDirectoryHierarchy,
+  val controllerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
   val iterationNumber: Int,
