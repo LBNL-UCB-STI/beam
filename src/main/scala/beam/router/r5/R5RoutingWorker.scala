@@ -131,7 +131,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse: Future[RoutingResponse] = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          r5.calcRoute(request)
+          val routeResponse: RoutingResponse = r5.calcRoute(request)
+          // if mode was bike go to every single link Id and if linkId contains bike-dedicated lines
+          // undo the change
+          routeResponse
         }
       }
       eventualResponse.recover {

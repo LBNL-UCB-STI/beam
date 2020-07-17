@@ -350,6 +350,7 @@ object BeamConfig {
           )
           object MulitnomialLogit {
             case class Params(
+              bike_attractiviness         : scala.Double,
               bike_intercept              : scala.Double,
               car_intercept               : scala.Double,
               cav_intercept               : scala.Double,
@@ -364,6 +365,7 @@ object BeamConfig {
             object Params {
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
+                  bike_attractiviness         = if(c.hasPathOrNull("bike_attractiviness")) c.getDouble("bike_attractiviness") else 1.0,
                   bike_intercept              = if(c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
                   car_intercept               = if(c.hasPathOrNull("car_intercept")) c.getDouble("car_intercept") else 0.0,
                   cav_intercept               = if(c.hasPathOrNull("cav_intercept")) c.getDouble("cav_intercept") else 0.0,
