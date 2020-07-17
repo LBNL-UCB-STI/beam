@@ -3,7 +3,7 @@ package beam.physsim.bprsim
 import beam.physsim.bprsim.SimEvent._
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Route}
 import org.matsim.api.core.v01.{Id, Scenario, TransportMode}
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup._
 import org.matsim.core.mobsim.qsim.agents.ActivityDurationUtils
@@ -38,7 +38,13 @@ abstract class SimEvent(
         val isLastLink = linkIdx + 1 >= route.getLinkIds.size()
         val lid = if (isLegStart) route.getStartLinkId else route.getLinkIds.get(linkIdx)
         (lid, isLastLink)
-      case _ => throw new RuntimeException(s"Only network route supported $leg")
+      case route: Route =>
+        //if the route is not a NetworkRoute then the leg mode is not "car".
+        //in this case there wouldn't be real simulation
+        //After StartLegSimEvent an EndLegSimEvent is generated.
+        val lid = if (isLegStart) route.getStartLinkId else route.getEndLinkId
+        val isLastLink = lid == route.getEndLinkId
+        (lid, isLastLink)
     }
   def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent])
 }
@@ -60,6 +66,7 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Bool
 
     val simEvent = leg.getMode match {
       case TransportMode.car =>
+        //this logic is taken from Matsim org.matsim.core.mobsim.jdeqsim.StartingLegMessage.handleMessage
         // if current leg is in car mode, then enter request in first road
         val emptyLeg = leg.getRoute match {
           case route: NetworkRoute => route.getLinkIds.isEmpty
