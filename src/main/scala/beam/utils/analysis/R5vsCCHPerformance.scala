@@ -76,7 +76,7 @@ object R5vsCCHPerformance extends BeamHelper {
         val carStreetVehicle = getStreetVehicle(
           s"dummy-car-for-r5-vs-cch-$i",
           BeamMode.CAV,
-          baseRoutingRequest.originUTM
+          origin
         )
 
         val req = baseRoutingRequest.copy(
