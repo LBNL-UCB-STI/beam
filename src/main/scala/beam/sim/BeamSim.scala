@@ -11,7 +11,11 @@ import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.agentsim.events.handling.TravelTimeGoogleStatistic
-import beam.analysis.cartraveltime.{CarTripStatsFromPathTraversalEventHandler, StudyAreaTripFilter, TakeAllTripsTripFilter}
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -45,7 +49,12 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.corelisteners.DumpDataAtEnd
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
