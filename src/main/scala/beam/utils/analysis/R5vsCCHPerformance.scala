@@ -1,5 +1,8 @@
 package beam.utils.analysis
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -9,13 +12,14 @@ import beam.router.Modes.BeamMode
 import beam.router.graphhopper.GraphHopperRouteResolver
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
-import beam.sim.common.SimpleGeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.map.{GpxPoint, GpxWriter}
+import beam.utils.{FileUtils, ProfilingUtils}
+import com.conveyal.osmlib.OSM
 import com.graphhopper.GHResponse
 import org.matsim.api.core.v01.{Coord, Id}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -27,7 +31,6 @@ import scala.collection.mutable.ListBuffer
 object R5vsCCHPerformance extends BeamHelper {
 
   private val baseRoutingRequest: RoutingRequest = {
-    val originUTM = new Location(2961475.272057291, 3623253.4635826824)
     val personAttribs = AttributesOfIndividual(
       householdAttributes = HouseholdAttributes("48-453-001845-2:117138", 70000.0, 1, 1, 1),
       modalityStyle = None,
@@ -38,7 +41,7 @@ object R5vsCCHPerformance extends BeamHelper {
       income = Some(70000.0)
     )
     RoutingRequest(
-      originUTM = originUTM,
+      originUTM = new Location(2961475.272057291, 3623253.4635826824),
       destinationUTM = new Location(2967932.9521744307, 3635449.522501624),
       departureTime = 30600,
       withTransit = true,
@@ -48,16 +51,22 @@ object R5vsCCHPerformance extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
-    // R5
-
     val (arguments, cfg) = prepareConfig(args, isConfigArgRequired = true)
+
     val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
     val r5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
-    val ods = readPlan(arguments.planLocation.get)
-    val r5Responses = ListBuffer.empty[RoutingResponse]
-    val outputDir = workerParams.beamConfig.beam.outputs.baseOutputDirectory + "/R5vsGH"
+
+    val utm2Wgs = workerParams.geo.utm2Wgs
+    val timestampStr =
+      DateTimeFormatter.ofPattern("YYYY-MM-dd__HH-mm-ss").format(LocalDateTime.now())
+
+    val outputDir = s"${workerParams.beamConfig.beam.outputs.baseOutputDirectory}/R5vsGH__$timestampStr"
     FileUtils.createDirectoryIfNotExists(outputDir)
 
+    val ods = readPlan(arguments.planLocation.get)
+
+    // R5
+    val r5Responses = ListBuffer.empty[RoutingResponse]
     ProfilingUtils.timed("R5 performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
@@ -87,7 +96,7 @@ object R5vsCCHPerformance extends BeamHelper {
         leg       <- itinerary.legs
         linkId    <- leg.beamLeg.travelPath.linkIds
         link      = workerParams.networkHelper.getLinkUnsafe(linkId)
-        wgsCoord  = workerParams.geo.utm2Wgs.transform(link.getCoord)
+        wgsCoord  = utm2Wgs.transform(link.getCoord)
       } yield GpxPoint(s"$linkId", wgsCoord)
 
       val r5GpxFile = outputDir + s"/r5_$r5RespIdx.gpx"
@@ -96,16 +105,15 @@ object R5vsCCHPerformance extends BeamHelper {
 
     // GraphHopper
 
-    // setup GH location if needed
-    //GraphHopperRouteResolver.createGHLocationFromR5(
-    //  workerParams.transportNetwork,
-    //  new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5-prod/osm.mapdb"),
-    //  arguments.ghLocation.get
-    //)
-    val gh = new GraphHopperRouteResolver(arguments.ghLocation.get)
-    val ghResponses = ListBuffer.empty[GHResponse]
-    val utm2Wgs = SimpleGeoUtils().utm2Wgs
+    val ghLocation = s"$outputDir/ghLocation"
+    GraphHopperRouteResolver.createGHLocationFromR5(
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5-prod/osm.mapdb"),
+      ghLocation
+    )
+    val gh = new GraphHopperRouteResolver(ghLocation)
 
+    val ghResponses = ListBuffer.empty[GHResponse]
     ProfilingUtils.timed("GH performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
@@ -118,7 +126,6 @@ object R5vsCCHPerformance extends BeamHelper {
     logger.info("GH performance check completed. Routes count: {}", ghResponses.size)
 
     var ghFailures: Int = 0
-    import collection.JavaConverters._
     ghResponses.zipWithIndex.foreach { case (ghResp, ghRespIdx) =>
 
       if (ghResp.hasErrors) {
@@ -126,20 +133,13 @@ object R5vsCCHPerformance extends BeamHelper {
         return
       }
 
-      val path = ghResp.getBest
-
-      val ghPointsGpxPoints: Iterator[GpxPoint] = for {
-        (point, pointIdx) <- path.getPoints.iterator().asScala.zipWithIndex
+      val ghGpxPoints: Iterator[GpxPoint] = for {
+        // Note: path.getWaypoints are just origin+destination pair
+        (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
       } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
-      val ghPointsGpxFile = outputDir + s"/gh_points_$ghRespIdx.gpx"
-      GpxWriter.write(ghPointsGpxFile, ghPointsGpxPoints.toList)
 
-      // waypoints are just origin+destination pair
-      //val ghWaypointsGpxPoints: Iterator[GpxPoint] = for {
-      //  (point, pointIdx) <- path.getWaypoints.iterator().asScala.zipWithIndex
-      //} yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
-      //val ghWaypointsGpxFile = outputDir + s"/gh_waypoints_$ghRespIdx.gpx"
-      //GpxWriter.write(ghWaypointsGpxFile, ghWaypointsGpxPoints.toList)
+      val ghGpxFile = outputDir + s"/gh_$ghRespIdx.gpx"
+      GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
     }
 
     logger.info(s"GraphHopper routing errors count: $ghFailures")

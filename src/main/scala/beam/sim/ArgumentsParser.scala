@@ -65,10 +65,6 @@ object ArgumentsParser {
         .action((value, args) => args.copy(planLocation = Option(value)))
         .validate(value => if (value.trim.isEmpty) failure("plan location cannot be empty") else success)
         .text("Location of input plan (.csv)")
-      opt[String]("ghloc")
-        .action((value, args) => args.copy(ghLocation = Option(value)))
-        .validate(value => if (value.trim.isEmpty) failure("GH location cannot be empty") else success)
-        .text("GraphHopper location")
 
       checkConfig(
         args =>
@@ -96,7 +92,6 @@ object ArgumentsParser {
     seedAddress: Option[String] = None,
     useLocalWorker: Option[Boolean] = None,
     planLocation: Option[String] = None,
-    ghLocation: Option[String] = None,
   ) {
     val useCluster: Boolean = clusterType.isDefined
   }
