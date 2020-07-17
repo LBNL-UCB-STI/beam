@@ -141,7 +141,7 @@ trait BeamHelper extends LazyLogging {
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
-          install(new ConfigModule(typesafeConfig))
+          install(new ConfigModule(typesafeConfig, beamConfig))
           install(new BeamAgentModule(beamConfig))
           install(new UtilsModule)
         }
@@ -185,6 +185,7 @@ trait BeamHelper extends LazyLogging {
           }
           addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("AddSupplementaryTrips").to(classOf[AddSupplementaryTrips])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
           addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
           addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])

@@ -64,6 +64,7 @@ object BeamConfig {
         ptFare: BeamConfig.Beam.Agentsim.Agents.PtFare,
         rideHail: BeamConfig.Beam.Agentsim.Agents.RideHail,
         rideHailTransit: BeamConfig.Beam.Agentsim.Agents.RideHailTransit,
+        tripBehaviors: BeamConfig.Beam.Agentsim.Agents.TripBehaviors,
         vehicles: BeamConfig.Beam.Agentsim.Agents.Vehicles
       )
 
@@ -1162,6 +1163,63 @@ object BeamConfig {
           }
         }
 
+        case class TripBehaviors(
+          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
+        )
+
+        object TripBehaviors {
+          case class MulitnomialLogit(
+            activity_file_path: java.lang.String,
+            additional_trip_utility: scala.Double,
+            destination_nest_scale_factor: scala.Double,
+            generate_secondary_activities: scala.Boolean,
+            intercept_file_path: java.lang.String,
+            max_destination_choice_set_size: scala.Int,
+            max_destination_distance_meters: scala.Double,
+            mode_nest_scale_factor: scala.Double,
+            trip_nest_scale_factor: scala.Double
+          )
+
+          object MulitnomialLogit {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
+                activity_file_path =
+                  if (c.hasPathOrNull("activity_file_path")) c.getString("activity_file_path") else "",
+                additional_trip_utility =
+                  if (c.hasPathOrNull("additional_trip_utility")) c.getDouble("additional_trip_utility") else 0.0,
+                destination_nest_scale_factor =
+                  if (c.hasPathOrNull("destination_nest_scale_factor")) c.getDouble("destination_nest_scale_factor")
+                  else 1.0,
+                generate_secondary_activities = c.hasPathOrNull("generate_secondary_activities") && c.getBoolean(
+                  "generate_secondary_activities"
+                ),
+                intercept_file_path =
+                  if (c.hasPathOrNull("intercept_file_path")) c.getString("intercept_file_path") else "",
+                max_destination_choice_set_size =
+                  if (c.hasPathOrNull("max_destination_choice_set_size")) c.getInt("max_destination_choice_set_size")
+                  else 20,
+                max_destination_distance_meters =
+                  if (c.hasPathOrNull("max_destination_distance_meters")) c.getDouble("max_destination_distance_meters")
+                  else 32000,
+                mode_nest_scale_factor =
+                  if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
+                trip_nest_scale_factor =
+                  if (c.hasPathOrNull("trip_nest_scale_factor")) c.getDouble("trip_nest_scale_factor") else 1.0
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
+            BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
+                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              )
+            )
+          }
+        }
+
         case class Vehicles(
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
@@ -1415,6 +1473,10 @@ object BeamConfig {
               if (c.hasPathOrNull("rideHailTransit")) c.getConfig("rideHailTransit")
               else com.typesafe.config.ConfigFactory.parseString("rideHailTransit{}")
             ),
+            tripBehaviors = BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              if (c.hasPathOrNull("tripBehaviors")) c.getConfig("tripBehaviors")
+              else com.typesafe.config.ConfigFactory.parseString("tripBehaviors{}")
+            ),
             vehicles = BeamConfig.Beam.Agentsim.Agents.Vehicles(
               if (c.hasPathOrNull("vehicles")) c.getConfig("vehicles")
               else com.typesafe.config.ConfigFactory.parseString("vehicles{}")
@@ -1622,6 +1684,7 @@ object BeamConfig {
 
     case class Calibration(
       counts: BeamConfig.Beam.Calibration.Counts,
+      google: BeamConfig.Beam.Calibration.Google,
       meanToCountsWeightRatio: scala.Double,
       mode: BeamConfig.Beam.Calibration.Mode,
       objectiveFunction: java.lang.String,
@@ -1647,6 +1710,46 @@ object BeamConfig {
               if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
               else "/test/input/beamville/counts.xml",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
+          )
+        }
+      }
+
+      case class Google(
+        travelTimes: BeamConfig.Beam.Calibration.Google.TravelTimes
+      )
+
+      object Google {
+        case class TravelTimes(
+          enable: scala.Boolean,
+          iterationInterval: scala.Int,
+          minDistanceInMeters: scala.Double,
+          numDataPointsOver24Hours: scala.Int,
+          queryDate: java.lang.String,
+          tolls: scala.Boolean
+        )
+
+        object TravelTimes {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes = {
+            BeamConfig.Beam.Calibration.Google.TravelTimes(
+              enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+              iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
+              minDistanceInMeters =
+                if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
+              numDataPointsOver24Hours =
+                if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
+              tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google = {
+          BeamConfig.Beam.Calibration.Google(
+            travelTimes = BeamConfig.Beam.Calibration.Google.TravelTimes(
+              if (c.hasPathOrNull("travelTimes")) c.getConfig("travelTimes")
+              else com.typesafe.config.ConfigFactory.parseString("travelTimes{}")
+            )
           )
         }
       }
@@ -1701,6 +1804,10 @@ object BeamConfig {
           counts = BeamConfig.Beam.Calibration.Counts(
             if (c.hasPathOrNull("counts")) c.getConfig("counts")
             else com.typesafe.config.ConfigFactory.parseString("counts{}")
+          ),
+          google = BeamConfig.Beam.Calibration.Google(
+            if (c.hasPathOrNull("google")) c.getConfig("google")
+            else com.typesafe.config.ConfigFactory.parseString("google{}")
           ),
           meanToCountsWeightRatio =
             if (c.hasPathOrNull("meanToCountsWeightRatio")) c.getDouble("meanToCountsWeightRatio") else 0.5,
