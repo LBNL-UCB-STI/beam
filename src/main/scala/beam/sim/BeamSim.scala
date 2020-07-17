@@ -9,6 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
+import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
@@ -119,6 +120,13 @@ class BeamSim @Inject()(
       Some(beamServices.matsimServices.getControlerIO)
     )
 
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
+    new TravelTimeGoogleStatistic(
+      beamServices.beamConfig.beam.calibration.google.travelTimes,
+      actorSystem,
+      beamServices.geo
+    )
+
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
   );
@@ -144,6 +152,7 @@ class BeamSim @Inject()(
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
     eventsManager.addHandler(carTravelTimeFromPte)
+    eventsManager.addHandler(travelTimeGoogleStatistic)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
@@ -261,6 +270,7 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    travelTimeGoogleStatistic.reset(event.getIteration)
     startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
 
     beamServices.simMetricCollector.clear()
@@ -288,6 +298,7 @@ class BeamSim @Inject()(
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
     carTravelTimeFromPte.notifyIterationEnds(event)
+    travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
