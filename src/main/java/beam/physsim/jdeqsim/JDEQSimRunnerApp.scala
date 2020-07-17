@@ -1,5 +1,7 @@
 package beam.physsim.jdeqsim
 
+import java.lang
+
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
 import beam.utils.ProfilingUtils
 import com.typesafe.scalalogging.StrictLogging
@@ -20,11 +22,11 @@ object JDEQSimRunnerApp extends StrictLogging {
   // Run it using gradle: `./gradlew :execute -PmaxRAM=20 -PmainClass=beam.physsim.jdeqsim.JDEQSimRunnerApp -PappArgs=["'--config', 'test/input/sf-light/sf-light-1k.conf'"] -PlogbackCfg=logback.xml
   def main(args: Array[String]): Unit = {
     val beamHelper = new BeamHelper {}
-    val (_, config) = beamHelper.prepareConfig(args, true)
+    val (_, config) = beamHelper.prepareConfig(args, isConfigArgRequired = true)
     val execCfg = beamHelper.setupBeamWithConfig(config)
 
-    val networkFile = "output/sf-light/sf-light-1k_half_capacity/output_network.xml.gz"
-    val populationFile = "test/input/sf-light/sample/1k/population.xml.gz"
+    val networkFile = "output/sf-light/sf-light-25k/outputNetwork.xml.gz"
+    val populationFile = "output/sf-light/sf-light-25k/ITERS/it.0/0.experienced_plans.xml.gz"
     val pathToOutput = s"${execCfg.outputDirectory}/phys-sym"
 
     val network = ProfilingUtils.timed(s"Read network from $networkFile", x => logger.info(x)) {
@@ -56,9 +58,17 @@ object JDEQSimRunnerApp extends StrictLogging {
     outputDirectoryHierarchy.createIterationDirectory(0)
 
     val rnd = Random
-    val caccMap = scenario.getPopulation.getPersons.values().asScala
-      .map {person => person.getId.toString -> Boolean.box(rnd.nextBoolean())}
-      .toMap
+    val caccMap: Map[String, lang.Boolean] = if (execCfg.beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
+      scenario.getPopulation.getPersons
+        .values()
+        .asScala
+        .map { person =>
+          person.getId.toString -> Boolean.box(rnd.nextBoolean())
+        }
+        .toMap
+    } else {
+      Map.empty
+    }
 
     val physSim = new JDEQSimRunner(
       execCfg.beamConfig,
