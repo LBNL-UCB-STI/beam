@@ -41,6 +41,7 @@ class ModeChoiceMultinomialLogit(
   private val shouldLogDetails: Boolean = false
 
   override def apply(
+    // SOME ALTERNATIVE IS A BIKE
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
@@ -66,7 +67,7 @@ class ModeChoiceMultinomialLogit(
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
-      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+      val alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]] = model.calcAlternativesWithUtility(inputData)
       val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
 
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
@@ -214,7 +215,7 @@ class ModeChoiceMultinomialLogit(
     destinationActivity: Option[Activity]
   ): IndexedSeq[ModeCostTimeTransfer] = {
     alternatives.zipWithIndex.map { altAndIdx =>
-      val mode = altAndIdx._1.tripClassifier
+      val mode: BeamMode = altAndIdx._1.tripClassifier
       val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
@@ -371,7 +372,10 @@ object ModeChoiceMultinomialLogit {
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
-      "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept)),
+      "bike" -> Map(
+        "intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept),
+        "attractiveness" -> UtilityFunctionOperation("multiplier", params.bike_attractiviness)
+      ),
       "walk_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.walk_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)

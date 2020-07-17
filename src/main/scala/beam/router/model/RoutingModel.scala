@@ -5,8 +5,9 @@ import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.mutable.ArrayBuffer
+
+import beam.router.model.RoutingModel.LinksTimesDistances
 
 /**
   * BEAM
@@ -40,6 +41,18 @@ object RoutingModel {
     }
   }
 
+//  def linksToTimeAndDistance(
+//    linkIds: IndexedSeq[Int],
+//    startTime: Int,
+//    travelTimeByEnterTimeAndLinkId: (Double, Int, StreetMode) => Double,
+//    mode: StreetMode,
+//    streetLayer: StreetLayer
+//  ): LinksTimesDistances = {
+//    linksToTimeAndDistance(
+//      linkIds, startTime, travelTimeByEnterTimeAndLinkId, mode, streetLayer
+//    )
+//  }
+  
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
