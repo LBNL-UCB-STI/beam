@@ -3,7 +3,7 @@ package beam.router.r5
 import java.io.File
 
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl
-import org.onebusaway.gtfs.model.{Stop, StopTime, Trip}
+import org.onebusaway.gtfs.model.{AgencyAndId, Stop, StopTime, Trip}
 import org.onebusaway.gtfs.serialization.GtfsReader
 import org.onebusaway.gtfs.services.GtfsRelationalDao
 import org.onebusaway.gtfs_transformer.GtfsTransformer
@@ -14,6 +14,7 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.util.Random
 
 class DefaultNetworkCoordinatorNYSpec
     extends WordSpecLike
@@ -50,12 +51,42 @@ class DefaultNetworkCoordinatorNYSpec
       val factor = 2
       val strategy = new AddEntitiesTransformStrategy
 
+      increateTripsOnRoutes(strategy, dao, repeatingTrips, factor, lastStopSeconds)
+
+      val transformer = new GtfsTransformer
+      transformer.setGtfsInputDirectory(inputPath)
+      transformer.setOutputDirectory(outputPath)
+      transformer.addTransform(strategy)
+
+      transformer.run()
+
+      // 4. Check outputPath
+      val dao2 = new GtfsRelationalDaoImpl
+
+      val reader2 = new GtfsReader
+      reader2.setInputLocation(outputPath)
+      reader2.setEntityStore(dao2)
+      reader2.run()
+
+      findRepeatingTrips(dao2)
+    }
+
+    def increateTripsOnRoutes(
+      strategy: AddEntitiesTransformStrategy,
+      dao: GtfsRelationalDao,
+      repeatingTrips: TrieMap[String, Seq[(Trip, Int)]],
+      factor: Int,
+      lastStopArrivalTime: Int
+    ) = {
       repeatingTrips.foreach {
         case (_, tripsWithOffset) =>
           val trips = tripsWithOffset.map(_._1)
           val lastTrip = trips.tail
             .foldLeft(trips.head) {
               case (previous, current) =>
+                val newTrip = createNewTrip(previous)
+                strategy.addEntity(newTrip)
+
                 val lowStopTimes = dao.getStopTimesForTrip(previous).asScala
                 val highStopTimes = dao.getStopTimesForTrip(current).asScala
                 lowStopTimes
@@ -63,7 +94,7 @@ class DefaultNetworkCoordinatorNYSpec
                   .foreach {
                     case (lowStopTime, highStopTime) =>
                       val newStopTime = createStopTime(
-                        previous,
+                        newTrip,
                         lowStopTime.getDepartureTime + (highStopTime.getDepartureTime - lowStopTime.getDepartureTime) / factor,
                         lowStopTime.getArrivalTime + (highStopTime.getArrivalTime - lowStopTime.getArrivalTime) / factor,
                         lowStopTime.getStop,
@@ -74,11 +105,14 @@ class DefaultNetworkCoordinatorNYSpec
                 current
             }
           // TODO move it into recursion
+          val newTrip = createNewTrip(lastTrip)
+          strategy.addEntity(newTrip)
+
           val lastStopTimes = dao.getStopTimesForTrip(lastTrip).asScala
-          val lastStopShift = lastStopSeconds - lastStopTimes.last.getArrivalTime
+          val lastStopShift = lastStopArrivalTime - lastStopTimes.last.getArrivalTime
           lastStopTimes.foreach { stopTime =>
             val newStopTime = createStopTime(
-              stopTime.getTrip,
+              newTrip,
               stopTime.getDepartureTime + lastStopShift / factor,
               stopTime.getArrivalTime + lastStopShift / factor,
               stopTime.getStop,
@@ -87,13 +121,6 @@ class DefaultNetworkCoordinatorNYSpec
             strategy.addEntity(newStopTime)
           }
       }
-
-      val transformer = new GtfsTransformer
-      transformer.setGtfsInputDirectory(inputPath)
-      transformer.setOutputDirectory(outputPath)
-      transformer.addTransform(strategy)
-
-      transformer.run()
     }
 
     def createStopTime(
@@ -112,6 +139,12 @@ class DefaultNetworkCoordinatorNYSpec
       stopTime
     }
 
+    def createNewTrip(trip: Trip): Trip = {
+      val newTrip = new Trip(trip)
+      newTrip.setId(new AgencyAndId(trip.getId.getAgencyId, trip.getId.getId + "-clone" + Random.nextInt(100)))
+      newTrip
+    }
+
     case class TripDiff(
       trip: Trip,
       current: StopTime,
@@ -123,7 +156,7 @@ class DefaultNetworkCoordinatorNYSpec
     case class FreqPattern(trip: Trip, prevTrip: Trip, offsetSeconds: Int)
     case class Acc(handledDiffs: List[TripDiff], repeatingTrips: TrieMap[String, Seq[(Trip, Int)]])
 
-    def findRepeatingTrips(dao: GtfsRelationalDao) = {
+    def findRepeatingTrips(dao: GtfsRelationalDao): TrieMap[String, Seq[(Trip, Int)]] = {
       val tripDiffs = dao.getAllTrips.asScala.toList
         .flatMap { trip =>
           val stopTimes = dao.getStopTimesForTrip(trip).asScala
