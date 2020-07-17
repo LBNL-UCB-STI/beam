@@ -5,6 +5,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.mockito.Mockito._
 import org.scalatest.FunSuite
@@ -22,11 +23,12 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
     )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
+    when(services.matsimServices).thenReturn(mock[MatsimServices])
 
     val event = mock[IterationStartsEvent]
     when(event.getIteration).thenReturn(0)
 
-    val skimmer = new ODSkimmer(services, beamConfig.beam.router.skim)
+    val skimmer = new ODSkimmer(services.matsimServices, services.beamScenario, beamConfig)
     skimmer.notifyIterationStarts(event)
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
@@ -43,11 +45,12 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
     )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
+    when(services.matsimServices).thenReturn(mock[MatsimServices])
 
     val event = mock[IterationStartsEvent]
     when(event.getIteration).thenReturn(0)
 
-    val skimmer = new ODSkimmer(services, beamConfig.beam.router.skim)
+    val skimmer = new ODSkimmer(services.matsimServices, services.beamScenario, beamConfig)
     skimmer.notifyIterationStarts(event)
 
     val origData = new CsvSkimReader(
