@@ -1,5 +1,8 @@
 package beam.physsim.bprsim
 
+import java.{lang, util}
+
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -15,7 +18,9 @@ import scala.collection.mutable
   *
   * @author Dmitry Openkov
   */
-class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager) extends Mobsim {
+class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager)
+    extends Mobsim
+    with StrictLogging {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
   private val params = BPRSimParams(config, new VolumeCalculator(config.inFlowAggregationTimeWindow))
 
@@ -28,6 +33,7 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
       .foreach(queue.enqueue(_))
 
     processQueuedEvents()
+    config.caccSettings.foreach(_.roadCapacityAdjustmentFunction.printStats())
   }
 
   @tailrec
@@ -72,7 +78,7 @@ object BPRSimulation {
         val departureTime = firstAct.getEndTime
 
         // schedule start leg message
-        val isCACC = caccMap.getOrDefault(person.getId, false)
+        val isCACC = caccMap.getOrDefault(person.getId.toString, false)
         Some(new StartLegSimEvent(departureTime, PRIORITY_DEPARTUARE_MESSAGE, person, isCACC, 1))
       } else {
         None

@@ -237,7 +237,9 @@ class JDEQSimRunner(
                 if (volume >= minVolumeToUseBPRFunction) {
                   val capacity = flowCapacityFactor *
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
-                  val tmp = volume / capacity
+                  //volume is calculated as number of vehicles entered the road per hour
+                  //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                  val tmp = volume / (capacity * 3600)
                   val result = ftt * (1 + tmp * tmp)
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
                 } else {

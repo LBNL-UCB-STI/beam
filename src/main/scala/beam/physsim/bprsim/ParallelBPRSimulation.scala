@@ -34,6 +34,7 @@ class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManag
       val clusters = createClusters(scenario.getNetwork.getLinks.values().asScala, config.numberOfClusters, seed: Long)
       val coordinator: Coordinator = new Coordinator(clusters, scenario, config, eventManager)
       coordinator.start()
+      config.caccSettings.foreach(_.roadCapacityAdjustmentFunction.printStats())
     } else {
       ParallelBPRSimulation.logger.info("No links in the networks")
     }
