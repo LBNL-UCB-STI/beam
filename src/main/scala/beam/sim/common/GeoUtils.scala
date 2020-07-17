@@ -295,3 +295,5 @@ object GeoUtils {
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
   override def localCRS: String = beamConfig.beam.spatial.localCRS
 }
+
+case class SimpleGeoUtils(localCRS: String = "epsg:26910") extends GeoUtils

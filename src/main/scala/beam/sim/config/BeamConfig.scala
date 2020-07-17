@@ -1684,6 +1684,7 @@ object BeamConfig {
 
     case class Calibration(
       counts: BeamConfig.Beam.Calibration.Counts,
+      google: BeamConfig.Beam.Calibration.Google,
       meanToCountsWeightRatio: scala.Double,
       mode: BeamConfig.Beam.Calibration.Mode,
       objectiveFunction: java.lang.String,
@@ -1709,6 +1710,46 @@ object BeamConfig {
               if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
               else "/test/input/beamville/counts.xml",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
+          )
+        }
+      }
+
+      case class Google(
+        travelTimes: BeamConfig.Beam.Calibration.Google.TravelTimes
+      )
+
+      object Google {
+        case class TravelTimes(
+          enable: scala.Boolean,
+          iterationInterval: scala.Int,
+          minDistanceInMeters: scala.Double,
+          numDataPointsOver24Hours: scala.Int,
+          queryDate: java.lang.String,
+          tolls: scala.Boolean
+        )
+
+        object TravelTimes {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes = {
+            BeamConfig.Beam.Calibration.Google.TravelTimes(
+              enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+              iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
+              minDistanceInMeters =
+                if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
+              numDataPointsOver24Hours =
+                if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
+              tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google = {
+          BeamConfig.Beam.Calibration.Google(
+            travelTimes = BeamConfig.Beam.Calibration.Google.TravelTimes(
+              if (c.hasPathOrNull("travelTimes")) c.getConfig("travelTimes")
+              else com.typesafe.config.ConfigFactory.parseString("travelTimes{}")
+            )
           )
         }
       }
@@ -1763,6 +1804,10 @@ object BeamConfig {
           counts = BeamConfig.Beam.Calibration.Counts(
             if (c.hasPathOrNull("counts")) c.getConfig("counts")
             else com.typesafe.config.ConfigFactory.parseString("counts{}")
+          ),
+          google = BeamConfig.Beam.Calibration.Google(
+            if (c.hasPathOrNull("google")) c.getConfig("google")
+            else com.typesafe.config.ConfigFactory.parseString("google{}")
           ),
           meanToCountsWeightRatio =
             if (c.hasPathOrNull("meanToCountsWeightRatio")) c.getDouble("meanToCountsWeightRatio") else 0.5,
