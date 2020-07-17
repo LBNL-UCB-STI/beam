@@ -96,6 +96,13 @@ object FileUtils extends LazyLogging {
       resource.close()
     }
 
+  def using[A, B](resource: A)(close: A => Unit)(f: A => B): B =
+    try {
+      f(resource)
+    } finally {
+      close(resource)
+    }
+
   def usingTemporaryDirectory[B](f: Path => B): B = {
     val tmpFolder: Path = Files.createTempDirectory("tempDirectory")
     try {
