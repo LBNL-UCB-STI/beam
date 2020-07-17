@@ -61,10 +61,10 @@ object ArgumentsParser {
           "If cluster is specified then this defaults to false and must be explicitly set to true. " +
           "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
         )
-      opt[String]("plan")
-        .action((value, args) => args.copy(planLocation = Option(value)))
+      opt[String]("plans")
+        .action((value, args) => args.copy(plansLocation = Option(value)))
         .validate(value => if (value.trim.isEmpty) failure("plan location cannot be empty") else success)
-        .text("Location of input plan (.csv)")
+        .text("Location of input plans (.csv)")
 
       checkConfig(
         args =>
@@ -91,7 +91,7 @@ object ArgumentsParser {
     nodePort: Option[String] = None,
     seedAddress: Option[String] = None,
     useLocalWorker: Option[Boolean] = None,
-    planLocation: Option[String] = None,
+    plansLocation: Option[String] = None,
   ) {
     val useCluster: Boolean = clusterType.isDefined
   }

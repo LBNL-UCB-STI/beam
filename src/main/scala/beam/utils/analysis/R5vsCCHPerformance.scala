@@ -25,8 +25,10 @@ import scala.collection.mutable.ListBuffer
 /**
  * #2804 Get R5 vs. CCH Graphhopper performance for urbansim routes
  * Run from gradle:
- * ./gradlew :execute -PmainClass=beam.utils.analysis.R5vsCCHPerformance -PmaxRAM=4 \
- *   -PappArgs="['--config', 'test/input/texas/austin-prod-200k.conf', 'plans', '/path/to/plans.csv', 'ghloc', '/path/to/ghlocation']"
+ * ./gradlew :execute \
+ *   -PmainClass=beam.utils.analysis.R5vsCCHPerformance \
+ *   -PappArgs="['--config', 'test/input/texas/austin-prod-200k.conf', '--plans', 'path/to/plans.csv']"
+ *
  */
 object R5vsCCHPerformance extends BeamHelper {
 
@@ -63,7 +65,7 @@ object R5vsCCHPerformance extends BeamHelper {
     val outputDir = s"${workerParams.beamConfig.beam.outputs.baseOutputDirectory}/R5vsGH__$timestampStr"
     FileUtils.createDirectoryIfNotExists(outputDir)
 
-    val ods = readPlan(arguments.planLocation.get)
+    val ods = readPlans(arguments.plansLocation.get)
 
     // R5
     val r5Responses = ListBuffer.empty[RoutingResponse]
@@ -167,7 +169,7 @@ object R5vsCCHPerformance extends BeamHelper {
     )
   }
 
-  private def readPlan(path: String): Seq[(Location, Location)] = {
+  private def readPlans(path: String): Seq[(Location, Location)] = {
     import beam.utils.csv.GenericCsvReader
 
     val (iterator, closeable) = GenericCsvReader.readAs[(String, String, String)](
