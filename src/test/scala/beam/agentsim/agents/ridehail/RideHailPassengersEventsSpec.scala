@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -47,6 +49,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
     "keep passengers right count" ignore {
       val events = TrieMap[String, Tuple3[Int, Int, Int]]()
+      val nErrors = new AtomicInteger(0)
 
       initialSetup(new BasicEventHandler {
 
@@ -59,8 +62,10 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
               val v = events.getOrElse(id, Tuple3(0, 0, 0))
 
               events.put(id, v.copy(_3 = v._3 + numPass))
-
-              Set(numPass, 0) should contain(v._1 - v._2)
+              val diff = v._1 - v._2
+              if (diff != 0 || diff != numPass) {
+                nErrors.getAndIncrement()
+              }
 
             case enterEvent: PersonEntersVehicleEvent
                 if enterEvent.getVehicleId.toString
@@ -81,6 +86,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       })
 
       events.forall(t => t._2._1 == t._2._2 && t._2._1 == t._2._3) shouldBe true
+      nErrors.get() shouldBe 0
     }
 
     "keep single seat count" in {
@@ -101,8 +107,6 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
             case _ =>
           }
         }
-
-        Unit
       })
       events.isEmpty shouldBe true
     }
