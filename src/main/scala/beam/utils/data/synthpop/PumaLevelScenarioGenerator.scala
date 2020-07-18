@@ -77,7 +77,8 @@ class PumaLevelScenarioGenerator(
     legRouteEndLink = None,
     legRouteTravelTime = None,
     legRouteDistance = None,
-    legRouteLinks = Seq.empty
+    legRouteLinks = Seq.empty,
+    geoId = None
   )
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
@@ -136,7 +137,7 @@ class PumaLevelScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: Iterable[(HouseholdInfo, List[PersonWithPlans])] = {
+  override def generate: ScenarioResult = {
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -197,7 +198,7 @@ class PumaLevelScenarioGenerator(
           )
         }
         val res = householdsWithPersonData.zip(householdLocation).flatMap {
-          case ((household, personsWithData), wgsHouseholdLocation) =>
+          case ((household: Models.Household, personsWithData), wgsHouseholdLocation) =>
             if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
               val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
               val createdHousehold = HouseholdInfo(
@@ -237,7 +238,8 @@ class PumaLevelScenarioGenerator(
                             activityType = Some("Home"),
                             activityLocationX = Some(utmHouseholdCoord.getX),
                             activityLocationY = Some(utmHouseholdCoord.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0)
+                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                            geoId = Some(household.geoId.asUniqueKey)
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
@@ -302,7 +304,7 @@ class PumaLevelScenarioGenerator(
         blockGroupGeoId -> res
     }
 
-    finalResult.values.flatten
+    ScenarioResult(finalResult.values.flatten, Map.empty)
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
@@ -470,7 +472,8 @@ object PumaLevelScenarioGenerator {
         42
       )
 
-    val generatedData = gen.generate
+    val scenarioResult = gen.generate
+    val generatedData = scenarioResult.householdWithTheirPeople
     println(s"Number of households: ${generatedData.size}")
     println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
 

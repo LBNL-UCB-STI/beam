@@ -47,7 +47,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.22"
+def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "2.0.3"
@@ -162,7 +162,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-13') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-15') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -261,7 +261,7 @@ dependencies {
     //compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
+    compile group: 'com.typesafe.akka', name: "akka-cluster-tools_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
@@ -327,9 +327,12 @@ configurations.all {
 
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
+// You can run it with a number of threads: ./gradlew spec -PnumThreads=4
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
+    def n = project.hasProperty('numThreads') ? numThreads : 4
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular',
+            "-PS$n", '-T', '120']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec

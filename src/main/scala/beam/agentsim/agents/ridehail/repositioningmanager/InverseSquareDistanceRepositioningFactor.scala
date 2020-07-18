@@ -97,7 +97,7 @@ class InverseSquareDistanceRepositioningFactor(
       val range = beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
       newPositions
         .filter { vehAndNewLoc =>
-          Skims.od_skimmer
+          beamServices.skims.od_skimmer
             .getTimeDistanceAndCost(
               vehAndNewLoc._1.currentLocationUTM.loc,
               vehAndNewLoc._2,

@@ -4,14 +4,15 @@ import java.util
 
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object RealizedModeAnalysisObject extends OutputDataDescriptor {
 
   private val fileName = RealizedModeAnalysis.defaultFileName
 
-  def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-    val outputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".csv")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+  def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+    val outputFilePath: String = ioController.getOutputFilename(fileName + ".csv")
+    val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = outputFilePath.replace(outputDirPath, "")
     val list: util.List[OutputDataDescription] = new util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(getClass.getSimpleName, relativePath, "car", "Car chosen as travel mode"))

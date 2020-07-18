@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class StatsFactory {
+
+
+
     public enum StatsType {
         RideHailWaiting,
         RideHailWaitingTaz,
@@ -111,25 +114,25 @@ public class StatsFactory {
         switch (statsType) {
             case RideHailWaiting:
                 TransportNetwork transportNetwork = beamServices.beamScenario().transportNetwork();
-                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector(), beamServices.geo(), transportNetwork);
+                return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig, beamServices.simMetricCollector(), beamServices.geo(), transportNetwork, beamServices.matsimServices().getControlerIO());
             case RideHailWaitingTaz:
-                return new RideHailWaitingTazAnalysis(beamServices);
+                return new RideHailWaitingTazAnalysis(beamServices, beamServices.matsimServices().getControlerIO());
             case ModeChosen:
-                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
+                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, beamServices.matsimServices().getControlerIO());
             case ModeChosenForActivitySimEnabled:
-                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, activitySimFilterEvent);
+                return new ModeChosenAnalysis(beamServices.simMetricCollector(), new ModeChosenAnalysis.ModeChosenComputation(), beamConfig, activitySimFilterEvent, beamServices.matsimServices().getControlerIO());
             case PersonVehicleTransition:
-                return new PersonVehicleTransitionAnalysis(beamConfig);
+                return new PersonVehicleTransitionAnalysis(beamConfig, beamServices.matsimServices().getControlerIO());
             case FuelUsage:
-                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(), writeGraphs);
+                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(), writeGraphs, beamServices.matsimServices().getControlerIO());
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs);
+                return new PersonTravelTimeAnalysis(beamServices.simMetricCollector(), new PersonTravelTimeAnalysis.PersonTravelTimeComputation(), writeGraphs, beamServices.matsimServices().getControlerIO());
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig);
+                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig, beamServices.matsimServices().getControlerIO());
             case RealizedModeForActivitySimEnabled:
-                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig, activitySimFilterEvent);
+                return new RealizedModeAnalysis(new RealizedModesStatsComputation(), writeGraphs, beamConfig, activitySimFilterEvent, beamServices.matsimServices().getControlerIO());
             case DeadHeading:
-                return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs);
+                return new DeadHeadingAnalysis(beamServices.simMetricCollector(), writeGraphs, beamServices.matsimServices().getControlerIO());
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
                         beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());

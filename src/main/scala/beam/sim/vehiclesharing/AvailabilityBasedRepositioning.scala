@@ -3,10 +3,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
-import beam.router.skim.{ODSkims, Skims, TAZSkims}
+import beam.router.skim.{ODSkims, Skims, TAZSkimmer, TAZSkims}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
-
 import scala.collection.mutable
 
 case class AvailabilityBasedRepositioning(
@@ -20,8 +19,8 @@ case class AvailabilityBasedRepositioning(
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
   val unboardedVehicleInquiry = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
-  val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
-  val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
+  val orderingAvailVeh: Ordering[RepositioningRequest] = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
+  val orderingShortage: Ordering[RepositioningRequest] = Ordering.by[RepositioningRequest, Int](_.shortage)
 
   beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionTimeBin).foreach { i =>
@@ -39,11 +38,15 @@ case class AvailabilityBasedRepositioning(
     }
   }
 
-  def getCollectedDataFromPreviousSimulation(time: Int, idTAZ: Id[TAZ], label: String) = {
+  def getCollectedDataFromPreviousSimulation(
+    time: Int,
+    idTAZ: Id[TAZ],
+    label: String
+  ): Vector[TAZSkimmer.TAZSkimmerInternal] = {
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => Skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }
@@ -76,7 +79,7 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = Skims.od_skimmer.getTimeDistanceAndCost(
+        val skim = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,

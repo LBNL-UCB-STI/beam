@@ -1,12 +1,12 @@
-package beam.agentsim.events.handling
+package beam.utils
 
 import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
 import beam.sim.common.SimpleGeoUtils
 import beam.sim.config.BeamExecutionConfig
-import beam.utils.EventReader
 import beam.utils.FileUtils.using
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
@@ -35,7 +35,7 @@ object TravelTimeGoogleApp extends App with StrictLogging {
   using(ActorSystem())(_.terminate())(actorSystem => processEventFile(execCfg, actorSystem))
 
   private def processEventFile(execCfg: BeamExecutionConfig, actorSystem: ActorSystem): Unit = {
-    val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes
+    val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes.copy(enable = true)
     val statistic = new TravelTimeGoogleStatistic(statCfg, actorSystem, SimpleGeoUtils())
 
     val iteration = 0
@@ -54,7 +54,10 @@ object TravelTimeGoogleApp extends App with StrictLogging {
       case (_, c) => c.close()
     } {
       case (eventSeq, _) =>
-        eventSeq.map(PathTraversalEvent(_)).foreach(statistic.handleEvent)
+        eventSeq.foreach { rawEvent =>
+          val pte = PathTraversalEvent(rawEvent)
+          statistic.handleEvent(pte)
+        }
     }
     logger.info(s"${statistic.loadedEventNumber} events loaded")
 
