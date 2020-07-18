@@ -52,7 +52,8 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
       legRouteEndLink = None,
       legRouteTravelTime = None,
       legRouteDistance = None,
-      legRouteLinks = Seq.empty
+      legRouteLinks = Seq.empty,
+      geoId = None
     )
   }
 

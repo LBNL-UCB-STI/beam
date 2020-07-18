@@ -10,7 +10,6 @@ import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source, StreamConverters}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
@@ -26,9 +25,9 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, actorSystem: Option[ActorSystem] = None)
-    extends AutoCloseable with LazyLogging {
+    extends AutoCloseable
+    with LazyLogging {
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val fileWriter = outputResponseToFile.map(path => system.actorOf(ResponseSaverActor.props(path.toFile)))
 
@@ -81,7 +80,13 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   private def parseResponse(response: HttpResponse) = {
     val reduced = response.entity.dataBytes.runReduce(_ ++ _)
     reduced.map { bs =>
-      Json.parse(bs.iterator.asInputStream).as[JsObject]
+      val jsObject = Json.parse(bs.iterator.asInputStream).as[JsObject]
+      val status = (jsObject \ "status").asOpt[String].getOrElse("no status field found")
+      if (status != "OK") {
+        val errorMessage = (jsObject \ "error_message").asOpt[String].getOrElse("no error message provided")
+        logger.error("Response status is not OK: {}, error message: {}", status, errorMessage)
+      }
+      jsObject
     }
   }
 
@@ -150,7 +155,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     Http().shutdownAllConnectionPools
       .andThen {
         case _ =>
-          if (!materializer.isShutdown) materializer.shutdown()
           if (actorSystem.isEmpty) system.terminate()
       }
   }

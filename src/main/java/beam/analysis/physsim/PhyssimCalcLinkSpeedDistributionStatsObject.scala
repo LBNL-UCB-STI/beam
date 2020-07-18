@@ -5,6 +5,7 @@ import java.util
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object PhyssimCalcLinkSpeedDistributionStatsObject extends OutputDataDescriptor {
 
@@ -15,12 +16,12 @@ object PhyssimCalcLinkSpeedDistributionStatsObject extends OutputDataDescriptor 
     *
     * @return list of data description objects
     */
-  def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-    val freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+  def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+    val freeSpeedDistOutputFilePath = ioController
       .getIterationFilename(0, outputAsSpeedUnitFileName + ".csv")
-    val freeSpeedDistAsPercetnageOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+    val freeSpeedDistAsPercetnageOutputFilePath = ioController
       .getIterationFilename(0, outputAsSpeedUnitFileName + ".csv")
-    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val outputDirPath = ioController.getOutputPath
     val freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "")
     val freeSpeedDistAsPercetnageRelativePath = freeSpeedDistAsPercetnageOutputFilePath
       .replace(outputDirPath, "")

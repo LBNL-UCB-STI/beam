@@ -40,6 +40,6 @@ object NumberOfVehiclesAnalysisUtil {
   }
 
   case class IdAndTime(time: Int, id: String, route: String)
-  def IdAndTimeOrder(d: IdAndTime) = -d.time
+  def IdAndTimeOrder(d: IdAndTime): Int = -d.time
 
 }

@@ -25,8 +25,8 @@ case class ChargingPlugInEvent(
   override def getEventType: String = EVENT_TYPE
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
-  val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  val pricingModelString: String = stall.pricingModel.map { _.toString }.getOrElse("None")
+  val chargingPointString: String = stall.chargingPointType.map { _.toString }.getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
