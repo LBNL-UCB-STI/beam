@@ -102,11 +102,9 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
           event match {
             case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
               val id = enterEvent.getVehicleId.toString
-//              events.get(id) shouldBe None
               events.put(id, 1)
             case leavesEvent: PersonLeavesVehicleEvent =>
               val id = leavesEvent.getVehicleId.toString
-//              events.contains(id) shouldBe true
               events.remove(id)
             case _ =>
           }
@@ -120,17 +118,20 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
     "all passengers leave" in {
       val events = TrieMap[String, Int]()
-      initialSetup {
-        case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
-          val vid = enterEvent.getVehicleId.toString
-          val uid = enterEvent.getPersonId.toString
-          events.put(s"$vid.$uid", 1)
-        case leavesEvent: PersonLeavesVehicleEvent =>
-          val vid = leavesEvent.getVehicleId.toString
-          val uid = leavesEvent.getPersonId.toString
-          events.remove(s"$vid.$uid")
-        case _ =>
-      }
+      initialSetup(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+
+          case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
+            val vid = enterEvent.getVehicleId.toString
+            val uid = enterEvent.getPersonId.toString
+            events.put(s"$vid.$uid", 1)
+          case leavesEvent: PersonLeavesVehicleEvent =>
+            val vid = leavesEvent.getVehicleId.toString
+            val uid = leavesEvent.getPersonId.toString
+            events.remove(s"$vid.$uid")
+          case _ =>
+        }
+      })
       if (events.nonEmpty) {
         logger.info(s"events: ${events.mkString(" ")}")
       }
