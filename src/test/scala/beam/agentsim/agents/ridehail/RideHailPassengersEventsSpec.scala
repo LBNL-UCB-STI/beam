@@ -85,6 +85,10 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
         Unit
       })
 
+      if (events.nonEmpty) {
+        logger.info(s"events: ${events.mkString(" ")}")
+      }
+
       events.forall(t => t._2._1 == t._2._2 && t._2._1 == t._2._3) shouldBe true
       nErrors.get() shouldBe 0
     }
@@ -108,6 +112,9 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
           }
         }
       })
+      if (events.nonEmpty) {
+        logger.info(s"events: ${events.mkString(" ")}")
+      }
       events.isEmpty shouldBe true
     }
 
@@ -123,6 +130,9 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
           val uid = leavesEvent.getPersonId.toString
           events.remove(s"$vid.$uid")
         case _ =>
+      }
+      if (events.nonEmpty) {
+        logger.info(s"events: ${events.mkString(" ")}")
       }
       events.isEmpty shouldBe true
     }
