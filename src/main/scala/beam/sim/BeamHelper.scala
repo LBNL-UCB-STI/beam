@@ -32,6 +32,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{PopulationAdjustment, PopulationScaling}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.csv.readers
+import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
@@ -597,11 +598,22 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim") {
+      if (src == "urbansim" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
-          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          val source = if (src == "urbansim") {
+            buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          } else {
+            val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+            val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+            val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+            new GenericScenarioSource(
+              pathToHouseholds = pathToHouseholds,
+              pathToPersonFile = pathToPersonFile,
+              pathToPlans = pathToPlans
+            )
+          }
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)

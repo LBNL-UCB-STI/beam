@@ -82,7 +82,7 @@ object GeoZoneUtil extends LazyLogging {
     }
   }
 
-  private def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
+  def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
     new com.vividsolutions.jts.geom.Coordinate(in.lng, in.lat)
   }
 

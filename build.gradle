@@ -48,7 +48,7 @@ targetCompatibility = 1.8
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.6.6"
-def circeBinaryVersion = "0.7.1"
+def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "2.0.3"
 def tscfgVersion = "0.9.4"
@@ -127,8 +127,8 @@ dependencies {
     compile group: 'com.univocity', name: 'univocity-parsers', version: '2.8.1'
 
     // LGPL
-    compile group: 'org.geotools', name: 'gt-main', version: '13.6'
-    compile group: 'org.geotools', name: 'gt-shapefile', version: '13.6'
+    compile group: 'org.geotools', name: 'gt-main', version: '14.5'
+    compile group: 'org.geotools', name: 'gt-shapefile', version: '14.5'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
     compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
     compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
@@ -298,6 +298,8 @@ dependencies {
 
     compile group: 'com.google.maps', name: 'google-maps-services', version: '0.14.0'
 
+
+    compile 'de.vandermeer:asciitable:0.3.2'
 }
 
 // Autoformatting using scalafmt
@@ -477,11 +479,12 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
            "-Dcom.sun.management.jmxremote.local.only=true", "-Dcom.sun.management.jmxremote.authenticate=false", "-Dcom.sun.management.jmxremote.ssl=false",
            "-Djava.net.preferIPv4Stack=true", "-Djava.rmi.server.hostname=127.0.0.1"]
 
+def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
+
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml", "-Xss2048k"] + logGC + jmx
-
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
