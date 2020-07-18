@@ -1221,7 +1221,7 @@ object BeamConfig {
         }
 
         case class Vehicles(
-          bicycleHavingProbability: scala.Double,
+          fractionOfPeopleWithBicycle: scala.Double,
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
           fuelTypesFilePath: java.lang.String,
@@ -1390,8 +1390,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles = {
             BeamConfig.Beam.Agentsim.Agents.Vehicles(
-              bicycleHavingProbability =
-                if (c.hasPathOrNull("bicycleHavingProbability")) c.getDouble("bicycleHavingProbability") else 1.0,
+              fractionOfPeopleWithBicycle =
+                if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               downsamplingMethod =
                 if (c.hasPathOrNull("downsamplingMethod")) c.getString("downsamplingMethod")
                 else "SECONDARY_VEHICLES_FIRST",

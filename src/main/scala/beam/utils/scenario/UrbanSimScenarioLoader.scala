@@ -165,7 +165,7 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.bicycleHavingProbability) {
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
           vehicleTypes.append(bikeVehicleType)
         }
 
