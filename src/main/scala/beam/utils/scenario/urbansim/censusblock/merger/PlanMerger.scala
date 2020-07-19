@@ -68,7 +68,5 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
     case "SHARED3PAY"     => "car"
     case "WALK_LOC"       => "walk_transit"
     case "DRIVE_LOC"      => "drive_transit"
-    // FIXME: Uncomment me once experiment for Austin with cleared modes is over OR ready to merge
-    case "" => ""
   }
 }
