@@ -484,7 +484,7 @@ def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx + jfr
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
