@@ -764,7 +764,7 @@ class BeamSim @Inject()(
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
-        val h3Clustering = backgroundSkimsCreator.get.h3Clustering
+        val h3Clustering = skimCreator.h3Clustering
         val carAndDriveTransitSkimCrator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,

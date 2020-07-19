@@ -30,7 +30,7 @@ class MasterActor(
   }
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
-  private val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes.take(200)
+  private val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
 
   private val allODs: Array[(H3Index, H3Index)] = h3Indexes.flatMap { srcGeo =>
     h3Indexes.map { dstGeo =>
