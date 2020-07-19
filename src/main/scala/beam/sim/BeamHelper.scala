@@ -616,7 +616,9 @@ trait BeamHelper extends LazyLogging {
                 inputPlanPath = pathToPlans,
                 inputHouseholdPath = pathToHouseholds,
                 inputTripsPath = pathToTrips,
-                inputBlockPath = pathToBlocks
+                inputBlockPath = pathToBlocks,
+                new GeoUtilsImpl(beamConfig),
+                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
               )
             }
             case "generic" => {
