@@ -18,12 +18,13 @@ import beam.router.Modes.BeamMode.{
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
+case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -33,8 +34,11 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
     vehicleTypeId: Id[BeamVehicleType],
     beamScenario: BeamScenario
   ): Skim = {
-    val beamConfig = beamServices.beamConfig
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
+    val votMultiplier: Double = mode match {
+      case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
+      case _   => 1.0
+    }
     val travelCost: Double = mode match {
       case CAR | CAV =>
         DrivingCost.estimateDrivingCost(
@@ -56,7 +60,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
     }
     Skim(
       travelTime,
-      travelTime,
+      travelTime * votMultiplier,
       travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
       travelDistance,
       travelCost,
@@ -165,7 +169,7 @@ case class ODSkims(beamServices: BeamServices) extends AbstractSkimmerReadOnly {
             adjustedDestCoord,
             timeBin * 3600,
             dummyId,
-            beamServices.beamScenario
+            beamScenario
           )
         }
     }
