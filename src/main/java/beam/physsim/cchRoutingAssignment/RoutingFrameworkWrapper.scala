@@ -1,6 +1,6 @@
 package beam.physsim.cchRoutingAssignment
 import java.io.{BufferedWriter, File, FileWriter}
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import beam.sim.BeamServices
 import beam.utils.CloseableUtil._
@@ -84,14 +84,14 @@ class DockerRoutingFrameworkWrapper(
   private val tempDir = new File(tempDirPath)
   tempDir.mkdirs()
 
-  private val graphPathInContainer = Paths.get("/work", "graph.gr.bin")
+  private val graphPathInContainer = "/work/graph.gr.bin"
   private val graphPathInTempDir = Paths.get(tempDirPath, "graph.gr.bin")
 
   private val itHourRelatedPath = (env: String, it: Int, hour: Int, file: String) =>
     Paths.get(env, s"Iter.$it", s"Hour.$hour", file)
-  private val odPairsFileInContainer = (iteration: Int, hour: Int) =>
-    itHourRelatedPath("/work", iteration, hour, "odpairs.csv")
-  private val odPairsFileInTempDir = (iteration: Int, hour: Int) =>
+  private val odPairsFileInContainer: (Int, Int) => String = (iteration: Int, hour: Int) =>
+    toUnixPath(itHourRelatedPath("/work", iteration, hour, "odpairs.csv"))
+  private val odPairsFileInTempDir: (Int, Int) => Path = (iteration: Int, hour: Int) =>
     itHourRelatedPath(tempDirPath, iteration, hour, "odpairs.csv")
 
   override def generateGraph(): RoutingFrameworkGraph = {
@@ -104,13 +104,13 @@ class DockerRoutingFrameworkWrapper(
                | -s osm
                | -i $pbfPathInContainerWOExtension
                | -d binary
-               | -o ${graphPathInContainer.toString.replace(".gr.bin", "")}
+               | -o ${graphPathInContainer.replace(".gr.bin", "")}
                | -scc -a way_id capacity coordinate free_flow_speed lat_lng length num_lanes travel_time vertex_id
       """.stripMargin.replace("\n", "")
     val convertGraphOutput = Process(command)
     logger.info("Docker command for graph generation: {}", command)
 
-    convertGraphOutput.lineStream.foreach(logger.info(_))
+    convertGraphOutput.lineStream.foreach(v => logger.info(v))
 
     graphReader.read(graphPathInTempDir.toFile)
   }
@@ -126,7 +126,7 @@ class DockerRoutingFrameworkWrapper(
                                          | -o ${odPairsFileInContainer(0, 0)} -d 10 15 20 25 30 -geom
       """.stripMargin.replace("\n", ""))
 
-    createODPairsOutput.lineStream.foreach(logger.info(_))
+    createODPairsOutput.lineStream.foreach(v => logger.info(v))
   }
 
   def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
@@ -147,9 +147,9 @@ class DockerRoutingFrameworkWrapper(
   }
 
   override def assignTrafficAndFetchWay2TravelTime(iteration: Int, hour: Int): Map[Long, Double] = {
-    val flowPath = itHourRelatedPath("/work", iteration, hour, "flow")
-    val distPath = itHourRelatedPath("/work", iteration, hour, "dist")
-    val statPath = itHourRelatedPath("/work", iteration, hour, "stat")
+    val flowPathInContainer = toUnixPath(itHourRelatedPath("/work", iteration, hour, "flow"))
+    val distPathInContainer = toUnixPath(itHourRelatedPath("/work", iteration, hour, "dist"))
+    val statPathInContainer = toUnixPath(itHourRelatedPath("/work", iteration, hour, "stat"))
 
     val query = s"""
                      |docker run --rm
@@ -164,16 +164,16 @@ class DockerRoutingFrameworkWrapper(
                      | -o random
                      | -i
                      | ${if (verboseLoggingEnabled) "-v" else ""}
-                     | -flow $flowPath
-                     | -dist $distPath
-                     | -stat $statPath
+                     | -flow $flowPathInContainer
+                     | -dist $distPathInContainer
+                     | -stat $statPathInContainer
       """.stripMargin.replace("\n", "")
 
     logger.info("Docker command for assigning traffic: {}", query)
 
     val assignTrafficOutput = Process(query)
 
-    assignTrafficOutput.lineStream.foreach(logger.info(_))
+    assignTrafficOutput.lineStream.foreach(v => logger.info(v))
 
     var curIter = -1
     val wayId2TravelTime = new mutable.HashMap[Long, Double]()
@@ -210,6 +210,8 @@ class DockerRoutingFrameworkWrapper(
 
     wayId2TravelTime.toMap
   }
+
+  def toUnixPath(path: Path): String = path.toString.replace('\\', '/')
 }
 
 object Starter extends App {

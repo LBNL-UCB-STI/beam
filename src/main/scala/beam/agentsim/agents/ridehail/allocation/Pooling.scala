@@ -209,7 +209,7 @@ object Pooling {
     alreadyAllocated: Set[Id[BeamVehicle]],
     rideHailManager: RideHailManager,
     beamServices: BeamServices
-  ) = {
+  ): VehicleAllocation = {
     val requestUpdated = RideHailRequest.handleImpression(request, beamServices)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(

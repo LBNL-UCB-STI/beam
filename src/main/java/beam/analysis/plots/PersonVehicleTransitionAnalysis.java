@@ -6,6 +6,7 @@ import beam.sim.metrics.MetricsSupport;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.misc.Time;
 
@@ -16,18 +17,19 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
 
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail", "others"));
 
-    private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
-    private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
-    private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
-    private static final Map<String, Integer> modePerson = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
+    private Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
+    private final Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
     private static final String xAxisLabel = "time (binSize=<?> sec)";
     private final PlotGraph plotGraph = new PlotGraph();
     private final int binSize;
     private final int numOfBins;
     private final boolean writeGraph;
+    private final OutputDirectoryHierarchy ioController;
 
-    public PersonVehicleTransitionAnalysis(BeamConfig beamConfig){
+    public PersonVehicleTransitionAnalysis(BeamConfig beamConfig, OutputDirectoryHierarchy ioController){
         binSize = beamConfig.beam().outputs().stats().binSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
@@ -35,6 +37,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
         _numOfTimeBins = Math.floor(_numOfTimeBins);
         numOfBins = _numOfTimeBins.intValue() + 1;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
+        this.ioController = ioController;
     }
 
 
@@ -60,7 +63,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
                 continue;
             }
             if(writeGraph){
-                plotGraph.writeGraphic(GraphsStatsAgentSimEventsListener.CONTROLLER_IO, event.getIteration(), mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
+                plotGraph.writeGraphic(ioController, event.getIteration(), mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
             }
         }
     }

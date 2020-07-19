@@ -74,10 +74,10 @@ class ConsumptionRateFilterStoreImpl(
   private val secondaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
     beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType, _.secondaryFuelType)
 
-  def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
+  def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]] =
     primaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
-  def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
+  def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]] =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
   def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =

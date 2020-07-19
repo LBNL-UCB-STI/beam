@@ -7,7 +7,6 @@ import beam.analysis.plots.filterevent.FilterEvent;
 import beam.sim.config.BeamConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -61,9 +60,10 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
     private final FilterEvent filterEvent;
+    private final OutputDirectoryHierarchy ioController;
 
     private OutputDirectoryHierarchy controllerIo() {
-        return GraphsStatsAgentSimEventsListener.CONTROLLER_IO;
+        return ioController;
     }
 
     private String iterationFilename(final int iterationNumber, final String fileName, final String suffix) {
@@ -80,21 +80,22 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
             boolean writeGraph,
             BeamConfig beamConfig,
-            FilterEvent filterEvent
+            FilterEvent filterEvent, OutputDirectoryHierarchy ioController
     ) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         this.filterEvent = filterEvent;
         fileName = defaultFileName;
         benchMarkData = benchMarkCSVLoader(beamConfig.beam().calibration().mode().benchmarkFilePath());
+        this.ioController = ioController;
     }
 
     public RealizedModeAnalysis(
             StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
             boolean writeGraph,
-            BeamConfig beamConfig
+            BeamConfig beamConfig, OutputDirectoryHierarchy ioController
     ) {
-        this(statComputation, writeGraph, beamConfig, AllEventsFilter$.MODULE$);
+        this(statComputation, writeGraph, beamConfig, AllEventsFilter$.MODULE$, ioController);
     }
 
     @Override
@@ -127,7 +128,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeRealizedModeGraph(event);
 
         writeRealizedModeChoiceGraph(outputFilename("realizedModeChoice", ".png"));
-        writeReferenceDatasetGraph(outputFilename("realizedModeChoice", ".png"));
+        writeReferenceDatasetGraph(outputFilename("referenceRealizedModeChoice", ".png"));
 
         Map<String, Integer> modeCount = calculateModeCount();
         writeToReplaningChainCSV(event, modeCount);
