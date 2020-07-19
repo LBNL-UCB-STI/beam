@@ -599,7 +599,7 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim" || src == "generic" || src == "urbansim_v2") {
+      if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
@@ -616,7 +616,19 @@ trait BeamHelper extends LazyLogging {
                 inputPlanPath = pathToPlans,
                 inputHouseholdPath = pathToHouseholds,
                 inputTripsPath = pathToTrips,
-                inputBlockPath = pathToBlocks
+                inputBlockPath = pathToBlocks,
+                new GeoUtilsImpl(beamConfig),
+                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+              )
+            }
+            case "generic" => {
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+              new GenericScenarioSource(
+                pathToHouseholds = pathToHouseholds,
+                pathToPersonFile = pathToPersonFile,
+                pathToPlans = pathToPlans
               )
             }
           }
