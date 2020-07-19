@@ -3319,8 +3319,6 @@ object BeamConfig {
     }
 
     case class Urbansim(
-      allTAZSkimsPeakHour: scala.Double,
-      allTAZSkimsWriteInterval: scala.Int,
       fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
     )
 
@@ -3350,9 +3348,6 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
         BeamConfig.Beam.Urbansim(
-          allTAZSkimsPeakHour = if (c.hasPathOrNull("allTAZSkimsPeakHour")) c.getDouble("allTAZSkimsPeakHour") else 8.5,
-          allTAZSkimsWriteInterval =
-            if (c.hasPathOrNull("allTAZSkimsWriteInterval")) c.getInt("allTAZSkimsWriteInterval") else 0,
           fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
             if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
             else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
