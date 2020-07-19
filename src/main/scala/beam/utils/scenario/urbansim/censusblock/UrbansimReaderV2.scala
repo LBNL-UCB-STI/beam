@@ -92,7 +92,17 @@ class UrbansimReaderV2(
     logger.debug("Merging blocks into households...")
 
     try {
-      merger.merge(inputHouseHoldMap.valuesIterator).toList
+      merger
+        .merge(inputHouseHoldMap.valuesIterator)
+        .map { household =>
+          if (shouldConvertWgs2Utm) {
+            val utmCoord = geoUtils.wgs2Utm(new Coord(household.locationX, household.locationY))
+            household.copy(locationX = utmCoord.getX, locationY = utmCoord.getY)
+          } else {
+            household
+          }
+        }
+        .toList
     } finally {
       logger.debug("Blocks merged successfully.")
       blockReader.close()
