@@ -42,7 +42,7 @@ class UrbanSimScenarioLoader(
   def loadScenario(): Scenario = {
     clear()
 
-    val areCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+    val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
 
     val plansF = Future {
       val plans = scenarioSource.getPlans
@@ -54,7 +54,7 @@ class UrbanSimScenarioLoader(
         activities
           .filter { act =>
             val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
-            val wgsCoord = if (areCoordinatesInWGS) actCoord else geo.utm2Wgs(actCoord)
+            val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
             beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
           }
           .map { act =>
@@ -79,7 +79,7 @@ class UrbanSimScenarioLoader(
       val householdIdsWithinBoundingBox = households.view
         .filter { hh =>
           val coord = new Coord(hh.locationX, hh.locationY)
-          val wgsCoord = if (areCoordinatesInWGS) coord else geo.utm2Wgs(coord)
+          val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(coord) else coord
           beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
         }
         .map { hh =>
@@ -99,13 +99,16 @@ class UrbanSimScenarioLoader(
     }
     val plans = Await.result(plansF, 500.seconds)
     val persons = Await.result(personsF, 500.seconds)
+    val households = Await.result(householdsF, 500.seconds)
+
+    val householdIds = households.map(_.householdId.id).toSet
 
     val personsWithPlans = getPersonsWithPlan(persons, plans)
+      .filter(p => householdIds.contains(p.householdId.id))
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val households = Await.result(householdsF, 500.seconds)
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
