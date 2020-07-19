@@ -44,9 +44,11 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+
+import beam.sim.common.GeoUtils
+import beam.utils.NetworkHelper
 
 /**
   */
@@ -128,7 +130,7 @@ object PersonAgent {
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
-    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): LiterallyDrivingData =
+    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
         legEndsAt,
@@ -277,7 +279,7 @@ class PersonAgent(
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
-  def updateFuelConsumed(fuelOption: Option[FuelConsumed]) = {
+  def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
     curFuelConsumed = FuelConsumed(
       curFuelConsumed.primaryFuel + newFuelConsumed.primaryFuel,
@@ -342,14 +344,14 @@ class PersonAgent(
             .foldLeft(tomorrowFirstLegDistance) { (sum, pair) =>
               sum + Math
                 .ceil(
-                  Skims.od_skimmer
+                  beamServices.skims.od_skimmer
                     .getTimeDistanceAndCost(
                       pair.head.activity.getCoord,
                       pair.last.activity.getCoord,
                       0,
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
-                      beamServices
+                      beamServices.beamScenario
                     )
                     .distance
                 )
@@ -439,7 +441,7 @@ class PersonAgent(
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
-          beamVehicles.foreach(idVehicleOrTokenTuple => {
+          (beamVehicles ++ potentiallyChargingBeamVehicles).foreach(idVehicleOrTokenTuple => {
             beamScenario.privateVehicles
               .get(idVehicleOrTokenTuple._1)
               .foreach(beamvehicle => {
@@ -716,6 +718,7 @@ class PersonAgent(
   when(TryingToBoardVehicle) {
     case Event(Boarded(vehicle), basePersonData: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
+      potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
@@ -1001,6 +1004,7 @@ class PersonAgent(
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
+                  potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
                   None
@@ -1077,12 +1081,12 @@ class PersonAgent(
       )
     case Event(Finish, _) =>
       if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+        log.warning(s"$id is still travelling at end of simulation.")
+        log.warning(s"$id events leading up to this point:\n\t${getLog.mkString("\n\t")}")
       } else if (stateName == PerformingActivity) {
-        logger.warn(s"Performing Activity at end of simulation")
+        logger.warn(s"$id is performing Activity at end of simulation")
       } else {
-        logger.warn(s"Received Finish while in state: $stateName")
+        logger.warn(s"$id has received Finish while in state: ${stateName}")
       }
       stop
     case Event(

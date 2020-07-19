@@ -89,16 +89,8 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
 
 object CaccSpec {
 
-  def using[A <: AutoCloseable, B](resource: A)(f: A => B): B = {
-    try {
-      f(resource)
-    } finally {
-      resource.close()
-    }
-  }
-
   def avgCarModeFromCsv(filePath: String): Double = {
-    val carLine = using(Source.fromFile(filePath)) { source =>
+    val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
       source.getLines().find(isCar)
     }
 

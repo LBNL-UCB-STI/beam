@@ -1,6 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
+import java.io.{File, FileOutputStream, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -20,6 +21,7 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
+import beam.router.skim.{DriveTimeSkimmer, ODSkimmer, Skims, TAZSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -30,6 +32,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{PopulationAdjustment, PopulationScaling}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.csv.readers
+import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
@@ -38,7 +41,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -139,7 +142,7 @@ trait BeamHelper extends LazyLogging {
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
-          install(new ConfigModule(typesafeConfig))
+          install(new ConfigModule(typesafeConfig, beamConfig))
           install(new BeamAgentModule(beamConfig))
           install(new UtilsModule)
         }
@@ -183,6 +186,7 @@ trait BeamHelper extends LazyLogging {
           }
           addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("AddSupplementaryTrips").to(classOf[AddSupplementaryTrips])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
           addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
           addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
@@ -210,6 +214,10 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[FareCalculator]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
+          bind(classOf[ODSkimmer]).asEagerSingleton()
+          bind(classOf[TAZSkimmer]).asEagerSingleton()
+          bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
+          bind(classOf[Skims]).asEagerSingleton()
 
           bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
           bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
@@ -323,7 +331,7 @@ trait BeamHelper extends LazyLogging {
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
-        val (_, outputDirectory) = runBeamWithConfig(config)
+        val (_, outputDirectory, _) = runBeamWithConfig(config)
         postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
     }
   }
@@ -347,7 +355,7 @@ trait BeamHelper extends LazyLogging {
       throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
     }
 
-    val location = ConfigFactory.parseString(s"config=${parsedArgs.configLocation.get}")
+    val location = ConfigFactory.parseString(s"""config="${parsedArgs.configLocation.get}"""")
     System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
@@ -361,7 +369,7 @@ trait BeamHelper extends LazyLogging {
 
   private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
     val physSimType = Try(config.getString("beam.physsim.physSimType")).getOrElse("")
-    if (physSimType == "CCH") {
+    if (physSimType == "CCHRoutingAssignment") {
       // Exception will be thrown if docker is not available on device
       if (Try(Process("docker version").!!).isFailure) {
         throw new RuntimeException("Docker is required to run CCH phys simulation")
@@ -453,7 +461,7 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
+  def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String, BeamServices) = {
     val (
       beamExecutionConfig: BeamExecutionConfig,
       scenario: MutableScenario,
@@ -467,7 +475,7 @@ trait BeamHelper extends LazyLogging {
       beamScenario,
       beamExecutionConfig.outputDirectory
     )
-    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+    (scenario.getConfig, beamExecutionConfig.outputDirectory, services)
   }
 
   def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
@@ -590,11 +598,22 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim") {
+      if (src == "urbansim" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
-          val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          val source = if (src == "urbansim") {
+            buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+          } else {
+            val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+            val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+            val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+            new GenericScenarioSource(
+              pathToHouseholds = pathToHouseholds,
+              pathToPersonFile = pathToPersonFile,
+              pathToPlans = pathToPlans
+            )
+          }
           new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
@@ -651,9 +670,31 @@ trait BeamHelper extends LazyLogging {
 
     prepareDirectories(config, beamConfig, outputDirectory)
 
+    writeFullConfigs(config, outputDirectory)
+
     val matsimConfig: MatsimConfig = buildMatsimConfig(config, beamConfig, outputDirectory)
 
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
+  }
+
+  /**
+    * This method merges all configuration parameters into a single file including parameters from
+    * 'include' statements. Two full config files are written out: One without comments and one with
+    * comments in JSON format.
+    * @param config the input config file
+    * @param outputDirectory output folder where full configs will be generated
+    */
+  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String): Unit = {
+    val configConciseWithoutJson = config.root().render(ConfigRenderOptions.concise().setFormatted(true).setJson(false))
+    writeStringToFile(configConciseWithoutJson, new File(outputDirectory, "fullBeamConfig.conf"))
+
+    writeStringToFile(config.root().render(), new File(outputDirectory, "fullBeamConfigJson.conf"))
+  }
+
+  private def writeStringToFile(text: String, output: File): Unit = {
+    val fileWriter = new PrintWriter(output)
+    fileWriter.write(text)
+    fileWriter.close
   }
 
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {

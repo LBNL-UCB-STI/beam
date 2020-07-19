@@ -189,7 +189,7 @@ class MasterActor(
   }
 
   private def createMonitor: Cancellable = {
-    context.system.scheduler.schedule(10.seconds, 60.seconds, self, Request.Monitor)(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 60.seconds, self, Request.Monitor)(context.dispatcher)
   }
 
   private def isBikeTransit(trip: EmbodiedBeamTrip): Boolean = {

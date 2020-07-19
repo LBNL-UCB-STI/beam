@@ -91,7 +91,7 @@ class BackgroundSkimsCreator(
 object BackgroundSkimsCreator {
 
   def createODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer = {
-    new ODSkimmer(beamServices, beamServices.beamConfig.beam.router.skim) {
+    new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         val filePath = event.getServices.getControlerIO.getIterationFilename(
           event.getServices.getIterationNumber,
