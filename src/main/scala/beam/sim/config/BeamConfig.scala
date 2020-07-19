@@ -26,6 +26,7 @@ object BeamConfig {
     routing: BeamConfig.Beam.Routing,
     sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
+    urbansim: BeamConfig.Beam.Urbansim,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
   )
@@ -1221,9 +1222,9 @@ object BeamConfig {
         }
 
         case class Vehicles(
-          fractionOfPeopleWithBicycle: scala.Double,
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
+          fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
@@ -1390,14 +1391,14 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles = {
             BeamConfig.Beam.Agentsim.Agents.Vehicles(
-              fractionOfPeopleWithBicycle =
-                if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               downsamplingMethod =
                 if (c.hasPathOrNull("downsamplingMethod")) c.getString("downsamplingMethod")
                 else "SECONDARY_VEHICLES_FIRST",
               fractionOfInitialVehicleFleet =
                 if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                 else 1.0,
+              fractionOfPeopleWithBicycle =
+                if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
                 else "/test/input/beamville/beamFuelTypes.csv",
@@ -3317,6 +3318,44 @@ object BeamConfig {
       }
     }
 
+    case class Urbansim(
+      fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
+    )
+
+    object Urbansim {
+      case class FractionOfModesToClear(
+        allModes: scala.Double,
+        bike: scala.Double,
+        car: scala.Double,
+        drive_transit: scala.Double,
+        walk: scala.Double,
+        walk_transit: scala.Double
+      )
+
+      object FractionOfModesToClear {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.FractionOfModesToClear = {
+          BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            allModes = if (c.hasPathOrNull("allModes")) c.getDouble("allModes") else 0.0,
+            bike = if (c.hasPathOrNull("bike")) c.getDouble("bike") else 0.0,
+            car = if (c.hasPathOrNull("car")) c.getDouble("car") else 0.0,
+            drive_transit = if (c.hasPathOrNull("drive_transit")) c.getDouble("drive_transit") else 0.0,
+            walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 0.0,
+            walk_transit = if (c.hasPathOrNull("walk_transit")) c.getDouble("walk_transit") else 0.0
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
+        BeamConfig.Beam.Urbansim(
+          fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
+            else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
+          )
+        )
+      }
+    }
+
     case class WarmStart(
       enabled: scala.Boolean,
       path: java.lang.String,
@@ -3413,6 +3452,10 @@ object BeamConfig {
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
           else com.typesafe.config.ConfigFactory.parseString("spatial{}")
+        ),
+        urbansim = BeamConfig.Beam.Urbansim(
+          if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
+          else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
         ),
         useLocalWorker = !c.hasPathOrNull("useLocalWorker") || c.getBoolean("useLocalWorker"),
         warmStart = BeamConfig.Beam.WarmStart(
