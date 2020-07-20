@@ -6,6 +6,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
@@ -117,6 +118,7 @@ object ModeChoiceCalculator {
     classname: String,
     beamServices: BeamServices,
     configHolder: BeamConfigHolder,
+    transitCrowding: TransitCrowdingSkims,
     eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
@@ -125,10 +127,13 @@ object ModeChoiceCalculator {
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+              val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
-                lccm.modeChoiceModels(Mandatory)(modalityStyle),
+                model,
+                modeModel,
                 configHolder,
+                transitCrowding,
                 eventsManager
               )
             case _ =>
@@ -147,9 +152,9 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (logit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, eventsManager)
+          new ModeChoiceMultinomialLogit(beamServices, logit, modeLogit, configHolder, transitCrowding, eventsManager)
     }
   }
   sealed trait ModeVotMultiplier

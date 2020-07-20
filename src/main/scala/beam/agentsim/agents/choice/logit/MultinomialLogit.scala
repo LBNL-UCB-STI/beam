@@ -15,7 +15,7 @@ import com.typesafe.scalalogging.LazyLogging
   * @tparam T the attributes of this multinomial logit function
   */
 class MultinomialLogit[A, T](
-  val utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
+  val utilityFunctions: A => Option[Map[T, UtilityFunctionOperation]],
   common: Map[T, UtilityFunctionOperation],
   scale_factor: Double = 1.0
 ) extends LazyLogging {
@@ -157,9 +157,8 @@ class MultinomialLogit[A, T](
     }
 
     val alternativeUtility: Iterable[Double] = for {
-      utilFnsForAlt <- utilityFunctions.get(alternative).toList
-      attribute     <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
-      mnlOperation  <- utilFnsForAlt.get(attribute)
+      utilFnsForAlt             <- utilityFunctions(alternative).toList
+      (attribute, mnlOperation) <- utilFnsForAlt
       functionParam = attributes.getOrElse(attribute, 0.0)
     } yield {
       mnlOperation(functionParam)
@@ -190,14 +189,14 @@ object MultinomialLogit {
   )
 
   def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, Map.empty)
+    new MultinomialLogit(utilityFunctions.get, Map.empty)
   }
 
   def apply[A, T](
     utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
     commonUtilityFunction: Map[T, UtilityFunctionOperation]
   ): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, commonUtilityFunction, 1.0)
+    new MultinomialLogit(utilityFunctions.get, commonUtilityFunction, 1.0)
   }
 
   def apply[A, T](
@@ -205,6 +204,6 @@ object MultinomialLogit {
     commonUtilityFunction: Map[T, UtilityFunctionOperation],
     scale_factor: Double
   ): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, commonUtilityFunction, scale_factor)
+    new MultinomialLogit(utilityFunctions.get, commonUtilityFunction, scale_factor)
   }
 }

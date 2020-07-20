@@ -41,6 +41,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services,
       injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder]),
+      services.skims.tc_skimmer,
       eventsManager
     )
   }

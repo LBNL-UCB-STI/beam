@@ -31,7 +31,9 @@ class SimpleRideHailUtilizationTest extends FunSuite with Matchers {
     secondaryFuelConsumed = 2,
     endLegPrimaryFuelLevel = 3,
     endLegSecondaryFuelLevel = 4,
-    amountPaid = 1
+    amountPaid = 1,
+    None,
+    None
   )
 
   test("Should ignore non-ridehail vehicles") {

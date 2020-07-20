@@ -472,6 +472,8 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
+              transit_crowding: scala.Double,
+              transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
               walk_transit_intercept: scala.Double
             )
@@ -496,6 +498,10 @@ object BeamConfig {
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
+                  transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
+                  transit_crowding_percentile =
+                    if (c.hasPathOrNull("transit_crowding_percentile")) c.getDouble("transit_crowding_percentile")
+                    else 90.0,
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
                     if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0
@@ -3074,6 +3080,7 @@ object BeamConfig {
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
+        transit_crowding_skimmer: BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
         writeAggregatedSkimsInterval: scala.Int,
         writeSkimsInterval: scala.Int
       )
@@ -3136,6 +3143,22 @@ object BeamConfig {
           }
         }
 
+        case class TransitCrowdingSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object TransitCrowdingSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer = {
+            BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              fileBaseName =
+                if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTransitCrowding",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "transit-crowding-skimmer"
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
@@ -3150,6 +3173,10 @@ object BeamConfig {
             taz_skimmer = BeamConfig.Beam.Router.Skim.TazSkimmer(
               if (c.hasPathOrNull("taz-skimmer")) c.getConfig("taz-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("taz-skimmer{}")
+            ),
+            transit_crowding_skimmer = BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              if (c.hasPathOrNull("transit-crowding-skimmer")) c.getConfig("transit-crowding-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("transit-crowding-skimmer{}")
             ),
             writeAggregatedSkimsInterval =
               if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else 0,
