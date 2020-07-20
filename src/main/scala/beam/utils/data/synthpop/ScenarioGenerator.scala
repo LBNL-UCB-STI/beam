@@ -307,7 +307,7 @@ class SimpleScenarioGenerator(
                         activityLocationX = Some(wgsHouseholdLocation.getX),
                         activityLocationY = Some(wgsHouseholdLocation.getY),
                         activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
-                        geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
+                        geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
                       )
                       // Create Leg
                       val leavingHomeLeg = planElementTemplate
@@ -332,7 +332,7 @@ class SimpleScenarioGenerator(
                         activityLocationX = Some(wgsWorkingLocation.getX),
                         activityLocationY = Some(wgsWorkingLocation.getY),
                         activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
-                        geoId = Some(toStateGeoId(workTazGeoId.state, workTazGeoId.county))
+                        geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
                       )
                       val leavingWorkLeg = planElementTemplate
                         .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
@@ -345,7 +345,7 @@ class SimpleScenarioGenerator(
                         activityType = Some("Home"),
                         activityLocationX = Some(wgsHouseholdLocation.getX),
                         activityLocationY = Some(wgsHouseholdLocation.getY),
-                        geoId = Some(toStateGeoId(household.geoId.state, household.geoId.county))
+                        geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
                       )
 
                       val personWithPlans = PersonWithPlans(
@@ -545,9 +545,14 @@ class SimpleScenarioGenerator(
     }
   }
 
+  def toTazGeoId(state: State, county: County, taz: String): String = {
+    s"${state.value}-${county.value}-$taz"
+  }
+
   def toStateGeoId(state: State, county: County): String = {
     s"${state.value}-${county.value}"
   }
+
 }
 
 object SimpleScenarioGenerator extends StrictLogging {

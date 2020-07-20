@@ -3,7 +3,7 @@ package beam.sim
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util.Collections
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
@@ -19,23 +19,13 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{
-  DelayMetricAnalysis,
-  IterationStatsProvider,
-  ModeChoiceAlternativesCollector,
-  RideHailUtilizationCollector,
-  TransitOccupancyByStopAnalysis,
-  VMInformationCollector
-}
+import beam.analysis._
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
-import beam.router.r5.RouteDumper
-import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
@@ -46,15 +36,8 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
-import org.matsim.core.population.PopulationUtils
-import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.utils.objectattributes.attributable.AttributesUtils
-import org.matsim.api.core.v01.Coord
-import org.matsim.core.controler.Controler
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
