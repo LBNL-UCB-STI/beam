@@ -104,4 +104,5 @@ object MathUtils {
     }
   }
 
+  def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 }

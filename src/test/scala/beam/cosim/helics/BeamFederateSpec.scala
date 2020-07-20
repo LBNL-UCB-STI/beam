@@ -95,7 +95,9 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     helics.helicsFederateInfoSetCoreInitString(fedInfo, "--federates=1")
     helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), 1.0)
     helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), 1)
-    val fedComb = helics.helicsCreateCombinationFederate(fedName, fedInfo)
+    val fedComb = BeamFederate.synchronized {
+      helics.helicsCreateCombinationFederate(fedName, fedInfo)
+    }
     val subsChargingPlugIn: SWIGTYPE_p_void =
       helics.helicsFederateRegisterSubscription(fedComb, "BeamFederate/chargingPlugIn", "string")
     val subsChargingPlugOut: SWIGTYPE_p_void =
