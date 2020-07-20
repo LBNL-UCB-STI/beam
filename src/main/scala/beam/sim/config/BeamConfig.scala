@@ -464,6 +464,7 @@ object BeamConfig {
 
           object MulitnomialLogit {
             case class Params(
+              bike_attractiviness: scala.Double,
               bike_intercept: scala.Double,
               car_intercept: scala.Double,
               cav_intercept: scala.Double,
@@ -482,6 +483,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
+                  bike_attractiviness =
+                    if (c.hasPathOrNull("bike_attractiviness")) c.getDouble("bike_attractiviness") else 1.0,
                   bike_intercept = if (c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
                   car_intercept = if (c.hasPathOrNull("car_intercept")) c.getDouble("car_intercept") else 0.0,
                   cav_intercept = if (c.hasPathOrNull("cav_intercept")) c.getDouble("cav_intercept") else 0.0,
@@ -1612,6 +1615,7 @@ object BeamConfig {
       }
 
       case class Tuning(
+        bikeAttractivityFactor: scala.Double,
         fuelCapacityInJoules: scala.Double,
         rideHailPrice: scala.Double,
         tollPrice: scala.Double,
@@ -1623,6 +1627,8 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Tuning = {
           BeamConfig.Beam.Agentsim.Tuning(
+            bikeAttractivityFactor =
+              if (c.hasPathOrNull("bikeAttractivityFactor")) c.getDouble("bikeAttractivityFactor") else 1.0,
             fuelCapacityInJoules =
               if (c.hasPathOrNull("fuelCapacityInJoules")) c.getDouble("fuelCapacityInJoules") else 86400000,
             rideHailPrice = if (c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
@@ -3177,6 +3183,8 @@ object BeamConfig {
 
     object Routing {
       case class R5(
+        bikeLaneDecreaseTravelTimeFactor: scala.Double,
+        bikeLaneLinkIdsFilePath: java.lang.String,
         departureWindow: scala.Double,
         directory: java.lang.String,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
@@ -3218,6 +3226,12 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            bikeLaneDecreaseTravelTimeFactor =
+              if (c.hasPathOrNull("bikeLaneDecreaseTravelTimeFactor")) c.getDouble("bikeLaneDecreaseTravelTimeFactor")
+              else 1.0,
+            bikeLaneLinkIdsFilePath =
+              if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath")
+              else "/test/input/beamville/r5/bikeLaneLinkIds.csv",
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(

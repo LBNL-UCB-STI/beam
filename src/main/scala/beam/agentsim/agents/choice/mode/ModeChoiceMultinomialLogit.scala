@@ -67,7 +67,8 @@ class ModeChoiceMultinomialLogit(
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
-      val alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]] = model.calcAlternativesWithUtility(inputData)
+      val alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]] =
+        model.calcAlternativesWithUtility(inputData)
       val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
 
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
@@ -373,7 +374,7 @@ object ModeChoiceMultinomialLogit {
         "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "bike" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept),
+        "intercept"      -> UtilityFunctionOperation("intercept", params.bike_intercept),
         "attractiveness" -> UtilityFunctionOperation("multiplier", params.bike_attractiviness)
       ),
       "walk_transit" -> Map(
