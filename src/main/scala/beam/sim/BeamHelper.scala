@@ -34,6 +34,7 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, r
 import beam.utils.csv.readers
 import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
+import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
@@ -176,7 +177,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
-          addControlerListenerBinding().to(classOf[NonCarModeIterationPlanCleaner])
+          bind(classOf[ModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])
           bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
@@ -598,23 +599,49 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim" || src == "generic") {
+      if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
         val scenario = {
-          val source = if (src == "urbansim") {
-            buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
-          } else {
-            val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-            val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-            val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-            new GenericScenarioSource(
-              pathToHouseholds = pathToHouseholds,
-              pathToPersonFile = pathToPersonFile,
-              pathToPlans = pathToPlans
-            )
+          val source = src match {
+            case "urbansim" => buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            case "urbansim_v2" => {
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+              val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv.gz"
+              val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
+              new UrbansimReaderV2(
+                inputPersonPath = pathToPersonFile,
+                inputPlanPath = pathToPlans,
+                inputHouseholdPath = pathToHouseholds,
+                inputTripsPath = pathToTrips,
+                inputBlockPath = pathToBlocks,
+                new GeoUtilsImpl(beamConfig),
+                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+              )
+            }
+            case "generic" => {
+              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+              new GenericScenarioSource(
+                pathToHouseholds = pathToHouseholds,
+                pathToPersonFile = pathToPersonFile,
+                pathToPlans = pathToPlans
+              )
+            }
           }
-          new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          val scenario =
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          if (src == "urbansim_v2") {
+            new ScenarioAdjuster(
+              beamConfig.beam.urbansim,
+              scenario.getPopulation,
+              beamConfig.matsim.modules.global.randomSeed
+            ).adjust()
+          }
+          scenario
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)
       } else if (src == "beam") {

@@ -26,6 +26,7 @@ object BeamConfig {
     routing: BeamConfig.Beam.Routing,
     sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
+    urbansim: BeamConfig.Beam.Urbansim,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
   )
@@ -1223,6 +1224,7 @@ object BeamConfig {
         case class Vehicles(
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
+          fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
@@ -1395,6 +1397,8 @@ object BeamConfig {
               fractionOfInitialVehicleFleet =
                 if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                 else 1.0,
+              fractionOfPeopleWithBicycle =
+                if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
                 else "/test/input/beamville/beamFuelTypes.csv",
@@ -3013,12 +3017,28 @@ object BeamConfig {
       Module_2: java.lang.String,
       Module_3: java.lang.String,
       Module_4: java.lang.String,
-      cleanNonCarModesInIteration: scala.Int,
+      clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int
     )
 
     object Replanning {
+      case class ClearModes(
+        iteration: scala.Int,
+        modes: scala.Option[scala.List[java.lang.String]],
+        strategy: java.lang.String
+      )
+
+      object ClearModes {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModes = {
+          BeamConfig.Beam.Replanning.ClearModes(
+            iteration = if (c.hasPathOrNull("iteration")) c.getInt("iteration") else 0,
+            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None,
+            strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "AtBeginningOfIteration"
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning = {
         BeamConfig.Beam.Replanning(
@@ -3030,8 +3050,10 @@ object BeamConfig {
           Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
           Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
           Module_4 = if (c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
-          cleanNonCarModesInIteration =
-            if (c.hasPathOrNull("cleanNonCarModesInIteration")) c.getInt("cleanNonCarModesInIteration") else 0,
+          clearModes = BeamConfig.Beam.Replanning.ClearModes(
+            if (c.hasPathOrNull("clearModes")) c.getConfig("clearModes")
+            else com.typesafe.config.ConfigFactory.parseString("clearModes{}")
+          ),
           fractionOfIterationsToDisableInnovation =
             if (c.hasPathOrNull("fractionOfIterationsToDisableInnovation"))
               c.getDouble("fractionOfIterationsToDisableInnovation")
@@ -3314,6 +3336,44 @@ object BeamConfig {
       }
     }
 
+    case class Urbansim(
+      fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
+    )
+
+    object Urbansim {
+      case class FractionOfModesToClear(
+        allModes: scala.Double,
+        bike: scala.Double,
+        car: scala.Double,
+        drive_transit: scala.Double,
+        walk: scala.Double,
+        walk_transit: scala.Double
+      )
+
+      object FractionOfModesToClear {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.FractionOfModesToClear = {
+          BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            allModes = if (c.hasPathOrNull("allModes")) c.getDouble("allModes") else 0.0,
+            bike = if (c.hasPathOrNull("bike")) c.getDouble("bike") else 0.0,
+            car = if (c.hasPathOrNull("car")) c.getDouble("car") else 0.0,
+            drive_transit = if (c.hasPathOrNull("drive_transit")) c.getDouble("drive_transit") else 0.0,
+            walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 0.0,
+            walk_transit = if (c.hasPathOrNull("walk_transit")) c.getDouble("walk_transit") else 0.0
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
+        BeamConfig.Beam.Urbansim(
+          fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
+            else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
+          )
+        )
+      }
+    }
+
     case class WarmStart(
       enabled: scala.Boolean,
       path: java.lang.String,
@@ -3410,6 +3470,10 @@ object BeamConfig {
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
           else com.typesafe.config.ConfigFactory.parseString("spatial{}")
+        ),
+        urbansim = BeamConfig.Beam.Urbansim(
+          if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
+          else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
         ),
         useLocalWorker = !c.hasPathOrNull("useLocalWorker") || c.getBoolean("useLocalWorker"),
         warmStart = BeamConfig.Beam.WarmStart(
@@ -3971,6 +4035,10 @@ object BeamConfig {
     import scala.collection.JavaConverters._
     cl.asScala.map(cv => $_dbl(cv)).toList
   }
+  private def $_L$_str(cl: com.typesafe.config.ConfigList): scala.List[java.lang.String] = {
+    import scala.collection.JavaConverters._
+    cl.asScala.map(cv => $_str(cv)).toList
+  }
   private def $_dbl(cv: com.typesafe.config.ConfigValue): scala.Double = {
     val u: Any = cv.unwrapped
     if ((cv.valueType != com.typesafe.config.ConfigValueType.NUMBER) ||
@@ -3985,4 +4053,6 @@ object BeamConfig {
       (if (u.isInstanceOf[java.lang.String]) "\"" + u + "\"" else u)
     )
   }
+  private def $_str(cv: com.typesafe.config.ConfigValue) =
+    java.lang.String.valueOf(cv.unwrapped())
 }
