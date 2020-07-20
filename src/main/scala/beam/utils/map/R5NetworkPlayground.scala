@@ -12,7 +12,7 @@ object R5NetworkPlayground extends BeamHelper {
     val (arg, cfg) = prepareConfig(Array("--config", "production/sfbay/smart/smart-c-hightech.conf"), true)
     val beamConfig = BeamConfig(cfg)
 
-    val nc = new DefaultNetworkCoordinator(beamConfig)
+    val nc = DefaultNetworkCoordinator(beamConfig)
     nc.init()
 
     val geoUtils = new beam.sim.common.GeoUtils {

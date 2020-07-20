@@ -5,6 +5,8 @@ import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -17,7 +19,7 @@ import java.util.Set;
  * BEAM
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase {
-
+    private final Logger log = LoggerFactory.getLogger(BeamEventsWriterCSV.class);
     private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
@@ -46,7 +48,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                     this.outWriter.append("\n");
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("exception occurred due to ", e);
             }
         }
     }
@@ -100,11 +102,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
             }
             this.outWriter.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
-    private void registerClass(Class cla) {
+    private void registerClass(Class<?> cla) {
         // ScalaEvent classes are from scala, so we have to have special treatment for them
         // scala's val and var are not actual fields, but methods (getters and setters)
         if (ScalaEvent.class.isAssignableFrom(cla)) {
@@ -118,7 +120,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                         String value = (String)method.invoke(null);
                         attributeToColumnIndexMapping.put(value, 0);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        log.error("exception occurred due to ", e);
                     }
                 }
             }
@@ -131,7 +133,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                 try {
                     attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
-                    e.printStackTrace();
+                    log.error("exception occurred due to ", e);
                 }
             }
         }

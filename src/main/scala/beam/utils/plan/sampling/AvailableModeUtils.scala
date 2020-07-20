@@ -55,7 +55,9 @@ object AvailableModeUtils extends LazyLogging {
     * @param person the respective person
     * @return
     */
-  def availableModesForPerson(person: Person): Seq[BeamMode] = getPersonCustomAttributes(person).availableModes
+  def availableModesForPerson(person: Person): Seq[BeamMode] = {
+    getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty)
+  }
 
   /**
     * Sets the available modes for the given person in the population
@@ -65,8 +67,12 @@ object AvailableModeUtils extends LazyLogging {
     * @param permissibleModes List of permissible modes for the person
     */
   def setAvailableModesForPerson(person: Person, population: Population, permissibleModes: Seq[String]): Unit = {
-    val attributesOfIndividual = getPersonCustomAttributes(person)
-    setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+    getPersonCustomAttributes(person) match {
+      case Some(attributesOfIndividual) =>
+        setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+      case _ =>
+        logger.warn(s"Not found attributes of the individual: [$person]")
+    }
   }
 
   private def setModesForPerson(
@@ -112,18 +118,18 @@ object AvailableModeUtils extends LazyLogging {
     household: Household,
     population: Population
   ): AttributesOfIndividual = {
-    Option(getPersonCustomAttributes(person)).getOrElse {
-      val attribs: AttributesOfIndividual =
+    getPersonCustomAttributes(person).getOrElse {
+      val attributes: AttributesOfIndividual =
         PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
-      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
-      attribs
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
+      attributes
     }
   }
 
-  private def getPersonCustomAttributes(person: Person): AttributesOfIndividual = {
-    person.getCustomAttributes
+  private def getPersonCustomAttributes(person: Person): Option[AttributesOfIndividual] = {
+    val attributes = person.getCustomAttributes
       .get(PopulationAdjustment.BEAM_ATTRIBUTES)
-      .asInstanceOf[AttributesOfIndividual]
+    Option(attributes.asInstanceOf[AttributesOfIndividual])
   }
 
   /**
@@ -133,16 +139,23 @@ object AvailableModeUtils extends LazyLogging {
     * @param newAvailableModes List of new available modes to replace
     */
   def replaceAvailableModesForPerson(person: Person, newAvailableModes: Seq[String]): Unit = {
-    val attributesOfIndividual = getPersonCustomAttributes(person)
-    try {
-      person.getCustomAttributes
-        .put(
-          PopulationAdjustment.BEAM_ATTRIBUTES,
-          attributesOfIndividual.copy(availableModes = newAvailableModes.map(f => BeamMode.withValue(f.toLowerCase)))
-        )
-    } catch {
-      case e: Exception =>
-        logger.error("Error while converting available mode string to respective Beam Mode Enums : " + e.getMessage, e)
+    val maybeIndividual = getPersonCustomAttributes(person)
+    if (maybeIndividual.isDefined) {
+      val attributesOfIndividual = maybeIndividual.get
+      val modes: Seq[BeamMode] = newAvailableModes.flatMap(f => selectBeamMode(f.toLowerCase))
+      person.getCustomAttributes.put(
+        PopulationAdjustment.BEAM_ATTRIBUTES,
+        attributesOfIndividual.copy(availableModes = modes)
+      )
+    }
+  }
+
+  private def selectBeamMode(mode: String): Option[BeamMode] = {
+    BeamMode.withValueOpt(mode) match {
+      case result @ Some(_) => result
+      case None =>
+        logger.error(s"Error while converting available mode string [$mode] to respective Beam Mode Enums")
+        None
     }
   }
 

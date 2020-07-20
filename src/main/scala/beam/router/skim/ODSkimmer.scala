@@ -1,25 +1,28 @@
 package beam.router.skim
+
 import java.io.BufferedWriter
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
-import scala.collection.immutable
 import scala.util.control.NonFatal
 
-class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
-    extends AbstractSkimmer(beamServices, config) {
-  import ODSkimmer._
-  import beamServices._
+class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
+    extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamServices)
+  private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
+  import ODSkimmer._
+
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamConfig, beamScenario)
 
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
@@ -29,38 +32,24 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
     if (config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
-      ProfilingUtils.timed(s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", logger.info(_)) {
+      ProfilingUtils.timed(
+        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+        v => logger.info(v)
+      ) {
         writeAllModeSkimsForPeakNonPeakPeriods(event)
       }
     }
     if (config.origin_destination_skimmer.writeFullSkimsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeFullSkimsInterval == 0) {
-      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", logger.info(_)) {
+      ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
         writeFullSkims(event)
       }
     }
   }
 
   override def fromCsv(
-    row: immutable.Map[String, String]
+    row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    (
-      ODSkimmerKey(
-        hour = row("hour").toInt,
-        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
-        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
-      ),
-      ODSkimmerInternal(
-        travelTimeInS = row("travelTimeInS").toDouble,
-        generalizedTimeInS = row("generalizedTimeInS").toDouble,
-        generalizedCost = row("generalizedCost").toDouble,
-        distanceInM = row("distanceInM").toDouble,
-        cost = row("cost").toDouble,
-        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        observations = row("observations").toInt,
-        iterations = row("iterations").toInt
-      )
-    )
+    ODSkimmer.fromCsv(row)
   }
 
   override protected def aggregateOverIterations(
@@ -102,7 +91,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       cost = (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energy = (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       observations = prevSkim.observations + currSkim.observations,
-      iterations = beamServices.matsimServices.getIterationNumber + 1
+      iterations = matsimServices.getIterationNumber + 1
     )
   }
 
@@ -171,7 +160,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -219,7 +208,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             newDestCoord,
                             timeBin * 3600,
                             dummyId,
-                            beamServices
+                            beamScenario
                           )
                       } else {
                         readOnlySkim
@@ -230,7 +219,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
                             destination.coord,
                             timeBin * 3600,
                             dummyId,
-                            beamServices
+                            beamScenario
                           )
                       }
                     }
@@ -244,7 +233,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
         }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Could not write skim in '${filePath}': ${ex.getMessage}", ex)
+        logger.error(s"Could not write skim in '$filePath': ${ex.getMessage}", ex)
     } finally {
       if (null != writer)
         writer.close()
@@ -281,7 +270,7 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
               adjustedDestCoord,
               timeBin * 3600,
               dummyId,
-              beamServices
+              beamScenario
             )
         }
     }
@@ -319,11 +308,36 @@ class ODSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
 }
 
 object ODSkimmer extends LazyLogging {
+
   // cases
   case class ODSkimmerKey(hour: Int, mode: BeamMode, originTaz: Id[TAZ], destinationTaz: Id[TAZ])
       extends AbstractSkimmerKey {
     override def toCsv: String = hour + "," + mode + "," + originTaz + "," + destinationTaz
   }
+
+  def fromCsv(
+    row: scala.collection.Map[String, String]
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    (
+      ODSkimmerKey(
+        hour = row("hour").toInt,
+        mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
+        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+      ),
+      ODSkimmerInternal(
+        travelTimeInS = row("travelTimeInS").toDouble,
+        generalizedTimeInS = row("generalizedTimeInS").toDouble,
+        generalizedCost = row("generalizedCost").toDouble,
+        distanceInM = row("distanceInM").toDouble,
+        cost = row("cost").toDouble,
+        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
+        observations = row("observations").toInt,
+        iterations = row("iterations").toInt
+      )
+    )
+  }
+
   case class ODSkimmerInternal(
     travelTimeInS: Double,
     generalizedTimeInS: Double,
@@ -338,19 +352,32 @@ object ODSkimmer extends LazyLogging {
     //NOTE: All times in seconds here
     def toSkimExternal: Skim =
       Skim(travelTimeInS.toInt, generalizedTimeInS, generalizedCost, distanceInM, cost, observations, energy)
+
     override def toCsv: String =
       travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + observations + "," + iterations
   }
 
   case class Skim(
-    time: Int,
-    generalizedTime: Double,
-    generalizedCost: Double,
-    distance: Double,
-    cost: Double,
-    count: Int,
-    energy: Double
-  )
+    time: Int = 0,
+    generalizedTime: Double = 0,
+    generalizedCost: Double = 0,
+    distance: Double = 0,
+    cost: Double = 0,
+    count: Int = 0,
+    energy: Double = 0
+  ) {
+
+    def +(that: Skim): Skim =
+      Skim(
+        this.time + that.time,
+        this.generalizedTime + that.generalizedTime,
+        this.generalizedCost + that.generalizedCost,
+        this.distance + that.distance,
+        this.cost + that.cost,
+        this.count + that.count,
+        this.energy + that.energy
+      )
+  }
 
   case class ExcerptData(
     timePeriodString: String,
@@ -365,4 +392,5 @@ object ODSkimmer extends LazyLogging {
     sumWeights: Double,
     weightedEnergy: Double
   )
+
 }

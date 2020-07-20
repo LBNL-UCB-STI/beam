@@ -16,7 +16,7 @@ sealed abstract class RelaxationExperiment(
   val agentSimScenario: Scenario,
   val population: Population,
   val beamServices: BeamServices,
-  val controlerIO: OutputDirectoryHierarchy,
+  val controllerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
   val iterationNumber: Int,
@@ -377,7 +377,10 @@ class Experiment_4_0(
       iterationNumber,
       shouldWritePhysSimEvents,
       javaRnd,
-      Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+      beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
+        case Some(list) => list.toArray
+        case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+      }
     )
     sim.run(prevTravelTime)
   }
@@ -421,7 +424,10 @@ class Experiment_5_0(
         iterationNumber,
         shouldWritePhysSimEvents,
         javaRnd,
-        Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+        beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
+          case Some(list) => list.toArray
+          case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+        }
       )
       sim.run(prevTravelTime)
     } else {
@@ -481,7 +487,10 @@ class Experiment_5_1(
         iterationNumber,
         shouldWritePhysSimEvents,
         javaRnd,
-        Array(60.0, 10.0, 10.0, 10.0, 10.0)
+        beamConfig.beam.physsim.relaxation.experiment5_1.percentToSimulate match {
+          case Some(list) => list.toArray
+          case None       => Array(60.0, 10.0, 10.0, 10.0, 10.0)
+        }
       )
       sim.run(prevTravelTime)
     } else {
@@ -541,7 +550,10 @@ class Experiment_5_2(
         iterationNumber,
         shouldWritePhysSimEvents,
         javaRnd,
-        Array(40.0, 20.0, 20.0, 20.0)
+        beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
+          case Some(list) => list.toArray
+          case None       => Array(40.0, 20.0, 20.0, 20.0)
+        }
       )
       sim.run(prevTravelTime)
     } else {

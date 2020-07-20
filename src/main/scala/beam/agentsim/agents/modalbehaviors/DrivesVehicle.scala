@@ -55,8 +55,7 @@ object DrivesVehicle {
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
     if (updatedLegsInSchedule
           .sliding(2)
-          .filter(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)
-          .size > 0) {
+          .exists(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)) {
       val i = 0
     }
     val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
@@ -109,7 +108,7 @@ object DrivesVehicle {
     newPassSchedule
   }
 
-  def stripLiterallyDrivingData(data: DrivingData) = {
+  def stripLiterallyDrivingData(data: DrivingData): DrivingData = {
     data match {
       case LiterallyDrivingData(subData, _, _) =>
         subData
@@ -192,7 +191,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-  protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+  protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  protected def currentBeamVehicle: BeamVehicle =
+    beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
@@ -215,7 +216,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
   }
 
-  def updateLatestObservedTick(newTick: Int) = if (newTick > latestObservedTick) latestObservedTick = newTick
+  def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
     case ev @ Event(
@@ -598,7 +599,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
             currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId)
+              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId, theStall.tazId)
             }
             currentBeamVehicle.unsetParkingStall()
           case None =>
@@ -850,7 +851,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
-  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
+  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
     val chargingPlugInEvent = new ChargingPlugInEvent(
@@ -870,7 +871,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     * @param currentTick
     * @param vehicle
     */
-  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle) = {
+  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
 
     val (chargingDuration, energyInJoules) =
       vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))
@@ -905,7 +906,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     eventsManager.processEvent(chargingPlugOutEvent)
     vehicle.stall match {
       case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
+        parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
         vehicle.unsetParkingStall()
       case None =>
         log.error("Vehicle has no stall while ending charging event")

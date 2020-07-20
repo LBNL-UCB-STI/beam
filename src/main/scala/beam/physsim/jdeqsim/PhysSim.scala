@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -21,7 +22,7 @@ class PhysSim(
   agentSimScenario: Scenario,
   population: Population,
   beamServices: BeamServices,
-  controlerIO: OutputDirectoryHierarchy,
+  controllerIO: OutputDirectoryHierarchy,
   isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   beamConfigChangesObservable: BeamConfigChangesObservable,
   agentSimIterationNumber: Int,
@@ -47,12 +48,12 @@ class PhysSim(
   def run(nIterations: Int, reroutePerIterPct: Double, travelTime: TravelTime): TravelTime = {
     assert(nIterations >= 1)
     val carTravelTimeWriter: CsvWriter = {
-      val fileName = controlerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
+      val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     val reroutedTravelTimeWriter: CsvWriter = {
       val fileName =
-        controlerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
+        controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     try {
@@ -93,7 +94,7 @@ class PhysSim(
         jdeqSimScenario,
         population,
         beamServices,
-        controlerIO,
+        controllerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
         agentSimIterationNumber
@@ -114,7 +115,7 @@ class PhysSim(
       )
       carTravelTimeWriter.flush()
       if (reroutePerIterPct > 0) {
-        val rerouter = new Rerouter(workerParams, beamServices)
+        val rerouter = new ReRouter(workerParams, beamServices)
         val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
 //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
@@ -193,7 +194,7 @@ class PhysSim(
     carPeople
   }
 
-  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: Rerouter): Statistics = {
+  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: ReRouter): Statistics = {
     val rightPeopleToReplan = getCarPeople(population)
     val pctToNumberPersonToTake = (rightPeopleToReplan.size * reroutePerIterPct).toInt
     val takeN =
@@ -209,6 +210,8 @@ class PhysSim(
     val jdeqSimScenario = ScenarioUtils.createScenario(agentSimScenario.getConfig).asInstanceOf[MutableScenario]
     jdeqSimScenario.setNetwork(agentSimScenario.getNetwork)
     jdeqSimScenario.setPopulation(population)
+    val endTimeInSeconds = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt
+    jdeqSimScenario.getConfig.travelTimeCalculator().setMaxTime(endTimeInSeconds)
     jdeqSimScenario
   }
 }

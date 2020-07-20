@@ -1,12 +1,11 @@
 package beam.router.r5
 
 import java.io.File
-import java.nio.file.Files.exists
 import java.nio.file.{Files, Paths}
 
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
-import beam.utils.BeamVehicleUtils
+import beam.utils.{BeamVehicleUtils, FileUtils}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
@@ -19,7 +18,13 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Double], length: Option[Double]) {
+case class LinkParam(
+  linkId: Int,
+  capacity: Option[Double],
+  freeSpeed: Option[Double],
+  length: Option[Double],
+  lanes: Option[Int]
+) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
     capacity.foreach(value => link.setCapacity(value))
@@ -32,6 +37,9 @@ case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Do
       // Provided length is in meters, convert them to millimeters
       cursor.setLengthMm((value * 1000).toInt)
       link.setLength(value)
+    }
+    lanes.foreach { value =>
+      link.setNumberOfLanes(value)
     }
   }
 }
@@ -56,36 +64,44 @@ trait NetworkCoordinator extends LazyLogging {
 
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
-    if (exists(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE))) {
-      logger.info(
-        s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
-      )
-      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      if (exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))) {
-        network = NetworkUtils.createNetwork()
-        new MatsimNetworkReader(network)
-          .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-      } else {
+    val graphPath = Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE)
+    FileUtils
+      .readOrCreateFile(graphPath) { path =>
+        logger.info(
+          s"Initializing router by reading network from: ${path.toAbsolutePath}"
+        )
+        transportNetwork = KryoNetworkSerializer.read(path.toFile)
+
+        network = FileUtils
+          .readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
+            val network = NetworkUtils.createNetwork()
+            new MatsimNetworkReader(network)
+              .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+            network
+          } { _ =>
+            createPhyssimNetwork()
+            network
+          }
+          .get
+      } { path =>
+        logger.info(
+          s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
+        )
+        transportNetwork = TransportNetwork.fromDirectory(
+          Paths.get(beamConfig.beam.routing.r5.directory).toFile,
+          true,
+          false
+        )
+
+        // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
+        // Please, fix me in the future
         createPhyssimNetwork()
+
+        KryoNetworkSerializer.write(transportNetwork, path.toFile)
+        // Needed because R5 closes DB on write
+        transportNetwork = KryoNetworkSerializer.read(path.toFile)
       }
-    } else {
-      logger.info(
-        s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
-      )
-      transportNetwork = TransportNetwork.fromDirectory(
-        Paths.get(beamConfig.beam.routing.r5.directory).toFile,
-        true,
-        false
-      )
-
-      // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
-      // Please, fix me in the future
-      createPhyssimNetwork()
-
-      KryoNetworkSerializer.write(transportNetwork, Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      // Needed because R5 closes DB on write
-      transportNetwork = KryoNetworkSerializer.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-    }
+      .get
   }
 
   def overwriteLinkParams(
@@ -113,8 +129,18 @@ trait NetworkCoordinator extends LazyLogging {
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
+    require(
+      beamConfig.beam.physsim.speedScalingFactor <= Int.MaxValue,
+      "PhysSim speed scaling factor value is too high"
+    )
+
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
+
+    // Scale the speed after overwriting link params. Important!
+    network.getLinks.values.asScala.foreach { link =>
+      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+    }
 
     logger.info(s"MATSim network created")
     new NetworkWriter(network)
@@ -167,12 +193,13 @@ trait NetworkCoordinator extends LazyLogging {
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length)
+            val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
+            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
             z += ((linkId, lp))
         }
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load link's params from ${path}: ${ex.getMessage}", ex)
+          logger.error(s"Could not load link's params from $path: ${ex.getMessage}", ex)
           Map.empty
       }
     } else {

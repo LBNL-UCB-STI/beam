@@ -2,11 +2,11 @@ package beam.utils.data.ctpp
 
 import java.util.{Map => JavaMap}
 
-import org.apache.commons.math3.util.{Pair => CPair}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
+import org.apache.commons.math3.util.{Pair => CPair}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -71,6 +71,10 @@ class JointDistribution(
   scale: Boolean = false
 ) {
 
+  // TODO: Remove this once moved to R-Tree or IntervalTree
+  private val cache: collection.mutable.Map[Seq[(String, Either[String, CustomRange])], Array[Map[String, String]]] =
+    collection.mutable.HashMap()
+
   def getProbabilityList(keyValueTuple: (String, Either[String, CustomRange])*): Array[String] = {
     getRangeList(keyValueTuple: _*).map(_(RETURN_COLUMN))
   }
@@ -79,13 +83,10 @@ class JointDistribution(
     sampleWithinRange: Boolean,
     keyValueTuple: (String, Either[String, CustomRange])*
   ): Map[String, String] = {
-
-    val pmf = getRangeList(keyValueTuple: _*)
-      .map(
-        value =>
-          new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
-      )
-      .toList
+    val rngList: Array[Map[String, String]] = cache.getOrElseUpdate(keyValueTuple, getRangeList(keyValueTuple: _*))
+    val pmf = rngList.map { value =>
+      new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
+    }.toVector
 
     val values = pmf.map(_.getValue)
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {

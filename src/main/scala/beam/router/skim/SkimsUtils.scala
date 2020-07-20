@@ -19,7 +19,7 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
@@ -79,7 +79,7 @@ object SkimsUtils extends LazyLogging {
 
   def timeToBin(departTime: Int, timeWindow: Int): Int = departTime / timeWindow
 
-  def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location) = {
+  def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location): (Int, Int) = {
     val speed = mode match {
       case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
       case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec / 1.1
@@ -175,8 +175,12 @@ object SkimsUtils extends LazyLogging {
     }
   }
 
-  def buildObservedODTravelTime(beamServices: BeamServices, maxDistanceFromBeamTaz: Double): Map[PathCache, Float] = {
-    import beamServices._
+  def buildObservedODTravelTime(
+    beamConfig: BeamConfig,
+    geo: GeoUtils,
+    beamScenario: BeamScenario,
+    maxDistanceFromBeamTaz: Double
+  ): Map[PathCache, Float] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
     val zoneODTravelTimesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath
     if (zoneBoundariesFilePath.nonEmpty && zoneODTravelTimesFilePath.nonEmpty) {
@@ -193,7 +197,7 @@ object SkimsUtils extends LazyLogging {
   }
 
   def generateChart(series: mutable.ListBuffer[(Int, Double, Double)], path: String): Unit = {
-    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double, text: Double) = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double, text: Double): Unit = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
           0,
@@ -257,7 +261,7 @@ object SkimsUtils extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 until seriesPerCount.size).map { counter =>
+    (0 until seriesPerCount.size).foreach { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 

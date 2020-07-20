@@ -30,7 +30,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   def scaleToNewDuration(newDuration: Int): BeamLeg = {
-    val newTravelPath = this.travelPath.scaleTravelTimes(newDuration.toDouble / this.duration.toDouble)
+    val ratio = if (newDuration == 0 || this.duration == 0) 0 else newDuration.toDouble / this.duration.toDouble
+    val newTravelPath = this.travelPath.scaleTravelTimes(ratio)
     this
       .copy(
         duration = newDuration,
@@ -101,7 +102,7 @@ object BeamLeg {
     ).updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {
-    if (legs.filter(_.isDefined).nonEmpty) {
+    if (legs.exists(_.isDefined)) {
       var runningStartTime = legs.find(_.isDefined).head.get.startTime
       for (legOpt <- legs) yield {
         val newLeg = legOpt.map(leg => leg.updateStartTime(runningStartTime))
@@ -112,35 +113,33 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsTrip(legs: List[BeamLeg]): List[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var runningStartTime = legs.head.startTime
-        for (leg <- legs) yield {
-          val newLeg = leg.updateStartTime(runningStartTime)
-          runningStartTime = newLeg.endTime
-          newLeg
-        }
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var runningStartTime = legs.head.startTime
+      for (leg <- legs) yield {
+        val newLeg = leg.updateStartTime(runningStartTime)
+        runningStartTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    legs.isEmpty match {
-      case true =>
-        legs
-      case false =>
-        var latestEndTime = legs.head.startTime - 1
-        var newLeg = legs.head
-        for (leg <- legs) yield {
-          if (leg.startTime < latestEndTime) {
-            newLeg = leg.updateStartTime(latestEndTime)
-          } else {
-            newLeg = leg
-          }
-          latestEndTime = newLeg.endTime
-          newLeg
+    if (legs.isEmpty) {
+      legs
+    } else {
+      var latestEndTime = legs.head.startTime - 1
+      var newLeg = legs.head
+      for (leg <- legs) yield {
+        if (leg.startTime < latestEndTime) {
+          newLeg = leg.updateStartTime(latestEndTime)
+        } else {
+          newLeg = leg
         }
+        latestEndTime = newLeg.endTime
+        newLeg
+      }
     }
   }
 }

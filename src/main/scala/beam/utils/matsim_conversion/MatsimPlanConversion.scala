@@ -63,18 +63,18 @@ object MatsimPlanConversion {
     XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
   }
 
-  def safeGzip(filename: String, node: Node, enc: String, xmlDecl: Boolean = false, doctype: DocType = null) = {
+  def safeGzip(filename: String, node: Node, enc: String, xmlDecl: Boolean = false, doctype: DocType = null): Unit = {
 
-    val output = new FileOutputStream(filename);
+    val output = new FileOutputStream(filename)
     try {
       val writer = new OutputStreamWriter(new GZIPOutputStream(output), "UTF-8")
       try {
         XML.write(writer, node, enc, xmlDecl, doctype)
       } finally {
-        writer.close();
+        writer.close()
       }
     } finally {
-      output.close();
+      output.close()
     }
 
   }
@@ -192,7 +192,7 @@ object MatsimPlanConversion {
   }
 
   case class GenAttr(pre: Option[String], key: String, value: Seq[Node], next: MetaData) {
-    def toMetaData = Attribute(pre, key, value, next)
+    def toMetaData: Attribute = Attribute(pre, key, value, next)
   }
 
   def decomposeMetaData(m: MetaData): Option[GenAttr] = m match {
