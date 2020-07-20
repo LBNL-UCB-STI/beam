@@ -34,10 +34,17 @@ object ParkingZoneFileUtils extends LazyLogging {
     * this should consider charging when it is implemented as well.
     * @param tazId a valid id for a TAZ
     * @param parkingType the parking type we are using to generate a row
+    * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},${ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+  def defaultParkingRow(
+    tazId: String,
+    parkingType: ParkingType,
+    maybeChargingPoint: Option[ChargingPointType]
+  ): String = {
+    val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},${chargingPointStr},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+  }
 
   /**
     * used to build up parking alternatives from a file
@@ -387,8 +394,11 @@ object ParkingZoneFileUtils extends LazyLogging {
     val rows: Iterator[String] = for {
       TazFileRegex(tazId) <- tazRows
       parkingType         <- parkingTypes
+      // We have to pass parking types: Some(CustomChargingPoint) and None
+      // None is `NoCharger` which will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
+      maybeChargingPoint <- Seq(Some(ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")), None) // NoCharger
     } yield {
-      defaultParkingRow(tazId, parkingType)
+      defaultParkingRow(tazId, parkingType, maybeChargingPoint)
     }
 
     fromIterator(rows, random, header = false)
