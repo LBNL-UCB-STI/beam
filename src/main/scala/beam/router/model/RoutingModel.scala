@@ -52,7 +52,7 @@ object RoutingModel {
 //      linkIds, startTime, travelTimeByEnterTimeAndLinkId, mode, streetLayer
 //    )
 //  }
-  
+
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
