@@ -26,6 +26,7 @@ object BeamConfig {
     routing: BeamConfig.Beam.Routing,
     sim: BeamConfig.Beam.Sim,
     spatial: BeamConfig.Beam.Spatial,
+    urbansim: BeamConfig.Beam.Urbansim,
     useLocalWorker: scala.Boolean,
     warmStart: BeamConfig.Beam.WarmStart
   )
@@ -1229,6 +1230,7 @@ object BeamConfig {
         case class Vehicles(
           downsamplingMethod: java.lang.String,
           fractionOfInitialVehicleFleet: scala.Double,
+          fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
@@ -1401,6 +1403,8 @@ object BeamConfig {
               fractionOfInitialVehicleFleet =
                 if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                 else 1.0,
+              fractionOfPeopleWithBicycle =
+                if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
                 else "/test/input/beamville/beamFuelTypes.csv",
@@ -1690,10 +1694,12 @@ object BeamConfig {
 
     case class Calibration(
       counts: BeamConfig.Beam.Calibration.Counts,
+      google: BeamConfig.Beam.Calibration.Google,
       meanToCountsWeightRatio: scala.Double,
       mode: BeamConfig.Beam.Calibration.Mode,
       objectiveFunction: java.lang.String,
-      roadNetwork: BeamConfig.Beam.Calibration.RoadNetwork
+      roadNetwork: BeamConfig.Beam.Calibration.RoadNetwork,
+      studyArea: BeamConfig.Beam.Calibration.StudyArea
     )
 
     object Calibration {
@@ -1715,6 +1721,46 @@ object BeamConfig {
               if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
               else "/test/input/beamville/counts.xml",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
+          )
+        }
+      }
+
+      case class Google(
+        travelTimes: BeamConfig.Beam.Calibration.Google.TravelTimes
+      )
+
+      object Google {
+        case class TravelTimes(
+          enable: scala.Boolean,
+          iterationInterval: scala.Int,
+          minDistanceInMeters: scala.Double,
+          numDataPointsOver24Hours: scala.Int,
+          queryDate: java.lang.String,
+          tolls: scala.Boolean
+        )
+
+        object TravelTimes {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes = {
+            BeamConfig.Beam.Calibration.Google.TravelTimes(
+              enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+              iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
+              minDistanceInMeters =
+                if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
+              numDataPointsOver24Hours =
+                if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
+              tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google = {
+          BeamConfig.Beam.Calibration.Google(
+            travelTimes = BeamConfig.Beam.Calibration.Google.TravelTimes(
+              if (c.hasPathOrNull("travelTimes")) c.getConfig("travelTimes")
+              else com.typesafe.config.ConfigFactory.parseString("travelTimes{}")
+            )
           )
         }
       }
@@ -1764,11 +1810,34 @@ object BeamConfig {
         }
       }
 
+      case class StudyArea(
+        enabled: scala.Boolean,
+        lat: scala.Double,
+        lon: scala.Double,
+        radius: scala.Double
+      )
+
+      object StudyArea {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.StudyArea = {
+          BeamConfig.Beam.Calibration.StudyArea(
+            enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            lat = if (c.hasPathOrNull("lat")) c.getDouble("lat") else 0,
+            lon = if (c.hasPathOrNull("lon")) c.getDouble("lon") else 0,
+            radius = if (c.hasPathOrNull("radius")) c.getDouble("radius") else 0
+          )
+        }
+      }
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration = {
         BeamConfig.Beam.Calibration(
           counts = BeamConfig.Beam.Calibration.Counts(
             if (c.hasPathOrNull("counts")) c.getConfig("counts")
             else com.typesafe.config.ConfigFactory.parseString("counts{}")
+          ),
+          google = BeamConfig.Beam.Calibration.Google(
+            if (c.hasPathOrNull("google")) c.getConfig("google")
+            else com.typesafe.config.ConfigFactory.parseString("google{}")
           ),
           meanToCountsWeightRatio =
             if (c.hasPathOrNull("meanToCountsWeightRatio")) c.getDouble("meanToCountsWeightRatio") else 0.5,
@@ -1782,6 +1851,10 @@ object BeamConfig {
           roadNetwork = BeamConfig.Beam.Calibration.RoadNetwork(
             if (c.hasPathOrNull("roadNetwork")) c.getConfig("roadNetwork")
             else com.typesafe.config.ConfigFactory.parseString("roadNetwork{}")
+          ),
+          studyArea = BeamConfig.Beam.Calibration.StudyArea(
+            if (c.hasPathOrNull("studyArea")) c.getConfig("studyArea")
+            else com.typesafe.config.ConfigFactory.parseString("studyArea{}")
           )
         )
       }
@@ -3290,6 +3363,44 @@ object BeamConfig {
       }
     }
 
+    case class Urbansim(
+      fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
+    )
+
+    object Urbansim {
+      case class FractionOfModesToClear(
+        allModes: scala.Double,
+        bike: scala.Double,
+        car: scala.Double,
+        drive_transit: scala.Double,
+        walk: scala.Double,
+        walk_transit: scala.Double
+      )
+
+      object FractionOfModesToClear {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.FractionOfModesToClear = {
+          BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            allModes = if (c.hasPathOrNull("allModes")) c.getDouble("allModes") else 0.0,
+            bike = if (c.hasPathOrNull("bike")) c.getDouble("bike") else 0.0,
+            car = if (c.hasPathOrNull("car")) c.getDouble("car") else 0.0,
+            drive_transit = if (c.hasPathOrNull("drive_transit")) c.getDouble("drive_transit") else 0.0,
+            walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 0.0,
+            walk_transit = if (c.hasPathOrNull("walk_transit")) c.getDouble("walk_transit") else 0.0
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
+        BeamConfig.Beam.Urbansim(
+          fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
+            if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
+            else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
+          )
+        )
+      }
+    }
+
     case class WarmStart(
       enabled: scala.Boolean,
       path: java.lang.String,
@@ -3386,6 +3497,10 @@ object BeamConfig {
         spatial = BeamConfig.Beam.Spatial(
           if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
           else com.typesafe.config.ConfigFactory.parseString("spatial{}")
+        ),
+        urbansim = BeamConfig.Beam.Urbansim(
+          if (c.hasPathOrNull("urbansim")) c.getConfig("urbansim")
+          else com.typesafe.config.ConfigFactory.parseString("urbansim{}")
         ),
         useLocalWorker = !c.hasPathOrNull("useLocalWorker") || c.getBoolean("useLocalWorker"),
         warmStart = BeamConfig.Beam.WarmStart(
