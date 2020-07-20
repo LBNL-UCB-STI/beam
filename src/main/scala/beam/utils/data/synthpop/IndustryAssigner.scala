@@ -1,5 +1,6 @@
 package beam.utils.data.synthpop
 
+import beam.utils.ProfilingUtils
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
@@ -16,7 +17,7 @@ object IndustryAssigner {
     val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPP), Set("36", "34"))
 
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
-    println(s"Read ${odList.size}")
+    println(s"Read ${odList.size} OD pairs from industry table")
 
     val tazToTazCounts: Map[(String, String), Int] = odList
       .groupBy { od =>
@@ -25,13 +26,15 @@ object IndustryAssigner {
       .map { case (key, xs) => key -> xs.size }
     println(s"tazToTazCounts: ${tazToTazCounts.keys.size}")
 
-    val homeWorkActivities = CsvPlanElementReader
-      .read(pathToPlans)
-      .filter { plan =>
-        plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(
-          act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
-        )
-      }
+    val homeWorkActivities = ProfilingUtils.timed("Read plans", println) {
+      CsvPlanElementReader
+        .read(pathToPlans)
+        .filter { plan =>
+          plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(
+            act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
+          )
+        }
+    }
     println(s"Read ${homeWorkActivities.length} home-work activities")
 
     val homeGeoIdToWorkGeoId = homeWorkActivities
