@@ -169,8 +169,8 @@ class BeamSim @Inject()(
     eventsManager.addHandler(transitOccupancyByStop)
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
-    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     eventsManager.addHandler(travelTimeGoogleStatistic)
+    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
