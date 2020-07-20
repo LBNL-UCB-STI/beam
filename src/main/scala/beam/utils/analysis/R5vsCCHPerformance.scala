@@ -66,14 +66,20 @@ object R5vsCCHPerformance extends BeamHelper {
     FileUtils.createDirectoryIfNotExists(outputDir)
 
     val ods = readPlans(arguments.plansLocation.get)
+    val odsCount = ods.size
+    logger.info(s"*R5vsGH* Origin-Destination pairs count: $odsCount")
 
     // R5
     val r5Responses = ListBuffer.empty[RoutingResponse]
-    ProfilingUtils.timed("R5 performance check", x => logger.info(x)) {
+    ProfilingUtils.timed("*R5* performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
         val (origin, dest) = p
         i += 1
+
+        if (i % 1000 == 0) {
+          logger.info(s"*R5* ODs processed: $i of $odsCount (${math floor (100.0 * i / odsCount)}%)")
+        }
 
         val carStreetVehicle = getStreetVehicle(
           s"dummy-car-for-r5-vs-cch-$i",
@@ -90,7 +96,7 @@ object R5vsCCHPerformance extends BeamHelper {
         r5Responses += r5Wrapper.calcRoute(req)
       }
     }
-    logger.info("R5 performance check completed. Routes count: {}", r5Responses.size)
+    logger.info("*R5* performance check completed. Routes count: {}", r5Responses.size)
 
     r5Responses.zipWithIndex.foreach { case (r5Resp, r5RespIdx) =>
       val r5GpxPoints: Seq[GpxPoint] = for {
@@ -122,10 +128,14 @@ object R5vsCCHPerformance extends BeamHelper {
         val (origin, dest) = p
         i += 1
 
+        if (i % 1000 == 0) {
+          logger.info(s"*GH* ODs processed: $i of $odsCount (${math floor (100.0 * i / odsCount)}%)")
+        }
+
         ghResponses += gh.route(utm2Wgs.transform(origin), utm2Wgs.transform(dest))
       }
     }
-    logger.info("GH performance check completed. Routes count: {}", ghResponses.size)
+    logger.info("*GH* performance check completed. Routes count: {}", ghResponses.size)
 
     var ghFailures: Int = 0
     ghResponses.zipWithIndex.foreach { case (ghResp, ghRespIdx) =>
@@ -219,5 +229,4 @@ object R5vsCCHPerformance extends BeamHelper {
 
     buffer
   }
-
 }
