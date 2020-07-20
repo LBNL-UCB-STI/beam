@@ -22,8 +22,8 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
 
       handler.notifyIterationEnds(new IterationEndsEvent(beamServices.matsimServices, 0))
 
-      checkFileExistenceInRoot("averageCarSpeed.csv")
-      checkFileExistenceInRoot("averageCarSpeed.png")
+      checkFileExistenceInRoot("AverageCarSpeed.csv")
+      checkFileExistenceInRoot("AverageCarSpeed.png")
       checkFileExistenceInRoot("CarTravelTime.csv")
       checkFileExistenceInRoot("CarTravelDistance.csv")
       checkFileExistenceInRoot("CarSpeed.csv")
@@ -35,13 +35,13 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
       checkFileExistenceInIterFolder("CarRideStats.personal.csv.gz", 0)
       checkFileExistenceInIterFolder("CarRideStats.cav.csv.gz", 0)
 
-      checkFileExistenceInIterFolder("AverageSpeed.ridehail.png", 0)
-      checkFileExistenceInIterFolder("AverageSpeed.personal.png", 0)
-      checkFileExistenceInIterFolder("AverageSpeed.cav.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeed.RideHail.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeed.Personal.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeed.CAV.png", 0)
 
-      checkFileExistenceInIterFolder("AverageSpeedPercentage.ridehail.png", 0)
-      checkFileExistenceInIterFolder("AverageSpeedPercentage.personal.png", 0)
-      checkFileExistenceInIterFolder("AverageSpeedPercentage.cav.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.RideHail.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.Personal.png", 0)
+      checkFileExistenceInIterFolder("AverageSpeedPercentage.CAV.png", 0)
 
     }
   }
