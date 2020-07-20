@@ -85,7 +85,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
-      legRouteLinks = linkIds
+      legRouteLinks = linkIds,
+      geoId = Option(rec.get("geoId"))
     )
   }
 
