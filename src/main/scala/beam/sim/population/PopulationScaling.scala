@@ -4,9 +4,11 @@ import java.io.{Closeable, File, FileWriter}
 
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.WeightedRandomBag
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.util.{Pair => PPair}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
@@ -217,8 +219,9 @@ class PopulationScaling extends LazyLogging {
     val removeAgent = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removeAgent
     if (removeAgent) {
       val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
+      val rng: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
       if (new File(industryFile).exists()) {
-        removePerson(scenario, industryFile)
+        removePerson(scenario, industryFile, rng)
       } else {
         logger.warn("Industry probability file not available!!!")
       }
@@ -227,25 +230,32 @@ class PopulationScaling extends LazyLogging {
     }
   }
 
-  def removePerson(scenario: MutableScenario, filePath: String): Unit = {
-
-    val weightedRandomBag = new WeightedRandomBag[Person]()
+  def removePerson(scenario: MutableScenario, filePath: String, rng: MersenneTwister): Unit = {
     val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
       GenericCsvReader.readAs[mutable.Map[String, String]](filePath, rec => rec.asScala, _ => true)
     try {
       val industrialProbability = iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
-      val persons = scenario.getPopulation.getPersons.values()
-      persons.forEach(person => {
-        val industry = person.getAttributes.getAttribute("industry").toString
-        val probability = industrialProbability.getOrElse(industry, 0.0)
-        weightedRandomBag.addEntry(person, probability)
-      })
-      val removalItemSize = persons.asScala
+      val persons = scenario.getPopulation.getPersons.values().asScala
+
+      //Build persons probability
+      val personDistributionPair = persons
+        .map(person => {
+          val industry = person.getAttributes.getAttribute("industry").toString
+          val probability = industrialProbability.getOrElse(industry, 0.0)
+          new PPair[Person, java.lang.Double](person, probability)
+        })
+        .toVector
+
+      val enumeratedDistribution = new EnumeratedDistribution[Person](rng, personDistributionPair.asJava)
+
+      //Calculate number of persons to be removed from population
+      val removalItemSize = persons
         .groupBy(_.getAttributes.getAttribute("industry").toString)
         .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
         .sum
+
       (0 until Math.round(removalItemSize.toFloat)).map { _ =>
-        val person = weightedRandomBag.getRandom
+        val person = enumeratedDistribution.sample()
         scenario.getPopulation.getPersons.remove(person.getId)
       }
     } finally {
