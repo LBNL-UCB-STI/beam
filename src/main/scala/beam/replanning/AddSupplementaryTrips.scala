@@ -32,6 +32,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
 
       if (newPlan.getPlanElements.size > 1) {
+        person.getPlans.remove(person.getSelectedPlan)
         person.addPlan(newPlan)
         person.setSelectedPlan(newPlan)
       }
@@ -86,7 +87,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     activity: Activity
   ): List[Activity] = {
     val startTime = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
-    val endTime = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    val endTime = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 30 }
 
     val newStartTime = (endTime - startTime) / 2 - 1 + startTime
     val newEndTime = (endTime - startTime) / 2 + 1 + startTime
