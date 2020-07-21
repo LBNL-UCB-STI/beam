@@ -13,6 +13,7 @@ import beam.router.graphhopper.GraphHopperRouteResolver
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
+import beam.utils.csv.CsvWriter
 import beam.utils.map.{GpxPoint, GpxWriter}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.conveyal.osmlib.OSM
@@ -64,6 +65,8 @@ object R5vsCCHPerformance extends BeamHelper {
 
     val outputDir = s"${workerParams.beamConfig.beam.outputs.baseOutputDirectory}/R5vsGH__$timestampStr"
     FileUtils.createDirectoryIfNotExists(outputDir)
+    val gpxOutputDir = s"$outputDir/gpx"
+    FileUtils.createDirectoryIfNotExists(gpxOutputDir)
 
     val ods = readPlans(arguments.plansLocation.get)
     val odsCount = ods.size
@@ -71,6 +74,7 @@ object R5vsCCHPerformance extends BeamHelper {
 
     // R5
     val r5Responses = ListBuffer.empty[RoutingResponse]
+    val r5Stats = ListBuffer.empty[ResultRouteStats]
     ProfilingUtils.timed("*R5* performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
@@ -93,7 +97,28 @@ object R5vsCCHPerformance extends BeamHelper {
           streetVehicles = Vector(carStreetVehicle),
           withTransit = false
         )
-        r5Responses += r5Wrapper.calcRoute(req)
+        val (r5Resp, computationTime) = ProfilingUtils.timed { r5Wrapper.calcRoute(req) }
+        r5Responses += r5Resp
+
+        val (distance, travelTime) = r5Resp.itineraries
+          .take(1)
+          .flatMap(_.legs)
+          .foldLeft((0.0, 0)) {  // collect distance and travel time
+            (distanceTimeAcc, leg) =>
+              val (distanceAcc, timeAcc) = distanceTimeAcc
+
+              val legDistance = leg.beamLeg.travelPath.distanceInM
+              val legDuration = leg.beamLeg.duration  // time is in seconds
+
+              (distanceAcc + legDistance, timeAcc + legDuration)
+          }
+
+        r5Stats += ResultRouteStats(
+          idx             = i,
+          distance        = distance,
+          travelTime      = travelTime,
+          computationTime = computationTime
+        )
       }
     }
     logger.info("*R5* performance check completed. Routes count: {}", r5Responses.size)
@@ -107,7 +132,7 @@ object R5vsCCHPerformance extends BeamHelper {
         wgsCoord  = utm2Wgs.transform(link.getCoord)
       } yield GpxPoint(s"$linkId", wgsCoord)
 
-      val r5GpxFile = outputDir + s"/r5_$r5RespIdx.gpx"
+      val r5GpxFile = gpxOutputDir + s"/r5_$r5RespIdx.gpx"
       GpxWriter.write(r5GpxFile, r5GpxPoints)
     }
 
@@ -122,17 +147,27 @@ object R5vsCCHPerformance extends BeamHelper {
     val gh = new GraphHopperRouteResolver(ghLocation)
 
     val ghResponses = ListBuffer.empty[GHResponse]
+    val ghStats = ListBuffer.empty[ResultRouteStats]
     ProfilingUtils.timed("*GH* performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
-        val (origin, dest) = p
         i += 1
 
         if (i % 1000 == 0) {
           logger.info(s"*GH* ODs processed: $i of $odsCount (${math floor (100.0 * i / odsCount)}%)")
         }
 
-        ghResponses += gh.route(utm2Wgs.transform(origin), utm2Wgs.transform(dest))
+        val (origin, dest) = p
+        val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
+        val (ghResp, computationTime) = ProfilingUtils.timed { gh.route(origWgs, destWgs) }
+        ghResponses += ghResp
+
+        ghStats += ResultRouteStats(
+          idx             = i,
+          distance        = ghResp.getBest.getDistance,
+          travelTime      = ghResp.getBest.getTime / 1000,  // time is in millis
+          computationTime = computationTime
+        )
       }
     }
     logger.info("*GH* performance check completed. Routes count: {}", ghResponses.size)
@@ -150,13 +185,20 @@ object R5vsCCHPerformance extends BeamHelper {
         (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
       } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
 
-      val ghGpxFile = outputDir + s"/gh_$ghRespIdx.gpx"
+      val ghGpxFile = gpxOutputDir + s"/gh_$ghRespIdx.gpx"
       GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
     }
 
     logger.info(s"GraphHopper routing errors count: $ghFailures")
-  }
 
+    val r5StatsOutput = s"$outputDir/r5_stats.csv"
+    writeStatsCsv(r5StatsOutput, r5Stats)
+    logger.info(s"*R5* stats written to: $r5StatsOutput")
+
+    val ghStatsOutput = s"$outputDir/gh_stats.csv"
+    writeStatsCsv(ghStatsOutput, ghStats)
+    logger.info(s"*GH* stats written to: $ghStatsOutput")
+  }
 
   //noinspection SameParameterValue
   private def getStreetVehicle(id: String, beamMode: BeamMode, location: Location): StreetVehicle = {
@@ -228,5 +270,23 @@ object R5vsCCHPerformance extends BeamHelper {
     }
 
     buffer
+  }
+
+  private val statsHeaders = IndexedSeq("idx", "distance", "travelTime", "computationTime")
+
+  private case class ResultRouteStats(
+    idx: Int,
+    distance: Double,
+    travelTime: Long,
+    computationTime: Long
+  ) {
+    def asCsvRow: IndexedSeq[String] =
+      IndexedSeq(s"$idx", s"$distance", s"$travelTime", s"$computationTime")
+  }
+
+  private def writeStatsCsv(path: String, stats: Seq[ResultRouteStats]): Unit = {
+    FileUtils.using(new CsvWriter(path, statsHeaders)) { csv =>
+      stats.foreach { s => csv.writeRow(s.asCsvRow) }
+    }
   }
 }
