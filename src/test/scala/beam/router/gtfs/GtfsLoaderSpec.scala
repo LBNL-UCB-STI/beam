@@ -56,7 +56,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset1 shouldBe 0
 
         val (trip2, offset2) = repeatingTrips("R2-SOUTH-1")(1)
-        trip2.trip.getId.getId should startWith("R2-SOUTH-1-clone")
+        trip2.trip.getId.getId shouldBe "R2-SOUTH-1-clone-1"
         trip2.stopTimes.map(_.getArrivalTime) shouldBe Seq(53220, 54120)
         trip2.stopTimes.map(_.getDepartureTime) shouldBe Seq(53880, 54780)
         offset2 shouldBe 32280
@@ -116,7 +116,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset1 shouldBe 0
 
         val (trip2, offset2) = repeatingTrips("B1-EAST-1")(1)
-        trip2.trip.getId.getId should startWith("B1-EAST-1-clone")
+        trip2.trip.getId.getId shouldBe "B1-EAST-1-clone-1"
         trip2.stopTimes.map(_.getArrivalTime) shouldBe Seq(23280, 23490, 23700, 23910, 24120)
         trip2.stopTimes.map(_.getDepartureTime) shouldBe Seq(23400, 23610, 23820, 24030, 24240)
         offset2 shouldBe 1800
@@ -128,7 +128,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset3 shouldBe 3600
 
         val (trip4, offset4) = repeatingTrips("B1-EAST-1")(3)
-        trip4.trip.getId.getId should startWith("B1-EAST-2-clone")
+        trip4.trip.getId.getId shouldBe "B1-EAST-2-clone-1"
         trip4.stopTimes.map(_.getArrivalTime) shouldBe Seq(55320, 55530, 55740, 55950, 56160)
         trip4.stopTimes.map(_.getDepartureTime) shouldBe Seq(55440, 55650, 55860, 56070, 56280)
         offset4 shouldBe 33840
@@ -267,7 +267,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset1 shouldBe 0
 
         val (trip1c, offset1c) = repeatingTrips("GO506_20_7614")(1)
-        trip1c.trip.getId.getId should startWith("GO506_20_7614-clone")
+        trip1c.trip.getId.getId shouldBe "GO506_20_7614-clone-1"
         trip1c.stopTimes.map(_.getArrivalTime) shouldBe Seq(
           28260, 29520, 30420, 30540, 30840, 31140, 31560, 31860, 32280
         )
@@ -287,7 +287,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset2 shouldBe 3600
 
         val (trip2c, offset2c) = repeatingTrips("GO506_20_7614")(3)
-        trip2c.trip.getId.getId should startWith("GO506_20_7618-clone")
+        trip2c.trip.getId.getId shouldBe "GO506_20_7618-clone-1"
         trip2c.stopTimes.map(_.getArrivalTime) shouldBe Seq(
           31860, 33120, 34020, 34140, 34440, 34740, 35160, 35460, 35880
         )
@@ -307,7 +307,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset16 shouldBe 54000
 
         val (trip16c, offset16c) = repeatingTrips("GO506_20_7614")(31)
-        trip16c.trip.getId.getId should startWith("GO506_20_7742-clone")
+        trip16c.trip.getId.getId shouldBe "GO506_20_7742-clone-1"
         trip16c.stopTimes.map(_.getArrivalTime) shouldBe Seq(
           81420, 82680, 83580, 83700, 84000, 84300, 84720, 85020, 85440
         )

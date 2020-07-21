@@ -16,7 +16,6 @@ import org.onebusaway.gtfs_transformer.services.{EntityTransformStrategy, GtfsTr
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.util.Random
 
 /**
   * Loading of GTFS feeds should be done one-by-one, each for a separate instance of [[org.onebusaway.gtfs.services.GtfsRelationalDao]],
@@ -30,7 +29,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
 
   /**
     *
-    * @param gtfsFeed could be either zip filee or directory with GTFS data
+    * @param gtfsFeed could be either zip file or directory with GTFS data
     */
   def loadTripsFromGtfs(gtfsFeed: String): Seq[TripAndStopTimes] = {
     val dao = new GtfsRelationalDaoImpl
@@ -89,7 +88,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
                 && d.arrivalDiffs == diff.arrivalDiffs
                 && d.departureDiffs == diff.departureDiffs
                 && d.stops == diff.stops
-                && d.trip.trip.getServiceId == diff.trip.trip.getServiceId) // TODO parameter for it
+                && d.trip.trip.getServiceId == diff.trip.trip.getServiceId)
               }
               .map(d => (d.trip, diff.currentStopTime.getArrivalTime - d.currentStopTime.getArrivalTime))
               .getOrElse((diff.trip, 0))
@@ -105,90 +104,96 @@ class GtfsLoader(beamConfig: BeamConfig) {
       .repeatingTrips
   }
 
-  // TODO rename repeatingTrips -> (repeating)tripsWithOffsets
-  def doubleTripsStrategy(repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]]): GtfsTransformStrategy = {
+  def doubleTripsStrategy(
+    repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
+    multiplicator: Int = 2
+  ): GtfsTransformStrategy = {
     val strategy = new AddEntitiesTransformStrategy
-    val factor = 2
-    val lastStopArrivalTime = 86400 // seconds at midnight
+    val midnightArrivalTime = 86400 // seconds at midnight
 
-    repeatingTrips.foreach {
-      case (_, tripAndStopTimesWithOffset) =>
-        val trips = tripAndStopTimesWithOffset.map(_._1)
-        val lastTrip = trips.tail
-          .foldLeft(trips.head) {
-            case (previous, current) =>
-              val newTrip = createNewTrip(previous.trip)
+    repeatingTrips.values.foreach { tripAndStopTimesWithOffset =>
+      val trips = tripAndStopTimesWithOffset.map(_._1)
+      // doubling trips between first stop and the last but one
+      trips.tail
+        .zip(trips.init)
+        .foreach {
+          case (current, previous) =>
+            for (idx <- 1 until multiplicator) {
+              val newTrip = createNewTrip(previous.trip, idx)
               strategy.addEntity(newTrip)
 
               previous.stopTimes
                 .zip(current.stopTimes)
                 .foreach {
-                  case (lowStopTime, highStopTime) =>
+                  case (prevStopTime, curStopTime) =>
                     val newStopTime = createStopTime(
                       newTrip,
-                      lowStopTime.getDepartureTime + (highStopTime.getDepartureTime - lowStopTime.getDepartureTime) / factor,
-                      lowStopTime.getArrivalTime + (highStopTime.getArrivalTime - lowStopTime.getArrivalTime) / factor,
-                      lowStopTime.getStop,
-                      lowStopTime.getStopSequence
+                      prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / multiplicator * idx,
+                      prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / multiplicator * idx,
+                      prevStopTime.getStop,
+                      prevStopTime.getStopSequence
                     )
                     strategy.addEntity(newStopTime)
                 }
-              current
-          }
-        // TODO move it into recursion
-        val newTrip = createNewTrip(lastTrip.trip)
+            }
+            current
+        }
+      // doubling trips between last stop and the midnight
+      val lastTrip = trips.last
+      for { idx <- 1 until multiplicator } {
+        val newTrip = createNewTrip(trips.last.trip, idx)
         strategy.addEntity(newTrip)
 
         val lastStopTimes = lastTrip.stopTimes
-        val lastStopShift = lastStopArrivalTime - lastStopTimes.last.getArrivalTime
+        val lastStopShift = midnightArrivalTime - lastStopTimes.last.getArrivalTime
         lastStopTimes.foreach { stopTime =>
           val newStopTime = createStopTime(
             newTrip,
-            stopTime.getDepartureTime + lastStopShift / factor,
-            stopTime.getArrivalTime + lastStopShift / factor,
+            stopTime.getDepartureTime + lastStopShift / multiplicator * idx,
+            stopTime.getArrivalTime + lastStopShift / multiplicator * idx,
             stopTime.getStop,
             stopTime.getStopSequence
           )
           strategy.addEntity(newStopTime)
         }
+      }
     }
 
     strategy
   }
 
   def scaleTripsStrategy(
-    tripsWithOffsets: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
+    repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
     scale: Double
   ): GtfsTransformStrategy = {
     val strategy = new EntitiesTransformStrategy
 
-    tripsWithOffsets.foreach {
-      case (_, repeatingTrips) => {
-        repeatingTrips.map(_._1).foreach { trip =>
-          // calculate new stop times (without first stop time - it remains as original)
-          val offsetsBetweenStopTimes = trip.stopTimes.tail
-            .zip(trip.stopTimes.init)
-            .map {
-              case (current, previous) =>
-                (
-                  ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
-                  ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
-                )
-            }
-          // mutate all stop times and append their modifications to the strategy
-          trip.stopTimes.tail
-            .zip(trip.stopTimes.init)
-            .zip(offsetsBetweenStopTimes)
-            .map {
-              case ((current, previous), (arrivalOffset, departureOffset)) =>
-                current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
-                current.setDepartureTime(previous.getDepartureTime + departureOffset)
-                strategy.addModification(
-                  new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
-                  new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
-                )
-            }
-        }
+    repeatingTrips.values.foreach { tripAndStopTimesWithOffset =>
+      val trips = tripAndStopTimesWithOffset.map(_._1)
+      trips.foreach { trip =>
+        // calculate new stop times (without first stop time - it remains as original)
+        val offsetsBetweenStopTimes = trip.stopTimes.tail
+          .zip(trip.stopTimes.init)
+          .map {
+            case (current, previous) =>
+              (
+                ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
+                ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
+              )
+          }
+        // mutate all stop times and append their modifications to the strategy
+        trip.stopTimes.tail
+          .zip(trip.stopTimes.init)
+          .zip(offsetsBetweenStopTimes)
+          .map {
+            case ((current, previous), (arrivalOffset, departureOffset)) =>
+              current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
+              current.setDepartureTime(previous.getDepartureTime + departureOffset)
+              strategy.addModification(
+                new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
+                new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
+              )
+          }
       }
     }
     strategy
@@ -210,9 +215,9 @@ class GtfsLoader(beamConfig: BeamConfig) {
     stopTime
   }
 
-  private def createNewTrip(trip: Trip): Trip = {
+  private def createNewTrip(trip: Trip, idx: Int): Trip = {
     val newTrip = new Trip(trip)
-    newTrip.setId(new AgencyAndId(trip.getId.getAgencyId, trip.getId.getId + "-clone" + Random.nextInt(100)))
+    newTrip.setId(new AgencyAndId(trip.getId.getAgencyId, s"${trip.getId.getId}-clone-$idx"))
     newTrip
   }
 
