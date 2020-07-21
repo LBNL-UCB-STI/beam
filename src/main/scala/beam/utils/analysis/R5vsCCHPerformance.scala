@@ -122,7 +122,7 @@ object R5vsCCHPerformance extends BeamHelper {
     val gh = new GraphHopperRouteResolver(ghLocation)
 
     val ghResponses = ListBuffer.empty[GHResponse]
-    ProfilingUtils.timed("GH performance check", x => logger.info(x)) {
+    ProfilingUtils.timed("*GH* performance check", x => logger.info(x)) {
       var i: Int = 0
       ods.foreach { p =>
         val (origin, dest) = p
