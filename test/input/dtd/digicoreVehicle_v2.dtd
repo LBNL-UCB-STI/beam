@@ -43,7 +43,7 @@
 
 <!ELEMENT position					    EMPTY>
 <!ATTLIST position
-		  time			CDATA		#REQUIRED
+		  queueStartTime			CDATA		#REQUIRED
 		  x				CDATA		#REQUIRED
 		  y				CDATA		#REQUIRED>
 		  

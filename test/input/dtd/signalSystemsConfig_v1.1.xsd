@@ -67,7 +67,7 @@ the simulation -->
 						<xs:documentation>A signal system's plan based control is given by one or more plans per
 						signal group. Which signal groups are controled by a plan based system can be determined
 						by examining the plans.
-						The system can switch to a new plan by time of day or by adaptive control
+						The system can switch to a new plan by queueStartTime of day or by adaptive control
 						mechanisms.</xs:documentation>
 					</xs:annotation>
 				</xs:element>
@@ -136,23 +136,23 @@ the simulation -->
   		<xs:sequence>
 				<xs:element name="start">
 					<xs:annotation>
-						<xs:documentation>At which time of day to start using this plan</xs:documentation>
+						<xs:documentation>At which queueStartTime of day to start using this plan</xs:documentation>
 					</xs:annotation>
 					<xs:complexType>
-						<xs:attribute name="daytime" type="xs:time" use="required"/>
+						<xs:attribute name="daytime" type="xs:queueStartTime" use="required"/>
 					</xs:complexType>
   			</xs:element>
 				<xs:element name="stop">
 					<xs:annotation>
-						<xs:documentation>At which time of day to stop using this plan</xs:documentation>
+						<xs:documentation>At which queueStartTime of day to stop using this plan</xs:documentation>
 					</xs:annotation>
 					<xs:complexType>
-						<xs:attribute name="daytime" type="xs:time" use="required"/>
+						<xs:attribute name="daytime" type="xs:queueStartTime" use="required"/>
 					</xs:complexType>
   			</xs:element>
     		<xs:element name="cycleTime">
 		    	<xs:annotation>
-    				<xs:documentation>The time in seconds needed to process this plan.</xs:documentation>
+    				<xs:documentation>The queueStartTime in seconds needed to process this plan.</xs:documentation>
     			</xs:annotation>
 					<xs:complexType>
 					  <xs:attribute name="sec" type="xs:nonNegativeInteger" use="required"/>
@@ -160,7 +160,7 @@ the simulation -->
    		 	</xs:element>
 				<xs:element name="synchronizationOffset" minOccurs="0" maxOccurs="1" >
     			<xs:annotation>
-		    		<xs:documentation>The second of the circulation time which is used
+		    		<xs:documentation>The second of the circulation queueStartTime which is used
     				for synchronization.</xs:documentation>
     			</xs:annotation>
 		  		<xs:complexType>
@@ -169,7 +169,7 @@ the simulation -->
    		 </xs:element>
 			 <xs:element name="powerOnTime" minOccurs="0" maxOccurs="1" >
     			<xs:annotation>
-    				<xs:documentation>The second of the circulation time which specifies where
+    				<xs:documentation>The second of the circulation queueStartTime which specifies where
     				to start in the plan when the signal system is starting to work.</xs:documentation>
     			</xs:annotation>
 	 		 		<xs:complexType>
@@ -178,7 +178,7 @@ the simulation -->
     		</xs:element>
 		    <xs:element name="powerOffTime" minOccurs="0" maxOccurs="1">
     			<xs:annotation>
-    				<xs:documentation>The second of the circulation time which specifies where
+    				<xs:documentation>The second of the circulation queueStartTime which specifies where
     				to stop in the plan when the signal system is switched off.</xs:documentation>
 		    	</xs:annotation>
     			<xs:complexType>

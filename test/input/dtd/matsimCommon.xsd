@@ -52,14 +52,14 @@ xml:lang="en">
 
 <xs:complexType name="matsimTimeAttributeType">
   <xs:annotation>
-    <xs:documentation>Convenience type for attributes specifying a time in seconds</xs:documentation>  
+    <xs:documentation>Convenience type for attributes specifying a queueStartTime in seconds</xs:documentation>
   </xs:annotation>
   <xs:attribute name="seconds" type="xs:double" use="required"></xs:attribute>
 </xs:complexType>
 
 <xs:simpleType name="matsimFormattedTimeAttributeType">
 	<xs:annotation>
-		<xs:documentation>Like xs:time but allows hours > 24</xs:documentation>
+		<xs:documentation>Like xs:queueStartTime but allows hours > 24</xs:documentation>
 	</xs:annotation>
  	<xs:restriction base="xs:string">
  		<xs:pattern value="[0-9]+[0-9]:[0-5][0-9]:[0-5][0-9]" />

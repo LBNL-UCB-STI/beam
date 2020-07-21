@@ -43,7 +43,7 @@ public class TravelTimeCalculatorHelper {
             int idx = getOffset(time);
             if (idx >= timePerHour.length) {
                 if(ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)) {
-                    log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, time: {},  _timeBinSizeInSeconds: '{}'",
+                    log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, queueStartTime: {},  _timeBinSizeInSeconds: '{}'",
                             linkId, idx, time, _timeBinSizeInSeconds);
                 }
                 return link.getFreespeed();

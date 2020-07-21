@@ -43,7 +43,7 @@ class CountsDeviation(object):
             print "WARNING: missing data"
             print
 
-        # Now, if no data is missing, roll up the time bins to whatever specified by time_incr
+        # Now, if no data is missing, roll up the queueStartTime bins to whatever specified by time_incr
         # if not(self.missing) and time_incr not in ['5min', '5Min']:
         # if time_incr not in ['5min', '5Min']:
         #     self.ts.index = self.ts.index.to_datetime()

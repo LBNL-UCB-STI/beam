@@ -90,7 +90,7 @@ def match_links(data_df, shape_path, EPSG, radius, x_col='Longitude', y_col='Lat
     data_df['x'], data_df['y'], data_df['Link'], data_df['ds'] = '', '', 0.0, 0.0
     data_df[['x', 'y']] = map(convert, data_df[x_col], data_df[y_col])
     t = time.time() - t0
-    print 'time: ', t, '\n'
+    print 'queueStartTime: ', t, '\n'
     print 'Sensors Ready...\n'
 
     ##
@@ -124,7 +124,7 @@ def match_links(data_df, shape_path, EPSG, radius, x_col='Longitude', y_col='Lat
                    obj=[row['properties']['ID'], row['geometry']])
 
     t = time.time() - t0
-    print 'time: ', t, '\n'
+    print 'queueStartTime: ', t, '\n'
     print 'Lines Ready... \n'
 
     t0 = time.time()
@@ -179,7 +179,7 @@ def match_links(data_df, shape_path, EPSG, radius, x_col='Longitude', y_col='Lat
         matched['Link'] = [lk for lk in matched['Link']] # convert to int
         matched.to_csv(output_file, columns=[station_col, 'Link', 'ds', y_col, x_col], index=False)
     t = time.time() - t0
-    print 'time: ', t, '\n'
+    print 'queueStartTime: ', t, '\n'
     print 'CSV Ready!'
 
     print 'Overall Time: ', time.time() - t00
@@ -206,9 +206,9 @@ def create_MTC_counts(mtc_df, matched_df, flow_type, template_file, counts_name,
     :param counts_year: (int) Year of counts data to be used in root attributes of counts.xml
     :param out_file: (str) Path and name of output counts file. Defaults to counts.xml
     :return: ([DataFrame, DataFrame]) Returns the ouput of the call to count_ts. The first DataFrame is the desired
-    time series output. The second is a DataFrame of stations that were excluded and the reason why.
+    queueStartTime series output. The second is a DataFrame of stations that were excluded and the reason why.
     """
-    # Create filtere time series for each station
+    # Create filtere queueStartTime series for each station
     ts_df, filter_df = counts_ts(mtc_df, matched_df, flow_type)
 
     # Initialize the ElementTree using the template. Update the attributes for the root, <counts>
@@ -260,7 +260,7 @@ def counts_ts(mtc_df, matched_df, flow_type, stat_id='station'):
     :param flow_type: (str) Flags whether to create a counts file of mean or median hourly values. Acceptable values are
     "avg_flow" or "median_flow".
     :param stat_id: (str) Name of column with the station ids.
-    :return: ([DataFrame, DataFrame]) The first DataFrame is the desired time series output. The second is a DataFrame of
+    :return: ([DataFrame, DataFrame]) The first DataFrame is the desired queueStartTime series output. The second is a DataFrame of
     stations that were excluded and the reason why.
     """
 
@@ -313,7 +313,7 @@ def create_PeMS_Tools_counts_multiday(station_TS_dir, stat_link_map_file, date_l
     :param aggregation: ([str]) List of Pandas methods of aggregation  to use(mean, median or std only acceptable values).
     :param out_file: (str) Path and name of output counts file. Defaults to counts.xml
     :return: ([DataFrame, DataFrame]) Returns the ouput of the call to count_ts. The first DataFrame is the desired
-    time series output. The second is a DataFrame of stations that were excluded and the reason why.
+    queueStartTime series output. The second is a DataFrame of stations that were excluded and the reason why.
     """
 
     # Initialize the ElementTree
@@ -330,7 +330,7 @@ def create_PeMS_Tools_counts_multiday(station_TS_dir, stat_link_map_file, date_l
     id_map.index = [str(i) for i in id_map.index]  # convert index back to string for easy lookups below
 
 
-    # Move through all the time series directories and add the sensor if data available.
+    # Move through all the queueStartTime series directories and add the sensor if data available.
     orig_dir = os.getcwd()
     os.chdir(station_TS_dir)
     stations = [n for n in os.listdir('.') if n.isdigit()]  # list of all station folder names
@@ -388,7 +388,7 @@ def create_PeMS_Tools_counts_measures(station_TS_dir, stat_link_map_file, date_l
     :param aggregation_list: ([str]) List of Pandas methods of aggregation  to use(mean, median or std only acceptable values).
     :param out_prefix: (str) Path and name of output counts file. Defaults to counts.xml
     :return: ([DataFrame, DataFrame]) Returns the ouput of the call to count_ts. The first DataFrame is the desired
-    time series output. The second is a DataFrame of stations that were excluded and the reason why.
+    queueStartTime series output. The second is a DataFrame of stations that were excluded and the reason why.
     """
 
     # Create a list of trees, one for each aggregation measure
@@ -408,7 +408,7 @@ def create_PeMS_Tools_counts_measures(station_TS_dir, stat_link_map_file, date_l
     id_map = pd.read_csv(stat_link_map_file, index_col='ID', dtype='string')
     id_map.index = [str(i) for i in id_map.index]  # convert index back to string for easy lookups below
 
-    # Move through all the time series directories and add the sensor if data available.
+    # Move through all the queueStartTime series directories and add the sensor if data available.
     orig_dir = os.getcwd()
     os.chdir(station_TS_dir)
     stations = [n for n in os.listdir('.') if n.isdigit()]  # list of all station folder names
@@ -521,7 +521,7 @@ def validate_screenline(link_ids, aggr_hours, counts_df, counts_col, facility_na
     """
 
     :param link_ids: ([int]) List of the IDs of the MATSim network links.
-    :param aggr_hours: ([int]) Defines the hours to be included in aggregation. Uses 24-hr time. First hour is 1, last
+    :param aggr_hours: ([int]) Defines the hours to be included in aggregation. Uses 24-hr queueStartTime. First hour is 1, last
     is 24.
     :param counts_df: (pd.DataFrame) DataFrame of the MATSim counts validation output. DF has not been processed
     significantly after running pd.read_csv.

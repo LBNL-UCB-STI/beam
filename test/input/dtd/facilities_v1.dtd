@@ -85,8 +85,8 @@
 
 <!-- ELEMENT capacity:
      A cell can hold a limited capacity per activity.
-     A capacity is the maximum number of something in a given time range,
-     e.g. number of costumers shopping at the same time or number of
+     A capacity is the maximum number of something in a given queueStartTime range,
+     e.g. number of costumers shopping at the same queueStartTime or number of
      workplaces.
      If this element is not specified, then the capacity of the defined
      activity is unlimited. -->
@@ -102,19 +102,19 @@
      times describing on what times the facility is open and therefore
      accessible.
      The opening times are specified on a daily basis for maximum week periods.
-     If no opentime element is specified, the facility is closed all the time.
-     To make a facility open all the time, include the following opentime
+     If no opentime element is specified, the facility is closed all the queueStartTime.
+     To make a facility open all the queueStartTime, include the following opentime
      element:
      <opentime day="wk" start_time="00:00" end_time="24:00" /> -->
 
 <!-- ATTRIBUTE day:
      A schedule can be set for a single day, for all weekdays,
      the weekend or for the whole week. Schedules for single days always
-     override schedules for time ranges, e.g. a "mon" schedule for
+     override schedules for queueStartTime ranges, e.g. a "mon" schedule for
      Monday overrides weekday or whole week schedules.
 
      ATTENTION: for a given facility, schedules must
-     not overlap in time. I.e.
+     not overlap in queueStartTime. I.e.
        <opentime day="mon" start_time="09:00" end_time="14:00" />
        <opentime day="mon" start_time="11:00" end_time="18:00" />
      is not allowed.

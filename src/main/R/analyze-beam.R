@@ -167,7 +167,7 @@ for(outs.exp in outs.exps){
   # Default Plots 
   ###########################
 
-  # VMT by time and mode
+  # VMT by queueStartTime and mode
   #ggplot(ev[J('PathTraversal')][!vehicle_type%in%c('Ferry','Caltrain'),.(vmt=sum(length/1609)),by=c('hr','level','vehicle_type')],aes(x=hr,y=vmt))+geom_bar(stat='identity')+facet_grid(level~vehicle_type)+labs(x="Hour",y="Vehicle Miles Traveled")
   p <- ggplot(ev[J('PathTraversal')][!vehicle_type%in%c('Ferry','Caltrain'),.(vmt=sum(length/1609)),by=c('hr','level','vehicle_type')],aes(x=hr,y=vmt,fill=vehicle_type))+geom_bar(stat='identity',position='stack')+facet_wrap(~level)+labs(x="Hour",y="Vehicle Miles Traveled",fill="Vehicle Type",title=to.title(outs.exp))
   pdf.scale <- .6
@@ -240,7 +240,7 @@ for(outs.exp in outs.exps){
 # BART tracks
 #ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
 
-# Beam leg by time and mode
+# Beam leg by queueStartTime and mode
 ggplot(ev[J('PathTraversal')],aes(x=time/3600))+geom_histogram()+facet_wrap(name~vehicle_type)+labs(x="Hour",y="# Vehicle Movements")
 setkey(ev,level,vehicle_type)
 ggplot(ev[J('PathTraversal')][,.(num=length(num_passengers)),by=c('hr','vehicle_type','level')],aes(x=hr,y=num))+geom_bar(stat='identity')+facet_grid(level~vehicle_type)+labs(x="Hour",y="Person Movements")

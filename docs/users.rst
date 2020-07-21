@@ -151,7 +151,7 @@ The outputs are written to the 'output' directory, should see results appear in 
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
 
-There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-graphs`.
+There is a way to watch real-queueStartTime graphs from a BEAM run, see :ref:`real-queueStartTime-graphs`.
 
 Running BEAM with Intellij IDE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -160,7 +160,7 @@ IntelliJ IDEA community edition is an open source IDE available for free. It can
 
 After successful download , run the executable and follow the installation wizard to install Intellij IDEA.
 
-When running the IDE for the first time , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
+When running the IDE for the first queueStartTime , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
 
 **Importing BEAM project into IDE**
 
@@ -192,7 +192,7 @@ Since BEAM is built with java/scala . A scala sdk module needs to be configured 
 
 **Running BEAM from IDE**
 
-BEAM requires some arguments to be specified during run-time like the scenario configuration.
+BEAM requires some arguments to be specified during run-queueStartTime like the scenario configuration.
 These configuration settings can be added as a run configuration inside the IDE.
 
 Steps to add a new configuration :
@@ -344,7 +344,7 @@ Calibration
 
 This section describes calibrating BEAM simulation outputs to achieve real-world targets (e.g., volumetric traffic
 counts, mode splits, transit boarding/alighting, etc.). A large number of parameters affect simulation behavior in
-complex ways such that grid-search tuning methods would be extremely time-consuming. Instead, BEAM uses SigOpt_,
+complex ways such that grid-search tuning methods would be extremely queueStartTime-consuming. Instead, BEAM uses SigOpt_,
 which uses Bayesian optimization to rapidly tune scenarios as well as analyze the sensitivity of target metrics to
 parameters.
 
@@ -487,25 +487,25 @@ Timezones and GTFS
 ------------------
 There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems. 
 
-BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers' minds, so they infer the time zone of the region being modeled from the "timezone" field in the "agency.txt" file in the first GTFS data archive that is parsed during the network building process.
+BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers' minds, so they infer the queueStartTime zone of the region being modeled from the "timezone" field in the "agency.txt" file in the first GTFS data archive that is parsed during the network building process.
 
 Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC. 
 
 Meanwhile, there is a parameter in beam, "beam.routing.baseDate" that is used to ensure that routing requests to R5 are send with the appropriate timestamp. This allows you to run BEAM using any sub-schedule in your GTFS archive. I.e. if your base date is a weekday, R5 will use the weekday schedules for transit, if it's a weekend day, then the weekend schedules will be used. 
 
-The time zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T00:00:00-07:00") must match the time zone in the GTFS archive(s) provided to R5.
+The queueStartTime zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T00:00:00-07:00") must match the queueStartTime zone in the GTFS archive(s) provided to R5.
 
-As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:
+As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a queueStartTime zone of Los Angeles. You can download a copy of this archive here:
 
 https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1
 
-But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. 
+But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local queueStartTime zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive.
 
 The date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
 
 One more word of caution. If you make changes to GTFS data, then make sure your properly zip the data back into an archive. You do this by selecting all of the individual text files and then right-click-compress. Do not compress the folder containing the GTFS files, if you do this, R5 will fail to read your data and will do so without any warning or errors.
 
-Finally, any time you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file "network.dat" under the "r5" sub-directory. This will signal to the R5 library to re-build the network.
+Finally, any queueStartTime you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file "network.dat" under the "r5" sub-directory. This will signal to the R5 library to re-build the network.
 
 
 Converting a MATSim Scenario to Run with BEAM
@@ -566,7 +566,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 * beam.spatial.boundingBoxBuffer = 10000 (meters to pad bounding box around the MATSim network when clipping the OSM network)
 
-* The BEAM parameter beam.routing.baseDate has a time zone (e.g. for PST one might use "2016-10-17T00:00:00-07:00"). This time zone must match the time zone in the GTFS data provided to the R5 router. As a default, we provide the latest GTFS data from the City of Sioux Falls ("siouxareametro-sd-us.zip". downloaded from transitland.org) with a timezone of America/Central. But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. Finally, the date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
+* The BEAM parameter beam.routing.baseDate has a queueStartTime zone (e.g. for PST one might use "2016-10-17T00:00:00-07:00"). This queueStartTime zone must match the queueStartTime zone in the GTFS data provided to the R5 router. As a default, we provide the latest GTFS data from the City of Sioux Falls ("siouxareametro-sd-us.zip". downloaded from transitland.org) with a timezone of America/Central. But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local queueStartTime zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. Finally, the date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
 
 8. Run the conversion tool
 

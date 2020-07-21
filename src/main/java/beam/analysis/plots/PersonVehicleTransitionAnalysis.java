@@ -22,7 +22,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     private Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
     private final Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
-    private static final String xAxisLabel = "time (binSize=<?> sec)";
+    private static final String xAxisLabel = "queueStartTime (binSize=<?> sec)";
     private final PlotGraph plotGraph = new PlotGraph();
     private final int binSize;
     private final int numOfBins;

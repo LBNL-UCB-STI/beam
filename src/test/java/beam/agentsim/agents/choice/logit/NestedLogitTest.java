@@ -14,7 +14,7 @@ public class NestedLogitTest extends TestCase {
                 + "		<elasticity>1</elasticity>"
                 + "		<utility>"
                 + "			<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
-                + "			<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
+                + "			<param name=\"queueStartTime\" type=\"MULTIPLIER\">1.0</param>"
                 + "			<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
                 + "		</utility>"
                 + "	</alternative>"
@@ -22,7 +22,7 @@ public class NestedLogitTest extends TestCase {
                 + "		<elasticity>1</elasticity>"
                 + "		<utility>"
                 + "			<param name=\"intercept\" type=\"INTERCEPT\">0.0</param>"
-                + "			<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
+                + "			<param name=\"queueStartTime\" type=\"MULTIPLIER\">1.0</param>"
                 + "			<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
                 + "		</utility>"
                 + "	</alternative>"
@@ -32,7 +32,7 @@ public class NestedLogitTest extends TestCase {
                 + "			<elasticity>0.5</elasticity>"
                 + "			<utility>"
                 + "				<param name=\"intercept\" type=\"INTERCEPT\">-1.0</param>"
-                + "				<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
+                + "				<param name=\"queueStartTime\" type=\"MULTIPLIER\">1.0</param>"
                 + "				<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
                 + "			</utility>"
                 + "		</alternative>"
@@ -40,7 +40,7 @@ public class NestedLogitTest extends TestCase {
                 + "			<elasticity>0.5</elasticity>"
                 + "			<utility>"
                 + "				<param name=\"intercept\" type=\"INTERCEPT\">-2.0</param>"
-                + "				<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
+                + "				<param name=\"queueStartTime\" type=\"MULTIPLIER\">1.0</param>"
                 + "				<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
                 + "			</utility>"
                 + "		</alternative>"
@@ -49,19 +49,19 @@ public class NestedLogitTest extends TestCase {
 
         LinkedHashMap<String, LinkedHashMap<String, Double>> inputData = new LinkedHashMap<>();
         LinkedHashMap<String, Double> altData = new LinkedHashMap<>();
-        altData.put("time", 5.0);
+        altData.put("queueStartTime", 5.0);
         altData.put("cost", 5.0);
         inputData.put("alternative1", altData);
         altData = new LinkedHashMap<>();
-        altData.put("time", 10.0);
+        altData.put("queueStartTime", 10.0);
         altData.put("cost", 0.0);
         inputData.put("alternative2", altData);
         altData = new LinkedHashMap<>();
-        altData.put("time", 0.0);
+        altData.put("queueStartTime", 0.0);
         altData.put("cost", 15.0);
         inputData.put("alternative3", altData);
         altData = new LinkedHashMap<>();
-        altData.put("time", 7.5);
+        altData.put("queueStartTime", 7.5);
         altData.put("cost", 2.5);
         inputData.put("alternative4", altData);
 

@@ -22,7 +22,7 @@ class BeamVehicle {
   length: Double
   locationManager: LocationManager
   powertrain: Powertrain
-  location(time) -> match carrier { \n\tSome=>carrier.location\n\tNone=>locationManager.getLocation(time) )\n}
+  location(queueStartTime) -> match carrier { \n\tSome=>carrier.location\n\tNone=>locationManager.getLocation(queueStartTime) )\n}
 }
 
 'Either make this an actor or remove and have trajectory under VehAgent
@@ -32,12 +32,12 @@ class LocationManager {
 
 class Trajectory {
    table: SomeIndexedTable<SpacetimeCoord>
-   getLocation(time) -> table.interpolate(time)
+   getLocation(queueStartTime) -> table.interpolate(queueStartTime)
    appendToTrajectory(List<SpacetimeCoord>)
 }
 
 class SpacetimeCoord {
-    time: double
+    queueStartTime: double
     coord: org.matsim.api.core.v01.Coord
 }
 

@@ -15,7 +15,7 @@ These key features are summarized here and described in further detail below:
 
 * **Resource Markets** While BEAM can be used as a tool for modeling and analyzing the detailed operations of a transportation system, it is designed primarily as an approach to modeling resource markets in the transportation sector. The transportation system is composed of several sets of mobility resources that are in limited supply (e.g. road capacities, vehicle seating, ride hail fleet availability, refueling infrastructure). By adopting the MATSim utility maximization approach to achieving user equilibrium for traffic modeling, BEAM is able to find the corresponding equilibrium point across all resource markets of interest.
 
-* **Dynamic Within-Day Planning** Because BEAM places a heavy emphasis on within-day planning, it is possible to simulate modern mobility services in a manner that reflects the emerging transportation system. For example, a virtual TNC in BEAM responds to customer inquiries by reporting the wait time for a ride, which the BEAM agents consider in their decision on what service or mode to use. 
+* **Dynamic Within-Day Planning** Because BEAM places a heavy emphasis on within-day planning, it is possible to simulate modern mobility services in a manner that reflects the emerging transportation system. For example, a virtual TNC in BEAM responds to customer inquiries by reporting the wait queueStartTime for a ride, which the BEAM agents consider in their decision on what service or mode to use.
 
 * **Rich Modal Choice** BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  
 
@@ -25,7 +25,7 @@ These key features are summarized here and described in further detail below:
   
 * **Open Source Code and Data** BEAM is released under a permissive open source license. The code can be copied, modified, and/or used for any purpose. In addition, we publish all of the data necessary to do production runs of BEAM. In other words, anyone can run the same BEAM scenarios that we use for our own projects and research activities. At the moment this consists of a San Francisco Bay Area application that has been calibrated and validated for use by the U.S. DOE's SMART Mobility Consortium. 
 
-* **Cloud Deployable** BEAM has been designed to integrate with Amazon Web Services including a framework to automatically deploy simulation runs to the cloud, to monitor those runs in real-time, and then upload results to S3 for permanent storage. An amazon EC2 snapshot capable of running BEAM can be made available to interested users upon request.
+* **Cloud Deployable** BEAM has been designed to integrate with Amazon Web Services including a framework to automatically deploy simulation runs to the cloud, to monitor those runs in real-queueStartTime, and then upload results to S3 for permanent storage. An amazon EC2 snapshot capable of running BEAM can be made available to interested users upon request.
 
 .. _Akka: https://akka.io/
 
@@ -51,7 +51,7 @@ AgentSim
 
 The AgentSim is designed to execute the daily plans of the population, allowing the agents to dynamically resolve how limited transportation resources are allocated (see :ref:`resource-markets`). 
 
-All movements in the AgentSim occur via "teleportation" as discrete events. In other words, given a route and a travel time, an agent simply schedules herself to "arrive" at the destination accordingly. When this occurs, a PathTraversal Event is thrown -- one for each vehicle movement, not necessarily each passenger movement -- which is used by the PhysSim to simulate traffic flow, resolve congestion, and update travel times in the router so that in future iterations, agents will teleport according to travel times that are consistent with network congestion.
+All movements in the AgentSim occur via "teleportation" as discrete events. In other words, given a route and a travel queueStartTime, an agent simply schedules herself to "arrive" at the destination accordingly. When this occurs, a PathTraversal Event is thrown -- one for each vehicle movement, not necessarily each passenger movement -- which is used by the PhysSim to simulate traffic flow, resolve congestion, and update travel times in the router so that in future iterations, agents will teleport according to travel times that are consistent with network congestion.
 
 PhysSim
 ^^^^^^^
@@ -130,7 +130,7 @@ Dynamic Within-Day Planning
 ---------------------------
 Because BEAM places a heavy emphasis on within-day planning, it is possible to simulate modern mobility services in a manner that reflects the emerging transportation system. 
 
-For example, a virtual TNC in BEAM responds to customer inquiries by reporting the wait time for a ride, which the BEAM agents consider in their decision on what service or mode to use.
+For example, a virtual TNC in BEAM responds to customer inquiries by reporting the wait queueStartTime for a ride, which the BEAM agents consider in their decision on what service or mode to use.
 
 Rich Modal Choice
 -----------------

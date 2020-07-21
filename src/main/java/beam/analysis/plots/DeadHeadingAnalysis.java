@@ -847,8 +847,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average queueStartTime spent by a passenger on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total queueStartTime spent by a passenger on waiting for hailing a ride"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", "Kilometers travelled by the vehicle with a passenger"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", "Kilometers travelled by the vehicle to reposition to fleet"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", "Kilometers travelled by an empty vehicle towards the passenger"));

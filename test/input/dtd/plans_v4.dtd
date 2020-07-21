@@ -113,7 +113,7 @@
 
 <!ELEMENT route          (#PCDATA)>
 <!ATTLIST route
-          type           (dist|trav-time|num-nodes|num-intersects) #IMPLIED
+          type           (dist|trav-queueStartTime|num-nodes|num-intersects) #IMPLIED
           dist           CDATA #IMPLIED
           trav_time      CDATA #IMPLIED
           num_nodes      CDATA #IMPLIED
@@ -257,8 +257,8 @@
 
 <!-- ELEMENT capacity:
      A cell can hold a limited capacity per activity.
-     A capacity is the maximum number of something in a given time range,
-     e.g. number of costumers shopping at the same time or number of
+     A capacity is the maximum number of something in a given queueStartTime range,
+     e.g. number of costumers shopping at the same queueStartTime or number of
      workplaces.
      If this element is not specified, then the capacity of the defined
      activity is unlimited. -->
@@ -274,8 +274,8 @@
      times describing on what times the facility is open and therefore
      accessible.
      The opening times are specified on a daily basis for maximum week periods.
-     If no opentime element is specified, the facility is closed all the time.
-     To make a facility open all the time, include the following opentime
+     If no opentime element is specified, the facility is closed all the queueStartTime.
+     To make a facility open all the queueStartTime, include the following opentime
      element:
      <opentime day="wk" start_time="00:00" end_time="24:00" />
      If no opentime element is specified, then the defined activity is always
@@ -284,11 +284,11 @@
 <!-- ATTRIBUTE day:
      A schedule can be set for a single day, for all weekdays,
      the weekend or for the whole week. Schedules for single days always
-     override schedules for time ranges, e.g. a "mon" schedule for
+     override schedules for queueStartTime ranges, e.g. a "mon" schedule for
      Monday overrides weekday or whole week schedules.
 
      ATTENTION: for a given facility, schedules must
-     not overlap in time. I.e.
+     not overlap in queueStartTime. I.e.
        <opentime day="mon" start_time="09:00" end_time="14:00" />
        <opentime day="mon" start_time="11:00" end_time="18:00" />
      is not allowed.
@@ -418,7 +418,7 @@
 
 <!-- ELEMENT leg:
      Defines one part of the trip between two activities. (I.e. a
-     route with the car, a walk by foot, a change of the mode, a time
+     route with the car, a walk by foot, a change of the mode, a queueStartTime
      where it has to wait for the bus, and so on.)  At the moment,
      Matsim provides only 'car mode' legs. (Oct. 2004) -->
 
@@ -434,17 +434,17 @@
      format := string -->
 
 <!-- ATTRIBUTE dep_time:
-     Expected departure time for this leg.
+     Expected departure queueStartTime for this leg.
      This is also for internal use.
      format := "hh:mm:ss" -->
 
 <!-- ATTRIBUTE trav_time:
-     Expected travel time for this leg.
+     Expected travel queueStartTime for this leg.
      This is also for internal use.
      format := "hh:mm:ss" -->
 
 <!-- ATTRIBUTE arr_time:
-     Expected arrival time for this leg.
+     Expected arrival queueStartTime for this leg.
      This is also for internal use.
      format := "hh:mm:ss" -->
 
@@ -455,7 +455,7 @@
 
 <!-- ATTRIBUTE type:
      Defines the optimization type of the route. At the moment, a
-     route can be optimized for distance, travel time, number of
+     route can be optimized for distance, travel queueStartTime, number of
      nodes passed, or number of intersections passed.
      format := string -->
 
@@ -464,7 +464,7 @@
      format := unsigned double -->
 
 <!-- ATTRIBUTE trav_time:
-     the travel time of the given route
+     the travel queueStartTime of the given route
      format := unsigned double -->
 
 <!-- ATTRIBUTE num_nodes:

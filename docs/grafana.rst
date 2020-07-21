@@ -1,12 +1,12 @@
-.. _real-time-graphs:
+.. _real-queueStartTime-graphs:
 
-Real time graphs
+Real queueStartTime graphs
 ====================
 
 Grafana
 -----------
 
-`Grafana <https://grafana.com/>`_ is an open source analytics and monitoring solution and may be used to view various BEAM metrics in real time during BEAM execution.
+`Grafana <https://grafana.com/>`_ is an open source analytics and monitoring solution and may be used to view various BEAM metrics in real queueStartTime during BEAM execution.
 It is a tool to display data from data source. In our case the data source is `InfluxDB <https://www.influxdata.com/products/influxdb-overview/>`_ .
 
 
@@ -87,7 +87,7 @@ If not, virtualization should be enabled in BIOS:
 *
 
     Right when the computer is coming up from the black screen, press Delete, Esc, F1, F2, or F4. Each computer manufacturer uses
-    a different key but it may show a brief message at boot telling you which one to press. If you miss it the first time, reboot and try again.
+    a different key but it may show a brief message at boot telling you which one to press. If you miss it the first queueStartTime, reboot and try again.
     It helps to tap the key about twice a second when the computer is coming up.
 
 * In the BIOS settings, find the configuration items related to the CPU. These can be found under the headings Processor, Chipset, or Northbridge.
@@ -126,7 +126,7 @@ Stop Grafana
 ^^^^^^^^^^^^^^^^^
 
 When Grafana is stopped, all collected InfluxDB data will be stored in snapshots on the file system.
-The snapshot will be used next time Grafana starts, thus data won't be lost.
+The snapshot will be used next queueStartTime Grafana starts, thus data won't be lost.
 
 To stop Grafana one should use the gradle command ``grafanaStop``. ::
 
@@ -154,14 +154,14 @@ There are different `views` which are called _`dashboards` that allow you to see
 *
 
     The `Iteration view <http://localhost:3003/d/5oUysNJWz/beam-simulation-iteration-view>`_ shows the output of a single iteration within BEAM and plots
-    metrics on an hourly time scale, this is useful for seeing granular dynamics like the use of charging infrastructure over time.
+    metrics on an hourly queueStartTime scale, this is useful for seeing granular dynamics like the use of charging infrastructure over queueStartTime.
 
 *
 
-    In both of the previous views, only one BEAM run may be viewed at a time but there are also
+    In both of the previous views, only one BEAM run may be viewed at a queueStartTime but there are also
     `Global view comparison <http://localhost:3003/d/KuiPBbBWz/beam-simulation-global-view-comparison>`_
     and `Iteration view comparison <http://localhost:3003/d/66mrcxfWz/beam-simulation-iteration-view-comparison>`_
-    which allow you to view two BEAM runs at the same time or one BEAM run but with different iterations.
+    which allow you to view two BEAM runs at the same queueStartTime or one BEAM run but with different iterations.
 
 *
     The `Iteration MAP view <http://localhost:3003/d/otUGbMyZk/beam-simulation-iteration-map-view>`_ allows you to see various BEAM metrics
@@ -181,7 +181,7 @@ Select BEAM run
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To select which BEAM run graphs should be displayed one can use the switch ``run name``. A BEAM run name has the format: *date_time_simulation-name*
-where *date* and *time* are local date and time for the pc where BEAM is running, and the simulation name is taken from the ``beam.agentsim.simulationName``
+where *date* and *queueStartTime* are local date and queueStartTime for the pc where BEAM is running, and the simulation name is taken from the ``beam.agentsim.simulationName``
 config value. The BEAM run list containing the ``run name`` switch is updated after a page refresh. So make sure to refresh your browser after
 a new BEAM run is started and output from the simulation have begun to accumulate. If there are no active BEAM runs in the local history then one will see no choice for ‘run_name’:
 
@@ -283,14 +283,14 @@ Various metrics for all vehicles/persons::
     parking,
     chargingPower,
     mode-choices,
-    average-travel-time
+    average-travel-queueStartTime
 
 Various metrics for ride hail
 
 .. code-block:: text
 
-    ride-hail-waiting-time,
-    ride-hail-waiting-time-map,
+    ride-hail-waiting-queueStartTime,
+    ride-hail-waiting-queueStartTime-map,
     ride-hail-trip-distance,
     ride-hail-inquiry-served (graph is not added to a grafana dashboard),
     ride-hail-allocation-reserved (graph is not added to a grafana dashboard)

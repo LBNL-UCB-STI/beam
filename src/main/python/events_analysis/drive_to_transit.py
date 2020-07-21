@@ -7,8 +7,8 @@ def find_num_drive_to_transit_agents(df):
     """
     Finds people who drive to transit according to the following algorithm:
 
-    1.  During ModeChoice event, at time t, person i chooses mode='transit'
-    2.  During PathTraversal event, at time t'>t, Person i completes
+    1.  During ModeChoice event, at queueStartTime t, person i chooses mode='transit'
+    2.  During PathTraversal event, at queueStartTime t'>t, Person i completes
         PathTraversal w/ mode='car'
     3.  Increment total and reset times to 0 for Person i
 
@@ -30,7 +30,7 @@ def find_num_drive_to_transit_agents(df):
         if row['type'] == 'ModeChoice' and row['mode'] == 'transit':
             # We can only match the vehicle id w/ the first part of person id
             person_id = int(pat.match(row['person']).group())
-            dtt_dict[person_id] = int(row['time'])
+            dtt_dict[person_id] = int(row['queueStartTime'])
         # Check if PathTraversal and mode is car (will implicitly pass match
         # check)
         elif row['type'] == 'PathTraversal':
@@ -39,7 +39,7 @@ def find_num_drive_to_transit_agents(df):
             if pid_from_vid is not None:
                 pid_match = int(pid_from_vid.group())
                 # if has earlier entry:
-                if pid_match in dtt_dict and (dtt_dict[pid_match] != 0 and int(row['time']) > dtt_dict[pid_match]):
+                if pid_match in dtt_dict and (dtt_dict[pid_match] != 0 and int(row['queueStartTime']) > dtt_dict[pid_match]):
                     total += 1
                     dtt_dict[pid_match] = 0
     return total

@@ -9,7 +9,7 @@ In general, we reserve "BeamAgent" (also referred to as "Agent") for entities in
 
 A Person or a Manager is a Agent, but a Vehicle is only a tool used by Agents, so it is not a BeamAgent in BEAM.
 
-Also, only BeamAgents can schedule callbacks with the BeamAgentScheduler. So any entity that needs to schedule itself (or be scheduled by other entities) to execute some process at a defined time within the simulation should be designed as a BeamAgent.
+Also, only BeamAgents can schedule callbacks with the BeamAgentScheduler. So any entity that needs to schedule itself (or be scheduled by other entities) to execute some process at a defined queueStartTime within the simulation should be designed as a BeamAgent.
 
 Programming a BeamAgent involves constructing a finite state machine and the corresponding logic that responds to Akka messages from different states and then optionally transitions between states.
 

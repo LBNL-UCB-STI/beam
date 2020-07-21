@@ -84,7 +84,7 @@
 
 <!-- ATTRIBUTE capperiod:
      format := "hh:mm:ss"
-     meaning:  It defines the time period over which
+     meaning:  It defines the queueStartTime period over which
                the capacity of the given links has been measured.
      NOTE:     It is "01:00:00" per default, i.e. 3600.0 sec   -->
 

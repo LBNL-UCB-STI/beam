@@ -47,7 +47,7 @@ General parameters::
 * thresholdForWalkingInMeters: Used to determine whether a PersonAgent needs to route a walking path through the network to get to a parked vehicle. If the vehicle is closer than thresholdForWalkingInMeters in Euclidean distance, then the walking trip is assumed to be instantaneous. Note, for performance reasons, we do not recommend values for this threshold less than 100m.
 * thresholdForMakingParkingChoiceInMeters: Similar to thresholdForWalkingInMeters, this threshold determines the point in a driving leg when the PersonAgent initiates the parking choice processes. So for 1000m, the agent will drive until she is <=1km from the destination and then seek a parking space.
 * schedulerParallelismWindow: This controls the discrete event scheduling window used by BEAM to achieve within-day parallelism. The units of this parameter are in seconds and the larger the window, the better the performance of the simulation, but the less chronologically accurate the results will be.
-* timeBinSize: For most auto-generated output graphs and tables, this parameter will control the resolution of time-varying outputs.
+* timeBinSize: For most auto-generated output graphs and tables, this parameter will control the resolution of queueStartTime-varying outputs.
 
 Mode choice parameters::
 
@@ -67,7 +67,7 @@ Mode choice parameters::
    
 
 * modeChoiceClass: Selects the choice algorithm to be used by agents to select mode when faced with a choice. Default of ModeChoiceMultinomialLogit is recommended but other algorithms include ModeChoiceMultinomialLogit ModeChoiceTransitIfAvailable ModeChoiceDriveIfAvailable ModeChoiceRideHailIfAvailable ModeChoiceUniformRandom ModeChoiceLCCM.
-* defaultValueOfTime: This value of time is used by the ModeChoiceMultinomialLogit choice algorithm unless the value of time is specified in the populationAttributes file.
+* defaultValueOfTime: This value of queueStartTime is used by the ModeChoiceMultinomialLogit choice algorithm unless the value of queueStartTime is specified in the populationAttributes file.
 * params.transfer: Constant utility (where 1 util = 1 dollar) of making transfers during a transit trip.
 * params.car_intercept: Constant utility (where 1 util = 1 dollar) of driving.
 * params.walk_transit_intercept: Constant utility (where 1 util = 1 dollar) of walking to transit.
@@ -77,7 +77,7 @@ Mode choice parameters::
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
-* toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
+* toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where queueStartTime-varying tolls will possible.
 
 Vehicles and Population::
 

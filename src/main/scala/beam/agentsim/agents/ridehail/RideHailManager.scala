@@ -220,6 +220,7 @@ class RideHailManager(
     with ActorLogging
     with Stash {
   type DepotId = Int
+  type time = Int
   type VehicleId = Id[BeamVehicle]
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -1042,7 +1043,8 @@ class RideHailManager(
           parkingStall,
           whenWhere.time,
           triggerId,
-          JustArrivedAtDepot
+          JustArrivedAtDepot,
+          whenWhere.time
         )
       //If not arrived for refueling;
       case _ => {
@@ -1054,14 +1056,15 @@ class RideHailManager(
             val depotId = parkingStall.parkingZoneId
             //QUESTION: Maybe a new trigger should be set to check for queue instead of this inline?
             dequeueNextVehicleForRefuelingFrom(depotId) match {
-              case Some((nextVehicleId, nextVehiclesParkingStall)) => {
+              case Some((nextVehicleId, nextVehiclesParkingStall, queueStartTime)) => {
                 attemptToRefuel(
                   nextVehicleId,
                   vehicleManager.getRideHailAgentLocation(nextVehicleId).rideHailAgent,
                   nextVehiclesParkingStall,
                   whenWhere.time,
                   triggerId,
-                  DequeuedToCharge
+                  DequeuedToCharge,
+                  queueStartTime
                 )
               }
               case None =>
@@ -1143,13 +1146,15 @@ class RideHailManager(
   }
 
   /* BEGIN: Refueling Logic */
-  private val depotToRefuelingQueuesMap: mutable.Map[DepotId, mutable.Queue[(VehicleId, ParkingStall)]] =
-    mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall)]]
+  private val depotToRefuelingQueuesMap
+    : mutable.Map[DepotId, mutable.Queue[(VehicleId, ParkingStall, QueueStartTime)]] =
+    mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall, QueueStartTime)]]
 
   def addVehicleAndStallToRefuelingQueueFor(
     vehicleId: VehicleId,
     parkingStall: ParkingStall,
-    source: RefuelSource
+    source: RefuelSource,
+    queueStartTime: QueueStartTime
   ): Unit = {
     depotToRefuelingQueuesMap.get(parkingStall.parkingZoneId) match {
       case Some(depotQueue) => {
@@ -1168,16 +1173,16 @@ class RideHailManager(
             depotQueue.size,
             parkingStall.parkingZoneId
           )
-          depotQueue.enqueue((vehicleId, parkingStall))
+          depotQueue.enqueue((vehicleId, parkingStall, queueStartTime))
         }
       }
       case None =>
         log.debug("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
-        depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue((vehicleId, parkingStall)))
+        depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue((vehicleId, parkingStall, queueStartTime)))
     }
   }
 
-  def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall)] = {
+  def dequeueNextVehicleForRefuelingFrom(depotId: DepotId): Option[(VehicleId, ParkingStall, QueueStartTime)] = {
     depotToRefuelingQueuesMap.get(depotId).collect {
       case refuelingQueue if refuelingQueue.nonEmpty =>
         val toReturn = refuelingQueue.dequeue
@@ -1227,7 +1232,8 @@ class RideHailManager(
     originalParkingStallFoundDuringAssignment: ParkingStall,
     time: Int,
     triggerId: Option[Long],
-    source: RefuelSource
+    source: RefuelSource,
+    queueStartTime: QueueStartTime
   ): Vector[ScheduleTrigger] = {
     val beamVehicleOption = findBeamVehicleUsing(vehicleId)
     rideHailDepotParkingManager.findAndClaimStallAtDepot(originalParkingStallFoundDuringAssignment) match {
@@ -1236,6 +1242,17 @@ class RideHailManager(
           case Some(beamVehicle) =>
             beamVehicle.useParkingStall(claimedParkingStall)
             addVehicleToChargingInDepotUsing(claimedParkingStall, vehicleId, source)
+            val refuelWaitTime = time - queueStartTime
+            beamServices.matsimServices.getEvents.processEvent(
+              TAZSkimmerEvent(
+                time,
+                claimedParkingStall.locationUTM,
+                "RefuelWaitTime",
+                refuelWaitTime,
+                beamServices,
+                "RideHailManager"
+              )
+            )
             Vector(ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent))
           case None =>
             log.warning("Unable to find vehicle {} to start depot refueling")
@@ -1243,7 +1260,7 @@ class RideHailManager(
         }
       }
       case None =>
-        addVehicleAndStallToRefuelingQueueFor(vehicleId, originalParkingStallFoundDuringAssignment, source)
+        addVehicleAndStallToRefuelingQueueFor(vehicleId, originalParkingStallFoundDuringAssignment, source, time)
         Vector()
     }
   }
@@ -1736,7 +1753,10 @@ class RideHailManager(
         handleNotifyVehicleIdle(notifyMessage)
     }
     cachedNotifyVehicleIdle.clear()
-    log.debug("Elapsed planning time = {}", (System.nanoTime() - currentlyProcessingTimeoutWallStartTime) / 1e6)
+    log.debug(
+      "Elapsed planning time = {}",
+      (System.nanoTime() - currentlyProcessingTimeoutWallStartTime) / 1e6
+    )
     currentlyProcessingTimeoutTrigger = None
     doNotUseInAllocation.clear()
     unstashAll()

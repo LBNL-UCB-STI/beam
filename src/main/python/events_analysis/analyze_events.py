@@ -90,7 +90,7 @@ def classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH):
         if isRH == True:
             if event.primaryFuelLevel < 0.0:
                 return {'start': event.time, 'end': event.time + event.duration, 'type': 'charging', 'next-type': 'offline'}
-                #return {'start': event.time - event.duration, 'end': 30*3600, 'type': 'offline'}
+                #return {'start': event.queueStartTime - event.duration, 'end': 30*3600, 'type': 'offline'}
             else:
                 if lastEvent:
                     if event.isCAV == True:
@@ -102,7 +102,7 @@ def classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH):
         else:
             if event.primaryFuelLevel < 0.0:
                 return {'start': event.time, 'end': event.time + event.duration, 'type': 'charging', 'next-type': 'parked'}
-                #return {'start': event.time - event.duration, 'end': 30*3600, 'type': 'offline'}
+                #return {'start': event.queueStartTime - event.duration, 'end': 30*3600, 'type': 'offline'}
             else:
                 return {'start': event.time, 'end': event.time + event.duration, 'type': 'charging', 'next-type': 'parked'}
     elif event.type == 'ParkingEvent':
@@ -123,10 +123,10 @@ def get_pooling_metrics(filename):
     relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','isRH'] = relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','vehicle'].str.contains('rideHail')
     relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','isCAV'] = relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','vehicleType'].str.contains('L5')
 
-    relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','time'] = relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','departureTime']  - 0.5
-    relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','time'] = relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','time']  - relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','duration'] + 0.5
+    relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','queueStartTime'] = relevantEvents.loc[relevantEvents['type'] == 'PathTraversal','departureTime']  - 0.5
+    relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','queueStartTime'] = relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','queueStartTime']  - relevantEvents.loc[relevantEvents['type'] == 'RefuelSessionEvent','duration'] + 0.5
 
-    relevantEvents = relevantEvents.sort_values(by='time')
+    relevantEvents = relevantEvents.sort_values(by='queueStartTime')
     modeChoice = data.loc[data['type'] == 'ModeChoice'].dropna(how='all', axis=1)
 
     ride_hail_mc = modeChoice[modeChoice['mode'].str.startswith('ride_hail')]
@@ -344,15 +344,15 @@ def get_pooling_metrics(filename):
     timeUtilizationPVsum = np.sum(timeUtilizationPV, axis=0)
     distanceUtilizationPVsum = np.sum(distanceUtilizationPV, axis=0)
     for idx, key in enumerate(key_names):
-        utilizationOutput['time-RH-EV-'+key] = timeUtilizationEVsum[idx]/timeUtilizationEV.shape[0]
+        utilizationOutput['queueStartTime-RH-EV-'+key] = timeUtilizationEVsum[idx]/timeUtilizationEV.shape[0]
     for idx, key in enumerate(key_names[:4]):
         utilizationOutput['miles-RH-EV-'+key] = distanceUtilizationEVsum[idx]
     for idx, key in enumerate(key_names):
-        utilizationOutput['time-RH-CV-'+key] = timeUtilizationCVsum[idx]/timeUtilizationCV.shape[0]
+        utilizationOutput['queueStartTime-RH-CV-'+key] = timeUtilizationCVsum[idx]/timeUtilizationCV.shape[0]
     for idx, key in enumerate(key_names[:4]):
         utilizationOutput['miles-RH-CV-'+key] = distanceUtilizationCVsum[idx]
     for idx, key in enumerate(key_names):
-        utilizationOutput['time-Personal-EV-'+key] = timeUtilizationPVsum[idx]/timeUtilizationPV.shape[0]
+        utilizationOutput['queueStartTime-Personal-EV-'+key] = timeUtilizationPVsum[idx]/timeUtilizationPV.shape[0]
     for idx, key in enumerate(key_names[:4]):
         utilizationOutput['miles-Personal-EV-'+key] = distanceUtilizationPVsum[idx]
 

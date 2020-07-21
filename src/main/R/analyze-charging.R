@@ -321,7 +321,7 @@ lm(kw~num.in.use:county-1,ch.load[!is.na(county),list(kw=sum(kw),num.in.use=leng
 ggplot(ch.load[zip=='94128',list(kw=sum(kw),num.in.use=length(kw),county=county[1]),by=c('t','charger.sector')],aes(x=t,y=kw,colour=charger.sector))+geom_line()
 ggplot(ch.load[zip=='94128',list(kw=sum(kw),num.in.use=length(kw),county=county[1]),by=c('t','charger.sector')],aes(x=t,y=num.in.use,colour=charger.sector))+geom_line()
 
-#ggplot(ch,aes(x=begin.time,xend=end.time,y=begin.soc,yend=end.soc))+geom_segment()+facet_grid(plugType~charger.sector)
+#ggplot(ch,aes(x=begin.queueStartTime,xend=end.queueStartTime,y=begin.soc,yend=end.soc))+geom_segment()+facet_grid(plugType~charger.sector)
 
 
 ggplot(ch.load[!is.na(county),list(kw=sum(kw),num.in.use=length(kw)),by=c('t','county','dc.fast')],aes(x=t,y=kw,colour=dc.fast))+geom_line()+facet_wrap(~county)

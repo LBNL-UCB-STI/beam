@@ -70,23 +70,23 @@
 								<xs:sequence>
 										<xs:element name="start" minOccurs="0" maxOccurs="1">
 												<xs:annotation>
-														<xs:documentation>The time of day at which the plan should be activated, set start and stop to 00:00:00 if the plan shall be always active or simply remove start and stop element completely</xs:documentation>
+														<xs:documentation>The queueStartTime of day at which the plan should be activated, set start and stop to 00:00:00 if the plan shall be always active or simply remove start and stop element completely</xs:documentation>
 												</xs:annotation>
 												<xs:complexType>
-														<xs:attribute name="daytime" type="xs:time" use="required" />
+														<xs:attribute name="daytime" type="xs:queueStartTime" use="required" />
 												</xs:complexType>
 										</xs:element>
 										<xs:element name="stop" minOccurs="0" maxOccurs="1">
 												<xs:annotation>
-														<xs:documentation>At which time of day to stop using this plan, set start and stop to 00:00:00 if the plan shall be always active or simply remove start and stop element completely</xs:documentation>
+														<xs:documentation>At which queueStartTime of day to stop using this plan, set start and stop to 00:00:00 if the plan shall be always active or simply remove start and stop element completely</xs:documentation>
 												</xs:annotation>
 												<xs:complexType>
-														<xs:attribute name="daytime" type="xs:time" use="required" />
+														<xs:attribute name="daytime" type="xs:queueStartTime" use="required" />
 												</xs:complexType>
 										</xs:element>
 										<xs:element name="cycleTime" minOccurs="0" maxOccurs="1">
 												<xs:annotation>
-														<xs:documentation>The time in seconds needed to process this plan.</xs:documentation>
+														<xs:documentation>The queueStartTime in seconds needed to process this plan.</xs:documentation>
 												</xs:annotation>
 												<xs:complexType>
 														<xs:attribute name="sec" type="xs:nonNegativeInteger" use="required" />
@@ -94,7 +94,7 @@
 										</xs:element>
 										<xs:element name="offset" minOccurs="0" maxOccurs="1">
 												<xs:annotation>
-														<xs:documentation>The second of the circulation time which is used
+														<xs:documentation>The second of the circulation queueStartTime which is used
 																for synchronization.
 														</xs:documentation>
 												</xs:annotation>

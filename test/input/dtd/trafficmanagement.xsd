@@ -16,8 +16,8 @@ xmlns="http://www.matsim.org" elementFormDefault="qualified" -->
 <!--  <xsd:sequence>-->
 <!--    <xsd:element name="linkId" type="xsd:string" />-->
 <!--    <xsd:element name="capacityReductionFactor" type="xsd:decimal" />-->
-<!--    <xsd:element name="startTime" type="xsd:time" />-->
-<!--    <xsd:element name="endTime" type="xsd:time" />-->
+<!--    <xsd:element name="startTime" type="xsd:queueStartTime" />-->
+<!--    <xsd:element name="endTime" type="xsd:queueStartTime" />-->
 <!--  </xsd:sequence>-->
 <!--</xsd:complexType>-->
 

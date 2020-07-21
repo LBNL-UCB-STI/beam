@@ -15,7 +15,7 @@ def analyze_acts(exp_plans_file, l2c_file, print_inc=10000):
     :param work:
     :param exp_plans_file:
     :param l2c_file: (str) Path to csv file with a map of links to counties.
-    :return: (DataFrame) Columns are: 1) activity type, 2) start time, 3) county
+    :return: (DataFrame) Columns are: 1) activity type, 2) start queueStartTime, 3) county
     '''
     ##
     # Initialize constants and containers
@@ -60,7 +60,7 @@ def analyze_acts(exp_plans_file, l2c_file, print_inc=10000):
                     # elem.clear()
                     # event, elem = itree.next()
                     continue
-                # Get the start and end time
+                # Get the start and end queueStartTime
                 if 'start_time' in pe.attrib.keys():
                     strt_times.append(pe.attrib['start_time'])
                 else:
@@ -79,7 +79,7 @@ def analyze_acts(exp_plans_file, l2c_file, print_inc=10000):
             print 'Time so far: ' + str(time.time() - t0)
     # Make and return the data frame
     df = pd.DataFrame({'type':act_types, 'county':cntys, 'start_times':strt_times, 'end_times':end_times})
-    print "Running time: " + str(time.time() - t0)
+    print "Running queueStartTime: " + str(time.time() - t0)
     return df
 
 

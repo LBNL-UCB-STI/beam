@@ -5,7 +5,7 @@ The general workflow is this:
 ## `PeMS_Tools` Steps
 1) Download everything w/ [PeMS Tools](https://github.com/sfwatergit/PeMS_Tools) (or use Nine Counties SF Bay Area 2015 outputs of this tool, see link below).
 
-2) Process them to create the "time series" directories. This is basically a text-file based database that creates a continuous time series of data, reported in 5-minute intervals, for each station over the period of downloaded data.
+2) Process them to create the "queueStartTime series" directories. This is basically a text-file based database that creates a continuous queueStartTime series of data, reported in 5-minute intervals, for each station over the period of downloaded data.
 
 ## `counts_tools` Steps
 The naming schema is pretty straight forward. Config files go with the matching executable in the exec folder.

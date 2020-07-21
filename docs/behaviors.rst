@@ -29,12 +29,12 @@ Multinomial Logit Mode Choice
 
 The first is a simple multinomial logit choice model that has the following form for modal alternative j:
 
-V_j = ASC_j + Beta_cost * cost + Beta_time * time + Beta_xfer * num_transfers
+V_j = ASC_j + Beta_cost * cost + Beta_time * queueStartTime + Beta_xfer * num_transfers
 
 The ASC (alternative specific constant) parameters as well as the Beta parameters can be configured in the BEAM configuration file and default to the following values:
 
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cost = -1.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.time = -0.0047
+beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.queueStartTime = -0.0047
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = -1.4
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0.0

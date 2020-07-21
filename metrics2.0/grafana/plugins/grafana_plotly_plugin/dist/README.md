@@ -42,7 +42,7 @@ env GITHUB_TOKEN=your_token yarn release-it patch
 - Fix axis range configuration bug [#49](https://github.com/NatelEnergy/grafana-plotly-panel/issues/49)
 - Add basic annotations support #57 (tchernobog)
 - Improve loading times for plotly.js and support loading from CDN
-- Assume date x-axis when 'auto' and the mapping has 'time'
+- Assume date x-axis when 'auto' and the mapping has 'queueStartTime'
 - Support Fixed-Ratio Axes
 - Tested with Grafana 6
 
@@ -53,7 +53,7 @@ env GITHUB_TOKEN=your_token yarn release-it patch
 - Better support for light theme. (#24, @cscheuermann81)
 - Support snapshots
 - Removing `dist` from master branch
-- Support of multiple time series's ([#9](https://github.com/NatelEnergy/grafana-plotly-panel/issues/9), [CorpGlory DevTeam](https://corpglory.com/))
+- Support of multiple queueStartTime series's ([#9](https://github.com/NatelEnergy/grafana-plotly-panel/issues/9), [CorpGlory DevTeam](https://corpglory.com/))
 - Support showing text from query (#11)
 - Template variable support
 - Improved metric mapping
@@ -72,7 +72,7 @@ env GITHUB_TOKEN=your_token yarn release-it patch
 - Improve options UI
 - Added range mode: "tozero" and "nonnegative"
 - Map metrics to X,Y,Z and color
-- Can now select 'date' type for each axis to support time
+- Can now select 'date' type for each axis to support queueStartTime
 - basic support to size marker with data
 
 ##### v0.0.2

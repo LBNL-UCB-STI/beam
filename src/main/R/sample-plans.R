@@ -389,7 +389,7 @@ do.or.load('/Users/critter/Documents/matsim/input/sf-bay-id-from-cvrp.Rdata',fun
 })
 
 
-# use awk n people at a time to extract the plans
+# use awk n people at a queueStartTime to extract the plans
 n.peeps <- 10000
 beam.pop <- rebate.in.sf[!is.na(smart.bay.id)]
 tot.n <- nrow(beam.pop)

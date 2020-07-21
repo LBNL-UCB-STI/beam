@@ -181,8 +181,8 @@ bads <- mc[mode=='walk' & !currentTourMode%in%c('','walk')]
 
 
 # Modal splits by hour
-#toplot <- mc[tripIndex==1,.(tot=length(time)),by=c('hr','scen.name')]
-#toplot <- join.on(mc[tripIndex==1,.(num=length(time)),by=c('scen.name','hr','tripmode')],toplot,c('scen.name','hr'),c('scen.name','hr'))
+#toplot <- mc[tripIndex==1,.(tot=length(queueStartTime)),by=c('hr','scen.name')]
+#toplot <- join.on(mc[tripIndex==1,.(num=length(queueStartTime)),by=c('scen.name','hr','tripmode')],toplot,c('scen.name','hr'),c('scen.name','hr'))
 #toplot[,frac:=num/tot]
 #toplot[,tripmode:=pretty.modes(tripmode)]
 #setkey(toplot,hr,scen.name,tripmode)

@@ -14,7 +14,7 @@ do.or.load('/Users/critter/Documents/matsim/viz/agent-data.Rdata',function(){})
 downtown.sf <- c(-13630878.25,4545157.57,-13625770.14,4549783.24)
 #the.person <- sample(agent.mob.m$person,1) # who do we focus on
 
-# Inspect patterns of agents who pass through downtown SF at any time
+# Inspect patterns of agents who pass through downtown SF at any queueStartTime
 join.on(agent.mob.m[person%in%u(agent.mob.m[t==end & x>downtown.sf[1] & x<downtown.sf[3] & y>downtown.sf[2] & y<downtown.sf[4]]$person),list(num.trips=length(u(duration)),hours.of.mobility=diff(range(t))/3600,min.soc=min(soc)),by='person'],ch.events[,list(num.ch.events=max(pair)),by='person'],'person','person','num.ch.events')
 
 # people descrips

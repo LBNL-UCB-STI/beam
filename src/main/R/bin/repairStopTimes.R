@@ -3,7 +3,7 @@
 # Script to repair bad GTFS data that contains 0 duration trips
 #
 # This script will take sequences of stops within GTFS trips and if it detects that any arrival -> arrival times in the sequences are the same
-# (i.e. a duration 0 movement) then it will look for the next, non-zero difference in arrival time and redistribute that time back among the
+# (i.e. a duration 0 movement) then it will look for the next, non-zero difference in arrival queueStartTime and redistribute that queueStartTime back among the
 # zero-length stop-to-stop legs.
 # 
 # One gotcha here, this will repair in place the data, so make a backup before using.
