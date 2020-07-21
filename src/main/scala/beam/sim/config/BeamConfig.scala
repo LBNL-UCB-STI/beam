@@ -892,9 +892,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  filePath =
-                    if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                    else "/test/input/beamville/ride-hail-parking.csv"
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
                 )
               }
             }
@@ -961,9 +959,7 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
-                filePath =
-                  if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                  else "/test/input/beamville/ride-hail-fleet.csv",
+                filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "",
                 initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
                 parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
                   if (c.hasPathOrNull("parking")) c.getConfig("parking")
@@ -1583,9 +1579,7 @@ object BeamConfig {
               if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/taz-centers.csv",
             parkingCostScalingFactor =
               if (c.hasPathOrNull("parkingCostScalingFactor")) c.getDouble("parkingCostScalingFactor") else 1.0,
-            parkingFilePath =
-              if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath")
-              else "/test/input/beamville/taz-parking.csv",
+            parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
             parkingManager = BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               if (c.hasPathOrNull("parkingManager")) c.getConfig("parkingManager")
               else com.typesafe.config.ConfigFactory.parseString("parkingManager{}")
@@ -1711,9 +1705,7 @@ object BeamConfig {
             averageCountsOverIterations =
               if (c.hasPathOrNull("averageCountsOverIterations")) c.getInt("averageCountsOverIterations") else 1,
             countsScaleFactor = if (c.hasPathOrNull("countsScaleFactor")) c.getInt("countsScaleFactor") else 10,
-            inputCountsFile =
-              if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
-              else "/test/input/beamville/counts.xml",
+            inputCountsFile = if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile") else "",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
           )
         }
