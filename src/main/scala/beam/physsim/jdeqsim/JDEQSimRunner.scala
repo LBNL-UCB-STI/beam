@@ -22,6 +22,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
@@ -58,6 +59,9 @@ class JDEQSimRunner(
       beamConfigChangesObservable
     )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
+
+    val eventToHourFrequency = new EventToHourFrequency(controlerIO)
+    jdeqsimEvents.addHandler(eventToHourFrequency)
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
@@ -114,6 +118,10 @@ class JDEQSimRunner(
           beamConfig.beam.outputs.stats.binSize
         )
       })
+      linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes);
+      eventToHourFrequency.notifyIterationEnds(
+        new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
+      );
       linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes)
       physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber)
     }
