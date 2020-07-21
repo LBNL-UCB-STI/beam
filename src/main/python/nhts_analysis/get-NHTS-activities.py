@@ -103,7 +103,7 @@ for cbsa in ['12420','35620','41860','19820']:
     modeshares.to_csv('outputs/mode-shares-'+cbsa+'.csv')
     
     out = trips.groupby('UniquePID').apply(getActivities)
-    out = out[out['startTime'] > 0]
+    out = out[out['startTime'] >= 0]
 
     intercepts = getIntercepts(out)
     intercepts.to_csv('outputs/activity-intercepts-'+cbsa+'.csv')
@@ -133,7 +133,7 @@ trips['toWork'] = (trips.WHYTO == 3) | (trips.WHYTO == 4)
 trips['fromWork'] = (trips.WHYFROM == 3) | (trips.WHYFROM == 4)
 
 out = trips.groupby('UniquePID').apply(getActivities)
-out = out[out['startTime'] > 0]
+out = out[out['startTime'] >= 0]
 
 intercepts = getIntercepts(out)
 intercepts.to_csv('outputs/activity-intercepts-all-us.csv')
