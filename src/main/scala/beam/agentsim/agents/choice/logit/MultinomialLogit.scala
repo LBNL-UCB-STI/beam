@@ -157,8 +157,10 @@ class MultinomialLogit[A, T](
     }
 
     val alternativeUtility: Iterable[Double] = for {
-      utilFnsForAlt             <- utilityFunctions(alternative).toList
-      (attribute, mnlOperation) <- utilFnsForAlt
+      utilFnsForAlt <- utilityFunctions(alternative).toList
+      //FIXME don't need this union?, see issue https://github.com/LBNL-UCB-STI/beam/issues/2862
+      attribute    <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
+      mnlOperation <- utilFnsForAlt.get(attribute)
       functionParam = attributes.getOrElse(attribute, 0.0)
     } yield {
       mnlOperation(functionParam)
