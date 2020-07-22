@@ -136,7 +136,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
     }
     "load trips and stop times from bus feed after scaling" must {
       val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("bus.zip")
-      val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+      val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes, includeOnlySameService = true)
 
       val scaleStrategy = gtfsLoader.scaleTripsStrategy(repeatingTrips, 0.5)
       gtfsLoader.transformGtfs("bus.zip", "bus-scaled.zip", List(scaleStrategy))
@@ -175,10 +175,11 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       .parseString(s"beam.routing.r5.directory=test/input/ny-gtfs/r5")
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
+
     val gtfsLoader = new GtfsLoader(BeamConfig(config))
+    val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215.zip")
 
     "load trips and stop times from Long_Island_Rail_20200215 feed" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215.zip")
       "have 2709 trips" in {
         tripsAndStopTimes should have size 2709
         tripsAndStopTimes(0).stopTimes should have size 18
@@ -193,24 +194,12 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         repeatingTrips("GO506_20_2064") should have size 1
         val (trip, offset) = repeatingTrips("GO506_20_2064")(0)
         trip.trip.getId.getId shouldBe "GO506_20_2064"
-        trip.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          61260, 61920, 62460, 64020, 64800, 65100, 65400, 65640, 66060
-        )
-        trip.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          61260, 61920, 62580, 64020, 64800, 65100, 65400, 65640, 66060
-        )
         offset shouldBe 0
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
         repeatingTrips("GO506_20_1635") should have size 11
         val (trip1, offset1) = repeatingTrips("GO506_20_1635")(0)
         trip1.trip.getId.getId shouldBe "GO506_20_1635"
-        trip1.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          37440, 37740, 38100, 38520, 38820, 38940, 39120, 39300, 39480, 40260, 40620, 40740, 41640
-        )
-        trip1.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          37440, 37740, 38100, 38520, 38820, 38940, 39120, 39300, 39480, 40380, 40620, 40740, 41640
-        )
         offset1 shouldBe 0
 
         val (trip2, offset2) = repeatingTrips("GO506_20_1635")(1)
@@ -227,115 +216,73 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
 
         val (trip11, offset11) = repeatingTrips("GO506_20_1635")(10)
         trip11.trip.getId.getId shouldBe "GO506_20_1707"
-        trip11.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          54180, 54480, 54840, 55320, 55620, 55740, 55920, 56100, 56220, 57000, 57360, 57480, 58380
-        )
-        trip11.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          54180, 54480, 54840, 55320, 55620, 55740, 55920, 56100, 56220, 57120, 57360, 57480, 58380
-        )
         offset11 shouldBe 16740
       }
     }
     "load trips and stop times from Long_Island_Rail_20200215 feed after doubling" must {
-      val tripsAndStopTimesSrc = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215.zip")
-      val repeatingTripsSrc = gtfsLoader.findRepeatingTrips(tripsAndStopTimesSrc)
-      val doubledStrategy = gtfsLoader.doubleTripsStrategy(repeatingTripsSrc)
+      val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+
+      val factor = 2
+      val doubledStrategy = gtfsLoader.doubleTripsStrategy(repeatingTrips, factor)
       gtfsLoader.transformGtfs(
         "Long_Island_Rail_20200215.zip",
-        "Long_Island_Rail_20200215-doubled.zip",
+        s"Long_Island_Rail_20200215-doubled-x$factor.zip",
         List(doubledStrategy)
       )
+      val tripsAndStopTimesDoubled = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-doubled-x$factor.zip")
 
-      val tripsAndStopTimesDoubled = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215-doubled.zip")
-
-      "have almost 2x2709 trips" in {
+      s"have up to 2709x$factor times more trips" in {
         tripsAndStopTimesDoubled should have size 5068 // there are a lot of duplicates, that's why it's not exactly 2x2709
         tripsAndStopTimesDoubled(0).stopTimes should have size 18
         tripsAndStopTimesDoubled(1).stopTimes should have size 18
         tripsAndStopTimesDoubled(2).stopTimes should have size 18
       }
-      "have 402 repeating trips with x2 stops" in {
+      s"have 402 repeating trips with x$factor stops" in {
         val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesDoubled)
         repeatingTrips should have size 402
 
         // a repeating sequence with only one element - the trip itself, no repeating after it
-        repeatingTrips("GO506_20_2064") should have size 2 * 1
+        repeatingTrips("GO506_20_2064") should have size factor * 1
         val (trip, offset) = repeatingTrips("GO506_20_2064")(0)
         trip.trip.getId.getId shouldBe "GO506_20_2064"
-        trip.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          61260, 61920, 62460, 64020, 64800, 65100, 65400, 65640, 66060
-        )
-        trip.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          61260, 61920, 62580, 64020, 64800, 65100, 65400, 65640, 66060
-        )
         offset shouldBe 0
 
         val (tripC, offsetC) = repeatingTrips("GO506_20_2064")(1)
         tripC.trip.getId.getId shouldBe "GO506_20_2064-clone-1"
-        tripC.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          71430, 72090, 72630, 74190, 74970, 75270, 75570, 75810, 76230
-        )
-        tripC.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          71430, 72090, 72750, 74190, 74970, 75270, 75570, 75810, 76230
-        )
         offsetC shouldBe 10170
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
-        repeatingTrips("GO505_20_1635") should have size 2 * 11
+        repeatingTrips("GO505_20_1635") should have size factor * 11
         val (trip1, offset1) = repeatingTrips("GO505_20_1635")(0)
         trip1.trip.getId.getId shouldBe "GO505_20_1635"
-        trip1.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          37440, 37740, 38100, 38520, 38820, 38940, 39120, 39300, 39480, 40260, 40620, 40740, 41640
-        )
-        trip1.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          37440, 37740, 38100, 38520, 38820, 38940, 39120, 39300, 39480, 40380, 40620, 40740, 41640
-        )
         offset1 shouldBe 0
 
         val (trip1c, offset1c) = repeatingTrips("GO505_20_1635")(1)
         trip1c.trip.getId.getId shouldBe "GO506_20_1635-clone-1"
-        trip1c.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          39240, 39540, 39900, 40320, 40620, 40740, 40920, 41100, 41250, 42060, 42420, 42540, 43440
-        )
-        trip1c.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          39240, 39540, 39900, 40320, 40620, 40740, 40920, 41100, 41250, 42180, 42420, 42540, 43440
-        )
         offset1c shouldBe 1800
 
         val (trip11, offset11) = repeatingTrips("GO505_20_1635")(20)
         trip11.trip.getId.getId shouldBe "GO506_20_1707"
-        trip11.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          54180, 54480, 54840, 55320, 55620, 55740, 55920, 56100, 56220, 57000, 57360, 57480, 58380
-        )
-        trip11.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          54180, 54480, 54840, 55320, 55620, 55740, 55920, 56100, 56220, 57120, 57360, 57480, 58380
-        )
         offset11 shouldBe 16740
 
         val (trip11c, offset11c) = repeatingTrips("GO505_20_1635")(21)
         trip11c.trip.getId.getId shouldBe "GO506_20_1707-clone-1"
-        trip11c.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          68190, 68490, 68850, 69330, 69630, 69750, 69930, 70110, 70230, 71010, 71370, 71490, 72390
-        )
-        trip11c.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          68190, 68490, 68850, 69330, 69630, 69750, 69930, 70110, 70230, 71130, 71370, 71490, 72390
-        )
         offset11c shouldBe 30750
       }
     }
     "load trips and stop times from Long_Island_Rail_20200215 feed after scaling" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215.zip")
-      val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+      val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes, includeOnlySameService = true)
 
-      val scaleStrategy = gtfsLoader.scaleTripsStrategy(repeatingTrips, 0.5)
+      val scale = 0.5
+      val scaleStrategy = gtfsLoader.scaleTripsStrategy(repeatingTrips, scale)
       gtfsLoader.transformGtfs(
         "Long_Island_Rail_20200215.zip",
-        "Long_Island_Rail_20200215-scaled.zip",
+        s"Long_Island_Rail_20200215-scaled-x$scale.zip",
         List(scaleStrategy)
       )
-      val tripsAndStopTimesScaled = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215-scaled.zip")
+      val tripsAndStopTimesScaled = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-scaled-x$scale.zip")
 
-      "have scaled repeating trips" in {
+      s"have 402 scaled by $scale repeating trips" in {
         val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesScaled)
         repeatingTrips should have size 402
 
@@ -343,24 +290,12 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         repeatingTrips("GO506_20_2064") should have size 1
         val (trip, offset) = repeatingTrips("GO506_20_2064")(0)
         trip.trip.getId.getId shouldBe "GO506_20_2064"
-        trip.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          61260, 61590, 61860, 62640, 63030, 63180, 63330, 63450, 63660
-        )
-        trip.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          61260, 61590, 61920, 62640, 63030, 63180, 63330, 63450, 63660
-        )
         offset shouldBe 0
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
         repeatingTrips("GO506_20_1635") should have size 11
         val (trip1, offset1) = repeatingTrips("GO506_20_1635")(0)
         trip1.trip.getId.getId shouldBe "GO506_20_1635"
-        trip1.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          37440, 37590, 37770, 37980, 38130, 38190, 38280, 38370, 38460, 38850, 39030, 39090, 39540
-        )
-        trip1.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          37440, 37590, 37770, 37980, 38130, 38190, 38280, 38370, 38460, 38910, 39030, 39090, 39540
-        )
         offset1 shouldBe 0
 
         val (trip2, offset2) = repeatingTrips("GO506_20_1635")(1)
@@ -377,12 +312,6 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
 
         val (trip11, offset11) = repeatingTrips("GO506_20_1635")(10)
         trip11.trip.getId.getId shouldBe "GO506_20_1707"
-        trip11.stopTimes.map(_.getArrivalTime) shouldBe Seq(
-          54180, 54330, 54510, 54750, 54900, 54960, 55050, 55140, 55200, 55590, 55770, 55830, 56280
-        )
-        trip11.stopTimes.map(_.getDepartureTime) shouldBe Seq(
-          54180, 54330, 54510, 54750, 54900, 54960, 55050, 55140, 55200, 55650, 55770, 55830, 56280
-        )
         offset11 shouldBe 16740
       }
     }

@@ -42,14 +42,18 @@ class GtfsLoader(beamConfig: BeamConfig) {
     getSortedTripsWithStopTimes(dao)
   }
 
-  def transformGtfs(gtfsFeed: String, gtfsFeedOut: String, transformerStrategies: List[GtfsTransformStrategy]): Unit = {
+  def transformGtfs(
+    gtfsFeed: String,
+    gtfsFeedOut: String,
+    transformerStrategies: List[GtfsTransformStrategy]
+  ): Seq[TripAndStopTimes] = {
     val transformer = new GtfsTransformer
     transformer.setGtfsInputDirectory(dataDirectory.resolve(gtfsFeed).toFile)
     transformer.setOutputDirectory(dataDirectory.resolve(gtfsFeedOut).toFile)
     transformerStrategies.foreach(transformer.addTransform)
     transformer.run()
 
-    // getSortedTripsWithStopTimes(transformer.getDao)
+    getSortedTripsWithStopTimes(transformer.getDao)
   }
 
   private def getSortedTripsWithStopTimes(dao: GtfsRelationalDao) =
@@ -57,7 +61,14 @@ class GtfsLoader(beamConfig: BeamConfig) {
       .map(trip => TripAndStopTimes(trip, dao.getStopTimesForTrip(trip).asScala.sortBy(_.getStopSequence)))
       .sortBy(_.stopTimes.head.getArrivalTime)
 
-  def findRepeatingTrips(tripsWithStopTimes: Seq[TripAndStopTimes]): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
+  /**
+    * If trips need to be doubled it's better to put includeOnlySameService = false (default)
+    * If trips need to be scaled it's better to put includeOnlySameService = true
+    */
+  def findRepeatingTrips(
+    tripsWithStopTimes: Seq[TripAndStopTimes],
+    includeOnlySameService: Boolean = false
+  ): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
     tripsWithStopTimes
       .map { tripWithStopTimes =>
         val stopTimes = tripWithStopTimes.stopTimes
@@ -84,7 +95,13 @@ class GtfsLoader(beamConfig: BeamConfig) {
         case (HandledRepeatingAcc(handledDiffs, repeatingTrips), diff) =>
           val (firstTrip, offsetSeconds) =
             handledDiffs
-              .find(d => (d.trip != diff.trip && d.stops == diff.stops))
+              .find { d =>
+                val extraPredicate =
+                  if (includeOnlySameService) d.trip.trip.getServiceId == diff.trip.trip.getServiceId else true
+                (d.trip != diff.trip
+                && d.stops == diff.stops
+                && extraPredicate)
+              }
               .map(d => (d.trip, diff.trip.stopTimes.head.getArrivalTime - d.trip.stopTimes.head.getArrivalTime))
               .getOrElse((diff.trip, 0))
           val firstTripId = firstTrip.trip.getId.getId
@@ -100,7 +117,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
 
   def doubleTripsStrategy(
     repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
-    multiplicator: Int = 2
+    factor: Int = 2
   ): GtfsTransformStrategy = {
     val strategy = new AddEntitiesTransformStrategy
     val midnightArrivalTime = 86400 // seconds at midnight
@@ -112,7 +129,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
         .zip(trips.init)
         .foreach {
           case (current, previous) =>
-            for (idx <- 1 until multiplicator) {
+            for (idx <- 1 until factor) {
               val newTrip = createNewTrip(previous.trip, idx)
               strategy.addEntity(newTrip)
 
@@ -122,8 +139,8 @@ class GtfsLoader(beamConfig: BeamConfig) {
                   case (prevStopTime, curStopTime) =>
                     val newStopTime = createStopTime(
                       newTrip,
-                      prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / multiplicator * idx,
-                      prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / multiplicator * idx,
+                      prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / factor * idx,
+                      prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / factor * idx,
                       prevStopTime.getStop,
                       prevStopTime.getStopSequence
                     )
@@ -134,7 +151,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
         }
       // doubling trips between last stop and the midnight
       val lastTrip = trips.last
-      for { idx <- 1 until multiplicator } {
+      for { idx <- 1 until factor } {
         val newTrip = createNewTrip(trips.last.trip, idx)
         strategy.addEntity(newTrip)
 
@@ -143,8 +160,8 @@ class GtfsLoader(beamConfig: BeamConfig) {
         lastStopTimes.foreach { stopTime =>
           val newStopTime = createStopTime(
             newTrip,
-            stopTime.getDepartureTime + lastStopShift / multiplicator * idx,
-            stopTime.getArrivalTime + lastStopShift / multiplicator * idx,
+            stopTime.getDepartureTime + lastStopShift / factor * idx,
+            stopTime.getArrivalTime + lastStopShift / factor * idx,
             stopTime.getStop,
             stopTime.getStopSequence
           )
