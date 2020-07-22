@@ -6,6 +6,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase}
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.integration.AgentsimWithMaximallyBadRouterSpec.BadRouterForTest
+import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sim.common.GeoUtilsImpl
@@ -57,6 +58,7 @@ class AgentsimWithMaximallyBadRouterSpec
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
+        new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper
       )
       mobsim.run()

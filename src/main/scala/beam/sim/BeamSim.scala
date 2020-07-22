@@ -36,6 +36,7 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 //import com.zaxxer.nuprocess.NuProcess

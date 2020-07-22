@@ -898,9 +898,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  filePath =
-                    if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                    else "/test/input/beamville/ride-hail-parking.csv"
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
                 )
               }
             }
@@ -967,9 +965,7 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
-                filePath =
-                  if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                  else "/test/input/beamville/ride-hail-fleet.csv",
+                filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "",
                 initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
                 parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
                   if (c.hasPathOrNull("parking")) c.getConfig("parking")
@@ -1589,9 +1585,7 @@ object BeamConfig {
               if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/taz-centers.csv",
             parkingCostScalingFactor =
               if (c.hasPathOrNull("parkingCostScalingFactor")) c.getDouble("parkingCostScalingFactor") else 1.0,
-            parkingFilePath =
-              if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath")
-              else "/test/input/beamville/taz-parking.csv",
+            parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
             parkingManager = BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               if (c.hasPathOrNull("parkingManager")) c.getConfig("parkingManager")
               else com.typesafe.config.ConfigFactory.parseString("parkingManager{}")
@@ -1717,9 +1711,7 @@ object BeamConfig {
             averageCountsOverIterations =
               if (c.hasPathOrNull("averageCountsOverIterations")) c.getInt("averageCountsOverIterations") else 1,
             countsScaleFactor = if (c.hasPathOrNull("countsScaleFactor")) c.getInt("countsScaleFactor") else 10,
-            inputCountsFile =
-              if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
-              else "/test/input/beamville/counts.xml",
+            inputCountsFile = if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile") else "",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
           )
         }
@@ -3023,12 +3015,28 @@ object BeamConfig {
       Module_2: java.lang.String,
       Module_3: java.lang.String,
       Module_4: java.lang.String,
-      cleanNonCarModesInIteration: scala.Int,
+      clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int
     )
 
     object Replanning {
+      case class ClearModes(
+        iteration: scala.Int,
+        modes: scala.Option[scala.List[java.lang.String]],
+        strategy: java.lang.String
+      )
+
+      object ClearModes {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModes = {
+          BeamConfig.Beam.Replanning.ClearModes(
+            iteration = if (c.hasPathOrNull("iteration")) c.getInt("iteration") else 0,
+            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None,
+            strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "AtBeginningOfIteration"
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning = {
         BeamConfig.Beam.Replanning(
@@ -3040,8 +3048,10 @@ object BeamConfig {
           Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
           Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
           Module_4 = if (c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
-          cleanNonCarModesInIteration =
-            if (c.hasPathOrNull("cleanNonCarModesInIteration")) c.getInt("cleanNonCarModesInIteration") else 0,
+          clearModes = BeamConfig.Beam.Replanning.ClearModes(
+            if (c.hasPathOrNull("clearModes")) c.getConfig("clearModes")
+            else com.typesafe.config.ConfigFactory.parseString("clearModes{}")
+          ),
           fractionOfIterationsToDisableInnovation =
             if (c.hasPathOrNull("fractionOfIterationsToDisableInnovation"))
               c.getDouble("fractionOfIterationsToDisableInnovation")
@@ -4044,6 +4054,10 @@ object BeamConfig {
     import scala.collection.JavaConverters._
     cl.asScala.map(cv => $_dbl(cv)).toList
   }
+  private def $_L$_str(cl: com.typesafe.config.ConfigList): scala.List[java.lang.String] = {
+    import scala.collection.JavaConverters._
+    cl.asScala.map(cv => $_str(cv)).toList
+  }
   private def $_dbl(cv: com.typesafe.config.ConfigValue): scala.Double = {
     val u: Any = cv.unwrapped
     if ((cv.valueType != com.typesafe.config.ConfigValueType.NUMBER) ||
@@ -4058,4 +4072,6 @@ object BeamConfig {
       (if (u.isInstanceOf[java.lang.String]) "\"" + u + "\"" else u)
     )
   }
+  private def $_str(cv: com.typesafe.config.ConfigValue) =
+    java.lang.String.valueOf(cv.unwrapped())
 }
