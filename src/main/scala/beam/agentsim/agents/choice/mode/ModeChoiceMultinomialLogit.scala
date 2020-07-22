@@ -359,7 +359,13 @@ class ModeChoiceMultinomialLogit(
       .getOrElse(0)
   }
 
-  override def utilityOf(mode: BeamMode, cost: Double, transitOccupancyLevel: Double, numTransfers: Int = 0): Double = {
+  override def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double
+  ): Double = {
     modeModel.getUtilityOfAlternative(mode, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
   }
 

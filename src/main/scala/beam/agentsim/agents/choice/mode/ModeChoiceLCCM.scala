@@ -146,7 +146,13 @@ class ModeChoiceLCCM(
     }
   }
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double =
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double
+  ): Double =
     0.0
 
   def sampleMode(

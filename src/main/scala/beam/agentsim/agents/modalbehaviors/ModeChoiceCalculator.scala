@@ -63,7 +63,13 @@ trait ModeChoiceCalculator {
     destinationActivity: Option[Activity]
   ): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double = 0.0
+  ): Double
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
