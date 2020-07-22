@@ -118,7 +118,6 @@ object ModeChoiceCalculator {
     classname: String,
     beamServices: BeamServices,
     configHolder: BeamConfigHolder,
-    transitCrowding: TransitCrowdingSkims,
     eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
@@ -133,7 +132,7 @@ object ModeChoiceCalculator {
                 model,
                 modeModel,
                 configHolder,
-                transitCrowding,
+                beamServices.skims.tc_skimmer,
                 eventsManager
               )
             case _ =>
@@ -152,9 +151,16 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val (logit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, modeLogit, configHolder, transitCrowding, eventsManager)
+          new ModeChoiceMultinomialLogit(
+            beamServices,
+            routeLogit,
+            modeLogit,
+            configHolder,
+            beamServices.skims.tc_skimmer,
+            eventsManager
+          )
     }
   }
   sealed trait ModeVotMultiplier
