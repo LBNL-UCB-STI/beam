@@ -65,6 +65,8 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = -1.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = -3.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
    beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
    #Toll params
    beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
@@ -80,6 +82,8 @@ Mode choice parameters
 * params.ride_hail_intercept: Constant utility (where 1 util = 1 dollar) of taking ride hail.
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
+* params.transit_crowding: Multiplier utility of avoiding "crowded" transit vehicle. Should be negative.
+* params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
 * toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
 

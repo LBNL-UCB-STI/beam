@@ -10,7 +10,7 @@ import org.matsim.vehicles.Vehicle
   */
 class TransitCrowdingSkimmerEvent(
   eventTime: Double,
-  cfg: beam.sim.config.BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
+  transitCrowdingSkimmerConfig: beam.sim.config.BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
   vehicleId: Id[Vehicle],
   fromStopIdx: Int,
   toStopIdx: Int,
@@ -18,7 +18,7 @@ class TransitCrowdingSkimmerEvent(
   capacity: Int,
 ) extends AbstractSkimmerEvent(eventTime) {
 
-  override protected val skimName = cfg.name
+  override protected val skimName = transitCrowdingSkimmerConfig.name
 
   override val getKey = TransitCrowdingSkimmerKey(vehicleId, fromStopIdx)
 
