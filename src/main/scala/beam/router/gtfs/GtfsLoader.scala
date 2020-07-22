@@ -54,45 +54,39 @@ class GtfsLoader(beamConfig: BeamConfig) {
 
   private def getSortedTripsWithStopTimes(dao: GtfsRelationalDao) =
     dao.getAllTrips.asScala.toSeq
-      .map(trip => TripAndStopTimes(trip, dao.getStopTimesForTrip(trip).asScala.sortBy(_.getArrivalTime)))
+      .map(trip => TripAndStopTimes(trip, dao.getStopTimesForTrip(trip).asScala.sortBy(_.getStopSequence)))
       .sortBy(_.stopTimes.head.getArrivalTime)
 
   def findRepeatingTrips(tripsWithStopTimes: Seq[TripAndStopTimes]): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
     tripsWithStopTimes
-      .flatMap { tripWithStopTimes =>
+      .map { tripWithStopTimes =>
         val stopTimes = tripWithStopTimes.stopTimes
-        stopTimes.headOption.map { firstStopTime =>
-          stopTimes.tail
-            .foldLeft(TripDiffAcc(tripWithStopTimes, firstStopTime, None, Nil, Nil, List(firstStopTime.getStop))) {
-              case (diff, nextStopTime) =>
-                val currentStopTime = diff.currentStopTime
-                val arrivalDiff = nextStopTime.getArrivalTime - currentStopTime.getArrivalTime
-                val departureDiff = nextStopTime.getDepartureTime - currentStopTime.getDepartureTime
-                diff.copy(
-                  currentStopTime = nextStopTime,
-                  previousStopTime = Some(currentStopTime),
-                  arrivalDiffs = diff.arrivalDiffs :+ arrivalDiff,
-                  departureDiffs = diff.departureDiffs :+ departureDiff,
-                  stops = diff.stops :+ nextStopTime.getStop
-                )
-            }
-        }
+
+        stopTimes.tail
+          .zip(stopTimes.init)
+          .map {
+            case (current, previous) =>
+              val arrivalDiff = current.getArrivalTime - previous.getArrivalTime
+              val departureDiff = current.getDepartureTime - previous.getDepartureTime
+              (current, arrivalDiff, departureDiff)
+          }
+          .foldLeft(TripDiffAcc(tripWithStopTimes, Nil, Nil, Nil)) {
+            case (acc, (stopTime, arrivalDiff, departureDiff)) =>
+              acc.copy(
+                stops = acc.stops :+ stopTime.getStop,
+                arrivalDiffs = acc.arrivalDiffs :+ arrivalDiff,
+                departureDiffs = acc.departureDiffs :+ departureDiff
+              )
+          }
       }
-      .sortBy(_.currentStopTime.getArrivalTime)
+      .sortBy(_.trip.stopTimes.head.getArrivalTime)
       .foldLeft(HandledRepeatingAcc(Nil, TrieMap.empty)) {
         case (HandledRepeatingAcc(handledDiffs, repeatingTrips), diff) =>
           val (firstTrip, offsetSeconds) =
             handledDiffs
-              .find { d =>
-                (d.trip != diff.trip
-                && d.arrivalDiffs == diff.arrivalDiffs
-                && d.departureDiffs == diff.departureDiffs
-                && d.stops == diff.stops
-                && d.trip.trip.getServiceId == diff.trip.trip.getServiceId)
-              }
-              .map(d => (d.trip, diff.currentStopTime.getArrivalTime - d.currentStopTime.getArrivalTime))
+              .find(d => (d.trip != diff.trip && d.stops == diff.stops))
+              .map(d => (d.trip, diff.trip.stopTimes.head.getArrivalTime - d.trip.stopTimes.head.getArrivalTime))
               .getOrElse((diff.trip, 0))
-
           val firstTripId = firstTrip.trip.getId.getId
           val repeatingTripsSeq =
             if (offsetSeconds == 0) Seq(firstTrip -> 0)
@@ -228,8 +222,6 @@ object GtfsLoader {
 
   case class TripDiffAcc(
     trip: TripAndStopTimes,
-    currentStopTime: StopTime,
-    previousStopTime: Option[StopTime],
     arrivalDiffs: List[Int],
     departureDiffs: List[Int],
     stops: List[Stop]
