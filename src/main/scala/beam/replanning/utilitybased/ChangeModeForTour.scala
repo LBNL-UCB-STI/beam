@@ -79,7 +79,7 @@ class ChangeModeForTour(
               if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
               else WALK_TRANSIT,
               timeDist._1,
-              0.0,
+              timeDist._2,
               numTransfers = rng.nextInt(4) + 1
             )
           } else {
