@@ -103,7 +103,14 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-
+    (jsObject \ "status") match {
+      case JsDefined(value) =>
+        if (value != JsString("OK")) {
+          val error = jsObject \ "error_message"
+          logger.error(s"Google route request failed. Status: ${value}, error: $error")
+        }
+      case undefined: JsUndefined =>
+    }
     parseRoutes((jsObject \ "routes").as[JsArray].value)
   }
 
