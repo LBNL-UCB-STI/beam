@@ -20,9 +20,13 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
     beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath
   )
 
-  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = extractClassMembershipModels(
-    lccmData
-  )
+  val classMembershipModelMaps: Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] =
+    extractClassMembershipModels(lccmData)
+
+  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = classMembershipModelMaps.mapValues {
+    modelMap =>
+      MultinomialLogit(modelMap)
+  }
 
   val modeChoiceModels
     : Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
@@ -52,7 +56,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
 
   private def extractClassMembershipModels(
     lccmData: Seq[LccmData]
-  ): Map[TourType, MultinomialLogit[String, String]] = {
+  ): Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] = {
     val classMemData = lccmData.filter(_.model == "classMembership")
     Vector[TourType](Mandatory, NonMandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
@@ -62,7 +66,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
       } yield {
         (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
       }
-      theTourType -> MultinomialLogit(utilityFunctions.toMap)
+      theTourType -> utilityFunctions.toMap
     }.toMap
   }
 
@@ -86,13 +90,13 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
         } yield {
           (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
-        val ufm = utilityFunctions.toMap
+        val utilityFunctionMap = utilityFunctions.toMap
 
         theLatentClass -> (new MultinomialLogit[EmbodiedBeamTrip, String](
-          trip => ufm.get(trip.tripClassifier.value),
+          trip => utilityFunctionMap.get(trip.tripClassifier.value),
           Map.empty
         ),
-        new MultinomialLogit[BeamMode, String](mode => ufm.get(mode.value), Map.empty))
+        new MultinomialLogit[BeamMode, String](mode => utilityFunctionMap.get(mode.value), Map.empty))
       }.toMap
     }.toMap
   }

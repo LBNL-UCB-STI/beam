@@ -63,7 +63,13 @@ trait ModeChoiceCalculator {
     destinationActivity: Option[Activity]
   ): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double = 0.0
+  ): Double
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
@@ -118,7 +124,6 @@ object ModeChoiceCalculator {
     classname: String,
     beamServices: BeamServices,
     configHolder: BeamConfigHolder,
-    transitCrowding: TransitCrowdingSkims,
     eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
@@ -133,7 +138,7 @@ object ModeChoiceCalculator {
                 model,
                 modeModel,
                 configHolder,
-                transitCrowding,
+                beamServices.skims.tc_skimmer,
                 eventsManager
               )
             case _ =>
@@ -152,9 +157,16 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val (logit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, modeLogit, configHolder, transitCrowding, eventsManager)
+          new ModeChoiceMultinomialLogit(
+            beamServices,
+            routeLogit,
+            modeLogit,
+            configHolder,
+            beamServices.skims.tc_skimmer,
+            eventsManager
+          )
     }
   }
   sealed trait ModeVotMultiplier
