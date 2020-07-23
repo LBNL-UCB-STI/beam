@@ -218,11 +218,9 @@ object R5vsCCHPerformance extends BeamHelper {
     writeStatsCsv(ghStatsOutput, ghStats)
     logger.info(s"*GH* stats written to: $ghStatsOutput")
 
-    if (ghErrors.nonEmpty) {
-      val ghErrorsOutput = s"$outputDir/gh_errors.csv"
-      writeGhErrorsCsv(ghErrorsOutput, ghErrors)
-      logger.info(s"*GH* errors written to: $ghErrorsOutput")
-    }
+    val ghErrorsOutput = s"$outputDir/gh_errors.csv"
+    writeGhErrorsCsv(ghErrorsOutput, ghErrors)
+    logger.info(s"*GH* errors written to: $ghErrorsOutput")
   }
 
   //noinspection SameParameterValue
