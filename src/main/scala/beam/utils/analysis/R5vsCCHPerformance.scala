@@ -162,12 +162,14 @@ object R5vsCCHPerformance extends BeamHelper {
         val (ghResp, computationTime) = ProfilingUtils.timed { gh.route(origWgs, destWgs) }
         ghResponses += ghResp
 
-        ghStats += ResultRouteStats(
-          idx             = i,
-          distance        = ghResp.getBest.getDistance,
-          travelTime      = ghResp.getBest.getTime / 1000,  // time is in millis
-          computationTime = computationTime
-        )
+        if (!ghResp.hasErrors) {
+          ghStats += ResultRouteStats(
+            idx             = i,
+            distance        = ghResp.getBest.getDistance,
+            travelTime      = ghResp.getBest.getTime / 1000,  // time is in millis
+            computationTime = computationTime
+          )
+        }
       }
     }
     logger.info("*GH* performance check completed. Routes count: {}", ghResponses.size)
