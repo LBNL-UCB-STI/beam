@@ -19,12 +19,14 @@ object IndustryAssigner {
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
     println(s"Read ${odList.size} OD pairs from industry table")
 
-    val tazToTazCounts: Map[(String, String), Int] = odList
+    val tazToTazCounts = odList
       .groupBy { od =>
         (od.source, od.destination)
       }
+      .toSeq
       .map { case (key, xs) => key -> xs.size }
-    println(s"tazToTazCounts: ${tazToTazCounts.keys.size}")
+        .sortBy { case (key, size) => -size }
+    println(s"tazToTazCounts: ${tazToTazCounts.size}")
 
     val homeWorkActivities = ProfilingUtils.timed("Read plans", println) {
       CsvPlanElementReader
