@@ -22,12 +22,15 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
 
+  //clearModes is required for clearing modes defined in population.xml
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.replanning.clearModes.iteration = 0
+        |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
         | {
         |    name = "inexhaustible-reserving"
@@ -55,6 +58,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.replanning.clearModes.iteration = 0
+        |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
         | {
         |    name = "fixed-non-reserving"
@@ -149,6 +154,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
+         |beam.outputs.writeSkimsInterval = 1
          |beam.agentsim.agents.vehicles.sharedFleets = [
          | {
          |    name = "fixed-non-reserving-fleet-by-taz"
@@ -170,7 +176,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          | }
          |]
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
-                   """.stripMargin)
+      """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     runRepositionTest(config)

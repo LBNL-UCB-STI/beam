@@ -13,9 +13,18 @@ System Requirements
 
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
-* Java Runtime Environment or Java Development Kit 1.8
-* To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
-* To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
+* Java Development Kit 1.8. Oracle JDK 1.8: https://www.oracle.com/java/technologies/javase-jdk8-downloads.html. You can also use OpenJDK 8 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-8-jdk`
+* Verify that you have both java runtime and java compiler:
+.. code-block:: bash
+
+    ubuntu@ip-172-31-14-187:~/git/beam$ java -version
+    openjdk version "1.8.0_252"
+    OpenJDK Runtime Environment (build 1.8.0_252-8u252-b09-1~18.04-b09)
+    OpenJDK 64-Bit Server VM (build 25.252-b09, mixed mode)
+    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
+    javac 1.8.0_252
+    ubuntu@ip-172-31-14-187:~/git/beam$              
+
 * We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
 * Git and Git-LFS
 
@@ -24,8 +33,8 @@ Prerequisites :
 
 **Install Java**
 
-BEAM requires Java 1.8 JDK / JRE to be installed. If a different version of java is already installed on your system, please upgrade the version to 1.8.
-See this `link <https://www.java.com/en/download/help/version_manual.xml>`_ for steps to check the current version of your JRE.
+BEAM requires Java 1.8 JDK. If a different version of java is already installed on your system, please upgrade the version to 1.8.
+See this `link <https://www.oracle.com/java/technologies/javase-jdk8-downloads.html>`_ for steps to check the current version of your JDK.
 
 If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
 
@@ -142,6 +151,7 @@ The outputs are written to the 'output' directory, should see results appear in 
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
 
+There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-graphs`.
 
 Running BEAM with Intellij IDE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

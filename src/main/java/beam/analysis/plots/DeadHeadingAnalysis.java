@@ -8,13 +8,14 @@ import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
 import beam.sim.OutputDataDescription;
+import beam.sim.metrics.SimulationMetricCollector;
 import beam.utils.OutputDataDescriptor;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private static int maxPassengersSeenOnGenericCase = 0;
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEventsCache = new HashMap<>();
+    private final SimulationMetricCollector simMetricCollector;
+    private final OutputDirectoryHierarchy ioController;
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
@@ -51,8 +54,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
 
 
-    public DeadHeadingAnalysis(boolean writeGraph){
+    public DeadHeadingAnalysis(SimulationMetricCollector simMetricCollector, boolean writeGraph, OutputDirectoryHierarchy ioController) {
         this.writeGraph = writeGraph;
+        this.simMetricCollector = simMetricCollector;
+        this.ioController = ioController;
     }
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
@@ -64,8 +69,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
             if (i == 0) {
                 return "repositioning";
-            }
-            else if(i == 1){
+            } else if (i == 1) {
                 return "deadheading";
             }
             return Integer.toString(i - 1);
@@ -83,7 +87,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent)
-            processDeadHeading((PathTraversalEvent)event);
+            processDeadHeading((PathTraversalEvent) event);
     }
 
     @Override
@@ -92,7 +96,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         //createDeadHeadingPassengerPerTripGraph(event, graphType);
 
         for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
-            if(writeGraph){
+            if (writeGraph) {
                 graph.process(event);
             }
         }
@@ -100,7 +104,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
         if ("TNC0".equalsIgnoreCase(graphType)) {
-
             processDeadHeadingDistanceRemainingRepositionings();
             createDeadHeadingDistanceGraph(event);
         } else {
@@ -160,15 +163,14 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         for (int i = 0; i < m; i++) {
 
                             PathTraversalEvent oldEvent = vehicleHourData.get(i);
-                            Double length2 = oldEvent.legLength();
+                            double length2 = oldEvent.legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, -1);
                         }
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             vehicleEvents.clear();
         }
     }
@@ -179,10 +181,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String mode = event.mode().value();
         String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = event.numberOfPassengers();
+        int _num_passengers = event.numberOfPassengers();
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = event.legLength();
+            double length = event.legLength();
 
             if (_num_passengers > 0) {
 
@@ -215,7 +217,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                         if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
-                            Double length2 =((PathTraversalEvent)oldEvent).legLength();
+                            double length2 = ((PathTraversalEvent) oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, 0);
                         }
@@ -248,6 +250,13 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
+        // to create appropriate legend with all possible entities on every iteration start
+        if (deadHeadingsTnc0Map.isEmpty() && simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
+            for (int np = -1; np < 7; np++) {
+                writeTripDistanceMetric(0, 0, np);
+            }
+        }
+
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -264,12 +273,32 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         deadHeadingsTnc0Map.put(hour, hourData);
+
+        writeTripDistanceMetric(hour, length, _num_passengers);
+    }
+
+    private void writeTripDistanceMetric(int hour, double distanceInMeters, Integer _num_passengers) {
+        if (simMetricCollector.metricEnabled("ride-hail-trip-distance")) {
+            // white spaces in the beginning of tags are required for proper legend items order in graph
+            HashMap<String, String> tags = new HashMap<>();
+            if (_num_passengers == -1) {
+                tags.put("trip-type", "  repositioning");
+            } else if (_num_passengers == 0) {
+                tags.put("trip-type", " deadheading");
+            } else {
+                tags.put("trip-type", _num_passengers.toString());
+            }
+
+            int seconds = hour * 60 * 60;
+            double distanceInKilometers = distanceInMeters / 1000;
+            simMetricCollector.writeIterationJava("ride-hail-trip-distance", seconds, distanceInKilometers, tags, false);
+        }
     }
 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
-        double[][] dataSet = buildDeadHeadingDataSetTnc0();
-        CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
-        if(writeGraph){
+        if (writeGraph) {
+            double[][] dataSet = buildDeadHeadingDataSetTnc0();
+            CategoryDataset tnc0DeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         }
 
@@ -379,8 +408,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             vehicleEventsCache.clear();
         }
     }
@@ -388,7 +416,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.mode().value();
-        String vehicle_id =  event.vehicleId().toString();
+        String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = event.numberOfPassengers();
         boolean validCase = isValidCase(graphName, _num_passengers);
@@ -485,7 +513,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
             double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
-            CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+            CategoryDataset tncDeadHeadingDataSet = GraphUtils.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }
     }
@@ -494,7 +522,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<Integer> hours = new ArrayList<>(data.keySet());
         Collections.sort(hours);
         int maxHour = hours.get(hours.size() - 1);
-        Integer maxPassengers;
+        final int maxPassengers;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             maxPassengers = CAR_MAX_PASSENGERS;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
@@ -574,16 +602,16 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String fileName = getFileName(graphName, "png");
         String graphTitle = getTitle(graphName);
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(graphName, dataSet.getRowCount(), getBucketSize());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     private void writeToCSV(int iterationNumber, String graphName) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName, "csv"));
+        String csvFileName = ioController.getIterationFilename(iterationNumber, getFileName(graphName, "csv"));
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "hour,numPassengers,vkt";
             out.write(heading);
@@ -626,14 +654,14 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         vkt = 0d;
                     }
 
-
-                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
+                    double vktInKm = vkt / 1000;
+                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vktInKm);
                     out.newLine();
                 }
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -776,7 +804,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             return;
         }
 
-        PathTraversalEvent pte = (PathTraversalEvent)event;
+        PathTraversalEvent pte = (PathTraversalEvent) event;
         String mode = pte.mode().value();
         String vehicleId = pte.vehicleId().toString();
 
@@ -812,9 +840,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     final Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
     @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(dataFileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+    public List<OutputDataDescription> getOutputDataDescriptions(OutputDirectoryHierarchy ioController) {
+        String outputFilePath = this.ioController.getOutputFilename(dataFileBaseName + ".csv");
+        String outputDirPath = this.ioController.getOutputPath();
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));

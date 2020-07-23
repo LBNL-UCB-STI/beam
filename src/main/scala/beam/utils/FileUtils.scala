@@ -2,19 +2,27 @@ package beam.utils
 
 import java.io._
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.charset.StandardCharsets
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
+import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
-import org.matsim.core.utils.io.IOUtils
+import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
-import scala.language.reflectiveCalls
+import scala.annotation.tailrec
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.io.Source
+import scala.language.{higherKinds, postfixOps, reflectiveCalls}
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -22,6 +30,9 @@ import scala.language.reflectiveCalls
 object FileUtils extends LazyLogging {
 
   val runStartTime: String = getDateString
+  val suffixLength = 3
+
+  def randomString(size: Int): String = Random.alphanumeric.filter(_.isLower).take(size).mkString
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
@@ -31,9 +42,10 @@ object FileUtils extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
+    val uniqueSuffix = "_" + randomString(suffixLength)
     val outputDir = Paths
       .get(
-        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix
+        beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix + uniqueSuffix
       )
       .toFile
     outputDir.mkdir()
@@ -51,8 +63,10 @@ object FileUtils extends LazyLogging {
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(addTimestampToOutputDirectory)
+    val uniqueSuffix = randomString(suffixLength)
+
     val outputDir = Paths
-      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
+      .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix + "_" + uniqueSuffix)
       .toFile
     outputDir.mkdir()
     outputDir.getAbsolutePath
@@ -82,12 +96,115 @@ object FileUtils extends LazyLogging {
       resource.close()
     }
 
+  def using[A, B](resource: A)(close: A => Unit)(f: A => B): B =
+    try {
+      f(resource)
+    } finally {
+      close(resource)
+    }
+
+  def usingTemporaryDirectory[B](f: Path => B): B = {
+    val tmpFolder: Path = Files.createTempDirectory("tempDirectory")
+    try {
+      f(tmpFolder)
+    } finally {
+      deleteDirectory(tmpFolder.toFile)
+    }
+  }
+
+  /**
+    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
+    * that indicates that file is being created.
+    * @param path the file path
+    * @param atMost wait at most this time before starting reading the file
+    * @param reader the file reader
+    * @param writer the file writer
+    * @tparam T type of the entity that is read from the file
+    * @return the read entity
+    */
+  def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
+    reader: Path => T
+  )(writer: Path => T): Try[T] = {
+    val locFile = path.getParent.resolve(path.getFileName.toString + ".lock")
+
+    def readFile: Try[T] = {
+      busyWaiting(atMost.toMillis, 1000) { () =>
+        !Files.exists(locFile)
+      }
+      Try { reader(path) }
+    }
+
+    if (Files.exists(path))
+      readFile
+    else {
+      val locking = Try { Files.createFile(locFile) }
+      locking match {
+        case Failure(exception) =>
+          exception match {
+            case _: FileAlreadyExistsException => readFile
+            case throwable                     => Failure(throwable)
+          }
+        case Success(_) =>
+          val tryWrite = Try(writer(path))
+          Try(Files.delete(locFile)).failed.foreach { throwable =>
+            logger.error(s"Cannot delete lock file $locFile", throwable)
+          }
+          tryWrite
+      }
+    }
+  }
+
+  @tailrec
+  private def busyWaiting(atMostMillis: Long, checkInterval: Int)(f: () => Boolean): Boolean = {
+    if (!f()) {
+      Thread.sleep(checkInterval)
+      val newAtMost = atMostMillis - checkInterval
+      if (newAtMost > 0) {
+        busyWaiting(newAtMost, checkInterval)(f)
+      } else {
+        false
+      }
+    } else {
+      true
+    }
+  }
+
   def safeLines(fileLoc: String): stream.Stream[String] = {
     using(readerFromFile(fileLoc))(_.lines)
   }
 
+  def getReader(pathOrUrl: String): java.io.BufferedReader = {
+    if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
+      readerFromURL(pathOrUrl)
+    } else {
+      readerFromFile(pathOrUrl)
+    }
+  }
+
   def readerFromFile(filePath: String): java.io.BufferedReader = {
     IOUtils.getBufferedReader(filePath)
+  }
+
+  def readerFromStream(stream: InputStream): java.io.BufferedReader = {
+    new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
+  }
+
+  def readerFromURL(url: String): java.io.BufferedReader = {
+    require(isRemote(url, "http://") || isRemote(url, "https://"))
+    new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
+  }
+
+  def getInputStream(pathOrUrl: String): InputStream = {
+    val rawStream = if (isRemote(pathOrUrl, "http://") || isRemote(pathOrUrl, "https://")) {
+      new URL(pathOrUrl).openStream()
+    } else {
+      new FileInputStream(pathOrUrl)
+    }
+    if (pathOrUrl.endsWith(".gz")) {
+      new GZIPInputStream(rawStream)
+    } else {
+      rawStream
+    }
   }
 
   def downloadFile(source: String): Unit = {
@@ -192,6 +309,16 @@ object FileUtils extends LazyLogging {
     unpackedPath
   }
 
+  def readAllLines(file: File): Seq[String] = {
+    using(Source.fromFile(file.getPath)) { source =>
+      source.getLines().toList
+    }
+  }
+
+  def readAllLines(file: String): Seq[String] = {
+    readAllLines(new File(file))
+  }
+
   private def isZipArchive(sourceFilePath: String): Boolean = {
     assert(sourceFilePath != null)
     "zip".equalsIgnoreCase(getExtension(sourceFilePath))
@@ -200,5 +327,107 @@ object FileUtils extends LazyLogging {
   private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
     assert(sourceFilePath != null)
     sourceFilePath.startsWith(remoteIfStartsWith)
+  }
+
+  /**
+    * Reads files in parallel and returns all the loaded records as Iterable
+    * @param dir the directory where the files reside
+    * @param fileNamePattern glob file pattern
+    * @param atMost the expected time interval for file reading
+    * @param loader the function that actually read data from the reader
+    * @tparam X the record type
+    * @tparam M the container type
+    * @return all the loaded records as an Iterable
+    */
+  def flatParRead[X, M[X] <: TraversableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+    loader: (Path, BufferedReader) => M[X]
+  ): Iterable[X] =
+    parRead(dir, fileNamePattern, atMost) { (path: Path, reader: BufferedReader) =>
+      (path, loader(path, reader))
+    }.values.flatten
+
+  /**
+    * Reads files in parallel and returns loaded data as a map containing each loaded file data as values
+    * @param dir the directory where the files reside
+    * @param fileNamePattern glob file pattern
+    * @param atMost the expected time interval for file reading
+    * @param loader the function that actually read data from the reader
+    * @tparam Key the return map key
+    * @tparam Value the the return map value
+    * @return a Map containing the key values returned back by the loader
+    */
+  def parRead[Key, Value](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+    loader: (Path, BufferedReader) => (Key, Value)
+  ): Map[Key, Value] = {
+    import scala.collection.JavaConverters._
+    import scala.concurrent.ExecutionContext.Implicits._
+    val directoryStream = Files.newDirectoryStream(dir, fileNamePattern)
+    val fileList = directoryStream.iterator().asScala.toList
+    if (fileList.isEmpty) {
+      logger.info(s"No files $fileNamePattern found in directory '$dir'")
+    }
+    val futures = fileList
+      .map { path: Path =>
+        Future {
+          using(IOUtils.getBufferedReader(path.toString)) { reader =>
+            loader(path, reader)
+          }
+        }
+      }
+    Await.result(Future.sequence(futures), atMost).toMap
+  }
+
+  /**
+    * Writes data to separate files in parallel
+    * @param outputDir the ouput dir
+    * @param fileNamePattern the file name pattern. It must contains $i which is substituted with the part number
+    * @param numberOfParts the number of parts
+    * @param atMost the expected time interval for file writing
+    * @param saver the function that saves data to the provided writer.
+    *              It takes part number (starting from 1), path to file and buffered writer as an input
+    */
+  def parWrite(outputDir: Path, fileNamePattern: String, numberOfParts: Int, atMost: Duration = 30 minutes)(
+    saver: (Int, Path, BufferedWriter) => Unit
+  ): Unit = {
+    assert(numberOfParts > 0, "numberOfParts must be greater than zero")
+    assert(fileNamePattern.contains("$i"), "fileNamePattern must contain $i for substitution")
+    import scala.concurrent.ExecutionContext.Implicits._
+    val fileList = (1 to numberOfParts)
+      .map { i =>
+        (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
+      }
+    val futures = fileList.map {
+      case (i: Int, path: Path) =>
+        Future {
+          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+            saver(i, path, writer)
+          }
+        }
+    }
+    Await.result(Future.sequence(futures), atMost)
+  }
+
+  def getStreamFromZipFolder(pathToZip: String, fileName: String): Option[InputStream] = {
+    val zipInputStream = new ZipInputStream(Files.newInputStream(new File(pathToZip).toPath))
+
+    @tailrec
+    def loop(maybeNext: Option[ZipEntry], result: Option[ZipEntry]): Option[ZipEntry] = {
+      if (maybeNext.isEmpty) result
+      else {
+        Option(zipInputStream.getNextEntry) match {
+          case Some(zipEntry) if zipEntry.getName == fileName =>
+            loop(None, Some(zipEntry))
+          case Some(_) => loop(Option(zipInputStream.getNextEntry), None)
+          case None    => loop(None, result)
+        }
+      }
+    }
+
+    loop(Option(zipInputStream.getNextEntry), None) match {
+      case Some(_) => Some(zipInputStream)
+      case None =>
+        org.apache.commons.io.IOUtils.closeQuietly(zipInputStream)
+        None
+    }
   }
 }

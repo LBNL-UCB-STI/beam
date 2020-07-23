@@ -46,8 +46,8 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .resolve()
 
     val matsimConfig = runBeamWithConfig(config)._1
-    val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = fromXmlFile(filePath).toSeq
+    val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
+    val events = fromXmlFile(filePath)
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
@@ -76,8 +76,8 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .resolve()
 
     val matsimConfig = runBeamWithConfig(config)._1
-    val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = fromXmlFile(filePath).toSeq
+    val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
+    val events = fromXmlFile(filePath)
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 

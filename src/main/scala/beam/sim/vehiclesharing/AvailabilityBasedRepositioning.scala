@@ -2,11 +2,10 @@ package beam.sim.vehiclesharing
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
+import beam.router.skim.{ODSkims, Skims, TAZSkimmer, TAZSkims}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
-
 import scala.collection.mutable
 
 case class AvailabilityBasedRepositioning(
@@ -14,34 +13,42 @@ case class AvailabilityBasedRepositioning(
   statTimeBin: Int,
   matchLimit: Int,
   vehicleManager: Id[VehicleManager],
-  beamServices: BeamServices,
-  beamSkimmer: BeamSkimmer
+  beamServices: BeamServices
 ) extends RepositionAlgorithm {
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
   val unboardedVehicleInquiry = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
-  val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
-  val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
+  val orderingAvailVeh: Ordering[RepositioningRequest] = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
+  val orderingShortage: Ordering[RepositioningRequest] = Ordering.by[RepositioningRequest, Int](_.shortage)
 
   beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
-      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.getOrElse(0.0).toInt) { (minV, cur) =>
-        Math.min(minV, cur.toInt)
+      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.observations).getOrElse(0)) { (minV, cur) =>
+        Math.min(minV, cur.observations)
       }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
-      val inquiryVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).sum.toInt
-      val boardingVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).sum.toInt
+      val inquiryVal =
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.observations).sum
+      val boardingVal =
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.observations).sum
       unboardedVehicleInquiry.put((i, taz.tazId), inquiryVal - boardingVal)
     }
   }
 
-  def getCollectedDataFromPreviousSimulation(time: Int, idTAZ: Id[TAZ], label: String) = {
+  def getCollectedDataFromPreviousSimulation(
+    time: Int,
+    idTAZ: Id[TAZ],
+    label: String
+  ): Vector[TAZSkimmer.TAZSkimmerInternal] = {
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
-    beamSkimmer.getPreviousSkimPlusValues(fromBin, untilBin, idTAZ, vehicleManager, label)
+    (fromBin until untilBin)
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .toVector
+      .flatten
   }
 
   override def getVehiclesForReposition(
@@ -72,7 +79,7 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = beamSkimmer.getTimeDistanceAndCost(
+        val skim = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,
@@ -80,7 +87,8 @@ case class AvailabilityBasedRepositioning(
           Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
             classOf[BeamVehicleType]
-          )
+          ),
+          beamServices.beamScenario
         )
         if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
           destTimeOpt = Some((dst, skim.time))

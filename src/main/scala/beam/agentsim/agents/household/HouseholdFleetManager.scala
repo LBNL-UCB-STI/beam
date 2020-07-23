@@ -42,9 +42,9 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       xs.foreach {
         case (id, resp) =>
           val veh = vehicles(id)
-          veh.manager = Some(self)
+          veh.setManager(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-          veh.mustBeDrivenHome = true
+          veh.setMustBeDrivenHome(true)
           veh.useParkingStall(resp.stall)
           self ! ReleaseVehicleAndReply(veh)
       }
@@ -102,6 +102,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
     case Finish =>
       context.stop(self)
 
+    case Success =>
     case x =>
       logger.warn(s"No handler for ${x}")
   }

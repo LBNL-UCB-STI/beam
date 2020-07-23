@@ -1,15 +1,16 @@
 package beam.calibration.impl.example
 
+import java.io.File
 import java.net.URI
-import java.nio.file.Paths
 
-import scala.io.Source
 import scala.util.Try
+
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
+import beam.utils.FileUtils
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
-import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
 
 class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
@@ -115,7 +116,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
   }
 
   def getStatsFromFile(fileLoc: String): Map[String, Double] = {
-    val lines = Source.fromFile(fileLoc).getLines().toArray
+    val lines = FileUtils.readAllLines(fileLoc).toArray
     val header = lines.head.split(",").tail
     val lastIter = lines.reverse.head.split(",").tail.map(_.toDouble)
     val total = lastIter.sum

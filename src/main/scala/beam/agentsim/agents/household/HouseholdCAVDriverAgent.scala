@@ -17,6 +17,8 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.sim.common.GeoUtils
+import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
@@ -35,8 +37,8 @@ class HouseholdCAVDriverAgent(
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
-  val networkHelper = beamServices.networkHelper
-  val geo = beamServices.geo
+  val networkHelper: NetworkHelper = beamServices.networkHelper
+  val geo: GeoUtils = beamServices.geo
 
   override val id: Id[HouseholdCAVDriverAgent] = driverId
 
@@ -150,7 +152,8 @@ object HouseholdCAVDriverAgent {
     context.actorSelection("/user/population/" + householdId.toString + "/" + idFromVehicleId(transitVehicle))
   }
 
-  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
+  def idFromVehicleId(vehId: Id[BeamVehicle]): Id[HouseholdCAVDriverAgent] =
+    Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
 
   case class HouseholdCAVDriverData(
     currentVehicleToken: BeamVehicle,

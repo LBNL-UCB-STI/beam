@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker
+import beam.router.r5.{R5RoutingWorker, RouteDumper}
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -38,6 +38,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
@@ -58,7 +59,8 @@ class BeamRouter(
   scenario: Scenario,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator
+  tollCalculator: TollCalculator,
+  eventsManager: EventsManager
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -117,7 +119,7 @@ class BeamRouter(
   val tick = "work-pull-tick"
 
   val tickTask: Cancellable =
-    context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, tick)(context.dispatcher)
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -145,14 +147,22 @@ class BeamRouter(
 
   private val updateTravelTimeTimeout: Timeout = Timeout(3, TimeUnit.MINUTES)
 
+  private var currentIteration: Int = 0
+
   override def receive: PartialFunction[Any, Unit] = {
+    case IterationStartsMessage(iteration) =>
+      currentIteration = iteration
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+        log.debug(
+          "TryToSerialize size in bytes: {}, MBytes: {}",
+          byteArray.length,
+          byteArray.length.toDouble / 1024 / 1024
+        )
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -211,6 +221,9 @@ class BeamRouter(
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
       }
     case routingResp: RoutingResponse =>
+      if (shouldWriteR5Routes(currentIteration))
+        eventsManager.processEvent(RouteDumper.RoutingResponseEvent(routingResp))
+
       pipeResponseToOriginalSender(routingResp)
       logIfResponseTookExcessiveTime(routingResp.requestId)
     case routingFailure: RoutingFailure =>
@@ -221,6 +234,7 @@ class BeamRouter(
       removeOutstandingWorkBy(workIdToClear)
 
     case work =>
+      processByEventsManagerIfNeeded(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -234,6 +248,18 @@ class BeamRouter(
         if (!isWorkerAvailable) notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
         availableWorkWithOriginalSender.enqueue((work, originalSender))
       }
+  }
+
+  private def processByEventsManagerIfNeeded(work: Any): Unit = {
+    if (shouldWriteR5Routes(currentIteration)) {
+      work match {
+        case e: EmbodyWithCurrentTravelTime =>
+          eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
+        case req: RoutingRequest =>
+          eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
+        case _ =>
+      }
+    }
   }
 
   private def isWorkAvailable: Boolean = availableWorkWithOriginalSender.nonEmpty
@@ -394,6 +420,10 @@ class BeamRouter(
       }
   }
 
+  def shouldWriteR5Routes(iteration: Int): Boolean = {
+    val writeInterval = beamScenario.beamConfig.beam.outputs.writeR5RoutesInterval
+    writeInterval > 0 && iteration % writeInterval == 0
+  }
 }
 
 object BeamRouter {
@@ -433,9 +463,11 @@ object BeamRouter {
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     requestId: Int = IdGeneratorImpl.nextId
-  ) {
+  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+
+    val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
   }
 
   sealed trait IntermodalUse
@@ -450,13 +482,18 @@ object BeamRouter {
     */
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
-    requestId: Int
+    requestId: Int,
+    request: Option[RoutingRequest],
+    isEmbodyWithCurrentTravelTime: Boolean
   )
 
   case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
-    val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId))
+
+    val dummyRoutingResponse: Some[RoutingResponse] = Some(
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
+    )
   }
 
   def props(
@@ -468,8 +505,9 @@ object BeamRouter {
     scenario: Scenario,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator
-  ) = {
+    tollCalculator: TollCalculator,
+    eventsManager: EventsManager
+  ): Props = {
     checkForConsistentTimeZoneOffsets(beamScenario.dates, transportNetwork)
 
     Props(
@@ -482,7 +520,8 @@ object BeamRouter {
         scenario,
         transitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager
       )
     )
   }
@@ -563,7 +602,7 @@ object BeamRouter {
     )
   }
 
-  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork) = {
+  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork): Unit = {
     if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
           dates.localBaseDateTime
         )) {
@@ -593,4 +632,6 @@ object BeamRouter {
   case object WorkAvailable extends WorkMessage
 
   def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
+
+  case class IterationStartsMessage(iteration: Int)
 }

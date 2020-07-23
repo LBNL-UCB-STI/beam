@@ -4,12 +4,13 @@ import java.awt.Color
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
 
 class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
@@ -21,35 +22,35 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  val repositioningConfig =
+  val repositioningConfig: AllocationManager.RepositionLowWaitingTimes =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
   // TODO: get proper number here from rideHailManager
-  val timeWindowSizeInSecForDecidingAboutRepositioning =
+  val timeWindowSizeInSecForDecidingAboutRepositioning: Double =
     repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
 
-  val percentageOfVehiclesToReposition =
+  val percentageOfVehiclesToReposition: Double =
     repositioningConfig.percentageOfVehiclesToReposition
 
-  val maxNumberOfVehiclesToReposition =
+  val maxNumberOfVehiclesToReposition: Int =
     (rideHailManager.fleetSize * percentageOfVehiclesToReposition).toInt
 
-  var repositionCircleRadiusInMeters =
+  var repositionCircleRadiusInMeters: Double =
     repositioningConfig.repositionCircleRadiusInMeters
 
-  val minimumNumberOfIdlingVehiclesThresholdForRepositioning =
+  val minimumNumberOfIdlingVehiclesThresholdForRepositioning: Int =
     repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
 
-  val allowIncreasingRadiusIfDemandInRadiusLow =
+  val allowIncreasingRadiusIfDemandInRadiusLow: Boolean =
     repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
 
-  val minDemandPercentageInRadius =
+  val minDemandPercentageInRadius: Double =
     repositioningConfig.minDemandPercentageInRadius
 
   override def repositionVehicles(
-    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
-  ): Vector[(Id[Vehicle], Location)] = {
+  ): Vector[(Id[BeamVehicle], Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
@@ -108,7 +109,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
         // add keepMaxTopNScores (TODO)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =
+        val whichTAZToRepositionTo: Vector[(Id[BeamVehicle], Location)] =
           tncIterStats.reposition(
             vehiclesToReposition,
             repositionCircleRadiusInMeters,
@@ -263,7 +264,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: scala.collection.Map[Id[Vehicle], RideHailAgentLocation],
+    idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(

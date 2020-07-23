@@ -4,8 +4,10 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.router.skim.Skims
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.metrics.SimulationMetricCollector
 import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.core.controler._
@@ -68,6 +70,9 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
   def tollCalculator: TollCalculator
+  def skims: Skims
+
+  def simMetricCollector: SimulationMetricCollector
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -89,4 +94,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
   override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
+  override def skims = injector.getInstance(classOf[Skims])
+
+  override def simMetricCollector: SimulationMetricCollector = injector.getInstance(classOf[SimulationMetricCollector])
 }

@@ -54,7 +54,7 @@ public class PhyssimCalcLinkStatsTest {
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);
-        physsimCalcLinkStats.notifyIterationEnds(0, travelTimeCalculator);
+        physsimCalcLinkStats.notifyIterationEnds(0, travelTimeCalculator.getLinkTravelTimes());
     }
 
     @Test

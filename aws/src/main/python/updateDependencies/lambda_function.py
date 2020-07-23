@@ -6,6 +6,38 @@ from botocore.errorfactory import ClientError
 initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Updating Beam dependencies----------------------"
+  - sudo dpkg --configure -a
+  - sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
+  - sudo apt-get install unattended-upgrades
+  - sudo dpkg --configure -a
+  - sudo apt update
+  - sudo apt install npm -y
+  - sudo apt install nodejs-legacy -y
+  - sudo apt install python-pip -y
+  - pip install --upgrade pip
+  - sudo pip install pandas
+  - sudo pip install plotly
+  - sudo pip install psutil requests
+  - sudo npm cache clean -f
+  - sudo npm install -g n
+  - sudo n stable
+  - sudo npm install -g npm
+  - sudo apt-get install curl
+  - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+  - sudo apt-get install nodejs -y
+  - sudo apt-get install docker-ce docker-ce-cli containerd.io -y
+  - sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - sudo chmod +x /usr/local/bin/docker-compose
+  - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+  - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
+  - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
+  - sudo apt-get install xvfb -y
+  - sudo apt-get update -y
+  - sudo apt-get install build-essential software-properties-common -y && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt-get update -y
+  - sudo apt-get install gcc-8 g++-8 -y
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+  - sudo apt install jq -y
+  - echo "-------------------Finished updating Beam dependencies----------------------"
   - cd /home/ubuntu/git/beam
   - echo "send notification ..."
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Updating Dependencies" -b "Beam automated deployment image update started on $(ec2metadata --instance-id)."
@@ -33,28 +65,6 @@ runcmd:
   - ./gradlew assemble
   - ./gradlew clean
   - echo "preparing for python analysis"
-  - sudo dpkg --configure -a
-  - sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
-  - sudo apt-get install unattended-upgrades
-  - sudo dpkg --configure -a
-  - sudo apt update
-  - sudo apt install npm -y
-  - sudo apt install nodejs-legacy -y
-  - sudo apt install python-pip -y
-  - pip install --upgrade pip
-  - sudo pip install pandas
-  - sudo pip install plotly
-  - sudo pip install psutil requests
-  - sudo npm cache clean -f
-  - sudo npm install -g n
-  - sudo n stable
-  - sudo npm install -g npm
-  - sudo apt-get install curl
-  - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-  - sudo apt-get install nodejs -y
-  - sudo apt-get install libgtkextra-dev libgconf2-dev libnss3 libasound2 libxtst-dev -y
-  - sudo npm install -g electron@1.8.4 orca --unsafe-perm=true --alow-root -y
-  - sudo apt-get install xvfb -y
   - 'echo resetting git to base: "$(date)"'
   - sudo git reset --hard 
   - 'echo fetching the latest: "$(date)"'
@@ -75,8 +85,8 @@ runcmd:
   - export created_ami_id_us_west_2=$(sed -r 's/"(.*)"/\\1/' outputfile.txt)
   - while ! aws ec2 describe-images --image-ids $created_ami_id_us_east_1 --region us-east-1 | grep "available"; do echo "Waiting 30 seconds for AMI in us-east-1 $created_ami_id_us_east_1 ..."; sleep 30s; done
   - while ! aws ec2 describe-images --image-ids $created_ami_id_us_west_2 --region us-west-2 | grep "available"; do echo "Waiting 30 seconds for AMI in us-west-2 $created_ami_id_us_west_2 ..."; sleep 30s; done
-  - echo "invoke update simulateBeam lambda ..."
-  - sudo aws lambda invoke --invocation-type RequestResponse --function-name updateSimulateBeamEnvVars --region 'us-east-2' --payload '{"ami_id":"'"$created_ami_id"'","ami_id_us_east_1":"'"$created_ami_id_us_east_1"'","ami_id_us_west_2":"'"$created_ami_id_us_west_2"'"}' outputfile.txt
+  - echo "invoke update provided lambda functions environment variables..."
+  - sudo aws lambda invoke --invocation-type RequestResponse --function-name updateEnvVarsForProvidedFunctionNames --region 'us-east-2' --payload '{"function_names":["simulateBeam","runPilates"], "ami_id":"'"$created_ami_id"'","ami_id_us_east_1":"'"$created_ami_id_us_east_1"'","ami_id_us_west_2":"'"$created_ami_id_us_west_2"'"}' outputfile.txt
   - echo "setting up auto shutdown ..."
   - sudo shutdown -h +$SHUTDOWN_WAIT
   - echo "shutdown in $SHUTDOWN_WAIT ..."

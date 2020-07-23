@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.config.BeamConfig;
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import beam.utils.TestConfigUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,13 +38,14 @@ public class ModeChosenGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
-    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation() {
+
+    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(NoOpSimulationMetricCollector$.MODULE$, new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()) );
+    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()), null);
 
     @Before
     public void setUpClass() {
@@ -104,8 +106,8 @@ public class ModeChosenGraphTest {
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
-        int expectedResultOfMode[] = {17, 0, 2, 1};
-        int actualResultOfMode[] = new int[4];
+        int[] expectedResultOfMode = {17, 0, 2, 1};
+        int[] actualResultOfMode = new int[4];
         int maxHour = getMaxHour(stats.keySet());
         actualResultOfMode[0] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.CAR, maxHour, 6, stats);
         actualResultOfMode[1] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.DRIVE_TRANS, maxHour, 6, stats);

@@ -173,6 +173,7 @@ runcmd:
   - export MAXRAM=$MAX_RAM
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
+  - export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   - echo "MAXRAM is $MAXRAM"
   - sudo docker pull $PILATES_IMAGE_NAME:$PILATES_IMAGE_VERSION
   - /tmp/slack.sh "$hello_msg"
@@ -312,7 +313,8 @@ def lambda_handler(event, context):
             missing_parameters.append(param_name)
         return param_value
 
-    run_name = get_param('runName')
+    shutdown_behaviour = get_param('shutdownBehaviour')
+    run_name = get_param('runName') + '_' + shutdown_behaviour.toUpperCase()
     initial_urbansim_input = get_param('initialS3UrbansimInput')
     branch = get_param('beamBranch')
     commit_id = get_param('beamCommit')
@@ -336,7 +338,6 @@ def lambda_handler(event, context):
     instance_type = get_param('instanceType')
     volume_size = get_param('storageSize')
     region = get_param('region')
-    shutdown_behaviour = get_param('shutdownBehaviour')
 
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
@@ -371,6 +372,7 @@ def lambda_handler(event, context):
 
     sigopt_client_id = os.environ['SIGOPT_CLIENT_ID']
     sigopt_dev_id = os.environ['SIGOPT_DEV_ID']
+    google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
 
     scenario_with_date = pilates_scenario_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S")
     relative_output_path = s3_output_base_path + '/' + scenario_with_date
@@ -411,6 +413,7 @@ def lambda_handler(event, context):
         .replace('$PILATES_SCENARIO_NAME', pilates_scenario_name) \
         .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
         .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
+        .replace('$GOOGLE_API_KEY', google_api_key) \
         .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
         .replace('$SHEET_ID', os.environ['SHEET_ID']) \
         .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \

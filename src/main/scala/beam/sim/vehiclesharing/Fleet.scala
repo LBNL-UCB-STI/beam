@@ -3,10 +3,10 @@ import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -19,7 +19,6 @@ trait FleetType {
 
   def props(
     beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer,
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props
@@ -29,13 +28,13 @@ case class FixedNonReservingFleetByTAZ(
   managerId: Id[VehicleManager],
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
-) extends FleetType {
-  private val logger = Logger.getLogger(classOf[FixedNonReservingFleetByTAZ])
+) extends FleetType
+    with LazyLogging {
+
   case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
       extends Exception(message, cause)
   override def props(
     beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer,
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props = {
@@ -82,9 +81,8 @@ case class FixedNonReservingFleetByTAZ(
         vehicleType,
         beamScheduler,
         beamServices,
-        beamSkimmer,
         config.maxWalkingDistance,
-        repConfig.map(RepositionAlgorithms.lookup(_))
+        repConfig.map(RepositionAlgorithms.lookup)
       )
     )
   }
@@ -94,7 +92,6 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
     extends FleetType {
   override def props(
     beamServices: BeamServices,
-    skimmer: BeamSkimmer,
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props = {
@@ -115,7 +112,6 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
         vehicleType,
         beamScheduler,
         beamServices,
-        skimmer,
         config.maxWalkingDistance
       )
     )
@@ -125,7 +121,6 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
 case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleReserving) extends FleetType {
   override def props(
     beamServices: BeamServices,
-    skimmer: BeamSkimmer,
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props = {

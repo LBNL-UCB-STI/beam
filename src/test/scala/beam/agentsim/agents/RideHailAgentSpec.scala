@@ -28,7 +28,7 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailAgentSpec
@@ -37,6 +37,7 @@ class RideHailAgentSpec
     with SimRunnerForTest
     with MockitoSugar
     with ImplicitSender
+    with BeforeAndAfter
     with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -148,7 +149,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -224,7 +225,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -294,7 +295,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
-      beamVehicle.manager = Some(self)
+      beamVehicle.setManager(Some(self))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -378,6 +379,15 @@ class RideHailAgentSpec
         self ! event
       }
     })
+  }
+
+  after {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1000 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
   override def afterAll(): Unit = {
