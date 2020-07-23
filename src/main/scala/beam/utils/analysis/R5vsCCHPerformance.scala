@@ -370,7 +370,7 @@ object R5vsCCHPerformance extends BeamHelper {
           s"${dest.lat}",
           s"${dest.lon}",
           s"$computationTime",
-          s"\"${unwindErrorMessage(response.getErrors)}\"",
+          s"""\"${unwindErrorMessage(response.getErrors)}\""""
         ))
       case _ => None
     }
