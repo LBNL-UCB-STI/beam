@@ -4,10 +4,10 @@ import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.cosim.helics.BeamFederate
+import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.sim.BeamServices
 import beam.utils.DateUtils
-import helics.BeamFederate
-import helics.BeamFederate.BeamFederateTrigger
 
 import scala.collection.mutable.ListBuffer
 

@@ -14,8 +14,8 @@ import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +43,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEventsCache = new HashMap<>();
     private final SimulationMetricCollector simMetricCollector;
+    private final OutputDirectoryHierarchy ioController;
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
@@ -53,9 +54,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
 
 
-    public DeadHeadingAnalysis(SimulationMetricCollector simMetricCollector, boolean writeGraph) {
+    public DeadHeadingAnalysis(SimulationMetricCollector simMetricCollector, boolean writeGraph, OutputDirectoryHierarchy ioController) {
         this.writeGraph = writeGraph;
         this.simMetricCollector = simMetricCollector;
+        this.ioController = ioController;
     }
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
@@ -604,12 +606,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(graphName, dataSet.getRowCount(), getBucketSize());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     private void writeToCSV(int iterationNumber, String graphName) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName, "csv"));
+        String csvFileName = ioController.getIterationFilename(iterationNumber, getFileName(graphName, "csv"));
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "hour,numPassengers,vkt";
             out.write(heading);
@@ -838,9 +840,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     final Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
     @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(dataFileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+    public List<OutputDataDescription> getOutputDataDescriptions(OutputDirectoryHierarchy ioController) {
+        String outputFilePath = this.ioController.getOutputFilename(dataFileBaseName + ".csv");
+        String outputDirPath = this.ioController.getOutputPath();
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
