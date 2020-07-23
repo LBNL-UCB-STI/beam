@@ -557,7 +557,7 @@ tasks.withType(ScalaCompile) {
 }
 
 task fmt(dependsOn: scalafmtAll)
-task checkScalaFmt() {
+task verifyScalaFmtHasBeenRun() {
     doLast {
         try {
             def workingDir = new File("${project.projectDir}")
