@@ -179,16 +179,15 @@ object R5vsCCHPerformance extends BeamHelper {
 
       if (ghResp.hasErrors) {
         ghFailures += 1
-        return
+      } else {
+        val ghGpxPoints: Iterator[GpxPoint] = for {
+          // Note: path.getWaypoints are just origin+destination pair
+          (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
+        } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
+
+        val ghGpxFile = gpxOutputDir + s"/gh_$ghRespIdx.gpx"
+        GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
       }
-
-      val ghGpxPoints: Iterator[GpxPoint] = for {
-        // Note: path.getWaypoints are just origin+destination pair
-        (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
-      } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
-
-      val ghGpxFile = gpxOutputDir + s"/gh_$ghRespIdx.gpx"
-      GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
     }
 
     logger.info(s"GraphHopper routing errors count: $ghFailures")
