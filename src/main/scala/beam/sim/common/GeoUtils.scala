@@ -174,10 +174,9 @@ x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
 
     val closestEdges = corners.map { gpxPoint =>
       val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
-      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy {
-        case x =>
-          val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
-          distUTMInMeters(utmCornerCoord, utmCoord)
+      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy { x =>
+        val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
+        distUTMInMeters(utmCornerCoord, utmCoord)
       }
       (closestEdge, gpxPoint)
     }
@@ -186,6 +185,11 @@ x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
 }
 
 object GeoUtils {
+  import scala.language.implicitConversions
+
+  implicit def toJtsCoordinate(coord: Coord): Coordinate = {
+    new Coordinate(coord.getX, coord.getY)
+  }
 
   def isInvalidWgsCoordinate(coord: Coord): Boolean = {
     coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90
@@ -291,3 +295,5 @@ object GeoUtils {
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
   override def localCRS: String = beamConfig.beam.spatial.localCRS
 }
+
+case class SimpleGeoUtils(localCRS: String = "epsg:26910") extends GeoUtils

@@ -74,7 +74,7 @@ class TransitDataDownloader {
         try {
             requestURL = builder.build();
         } catch (URISyntaxException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
 
         Async async = Async.newInstance().use(threadpool);
@@ -126,7 +126,7 @@ class TransitDataDownloader {
         try {
             requestURL = builder.build();
         } catch (URISyntaxException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
 
 
@@ -158,16 +158,16 @@ class TransitDataDownloader {
                                         unzip(zipFilePath, destDirectory, true);
                                         log.info("Done.");
                                         close();
-                                    } catch (Exception ex) {
-                                        ex.printStackTrace();
+                                    } catch (Exception e) {
+                                        log.error("exception occurred due to ", e);
                                     }
                                 });
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                log.error("exception occurred due to ", e);
                             }
                         });
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        log.error("exception occurred due to ", e);
                     }
                 }
             }

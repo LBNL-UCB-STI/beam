@@ -20,6 +20,7 @@ import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
@@ -53,7 +54,7 @@ class TollRoutingSpec
 
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -72,7 +73,8 @@ class TollRoutingSpec
         scenario,
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        eventsManager = mock[EventsManager]
       )
     )
   }
@@ -136,7 +138,8 @@ class TollRoutingSpec
           scenario,
           scenario.getTransitVehicles,
           fareCalculator,
-          moreExpensiveTollCalculator
+          moreExpensiveTollCalculator,
+          eventsManager = mock[EventsManager]
         )
       )
       moreExpensiveRouter ! request
@@ -146,11 +149,11 @@ class TollRoutingSpec
       assert(moreExpensiveCarOption.costEstimate == 4.0)
 
       val tollSensitiveRequest = RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
@@ -182,11 +185,11 @@ class TollRoutingSpec
 
     "not report a toll when walking" in {
       val request = RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),

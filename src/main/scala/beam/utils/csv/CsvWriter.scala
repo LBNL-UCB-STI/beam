@@ -33,6 +33,10 @@ class CsvWriter(
     CsvWriter.writeLineSeparator
   }
 
+  def flush(): Unit = {
+    writer.flush()
+  }
+
   def writeNewLine(): Unit = {
     CsvWriter.writeLineSeparator
   }

@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern._
-import akka.stream.ActorMaterializer
+
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -23,7 +23,6 @@ import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -72,20 +71,20 @@ object R5RoutingApp extends BeamHelper {
     LoggingUtil.initLogger(outputDirectory, true)
 
     implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
 
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
-    val warmStart = BeamWarmStart(beamCfg)
-    logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
-
-    warmStart.readTravelTime.foreach { travelTime =>
-      workerRouter ! UpdateTravelTimeLocal(travelTime)
-      logger.info("Send `UpdateTravelTimeLocal`")
+    val isWarmMode = beamCfg.beam.warmStart.enabled
+    logger.info(s"warmStart isEnabled?: $isWarmMode")
+    if (isWarmMode) {
+      val warmStart = BeamWarmStart(beamCfg)
+      warmStart.readTravelTime.foreach { travelTime =>
+        workerRouter ! UpdateTravelTimeLocal(travelTime)
+        logger.info("Send `UpdateTravelTimeLocal`")
+      }
     }
-
     val interface = "0.0.0.0"
     val port = 9000
     val routingHandler = new RoutingHandler(workerRouter)

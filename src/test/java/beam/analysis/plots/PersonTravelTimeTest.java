@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import org.junit.Before;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
@@ -8,11 +9,11 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 public class PersonTravelTimeTest {
 
-    private class PersonTravelTimeHandler implements BasicEventHandler {
+    private static class PersonTravelTimeHandler implements BasicEventHandler {
 
         private final PersonTravelTimeAnalysis personTravelTimeStats;
 
-        PersonTravelTimeHandler(PersonTravelTimeAnalysis personTravelTimeStats){
+        PersonTravelTimeHandler(PersonTravelTimeAnalysis personTravelTimeStats) {
             this.personTravelTimeStats = personTravelTimeStats;
         }
 
@@ -26,8 +27,9 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
-            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {}, true);
+    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
+            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
+            }, true, null);
 
     @Before
     public void setUpClass() {

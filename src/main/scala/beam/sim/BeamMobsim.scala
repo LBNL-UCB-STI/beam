@@ -9,28 +9,35 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
+import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
+import beam.router.Modes.BeamMode
+import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.router._
 import beam.router.osm.TollCalculator
+import beam.router.skim.TAZSkimsCollector
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
+import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
+import org.matsim.households.Households
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -47,9 +54,8 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved,
   val geo: GeoUtils,
+  val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper
 ) extends Mobsim
     with LazyLogging
@@ -60,24 +66,75 @@ class BeamMobsim @Inject()(
     logger.info("Starting Iteration")
     startMeasuringIteration(beamServices.matsimServices.getIterationNumber)
     logger.info("Preparing new Iteration (Start)")
-    startSegment("iteration-preparation", "mobsim")
+    startMeasuring("iteration-preparation:mobsim")
 
     validateVehicleTypes()
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
+    // This is needed to get all iterations in Grafana. Take a look to variable `$iteration_num` in the dashboard
+    beamServices.simMetricCollector.writeIteration(
+      "beam-iteration",
+      SimulationTime(0),
+      beamServices.matsimServices.getIterationNumber.toLong
+    )
+
+    // to have zero values for graphs even if there are no values calculated during iteration
+    def writeZeros(
+      metricName: String,
+      values: Map[String, Double] = Map(SimulationMetricCollector.defaultMetricName -> 0.0),
+      tags: Map[String, String] = Map()
+    ): Unit = {
+      for (hour <- 0 to 24) {
+        beamServices.simMetricCollector.write(metricName, SimulationTime(60 * 60 * hour), values, tags)
+      }
+    }
+
+    Seq(
+      "car",
+      "walk",
+      "ride_hail",
+      "ride_hail_pooled",
+      "ride_hail_transit",
+      "bike",
+      "walk_transit",
+      "drive_transit"
+    ).foreach(mode => {
+      writeZeros("mode-choices", tags = Map("mode" -> mode))
+    })
+
+    val defaultName = SimulationMetricCollector.defaultMetricName
+    writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
+    writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
+
+    writeZeros("parking", tags = Map("parking-type" -> "Public"))
+    writeZeros("ride-hail-allocation-reserved")
+    writeZeros("ride-hail-inquiry-served")
+    writeZeros(
+      "chargingPower",
+      Map(defaultName   -> 0.0, "averageLoad"        -> 0.0),
+      Map("vehicleType" -> "Personal", "parkingType" -> "Public", "typeOfCharger" -> "None")
+    )
+
     eventsManager.initProcessing()
+
+    clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
+    planCleaner.clearModesAccordingToStrategy(beamServices.matsimServices.getIterationNumber)
+
+    if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+      logger.info("Filling in secondary trips in plans")
+      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+    }
 
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
           beamServices,
+          eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
-          routeHistory,
-          beamSkimmer,
-          travelTimeObserved
+          routeHistory
         )
       ),
       "BeamMobsim.iteration"
@@ -87,9 +144,142 @@ class BeamMobsim @Inject()(
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
-    endSegment("agentsim-events", "agentsim")
+    stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  private def fillInSecondaryActivities(households: Households): Unit = {
+    households.getHouseholds.values.forEach { household =>
+      val vehicles = household.getVehicleIds.asScala
+        .flatten(vehicleId => beamServices.beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
+      val persons = household.getMemberIds.asScala.collect {
+        case personId => beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      }
+      val destinationChoiceModel = beamServices.beamScenario.destinationChoiceModel
+
+      val vehiclesByCategory =
+        vehicles.filter(_.beamVehicleType.automationLevel <= 3).groupBy(_.beamVehicleType.vehicleCategory)
+
+      val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
+        case VehicleCategory.Car  => BeamMode.CAR
+        case VehicleCategory.Bike => BeamMode.BIKE
+      }.toList
+
+      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+
+      val cavModeAvailable: List[BeamMode] =
+        if (cavs.nonEmpty) {
+          List[BeamMode](BeamMode.CAV)
+        } else {
+          List[BeamMode]()
+        }
+
+      val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
+
+      persons.foreach { person =>
+        if (beamServices.matsimServices.getIterationNumber == 0) {
+          val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
+          addSupplementaryTrips.run(person)
+        }
+
+        if (person.getSelectedPlan.getPlanElements.asScala
+              .collect { case activity: Activity => activity.getType }
+              .contains("Temp")) {
+          val supplementaryTripGenerator =
+            new SupplementaryTripGenerator(
+              person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
+              destinationChoiceModel,
+              beamServices,
+              person.getId
+            )
+          val newPlan =
+            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
+          newPlan match {
+            case Some(plan) =>
+              person.removePlan(person.getSelectedPlan)
+              person.addPlan(plan)
+              person.setSelectedPlan(plan)
+            case None =>
+          }
+        }
+      }
+
+    }
+
+    logger.info("Done filling in secondary trips in plans")
+  }
+
+  private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
+    val experimentType = beamServices.beamConfig.beam.physsim.relaxation.`type`
+    if (experimentType == "experiment_2.0") {
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_0.clearRoutesEveryIteration) {
+        clearRoutes()
+        logger.info(s"Experiment_2.0: Clear all routes at iteration ${iteration}")
+      }
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_0.clearModesEveryIteration) {
+        clearModes()
+        logger.info(s"Experiment_2.0: Clear all modes at iteration ${iteration}")
+      }
+    } else if (experimentType == "experiment_2.1") {
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_1.clearRoutesEveryIteration) {
+        clearRoutes()
+        logger.info(s"Experiment_2.1: Clear all routes at iteration ${iteration}")
+      }
+      if (beamServices.beamConfig.beam.physsim.relaxation.experiment2_1.clearModesEveryIteration) {
+        clearModes()
+        logger.info(s"Experiment_2.1: Clear all modes at iteration ${iteration}")
+      }
+    } else if (experimentType == "experiment_3.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_3.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_3.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_4.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_4.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_4.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.0" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.0: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.0: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.1" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.1: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.1: Clear all modes at iteration ${iteration}")
+    } else if (experimentType == "experiment_5.2" && iteration <= 1) {
+      clearRoutes()
+      logger.info(s"Experiment_5.2: Clear all routes at iteration ${iteration}")
+      clearModes()
+      logger.info(s"Experiment_5.2: Clear all modes at iteration ${iteration}")
+    }
+  }
+
+  private def clearRoutes(): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+      p.getPlans.asScala.foreach { plan =>
+        plan.getPlanElements.asScala.foreach {
+          case leg: Leg =>
+            leg.setRoute(null)
+          case _ =>
+        }
+      }
+    }
+  }
+
+  private def clearModes(): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { p =>
+      p.getPlans.asScala.foreach { plan =>
+        plan.getPlanElements.asScala.foreach {
+          case leg: Leg =>
+            leg.setMode("")
+          case _ =>
+        }
+      }
+    }
   }
 
   def validateVehicleTypes(): Unit = {
@@ -116,14 +306,14 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
   val beamServices: BeamServices,
+  val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
-  val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
+
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
@@ -154,12 +344,23 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  private val parkingManager = context.actorOf(
-    ZonalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
-      .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
-    "ParkingManager"
-  )
+  private val parkingManager = {
+    val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
+    log.info(s"Starting parking manager: $managerName")
+    val pmProps = managerName match {
+      case "DEFAULT" =>
+        ZonalParkingManager
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case "PARALLEL" =>
+        ParallelParkingManager
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
+          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
+    }
+    context.actorOf(pmProps, "ParkingManager")
+  }
+
   context.watch(parkingManager)
 
   private val rideHailManager = context.actorOf(
@@ -179,7 +380,6 @@ class BeamMobsimIteration(
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        beamSkimmer,
         routeHistory
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
@@ -205,7 +405,7 @@ class BeamMobsimIteration(
 
   private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
-      Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingManager),
       fleetConfig.name
     )
   }
@@ -245,16 +445,36 @@ class BeamMobsimIteration(
       sharedVehicleFleets,
       matsimServices.getEvents,
       routeHistory,
-      beamSkimmer,
-      travelTimeObserved,
       envelopeInUTM
     ),
     "population"
   )
+
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
   scheduleRideHailManagerTimerMessages()
+
+  //to monitor with TAZSkimmer add actor hereinafter
+  private val tazSkimmer = context.actorOf(
+    TAZSkimsCollector.props(scheduler, beamServices, rideHailManager +: sharedVehicleFleets),
+    "taz-skims-collector"
+  )
+  context.watch(tazSkimmer)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
+
+  val eventsAccumulator: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.collectEvents) {
+      val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
+      context.watch(eventsAccumulator)
+      scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
+      Some(eventsAccumulator)
+    } else None
+  eventsManager match {
+    case lem: LoggingEventsManager =>
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+    case _ =>
+  }
 
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
@@ -263,7 +483,7 @@ class BeamMobsimIteration(
   ): Cancellable = {
     import system.dispatcher
 
-    val cancellable = system.scheduler.schedule(
+    val cancellable = system.scheduler.scheduleWithFixedDelay(
       0.milliseconds,
       (timeoutInSeconds * 1000).milliseconds,
       memoryLoggingTimerActorRef,
@@ -277,18 +497,24 @@ class BeamMobsimIteration(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
-      endSegment("agentsim-execution", "agentsim")
+      stopMeasuring("agentsim-execution:agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")
-      startSegment("agentsim-events", "agentsim")
+      stopMeasuring("agentsim-events:agentsim")
 
       population ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
+      tazSkimmer ! Finish
+      if (eventsAccumulator.isDefined) {
+        eventsAccumulator.get ! Finish
+        context.stop(eventsAccumulator.get)
+      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
+      context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)
@@ -304,11 +530,11 @@ class BeamMobsimIteration(
     case "Run!" =>
       runSender = sender
       log.info("Running BEAM Mobsim")
-      endSegment("iteration-preparation", "mobsim")
+      stopMeasuring("iteration-preparation:mobsim")
 
       log.info("Preparing new Iteration (End)")
       log.info("Starting Agentsim")
-      startSegment("agentsim-execution", "agentsim")
+      startMeasuring("agentsim-execution:agentsim")
 
       scheduler ! StartSchedule(matsimServices.getIterationNumber)
   }

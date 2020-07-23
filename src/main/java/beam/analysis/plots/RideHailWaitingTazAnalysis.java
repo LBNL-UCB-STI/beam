@@ -9,9 +9,12 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,12 +22,16 @@ import java.util.*;
 import java.util.stream.DoubleStream;
 
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
-    private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
-    private Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
-    private BeamServices beamServices;
+    private final Logger log = LoggerFactory.getLogger(RideHailWaitingTazAnalysis.class);
 
-    public RideHailWaitingTazAnalysis(BeamServices beamServices) {
+    private final Map<String, Event> rideHailWaitingQueue = new HashMap<>();
+    private final Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
+    private final BeamServices beamServices;
+    private final OutputDirectoryHierarchy ioController;
+
+    public RideHailWaitingTazAnalysis(BeamServices beamServices, OutputDirectoryHierarchy ioController) {
         this.beamServices = beamServices;
+        this.ioController = ioController;
     }
 
     /**
@@ -33,7 +40,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      * @throws IOException exception
      */
     @Override
-    public void createGraph(IterationEndsEvent iterationEndsEvent) throws IOException {
+    public void createGraph(IterationEndsEvent iterationEndsEvent) {
         writeToCsv(iterationEndsEvent.getIteration(),binWaitingTimesMap);
     }
 
@@ -91,7 +98,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     private void writeToCsv(int iterationNumber,Map<Tuple<Integer,Id<TAZ>>, List<Double>> dataMap) {
         String heading = "timeBin,TAZ,avgWait,medianWait,numberOfPickups,avgPoolingDelay,numberOfPooledPickups";
         String fileBaseName = "rideHailWaitingStats";
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iterationNumber, fileBaseName + ".csv");
         BufferedWriter outWriter = IOUtils.getBufferedWriter(csvFileName);
         try {
             outWriter.write(heading);
@@ -107,13 +114,13 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                     outWriter.write(line);
                     outWriter.newLine();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("exception occurred due to ", e);
                 }
             });
             outWriter.flush();
             outWriter.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

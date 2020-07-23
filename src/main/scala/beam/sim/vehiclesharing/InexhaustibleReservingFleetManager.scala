@@ -45,7 +45,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         rand.nextInt()
       )
       nextVehicleIndex += 1
-      vehicle.manager = Some(self)
+      vehicle.setManager(Some(self))
       vehicle.spaceTime = whenWhere
       vehicle.becomeDriver(sender)
 
@@ -62,6 +62,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
 
 }
