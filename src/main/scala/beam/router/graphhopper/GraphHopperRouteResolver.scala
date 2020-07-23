@@ -48,7 +48,7 @@ class GraphHopperRouteResolver(val ghLocation: String) extends LazyLogging {
     }
   }
 
-  def route(originWGS: Coord, destWGS: Coord): GHResponse = {
+  def route(originWGS: Coord, destWGS: Coord): (GHRequest, GHResponse) = {
     val request: GHRequest =
       new GHRequest(
         new GHPoint(originWGS.getY, originWGS.getX),
@@ -63,7 +63,7 @@ class GraphHopperRouteResolver(val ghLocation: String) extends LazyLogging {
       .putObject("calc_points", true)
       .putObject("instructions", true)
       .putObject("way_point_max_distance", 1)
-    gh.route(request)
+    (request, gh.route(request))
   }
 }
 

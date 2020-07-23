@@ -17,7 +17,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.map.{GpxPoint, GpxWriter}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.conveyal.osmlib.OSM
-import com.graphhopper.GHResponse
+import com.graphhopper.{GHRequest, GHResponse}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -100,23 +100,31 @@ object R5vsCCHPerformance extends BeamHelper {
         val (r5Resp, computationTime) = ProfilingUtils.timed { r5Wrapper.calcRoute(req) }
         r5Responses += r5Resp
 
-        val (distance, travelTime) = r5Resp.itineraries
+        val (numberOfLinks, distance, travelTime) = r5Resp.itineraries
           .take(1)
           .flatMap(_.legs)
-          .foldLeft((0.0, 0)) {  // collect distance and travel time
+          .foldLeft((0, 0.0, 0)) {  // collect distance and travel time
             (distanceTimeAcc, leg) =>
-              val (distanceAcc, timeAcc) = distanceTimeAcc
+              val (nLinks, distanceAcc, timeAcc) = distanceTimeAcc
 
               val legDistance = leg.beamLeg.travelPath.distanceInM
               val legDuration = leg.beamLeg.duration  // time is in seconds
 
-              (distanceAcc + legDistance, timeAcc + legDuration)
+              (nLinks + 1, distanceAcc + legDistance, timeAcc + legDuration)
           }
+
+        val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
 
         r5Stats += ResultRouteStats(
           idx             = i,
+          originLat       = origWgs.getY,
+          originLon       = origWgs.getX,
+          destinationLat  = destWgs.getY,
+          destinationLon  = destWgs.getX,
+          numberOfLinks   = numberOfLinks,
           distance        = distance,
           travelTime      = travelTime,
+          travelSpeed     = distance / travelTime,
           computationTime = computationTime
         )
       }
@@ -147,6 +155,7 @@ object R5vsCCHPerformance extends BeamHelper {
     val gh = new GraphHopperRouteResolver(ghLocation)
 
     val ghResponses = ListBuffer.empty[GHResponse]
+    val ghErrors = ListBuffer.empty[GhErrResponse]
     val ghStats = ListBuffer.empty[ResultRouteStats]
     ProfilingUtils.timed("*GH* performance check", x => logger.info(x)) {
       var i: Int = 0
@@ -159,38 +168,47 @@ object R5vsCCHPerformance extends BeamHelper {
 
         val (origin, dest) = p
         val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
-        val (ghResp, computationTime) = ProfilingUtils.timed { gh.route(origWgs, destWgs) }
-        ghResponses += ghResp
+        val ((ghReq, ghResp), computationTime) = ProfilingUtils.timed { gh.route(origWgs, destWgs) }
 
-        if (!ghResp.hasErrors) {
+        if (ghResp.hasErrors) {
+          ghErrors += GhErrResponse(i, ghReq, ghResp, computationTime)
+        } else {
+          ghResponses += ghResp
+
+          val distance = ghResp.getBest.getDistance
+          val travelTime = ghResp.getBest.getTime / 1000  // time is in millis
+          val travelSpeed = distance / travelTime
+
           ghStats += ResultRouteStats(
             idx             = i,
+            originLat       = origWgs.getY,
+            originLon       = origWgs.getX,
+            destinationLat  = destWgs.getY,
+            destinationLon  = destWgs.getX,
+            numberOfLinks   = ghResp.getBest.getLegs.size(),
             distance        = ghResp.getBest.getDistance,
-            travelTime      = ghResp.getBest.getTime / 1000,  // time is in millis
+            travelTime      = travelTime,
+            travelSpeed     = travelSpeed,
             computationTime = computationTime
           )
         }
       }
     }
-    logger.info("*GH* performance check completed. Routes count: {}", ghResponses.size)
+    logger.info(
+      "*GH* performance check completed. Routes count: {} ({} errors)",
+      ghResponses.size,
+      ghErrors.size
+    )
 
-    var ghFailures: Int = 0
     ghResponses.zipWithIndex.foreach { case (ghResp, ghRespIdx) =>
+      val ghGpxPoints: Iterator[GpxPoint] = for {
+        // Note: path.getWaypoints are just origin+destination pair
+        (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
+      } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
 
-      if (ghResp.hasErrors) {
-        ghFailures += 1
-      } else {
-        val ghGpxPoints: Iterator[GpxPoint] = for {
-          // Note: path.getWaypoints are just origin+destination pair
-          (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
-        } yield GpxPoint(s"$ghRespIdx-$pointIdx", new Coord(point.getLon, point.getLat))
-
-        val ghGpxFile = gpxOutputDir + s"/gh_$ghRespIdx.gpx"
-        GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
-      }
+      val ghGpxFile = gpxOutputDir + s"/gh_$ghRespIdx.gpx"
+      GpxWriter.write(ghGpxFile, ghGpxPoints.toList)
     }
-
-    logger.info(s"GraphHopper routing errors count: $ghFailures")
 
     val r5StatsOutput = s"$outputDir/r5_stats.csv"
     writeStatsCsv(r5StatsOutput, r5Stats)
@@ -199,6 +217,12 @@ object R5vsCCHPerformance extends BeamHelper {
     val ghStatsOutput = s"$outputDir/gh_stats.csv"
     writeStatsCsv(ghStatsOutput, ghStats)
     logger.info(s"*GH* stats written to: $ghStatsOutput")
+
+    if (ghErrors.nonEmpty) {
+      val ghErrorsOutput = s"$outputDir/gh_errors.csv"
+      writeGhErrorsCsv(ghErrorsOutput, ghErrors)
+      logger.info(s"*GH* errors written to: $ghErrorsOutput")
+    }
   }
 
   //noinspection SameParameterValue
@@ -273,21 +297,107 @@ object R5vsCCHPerformance extends BeamHelper {
     buffer
   }
 
-  private val statsHeaders = IndexedSeq("idx", "distance", "travelTime", "computationTime")
+  // stats utilities
+
+  private val statsHeaders = IndexedSeq(
+    "idx",
+    "originLat",
+    "originLon",
+    "destinationLat",
+    "destinationLon",
+    "numberOfLinks",
+    "distance",
+    "travelTime",
+    "travelSpeed",
+    "computationTime"
+  )
 
   private case class ResultRouteStats(
     idx: Int,
+    originLat: Double,
+    originLon: Double,
+    destinationLat: Double,
+    destinationLon: Double,
+    numberOfLinks: Int,
     distance: Double,
     travelTime: Long,
+    travelSpeed: Double,
     computationTime: Long
   ) {
     def asCsvRow: IndexedSeq[String] =
-      IndexedSeq(s"$idx", s"$distance", s"$travelTime", s"$computationTime")
+      IndexedSeq(
+        s"$idx",
+        s"$originLat",
+        s"$originLon",
+        s"$destinationLat",
+        s"$destinationLon",
+        s"$numberOfLinks",
+        s"$distance",
+        s"$travelTime",
+        s"$travelSpeed",
+        s"$computationTime"
+      )
   }
 
   private def writeStatsCsv(path: String, stats: Seq[ResultRouteStats]): Unit = {
     FileUtils.using(new CsvWriter(path, statsHeaders)) { csv =>
       stats.foreach { s => csv.writeRow(s.asCsvRow) }
     }
+  }
+
+  // GH errors utilities
+
+  private val ghErrorsHeaders = IndexedSeq(
+    "idx",
+    "originLat",
+    "originLon",
+    "destinationLat",
+    "destinationLon",
+    "computationTime",
+    "message"
+  )
+
+  private case class GhErrResponse(
+    idx: Int,
+    request: GHRequest,
+    response: GHResponse,
+    computationTime: Long
+  ) {
+    def asCsvRow: Option[IndexedSeq[String]] = request.getPoints.asScala.toList match {
+      case orig :: dest :: _ =>
+        Some(IndexedSeq(
+          s"$idx",
+          s"${orig.lat}",
+          s"${orig.lon}",
+          s"${dest.lat}",
+          s"${dest.lon}",
+          s"$computationTime",
+          unwindErrorMessage(response.getErrors),
+        ))
+      case _ => None
+    }
+
+  }
+
+  private def writeGhErrorsCsv(path: String, errs: Seq[GhErrResponse]): Unit = {
+    FileUtils.using(new CsvWriter(path, ghErrorsHeaders)) { csv =>
+      errs.foreach { err =>
+        err.asCsvRow.foreach(csv.writeRow(_))
+      }
+    }
+  }
+
+  private def unwindErrorMessage(ts: java.util.List[Throwable]): String = {
+    ts.asScala.map { t =>
+      val msgs = ListBuffer(t.getMessage)
+
+      var cause = t.getCause
+      while (cause != null) {
+        msgs += cause.getMessage
+        cause = cause.getCause
+      }
+
+      msgs.mkString(sep = " <> ")
+    }.mkString(sep = " <~> ")
   }
 }
