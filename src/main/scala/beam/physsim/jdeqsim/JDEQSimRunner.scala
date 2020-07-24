@@ -5,6 +5,7 @@ import scala.util.Try
 
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
+import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -17,11 +18,13 @@ import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
@@ -79,29 +82,22 @@ class JDEQSimRunner(
       Some(writer)
     } else None
 
-    val maybeRoadCapacityAdjustmentFunction = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) {
-      Some(
-        new Hao2018CaccRoadCapacityAdjustmentFunction(
-          beamConfig,
-          agentSimIterationNumber,
-          controlerIO,
-          beamConfigChangesObservable
-        )
-      )
-    } else None
+    val maybeCaccSettings = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) Some(createCaccSettings()) else None
+
+    val simName = beamConfig.beam.physsim.name
 
     try {
       ProfilingUtils.timed(
-        s"JDEQSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
+        s"PhysSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
         x => logger.info(x)
       ) {
-        val jdeqSimulation = getJDEQSimulation(jdeqSimScenario, jdeqsimEvents, maybeRoadCapacityAdjustmentFunction)
-        logger.info(s"JDEQSim iteration $currentPhysSimIter start")
+        val jdeqSimulation = getPhysSimulation(jdeqSimScenario, jdeqsimEvents, maybeCaccSettings, simName)
+        logger.info(s"PhysSim iteration $currentPhysSimIter start")
         if (beamConfig.beam.debug.debugEnabled) {
-          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before JDEQSim: "))
+          logger.info(DebugLib.getMemoryLogMessage("Memory Use Before PhysSim: "))
         }
         jdeqSimulation.run()
-        logger.info(s"JDEQSim iteration $currentPhysSimIter finished")
+        logger.info(s"PhysSim iteration $currentPhysSimIter finished")
       }
 
     } finally {
@@ -109,7 +105,7 @@ class JDEQSimRunner(
       maybeEventWriter.foreach { wrt =>
         Try(wrt.closeFile())
       }
-      maybeRoadCapacityAdjustmentFunction.foreach(_.reset())
+      maybeCaccSettings.foreach(_.roadCapacityAdjustmentFunction.reset())
 
       legHistogram.getLegModes.forEach(mode => {
         new PlotGraph().writeGraphic(
@@ -137,42 +133,140 @@ class JDEQSimRunner(
     )
   }
 
-  private def getJDEQSimulation(
+  private def getPhysSimulation(
     jdeqSimScenario: Scenario,
     jdeqsimEvents: EventsManager,
-    maybeRoadCapacityAdjustmentFunction: Option[RoadCapacityAdjustmentFunction]
-  ): org.matsim.core.mobsim.jdeqsim.JDEQSimulation = {
+    maybeCACCSettings: Option[CACCSettings],
+    simName: String
+  ): Mobsim = {
     val config = new JDEQSimConfigGroup
     val flowCapacityFactor = beamConfig.beam.physsim.flowCapacityFactor
     config.setFlowCapacityFactor(flowCapacityFactor)
     config.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)
     config.setSimulationEndTime(beamConfig.matsim.modules.qsim.endTime)
-    maybeRoadCapacityAdjustmentFunction match {
-      case Some(roadCapacityAdjustmentFunction) =>
-        logger.info("CACC enabled")
-        var caccCategoryRoadCount = 0
-        for (link <- jdeqSimScenario.getNetwork.getLinks.values.asScala) {
-          if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)) caccCategoryRoadCount += 1
-        }
-        logger.info(
-          "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
-        )
-        val caccSettings = CACCSettings(isCACCVehicle, roadCapacityAdjustmentFunction)
-        val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-        val adjustedMinimumRoadSpeedInMetersPerSecond =
-          beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
-        new JDEQSimulation(
-          config,
-          jdeqSimScenario,
-          jdeqsimEvents,
-          caccSettings,
-          speedAdjustmentFactor,
-          adjustedMinimumRoadSpeedInMetersPerSecond
-        )
+    logger.info(s"Physsim name = $simName, qsim.endTime = ${config.getSimulationEndTimeAsString}")
 
-      case None =>
-        logger.info("CACC disabled")
-        new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
+    simName match {
+      case "BPRSim" =>
+        val bprCfg = BPRSimConfig(
+          config.getSimulationEndTime,
+          1,
+          0,
+          beamConfig.beam.physsim.flowCapacityFactor,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
+          getTravelTimeFunction(
+            beamConfig.beam.physsim.bprsim.travelTimeFunction,
+            beamConfig.beam.physsim.flowCapacityFactor,
+            beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            maybeCACCSettings,
+          ),
+          maybeCACCSettings,
+        )
+        new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
+      case "PARBPRSim" =>
+        val numberOfClusters = beamConfig.beam.physsim.parbprsim.numberOfClusters
+        if (numberOfClusters <= 0) {
+          throw new IllegalArgumentException("number of clusters must be greater then zero")
+        }
+        val syncInterval = beamConfig.beam.physsim.parbprsim.syncInterval
+        if (syncInterval <= 0) {
+          throw new IllegalArgumentException("sync interval must be greater then zero")
+        }
+        val bprCfg = BPRSimConfig(
+          config.getSimulationEndTime,
+          numberOfClusters,
+          syncInterval,
+          beamConfig.beam.physsim.flowCapacityFactor,
+          beamConfig.beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds,
+          getTravelTimeFunction(
+            beamConfig.beam.physsim.bprsim.travelTimeFunction,
+            beamConfig.beam.physsim.flowCapacityFactor,
+            beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            maybeCACCSettings
+          ),
+          maybeCACCSettings,
+        )
+        new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents, beamConfig.matsim.modules.global.randomSeed)
+      case "JDEQSim" =>
+        maybeCACCSettings match {
+          case Some(caccSettings) =>
+            new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings)
+
+          case None =>
+            logger.info("CACC disabled")
+            new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
+        }
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown physsim: $unknown")
+    }
+  }
+
+  def createCaccSettings() = {
+    logger.info("CACC enabled")
+    val roadCapacityAdjustmentFunction: RoadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
+      beamConfig,
+      agentSimIterationNumber,
+      controlerIO,
+      beamConfigChangesObservable
+    )
+    var caccCategoryRoadCount = 0
+    for (link <- jdeqSimScenario.getNetwork.getLinks.values.asScala) {
+      if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)) caccCategoryRoadCount += 1
+    }
+    logger.info(
+      "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
+    )
+    val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
+    val adjustedMinimumRoadSpeedInMetersPerSecond =
+      beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
+    CACCSettings(
+      isCACCVehicle,
+      speedAdjustmentFactor,
+      adjustedMinimumRoadSpeedInMetersPerSecond,
+      roadCapacityAdjustmentFunction
+    )
+  }
+
+  private def getTravelTimeFunction(
+    functionName: String,
+    flowCapacityFactor: Double,
+    minVolumeToUseBPRFunction: Int,
+    maybeCaccSettings: Option[CACCSettings],
+  ): (Double, Link, Double, Double) => Double = {
+    functionName match {
+      case "FREE_FLOW" =>
+        (time, link, _, _) =>
+          link.getLength / link.getFreespeed(time)
+      case "BPR" =>
+        maybeCaccSettings match {
+          case Some(caccSettings) =>
+            (time, link, caccShare, volume) =>
+              {
+                val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
+                if (volume >= minVolumeToUseBPRFunction) {
+                  val capacity = flowCapacityFactor *
+                  caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
+                  //volume is calculated as number of vehicles entered the road per hour
+                  //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                  val tmp = volume / (capacity * 3600)
+                  val result = ftt * (1 + tmp * tmp)
+                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
+                } else {
+                  ftt
+                }
+              }
+          case None =>
+            (time, link, _, volume) =>
+              {
+                val ftt = link.getLength / link.getFreespeed(time)
+                if (volume >= minVolumeToUseBPRFunction) {
+                  val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
+                  ftt * (1 + tmp * tmp)
+                } else {
+                  ftt
+                }
+              }
+        }
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }
   }
 
