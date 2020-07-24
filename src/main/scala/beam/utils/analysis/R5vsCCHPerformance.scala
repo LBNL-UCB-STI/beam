@@ -73,6 +73,7 @@ object R5vsCCHPerformance extends BeamHelper {
     logger.info(s"*R5vsGH* Origin-Destination pairs count: $odsCount")
 
     // R5
+
     val r5Responses = ListBuffer.empty[RoutingResponse]
     val r5Stats = ListBuffer.empty[ResultRouteStats]
     ProfilingUtils.timed("*R5* performance check", x => logger.info(x)) {
@@ -100,21 +101,14 @@ object R5vsCCHPerformance extends BeamHelper {
         val (r5Resp, computationTime) = ProfilingUtils.timed { r5Wrapper.calcRoute(req) }
         r5Responses += r5Resp
 
-        val (numberOfLinks, distance, travelTime) = r5Resp.itineraries
-          .take(1)
-          .flatMap(_.legs)
-          .foldLeft((0, 0.0, 0)) {  // collect distance and travel time
-            (distanceTimeAcc, leg) =>
-              val (nLinks, distanceAcc, timeAcc) = distanceTimeAcc
-
-              val legDistance = leg.beamLeg.travelPath.distanceInM
-              val legDuration = leg.beamLeg.duration  // time is in seconds
-
-              (nLinks + 1, distanceAcc + legDistance, timeAcc + legDuration)
-          }
+        val travelPath = r5Resp.itineraries.head.legs.head.beamLeg.travelPath
+        val numberOfLinks = travelPath.linkIds.size
+        val distance = travelPath.distanceInM
+        val travelTime = travelPath.linkTravelTime.sum.toLong  // time is in seconds
 
         val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
 
+        //noinspection DuplicatedCode
         r5Stats += ResultRouteStats(
           idx             = i,
           originLat       = origWgs.getY,
@@ -124,7 +118,6 @@ object R5vsCCHPerformance extends BeamHelper {
           numberOfLinks   = numberOfLinks,
           distance        = distance,
           travelTime      = travelTime,
-          travelSpeed     = distance / travelTime,
           computationTime = computationTime
         )
       }
@@ -175,20 +168,21 @@ object R5vsCCHPerformance extends BeamHelper {
         } else {
           ghResponses += ghResp
 
-          val distance = ghResp.getBest.getDistance
-          val travelTime = ghResp.getBest.getTime / 1000  // time is in millis
-          val travelSpeed = distance / travelTime
+          val path = ghResp.getBest
+          val numberOfLinks = path.getPoints.size()
+          val distance = path.getDistance
+          val travelTime = path.getTime / 1000  // time is in millis
 
+          //noinspection DuplicatedCode
           ghStats += ResultRouteStats(
             idx             = i,
             originLat       = origWgs.getY,
             originLon       = origWgs.getX,
             destinationLat  = destWgs.getY,
             destinationLon  = destWgs.getX,
-            numberOfLinks   = ghResp.getBest.getLegs.size(),
-            distance        = ghResp.getBest.getDistance,
+            numberOfLinks   = numberOfLinks,
+            distance        = distance,
             travelTime      = travelTime,
-            travelSpeed     = travelSpeed,
             computationTime = computationTime
           )
         }
@@ -235,6 +229,8 @@ object R5vsCCHPerformance extends BeamHelper {
       case _ =>
         throw new IllegalStateException(s"Don't know what to do with BeamMode $beamMode")
     }
+
+    //noinspection DuplicatedCode
     StreetVehicle(
       id = Id.createVehicleId(id),
       vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
@@ -306,7 +302,6 @@ object R5vsCCHPerformance extends BeamHelper {
     "numberOfLinks",
     "distance",
     "travelTime",
-    "travelSpeed",
     "computationTime"
   )
 
@@ -319,7 +314,6 @@ object R5vsCCHPerformance extends BeamHelper {
     numberOfLinks: Int,
     distance: Double,
     travelTime: Long,
-    travelSpeed: Double,
     computationTime: Long
   ) {
     def asCsvRow: IndexedSeq[String] =
@@ -332,7 +326,6 @@ object R5vsCCHPerformance extends BeamHelper {
         s"$numberOfLinks",
         s"$distance",
         s"$travelTime",
-        s"$travelSpeed",
         s"$computationTime"
       )
   }
