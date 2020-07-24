@@ -20,7 +20,7 @@ https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/test/input/beamville/beam.conf
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documntation for details on the following inputs.
 
-.. _MATSim convention: http://archive.matsim.org/docs
+.. _MATSim convention: https://matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
 
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
