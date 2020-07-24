@@ -1,7 +1,6 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.io.{File, FileOutputStream, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -42,13 +41,13 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
-import org.matsim.core.config.{Config => MatsimConfig}
+import org.matsim.core.config.{ConfigWriter, Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
@@ -602,9 +601,10 @@ trait BeamHelper extends LazyLogging {
       if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+        val geoUtils = new GeoUtilsImpl(beamConfig)
         val scenario = {
           val source = src match {
-            case "urbansim" => buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
             case "urbansim_v2" => {
               val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
               val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
@@ -617,7 +617,7 @@ trait BeamHelper extends LazyLogging {
                 inputHouseholdPath = pathToHouseholds,
                 inputTripsPath = pathToTrips,
                 inputBlockPath = pathToBlocks,
-                new GeoUtilsImpl(beamConfig),
+                geoUtils,
                 shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
               )
             }
@@ -628,7 +628,9 @@ trait BeamHelper extends LazyLogging {
               new GenericScenarioSource(
                 pathToHouseholds = pathToHouseholds,
                 pathToPersonFile = pathToPersonFile,
-                pathToPlans = pathToPlans
+                pathToPlans = pathToPlans,
+                geoUtils,
+                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
               )
             }
           }
@@ -697,31 +699,11 @@ trait BeamHelper extends LazyLogging {
 
     prepareDirectories(config, beamConfig, outputDirectory)
 
-    writeFullConfigs(config, outputDirectory)
+    ConfigHelper.writeFullConfigs(config, outputDirectory)
 
     val matsimConfig: MatsimConfig = buildMatsimConfig(config, beamConfig, outputDirectory)
 
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
-  }
-
-  /**
-    * This method merges all configuration parameters into a single file including parameters from
-    * 'include' statements. Two full config files are written out: One without comments and one with
-    * comments in JSON format.
-    * @param config the input config file
-    * @param outputDirectory output folder where full configs will be generated
-    */
-  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String): Unit = {
-    val configConciseWithoutJson = config.root().render(ConfigRenderOptions.concise().setFormatted(true).setJson(false))
-    writeStringToFile(configConciseWithoutJson, new File(outputDirectory, "fullBeamConfig.conf"))
-
-    writeStringToFile(config.root().render(), new File(outputDirectory, "fullBeamConfigJson.conf"))
-  }
-
-  private def writeStringToFile(text: String, output: File): Unit = {
-    val fileWriter = new PrintWriter(output)
-    fileWriter.write(text)
-    fileWriter.close
   }
 
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
