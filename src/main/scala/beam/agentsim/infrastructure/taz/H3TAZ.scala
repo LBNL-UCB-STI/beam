@@ -29,42 +29,64 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
     network.getNodes.values().asScala.map(n => toH3CoordSystem.transform(n.getCoord))
   )
-  private val fillBoxResult: Iterable[String] =
-    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $getResolution", x => logger.info(x)) {
+
+  private def fillBoxResult: Iterable[String] = {
+    val fillBoxTemp = ProfilingUtils.timed(
+      s"fillBox for boundingBox $boundingBox with resolution $getResolution",
+      x => logger.info(x)
+    ) {
       fillBox(boundingBox, getResolution)
     }
-  logger.info(
-    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
-  )
+    logger.info(
+      s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxTemp.size} elemets"
+    )
+    fillBoxTemp
+  }
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
     ProfilingUtils.timed(s"Constructed tazToH3TAZMapping", str => logger.info(str)) {
-      fillBoxResult.par
-        .map { hex =>
-          val centroid = getCentroid(hex)
-          val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
-          (hex, tazId)
-        }
-        .toMap
-        .seq
+      if (cfg.enabled) {
+        fillBoxResult.par
+          .map { hex =>
+            val centroid = getCentroid(hex)
+            val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
+            (hex, tazId)
+          }
+          .toMap
+          .seq
+      } else {
+        tazTreeMap.getTAZs.par.map(taz => ("nonH3-" + taz.tazId.toString, taz.tazId)).toMap.seq
+      }
     }
 
   def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
   def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
   def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
-  def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
+
+  def getCentroid(hex: HexIndex): Coord = {
+    if (hex.startsWith("nonH3")) {
+      tazTreeMap.getTAZ(tazToH3TAZMapping(hex)).get.coord
+    } else {
+      toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
+    }
+  }
 
   def getSubIndex(c: Coord): Option[HexIndex] = {
-    if (getResolution + 1 <= cfg.upperBoundResolution) {
+    if (cfg.enabled && getResolution + 1 <= cfg.upperBoundResolution) {
       val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
       Some(H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution + 1))
     } else None
   }
 
   def getIndex(c: Coord): HexIndex = {
-    val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
-    H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
+    if (cfg.enabled) {
+      val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
+      H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
+    } else {
+      val tazId = tazTreeMap.getTAZ(c.getX, c.getY).tazId
+      tazToH3TAZMapping.filter(_._2 == tazId).head._1
+    }
   }
   def getResolution: Int = cfg.lowerBoundResolution
 }

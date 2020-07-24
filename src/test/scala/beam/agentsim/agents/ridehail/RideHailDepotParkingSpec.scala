@@ -31,7 +31,7 @@ class RideHailDepotParkingSpec extends FlatSpec with Matchers with BeamHelper {
           |}
           |beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId = "RHCAV_BEV"
           |beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix = "RHCAV"
-          |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0.35
+          |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0.5
           |beam.agentsim.agents.rideHail.initialization.parking.filePath = "test/input/beamville/depot/taz-depot-50kw.csv"
           |beam.agentsim.agents.parking.minSearchRadius = 250.00
           |beam.agentsim.agents.parking.maxSearchRadius = 8046.72
