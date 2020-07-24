@@ -160,10 +160,12 @@ class SupplementaryTripGenerator(
             false -> noTrip,
           )
 
-        tripMNL.sampleAlternative(tripChoice, r) collect {
-          case mnlSample if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+        tripMNL.sampleAlternative(tripChoice, r) match {
+          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+          case _                                            => None
         }
     }
+
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
