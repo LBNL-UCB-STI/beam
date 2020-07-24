@@ -14,29 +14,6 @@ class IndustryAssigner {}
 object IndustryAssigner {
 
   def main(args: Array[String]): Unit = {
-    val geoUtils = new GeoUtils {
-      override def localCRS: String = "epsg:32118"
-    }
-
-    val src = new Coord(-73.898630, 40.853920)
-    val dst = new Coord(-74.255640, 40.726005)
-
-    val srcUtm = geoUtils.wgs2Utm(src)
-    val dstUtm = geoUtils.wgs2Utm(dst)
-    val distance = geoUtils.distLatLon2Meters(src, dst)
-    println(s"$src -> $dst = $distance")
-    // Projected Bounds: 909_126.0155, 110_626.2880, 1_610_215.3590, 424_498.0529
-    // [x=1012293.0559146748][y=250399.81981203286] -> [x=913393.6794574423][y=203883.14237488146] = 109292.67104166403
-    println(s"$srcUtm -> $dstUtm = ${geoUtils.distUTMInMeters(srcUtm, dstUtm)}")
-
-    val src2 = geoUtils.utm2Wgs(srcUtm)
-    val dst2 = geoUtils.utm2Wgs(dstUtm)
-    val distance2 = geoUtils.distLatLon2Meters(src2, dst2)
-    println(s"$src2 -> $dst2 = $distance2")
-
-
-
-    throw new Exception
     require(args.length == 2, "Expected two args: 1) path to CTPP 2) Path to plans")
     val pathToCTPP: String = args(0) // "d:/Work/beam/CTPP/"
     val pathToPlans: String = args(1) // "D:/Work/beam/NewYork/results_07-10-2020_22-13-14/plans.csv.gz"
@@ -44,7 +21,6 @@ object IndustryAssigner {
 
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
     println(s"Read ${odList.size} OD pairs from industry table")
-
 
 
     val odToIndustrySeq = odList
@@ -59,10 +35,10 @@ object IndustryAssigner {
     val odToIndustryMap = odToIndustrySeq.toMap
 
     val homeGeoIdToWorkGeoIdWithCounts: Seq[((String, String), Int)] =
-      if (false) readFromPlans(pathToPlans) else readFromCsv("homeGeoIdToWorkGeoIdWithCounts.csv")
+      if (true) readFromPlans(pathToPlans) else readFromCsv("homeGeoIdToWorkGeoIdWithCounts.csv")
     println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")
 
-//    writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
+    writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
 
     val nKeyIsNotFound = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
     println(s"nKeyIsNotFound: ${nKeyIsNotFound}")

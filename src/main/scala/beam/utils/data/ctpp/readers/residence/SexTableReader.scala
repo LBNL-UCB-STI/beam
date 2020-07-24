@@ -7,7 +7,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import scala.util.{Failure, Success}
 
 class SexTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.Sex, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.Sex, Some(residenceGeography.level)) {
 
   def read(): Map[String, Map[Gender, Double]] = {
     val map = readRaw()
