@@ -10,6 +10,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.GraphHopperRouteResolver
+import beam.router.model.BeamPath
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
@@ -75,6 +76,7 @@ object R5vsCCHPerformance extends BeamHelper {
     // R5
 
     val r5Responses = ListBuffer.empty[RoutingResponse]
+    val r5Errors = ListBuffer.empty[RoutingResponse]
     val r5Stats = ListBuffer.empty[ResultRouteStats]
     ProfilingUtils.timed("*R5* performance check", x => logger.info(x)) {
       var i: Int = 0
@@ -101,25 +103,32 @@ object R5vsCCHPerformance extends BeamHelper {
         val (r5Resp, computationTime) = ProfilingUtils.timed { r5Wrapper.calcRoute(req) }
         r5Responses += r5Resp
 
-        val travelPath = r5Resp.itineraries.head.legs.head.beamLeg.travelPath
-        val numberOfLinks = travelPath.linkIds.size
-        val distance = travelPath.distanceInM
-        val travelTime = travelPath.linkTravelTime.sum.toLong  // time is in seconds
+        val maybeTravelPath: Option[BeamPath] =
+          r5Resp.itineraries.headOption.flatMap(_.legs.headOption).map(_.beamLeg.travelPath)
 
-        val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
+        maybeTravelPath match {
+          case None => r5Errors += r5Resp
 
-        //noinspection DuplicatedCode
-        r5Stats += ResultRouteStats(
-          idx             = i,
-          originLat       = origWgs.getY,
-          originLon       = origWgs.getX,
-          destinationLat  = destWgs.getY,
-          destinationLon  = destWgs.getX,
-          numberOfLinks   = numberOfLinks,
-          distance        = distance,
-          travelTime      = travelTime,
-          computationTime = computationTime
-        )
+          case Some(travelPath) =>
+            val numberOfLinks = travelPath.linkIds.size
+            val distance = travelPath.distanceInM
+            val travelTime = travelPath.linkTravelTime.sum.toLong  // time is in seconds
+
+            val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(dest))
+
+            //noinspection DuplicatedCode
+            r5Stats += ResultRouteStats(
+              idx             = i,
+              originLat       = origWgs.getY,
+              originLon       = origWgs.getX,
+              destinationLat  = destWgs.getY,
+              destinationLon  = destWgs.getX,
+              numberOfLinks   = numberOfLinks,
+              distance        = distance,
+              travelTime      = travelTime,
+              computationTime = computationTime
+            )
+        }
       }
     }
     logger.info("*R5* performance check completed. Routes count: {}", r5Responses.size)
