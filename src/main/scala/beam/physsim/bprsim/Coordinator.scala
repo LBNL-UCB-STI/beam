@@ -24,7 +24,13 @@ class Coordinator(
   eventManager: EventsManager
 ) extends StrictLogging {
   private val executorService =
-    Executors.newFixedThreadPool(clusters.size, new ThreadFactoryBuilder().setNameFormat("par-bpr-thread-%d").build())
+    Executors.newFixedThreadPool(
+      clusters.size,
+      new ThreadFactoryBuilder()
+        .setNameFormat("par-bpr-thread-%d")
+        .setDaemon(true)
+        .build()
+    )
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
   private val eventExecutor =
     Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("main-bpr-thread").build())
