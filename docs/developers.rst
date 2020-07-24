@@ -11,7 +11,7 @@ Repositories
 ^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real queueStartTime. When you are ready for a review, invite one or more through the pull request.
+The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request.
 
 Please use the following naming convention for feature branches, "<initials-or-username>/<descriptive-feature-branch-name>". Adding the issue number is also helpful, e.g.:
 
@@ -59,7 +59,7 @@ To run from IntelliJ as an "Application", edit the "Environment Variables" field
 
   BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
-Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in queueStartTime.
+Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
 File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
@@ -306,13 +306,13 @@ Beam provides metric utility as part of performance monitoring framework using K
 
     In this example first argument of `countOccurrence` is the name of entity you want to record and second is the metric level. It is the simplest utility and just counts and resets to zero upon each flush. you can use it for counting errors or occurrences of specifics events.
 
-    - Execution queueStartTime of some expression, function call or component::
+    - Execution time of some expression, function call or component::
 
-        latency("queueStartTime-to-calculate-route", Metrics.RegularLevel) {
+        latency("time-to-calculate-route", Metrics.RegularLevel) {
             calcRoute(request)
         }
 
-    In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution queueStartTime/latency. In the example above we are measuring the execution queueStartTime to calculate a router in `R5RoutingWorker`, we named the entity as `"request-router-queueStartTime"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
+    In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution time/latency. In the example above we are measuring the execution time to calculate a router in `R5RoutingWorker`, we named the entity as `"request-router-time"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
 
 Beam Metrics Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -67,7 +67,7 @@ These events are specific to BEAM and are thrown within the AgentSim:
 
 ModeChoiceEvent
 ~~~~~~~~~~~~~~~
-Note that this event corresponds to the moment of choosing a mode, if mode choice is occurring dynamically within the day. If mode choice occurs outside of the simulation day, then this event is not thrown. Also, the queueStartTime of choosing mode is not always the same as the departure queueStartTime.
+Note that this event corresponds to the moment of choosing a mode, if mode choice is occurring dynamically within the day. If mode choice occurs outside of the simulation day, then this event is not thrown. Also, the time of choosing mode is not always the same as the departure time.
 
 * Time - Time of the mode choice.
 * Person - Person ID of the person making the mode choice.
@@ -81,15 +81,15 @@ Note that this event corresponds to the moment of choosing a mode, if mode choic
 
 PathTraversalEvent
 ~~~~~~~~~~~~~~~~~~
-A Path Traversal is any queueStartTime a vehicle moves within the BEAM AgentSim.
+A Path Traversal is any time a vehicle moves within the BEAM AgentSim.
 
 * Length - Length of the movement in meters.
 * Fuel - fuel consumed during the movement in Joules.
 * Num Passengers - the number of passengers on board during the vehicle movement (the driver does not count as a passenger).
 * Links - Comma-separated list of link IDs indicating the path taken.
 * Mode - the sub-leg mode of the traversal (e.g. BUS or CAR or SUBWAY).
-* Departure Time - the queueStartTime of departure.
-* Arrival Time - the queueStartTime of arrival.
+* Departure Time - the time of departure.
+* Arrival Time - the time of arrival.
 * Vehicle - the ID of the vehilce making the movement.
 * Vehicle Type - String indicating the type of vehicle.
 * Start X - X coordinate of the starting location of the movement. Coordinates are output in WGS (lat/lon).

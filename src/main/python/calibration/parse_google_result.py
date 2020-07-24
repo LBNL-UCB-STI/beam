@@ -113,7 +113,7 @@ def parse_travel_time(travel_time_str):
     if (result):
         return result
     else:
-        raise Exception("Cannot parse '%s' as travel queueStartTime" % ((travel_time_str)))
+        raise Exception("Cannot parse '%s' as travel time" % ((travel_time_str)))
 
 
 def parse_travel_distance(travel_distance):
@@ -212,7 +212,7 @@ def to_3_am(link):
     pos = link.rfind('!3e0')
     # get the position of timestamp which is Unix epoch in seconds
     time_pos = pos - len('1571185799')
-    # 1571194800 Unix Epoch queueStartTime in seconds, 2019-10-16 (Wednesday) 03:00 am
+    # 1571194800 Unix Epoch time in seconds, 2019-10-16 (Wednesday) 03:00 am
     time_stamp_3am = '1571194800'
     new_link = link[:time_pos] + time_stamp_3am + link[pos:]
     return new_link

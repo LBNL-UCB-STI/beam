@@ -220,7 +220,7 @@ class RideHailManager(
     with ActorLogging
     with Stash {
   type DepotId = Int
-  type time = Int
+  type QueueStartTime = Int
   type VehicleId = Id[BeamVehicle]
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -359,6 +359,9 @@ class RideHailManager(
     ),
     ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
       mnlParamsFromConfig.parkingPriceMultiplier
+    ),
+    ParkingMNL.Parameters.RefuelWaitTime -> UtilityFunctionOperation.Multiplier(
+      mnlParamsFromConfig.refuelWaitTime
     )
   )
 
@@ -372,6 +375,7 @@ class RideHailManager(
     boundingBox,
     beamServices.geo.distUTMInMeters,
     mnlMultiplierParameters,
+    beamServices.skims,
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
@@ -1178,7 +1182,9 @@ class RideHailManager(
       }
       case None =>
         log.debug("Add vehicle {} to charging queue at depot {}", vehicleId, parkingStall.parkingZoneId)
-        depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue((vehicleId, parkingStall, queueStartTime)))
+        depotToRefuelingQueuesMap += (parkingStall.parkingZoneId -> mutable.Queue(
+          (vehicleId, parkingStall, queueStartTime)
+        ))
     }
   }
 
@@ -1784,7 +1790,7 @@ class RideHailManager(
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
       rideHailResourceAllocationManager
-        .findDepotsForVehiclesInNeedOfRefueling(idleVehicles)
+        .findDepotsForVehiclesInNeedOfRefueling(tick, idleVehicles)
         .filterNot(veh => isOnWayToRefuelingDepot(veh._1))
         .filter {
           case (vehId, parkingStall) =>

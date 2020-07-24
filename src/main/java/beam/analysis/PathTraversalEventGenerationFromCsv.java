@@ -32,7 +32,7 @@ public class PathTraversalEventGenerationFromCsv {
             for (int i = 0; i < columnLabels.length; i++) {
                 columnLabelMapping.put(i, columnLabels[i]);
 
-                if (columnLabels[i].equalsIgnoreCase("queueStartTime")) {
+                if (columnLabels[i].equalsIgnoreCase("time")) {
                     columnIndexTime = i;
                 }
             }

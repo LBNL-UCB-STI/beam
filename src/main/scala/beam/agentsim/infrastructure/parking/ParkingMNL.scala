@@ -11,7 +11,8 @@ object ParkingMNL {
     Parameters.ParkingTicketCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
+    Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0),
+    Parameters.RefuelWaitTime                        -> UtilityFunctionOperation.Multiplier(-1.0)
   )
 
   /**
@@ -69,12 +70,14 @@ object ParkingMNL {
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+    final case object RefuelWaitTime extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
       case ParkingTicketCost                     => "park"
       case WalkingEgressCost                     => "dist"
       case RangeAnxietyCost                      => "anx"
       case HomeActivityPrefersResidentialParking => "home"
+      case RefuelWaitTime                        => "rwt"
     }
   }
 }

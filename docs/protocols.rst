@@ -41,7 +41,7 @@ EmbodiedBeamLegs contain:
 
 BeamLegs contain:
 
-* Start queueStartTime
+* Start time
 * Mode (this is a more specific mode for Transit, e.g. SUBWAY or BUS)
 * Duration
 * BeamPath containing the path used through the network.
@@ -70,7 +70,7 @@ The mode choice protocol involves gathering information, making a choice, confir
 3. Household returns a MobilityStatusResponse. Based on this response, the person optionally includes vehicles in the ReservationRequest sent to the Router.
 4. Person sends a ReservationRequest to the Router.
 5. Person sends a RideHailInquiry to the RideHailManager.
-6. Person schedules a FinalizeModeChoiceTrigger to occur in the future (respresenting non-zero queueStartTime to make a choice).
+6. Person schedules a FinalizeModeChoiceTrigger to occur in the future (respresenting non-zero time to make a choice).
 7. Person stays in ChoosingMode state until all results are recieved: RoutingResponse, RideHailingInquiryResponse, FinalizeModeChoiceTrigger. With each response, the data is stored locally for use in the mode choice.
 
 *Choosing and Reserving*
@@ -78,7 +78,7 @@ The mode choice protocol involves gathering information, making a choice, confir
 1. The Person evaluates the ModeChoiceCalculator which returns a chosen itinerary (in the form of an EmboidedBeamTrip) from the list of possible alternatives.
 2. If a reservation is required to accomplish the chosen itinerary, the person sends ReservationRequest to all drivers in the itinerary (in the case of a transit trip) or a ReserveRide message to the RideHailManager in the case of a ride hail trip).
 3. If reservation requests were sent, the Person waits (still in ChoosingMode state) for all responses to be returned. If any response is negative, the Person removes the chosen itinerary from their choice set, sends RemovePassengerFromTrip messagse to all drivers in the trip (if transit) and begins the mode choice process anew.
-4. If all reservation responses are received and positive or if the trip does not require reservations at all, the person releases any reserved personal vehicles by sending ReleaseVehicleReservation messags to the Household and a ResourceIsAvailableNotification to themself, the Person throws a PersonDepartureEvent and finally schedules a PersonDepartureTrigger to occur at the departure queueStartTime of the trip.
+4. If all reservation responses are received and positive or if the trip does not require reservations at all, the person releases any reserved personal vehicles by sending ReleaseVehicleReservation messags to the Household and a ResourceIsAvailableNotification to themself, the Person throws a PersonDepartureEvent and finally schedules a PersonDepartureTrigger to occur at the departure time of the trip.
 
 
 Traveling
@@ -106,7 +106,7 @@ Driver
 2. The Driver schedules NotifyLegEndTriggers for all riders in the PassengerSchedule associated with the current BeamLeg.
 3. The Driver creates a list of alighters from the PassengerSchedule associated with the BeamLeg to track which agents have yet to alight the vehicle.
 4. When all expected AlightingConfirmation messages are recieved from the vehicle, the Driver publishes a PathTraversalEvent and proceeds with the following steps.
-5. If the Driver has more legs in the PassengerSchedule, she schedules a StartLegTrigger based on the start queueStartTime of that BeamLeg.
+5. If the Driver has more legs in the PassengerSchedule, she schedules a StartLegTrigger based on the start time of that BeamLeg.
 6. Else the Driver schedules a PassengerScheduleEmptyTrigger to execute in the current tick.
 7. The Driver transitions to the Waiting state.
 
@@ -126,7 +126,7 @@ The following protocol is used more than once by the traveler so it is defined h
 1. The Person checks the value of _currentEmbodiedLeg to see if unbecomeDriverOnCompletion is set to TRUE, if so, then the Person sends an UnbecomeDriver message to her vehicle and updates her _currentVehicle accordingly.
 2. If there are no more legs in the EbmodiedBeamTrip, the PersonAgent either schedules the ActivityEndTrigger and transitions to the PerformingActivity state or, if there are no remaining activities in the person's plan, she transitions to the Finished state and schedules no further triggers. 
 3. If there are more legs in the EmbodiedBeamTrip, the PersonAgent processes the next leg in the trip. If asDriver for the next leg is FALSE, then the Person transitions to Waiting state and does nothing further.
-4. If asDriver is true for the next leg, the Person creates a temporary passenger schedule for the next leg and sends it along with a BecomeDriver or a ModifyPassnegerSchedule message, depending on whether this person is already the driver of the vehicle or if becoming the driver for the first queueStartTime.
+4. If asDriver is true for the next leg, the Person creates a temporary passenger schedule for the next leg and sends it along with a BecomeDriver or a ModifyPassnegerSchedule message, depending on whether this person is already the driver of the vehicle or if becoming the driver for the first time.
 5. The person stays in the current state (which could be Waiting or Moving depending on the circumstances).
 
 *Driving Mission Completed*
@@ -184,7 +184,7 @@ The RideHailingInquiry message contains:
 * inquiryId
 * customerId
 * pickUpLocation
-* departAt queueStartTime
+* departAt time
 * destinationLocation
 
 The RideHailingInquiryResponse message contains:
@@ -209,7 +209,7 @@ The ReserveRide message contains:
 * inquiryId
 * customerId in the form of a VehiclePersonId
 * pickUpLocation
-* departAt queueStartTime
+* departAt time
 * destinationLocation)
 
 The ReservationResponse message contains the request Id and either a ReservationError or f the reservation is successfull, a ReserveConfirmInfo object with the following:

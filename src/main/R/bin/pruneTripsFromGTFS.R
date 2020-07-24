@@ -57,7 +57,7 @@ for(the.agency in u(to.prune$agency)){
     stops <- stops[!trip_id %in% to.prune[agency==the.agency]$transitTrip]
     trips <- trips[!trip_id %in% to.prune[agency==the.agency]$transitTrip]
 
-    # Clean up queueStartTime stamps (remove bad data and zero pad single digit hours)
+    # Clean up time stamps (remove bad data and zero pad single digit hours)
     stops[arrival_time=='00000000',arrival_time:=' ']
     stops[departure_time=='00000000',departure_time:=' ']
     stops[str_length(str_trim(arrival_time))>0,arrival_time:=str_pad(str_trim(arrival_time),8,pad='0')]

@@ -76,7 +76,7 @@ Set Aws access key, secret ky and s3 details based on previous steps.
         batch = true
         access = basic
 
-This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first queueStartTime.
+This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first time.
 
 Jenkins
 ^^^^^^^
@@ -124,7 +124,7 @@ Setup Jenkins Server
 
 12. If everything went well, the beginning of the output should show that the service is active and configured to start at boot::
 
-  jenkins.service - LSB: Start Jenkins at boot queueStartTime
+  jenkins.service - LSB: Start Jenkins at boot time
   Loaded: loaded (/etc/init.d/jenkins; bad; vendor preset: enabled)
   Active:active (exited) since Thu 2017-04-20 16:51:13 UTC; 2min 7s ago
   Docs: man:systemd-sysv-generator(8)
@@ -343,7 +343,7 @@ Now start configuring Jenkins master, so it can spawn new slave instance on dema
 
 |image14|
 
-11. Complete the form, choose a Region, Instance Type, label and set Idle termination queueStartTime. If the slave becomes idle during this queueStartTime, the instance will be terminated.
+11. Complete the form, choose a Region, Instance Type, label and set Idle termination time. If the slave becomes idle during this time, the instance will be terminated.
 
 |image15|
 
@@ -411,12 +411,12 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
 2. Click on the Available tab, and then enter plugin name at the top right to install following set of plugins.
 
    -  Gradle Plugin: This plugin allows Jenkins to invoke Gradle build scripts directly.
-   -  Build Timeout: This plugin allows builds to be automatically terminated after the specified amount of queueStartTime has elapsed.
+   -  Build Timeout: This plugin allows builds to be automatically terminated after the specified amount of time has elapsed.
    -  HTML5 Notifier Plugin: The HTML5 Notifier Plugin provides W3C Web Notifications support for builds.
    -  Notification Plugin: you can notify on deploying, on master failure/back to normal, etc.
    -  HTTP Request Plugin: This plugin sends a http request to a url with some parameters.
    -  embeddable-build-status: Fancy but I love to have a status badge on my README
-   -  Timestamper: It adds queueStartTime information in our build output.
+   -  Timestamper: It adds time information in our build output.
    -  AnsiColor: Because some tools (lint, test) output string with bash color and Jenkins do not render the color without it.
    -  Green Balls: Because green is better than blue!
 
@@ -570,7 +570,7 @@ Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Automatic Image (AMI) Update
 ----------------------------
-In Automated Cloud Deployment capability, there is a baseline image (AMI) that used to instantiate new EC2 instance. It contains copy of git repository and gradle dependency libraries. All of these are outdated in few days due to active development of BEAM. And when we start instance from an outdated image it take additional queueStartTime to update them before starting the simulation/run. This process help Cloud Automatic Deployment to keep up to date image for fast execution.
+In Automated Cloud Deployment capability, there is a baseline image (AMI) that used to instantiate new EC2 instance. It contains copy of git repository and gradle dependency libraries. All of these are outdated in few days due to active development of BEAM. And when we start instance from an outdated image it take additional time to update them before starting the simulation/run. This process help Cloud Automatic Deployment to keep up to date image for fast execution.
 To trigger this update process a Cloud Watch Event is setup with one week frequency. This event triggers an AWS Lambda (named `updateDependencies`) and lambda then starts an instance from the outdated image with instructions to update the image with latest LFS files for pre configured branches (these branches are mentioned in its environment variables that we can configure easily without any change in lambda code). One LFS files and gradle dependencies are updated in the new instance, the instance invoke a new lambda (named `updateBeamAMI`) to take its new image. This new lambda creates an image of the instance, terminate the instance and update this new image id to Automated Cloud Deployment process for future use.
 
 This process is designed to get latest LFS files from different branches. To add a new branch or update existing one, an environment variable named `BRANCHES` need to update with space as branch name delimiter. 

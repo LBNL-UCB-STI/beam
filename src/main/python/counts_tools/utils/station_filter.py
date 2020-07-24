@@ -23,7 +23,7 @@ class StationFilter(object):
     2) Add filters
     3) Run filters
 
-    Many of the filters involve looping through the station queueStartTime series. Adding all the filters first allows us to only
+    Many of the filters involve looping through the station time series. Adding all the filters first allows us to only
     do this loop once. The third step will populate the cleand_station_ids list.
     """
 
@@ -41,7 +41,7 @@ class StationFilter(object):
         self.meta_path = meta_path
         self.meta_df = pd.read_csv(self.meta_path, index_col=0)
         self.filters = []   # List of filters to be applied during run_filters.
-        self.ts_df = None  # DataFrame of single station queueStartTime series
+        self.ts_df = None  # DataFrame of single station time series
 
         # Initialize the Station ID lists
         self.all_station_ids = np.unique(self.meta_df['ID'])  # All unique IDs in the meta_df
@@ -51,7 +51,7 @@ class StationFilter(object):
         self.removed_stats_reasons = defaultdict(list)
 
         # Flags
-        self.iter_time_seris = False  # Flag to indicate whether we need to iterate through all the queueStartTime series files,
+        self.iter_time_seris = False  # Flag to indicate whether we need to iterate through all the time series files,
         # which is expensive
 
     def date_range(self, start_date, end_date):
@@ -331,7 +331,7 @@ class StationFilter(object):
         # Check if filters have been initialized before running.
         if not bool(self.filters):
             sys.exit("ERROR run_filters: no filters have been initialized.")
-        # Get list of all stations in the queueStartTime series folder
+        # Get list of all stations in the time series folder
         o_dir = os.getcwd()
         os.chdir(self.ts_path)
         # stations = [n for n in os.listdir('.') if n.isdigit()]  # list of all station folder names

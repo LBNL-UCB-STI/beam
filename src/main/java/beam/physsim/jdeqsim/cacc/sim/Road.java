@@ -202,7 +202,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         double minTimeForNextDeadlockPreventionMessageTime=0;
 
         if (getDeadlockPreventionMessages().size() > 0) minTimeForNextDeadlockPreventionMessageTime=
-                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+INCREASE_TIMESTAMP; // ensures that deadlock prevention messages have increasing queueStartTime stamps - this is assumped by original implementation around this
+                getDeadlockPreventionMessages().getLast().getMessageArrivalTime()+INCREASE_TIMESTAMP; // ensures that deadlock prevention messages have increasing time stamps - this is assumped by original implementation around this
 
         double timeToLeaveRoad=Math.max(Math.min(getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.get(vehicle),nextStuckTime),minTimeForNextDeadlockPreventionMessageTime);
 

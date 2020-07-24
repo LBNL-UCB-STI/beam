@@ -181,7 +181,7 @@ if(F){
 #rh[vehicle==num.paths[frac.repos < Inf & frac.repos>1.2]$vehicle[1]]
 #busy <- rh[vehicle==num.paths[n==max(num.paths$n)]$vehicle[1]]
 
-#ggplot(rh[vehicle==num.paths[frac.repos < Inf & frac.repos>1.1]$vehicle[12]],aes(x=start.x,y=start.y,colour=factor(queueStartTime)))+geom_point()
+#ggplot(rh[vehicle==num.paths[frac.repos < Inf & frac.repos>1.1]$vehicle[12]],aes(x=start.x,y=start.y,colour=factor(time)))+geom_point()
 
 
 #ggplot(rh,aes(x= start.x,y=start.y,xend=end.x,yend=end.y,colour=reposition))+geom_segment()

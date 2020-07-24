@@ -161,7 +161,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private final Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private final Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
-    private int rideHailCount = 0;   //later used to calculate average wait queueStartTime experienced by customers
+    private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
@@ -364,11 +364,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private void processRideHailWaitingTimes(ModeChoiceEvent event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        if (simMetricCollector.metricEnabled("ride-hail-waiting-queueStartTime-map")) {
+        if (simMetricCollector.metricEnabled("ride-hail-waiting-time-map")) {
             try {
                 int linkId = Integer.parseInt(event.location);
                 Coord coord = geo.coordOfR5Edge(transportNetwork.streetLayer, linkId);
-                simMetricCollector.writeIterationMapPoint("ride-hail-waiting-queueStartTime-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
+                simMetricCollector.writeIterationMapPoint("ride-hail-waiting-time-map", event.getTime(), waitingTime, coord.getY(), coord.getX(), false);
             } catch (NumberFormatException e) {
                 log.error("Can't parse 'event.location' as Integer. Event: " + event.toString());
             }
@@ -393,7 +393,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeWaitingTimeToStats(Map<Integer, List<Double>> hourToWaitings, List<Double> categories) {
-        if (simMetricCollector.metricEnabled("ride-hail-waiting-queueStartTime")) {
+        if (simMetricCollector.metricEnabled("ride-hail-waiting-time")) {
             Map<Integer, Map<Double, Integer>> hourToCategories = WaitingStatsComputation.calculateHourlyData(hourToWaitings, categories);
 
             DecimalFormat df = new DecimalFormat("##");
@@ -406,7 +406,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
                 HashMap<String, String> tags = new HashMap<>(1);
                 tags.put("category", categoryName);
-                simMetricCollector.writeIterationJava("ride-hail-waiting-queueStartTime", hour * 60 * 60, count, tags, true);
+                simMetricCollector.writeIterationJava("ride-hail-waiting-time", hour * 60 * 60, count, tags, true);
             }));
         }
     }

@@ -1,4 +1,4 @@
-# system.queueStartTime(source('/Users/critter/Dropbox/ucb/ucb_smartcities_all/sandbox/colinsheppard/src/main/R/nested-logit-parameterization.R'))
+# system.time(source('/Users/critter/Dropbox/ucb/ucb_smartcities_all/sandbox/colinsheppard/src/main/R/nested-logit-parameterization.R'))
 
 load.libraries(c('XML','doMC','flexclust'))
 registerDoMC(4)
@@ -51,7 +51,7 @@ for(model.i in 1:length(model.names)){
 }
 
 # Create data to apply
-#  Note that units for distance are in miles and queueStartTime in hours
+#  Note that units for distance are in miles and time in hours
 att.values.orig <- data.table(read.csv(pp(matsim.shared,"parameterization/param-value-bounds.csv"),stringsAsFactors=F))
 att.values.expanded <- list()
 expansion.num <- 3
@@ -252,8 +252,8 @@ do.or.load(pp('/Users/critter/Documents/matsim/pev/',out.dir,'/ITERS/it.0/cluste
   nl.rep <- nl.agg[representative.members]
   nl.rep[,weight:=clust$size]
 
-  # Analyze the clusters over queueStartTime
-  #ggplot(melt(nl.rep,id.vars=c('decisionEventId','queueStartTime','weight')),aes(x=queueStartTime/3600,y=value,size=weight,colour=weight))+geom_point()+facet_wrap(~variable,scales='free_y')
+  # Analyze the clusters over time
+  #ggplot(melt(nl.rep,id.vars=c('decisionEventId','time','weight')),aes(x=time/3600,y=value,size=weight,colour=weight))+geom_point()+facet_wrap(~variable,scales='free_y')
 
   # Plot results
   #load(file=pp(matsim.shared,"parameterization/sensitivity.Rdata"))
@@ -315,8 +315,8 @@ for(indep.var in attrs.to.explore){
   #streval(pp('print(results[intercept==2,mean(yesAlt),by="',indep.var,'"])'))
   #streval(pp('p <- ggplot(results.m[intercept==2],aes(x=factor(',indep.var,'),y=log.odds,colour=variable)) + geom_boxplot(outlier.shape=".") + labs(x="',indep.var,' (',att.values.orig[attribute==indep.var]$units,')",y="Log Odds",title="',indep.var,'",colour="Alternative")'))
   #ggsave(file=pp('/Users/critter/Documents/matsim/pev/',out.dir,"/ITERS/it.0/int2-logodds-",indep.var,".png"),p,width=6.4,height=3.6)
-  #streval(pp('p <- ggplot(results.m[intercept==2],aes(x=queueStartTime/3600,y=log.odds,colour=variable,size=weight)) + geom_point() + facet_wrap(~',indep.var,') + labs(x="Hour",y="Log Odds",title="',indep.var,'",colour="Alternative")'))
-  #ggsave(file=pp('/Users/critter/Documents/matsim/pev/',out.dir,"/ITERS/it.0/int2-queueStartTime-series-",indep.var,".png"),p,width=2*6.4,height=2*3.6)
+  #streval(pp('p <- ggplot(results.m[intercept==2],aes(x=time/3600,y=log.odds,colour=variable,size=weight)) + geom_point() + facet_wrap(~',indep.var,') + labs(x="Hour",y="Log Odds",title="',indep.var,'",colour="Alternative")'))
+  #ggsave(file=pp('/Users/critter/Documents/matsim/pev/',out.dir,"/ITERS/it.0/int2-time-series-",indep.var,".png"),p,width=2*6.4,height=2*3.6)
   #streval(pp('p <- ggplot(results.m[intercept==2],aes(x=hour,y=value,colour=variable)) + geom_bar(stat="identity",position="stack") + facet_wrap(~',indep.var,') + labs(x="Hour",y="Sum Probabilities",title="',indep.var,'",colour="Alternative")'))
   #ggsave(file=pp('/Users/critter/Documents/matsim/pev/',out.dir,"/ITERS/it.0/int2-profile-",indep.var,".png"),p,width=2*6.4,height=2*3.6)
 #}
@@ -476,7 +476,7 @@ summary(mod2)
     #<elasticity>1</elasticity>
     #<utility>
       #<param name="intercept" type="INTERCEPT">1.0</param>
-      #<param name="queueStartTime" type="MULTIPLIER">1.0</param>
+      #<param name="time" type="MULTIPLIER">1.0</param>
       #<param name="cost" type="MULTIPLIER">1.0</param>
     #</utility>
 	#</nestedLogit>
@@ -484,7 +484,7 @@ summary(mod2)
     #<elasticity>1</elasticity>
     #<utility>
       #<param name="intercept" type="INTERCEPT">0.0</param>
-      #<param name="queueStartTime" type="MULTIPLIER">1.0</param>
+      #<param name="time" type="MULTIPLIER">1.0</param>
       #<param name="cost" type="MULTIPLIER">1.0</param>
     #</utility>
 	#</nestedLogit>
@@ -494,7 +494,7 @@ summary(mod2)
       #<elasticity>0.5</elasticity>
       #<utility>
         #<param name="intercept" type="INTERCEPT">-1.0</param>
-        #<param name="queueStartTime" type="MULTIPLIER">1.0</param>
+        #<param name="time" type="MULTIPLIER">1.0</param>
         #<param name="cost" type="MULTIPLIER">1.0</param>
       #</utility>
     #</nestedLogit>
@@ -502,7 +502,7 @@ summary(mod2)
       #<elasticity>0.5</elasticity>
       #<utility>
         #<param name="intercept" type="INTERCEPT">-2.0</param>
-        #<param name="queueStartTime" type="MULTIPLIER">1.0</param>
+        #<param name="time" type="MULTIPLIER">1.0</param>
         #<param name="cost" type="MULTIPLIER">1.0</param>
       #</utility>
     #</nestedLogit>

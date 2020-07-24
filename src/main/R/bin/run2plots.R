@@ -74,7 +74,7 @@ setkey(ev,type,iter,hr,vehicle_type)
 ## Default Plots 
 ############################
 
-## VMT by queueStartTime and mode
+## VMT by time and mode
 toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609,na.rm=T)),by=c('hr','iter','vehicle_type')]
 if(max(toplot$iter)>9){
   toplot <- toplot[iter %in% seq(0,max(toplot$iter),by=max(toplot$iter)/8)]

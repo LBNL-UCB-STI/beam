@@ -190,6 +190,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
 
   def findDepotsForVehiclesInNeedOfRefueling(
+    tick: Int,
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     cavOnly: Boolean = true
   ): Vector[(Id[BeamVehicle], ParkingStall)] = {
@@ -215,7 +216,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       beamVehicle           <- rideHailManager.findBeamVehicleUsing(vehicleId)
       (parkingDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules()
       parkingStall <- rideHailManager.rideHailDepotParkingManager
-        .findDepot(location.currentLocationUTM.loc, parkingDuration)
+        .findDepot(tick, location.currentLocationUTM.loc, parkingDuration)
     } yield (vehicleId, parkingStall)
   }
 

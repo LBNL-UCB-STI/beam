@@ -84,7 +84,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
     private void printColumnHeaders() {
         try {
-            bufferedWriter.append("queueStartTime");
+            bufferedWriter.append("time");
             bufferedWriter.append(SEPERATOR);
             bufferedWriter.append("x");
             bufferedWriter.append(SEPERATOR);

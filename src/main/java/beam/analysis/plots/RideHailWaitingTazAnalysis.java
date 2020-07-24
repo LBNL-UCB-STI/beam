@@ -51,7 +51,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     @Override
     public void processStats(Event event) {
         /* When a person reserves a ride hail, push the person into the ride hail waiting queue and once the person
-        enters a vehicle , compute the difference between the times of occurrence for both the events as `waiting queueStartTime`.*/
+        enters a vehicle , compute the difference between the times of occurrence for both the events as `waiting time`.*/
         if (event instanceof ReserveRideHailEvent) {
             ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) event;
             Id<Person> personId = reserveRideHailEvent.getPersonId();
@@ -62,7 +62,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
             if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEvent.getVehicleId().toString().contains("rideHailVehicle")) {
-                //process and add the waiting queueStartTime to the total queueStartTime spent by all the passengers on waiting for a ride hail
+                //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
                 Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
                 TAZ pickUpLocationTAZ = beamServices.beamScenario().tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
@@ -75,15 +75,15 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     }
 
     /**
-     * Adds the given waiting queueStartTime & TAZ to the list of cumulative waiting times per bin.
+     * Adds the given waiting time & TAZ to the list of cumulative waiting times per bin.
      * @param event An occurred event
-     * @param waitingTime queueStartTime spent by the passenger on waiting for the vehicle
+     * @param waitingTime time spent by the passenger on waiting for the vehicle
      * @param taz TAZ of the passenger pickup location
      */
     private void processRideHailWaitingTimesAndTaz(Event event, double waitingTime,TAZ taz) {
         //get the hour of occurrence of the event
         int hourOfEventOccurrence = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        //Add new / update the waiting queueStartTime details to the list of cumulative waiting times per bin
+        //Add new / update the waiting time details to the list of cumulative waiting times per bin
         Tuple<Integer, Id<TAZ>> tuple = new Tuple<>(hourOfEventOccurrence, taz.tazId());
         List<Double> timeList = binWaitingTimesMap.getOrDefault(tuple,new ArrayList<>());
         timeList.add(waitingTime);

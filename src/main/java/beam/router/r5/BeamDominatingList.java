@@ -9,7 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
- * An implementation of DominatingList, retaining pareto-optimal paths on queueStartTime and fare.
+ * An implementation of DominatingList, retaining pareto-optimal paths on time and fare.
  */
 public class BeamDominatingList implements DominatingList {
     private final int maxFare;
@@ -37,7 +37,7 @@ public class BeamDominatingList implements DominatingList {
 
         int dominateeConsumedValue = dominatee.fare.cumulativeFarePaid - dominatee.fare.transferAllowance.value;
         if (dominator.time <= dominatee.time) {
-            // this route is as good or better on queueStartTime
+            // this route is as good or better on time
             if (dominator.fare.cumulativeFarePaid <= dominateeConsumedValue) {
                 // This route is as fast as the alternate route, and it costs no more than the fare paid for the other route
                 // minus any transfer priviliges that the user gets from the other route that could be realized in the future.
@@ -59,7 +59,7 @@ public class BeamDominatingList implements DominatingList {
 
     @Override
     public boolean add(McRaptorSuboptimalPathProfileRouter.McRaptorState newState) {
-        // if it is past the queueStartTime limit, drop it
+        // if it is past the time limit, drop it
         if (newState.time > maxClockTime) return false;
 
         // calculate fare if it has not been calculated before
@@ -87,7 +87,7 @@ public class BeamDominatingList implements DominatingList {
             // Check first if the existing state is better than or equal to the new state. We check the existing state
             // vs the new state before doing the opposite, because two states may be equal (for instance, in Boston,
             // a trip from the Conveyal office at Mass Ave and Newbury to Alewife using CT1 -> Red and 1 -> Red are
-            // equal if they both get you on the same red line train - they have the same queueStartTime, and the same fare situation
+            // equal if they both get you on the same red line train - they have the same time, and the same fare situation
             // (both leave you coming off the subway with a 2.25 fare privilige that can be used on any mode that has
             // discounted transfer). We prefer to save the state that was found first, to minimize churn. This also prefers
             // fewer-transfer routes, all else equal, because fewer-transfer routes are found before more-transfer routes

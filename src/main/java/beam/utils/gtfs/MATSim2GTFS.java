@@ -134,7 +134,7 @@ public class MATSim2GTFS {
                     // uncongested travel times per day. We want to use the actual arrival and departure times after
                     // many iterations of Matsim, which are processed manually.
 
-                    // The first departure queueStartTime on a Matsim trip is in seconds after midnight.
+                    // The first departure time on a Matsim trip is in seconds after midnight.
                     // The Matsim arrival and departure offsets are also in seconds.
                     double firstDepartureTime = matsimDeparture.getDepartureTime();
                     int stopWithinTrip = 0;
@@ -160,7 +160,7 @@ public class MATSim2GTFS {
 //            eventsManager.addHandler((VehicleDepartsAtFacilityEventHandler) event -> {
 //                String stopId = event.getFacilityId().toString();
 //                Double dbltime = Double.parseDouble(String.valueOf(event.getTime()));
-//                Integer queueStartTime = dbltime.intValue();
+//                Integer time = dbltime.intValue();
 //                String vehicleId = event.getVehicleId().toString();
 //                String[] components = vehicleId.split("_");
 //                String routeId;
@@ -175,10 +175,10 @@ public class MATSim2GTFS {
 //                String tripId = routeId + '#' + departureId;
 //                StopTime gtfsStopTime = new StopTime();
 //                gtfsStopTime.trip_id = tripId;
-//                gtfsStopTime.stop_sequence = queueStartTime;
+//                gtfsStopTime.stop_sequence = time;
 //                gtfsStopTime.stop_id = stopId;
-//                gtfsStopTime.arrival_time = queueStartTime;
-//                gtfsStopTime.departure_time = queueStartTime;
+//                gtfsStopTime.arrival_time = time;
+//                gtfsStopTime.departure_time = time;
 //                gtfsFeed.stop_times.put(
 //                        new Fun.Tuple2(gtfsStopTime.trip_id, Integer.valueOf(gtfsStopTime.stop_sequence)),
 //                        gtfsStopTime);

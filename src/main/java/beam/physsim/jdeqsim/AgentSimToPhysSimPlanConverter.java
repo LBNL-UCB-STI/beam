@@ -160,7 +160,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void setupActorsAndRunPhysSim(IterationEndsEvent iterationEndsEvent) {
         // I don't use single class `UpdateTravelTime` here and make decision in `BeamRouter` because
         // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
-        // which may change an internal state of travel queueStartTime calculator (and it happens concurrently in CompletableFuture)
+        // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
@@ -179,7 +179,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
             log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
             travelTimeFromPhysSim = sim.run(prevTravelTime);
-            // Safe travel queueStartTime to reuse it on the next PhysSim iteration
+            // Safe travel time to reuse it on the next PhysSim iteration
             prevTravelTime = travelTimeFromPhysSim;
 
             travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
@@ -240,7 +240,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             travelTimeForR5 = previousTravelTime;
         }
 
-        // We write travel queueStartTime map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel queueStartTime will be used in the next iteration
+        // We write travel time map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel time will be used in the next iteration
         // It's needed to be in sync with `RouteDumper` and allow us to reproduce routes calculation
         if (iterationNumber == 0 || (iterationNumber + 1) % beamConfig.beam().outputs().writeEventsInterval() == 0) {
             String filePath = beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "travel_time_map.bin");
@@ -249,7 +249,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     oos.writeObject(travelTimeMap);
                 }
             } catch (Exception ex) {
-                log.error("Can't write travel queueStartTime map", ex);
+                log.error("Can't write travel time map", ex);
             }
         }
 

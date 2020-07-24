@@ -73,7 +73,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 // compute the average travel times for each hour with the travel mode and save it to the respective row in data
                 averageTravelTimesByModeAndHour[i] = buildAverageTimesDataset(stat.get(travelModes.get(i)));
             }
-            // Calculate the average travel queueStartTime for the entire day when the travel mode is CAR
+            // Calculate the average travel time for the entire day when the travel mode is CAR
             double dayAverageData = 0.0;
             if (stat.get(carMode) != null) {
                 dayAverageData = buildDayAverageDataset(stat.get(carMode));
@@ -82,7 +82,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         }
 
         /**
-         * Builds array data set with average travel queueStartTime computed for each hour.
+         * Builds array data set with average travel time computed for each hour.
          *
          * @param travelTimesByHour A mapping from hour of the day -> list of travel times recorded during that hour
          * @return array representing average times for each hour (array index = hour of the day)
@@ -110,7 +110,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
          * Calculates the average of travel times during the day
          *
          * @param travelTimesByHour Map that maps from hour of the day -> travel times during that hour
-         * @return average travel queueStartTime
+         * @return average travel time
          */
         private double buildDayAverageDataset(Map<Integer, List<Double>> travelTimesByHour) {
             Set<Integer> hourSet = travelTimesByHour.keySet();
@@ -147,7 +147,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         HashMap<String, String> tags = new HashMap<>();
         tags.put("mode", "car");
-        simMetricCollector.writeGlobalJava("average-travel-queueStartTime", averageTravelTimeInADayForCarMode, tags, false);
+        simMetricCollector.writeGlobalJava("average-travel-time", averageTravelTimeInADayForCarMode, tags, false);
 
         if (writeGraph) {
             for (int i = 0; i < modes.size(); i++) {
@@ -224,18 +224,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 if (personDepartureEvent != null) {
                     // Get the hour of the departure event
                     int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                    // Compute the travel travel queueStartTime = current arrival queueStartTime - previous departure queueStartTime
+                    // Compute the travel travel time = current arrival time - previous departure time
                     Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                    // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel queueStartTime)
+                    // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
                     Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                     if (hourlyPersonTravelTimesPerMode == null) {
-                        // if this is the first event , initiate and add the current travel queueStartTime to the list of travel times
+                        // if this is the first event , initiate and add the current travel time to the list of travel times
                         hourlyPersonTravelTimesPerMode = new HashMap<>();
                         List<Double> travelTimes = new ArrayList<>();
                         travelTimes.add(travelTime);
                         hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                     } else {
-                        // if not the first event , fetch the previously tracked travel times and add the current travel queueStartTime to the list
+                        // if not the first event , fetch the previously tracked travel times and add the current travel time to the list
                         List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
                         if (travelTimes == null) {
                             travelTimes = new ArrayList<>();

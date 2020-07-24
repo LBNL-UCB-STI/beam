@@ -94,7 +94,7 @@ Classname: PersonTravelTimeAnalysisObject
 +========+==================================================================================+
 | Mode   | Travel mode chosen                                                               |
 +--------+----------------------------------------------------------------------------------+
-| Hour,* | Average queueStartTime taken to travel by the chosen mode during the given hour of the day |
+| Hour,* | Average time taken to travel by the chosen mode during the given hour of the day |
 +--------+----------------------------------------------------------------------------------+
 
 File: /ITERS/it.0/0.energyUse.png.csv
@@ -107,7 +107,7 @@ Classname: FuelUsageAnalysisObject
 +=======+==============================================================================================+
 | Modes | Mode of travel chosen by the passenger                                                       |
 +-------+----------------------------------------------------------------------------------------------+
-| Bin_* | Energy consumed by the vehicle while travelling by the chosen mode within the given queueStartTime bin |
+| Bin_* | Energy consumed by the vehicle while travelling by the chosen mode within the given time bin |
 +-------+----------------------------------------------------------------------------------------------+
 
 File: /ITERS/it.0/0.physsimLinkAverageSpeedPercentage.csv
@@ -118,9 +118,9 @@ Classname: PhyssimCalcLinkSpeedStatsObject
 +------------------+----------------------------------------------------------------------------------------------+
 | field            | description                                                                                  |
 +==================+==============================================================================================+
-| Bin              | A given queueStartTime slot within a day                                                               |
+| Bin              | A given time slot within a day                                                               |
 +------------------+----------------------------------------------------------------------------------------------+
-| AverageLinkSpeed | The average speed at which a vehicle can travel across the network during the given queueStartTime bin |
+| AverageLinkSpeed | The average speed at which a vehicle can travel across the network during the given time bin |
 +------------------+----------------------------------------------------------------------------------------------+
 
 File: /ITERS/it.0/0.physsimFreeFlowSpeedDistribution.csv
@@ -148,7 +148,7 @@ Classname: RideHailWaitingAnalysisObject
 +----------------------+---------------------------------------------------------------------------------------------+
 | field                | description                                                                                 |
 +======================+=============================================================================================+
-| Waiting Time         | The queueStartTime spent by a passenger waiting for a ride hail                                       |
+| Waiting Time         | The time spent by a passenger waiting for a ride hail                                       |
 +----------------------+---------------------------------------------------------------------------------------------+
 | Hour                 | Hour of the day                                                                             |
 +----------------------+---------------------------------------------------------------------------------------------+
@@ -241,7 +241,7 @@ Classname: StopWatchOutput
 +================================+===========================================================+
 | Iteration                      | Iteration number                                          |
 +--------------------------------+-----------------------------------------------------------+
-| BEGIN iteration                | Begin queueStartTime of the iteration                               |
+| BEGIN iteration                | Begin time of the iteration                               |
 +--------------------------------+-----------------------------------------------------------+
 | BEGIN iterationStartsListeners | Time at which the iteration start event listeners started |
 +--------------------------------+-----------------------------------------------------------+

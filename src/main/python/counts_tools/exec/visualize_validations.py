@@ -100,12 +100,12 @@ if __name__ == '__main__':
     # Plots
     ##
 
-    # Total HW commute queueStartTime
+    # Total HW commute time
     alpha = 1
     linewidth = .1
     clrmap = 'hot'
     merged_1['TotalTimeH2W_Minutes'] = merged_1['TotalTimeH2W'] / 60.0
-    # If min and max queueStartTime set, use them, else use the observed min and max from the data
+    # If min and max time set, use them, else use the observed min and max from the data
     if min_time:
         vmin = min_time
         vmax = max_time
