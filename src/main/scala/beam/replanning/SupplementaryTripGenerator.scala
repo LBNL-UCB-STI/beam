@@ -160,9 +160,8 @@ class SupplementaryTripGenerator(
             false -> noTrip,
           )
 
-        tripMNL.sampleAlternative(tripChoice, r) match {
-          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
-          case _                                            => None
+        tripMNL.sampleAlternative(tripChoice, r) collect {
+          case mnlSample if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
         }
     }
     chosenAlternativeOption match {
