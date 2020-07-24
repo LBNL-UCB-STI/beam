@@ -51,14 +51,14 @@ abstract class SimEvent(
 
 object SimEvent {
 
-  private[bprsim] def createVehicleId(person: Person) = {
+  private[bprsim] def createVehicleId(person: Person): Id[Vehicle] = {
     Id.create(person.getId, classOf[Vehicle])
   }
 }
 
 class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int)
     extends SimEvent(time, priority, person, isCACC, legIdx, -1) {
-  override def execute(scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Some[SimEvent]) = {
     val events = List(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
       new PersonDepartureEvent(time + epsilon2, person.getId, linkId, leg.getMode),
@@ -96,7 +96,7 @@ class EndLegSimEvent(
   legIdx: Int,
   linkIdx: Int,
 ) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
-  override def execute(scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[StartLegSimEvent]) = {
     val nextAct = nextActivity
 
     val actStartEventTime = Math.max(time, nextAct.getStartTime)
@@ -128,7 +128,7 @@ class EndLegSimEvent(
 
 class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
-  override def execute(scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent]) = {
     //simplification: When a vehicle is entering a road it enters the road immediately
     val vehicleId = createVehicleId(person)
     val event =
@@ -166,7 +166,7 @@ class EnteringActivityLinkSimEvent(
   legIdx: Int,
   linkIdx: Int
 ) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
-  override def execute(scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent]) = {
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)
     val events = List(new LinkEnterEvent(time, vehicleId, nextActivity.getLinkId))
@@ -179,7 +179,7 @@ class EnteringActivityLinkSimEvent(
 class EndLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
 
-  override def execute(scenario: Scenario, params: BPRSimParams) = {
+  override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent]) = {
     val vehicleId = createVehicleId(person)
     val events = List(new LinkLeaveEvent(time, vehicleId, linkId))
     val simEvent = if (lastLink) {
