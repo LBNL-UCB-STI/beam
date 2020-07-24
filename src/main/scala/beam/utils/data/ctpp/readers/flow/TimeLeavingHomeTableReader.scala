@@ -10,7 +10,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToDat
 class TimeLeavingHomeTableReader(
   dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(dbInfo, Table.TimeLeavingHome, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.Flow.TimeLeavingHome, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302104,1,0,Total)
     TableShell(B302104,2,1,Did not work at home:)
