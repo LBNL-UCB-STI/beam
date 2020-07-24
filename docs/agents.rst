@@ -7,7 +7,7 @@ BEAM is composed of Actors. Some of these Actors are BeamAgents. BeamAgents inhe
 
 In general, we reserve "BeamAgent" (also referred to as "Agent") for entities in the simulation that exhibit agency. I.e. they don't just change state but they have some degree of control or autonomy over themselves or other Agents. 
 
-A Person or a Manager is a Agent, but a Vehicle is only a tool used by Agents, so it is not a BeamAgent in BEAM.
+A Person or a Manager is an Agent, but a Vehicle is only a tool used by Agents, so it is not a BeamAgent in BEAM.
 
 Also, only BeamAgents can schedule callbacks with the BeamAgentScheduler. So any entity that needs to schedule itself (or be scheduled by other entities) to execute some process at a defined time within the simulation should be designed as a BeamAgent.
 

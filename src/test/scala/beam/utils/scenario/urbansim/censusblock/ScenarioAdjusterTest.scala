@@ -106,7 +106,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
     person.setSelectedPlan(plan)
 
     val act = populationFactory.createActivityFromLinkId("Dummy", Id.createLinkId(1))
-    val leg = populationFactory.createLeg(mode.value);
+    val leg = populationFactory.createLeg(mode.value)
     plan.addActivity(act)
     plan.addLeg(leg)
     person
