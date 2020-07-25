@@ -5,7 +5,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
 class UsualHoursWorkedPerWeekTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.UsualHoursWorkedPerWeek, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.UsualHoursWorkedPerWeek, Some(residenceGeography.level)) {
 
   private val `Usually worked 1 to 14 hours per week-lineNumber`: Int = 2
   private val `Usually worked 15 to 20 hours per week-lineNumber`: Int = 3

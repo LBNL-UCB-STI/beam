@@ -1,10 +1,13 @@
 package beam.utils.data.synthpop
 
+import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
+import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
+import org.matsim.api.core.v01.Coord
 
 class IndustryAssigner {}
 
@@ -19,15 +22,42 @@ object IndustryAssigner {
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
     println(s"Read ${odList.size} OD pairs from industry table")
 
-    val tazToTazCounts = odList
+
+    val odToIndustrySeq = odList
       .groupBy { od =>
         (od.source, od.destination)
       }
       .toSeq
-      .map { case (key, xs) => key -> xs.size }
-        .sortBy { case (key, size) => -size }
-    println(s"tazToTazCounts: ${tazToTazCounts.size}")
+      .map { case (key, xs) => key -> xs.toArray }
+      .sortBy { case (key, xs) => -xs.length }
+    println(s"odToIndustrySeq: ${odToIndustrySeq.size}")
 
+    val odToIndustryMap = odToIndustrySeq.toMap
+
+    val homeGeoIdToWorkGeoIdWithCounts: Seq[((String, String), Int)] =
+      if (true) readFromPlans(pathToPlans) else readFromCsv("homeGeoIdToWorkGeoIdWithCounts.csv")
+    println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")
+
+    writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
+
+    val nKeyIsNotFound = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
+    println(s"nKeyIsNotFound: ${nKeyIsNotFound}")
+
+    homeGeoIdToWorkGeoIdWithCounts.foreach { case (key, totalNumberOfPeople) =>
+      odToIndustryMap.get(key) match {
+        case None =>
+        case Some(industries) =>
+          val total = industries.map(_.value).sum
+          println(s"totalNumberOfPeople: $totalNumberOfPeople, total of industries: $total")
+          println(s"Industries: ${industries.mkString(" ")}")
+
+      }
+
+    }
+
+  }
+
+  private def readFromPlans(pathToPlans: String) = {
     val homeWorkActivities = ProfilingUtils.timed("Read plans", println) {
       CsvPlanElementReader
         .read(pathToPlans)
@@ -60,7 +90,31 @@ object IndustryAssigner {
           ((o, d), xs.map(_._2).sum)
       }
       .sortBy(x => -x._2)
-    println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")
+    homeGeoIdToWorkGeoIdWithCounts
+  }
 
+  private def readFromCsv(path: String): Seq[((String, String), Int)] = {
+    def mapper(rec: java.util.Map[String, String]): ((String, String), Int) = {
+      val origin = rec.get("origin_geoid")
+      val destination = rec.get("destination_geoid")
+      val count = rec.get("count").toInt
+      ((origin, destination), count)
+    }
+    val (it, toClose) = GenericCsvReader.readAs[((String, String), Int)](path, mapper, _ => true)
+    try {
+      it.toVector
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private def writeToCsv(homeGeoIdToWorkGeoIdWithCounts: Seq[((String, String), Int)]): Unit = {
+    val csvWriter =
+      new CsvWriter("homeGeoIdToWorkGeoIdWithCounts.csv", Array("origin_geoid", "destination_geoid", "count"))
+    homeGeoIdToWorkGeoIdWithCounts.foreach {
+      case ((origin, dest), count) =>
+        csvWriter.write(origin, dest, count)
+    }
+    csvWriter.close()
   }
 }
