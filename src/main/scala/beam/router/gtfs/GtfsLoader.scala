@@ -65,7 +65,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
     * If trips need to be doubled it's better to put includeOnlySameService = false (default)
     * If trips need to be scaled it's better to put includeOnlySameService = true
     */
-  def findRepeatingTrips(
+  private[gtfs] def findRepeatingTrips(
     tripsWithStopTimes: Seq[TripAndStopTimes],
     includeOnlySameService: Boolean = false
   ): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
@@ -116,9 +116,11 @@ class GtfsLoader(beamConfig: BeamConfig) {
   }
 
   def doubleTripsStrategy(
-    repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
+    tripsWithStopTimes: Seq[TripAndStopTimes],
     factor: Int = 2
   ): GtfsTransformStrategy = {
+    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = false)
+
     val strategy = new AddEntitiesTransformStrategy
     val midnightArrivalTime = 86400 // seconds at midnight
 
@@ -174,9 +176,10 @@ class GtfsLoader(beamConfig: BeamConfig) {
   }
 
   def scaleTripsStrategy(
-    repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]],
+    tripsWithStopTimes: Seq[TripAndStopTimes],
     scale: Double
   ): GtfsTransformStrategy = {
+    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = true)
     val strategy = new EntitiesTransformStrategy
 
     repeatingTrips.values.foreach { tripAndStopTimesWithOffset =>
