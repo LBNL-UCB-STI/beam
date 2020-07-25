@@ -9,7 +9,7 @@ class HouseholdIncomeTableReader(
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
       dbInfo,
-      Table.HouseholdIncomeInThePast12Months,
+      Table.Flow.HouseholdIncomeInThePast12Months,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
 

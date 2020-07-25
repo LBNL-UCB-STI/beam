@@ -9,7 +9,7 @@ class IndustryTableReader(
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
       dbInfo,
-      Table.Industry,
+      Table.Flow.Industry,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
 
