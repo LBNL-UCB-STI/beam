@@ -43,7 +43,7 @@ trait PopulationScaling extends LazyLogging {
     for (i <- 0 to repetitions) {
       // generate new households
       existingHouseHolds.toStream
-        .takeWhile(_ => populationCounter <= totalPopulationRequired)
+        .takeWhile(_ => populationCounter < totalPopulationRequired)
         .map {
           case (houseHoldId, houseHold) =>
             // proceed only if the required population is not yet reached
@@ -52,7 +52,7 @@ trait PopulationScaling extends LazyLogging {
               houseHold.getMemberIds.asScala
                 .flatMap(m => Option(scenario.getPopulation.getPersons.get(m)))
                 // proceed only if the required population is not yet reached
-                .take((totalPopulationRequired - populationCounter + 1).toInt)
+                .take((totalPopulationRequired - populationCounter).toInt)
                 .map { person =>
                   populationCounter += 1
                   // clone the existing person to create a new person with different id
@@ -95,6 +95,7 @@ trait PopulationScaling extends LazyLogging {
             if (vehicles.nonEmpty) newHouseHold.setVehicleIds(vehicles.asJava)
             newHouseHold -> houseHold
         }
+        .filter(!_._1.getMemberIds.isEmpty)
         // add the generated new households with attributes to the current scenario
         .foreach {
           case (newhh, oldhh) =>
