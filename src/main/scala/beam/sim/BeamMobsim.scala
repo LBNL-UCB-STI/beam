@@ -131,13 +131,12 @@ class BeamMobsim @Inject()(
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
 
-      // TODO remove after debugging
-      dumpMatsimStuffAtTheBeginningOfSimulation()
-
-      // TODO definitely remove after debugging
-      throw new Exception("Done debugging")
+      //      // TODO remove after debugging
+      //      dumpMatsimStuffAtTheBeginningOfSimulation()
+      //
+      //      // TODO definitely remove after debugging
+      //      throw new Exception("Done debugging")
     }
-
 
     val iteration = actorSystem.actorOf(
       Props(
@@ -191,7 +190,6 @@ class BeamMobsim @Inject()(
       }
     }
   }
-
 
   private def fillInSecondaryActivities(households: Households): Unit = {
     households.getHouseholds.values.forEach { household =>
