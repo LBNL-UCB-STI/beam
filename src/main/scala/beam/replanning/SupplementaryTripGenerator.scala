@@ -165,6 +165,7 @@ class SupplementaryTripGenerator(
           case _                                            => None
         }
     }
+
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
