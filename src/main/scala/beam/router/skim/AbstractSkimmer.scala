@@ -4,7 +4,7 @@ import java.io.BufferedWriter
 import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -28,23 +28,27 @@ trait AbstractSkimmerKey {
 trait AbstractSkimmerInternal {
   val observations: Int
   val iterations: Int
-
   def toCsv: String
 }
 
+trait ToTimeBin {
+  protected val skimTimeBin: Int
+  protected val skimEndTime: Int
+  def toTimeBin(t: Int): Int = Math.floorMod(Math.floor(t.toDouble / skimTimeBin).toInt, skimEndTime)
+}
+
 abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime)
+    extends Event(eventTime) with ToTimeBin
     with ScalaEvent {
   protected val skimName: String
-
+  override protected val skimEndTime: Int = beamServices.beamConfig.beam.agentsim.endTime.split(":")(0).toInt
   def getKey: AbstractSkimmerKey
-
   def getSkimmerInternal: AbstractSkimmerInternal
-
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly extends LazyLogging {
+abstract class AbstractSkimmerReadOnly(beamConfig: BeamConfig) extends LazyLogging with ToTimeBin {
+  override protected val skimEndTime: Int = beamConfig.beam.agentsim.endTime.split(":")(0).toInt
   protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()

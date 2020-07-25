@@ -14,6 +14,7 @@ case class ODSkimmerEvent(
   energyConsumption: Double
 ) extends AbstractSkimmerEvent(eventTime, beamServices) {
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
+  override protected val skimTimeBin: Int = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
@@ -45,7 +46,7 @@ case class ODSkimmerEvent(
     val destTaz = beamScenario.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
+    val timeBin = toTimeBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val key = ODSkimmerKey(timeBin, mode, origTaz, destTaz)
     val payload =

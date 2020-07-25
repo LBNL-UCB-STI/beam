@@ -13,9 +13,10 @@ case class TAZSkimmerEvent(
   actor: String = "default"
 ) extends AbstractSkimmerEvent(time, beamServices) {
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.taz_skimmer.name
+  override protected val skimTimeBin: Int = beamServices.beamConfig.beam.router.skim.taz_skimmer.timeBin
   private val hexIndex = beamServices.beamScenario.h3taz.getIndex(coord)
   private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)
-  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, idTaz, hexIndex, actor, key)
+  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(toTimeBin(time), idTaz, hexIndex, actor, key)
   override def getSkimmerInternal: AbstractSkimmerInternal =
     TAZSkimmerInternal(value, 1, beamServices.matsimServices.getIterationNumber + 1)
 }

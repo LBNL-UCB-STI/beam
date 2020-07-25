@@ -73,12 +73,6 @@ object SkimsUtils extends LazyLogging {
 
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
-  def timeToBin(departTime: Int): Int = {
-    Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
-  }
-
-  def timeToBin(departTime: Int, timeWindow: Int): Int = departTime / timeWindow
-
   def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location): (Int, Int) = {
     val speed = mode match {
       case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec

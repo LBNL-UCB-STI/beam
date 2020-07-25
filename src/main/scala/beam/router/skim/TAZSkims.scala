@@ -3,9 +3,12 @@ package beam.router.skim
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly(beamConfig) {
+
+  override protected val skimTimeBin: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
 
   def getLatestSkim(
     time: Int,
@@ -15,7 +18,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     key: String
   ): Option[TAZSkimmerInternal] = {
     pastSkims.headOption
-      .flatMap(_.get(TAZSkimmerKey(time, taz, hex, actor, key)))
+      .flatMap(_.get(TAZSkimmerKey(toTimeBin(time), taz, hex, actor, key)))
       .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 
@@ -25,7 +28,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     actor: String,
     key: String
   ): Option[TAZSkimmerInternal] = {
-    getLatestSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)
+    getLatestSkim(toTimeBin(time), beamScenario.h3taz.getTAZ(hex), hex, actor, key)
   }
 
   def getLatestSkimByTAZ(
@@ -36,7 +39,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
   ): Option[TAZSkimmerInternal] = {
     beamScenario.h3taz
       .getIndices(taz)
-      .flatMap(hex => getLatestSkim(time, taz, hex, actor, key))
+      .flatMap(hex => getLatestSkim(toTimeBin(time), taz, hex, actor, key))
       .foldLeft[Option[TAZSkimmerInternal]](None) {
         case (acc, skimInternal) =>
           acc match {
@@ -61,7 +64,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     key: String
   ): Option[TAZSkimmerInternal] = {
     aggregatedSkim
-      .get(TAZSkimmerKey(time, taz, hex, actor, key))
+      .get(TAZSkimmerKey(toTimeBin(time), taz, hex, actor, key))
       .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 
