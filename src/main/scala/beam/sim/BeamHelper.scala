@@ -6,6 +6,7 @@ import java.time.ZonedDateTime
 import java.util.Properties
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.planning.{Tour, Trip}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
@@ -44,6 +45,7 @@ import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -57,10 +59,11 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
-import scala.util.Try
+import scala.util.{Random, Try}
 
 trait BeamHelper extends LazyLogging {
 
@@ -75,6 +78,67 @@ trait BeamHelper extends LazyLogging {
     | _____________________________________
     |
     """.stripMargin
+
+  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
+    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val consumptionRateFilterStore =
+      new ConsumptionRateFilterStoreImpl(
+        vehicleCsvReader.getVehicleEnergyRecordsUsing,
+        Option(baseFilePath.toString),
+        primaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        secondaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+      )
+    // TODO Fix me once `TrieMap` is removed
+    new VehicleEnergy(
+      consumptionRateFilterStore,
+      vehicleCsvReader.getLinkToGradeRecordsUsing
+    )
+  }
+
+  def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
+    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+
+    parsedArgs.clusterType match {
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ =>
+        val (_, outputDirectory, _) = runBeamWithConfig(config)
+        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
+    }
+  }
+
+  def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
+    val parsedArgs = ArgumentsParser.parseArguments(args) match {
+      case Some(pArgs) => pArgs
+      case None =>
+        throw new IllegalArgumentException(
+          "Arguments provided were unable to be parsed. See above for reasoning."
+        )
+    }
+    assert(
+      !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
+      "Please provide a valid configuration file."
+    )
+
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
+
+    if (parsedArgs.configLocation.get.contains("\\")) {
+      throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
+    }
+
+    val location = ConfigFactory.parseString(s"""config="${parsedArgs.configLocation.get}"""")
+    System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
+      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
+      else parsedArgs.config.get
+    }).withFallback(location).resolve()
+
+    checkDockerIsInstalledForCCHPhysSim(config)
+
+    (parsedArgs, config)
+  }
 
   private def updateConfigForClusterUsing(
     parsedArgs: Arguments,
@@ -124,247 +188,6 @@ trait BeamHelper extends LazyLogging {
         ).asJava
       )
     )
-  }
-
-  def module(
-    typesafeConfig: TypesafeConfig,
-    beamConfig: BeamConfig,
-    scenario: Scenario,
-    beamScenario: BeamScenario
-  ): com.google.inject.Module =
-    AbstractModule.`override`(
-      ListBuffer(new AbstractModule() {
-        override def install(): Unit = {
-          // MATSim defaults
-          install(new NewControlerModule)
-          install(new ScenarioByInstanceModule(scenario))
-          install(new ControllerModule)
-          install(new ControlerDefaultCoreListenersModule)
-
-          // Beam Inject below:
-          install(new ConfigModule(typesafeConfig, beamConfig))
-          install(new BeamAgentModule(beamConfig))
-          install(new UtilsModule)
-        }
-      }).asJava,
-      new AbstractModule() {
-        private val mapper = new ObjectMapper()
-        mapper.registerModule(DefaultScalaModule)
-
-        override def install(): Unit = {
-          // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
-          // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
-          bind(classOf[BeamConfigHolder])
-          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
-
-          bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
-
-          bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
-
-          bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
-
-          bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
-
-          bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
-
-          addControlerListenerBinding().to(classOf[BeamSim])
-          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
-          addControlerListenerBinding().to(classOf[RouteHistory])
-
-          addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
-          addControlerListenerBinding().to(classOf[GraphSurgePricing])
-          bind(classOf[BeamOutputDataDescriptionGenerator])
-          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
-          bind(classOf[ModeIterationPlanCleaner])
-
-          bindMobsim().to(classOf[BeamMobsim])
-          bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-          bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
-          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
-            bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
-          }
-          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
-          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
-          addPlanStrategyBinding("AddSupplementaryTrips").to(classOf[AddSupplementaryTrips])
-          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
-          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
-          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
-          addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
-            .toProvider(classOf[UtilityBasedModeChoice])
-          addAttributeConverterBinding(classOf[MapStringDouble])
-            .toInstance(new AttributeConverter[MapStringDouble] {
-              override def convertToString(o: scala.Any): String =
-                mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
-
-              override def convert(value: String): MapStringDouble =
-                MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
-            })
-          bind(classOf[BeamScenario]).toInstance(beamScenario)
-          bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
-          bind(classOf[TravelTimeCalculator]).toInstance(
-            new FakeTravelTimeCalculator(
-              beamScenario.network,
-              new TravelTimeCalculatorConfigGroup()
-            )
-          )
-
-          bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
-          bind(classOf[RideHailIterationHistory]).asEagerSingleton()
-          bind(classOf[RouteHistory]).asEagerSingleton()
-          bind(classOf[FareCalculator]).asEagerSingleton()
-          bind(classOf[TollCalculator]).asEagerSingleton()
-          bind(classOf[ODSkimmer]).asEagerSingleton()
-          bind(classOf[TAZSkimmer]).asEagerSingleton()
-          bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
-          bind(classOf[Skims]).asEagerSingleton()
-
-          bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
-          bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
-        }
-      }
-    )
-
-  def loadScenario(beamConfig: BeamConfig): BeamScenario = {
-    val vehicleTypes = maybeScaleTransit(
-      beamConfig,
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
-
-    val consumptionRateFilterStore =
-      new ConsumptionRateFilterStoreImpl(
-        vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
-        primaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-        secondaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-      )
-
-    val dates = DateUtils(
-      ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-      ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-    )
-
-    val networkCoordinator = buildNetworkCoordinator(beamConfig)
-    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-
-    BeamScenario(
-      readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
-      vehicleTypes,
-      privateVehicles(beamConfig, vehicleTypes),
-      new VehicleEnergy(
-        consumptionRateFilterStore,
-        vehicleCsvReader.getLinkToGradeRecordsUsing
-      ),
-      beamConfig,
-      dates,
-      PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
-      networkCoordinator.transportNetwork,
-      networkCoordinator.network,
-      tazMap,
-      ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
-      H3TAZ(networkCoordinator.network, tazMap, beamConfig)
-    )
-  }
-
-  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val consumptionRateFilterStore =
-      new ConsumptionRateFilterStoreImpl(
-        vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
-        primaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-        secondaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-      )
-    // TODO Fix me once `TrieMap` is removed
-    new VehicleEnergy(
-      consumptionRateFilterStore,
-      vehicleCsvReader.getLinkToGradeRecordsUsing
-    )
-  }
-
-  def privateVehicles(
-    beamConfig: BeamConfig,
-    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
-    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
-      TrieMap[Id[BeamVehicle], BeamVehicle]()
-    } else {
-      TrieMap(
-        readVehiclesFile(
-          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-          vehicleTypes,
-          beamConfig.matsim.modules.global.randomSeed
-        ).toSeq: _*
-      )
-    }
-
-  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
-  // say, a yacht or personal bus, but I think this will be fine for now.
-  // New Feb-2020: Switched over to MediumDutyPassenger -> Transit to solve issue with AV shuttles
-  private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
-    beamConfig.beam.agentsim.tuning.transitCapacity match {
-      case Some(scalingFactor) =>
-        vehicleTypes.map {
-          case (id, bvt) =>
-            id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
-        }
-      case None => vehicleTypes
-    }
-  }
-
-  def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
-    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
-
-    parsedArgs.clusterType match {
-      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ =>
-        val (_, outputDirectory, _) = runBeamWithConfig(config)
-        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
-    }
-  }
-
-  def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
-    val parsedArgs = ArgumentsParser.parseArguments(args) match {
-      case Some(pArgs) => pArgs
-      case None =>
-        throw new IllegalArgumentException(
-          "Arguments provided were unable to be parsed. See above for reasoning."
-        )
-    }
-    assert(
-      !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "Please provide a valid configuration file."
-    )
-
-    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
-
-    if (parsedArgs.configLocation.get.contains("\\")) {
-      throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
-    }
-
-    val location = ConfigFactory.parseString(s"""config="${parsedArgs.configLocation.get}"""")
-    System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
-    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
-      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
-      else parsedArgs.config.get
-    }).withFallback(location).resolve()
-
-    checkDockerIsInstalledForCCHPhysSim(config)
-
-    (parsedArgs, config)
   }
 
   private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
@@ -512,44 +335,6 @@ trait BeamHelper extends LazyLogging {
     (beamExecutionConfig, scenario, beamScenario, services)
   }
 
-  def fixDanglingPersons(result: MutableScenario): Unit = {
-    val peopleViaHousehold = result.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { x =>
-        x.getMemberIds.asScala
-      }
-      .toSet
-    val danglingPeople = result.getPopulation.getPersons
-      .values()
-      .asScala
-      .filter(person => !peopleViaHousehold.contains(person.getId))
-    if (danglingPeople.nonEmpty) {
-      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
-      danglingPeople.foreach { p =>
-        result.getPopulation.removePerson(p.getId)
-      }
-    }
-  }
-
-  protected def buildScenarioFromMatsimConfig(
-    matsimConfig: MatsimConfig,
-    beamScenario: BeamScenario
-  ): MutableScenario = {
-    val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    fixDanglingPersons(result)
-    result.setNetwork(beamScenario.network)
-    result
-  }
-
-  def buildBeamServices(
-    injector: inject.Injector,
-    scenario: MutableScenario,
-  ): BeamServices = {
-    val result = injector.getInstance(classOf[BeamServices])
-    result
-  }
-
   protected def buildInjector(
     config: TypesafeConfig,
     beamConfig: BeamConfig,
@@ -562,30 +347,104 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def runBeam(
-    beamServices: BeamServices,
-    scenario: MutableScenario,
-    beamScenario: BeamScenario,
-    outputDir: String
-  ): Unit = {
-    samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
+  def module(
+    typesafeConfig: TypesafeConfig,
+    beamConfig: BeamConfig,
+    scenario: Scenario,
+    beamScenario: BeamScenario
+  ): com.google.inject.Module =
+    AbstractModule.`override`(
+      ListBuffer(new AbstractModule() {
+        override def install(): Unit = {
+          // MATSim defaults
+          install(new NewControlerModule)
+          install(new ScenarioByInstanceModule(scenario))
+          install(new ControllerModule)
+          install(new ControlerDefaultCoreListenersModule)
 
-    val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(_.getVehicleIds.asScala)
+          // Beam Inject below:
+          install(new ConfigModule(typesafeConfig, beamConfig))
+          install(new BeamAgentModule(beamConfig))
+          install(new UtilsModule)
+        }
+      }).asJava,
+      new AbstractModule() {
+        private val mapper = new ObjectMapper()
+        mapper.registerModule(DefaultScalaModule)
 
-    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
-      v => beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+        override def install(): Unit = {
+          // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
+          // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
+          bind(classOf[BeamConfigHolder])
+          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
+
+          bind(classOf[PlansDumping]).to(classOf[CustomPlansDumpingImpl])
+
+          bind(classOf[BeamConfigChangesObservable]).toInstance(beamConfigChangesObservable)
+
+          bind(classOf[TerminationCriterion]).to(classOf[CustomTerminateAtFixedIterationNumber])
+
+          bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+
+          addControlerListenerBinding().to(classOf[BeamSim])
+          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
+          addControlerListenerBinding().to(classOf[RouteHistory])
+
+          addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
+          addControlerListenerBinding().to(classOf[GraphSurgePricing])
+          bind(classOf[BeamOutputDataDescriptionGenerator])
+          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          bind(classOf[ModeIterationPlanCleaner])
+
+          bindMobsim().to(classOf[BeamMobsim])
+          bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+          bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+            bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+          }
+          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
+          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("AddSupplementaryTrips").to(classOf[AddSupplementaryTrips])
+          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
+          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
+          addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
+            .toProvider(classOf[UtilityBasedModeChoice])
+          addAttributeConverterBinding(classOf[MapStringDouble])
+            .toInstance(new AttributeConverter[MapStringDouble] {
+              override def convertToString(o: scala.Any): String =
+                mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
+
+              override def convert(value: String): MapStringDouble =
+                MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
+            })
+          bind(classOf[BeamScenario]).toInstance(beamScenario)
+          bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
+          bind(classOf[TravelTimeCalculator]).toInstance(
+            new FakeTravelTimeCalculator(
+              beamScenario.network,
+              new TravelTimeCalculatorConfigGroup()
+            )
+          )
+
+          bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
+          bind(classOf[RideHailIterationHistory]).asEagerSingleton()
+          bind(classOf[RouteHistory]).asEagerSingleton()
+          bind(classOf[FareCalculator]).asEagerSingleton()
+          bind(classOf[TollCalculator]).asEagerSingleton()
+          bind(classOf[ODSkimmer]).asEagerSingleton()
+          bind(classOf[TAZSkimmer]).asEagerSingleton()
+          bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
+          bind(classOf[Skims]).asEagerSingleton()
+
+          bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
+          bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
+        }
+      }
     )
-    val vehicleInfo = vehiclesGroupedByType.map {
-      case (vehicleType, groupedValues) =>
-        s"$vehicleType (${groupedValues.size})"
-    } mkString " , "
-    logger.info(s"Vehicles assigned to households : $vehicleInfo")
-
-    run(beamServices)
-  }
 
   protected def buildBeamServicesAndScenario(
     beamConfig: BeamConfig,
@@ -676,6 +535,141 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
+  def loadScenario(beamConfig: BeamConfig): BeamScenario = {
+    val vehicleTypes = maybeScaleTransit(
+      beamConfig,
+      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    )
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+
+    val consumptionRateFilterStore =
+      new ConsumptionRateFilterStoreImpl(
+        vehicleCsvReader.getVehicleEnergyRecordsUsing,
+        Option(baseFilePath.toString),
+        primaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        secondaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+      )
+
+    val dates = DateUtils(
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+    )
+
+    val networkCoordinator = buildNetworkCoordinator(beamConfig)
+    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+
+    BeamScenario(
+      readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
+      vehicleTypes,
+      privateVehicles(beamConfig, vehicleTypes),
+      new VehicleEnergy(
+        consumptionRateFilterStore,
+        vehicleCsvReader.getLinkToGradeRecordsUsing
+      ),
+      beamConfig,
+      dates,
+      PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
+      networkCoordinator.transportNetwork,
+      networkCoordinator.network,
+      tazMap,
+      ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
+      H3TAZ(networkCoordinator.network, tazMap, beamConfig)
+    )
+  }
+
+  def privateVehicles(
+    beamConfig: BeamConfig,
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
+    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
+      TrieMap[Id[BeamVehicle], BeamVehicle]()
+    } else {
+      TrieMap(
+        readVehiclesFile(
+          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+          vehicleTypes,
+          beamConfig.matsim.modules.global.randomSeed
+        ).toSeq: _*
+      )
+    }
+
+  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
+  // say, a yacht or personal bus, but I think this will be fine for now.
+  // New Feb-2020: Switched over to MediumDutyPassenger -> Transit to solve issue with AV shuttles
+  private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
+    beamConfig.beam.agentsim.tuning.transitCapacity match {
+      case Some(scalingFactor) =>
+        vehicleTypes.map {
+          case (id, bvt) =>
+            id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+                     )
+                   else
+                     bvt)
+        }
+      case None => vehicleTypes
+    }
+  }
+
+  protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
+    val result = if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
+      FrequencyAdjustingNetworkCoordinator(beamConfig)
+    } else {
+      DefaultNetworkCoordinator(beamConfig)
+    }
+    result.init()
+    result
+  }
+
+  def fixDanglingPersons(result: MutableScenario): Unit = {
+    val peopleViaHousehold = result.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { x =>
+        x.getMemberIds.asScala
+      }
+      .toSet
+    val danglingPeople = result.getPopulation.getPersons
+      .values()
+      .asScala
+      .filter(person => !peopleViaHousehold.contains(person.getId))
+    if (danglingPeople.nonEmpty) {
+      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
+      danglingPeople.foreach { p =>
+        result.getPopulation.removePerson(p.getId)
+      }
+    }
+  }
+
+  private def buildUrbansimScenarioSource(
+    geo: GeoUtils,
+    beamConfig: BeamConfig
+  ): UrbanSimScenarioSource = {
+    val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
+      .map(str => InputType(str.toLowerCase))
+      .getOrElse(
+        throw new IllegalStateException(
+          s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+        )
+      )
+    val scenarioReader = fileFormat match {
+      case InputType.CSV     => CsvScenarioReader
+      case InputType.Parquet => ParquetScenarioReader
+    }
+
+    new UrbanSimScenarioSource(
+      scenarioSrc = beamConfig.beam.exchange.scenario.folder,
+      rdr = scenarioReader,
+      geoUtils = geo,
+      shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+    )
+  }
+
   def setupBeamWithConfig(
     config: TypesafeConfig
   ): BeamExecutionConfig = {
@@ -704,20 +698,6 @@ trait BeamHelper extends LazyLogging {
     val matsimConfig: MatsimConfig = buildMatsimConfig(config, beamConfig, outputDirectory)
 
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
-  }
-
-  protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
-    val result = if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
-      FrequencyAdjustingNetworkCoordinator(beamConfig)
-    } else {
-      DefaultNetworkCoordinator(beamConfig)
-    }
-    result.init()
-    result
-  }
-
-  private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
-    BeamWarmStart.updateExecutionConfig(beamExecutionConfig)
   }
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
@@ -752,6 +732,46 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
+  private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
+    BeamWarmStart.updateExecutionConfig(beamExecutionConfig)
+  }
+
+  def runBeam(
+    beamServices: BeamServices,
+    scenario: MutableScenario,
+    beamScenario: BeamScenario,
+    outputDir: String
+  ): Unit = {
+    samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
+
+    applyFractionOfNonWorkingPeople(scenario, beamServices.beamConfig, beamServices.matsimServices.getConfig)
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    // necessary to be called after population sampling
+    BeamStaticMetricsWriter.writeSimulationParameters(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamServices.beamConfig
+    )
+
+    val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(_.getVehicleIds.asScala)
+
+    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
+      v => beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+    )
+    val vehicleInfo = vehiclesGroupedByType.map {
+      case (vehicleType, groupedValues) =>
+        s"$vehicleType (${groupedValues.size})"
+    } mkString " , "
+    logger.info(s"Vehicles assigned to households : $vehicleInfo")
+
+    run(beamServices)
+  }
+
   def run(beamServices: BeamServices) {
     beamServices.controler.run()
   }
@@ -774,51 +794,71 @@ trait BeamHelper extends LazyLogging {
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
-
-    // write static metrics, such as population size, vehicles fleet size, etc.
-    // necessary to be called after population sampling
-    BeamStaticMetricsWriter.writeSimulationParameters(
-      scenario,
-      beamScenario,
-      beamServices,
-      beamConfig
-    )
   }
 
-  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
-    vehicleIds
-      .groupBy(
-        vehicleId => beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
-      )
-      .map {
-        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
+  private def applyFractionOfNonWorkingPeople(
+    scenario: MutableScenario,
+    beamConfig: BeamConfig,
+    matSimConf: MatsimConfig
+  ) = {
+    val random = new Random(matSimConf.global().getRandomSeed)
+
+    val people = random.shuffle(scenario.getPopulation.getPersons.asScala.keys)
+
+    val peopleForRemovingWorkActivities =
+      math.max(people.size, people.size * beamConfig.beam.agentsim.fractionOfNonWorkingPeople).toInt
+
+    // TODO: find existing const
+    val workActivityType = "Work"
+    val legPlanElementType = "leg"
+
+    people
+      .take(peopleForRemovingWorkActivities)
+      .map(scenario.getPopulation.getPersons.get)
+      .flatMap(_.getPlans.asScala.toSeq)
+      .filter(_.getPlanElements.size() > 1)
+      .foreach { p =>
+        val planElements = mutable.Seq(p.getPlanElements.asScala: _*)
+
+        var i = 1
+        while (i < planElements.size) {
+          val currentElem = planElements(i)
+          currentElem match {
+            case activity: Activity if (ac=>
+            case leg: Leg =>
+            case tour: Tour =>
+            case Trip(activity, leg, parentTour) =>
+            case _ =>
+          }
+        }
       }
-      .mkString(" , ")
+
+    // change the endtime of previous activity to the end activity of work
+    // remove home -> leg -> home
+    // remove work activities + previous leg
+    // fix indexes
+    // if only activity left change endings time to -Inf
+
   }
 
-  private def buildUrbansimScenarioSource(
-    geo: GeoUtils,
-    beamConfig: BeamConfig
-  ): UrbanSimScenarioSource = {
-    val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
-      .map(str => InputType(str.toLowerCase))
-      .getOrElse(
-        throw new IllegalStateException(
-          s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
-        )
-      )
-    val scenarioReader = fileFormat match {
-      case InputType.CSV     => CsvScenarioReader
-      case InputType.Parquet => ParquetScenarioReader
-    }
-
-    new UrbanSimScenarioSource(
-      scenarioSrc = beamConfig.beam.exchange.scenario.folder,
-      rdr = scenarioReader,
-      geoUtils = geo,
-      shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
-    )
+  def buildBeamServices(
+    injector: inject.Injector,
+    scenario: MutableScenario,
+  ): BeamServices = {
+    val result = injector.getInstance(classOf[BeamServices])
+    result
   }
+
+  protected def buildScenarioFromMatsimConfig(
+    matsimConfig: MatsimConfig,
+    beamScenario: BeamScenario
+  ): MutableScenario = {
+    val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    fixDanglingPersons(result)
+    result.setNetwork(beamScenario.network)
+    result
+  }
+
 }
 
 case class MapStringDouble(data: Map[String, Double])

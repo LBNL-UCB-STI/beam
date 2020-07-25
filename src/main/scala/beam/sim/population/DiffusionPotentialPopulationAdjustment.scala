@@ -103,12 +103,11 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
 }
 
 object DiffusionPotentialPopulationAdjustment {
+  lazy val currentYear: Int = 2018 // Year of Whole Traveler SF Bay Survey // DateTime.now().year().get()
   val PERSON_AGE = "age"
   val PERSON_SEX = "sex"
   val RIDE_HAIL = "ride_hail"
   val RIDE_HAIL_TRANSIT = "ride_hail_transit"
-
-  lazy val currentYear: Int = 2018 // Year of Whole Traveler SF Bay Survey // DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
     currentYear - age >= 1940 && currentYear - age < 1950
