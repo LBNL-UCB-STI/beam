@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.Id
 
 case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly(beamConfig) {
 
-  override protected val skimTimeBin: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
+  override def timeIntervalInSeconds: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
 
   def getLatestSkim(
     time: Int,

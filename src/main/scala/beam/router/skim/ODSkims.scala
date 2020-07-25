@@ -5,19 +5,10 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
+import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -26,7 +17,7 @@ import scala.collection.immutable
 
 case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly(beamConfig) {
 
-  override protected val skimTimeBin: Int = beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
+  override def timeIntervalInSeconds: Int = beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
 
   def getSkimDefaultValue(
     mode: BeamMode,

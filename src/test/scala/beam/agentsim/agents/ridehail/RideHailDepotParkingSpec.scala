@@ -25,7 +25,7 @@ class RideHailDepotParkingSpec extends FlatSpec with Matchers with BeamHelper {
           |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 1.0
           |
           |beam.physsim.skipPhysSim = true
-          |beam.agentsim.lastIteration = 5
+          |beam.agentsim.lastIteration = 1
           |beam.agentsim.h3taz = {
           |  enabled = false
           |}
@@ -38,7 +38,7 @@ class RideHailDepotParkingSpec extends FlatSpec with Matchers with BeamHelper {
           |beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier = -0.5
           |beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier = -0.086
           |beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier = -0.5
-          |beam.agentsim.agents.parking.mulitnomialLogit.params.refuelWaitTime = 0.5
+          |beam.agentsim.agents.parking.mulitnomialLogit.params.refuelWaitTime = -0.1
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0

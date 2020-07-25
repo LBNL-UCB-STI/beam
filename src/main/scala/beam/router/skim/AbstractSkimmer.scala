@@ -31,26 +31,24 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-trait ToTimeBin {
-  protected val skimTimeBin: Int
-  protected val skimEndTime: Int
-  def toTimeBin(t: Int): Int = Math.floorMod(Math.floor(t.toDouble / skimTimeBin).toInt, skimEndTime)
+trait SkimmerTimeBin {
+  def timeIntervalInSeconds: Int
+  def numOfTimeBins: Int
+  def toTimeBin(t: Int): Int = Math.floorMod(Math.floor(t.toDouble / timeIntervalInSeconds).toInt, numOfTimeBins)
 }
 
 abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime) with ToTimeBin
-    with ScalaEvent {
-  protected val skimName: String
-  override protected val skimEndTime: Int = beamServices.beamConfig.beam.agentsim.endTime.split(":")(0).toInt
+    extends Event(eventTime) with SkimmerTimeBin with ScalaEvent {
+  override def numOfTimeBins: Int = beamServices.beamConfig.beam.agentsim.endTime.split(":")(0).toInt * 3600 / timeIntervalInSeconds
+  protected def skimName: String
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly(beamConfig: BeamConfig) extends LazyLogging with ToTimeBin {
-  override protected val skimEndTime: Int = beamConfig.beam.agentsim.endTime.split(":")(0).toInt
-  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
-    mutable.ListBuffer()
+abstract class AbstractSkimmerReadOnly(beamConfig: BeamConfig) extends LazyLogging with SkimmerTimeBin {
+  override def numOfTimeBins: Int = beamConfig.beam.agentsim.endTime.split(":")(0).toInt * 3600 / timeIntervalInSeconds
+  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
 }
 

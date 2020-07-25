@@ -2071,7 +2071,7 @@ object BeamConfig {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if(c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
               name         = if(c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer",
-              timeBin      = if(c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 300
+              timeBin      = if(c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 900
             )
           }
         }
