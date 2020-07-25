@@ -57,21 +57,29 @@ object IndustryAssigner {
 
   }
 
-  private def readFromPlans(pathToPlans: String) = {
+  private def readFromPlans(pathToPlans: String): Seq[((String, String), Int)] = {
     val homeWorkActivities = ProfilingUtils.timed("Read plans", println) {
       CsvPlanElementReader
         .read(pathToPlans)
         .filter { plan =>
-          plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(
-            act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
+          val isActivity = plan.planElementType.equalsIgnoreCase("activity")
+          val isHomeOrWork = plan.activityType.exists(
+            act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("work")
           )
+          isActivity && isHomeOrWork
         }
     }
     println(s"Read ${homeWorkActivities.length} home-work activities")
 
     val homeGeoIdToWorkGeoId = homeWorkActivities
       .groupBy(plan => plan.personId.id)
-      .filter { case (_, xs) => xs.length >= 2 }
+      .filter { case (_, xs) =>
+        val firstActivity = xs.lift(0)
+        val secondActivity = xs.lift(1)
+        val isFirstHome = firstActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("home")))
+        val isSecondWork = secondActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("work")))
+        isFirstHome && isSecondWork
+      }
       .toSeq
       .map {
         case (_, xs) =>
