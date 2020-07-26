@@ -13,6 +13,7 @@ import org.onebusaway.gtfs_transformer.`match`.{EntityMatch, TypedEntityMatch}
 import org.onebusaway.gtfs_transformer.deferred.ValueSetter
 import org.onebusaway.gtfs_transformer.factory.{AddEntitiesTransformStrategy, EntitiesTransformStrategy}
 import org.onebusaway.gtfs_transformer.services.{EntityTransformStrategy, GtfsTransformStrategy, TransformContext}
+import org.onebusaway.gtfs_transformer.updates.UpdateLibrary
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -70,7 +71,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
 
   private[gtfs] def findRepeatingTrips(
     tripsWithStopTimes: Seq[TripAndStopTimes],
-    sameServiceOnly: Boolean = false
+    sameServiceOnly: Boolean = true
   ): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
     tripsWithStopTimes
       .map { tripWithStopTimes =>
@@ -297,6 +298,20 @@ object GtfsLoader {
         stopTime.setArrivalTime(arrivalTime)
         stopTime.setDepartureTime(departureTime)
       case _ => ()
+    }
+  }
+
+  class FilterServiceIdStrategy(serviceIdFilter: String) extends GtfsTransformStrategy {
+    override def run(context: TransformContext, dao: GtfsMutableRelationalDao): Unit = {
+      for (serviceId <- dao.getAllServiceIds.asScala if serviceId.getId != serviceIdFilter) {
+        for (trip <- dao.getTripsForServiceId(serviceId).asScala) {
+          for (stopTime <- dao.getStopTimesForTrip(trip).asScala) {
+            dao.removeEntity[Integer, StopTime](stopTime)
+          }
+          dao.removeEntity[AgencyAndId, Trip](trip)
+        }
+        UpdateLibrary.clearDaoCache(dao)
+      }
     }
   }
 }
