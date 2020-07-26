@@ -1,5 +1,7 @@
 package beam.router.r5
 
+import java.io.File
+
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -15,9 +17,9 @@ class DefaultNetworkCoordinatorSpec
     with MockitoSugar
     with TableDrivenPropertyChecks {
 
-  // TODO check test on Windows
-  private val beamR5Dir = getClass.getResource("/r5").getPath
-  private val beamR5NoFreqsDir = getClass.getResource("/r5-no-freqs").getPath
+  private val beamR5Dir = new File(getClass.getResource("/r5").getFile).getAbsolutePath.replace('\\', '/')
+  private val beamR5NoFreqsDir =
+    new File(getClass.getResource("/r5-no-freqs").getFile).getAbsolutePath.replace('\\', '/')
 
   private def config(r5Dir: String) =
     ConfigFactory
@@ -44,10 +46,9 @@ class DefaultNetworkCoordinatorSpec
     s"DefaultNetworkCoordinator on $desc" should {
       val beamConfig = BeamConfig(config)
 
-      "could be created via factory method of NetworkCoordinator" in {
+      "be created via factory method of NetworkCoordinator" in {
         val networkCoordinator = NetworkCoordinator.create(beamConfig)
         networkCoordinator shouldBe a[DefaultNetworkCoordinator]
-
       }
 
       "load GTFS files into a transit layer" in {
@@ -152,10 +153,10 @@ class DefaultNetworkCoordinatorSpec
         tripPatterns should have size 4
 
         val tripSchedules = tripPatterns.flatMap(_.tripSchedules.asScala)
-        //tripSchedules should have size 1344
+        //tripSchedules should have size 576
 
         val trips = tripSchedules.map { ts =>
-          val s = (
+          (
             ts.tripId,
             ts.startTimes,
             ts.endTimes,
@@ -163,8 +164,6 @@ class DefaultNetworkCoordinatorSpec
             ts.arrivals.mkString(","),
             ts.departures.mkString(",")
           )
-          println(s)
-          s
         }
         if (hasFrequencies) {
           trips should contain allOf (

@@ -144,7 +144,7 @@ trait NetworkCoordinator extends LazyLogging {
     logger.info(s"MATSim network written")
   }
 
-  private def convertFrequenciesToTrips(): Unit = {
+  private[r5] def convertFrequenciesToTrips(): Unit = {
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>

@@ -14,7 +14,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
   private val serviceId = "EF33A604"
 
   "Using test GtfsLoader" when {
-    val testDirectory = new File(getClass.getResource("/r5-no-freqs").getFile).getAbsolutePath
+    val testDirectory = new File(getClass.getResource("/r5-mod-gtfs").getFile).getAbsolutePath
     val config = ConfigFactory
       .parseString(s"beam.routing.r5.directory=${testDirectory}")
       .withFallback(testConfig("test/input/beamville/beam.conf"))

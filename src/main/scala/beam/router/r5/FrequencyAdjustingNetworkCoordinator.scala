@@ -6,7 +6,6 @@ import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
 
 import scala.collection.JavaConverters._
 
-// TODO try onebusaway-gtfs-modules
 case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinator {
 
   override def postLoadNetwork(): Unit = {
