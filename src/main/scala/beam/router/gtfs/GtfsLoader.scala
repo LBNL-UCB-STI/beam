@@ -68,13 +68,9 @@ class GtfsLoader(beamConfig: BeamConfig) {
       .map(trip => TripAndStopTimes(trip, dao.getStopTimesForTrip(trip).asScala.sortBy(_.getStopSequence)))
       .sortBy(_.stopTimes.head.getArrivalTime)
 
-  /**
-    * If trips need to be doubled it's better to put includeOnlySameService = false (default)
-    * If trips need to be scaled it's better to put includeOnlySameService = true
-    */
   private[gtfs] def findRepeatingTrips(
     tripsWithStopTimes: Seq[TripAndStopTimes],
-    includeOnlySameService: Boolean = false
+    sameServiceOnly: Boolean = false
   ): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
     tripsWithStopTimes
       .map { tripWithStopTimes =>
@@ -103,18 +99,17 @@ class GtfsLoader(beamConfig: BeamConfig) {
           val (firstTrip, offsetSeconds) =
             handledDiffs
               .find { d =>
-                val extraPredicate =
-                  if (includeOnlySameService) d.trip.trip.getServiceId == diff.trip.trip.getServiceId else true
-                (d.trip != diff.trip
-                && d.stops == diff.stops
-                && extraPredicate)
+                d.trip != diff.trip &&
+                d.stops == diff.stops &&
+                (if (sameServiceOnly) d.trip.trip.getServiceId == diff.trip.trip.getServiceId else true)
               }
               .map(d => (d.trip, diff.trip.stopTimes.head.getArrivalTime - d.trip.stopTimes.head.getArrivalTime))
               .getOrElse((diff.trip, 0))
+
           val firstTripId = firstTrip.trip.getId.getId
           val repeatingTripsSeq =
-            if (offsetSeconds == 0) Seq(firstTrip -> 0)
-            else repeatingTrips.getOrElseUpdate(firstTripId, Seq()) :+ (diff.trip -> offsetSeconds)
+            if (firstTrip == diff.trip) Seq(firstTrip -> 0)
+            else repeatingTrips.getOrElseUpdate(firstTripId, Seq(firstTrip -> 0)) :+ (diff.trip -> offsetSeconds)
 
           repeatingTrips.put(firstTripId, repeatingTripsSeq)
           HandledRepeatingAcc(handledDiffs :+ diff, repeatingTrips)
@@ -127,12 +122,11 @@ class GtfsLoader(beamConfig: BeamConfig) {
     factor: Int = 2,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
-    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = false)
+    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes)
 
     val strategy = new AddEntitiesTransformStrategy
     val lastArrivalTime = timeFrame.endTime
 
-    // from arrival time to departure time
     repeatingTrips.values.view
       .map {
         _.view
@@ -196,7 +190,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
     scale: Double,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
-    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = true)
+    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes)
     val strategy = new EntitiesTransformStrategy
 
     repeatingTrips.values.view
@@ -292,11 +286,8 @@ object GtfsLoader {
 
   class StopTimeMatch(stopTime: StopTime) extends EntityMatch {
     override def isApplicableToObject(obj: Any): Boolean = obj match {
-      case testStopTime: StopTime =>
-        testStopTime.getTrip.getId == stopTime.getTrip.getId &&
-        testStopTime.getId == stopTime.getId &&
-        testStopTime.getStopSequence == stopTime.getStopSequence
-      case _ => false
+      case testStopTime: StopTime => testStopTime.getId == stopTime.getId
+      case _                      => false
     }
   }
 
