@@ -28,7 +28,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
 
   /**
-    *
+    * Loads GTFS feed into sequence of trips with their stop times
     * @param gtfsFeed could be either zip file or directory with GTFS data
     */
   def loadTripsFromGtfs(gtfsFeed: String): Seq[TripAndStopTimes] = {
@@ -42,6 +42,13 @@ class GtfsLoader(beamConfig: BeamConfig) {
     getSortedTripsWithStopTimes(dao)
   }
 
+  /**
+    * Loads GTFS feed into sequence of trips with their stop times
+    * and applies transformation strategies
+    * @param gtfsFeed could be either zip file or directory with GTFS data
+    * @param gtfsFeedOut could be either zip file or directory with GTFS data
+    * @param transformerStrategies list of transform strategies to be applied to GTFS entities
+    */
   def transformGtfs(
     gtfsFeed: String,
     gtfsFeedOut: String,
@@ -117,99 +124,115 @@ class GtfsLoader(beamConfig: BeamConfig) {
 
   def doubleTripsStrategy(
     tripsWithStopTimes: Seq[TripAndStopTimes],
-    factor: Int = 2
+    factor: Int = 2,
+    timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
     val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = false)
 
     val strategy = new AddEntitiesTransformStrategy
-    val midnightArrivalTime = 86400 // seconds at midnight
+    val lastArrivalTime = timeFrame.endTime
 
-    repeatingTrips.values.foreach { tripAndStopTimesWithOffset =>
-      val trips = tripAndStopTimesWithOffset.map(_._1)
-      // doubling trips between first stop and the last but one
-      trips.tail
-        .zip(trips.init)
-        .foreach {
-          case (current, previous) =>
-            for (idx <- 1 until factor) {
-              val newTrip = createNewTrip(previous.trip, idx)
-              strategy.addEntity(newTrip)
+    // from arrival time to departure time
+    repeatingTrips.values.view
+      .map {
+        _.view
+          .map(_._1)
+          .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
+          .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
+      }
+      .filter(_.nonEmpty)
+      .foreach { trips =>
+        // doubling trips between first stop and the last but one
+        trips.tail
+          .zip(trips.init)
+          .foreach {
+            case (current, previous) =>
+              for (idx <- 1 until factor) {
+                val newTrip = createNewTrip(previous.trip, idx)
+                strategy.addEntity(newTrip)
 
-              previous.stopTimes
-                .zip(current.stopTimes)
-                .foreach {
-                  case (prevStopTime, curStopTime) =>
-                    val newStopTime = createStopTime(
-                      newTrip,
-                      prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / factor * idx,
-                      prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / factor * idx,
-                      prevStopTime.getStop,
-                      prevStopTime.getStopSequence
-                    )
-                    strategy.addEntity(newStopTime)
-                }
-            }
-            current
-        }
-      // doubling trips between last stop and the midnight
-      val lastTrip = trips.last
-      for { idx <- 1 until factor } {
-        val newTrip = createNewTrip(trips.last.trip, idx)
-        strategy.addEntity(newTrip)
+                previous.stopTimes
+                  .zip(current.stopTimes)
+                  .foreach {
+                    case (prevStopTime, curStopTime) =>
+                      val newStopTime = createStopTime(
+                        newTrip,
+                        prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / factor * idx,
+                        prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / factor * idx,
+                        prevStopTime.getStop,
+                        prevStopTime.getStopSequence
+                      )
+                      strategy.addEntity(newStopTime)
+                  }
+              }
+              current
+          }
+        // doubling trips between last stop and the midnight
+        val lastTrip = trips.last
+        for { idx <- 1 until factor } {
+          val newTrip = createNewTrip(trips.last.trip, idx)
+          strategy.addEntity(newTrip)
 
-        val lastStopTimes = lastTrip.stopTimes
-        val lastStopShift = midnightArrivalTime - lastStopTimes.last.getArrivalTime
-        lastStopTimes.foreach { stopTime =>
-          val newStopTime = createStopTime(
-            newTrip,
-            stopTime.getDepartureTime + lastStopShift / factor * idx,
-            stopTime.getArrivalTime + lastStopShift / factor * idx,
-            stopTime.getStop,
-            stopTime.getStopSequence
-          )
-          strategy.addEntity(newStopTime)
+          val lastStopTimes = lastTrip.stopTimes
+          val lastStopShift = lastArrivalTime - lastStopTimes.last.getArrivalTime
+          lastStopTimes.foreach { stopTime =>
+            val newStopTime = createStopTime(
+              newTrip,
+              stopTime.getDepartureTime + lastStopShift / factor * idx,
+              stopTime.getArrivalTime + lastStopShift / factor * idx,
+              stopTime.getStop,
+              stopTime.getStopSequence
+            )
+            strategy.addEntity(newStopTime)
+          }
         }
       }
-    }
 
     strategy
   }
 
   def scaleTripsStrategy(
     tripsWithStopTimes: Seq[TripAndStopTimes],
-    scale: Double
+    scale: Double,
+    timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
     val repeatingTrips = findRepeatingTrips(tripsWithStopTimes, includeOnlySameService = true)
     val strategy = new EntitiesTransformStrategy
 
-    repeatingTrips.values.foreach { tripAndStopTimesWithOffset =>
-      val trips = tripAndStopTimesWithOffset.map(_._1)
-      trips.foreach { trip =>
-        // calculate new stop times (without first stop time - it remains as original)
-        val offsetsBetweenStopTimes = trip.stopTimes.tail
-          .zip(trip.stopTimes.init)
-          .map {
-            case (current, previous) =>
-              (
-                ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
-                ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
-              )
-          }
-        // mutate all stop times and append their modifications to the strategy
-        trip.stopTimes.tail
-          .zip(trip.stopTimes.init)
-          .zip(offsetsBetweenStopTimes)
-          .map {
-            case ((current, previous), (arrivalOffset, departureOffset)) =>
-              current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
-              current.setDepartureTime(previous.getDepartureTime + departureOffset)
-              strategy.addModification(
-                new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
-                new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
-              )
-          }
+    repeatingTrips.values.view
+      .map {
+        _.map(_._1)
+          .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
+          .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
       }
-    }
+      .filter(_.nonEmpty)
+      .foreach { trips =>
+        trips.foreach { trip =>
+          // calculate new stop times (without first stop time - it remains as original)
+          val offsetsBetweenStopTimes = trip.stopTimes.tail
+            .zip(trip.stopTimes.init)
+            .map {
+              case (current, previous) =>
+                (
+                  ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
+                  ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
+                )
+            }
+          // mutate all stop times and append their modifications to the strategy
+          trip.stopTimes.tail
+            .zip(trip.stopTimes.init)
+            .zip(offsetsBetweenStopTimes)
+            .map {
+              case ((current, previous), (arrivalOffset, departureOffset)) =>
+                current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
+                current.setDepartureTime(previous.getDepartureTime + departureOffset)
+                strategy.addModification(
+                  new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
+                  new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
+                )
+            }
+        }
+      }
     strategy
   }
 
@@ -240,6 +263,16 @@ class GtfsLoader(beamConfig: BeamConfig) {
 object GtfsLoader {
   case class TripAndStopTimes(trip: Trip, stopTimes: Seq[StopTime])
 
+  /**
+    * @param startTime start time in milliseconds
+    * @param endTime   end time in milliseconds
+    */
+  case class TimeFrame(startTime: Int, endTime: Int)
+
+  object TimeFrame {
+    val WholeDay = TimeFrame(0, 86400)
+  }
+
   case class TripDiffAcc(
     trip: TripAndStopTimes,
     arrivalDiffs: List[Int],
@@ -250,7 +283,6 @@ object GtfsLoader {
     handledDiffs: List[TripDiffAcc],
     repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]]
   )
-  case class FreqPattern(trip: Trip, prevTrip: Trip, offsetSeconds: Int)
 
   // additional classes for 'onebusaway' strategies
   class IntValueSetter(replacementValue: Integer) extends ValueSetter {
