@@ -1,4 +1,4 @@
-package beam.utils.data.ctpp.models
+package beam.utils.data.ctpp.models.flow
 
 import scala.util.{Failure, Success, Try}
 
@@ -10,7 +10,7 @@ sealed trait Industry {
 object Industry {
 
   val all: Vector[Industry] =
-    Vector(Agriculture, Manufacturing, WholesaleTrade, Information, Educational, Arts, OtherServices)
+    Vector(Agriculture, Manufacturing, WholesaleTrade, Information, Educational, Arts, OtherServices).sortBy(x => x.lineNumber)
 
   def apply(lineNumber: Int): Try[Industry] = {
     all.find(x => x.lineNumber == lineNumber) match {
