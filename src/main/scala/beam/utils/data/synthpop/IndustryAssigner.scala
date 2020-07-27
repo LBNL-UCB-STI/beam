@@ -1,13 +1,11 @@
 package beam.utils.data.synthpop
 
-import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
+import beam.utils.data.ctpp.models.{ResidenceGeography, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
-import org.matsim.api.core.v01.Coord
 
 class IndustryAssigner {}
 
@@ -35,13 +33,17 @@ object IndustryAssigner {
     val odToIndustryMap = odToIndustrySeq.toMap
 
     val homeGeoIdToWorkGeoIdWithCounts: Seq[((String, String), Int)] =
-      if (true) readFromPlans(pathToPlans) else readFromCsv("homeGeoIdToWorkGeoIdWithCounts.csv")
+      if (false) readFromPlans(pathToPlans) else readFromCsv("homeGeoIdToWorkGeoIdWithCounts.csv")
     println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")
 
-    writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
+    // writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
 
     val nKeyIsNotFound = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
     println(s"nKeyIsNotFound: ${nKeyIsNotFound}")
+
+    val rdr = new beam.utils.data.ctpp.readers.workplace.IndustryTableReader(databaseInfo, ResidenceGeography.TAZ)
+    val data = rdr.read()
+    println(s"data: ${data.size}")
 
     homeGeoIdToWorkGeoIdWithCounts.foreach { case (key, totalNumberOfPeople) =>
       odToIndustryMap.get(key) match {
