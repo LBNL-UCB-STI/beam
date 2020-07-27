@@ -1,6 +1,5 @@
 package beam.sim
 
-import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
@@ -15,9 +14,9 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSy
 import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
+import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
 import beam.router.Modes.BeamMode
-import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
@@ -36,13 +35,9 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.corelisteners.DumpDataAtEnd
-import org.matsim.core.controler.events.ShutdownEvent
-import org.matsim.core.controler.listener.ShutdownListener
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Households
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -130,14 +125,7 @@ class BeamMobsim @Inject()(
     if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
-
-      // TODO remove after debugging
-      dumpMatsimStuffAtTheBeginningOfSimulation()
-
-      // TODO definitely remove after debugging
-      throw new Exception("Done debugging")
     }
-
 
     val iteration = actorSystem.actorOf(
       Props(
@@ -161,37 +149,6 @@ class BeamMobsim @Inject()(
 
     logger.info("Processing Agentsim Events (End)")
   }
-
-  private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
-    ProfilingUtils.timed(
-      s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
-      x => logger.info(x)
-    ) {
-      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
-      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
-      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
-      dumper match {
-        case listener: ShutdownListener =>
-          val event = new ShutdownEvent(beamServices.matsimServices, false)
-          // Create files
-          listener.notifyShutdown(event)
-
-          val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
-          if (householdAttributes != null) {
-            val writer = new ObjectAttributesXmlWriter(householdAttributes)
-            writer.setPrettyPrint(true)
-            writer.putAttributeConverters(Collections.emptyMap())
-            writer.writeFile(
-              beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
-            )
-          }
-
-        case x =>
-          logger.warn("dumper is not `ShutdownListener`")
-      }
-    }
-  }
-
 
   private def fillInSecondaryActivities(households: Households): Unit = {
     households.getHouseholds.values.forEach { household =>
