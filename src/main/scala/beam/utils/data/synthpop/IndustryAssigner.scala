@@ -2,14 +2,18 @@ package beam.utils.data.synthpop
 
 import beam.utils.ProfilingUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
+import beam.utils.data.ctpp.models.residence.{Industry => ResidenceIndustry}
+import beam.utils.data.ctpp.models.flow.{Industry => FlowIndustry}
 import beam.utils.data.ctpp.models.{ResidenceGeography, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
+import beam.utils.data.ctpp.readers.residence
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 
 class IndustryAssigner {}
 
 object IndustryAssigner {
+
 
   def main(args: Array[String]): Unit = {
     require(args.length == 2, "Expected two args: 1) path to CTPP 2) Path to plans")
@@ -38,24 +42,50 @@ object IndustryAssigner {
 
     // writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
 
-    val nKeyIsNotFound = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
-    println(s"nKeyIsNotFound: ${nKeyIsNotFound}")
+    val nKeyIsNotFoundInOdToIndustryMap = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
+    println(s"nKeyIsNotFoundInOdToIndustryMap: ${nKeyIsNotFoundInOdToIndustryMap}")
 
-    val rdr = new beam.utils.data.ctpp.readers.workplace.IndustryTableReader(databaseInfo, ResidenceGeography.TAZ)
-    val data = rdr.read()
-    println(s"data: ${data.size}")
+    val residenceIndustryOdMap = new residence.IndustryTableReader(databaseInfo, ResidenceGeography.TAZ).read()
+    println(s"residenceIndustryOdMap: ${residenceIndustryOdMap.size}")
+
+
+    val headers =  Array("origin", "destination", "total_people_from_scenario", "total_by_flow", "total_by_residence") ++
+      FlowIndustry.all.map(col => s"flow_${col.toString}") ++ FlowIndustry.all.map(col => s"residence_${col.toString}")
+
+    val csvWriter = new CsvWriter("industry.csv", headers)
 
     homeGeoIdToWorkGeoIdWithCounts.foreach { case (key, totalNumberOfPeople) =>
-      odToIndustryMap.get(key) match {
-        case None =>
-        case Some(industries) =>
-          val total = industries.map(_.value).sum
-          println(s"totalNumberOfPeople: $totalNumberOfPeople, total of industries: $total")
-          println(s"Industries: ${industries.mkString(" ")}")
+      (odToIndustryMap.get(key), residenceIndustryOdMap.get(key._1)) match {
+        case (Some(flowIndustries), Some(residenceIndustries)) =>
+          val residenceIndustriesToFlowIndustries = residenceIndustries.map(toFlowIndustry)
+            .groupBy { case (industry, _) =>  industry }
+            .toSeq
+            .map { case (industry, xs) =>
+                industry -> xs.map(_._2).sum
+            }
+          val totalByFlow = flowIndustries.map(_.value).sum
+          val totalByResidence = residenceIndustriesToFlowIndustries.map(_._2).sum
 
+          val row = Array(
+            key._1,
+            key._2,
+            totalNumberOfPeople,
+            totalByFlow,
+            totalByResidence,
+          ) ++ FlowIndustry.all.map { c => flowIndustries.find(x => x.attribute == c).map(_.value).getOrElse(0.0)} ++
+            FlowIndustry.all.map { c => residenceIndustriesToFlowIndustries.find { case (industry, _) => industry == c }.map(_._2).getOrElse(0.0)}
+
+          csvWriter.write(row: _*)
+
+//          println(s"totalNumberOfPeople: $totalNumberOfPeople, totalByFlow of industries: $totalByFlow, totalByResidence: $totalByResidence")
+//          println(s"Industries: ${flowIndustries.mkString(" ")}")
+//          println(s"residenceIndustriesToFlowIndustries: ${residenceIndustriesToFlowIndustries.mkString(" ")}")
+
+        case _ =>
       }
 
     }
+    csvWriter.close()
 
   }
 
@@ -127,4 +157,19 @@ object IndustryAssigner {
     }
     csvWriter.close()
   }
+
+  def toFlowIndustry(input: (ResidenceIndustry, Double)): (FlowIndustry, Double) = {
+    val (workIndustry, count) = input
+    val flowIndustry = workIndustry match {
+      case ResidenceIndustry.Agriculture | ResidenceIndustry.Construction | ResidenceIndustry.ArmedForces => FlowIndustry.Agriculture
+      case ResidenceIndustry.Manufacturing =>  FlowIndustry.Manufacturing
+      case ResidenceIndustry.WholesaleTrade | ResidenceIndustry.RetailTrade | ResidenceIndustry.Transportation => FlowIndustry.WholesaleTrade
+      case ResidenceIndustry.Information | ResidenceIndustry.Finance | ResidenceIndustry.Professional => FlowIndustry.Information
+      case ResidenceIndustry.Educational => FlowIndustry.Educational
+      case ResidenceIndustry.Arts => FlowIndustry.Arts
+      case ResidenceIndustry.OtherServices | ResidenceIndustry.PublicAdministration  => FlowIndustry.OtherServices
+    }
+    (flowIndustry, count)
+  }
+
 }

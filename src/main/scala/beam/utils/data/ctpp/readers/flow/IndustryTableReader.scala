@@ -1,6 +1,7 @@
 package beam.utils.data.ctpp.readers.flow
 
-import beam.utils.data.ctpp.models.{FlowGeoParser, Industry, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.models.flow.Industry
+import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
