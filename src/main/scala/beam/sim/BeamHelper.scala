@@ -52,6 +52,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{ConfigWriter, Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.utils.objectattributes.AttributeConverter
@@ -626,26 +627,6 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-  def fixDanglingPersons(result: MutableScenario): Unit = {
-    val peopleViaHousehold = result.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { x =>
-        x.getMemberIds.asScala
-      }
-      .toSet
-    val danglingPeople = result.getPopulation.getPersons
-      .values()
-      .asScala
-      .filter(person => !peopleViaHousehold.contains(person.getId))
-    if (danglingPeople.nonEmpty) {
-      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
-      danglingPeople.foreach { p =>
-        result.getPopulation.removePerson(p.getId)
-      }
-    }
-  }
-
   private def buildUrbansimScenarioSource(
     geo: GeoUtils,
     beamConfig: BeamConfig
@@ -668,6 +649,26 @@ trait BeamHelper extends LazyLogging {
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
     )
+  }
+
+  def fixDanglingPersons(result: MutableScenario): Unit = {
+    val peopleViaHousehold = result.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { x =>
+        x.getMemberIds.asScala
+      }
+      .toSet
+    val danglingPeople = result.getPopulation.getPersons
+      .values()
+      .asScala
+      .filter(person => !peopleViaHousehold.contains(person.getId))
+    if (danglingPeople.nonEmpty) {
+      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
+      danglingPeople.foreach { p =>
+        result.getPopulation.removePerson(p.getId)
+      }
+    }
   }
 
   def setupBeamWithConfig(
@@ -806,39 +807,48 @@ trait BeamHelper extends LazyLogging {
     val people = random.shuffle(scenario.getPopulation.getPersons.asScala.keys)
 
     val peopleForRemovingWorkActivities =
-      math.max(people.size, people.size * beamConfig.beam.agentsim.fractionOfNonWorkingPeople).toInt
-
-    // TODO: find existing const
-    val workActivityType = "Work"
-    val legPlanElementType = "leg"
+      (people.size * beamConfig.beam.agentsim.fractionOfNonWorkingPeople).toInt
 
     people
       .take(peopleForRemovingWorkActivities)
       .map(scenario.getPopulation.getPersons.get)
-      .flatMap(_.getPlans.asScala.toSeq)
+      .flatMap(p => p.getPlans.asScala.toSeq)
       .filter(_.getPlanElements.size() > 1)
-      .foreach { p =>
-        val planElements = mutable.Seq(p.getPlanElements.asScala: _*)
+      .foreach { plan =>
+        val planElements = plan.getPlanElements
 
         var i = 1
         while (i < planElements.size) {
-          val currentElem = planElements(i)
-          currentElem match {
-            case activity: Activity if (ac=>
-            case leg: Leg =>
-            case tour: Tour =>
-            case Trip(activity, leg, parentTour) =>
-            case _ =>
+          planElements.get(i) match {
+            // TODO: find existing const
+            case activity: Activity if activity.getType == "Work" =>0
+              //remove work activity
+              planElements.remove(activity)
+              val previousWasLeg = planElements.get(i - 1).isInstanceOf[Leg]
+              //remove previous leg if any
+              if (previousWasLeg) planElements.remove(i - 1)
+
+              //update previous activity end time
+              planElements.get(i - 1) match {
+                case prevActivity: Activity =>
+                  prevActivity.setEndTime(activity.getEndTime)
+                case _ =>
+              }
+
+              if (previousWasLeg) i = i - 1
+            case _ => i = i + 1
           }
         }
+
+        // remove only duplicating activity
+        planElements.asScala.toList match {
+          case (a1: Activity) :: (_: Leg) :: (a2: Activity) :: Nil
+              if a1.getType == a2.getType && a1.getCoord == a2.getCoord =>
+            planElements.remove(0)
+            planElements.remove(1)
+          case _ =>
+        }
       }
-
-    // change the endtime of previous activity to the end activity of work
-    // remove home -> leg -> home
-    // remove work activities + previous leg
-    // fix indexes
-    // if only activity left change endings time to -Inf
-
   }
 
   def buildBeamServices(
