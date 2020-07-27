@@ -757,12 +757,12 @@ trait BeamHelper extends LazyLogging {
     beamServices: BeamServices,
     outputDir: String
   ): Unit = {
-    val populationScaling = new PopulationScaling()
+    import PopulationScaling._
     if (!beamConfig.beam.warmStart.enabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
-      populationScaling.downSample(beamServices, scenario, beamScenario, outputDir)
+      downSample(beamServices, scenario, beamScenario, outputDir)
     }
     if (!beamConfig.beam.warmStart.enabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1) {
-      populationScaling.upSample(beamServices, scenario, beamScenario)
+      upSample(beamServices, scenario, beamScenario)
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
