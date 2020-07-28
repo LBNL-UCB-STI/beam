@@ -28,7 +28,7 @@ case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends 
     actor: String,
     key: String
   ): Option[TAZSkimmerInternal] = {
-    getLatestSkim(toTimeBin(time), beamScenario.h3taz.getTAZ(hex), hex, actor, key)
+    getLatestSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)
   }
 
   def getLatestSkimByTAZ(
@@ -39,7 +39,7 @@ case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends 
   ): Option[TAZSkimmerInternal] = {
     beamScenario.h3taz
       .getIndices(taz)
-      .flatMap(hex => getLatestSkim(toTimeBin(time), taz, hex, actor, key))
+      .flatMap(hex => getLatestSkim(time, taz, hex, actor, key))
       .foldLeft[Option[TAZSkimmerInternal]](None) {
         case (acc, skimInternal) =>
           acc match {

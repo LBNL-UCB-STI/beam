@@ -1,9 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZoneSearch}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.router.BeamRouter.Location
 import beam.utils.ParkingManagerIdGenerator
 

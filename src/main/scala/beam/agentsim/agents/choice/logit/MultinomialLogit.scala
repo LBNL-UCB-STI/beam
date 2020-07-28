@@ -1,9 +1,8 @@
 package beam.agentsim.agents.choice.logit
 
-import scala.collection.immutable.SortedSet
-import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
+
+import scala.util.Random
 
 /**
   * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives

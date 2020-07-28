@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.charging
 
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 

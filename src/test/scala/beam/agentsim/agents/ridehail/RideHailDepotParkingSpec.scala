@@ -38,7 +38,7 @@ class RideHailDepotParkingSpec extends FlatSpec with Matchers with BeamHelper {
           |beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier = -0.5
           |beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier = -0.086
           |beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier = -0.5
-          |beam.agentsim.agents.parking.mulitnomialLogit.params.refuelWaitTime = -0.1
+          |beam.agentsim.agents.parking.mulitnomialLogit.params.refuelWaitTime = 1
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0
@@ -48,6 +48,28 @@ class RideHailDepotParkingSpec extends FlatSpec with Matchers with BeamHelper {
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_pooled_intercept = 10.0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0
+          |beam.router.skim = {
+          |  keepKLatestSkims = 1
+          |  writeSkimsInterval = 1
+          |  writeAggregatedSkimsInterval = 1
+          |  drive-time-skimmer {
+          |    name = "drive-time-skimmer"
+          |    fileBaseName = "skimsTravelTimeObservedVsSimulated"
+          |    timeBin = 3600
+          |  }
+          |  origin-destination-skimmer {
+          |    name = "od-skimmer"
+          |    fileBaseName = "skimsOD"
+          |    writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
+          |    writeFullSkimsInterval = 0
+          |    timeBin = 3600
+          |  }
+          |  taz-skimmer {
+          |    name = "taz-skimmer"
+          |    fileBaseName = "skimsTAZ"
+          |    timeBin = 3600
+          |  }
+          |}
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
