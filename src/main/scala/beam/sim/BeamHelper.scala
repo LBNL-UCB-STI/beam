@@ -48,7 +48,7 @@ import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
-import org.matsim.core.config.{Config => MatsimConfig}
+import org.matsim.core.config.{ConfigWriter, Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
@@ -67,14 +67,14 @@ trait BeamHelper extends LazyLogging {
 
   protected val beamAsciiArt: String =
     """
-    |  ________
-    |  ___  __ )__________ _______ ___
-    |  __  __  |  _ \  __ `/_  __ `__ \
-    |  _  /_/ //  __/ /_/ /_  / / / / /
-    |  /_____/ \___/\__,_/ /_/ /_/ /_/
-    |
-    | _____________________________________
-    |
+      |  ________
+      |  ___  __ )__________ _______ ___
+      |  __  __  |  _ \  __ `/_  __ `__ \
+      |  _  /_/ //  __/ /_/ /_  / / / / /
+      |  /_____/ \___/\__,_/ /_/ /_/ /_/
+      |
+      | _____________________________________
+      |
     """.stripMargin
 
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
@@ -228,18 +228,18 @@ trait BeamHelper extends LazyLogging {
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
       .parseString(s"""
-           |akka.cluster.roles = [compute]
-           |akka.actor.deployment {
-           |      /statsService/singleton/workerRouter {
-           |        router = round-robin-pool
-           |        cluster {
-           |          enabled = on
-           |          max-nr-of-instances-per-node = 1
-           |          allow-local-routees = on
-           |          use-roles = ["compute"]
-           |        }
-           |      }
-           |    }
+                      |akka.cluster.roles = [compute]
+                      |akka.actor.deployment {
+                      |      /statsService/singleton/workerRouter {
+                      |        router = round-robin-pool
+                      |        cluster {
+                      |          enabled = on
+                      |          max-nr-of-instances-per-node = 1
+                      |          allow-local-routees = on
+                      |          use-roles = ["compute"]
+                      |        }
+                      |      }
+                      |    }
           """.stripMargin)
       .withFallback(config)
 
@@ -648,26 +648,6 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def fixDanglingPersons(result: MutableScenario): Unit = {
-    val peopleViaHousehold = result.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { x =>
-        x.getMemberIds.asScala
-      }
-      .toSet
-    val danglingPeople = result.getPopulation.getPersons
-      .values()
-      .asScala
-      .filter(person => !peopleViaHousehold.contains(person.getId))
-    if (danglingPeople.nonEmpty) {
-      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
-      danglingPeople.foreach { p =>
-        result.getPopulation.removePerson(p.getId)
-      }
-    }
-  }
-
   def setupBeamWithConfig(
     config: TypesafeConfig
   ): BeamExecutionConfig = {
@@ -742,7 +722,7 @@ trait BeamHelper extends LazyLogging {
   ): Unit = {
     samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
-    applyFractionOfNonWorkingPeople(scenario, beamServices.beamConfig, beamServices.matsimServices.getConfig)
+    applyFractionOfNonWorkingPeople(scenario, beamServices.beamConfig, scenario.getConfig)
 
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
@@ -858,6 +838,25 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
+  def fixDanglingPersons(result: MutableScenario): Unit = {
+    val peopleViaHousehold = result.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { x =>
+        x.getMemberIds.asScala
+      }
+      .toSet
+    val danglingPeople = result.getPopulation.getPersons
+      .values()
+      .asScala
+      .filter(person => !peopleViaHousehold.contains(person.getId))
+    if (danglingPeople.nonEmpty) {
+      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
+      danglingPeople.foreach { p =>
+        result.getPopulation.removePerson(p.getId)
+      }
+    }
+  }
 }
 
 case class MapStringDouble(data: Map[String, Double])
