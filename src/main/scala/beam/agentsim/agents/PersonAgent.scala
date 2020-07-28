@@ -31,7 +31,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.logging.ExponentialLazyLogging
@@ -400,6 +400,11 @@ class PersonAgent(
     }
   }
 
+  def hasActivitiesAfterNextOne(data: BasePersonData): Boolean = {
+    val ind = data.currentActivityIndex + 2
+    ind < _experiencedBeamPlan.activities.length && ind >= 0
+  }
+
   def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
     @tailrec
     def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
@@ -435,7 +440,7 @@ class PersonAgent(
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
-          logger.warn(s"didn't get nextActivity, PersonAgent:438")
+          logger.warn(s"didn't get nextActivity, PersonAgent: $id")
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
@@ -990,31 +995,33 @@ class PersonAgent(
               activity.getType
             )
           )
-          scheduler ! CompletionNotice(
-            triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
-          )
-          goto(PerformingActivity) using data.copy(
-            currentActivityIndex = currentActivityIndex + 1,
-            currentTrip = None,
-            restOfCurrentTrip = List(),
-            currentTourPersonalVehicle = currentTourPersonalVehicle match {
-              case Some(personalVehId) =>
-                val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
-                if (activity.getType.equals("Home")) {
-                  potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
-                  beamVehicles -= personalVeh.id
-                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
-                  None
-                } else {
-                  currentTourPersonalVehicle
-                }
-              case None =>
-                None
-            },
-            currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
-            hasDeparted = false
-          )
+          val atHome = activity.getType.equals("Home")
+          currentTourPersonalVehicle match {
+            case Some(personalVehId) if atHome =>
+              val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
+              potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
+              beamVehicles -= personalVeh.id
+              personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
+            case _ =>
+          }
+          if (hasActivitiesAfterNextOne(data)) {
+            scheduler ! CompletionNotice(
+              triggerId,
+              Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
+            )
+            goto(PerformingActivity) using data.copy(
+              currentActivityIndex = currentActivityIndex + 1,
+              currentTrip = None,
+              restOfCurrentTrip = List(),
+              currentTourPersonalVehicle =
+                if (atHome || currentTourPersonalVehicle.isEmpty) None else currentTourPersonalVehicle,
+              currentTourMode = if (atHome) None else currentTourMode,
+              hasDeparted = false
+            )
+          } else {
+            scheduler ! CompletionNotice(triggerId)
+            stop
+          }
         case None =>
           logDebug("PersonAgent nextActivity returned None")
           val (_, triggerId) = releaseTickAndTriggerId()
