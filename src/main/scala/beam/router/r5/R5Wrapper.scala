@@ -42,7 +42,8 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
-    extends MetricsSupport with StrictLogging {
+    extends MetricsSupport
+    with StrictLogging {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
@@ -912,7 +913,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false, shouldDecreaseTimeWhenBicycle = true), // Do not add noise!
+      travelTimeByLinkCalculator(
+        vehicleTypes(vehicleTypeId),
+        shouldAddNoise = false,
+        shouldDecreaseTimeWhenBicycle = true
+      ), // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
@@ -1062,11 +1067,11 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
           val physSimTravelTimeWithNoise =
             (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) {
-              physSimTravelTime
-            } else {
-              val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
-              physSimTravelTime * travelTimeNoises(idx)
-            }).ceil.toInt
+               physSimTravelTime
+             } else {
+               val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
+               physSimTravelTime * travelTimeNoises(idx)
+             }).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         } else if (streetMode == StreetMode.BICYCLE) {
@@ -1083,8 +1088,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     shouldDecreaseTimeWhenBicycle: Boolean,
     linkId: LinkId
   ): Double = {
-    if (vehicleType.vehicleCategory == VehicleCategory
-      .Bike && shouldDecreaseTimeWhenBicycle && bikeLanesLinkIds.contains(linkId)) {
+    if (vehicleType.vehicleCategory == VehicleCategory.Bike && shouldDecreaseTimeWhenBicycle && bikeLanesLinkIds
+          .contains(linkId)) {
       beamConfig.beam.routing.r5.bikeLaneDecreaseTravelTimeFactor
     } else {
       1D
