@@ -916,7 +916,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       travelTimeByLinkCalculator(
         vehicleTypes(vehicleTypeId),
         shouldAddNoise = false,
-        shouldDecreaseTimeWhenBicycle = true
+        shouldApplyBicycleScaleFactor = false
       ), // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
@@ -1025,13 +1025,13 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
-
+  // beamville: 25 nodes. maybe 25 routes
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
     startTime: Int,
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
-    val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldDecreaseTimeWhenBicycle = true)
+    val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
       {
         ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
@@ -1051,7 +1051,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
     shouldAddNoise: Boolean,
-    shouldDecreaseTimeWhenBicycle: Boolean = false
+    shouldApplyBicycleScaleFactor: Boolean = false
   ): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
     (time: Double, linkId: Int, streetMode: StreetMode) =>
@@ -1075,7 +1075,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         } else if (streetMode == StreetMode.BICYCLE) {
-          val decreaseFactor = calculateBicycleTimeDecreaseFactor(vehicleType, shouldDecreaseTimeWhenBicycle, linkId)
+          val decreaseFactor = calculateBicycleTimeDecreaseFactor(vehicleType, shouldApplyBicycleScaleFactor, linkId)
           minTravelTime * decreaseFactor
         } else {
           minTravelTime
