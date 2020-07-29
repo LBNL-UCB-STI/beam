@@ -73,10 +73,10 @@ object BaseTableReader {
       case object Age extends Table("A101101", "Age (1)")
       case object Sex extends Table("A101110", "Sex (3)")
       case object OccupationByIndustry
-        extends Table(
-          "A102214",
-          "Occupation (25) by Industry (15)"
-        )
+          extends Table(
+            "A102214",
+            "Occupation (25) by Industry (15)"
+          )
     }
 
     case object Flow {

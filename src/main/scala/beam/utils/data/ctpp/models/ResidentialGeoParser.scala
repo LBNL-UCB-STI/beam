@@ -51,8 +51,7 @@ object ResidentialGeoParser {
       // C13	CTPP-  State-County-TAZ	st/cty/taz	C1300USssccczzzzzzzz
       val geoId = fromTo.substring(0, "ssccczzzzzzzz".length)
       Success(geoId)
-    }
-    else {
+    } else {
       Failure(new IllegalStateException(s"Don't know how to handle GeoLevel'${fromTo}', input: '${input}'"))
     }
   }
