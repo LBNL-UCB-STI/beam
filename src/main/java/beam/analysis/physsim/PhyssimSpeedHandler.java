@@ -76,7 +76,9 @@ public class PhyssimSpeedHandler implements PersonArrivalEventHandler, PersonDep
                                     if (legElement instanceof Leg) {
                                         Leg leg = (Leg) legElement;
                                         double distance = leg.getRoute().getDistance();
-                                        if(travelTime > 0.0) {
+                                        // some leg with distance > 0 can have travel time = 0 for JDEQ
+                                        // and travel time ~= 0 for BPR, this gives us huge speed
+                                        if (travelTime > 0.01) {
                                             double speed = distance / travelTime;
                                             int bin = (int) departureEvent.getTime() / binSize;
                                             Mean mean = binSpeed.computeIfAbsent(bin, i -> new Mean());

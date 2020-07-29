@@ -895,9 +895,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  filePath =
-                    if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                    else "/test/input/beamville/ride-hail-parking.csv"
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
                 )
               }
             }
@@ -964,9 +962,7 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
-                filePath =
-                  if (c.hasPathOrNull("filePath")) c.getString("filePath")
-                  else "/test/input/beamville/ride-hail-fleet.csv",
+                filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "",
                 initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
                 parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
                   if (c.hasPathOrNull("parking")) c.getConfig("parking")
@@ -1586,9 +1582,7 @@ object BeamConfig {
               if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/taz-centers.csv",
             parkingCostScalingFactor =
               if (c.hasPathOrNull("parkingCostScalingFactor")) c.getDouble("parkingCostScalingFactor") else 1.0,
-            parkingFilePath =
-              if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath")
-              else "/test/input/beamville/taz-parking.csv",
+            parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
             parkingManager = BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               if (c.hasPathOrNull("parkingManager")) c.getConfig("parkingManager")
               else com.typesafe.config.ConfigFactory.parseString("parkingManager{}")
@@ -1717,9 +1711,7 @@ object BeamConfig {
             averageCountsOverIterations =
               if (c.hasPathOrNull("averageCountsOverIterations")) c.getInt("averageCountsOverIterations") else 1,
             countsScaleFactor = if (c.hasPathOrNull("countsScaleFactor")) c.getInt("countsScaleFactor") else 10,
-            inputCountsFile =
-              if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile")
-              else "/test/input/beamville/counts.xml",
+            inputCountsFile = if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile") else "",
             writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 1
           )
         }
@@ -2302,6 +2294,7 @@ object BeamConfig {
     }
 
     case class Physsim(
+      bprsim: BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment: BeamConfig.Beam.Physsim.CchRoutingAssignment,
       events: BeamConfig.Beam.Physsim.Events,
       eventsForFullVersionOfVia: scala.Boolean,
@@ -2312,9 +2305,10 @@ object BeamConfig {
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
+      name: java.lang.String,
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
-      physSimType: java.lang.String,
+      parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
       ptSampleSize: scala.Double,
       quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
@@ -2328,6 +2322,27 @@ object BeamConfig {
     )
 
     object Physsim {
+      case class Bprsim(
+        inFlowAggregationTimeWindowInSeconds: scala.Int,
+        minFlowToUseBPRFunction: scala.Int,
+        travelTimeFunction: java.lang.String
+      )
+
+      object Bprsim {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Bprsim = {
+          BeamConfig.Beam.Physsim.Bprsim(
+            inFlowAggregationTimeWindowInSeconds =
+              if (c.hasPathOrNull("inFlowAggregationTimeWindowInSeconds"))
+                c.getInt("inFlowAggregationTimeWindowInSeconds")
+              else 900,
+            minFlowToUseBPRFunction =
+              if (c.hasPathOrNull("minFlowToUseBPRFunction")) c.getInt("minFlowToUseBPRFunction") else 0,
+            travelTimeFunction = if (c.hasPathOrNull("travelTimeFunction")) c.getString("travelTimeFunction") else "BPR"
+          )
+        }
+      }
+
       case class CchRoutingAssignment(
         congestionFactor: scala.Double
       )
@@ -2784,6 +2799,21 @@ object BeamConfig {
         }
       }
 
+      case class Parbprsim(
+        numberOfClusters: scala.Int,
+        syncInterval: scala.Int
+      )
+
+      object Parbprsim {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Parbprsim = {
+          BeamConfig.Beam.Physsim.Parbprsim(
+            numberOfClusters = if (c.hasPathOrNull("numberOfClusters")) c.getInt("numberOfClusters") else 8,
+            syncInterval = if (c.hasPathOrNull("syncInterval")) c.getInt("syncInterval") else 60
+          )
+        }
+      }
+
       case class Relaxation(
         experiment2_0: BeamConfig.Beam.Physsim.Relaxation.Experiment20,
         experiment2_1: BeamConfig.Beam.Physsim.Relaxation.Experiment21,
@@ -2959,6 +2989,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim = {
         BeamConfig.Beam.Physsim(
+          bprsim = BeamConfig.Beam.Physsim.Bprsim(
+            if (c.hasPathOrNull("bprsim")) c.getConfig("bprsim")
+            else com.typesafe.config.ConfigFactory.parseString("bprsim{}")
+          ),
           cchRoutingAssignment = BeamConfig.Beam.Physsim.CchRoutingAssignment(
             if (c.hasPathOrNull("cchRoutingAssignment")) c.getConfig("cchRoutingAssignment")
             else com.typesafe.config.ConfigFactory.parseString("cchRoutingAssignment{}")
@@ -2985,13 +3019,17 @@ object BeamConfig {
           linkStatsBinSize = if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
           linkStatsWriteInterval =
             if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval") else 0,
+          name = if (c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network = BeamConfig.Beam.Physsim.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
             else com.typesafe.config.ConfigFactory.parseString("network{}")
           ),
           overwriteLinkParamPath =
             if (c.hasPathOrNull("overwriteLinkParamPath")) c.getString("overwriteLinkParamPath") else "",
-          physSimType = if (c.hasPathOrNull("physSimType")) c.getString("physSimType") else "JDEQSim",
+          parbprsim = BeamConfig.Beam.Physsim.Parbprsim(
+            if (c.hasPathOrNull("parbprsim")) c.getConfig("parbprsim")
+            else com.typesafe.config.ConfigFactory.parseString("parbprsim{}")
+          ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
           quick_fix_minCarSpeedInMetersPerSecond =
             if (c.hasPathOrNull("quick_fix_minCarSpeedInMetersPerSecond"))
