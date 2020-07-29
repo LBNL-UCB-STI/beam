@@ -25,7 +25,7 @@ import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
 import beam.router.Modes
-import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.r5.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
@@ -37,12 +37,12 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
-class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
+class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
-  private val WorkerParameters(
+  private val R5Parameters(
     beamConfig,
     transportNetwork,
     vehicleTypes,
@@ -791,7 +791,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = accessVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        val dummyTrip = R5RoutingWorker.createBushwackingTrip(
+        val dummyTrip = RoutingWorker.createBushwackingTrip(
           new Coord(request.originUTM.getX, request.originUTM.getY),
           new Coord(request.destinationUTM.getX, request.destinationUTM.getY),
           request.departureTime,

@@ -2,7 +2,7 @@ package beam.router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.FromConfig
-import beam.router.r5.R5RoutingWorker
+import beam.router.r5.RoutingWorker
 import com.typesafe.config.Config
 
 class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
@@ -12,7 +12,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   // instead of Props[StatsWorker.class].
 
   val workerRouter: ActorRef = context.actorOf(
-    FromConfig.props(Props(classOf[R5RoutingWorker], config)),
+    FromConfig.props(Props(classOf[RoutingWorker], config)),
     name = "workerRouter"
   )
   def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"

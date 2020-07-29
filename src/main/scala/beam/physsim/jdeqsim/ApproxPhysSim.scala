@@ -1,6 +1,6 @@
 package beam.physsim.jdeqsim
 
-import beam.router.r5.WorkerParameters
+import beam.router.r5.R5Parameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.Statistics
@@ -69,7 +69,7 @@ class ApproxPhysSim(
   val rnd: Random = new Random(javaRnd)
   val shouldLogWhenLinksAreNotTheSame: Boolean = false
 
-  val workerParams: WorkerParameters = WorkerParameters(
+  val workerParams: R5Parameters = R5Parameters(
     beamConfig = beamConfig,
     transportNetwork = beamServices.beamScenario.transportNetwork,
     vehicleTypes = beamServices.beamScenario.vehicleTypes,

@@ -1,5 +1,6 @@
 package beam.router.r5
 
+import java.io.File
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.{ExecutorService, Executors}
@@ -7,7 +8,6 @@ import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles._
@@ -15,7 +15,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router._
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.graphhopper.GraphHopper
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
@@ -23,6 +24,7 @@ import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
+import com.conveyal.osmlib.OSM
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
@@ -30,15 +32,14 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
-class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
+class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
   def this(config: Config) {
     this(workerParams = {
-      WorkerParameters.fromConfig(config)
+      R5Parameters.fromConfig(config)
     })
   }
 
@@ -72,6 +73,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
 
+  private val graphHopperDir: String = workerParams.beamConfig.beam.inputDirectory + "/graphhopper"
+  private var graphHopper: GraphHopper = _
+
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
       .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
@@ -83,6 +87,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   override def preStart(): Unit = {
+    createGraphHopperDirectoryIfNotExisting()
+    graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
     askForMoreWork()
   }
 
@@ -131,7 +137,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          r5.calcRoute(request)
+          if (!request.withTransit && request.streetVehicles.size == 1 &&
+            request.streetVehicles.head.mode == CAR) {
+            val ghRes = graphHopper.calcRoute(request)
+            val r5Res = r5.calcRoute(request)
+            println(ghRes == r5Res)
+            ghRes
+          } else {
+            r5.calcRoute(request)
+          }
         }
       }
       eventualResponse.recover {
@@ -176,24 +190,30 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
+
+  private def createGraphHopperDirectoryIfNotExisting(): Unit = {
+    if (!new File(graphHopperDir).exists())
+      GraphHopper.createGraphDirectoryFromR5(
+        workerParams.transportNetwork,
+        new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
+        graphHopperDir
+      )
+  }
 }
 
-object R5RoutingWorker {
+object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
-    network: Network,
     networkHelper: NetworkHelper,
-    scenario: Scenario,
     fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    transitVehicles: Vehicles
+    tollCalculator: TollCalculator
   ): Props = Props(
-    new R5RoutingWorker(
-      WorkerParameters(
+    new RoutingWorker(
+      R5Parameters(
         beamScenario.beamConfig,
         transportNetwork,
         beamScenario.vehicleTypes,
