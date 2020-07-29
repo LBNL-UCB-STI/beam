@@ -103,7 +103,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       rank = rank,
       age = age,
       isFemale = isFemale,
-      valueOfTime = valueOfTime
+      valueOfTime = valueOfTime,
+      industry = None
     )
   }
 
