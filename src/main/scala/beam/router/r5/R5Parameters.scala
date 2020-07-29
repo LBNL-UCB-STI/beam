@@ -17,7 +17,7 @@ import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
-case class WorkerParameters(
+case class R5Parameters(
   beamConfig: BeamConfig,
   transportNetwork: TransportNetwork,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
@@ -30,9 +30,9 @@ case class WorkerParameters(
   tollCalculator: TollCalculator
 )
 
-object WorkerParameters {
+object R5Parameters {
 
-  def fromConfig(config: Config): WorkerParameters = {
+  def fromConfig(config: Config): R5Parameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
       beamConfig.beam.outputs.baseOutputDirectory,
@@ -59,7 +59,7 @@ object WorkerParameters {
     val fareCalculator = new FareCalculator(beamConfig)
     val tollCalculator = new TollCalculator(beamConfig)
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
-    WorkerParameters(
+    R5Parameters(
       beamConfig = beamConfig,
       transportNetwork = networkCoordinator.transportNetwork,
       vehicleTypes = vehicleTypes,
