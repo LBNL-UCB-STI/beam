@@ -32,7 +32,6 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
 
       if (newPlan.getPlanElements.size > 1) {
-        person.getPlans.remove(person.getSelectedPlan)
         person.addPlan(newPlan)
         person.setSelectedPlan(newPlan)
       }
@@ -58,14 +57,17 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
         listOfAct.lastOption match {
           case Some(lastAct) =>
             if (lastAct.getType == currentAct.getType) {
-              listOfAct.last.setEndTime(currentAct.getEndTime)
-              listOfAct
+              val lastActivity = PopulationUtils.createActivity(listOfAct.last)
+              lastActivity.setEndTime(currentAct.getEndTime)
+              val newList = listOfAct.dropRight(1)
+              newList :+ lastActivity
             } else {
               listOfAct += currentAct
             }
           case None => mutable.MutableList[Activity](currentAct)
       }
     )
+
     newElements.foreach { x =>
       newPlan.addActivity(x)
     }
