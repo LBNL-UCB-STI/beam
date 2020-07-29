@@ -22,14 +22,28 @@ TableShell(A102214,12,2,Arts, entertainment, recreation, accommodation and food 
 TableShell(A102214,13,2,Other services (except public administration))
 TableShell(A102214,14,2,Public administration)
 TableShell(A102214,15,2,Armed forces)
-*/
+ */
 object Industry {
 
   val all: Vector[Industry] =
-    Vector(Agriculture, Construction, Manufacturing, WholesaleTrade, RetailTrade, Transportation, Information, Finance, Professional,
-      Educational, Arts, OtherServices, PublicAdministration, ArmedForces)
+    Vector(
+      Agriculture,
+      Construction,
+      Manufacturing,
+      WholesaleTrade,
+      RetailTrade,
+      Transportation,
+      Information,
+      Finance,
+      Professional,
+      Educational,
+      Arts,
+      OtherServices,
+      PublicAdministration,
+      ArmedForces
+    )
 
-  require(all.size == 15-2+1)
+  require(all.size == 15 - 2 + 1)
 
   def apply(lineNumber: Int): Try[Industry] = {
     all.find(x => x.lineNumber == lineNumber) match {
