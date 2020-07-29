@@ -226,7 +226,8 @@ class PumaLevelScenarioGenerator(
                             rank = 0,
                             age = person.age,
                             isFemale = person.gender == Gender.Female,
-                            valueOfTime = valueOfTime
+                            valueOfTime = valueOfTime,
+                            industry = person.industry
                           )
                           val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
