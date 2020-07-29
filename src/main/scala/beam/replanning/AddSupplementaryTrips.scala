@@ -57,7 +57,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
         listOfAct.lastOption match {
           case Some(lastAct) =>
             if (lastAct.getType == currentAct.getType) {
-              val lastActivity = PopulationUtils.createActivity(listOfAct.last)
+              val lastActivity = PopulationUtils.createActivity(lastAct)
               lastActivity.setEndTime(currentAct.getEndTime)
               val newList = listOfAct.dropRight(1)
               newList :+ lastActivity
