@@ -21,10 +21,6 @@ class FrequencyAdjustmentUtilsSpec extends WordSpecLike with Matchers {
         "trip_id,start_time,end_time,headway_secs,exact_times",
         "bus:B1-EAST-1,06:00:00,22:00:00,300,",
         "bus:B1-WEST-1,06:00:00,22:00:00,300,",
-        "bus:B2-EAST-1,06:00:00,22:00:00,300,",
-        "bus:B2-WEST-1,06:00:00,22:00:00,300,",
-        "bus:B3-EAST-1,06:00:00,22:00:00,300,",
-        "bus:B3-WEST-1,06:00:00,22:00:00,300,",
         "train:R2-NORTH-1,06:00:00,22:00:00,600,",
         "train:R2-SOUTH-1,06:00:00,22:00:00,600,"
       )
