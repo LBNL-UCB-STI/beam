@@ -18,7 +18,9 @@ import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, T
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
 import com.graphhopper.{GHRequest, GraphHopperConfig}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.core.router.util.TravelTime
 
 import scala.collection.JavaConverters._
 
@@ -26,7 +28,7 @@ class GraphHopper(
                    graphDir: String,
                    geo: GeoUtils,
                    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-                   fuelTypePrices: FuelTypePrices
+                   fuelTypePrices: FuelTypePrices,
                  ) extends Router {
 
   val geoUtils: GeoUtils = new GeoUtils {
@@ -117,7 +119,10 @@ class GraphHopper(
 
 object GraphHopper {
 
-  def createGraphDirectoryFromR5(transportNetwork: TransportNetwork, osm: OSM, directory: String): Unit = {
+  def createGraphDirectoryFromR5(transportNetwork: TransportNetwork, osm: OSM, directory: String,
+                                 links:Seq[Link],
+                                 travelTime:Option[TravelTime]
+                                ): Unit = {
     val carFlagEncoderParams = new PMap
     carFlagEncoderParams.putObject("turn_costs", false)
     val carFlagEncoder = new CarFlagEncoder(carFlagEncoderParams)
@@ -130,7 +135,20 @@ object GraphHopper {
     emBuilder.add(footFlagEncoder)
     val encodingManager = emBuilder.build
 
-    val fastestCar = new FastestWeighting(carFlagEncoder)
+    val cache: Map[(Coord, Coord), Link] =
+      links
+        .map(l => (l.getFromNode.getCoord -> l.getToNode.getCoord) -> l)
+        .flatMap { case ((c1, c2), link) => Seq(c1 -> c2, c2 -> c1).map(_ -> link) }
+        .toMap
+
+    val fastestCar = travelTime match {
+      case Some(times) =>
+        new BeamWeighting(carFlagEncoder, links.map(l =>
+          l -> times.getLinkTravelTime(l, 0, null, null)).toMap, cache)
+      case None =>
+        new FastestWeighting(carFlagEncoder)
+    }
+
     val fastestFoot = new FastestWeighting(footFlagEncoder)
     val bestBike = new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER)
 
@@ -158,6 +176,7 @@ object GraphHopper {
     for (e <- 0 until transportNetwork.streetLayer.edgeStore.nEdges by 2) {
       forwardEdge.seek(e)
       backwardEdge.seek(e + 1)
+      forwardEdge.getEdgeIndex
       val ghEdge = graphHopperStorage.edge(forwardEdge.getFromVertex, forwardEdge.getToVertex)
       val way = new ReaderWay(forwardEdge.getOSMID)
       val acceptWay = new EncodingManager.AcceptWay

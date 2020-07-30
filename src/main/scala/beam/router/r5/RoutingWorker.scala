@@ -33,6 +33,7 @@ import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
@@ -156,6 +157,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
+      createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
+      graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
@@ -191,19 +194,22 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  private def createGraphHopperDirectoryIfNotExisting(): Unit = {
-    if (!new File(graphHopperDir).exists())
+  private def createGraphHopperDirectoryIfNotExisting(travelTime:Option[TravelTime] = None): Unit = {
+//    if (!new File(graphHopperDir).delete().exists())
+    new File(graphHopperDir).delete()
       GraphHopper.createGraphDirectoryFromR5(
         workerParams.transportNetwork,
         new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
-        graphHopperDir
+        graphHopperDir,
+        workerParams.links,
+        travelTime
       )
   }
 }
 
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
-
+  import scala.collection.JavaConverters._
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
@@ -212,10 +218,11 @@ object RoutingWorker {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
   ): Props = Props(
-    new RoutingWorker(
+  new RoutingWorker(
       R5Parameters(
         beamScenario.beamConfig,
         transportNetwork,
+        beamScenario.network.getLinks.values().asScala.toSeq,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
         beamScenario.ptFares,
