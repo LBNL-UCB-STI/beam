@@ -6,7 +6,7 @@ import beam.utils.scenario.PersonInfo
 import scala.util.Try
 
 trait PersonInfoWriter {
-  def write(path: String, xs: Iterable[PersonInfo]): Unit
+  def write(path: String, xs: Iterator[PersonInfo]): Unit
 }
 
 class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
@@ -14,7 +14,7 @@ class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
 
   private val csvWriter = new CsvWriter(path, headers)
 
-  def write(xs: Iterable[PersonInfo]): Unit = {
+  def write(xs: Iterator[PersonInfo]): Unit = {
     writeTo(xs, csvWriter)
   }
 
@@ -26,7 +26,7 @@ class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
 object CsvPersonInfoWriter extends PersonInfoWriter {
   private val headers: Array[String] =
     Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime", "industry")
-  override def write(path: String, xs: Iterable[PersonInfo]): Unit = {
+  override def write(path: String, xs: Iterator[PersonInfo]): Unit = {
     val csvWriter: CsvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
@@ -35,7 +35,7 @@ object CsvPersonInfoWriter extends PersonInfoWriter {
     }
   }
 
-  private def writeTo(xs: Iterable[PersonInfo], csvWriter: CsvWriter): Unit = {
+  private def writeTo(xs: Iterator[PersonInfo], csvWriter: CsvWriter): Unit = {
     xs.foreach { person =>
       val industry = person.industry.getOrElse("")
       val escapedIndustry = s""""$industry""""

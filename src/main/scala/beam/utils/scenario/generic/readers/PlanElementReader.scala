@@ -1,23 +1,31 @@
 package beam.utils.scenario.generic.readers
 
+import java.io.Closeable
+
 import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.util.Try
 
 trait PlanElementReader {
   def read(path: String): Array[PlanElement]
+
+  def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable)
 }
 
 object CsvPlanElementReader extends PlanElementReader {
   import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
-    val (it, toClose) = readAs[PlanElement](path, toPlanElement, x => true)
+    val (it: Iterator[PlanElement], toClose) = readAs[PlanElement](path, toPlanElement, x => true)
     try {
       it.toArray
     } finally {
       Try(toClose.close())
     }
+  }
+
+  override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
+    readAs[PlanElement](path, toPlanElement, filter)
   }
 
   private[readers] def toPlanElement(rec: java.util.Map[String, String]): PlanElement = {

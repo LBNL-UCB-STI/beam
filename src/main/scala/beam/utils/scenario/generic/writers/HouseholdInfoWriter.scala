@@ -1,12 +1,12 @@
 package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
-import beam.utils.scenario.{HouseholdInfo, PersonInfo}
+import beam.utils.scenario.HouseholdInfo
 
 import scala.util.Try
 
 trait HouseholdInfoWriter {
-  def write(path: String, xs: Iterable[HouseholdInfo]): Unit
+  def write(path: String, xs: Iterator[HouseholdInfo]): Unit
 }
 
 class CsvHouseholdInfoWriter(val path: String) extends AutoCloseable {
@@ -14,7 +14,7 @@ class CsvHouseholdInfoWriter(val path: String) extends AutoCloseable {
 
   private val csvWriter = new CsvWriter(path, headers)
 
-  def write(xs: Iterable[HouseholdInfo]): Unit = {
+  def write(xs: Iterator[HouseholdInfo]): Unit = {
     writeTo(xs, csvWriter)
   }
 
@@ -26,7 +26,7 @@ class CsvHouseholdInfoWriter(val path: String) extends AutoCloseable {
 object CsvHouseholdInfoWriter extends HouseholdInfoWriter {
   private val headers: Array[String] = Array("householdId", "cars", "incomeValue", "locationX", "locationY")
 
-  override def write(path: String, xs: Iterable[HouseholdInfo]): Unit = {
+  override def write(path: String, xs: Iterator[HouseholdInfo]): Unit = {
     val csvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
@@ -35,7 +35,7 @@ object CsvHouseholdInfoWriter extends HouseholdInfoWriter {
     }
   }
 
-  private def writeTo(xs: Iterable[HouseholdInfo], csvWriter: CsvWriter): Unit = {
+  private def writeTo(xs: Iterator[HouseholdInfo], csvWriter: CsvWriter): Unit = {
     xs.foreach { household =>
       csvWriter.write(
         household.householdId.id,
