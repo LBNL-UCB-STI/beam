@@ -2,15 +2,18 @@ package beam.replanning
 
 import beam.router.model.EmbodiedBeamTrip
 import beam.utils.DebugLib
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
-object ReplanningUtil extends LazyLogging {
+object ReplanningUtil {
+
+  private val logger: Logger = LoggerFactory.getLogger("ReplanningUtil")
 
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes

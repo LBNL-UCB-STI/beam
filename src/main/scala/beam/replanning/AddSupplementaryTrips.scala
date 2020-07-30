@@ -16,29 +16,28 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
   private val log = LoggerFactory.getLogger(classOf[AddSupplementaryTrips])
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
-    if (!beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
-      return
-    }
-    log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
-    ReplanningUtil.makeExperiencedMobSimCompatible(person)
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+      log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
+      ReplanningUtil.makeExperiencedMobSimCompatible(person)
 
-    val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
+      val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
 
-    val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
-      addSecondaryActivities(
-        simplifiedPlan,
-        person.getSelectedPlan.getPerson
+      val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
+        addSecondaryActivities(
+          simplifiedPlan,
+          person.getSelectedPlan.getPerson
+        )
       )
-    )
 
-    AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
+      AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
 
-    if (newPlan.getPlanElements.size > 1) {
-      person.addPlan(newPlan)
-      person.setSelectedPlan(newPlan)
+      if (newPlan.getPlanElements.size > 1) {
+        person.addPlan(newPlan)
+        person.setSelectedPlan(newPlan)
+      }
+
+      log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
     }
-
-    log.debug("After Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
   }
 
   private def mandatoryTour(
@@ -67,31 +66,6 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       }
     )
     newElements.foreach { x =>
-      newPlan.addActivity(x)
-    }
-    newPlan
-  }
-
-  private def addSecondaryActivities(
-    plan: Plan,
-    person: Person
-  ): Plan = {
-    val newPlan = PopulationUtils.createPlan(plan.getPerson)
-    newPlan.setType(plan.getType)
-
-    val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
-    val newActivitiesToAdd = elements.zipWithIndex.map {
-      case (planElement, idx) =>
-        val prevEndTime = if (idx > 0) {
-          (elements(idx - 1).getEndTime + 1).max(0)
-        } else {
-          0
-        }
-        planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        planElement.setStartTime(prevEndTime)
-        definitelyAddSubtours(planElement, person)
-    }
-    newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)
     }
     newPlan
@@ -137,6 +111,31 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     activityAfterNewActivity.setEndTime(activity.getEndTime)
 
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
+  }
+
+  private def addSecondaryActivities(
+    plan: Plan,
+    person: Person
+  ): Plan = {
+    val newPlan = PopulationUtils.createPlan(plan.getPerson)
+    newPlan.setType(plan.getType)
+
+    val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
+    val newActivitiesToAdd = elements.zipWithIndex.map {
+      case (planElement, idx) =>
+        val prevEndTime = if (idx > 0) {
+          (elements(idx - 1).getEndTime + 1).max(0)
+        } else {
+          0
+        }
+        planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
+        planElement.setStartTime(prevEndTime)
+        definitelyAddSubtours(planElement, person)
+    }
+    newActivitiesToAdd.flatten.foreach { x =>
+      newPlan.addActivity(x)
+    }
+    newPlan
   }
 
 }
