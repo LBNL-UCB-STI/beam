@@ -210,7 +210,7 @@ dependencies {
     // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
     compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
 
-    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
+    compile "com.github.scopt:scopt_${scalaBinaryVersion}:4.0.0-RC2"
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
