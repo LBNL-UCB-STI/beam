@@ -3,10 +3,15 @@ package beam.router.r5
 import beam.sim.config.BeamConfig
 import beam.utils.transit.FrequencyAdjustmentUtils._
 import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
+import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.api.core.v01.network.Network
 
 import scala.collection.JavaConverters._
 
 case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinator {
+
+  override var transportNetwork: TransportNetwork = _
+  override var network: Network = _
 
   override def postLoadNetwork(): Unit = {
     val freqAdjustments = loadFrequencyAdjustmentCsvFile(

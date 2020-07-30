@@ -103,7 +103,7 @@ object BeamVehicleUtils {
         sampleProbabilityString
       )
       (vehicleTypeId, bvt)
-    }
-  }.toMap
+    }.toMap
+  }
 
 }

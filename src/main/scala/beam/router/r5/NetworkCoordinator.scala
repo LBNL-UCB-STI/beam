@@ -47,8 +47,8 @@ case class LinkParam(
 trait NetworkCoordinator extends LazyLogging {
 
   val beamConfig: BeamConfig
-  var transportNetwork: TransportNetwork = _
-  var network: Network = _
+  var transportNetwork: TransportNetwork
+  var network: Network
 
   def init(): Unit = {
     loadNetwork()
