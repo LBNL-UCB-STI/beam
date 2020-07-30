@@ -10,8 +10,8 @@ case class PersonInfo(
   rank: Int,
   age: Int,
   isFemale: Boolean,
-  industry: String,
-  valueOfTime: Double
+  valueOfTime: Double,
+  industry: Option[String]
 )
 
 case class PlanElement(

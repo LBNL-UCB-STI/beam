@@ -264,7 +264,7 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-cluster-tools_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
-    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
+    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.10"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
 
     // TEST Akka //
@@ -484,7 +484,7 @@ def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx + jfr
 println(applicationDefaultJvmArgs)
 
 run {
@@ -556,7 +556,7 @@ tasks.withType(ScalaCompile) {
 }
 
 task fmt(dependsOn: scalafmtAll)
-task checkScalaFmt() {
+task verifyScalaFmtHasBeenRun() {
     doLast {
         try {
             def workingDir = new File("${project.projectDir}")

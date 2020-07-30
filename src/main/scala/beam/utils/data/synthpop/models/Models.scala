@@ -73,5 +73,5 @@ object Models {
   ) {
     val fullId: String = s"${geoId.state.value}-${geoId.county.value}-${geoId.tract}-${geoId.blockGroup}:$id"
   }
-  case class Person(id: String, age: Int, gender: Gender, householdId: String)
+  case class Person(id: String, age: Int, gender: Gender, industry: Option[String], householdId: String)
 }
