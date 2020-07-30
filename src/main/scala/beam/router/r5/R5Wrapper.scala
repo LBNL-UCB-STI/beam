@@ -1021,8 +1021,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private def getPattern(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-  private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
-  // beamville: 25 nodes. maybe 25 routes
+  private def getStopId(stop: Stop): String = stop.stopId.split(":")(1)
+
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
     startTime: Int,
