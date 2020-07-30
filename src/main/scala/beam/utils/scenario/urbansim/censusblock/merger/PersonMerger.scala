@@ -17,7 +17,8 @@ class PersonMerger(inputHousehold: Map[String, InputHousehold]) extends Merger[I
       0,
       inputPersonInfo.age,
       inputPersonInfo.sex.isFemale,
-      income.toDouble
+      income.toDouble,
+      industry = None
     )
   }
 }

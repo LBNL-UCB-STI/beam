@@ -23,7 +23,6 @@ import beam.utils.data.synthpop.generators.{
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
-import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{
   CsvHouseholdInfoWriter,
   CsvParkingInfoWriter,
@@ -31,15 +30,15 @@ import beam.utils.scenario.generic.writers.{
   CsvPlanElementWriter
 }
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
-  def generate: ScenarioResult
+  def generate(pathToOutput: String): ScenarioResult
 }
 
 case class PersonWithExtraInfo(
@@ -51,7 +50,9 @@ case class PersonWithExtraInfo(
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 case class ScenarioResult(
-  householdWithTheirPeople: Iterable[(HouseholdInfo, List[PersonWithPlans])],
+  totalNumberOfHouseholds: Int,
+  totalNumberOfPeople: Int,
+  totalNumberOfPlanElements: Int,
   geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
 )
 
@@ -66,7 +67,8 @@ class SimpleScenarioGenerator(
   val randomSeed: Int,
   val offPeakSpeedMetersPerSecond: Double,
   val localCoordinateReferenceSystem: String,
-  val defaultValueOfTime: Double = 8.0
+  val defaultValueOfTime: Double = 8.0,
+  val shouldRemoveNonWorkers: Boolean = false
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -125,7 +127,7 @@ class SimpleScenarioGenerator(
     // Read households and people
     val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
     // Adjust population
-    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler)
+    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler, shouldRemoveNonWorkers)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -163,7 +165,7 @@ class SimpleScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: ScenarioResult = {
+  override def generate(pathToOutput: String): ScenarioResult = {
     logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
       assignWorkingLocations
@@ -253,120 +255,162 @@ class SimpleScenarioGenerator(
     var globalPersonId: Int = 0
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     var cnt: Int = 0
-    val finalResult = blockGroupGeoIdToHouseholds.map {
-      case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
-        val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
-        logger.info(
-          s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
-        )
-        val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
-        if (householdLocation.size != householdsWithPersonData.size) {
-          logger.warn(
-            s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
+
+    val householdFilePath = s"$pathToOutput/households.csv.gz"
+    val personsFilePath = s"$pathToOutput/persons.csv.gz"
+    val plansFilePath = s"$pathToOutput/plans.csv.gz"
+
+    val householdInfoWriter = new CsvHouseholdInfoWriter(householdFilePath)
+    val personInfoWriter = new CsvPersonInfoWriter(personsFilePath)
+    val plansInfoWriter = new CsvPlanElementWriter(plansFilePath)
+
+    var totalNumberOfHouseholds: Int = 0
+    var totalNumberOfPeople: Int = 0
+    var totalNumberOfPlanElements: Int = 0
+
+    val wgsActivityLocations = ArrayBuffer[Coord]()
+
+    try {
+      blockGroupGeoIdToHouseholds.foreach {
+        case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
+          val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
+          logger.info(
+            s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
           )
-        }
-        val res = householdsWithPersonData.zip(householdLocation).map {
-          case ((household: Models.Household, personsWithData: Seq[PersonWithExtraInfo]), wgsHouseholdLocation) =>
-            val createdHousehold = HouseholdInfo(
-              HouseholdId(household.fullId),
-              household.numOfVehicles,
-              household.income,
-              wgsHouseholdLocation.getX,
-              wgsHouseholdLocation.getY
+          val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
+          if (householdLocation.size != householdsWithPersonData.size) {
+            logger.warn(
+              s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
             )
+          }
+          val res = householdsWithPersonData.zip(householdLocation).flatMap {
+            case ((household: Models.Household, personsWithData: Seq[PersonWithExtraInfo]), wgsHouseholdLocation) =>
+              val createdHousehold = HouseholdInfo(
+                HouseholdId(household.fullId),
+                household.numOfVehicles,
+                household.income,
+                wgsHouseholdLocation.getX,
+                wgsHouseholdLocation.getY
+              )
 
-            val (personsAndPlans, lastPersonId) =
-              personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                case (
-                    (xs, nextPersonId: Int),
-                    PersonWithExtraInfo(person, homeLocGeoId, workTazGeoId, timeLeavingHomeRange)
-                    ) =>
-                  val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
-                  val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
-                  nextWorkLocation.update(workTazGeoId, offset + 1)
-                  workLocations.lift(offset) match {
-                    case Some(wgsWorkingLocation) =>
-                      val valueOfTime =
-                        PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
-                      val createdPerson = beam.utils.scenario.PersonInfo(
-                        personId = PersonId(nextPersonId.toString),
-                        householdId = createdHousehold.householdId,
-                        rank = 0,
-                        age = person.age,
-                        isFemale = person.gender == Gender.Female,
-                        valueOfTime = valueOfTime
-                      )
-                      val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
+              val (personsAndPlans, lastPersonId) =
+                personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
+                  case (
+                      (xs, nextPersonId: Int),
+                      PersonWithExtraInfo(person, homeLocGeoId, workTazGeoId, timeLeavingHomeRange)
+                      ) =>
+                    val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
+                    val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
+                    nextWorkLocation.update(workTazGeoId, offset + 1)
+                    workLocations.lift(offset) match {
+                      case Some(wgsWorkingLocation) =>
+                        val valueOfTime =
+                          PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                        val createdPerson = beam.utils.scenario.PersonInfo(
+                          personId = PersonId(nextPersonId.toString),
+                          householdId = createdHousehold.householdId,
+                          rank = 0,
+                          age = person.age,
+                          isFemale = person.gender == Gender.Female,
+                          valueOfTime = valueOfTime,
+                          person.industry
+                        )
+                        val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
-                      // Create Home Activity: end time is when a person leaves a home
-                      val leavingHomeActivity = planElementTemplate.copy(
-                        personId = createdPerson.personId,
-                        planElementType = "activity",
-                        planElementIndex = 1,
-                        activityType = Some("Home"),
-                        activityLocationX = Some(wgsHouseholdLocation.getX),
-                        activityLocationY = Some(wgsHouseholdLocation.getY),
-                        activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
-                        geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
-                      )
-                      // Create Leg
-                      val leavingHomeLeg = planElementTemplate
-                        .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+                        // Create Home Activity: end time is when a person leaves a home
+                        val leavingHomeActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 1,
+                          activityType = Some("Home"),
+                          activityLocationX = Some(wgsHouseholdLocation.getX),
+                          activityLocationY = Some(wgsHouseholdLocation.getY),
+                          activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                          geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
+                        )
+                        // Create Leg
+                        val leavingHomeLeg = planElementTemplate
+                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
 
-                      val timeLeavingWorkSeconds = {
-                        val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
-                        val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                        val margin = 1.3
-                        val travelTime =
-                          estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
-                        val workStartTime = timeLeavingHomeSeconds + travelTime
-                        val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                        workStartTime + workingDuration
-                      }
+                        val timeLeavingWorkSeconds = {
+                          val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+                          val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
+                          val margin = 1.3
+                          val travelTime =
+                            estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
+                          val workStartTime = timeLeavingHomeSeconds + travelTime
+                          val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
+                          workStartTime + workingDuration
+                        }
 
-                      val leavingWorkActivity = planElementTemplate.copy(
-                        personId = createdPerson.personId,
-                        planElementType = "activity",
-                        planElementIndex = 3,
-                        activityType = Some("Work"),
-                        activityLocationX = Some(wgsWorkingLocation.getX),
-                        activityLocationY = Some(wgsWorkingLocation.getY),
-                        activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
-                        geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
-                      )
-                      val leavingWorkLeg = planElementTemplate
-                        .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+                        val leavingWorkActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 3,
+                          activityType = Some("Work"),
+                          activityLocationX = Some(wgsWorkingLocation.getX),
+                          activityLocationY = Some(wgsWorkingLocation.getY),
+                          activityEndTime = Some(timeLeavingWorkSeconds / 3600.0),
+                          geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
+                        )
+                        val leavingWorkLeg = planElementTemplate
+                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
 
-                      // Create Home Activity: end time not defined
-                      val homeActivity = planElementTemplate.copy(
-                        personId = createdPerson.personId,
-                        planElementType = "activity",
-                        planElementIndex = 5,
-                        activityType = Some("Home"),
-                        activityLocationX = Some(wgsHouseholdLocation.getX),
-                        activityLocationY = Some(wgsHouseholdLocation.getY),
-                        geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
-                      )
+                        // Create Home Activity: end time not defined
+                        val homeActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 5,
+                          activityType = Some("Home"),
+                          activityLocationX = Some(wgsHouseholdLocation.getX),
+                          activityLocationY = Some(wgsHouseholdLocation.getY),
+                          geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
+                        )
 
-                      val personWithPlans = PersonWithPlans(
-                        createdPerson,
-                        List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
-                      )
-                      (personWithPlans :: xs, nextPersonId + 1)
-                    case None =>
-                      (xs, nextPersonId + 1)
-                  }
-              }
-            globalPersonId = lastPersonId
-            if (personsAndPlans.size == personsWithData.size) {
-              Some((createdHousehold, personsAndPlans))
-            } else None
-        }
-        cnt += 1
-        blockGroupGeoId -> res
+                        val personWithPlans = PersonWithPlans(
+                          createdPerson,
+                          List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
+                        )
+                        (personWithPlans :: xs, nextPersonId + 1)
+                      case None =>
+                        (xs, nextPersonId + 1)
+                    }
+                }
+              globalPersonId = lastPersonId
+              if (personsAndPlans.size == personsWithData.size) {
+                Some((createdHousehold, personsAndPlans))
+              } else None
+          }
+          cnt += 1
+          val householdList = res.map(_._1)
+          householdInfoWriter.write(householdList)
+          totalNumberOfHouseholds += householdList.size
+
+          val peopleList = res.flatMap(x => x._2.map(_.person))
+          personInfoWriter.write(peopleList)
+          totalNumberOfPeople += peopleList.size
+
+          val plans = res.flatMap(x => x._2.map(_.plans)).flatten
+          plansInfoWriter.write(plans)
+          totalNumberOfPlanElements += plans.size
+
+          plans.filter(_.planElementType == "activity").foreach { plan =>
+            val wgsCoord = geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
+            wgsActivityLocations += wgsCoord
+          }
+      }
+    } finally {
+      plansInfoWriter.close()
+      personInfoWriter.close()
+      householdInfoWriter.close()
     }
+
+    writeH3(pathToOutput, wgsActivityLocations, 1000)
+
     ScenarioResult(
-      householdWithTheirPeople = finalResult.values.flatten.flatten,
+      totalNumberOfHouseholds = totalNumberOfHouseholds,
+      totalNumberOfPeople = totalNumberOfPeople,
+      totalNumberOfPlanElements = totalNumberOfPlanElements,
       geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
     )
   }
@@ -598,37 +642,14 @@ object SimpleScenarioGenerator extends StrictLogging {
 
     gen.writeTazCenters(pathToOutput)
 
-    val scenarioResult = gen.generate
-    val generatedData = scenarioResult.householdWithTheirPeople
-    logger.info(s"Number of households: ${generatedData.size}")
-    logger.info(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+    val scenarioResult = gen.generate(pathToOutput)
+    logger.info(s"Number of households: ${scenarioResult.totalNumberOfHouseholds}")
+    logger.info(s"Number of people: ${scenarioResult.totalNumberOfPeople}")
+    logger.info(s"Number of plan elements: ${scenarioResult.totalNumberOfPlanElements}")
 
     val parkingFilePath = s"$pathToOutput/taz-parking.csv"
     CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, scenarioResult.geoIdToAreaResidentsAndWorkers)
     println(s"Wrote parking information to $parkingFilePath")
-
-    val households = generatedData.map(_._1).toVector
-    val householdFilePath = s"$pathToOutput/households.csv"
-    CsvHouseholdInfoWriter.write(householdFilePath, households)
-    logger.info(s"Wrote households information to $householdFilePath")
-
-    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
-    val personsFilePath = s"$pathToOutput/persons.csv"
-    CsvPersonInfoWriter.write(personsFilePath, persons)
-    logger.info(s"Wrote persons information to $personsFilePath")
-
-    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    val plansFilePath = s"$pathToOutput/plans.csv"
-    CsvPlanElementWriter.write(plansFilePath, planElements)
-    logger.info(s"Wrote plans information to $plansFilePath")
-
-    val geoUtils: GeoUtils = new GeoUtils {
-      override def localCRS: String = parsedArgs.localCRS
-    }
-    val allActivities = planElements.filter(_.planElementType == "activity").map { plan =>
-      geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
-    }
-    gen.writeH3(pathToOutput, allActivities, 1000)
   }
 
   def main(args: Array[String]): Unit = {
