@@ -19,6 +19,7 @@ case class BeamPath(
   endPoint: SpaceTime,
   distanceInM: Double
 ) {
+
   checkCoordinates(startPoint)
   checkCoordinates(endPoint)
 
