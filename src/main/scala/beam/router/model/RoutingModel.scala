@@ -41,18 +41,6 @@ object RoutingModel {
     }
   }
 
-//  def linksToTimeAndDistance(
-//    linkIds: IndexedSeq[Int],
-//    startTime: Int,
-//    travelTimeByEnterTimeAndLinkId: (Double, Int, StreetMode) => Double,
-//    mode: StreetMode,
-//    streetLayer: StreetLayer
-//  ): LinksTimesDistances = {
-//    linksToTimeAndDistance(
-//      linkIds, startTime, travelTimeByEnterTimeAndLinkId, mode, streetLayer
-//    )
-//  }
-
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
