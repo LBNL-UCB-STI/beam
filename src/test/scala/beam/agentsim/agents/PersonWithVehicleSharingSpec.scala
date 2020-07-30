@@ -346,8 +346,8 @@ class PersonWithVehicleSharingSpec
                     linkIds = Vector(3, 4),
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(0.01, 0.0, 28950),
-                    endPoint = SpaceTime(0.01, 0.01, 29000),
+                    startPoint = SpaceTime(-1.4887439, 0.0, 28950),
+                    endPoint = SpaceTime(-1.4887438, 0.01, 29000),
                     distanceInM = 1000D
                   )
                 ),
@@ -431,8 +431,8 @@ class PersonWithVehicleSharingSpec
                     linkIds = Vector(4, 3, 2, 1),
                     linkTravelTime = Vector(10, 10, 10, 10),
                     transitStops = None,
-                    startPoint = SpaceTime(0.01, 0.01, 61200),
-                    endPoint = SpaceTime(0.0, 0.0, 61230),
+                    startPoint = SpaceTime(-1.4887438, 0.0, 61200),
+                    endPoint = SpaceTime(-1.4887439, 0.0, 61230),
                     distanceInM = 1000D
                   )
                 ),
