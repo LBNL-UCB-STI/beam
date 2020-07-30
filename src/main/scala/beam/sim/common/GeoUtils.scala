@@ -191,6 +191,22 @@ object GeoUtils {
     new Coordinate(coord.getX, coord.getY)
   }
 
+  val GeoUtilsWgs: GeoUtils = new GeoUtils {
+    override def localCRS: String = "EPSG:4326"
+  }
+
+  val GeoUtilsNad83: GeoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:26910"
+  }
+
+  def fromEpsg(code: String): GeoUtils = {
+    code match {
+      case "26910" => GeoUtilsNad83
+      case "4326"  => GeoUtilsWgs
+      case _       => throw new IllegalArgumentException("")
+    }
+  }
+
   def isInvalidWgsCoordinate(coord: Coord): Boolean = {
     coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90
   }
