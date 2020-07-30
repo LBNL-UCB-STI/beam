@@ -9,7 +9,7 @@ object CsvFileUtils {
 
   def readCsvFileByLineToMap[K, V](
     filePath: String
-  )(lineConverter: java.util.Map[String, String] => (K, V)): Map[K, V] = {
+  )(lineConverter: java.util.Map[String, String] => (K, V)): scala.collection.Map[K, V] = {
     val fileReader = FileUtils.readerFromFile(filePath)
     FileUtils
       .using(new CsvMapReader(fileReader, CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
@@ -22,12 +22,11 @@ object CsvFileUtils {
         }
         res
       }
-      .toMap
   }
 
   def readCsvFileByLineToList[A](
     filePath: String
-  )(lineConverter: java.util.Map[String, String] => A): List[A] = {
+  )(lineConverter: java.util.Map[String, String] => A): scala.collection.Seq[A] = {
     val fileReader = FileUtils.readerFromFile(filePath)
     FileUtils
       .using(new CsvMapReader(fileReader, CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
@@ -40,6 +39,5 @@ object CsvFileUtils {
         }
         res
       }
-      .toList
   }
 }

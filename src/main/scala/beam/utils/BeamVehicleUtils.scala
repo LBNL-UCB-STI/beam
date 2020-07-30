@@ -15,7 +15,7 @@ object BeamVehicleUtils {
     filePath: String,
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
     randomSeed: Long
-  ): Map[Id[BeamVehicle], BeamVehicle] = {
+  ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
     val rand: Random = new Random(randomSeed)
 
     readCsvFileByLineToMap[Id[BeamVehicle], BeamVehicle](filePath) { line =>
@@ -40,7 +40,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def readFuelTypeFile(filePath: String): Map[FuelType, Double] = {
+  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
     readCsvFileByLineToMap[FuelType, Double](filePath) { line =>
       val fuelType = FuelType.fromString(line.get("fuelTypeId"))
       val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
@@ -104,6 +104,6 @@ object BeamVehicleUtils {
       )
       (vehicleTypeId, bvt)
     }
-  }
+  }.toMap
 
 }

@@ -101,7 +101,7 @@ trait NetworkCoordinator extends LazyLogging {
   protected[r5] def postLoadNetwork(): Unit = {}
 
   private def overwriteLinkParams(
-    overwriteLinkParamMap: Map[Int, LinkParam],
+    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
@@ -178,7 +178,7 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork.transitLayer.hasFrequencies = false
   }
 
-  private def getOverwriteLinkParam(beamConfig: BeamConfig): Map[Int, LinkParam] = {
+  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
