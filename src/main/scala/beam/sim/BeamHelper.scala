@@ -569,11 +569,11 @@ trait BeamHelper extends LazyLogging {
     beamScenario: BeamScenario,
     outputDir: String
   ): Unit = {
-    samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
-
     if (beamScenario.beamConfig.beam.agentsim.fractionOfNonWorkingPeople != 0.0) {
       applyFractionOfNonWorkingPeople(scenario, beamServices.beamConfig, scenario.getConfig)
     }
+
+    samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
@@ -606,10 +606,6 @@ trait BeamHelper extends LazyLogging {
     beamConfig: BeamConfig,
     matSimConf: MatsimConfig
   ): Unit = {
-    require(beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities, {
-      "`generate_secondary_activities` should be available to use fractionOfNonWorkingPeople"
-    })
-
     val random = new Random(matSimConf.global().getRandomSeed)
 
     val people = random.shuffle(scenario.getPopulation.getPersons.values().asScala)
