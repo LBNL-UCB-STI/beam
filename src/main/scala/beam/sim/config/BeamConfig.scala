@@ -1609,7 +1609,6 @@ object BeamConfig {
       }
 
       case class Tuning(
-        bikeAttractivityFactor: scala.Double,
         fuelCapacityInJoules: scala.Double,
         rideHailPrice: scala.Double,
         tollPrice: scala.Double,
@@ -1621,8 +1620,6 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Tuning = {
           BeamConfig.Beam.Agentsim.Tuning(
-            bikeAttractivityFactor =
-              if (c.hasPathOrNull("bikeAttractivityFactor")) c.getDouble("bikeAttractivityFactor") else 1.0,
             fuelCapacityInJoules =
               if (c.hasPathOrNull("fuelCapacityInJoules")) c.getDouble("fuelCapacityInJoules") else 86400000,
             rideHailPrice = if (c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
