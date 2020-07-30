@@ -14,16 +14,15 @@ class IndustryAssigner {}
 
 object IndustryAssigner {
 
-
   def main(args: Array[String]): Unit = {
     require(args.length == 2, "Expected two args: 1) path to CTPP 2) Path to plans")
     val pathToCTPP: String = args(0) // "d:/Work/beam/CTPP/"
-    val pathToPlans: String = args(1) // "D:/Work/beam/NewYork/results_07-10-2020_22-13-14/plans.csv.gz"
+    val pathToPlans
+      : String = args(1) // "C:/repos/beam/test/input/newyork/generic_scenario/4040k-NY-related/plans.csv.gz"
     val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPP), Set("36", "34"))
 
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()
     println(s"Read ${odList.size} OD pairs from industry table")
-
 
     val odToIndustrySeq = odList
       .groupBy { od =>
@@ -42,47 +41,55 @@ object IndustryAssigner {
 
     // writeToCsv(homeGeoIdToWorkGeoIdWithCounts)
 
-    val nKeyIsNotFoundInOdToIndustryMap = homeGeoIdToWorkGeoIdWithCounts.count { case (key, _) => !odToIndustryMap.contains(key) }
+    val nKeyIsNotFoundInOdToIndustryMap = homeGeoIdToWorkGeoIdWithCounts.count {
+      case (key, _) => !odToIndustryMap.contains(key)
+    }
     println(s"nKeyIsNotFoundInOdToIndustryMap: ${nKeyIsNotFoundInOdToIndustryMap}")
 
     val residenceIndustryOdMap = new residence.IndustryTableReader(databaseInfo, ResidenceGeography.TAZ).read()
     println(s"residenceIndustryOdMap: ${residenceIndustryOdMap.size}")
 
-
-    val headers =  Array("origin", "destination", "total_people_from_scenario", "total_by_flow", "total_by_residence") ++
-      FlowIndustry.all.map(col => s"flow_${col.toString}") ++ FlowIndustry.all.map(col => s"residence_${col.toString}")
+    val headers = Array("origin", "destination", "total_people_from_scenario", "total_by_flow", "total_by_residence") ++
+    FlowIndustry.all.map(col => s"flow_${col.toString}") ++ FlowIndustry.all.map(col => s"residence_${col.toString}")
 
     val csvWriter = new CsvWriter("industry.csv", headers)
 
-    homeGeoIdToWorkGeoIdWithCounts.foreach { case (key, totalNumberOfPeople) =>
-      (odToIndustryMap.get(key), residenceIndustryOdMap.get(key._1)) match {
-        case (Some(flowIndustries), Some(residenceIndustries)) =>
-          val residenceIndustriesToFlowIndustries = residenceIndustries.map(toFlowIndustry)
-            .groupBy { case (industry, _) =>  industry }
-            .toSeq
-            .map { case (industry, xs) =>
-                industry -> xs.map(_._2).sum
+    homeGeoIdToWorkGeoIdWithCounts.foreach {
+      case (key, totalNumberOfPeople) =>
+        (odToIndustryMap.get(key), residenceIndustryOdMap.get(key._1)) match {
+          case (Some(flowIndustries), Some(residenceIndustries)) =>
+            val residenceIndustriesToFlowIndustries = residenceIndustries
+              .map(toFlowIndustry)
+              .groupBy { case (industry, _) => industry }
+              .toSeq
+              .map {
+                case (industry, xs) =>
+                  industry -> xs.map(_._2).sum
+              }
+            val totalByFlow = flowIndustries.map(_.value).sum
+            val totalByResidence = residenceIndustriesToFlowIndustries.map(_._2).sum
+
+            val row = Array(
+              key._1,
+              key._2,
+              totalNumberOfPeople,
+              totalByFlow,
+              totalByResidence,
+            ) ++ FlowIndustry.all.map { c =>
+              flowIndustries.find(x => x.attribute == c).map(_.value).getOrElse(0.0)
+            } ++
+            FlowIndustry.all.map { c =>
+              residenceIndustriesToFlowIndustries.find { case (industry, _) => industry == c }.map(_._2).getOrElse(0.0)
             }
-          val totalByFlow = flowIndustries.map(_.value).sum
-          val totalByResidence = residenceIndustriesToFlowIndustries.map(_._2).sum
 
-          val row = Array(
-            key._1,
-            key._2,
-            totalNumberOfPeople,
-            totalByFlow,
-            totalByResidence,
-          ) ++ FlowIndustry.all.map { c => flowIndustries.find(x => x.attribute == c).map(_.value).getOrElse(0.0)} ++
-            FlowIndustry.all.map { c => residenceIndustriesToFlowIndustries.find { case (industry, _) => industry == c }.map(_._2).getOrElse(0.0)}
-
-          csvWriter.write(row: _*)
+            csvWriter.write(row: _*)
 
 //          println(s"totalNumberOfPeople: $totalNumberOfPeople, totalByFlow of industries: $totalByFlow, totalByResidence: $totalByResidence")
 //          println(s"Industries: ${flowIndustries.mkString(" ")}")
 //          println(s"residenceIndustriesToFlowIndustries: ${residenceIndustriesToFlowIndustries.mkString(" ")}")
 
-        case _ =>
-      }
+          case _ =>
+        }
 
     }
     csvWriter.close()
@@ -105,12 +112,15 @@ object IndustryAssigner {
 
     val homeGeoIdToWorkGeoId = homeWorkActivities
       .groupBy(plan => plan.personId.id)
-      .filter { case (_, xs) =>
-        val firstActivity = xs.lift(0)
-        val secondActivity = xs.lift(1)
-        val isFirstHome = firstActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("home")))
-        val isSecondWork = secondActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("work")))
-        isFirstHome && isSecondWork
+      .filter {
+        case (_, xs) =>
+          val firstActivity = xs.lift(0)
+          val secondActivity = xs.lift(1)
+          val isFirstHome =
+            firstActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("home")))
+          val isSecondWork =
+            secondActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("work")))
+          isFirstHome && isSecondWork
       }
       .toSeq
       .map {
@@ -161,13 +171,16 @@ object IndustryAssigner {
   def toFlowIndustry(input: (ResidenceIndustry, Double)): (FlowIndustry, Double) = {
     val (workIndustry, count) = input
     val flowIndustry = workIndustry match {
-      case ResidenceIndustry.Agriculture | ResidenceIndustry.Construction | ResidenceIndustry.ArmedForces => FlowIndustry.Agriculture
-      case ResidenceIndustry.Manufacturing =>  FlowIndustry.Manufacturing
-      case ResidenceIndustry.WholesaleTrade | ResidenceIndustry.RetailTrade | ResidenceIndustry.Transportation => FlowIndustry.WholesaleTrade
-      case ResidenceIndustry.Information | ResidenceIndustry.Finance | ResidenceIndustry.Professional => FlowIndustry.Information
-      case ResidenceIndustry.Educational => FlowIndustry.Educational
-      case ResidenceIndustry.Arts => FlowIndustry.Arts
-      case ResidenceIndustry.OtherServices | ResidenceIndustry.PublicAdministration  => FlowIndustry.OtherServices
+      case ResidenceIndustry.Agriculture | ResidenceIndustry.Construction | ResidenceIndustry.ArmedForces =>
+        FlowIndustry.Agriculture
+      case ResidenceIndustry.Manufacturing => FlowIndustry.Manufacturing
+      case ResidenceIndustry.WholesaleTrade | ResidenceIndustry.RetailTrade | ResidenceIndustry.Transportation =>
+        FlowIndustry.WholesaleTrade
+      case ResidenceIndustry.Information | ResidenceIndustry.Finance | ResidenceIndustry.Professional =>
+        FlowIndustry.Information
+      case ResidenceIndustry.Educational                                            => FlowIndustry.Educational
+      case ResidenceIndustry.Arts                                                   => FlowIndustry.Arts
+      case ResidenceIndustry.OtherServices | ResidenceIndustry.PublicAdministration => FlowIndustry.OtherServices
     }
     (flowIndustry, count)
   }
