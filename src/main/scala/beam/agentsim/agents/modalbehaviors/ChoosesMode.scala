@@ -796,8 +796,6 @@ trait ChoosesMode {
               if (i == 2) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
               } else if (i == 3) {
-                val a = geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc)
-                val b = geo.utm2Wgs(parkingResponse.stall.locationUTM)
                 val dist = geo.distUTMInMeters(
                   geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                   parkingResponse.stall.locationUTM
