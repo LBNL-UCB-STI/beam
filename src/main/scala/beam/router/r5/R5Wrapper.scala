@@ -149,7 +149,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
 
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
-          // carlos: here call
           travelTimeCalculator(
             vehicleTypes(request.beamVehicleTypeId),
             profileRequest.fromTime,
@@ -167,7 +166,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
         if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
           if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
             latency("route-transit-time", Metrics.VerboseLevel) {
-              // carlos: happens graph traversal
               streetRouter.route() // latency 1
             }
             val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
@@ -916,7 +914,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       travelTimeByLinkCalculator(
         vehicleTypes(vehicleTypeId),
         shouldAddNoise = false,
-        shouldApplyBicycleScaleFactor = false
       ), // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
@@ -1047,7 +1044,6 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
   private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
-  // carlos: HERE IS THE MAGIC
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
     shouldAddNoise: Boolean,
