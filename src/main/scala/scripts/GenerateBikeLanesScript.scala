@@ -21,7 +21,7 @@ Example of parameters usage:
   --output:something.txt \
   --boundBox y1=0.00995,x1=-125.99,x2=17.91,y2=31.5 \
   --epsg 26910 --samplePercentage:80
-*/
+ */
 
 object GenerateBikeLanesScript extends App {
 
