@@ -796,20 +796,13 @@ trait ChoosesMode {
               if (i == 2) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
               } else if (i == 3) {
+                val a = geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc)
                 val dist = geo.distUTMInMeters(
                   geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                   parkingResponse.stall.locationUTM
                 )
                 val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
-                EmbodiedBeamLeg.dummyLegAt(
-                  start = leg.beamLeg.startTime,
-                  vehicleId = leg.beamVehicleId,
-                  isLastLeg = true,
-                  location = leg.beamLeg.travelPath.endPoint.loc,
-                  mode = WALK,
-                  vehicleTypeId = body.beamVehicleType.id,
-                  duration = travelTime
-                )
+                leg.copy(beamLeg = leg.beamLeg.copy(duration = travelTime))
               } else {
                 leg
               }
