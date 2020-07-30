@@ -16,7 +16,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
       "time" -> UtilityFunctionOperation.Multiplier(-0.02)
     )
 
-    val mnl = new MultinomialLogit(utilityFunctions, common)
+    val mnl = MultinomialLogit(utilityFunctions, common)
 
     val alts = Map(
       "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
@@ -77,7 +77,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
       Time -> UtilityFunctionOperation.Multiplier(-0.02)
     )
 
-    val mnl = new MultinomialLogit(utilityFunctions, common)
+    val mnl = MultinomialLogit(utilityFunctions, common)
 
     val alts: Map[Mode, Map[FunctionParam, Double]] = Map(
       Car  -> Map(Cost -> 30.0, Time -> 50.0),
@@ -116,7 +116,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
   "an MNL sampling alternatives where at least one has utility which is positively infinite" should {
     "select one of them" in new MultinomialLogitSpec.InfinitelyValuedAlternatives {
       val random: Random = new Random(0)
-      val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](Map.empty, utilityFunctions)
+      val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](Map.empty.get, utilityFunctions)
       mnl.sampleAlternative(alternatives, random) match {
         case None           => fail()
         case Some(selected) =>
@@ -135,7 +135,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
   "an MNL with n alternatives where all have equal value" should {
     "select one with 1/n probability" in new MultinomialLogitSpec.EquallyValuedAlternatives {
       val random: Random = new Random(0)
-      val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](Map.empty, utilityFunctions)
+      val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](_ => None, utilityFunctions)
       mnl.sampleAlternative(alternatives, random) match {
         case None           => fail()
         case Some(selected) =>

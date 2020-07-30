@@ -4,31 +4,34 @@ import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.agentsim.events.ModeChoiceOccurredEvent
-import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import org.matsim.core.api.experimental.events.EventsManager
 
-import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 
 /**
   * BEAM
   */
 class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
-  val model: MultinomialLogit[String, String],
+  val model: MultinomialLogit[EmbodiedBeamTrip, String],
+  val modeModel: MultinomialLogit[BeamMode, String],
   beamConfigHolder: BeamConfigHolder,
+  transitCrowding: TransitCrowdingSkims,
   val eventsManager: EventsManager
 ) extends ModeChoiceCalculator
     with ExponentialLazyLogging {
@@ -46,24 +49,44 @@ class ModeChoiceMultinomialLogit(
     destinationActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
+
+    def findBestIn(group: IndexedSeq[ModeCostTimeTransfer]): ModeCostTimeTransfer = {
+      if (group.size == 1) {
+        group.head
+      } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
+        val inputData = group
+          .map(
+            mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
+          )
+          .toMap
+        val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+        val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+        chosenModeOpt
+          .flatMap(sample => group.find(_.embodiedBeamTrip == sample.alternativeType))
+          .getOrElse(group minBy timeAndCost)
+      } else {
+        group minBy timeAndCost
+      }
+    }
+
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
       val bestInGroup =
-      modeCostTimeTransfers groupBy (_.mode) map {
-        case (_, group) => group minBy timeAndCost
+      modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
+        case (_, group) => findBestIn(group)
       }
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
-          Map("cost" -> (mct.cost + mct.scaledTime))
-        val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
-          Map("transfer" -> mct.numTransfers)
+          Map("cost" -> timeAndCost(mct))
+        val transferParam: Map[String, Double] = if (mct.embodiedBeamTrip.tripClassifier.isTransit) {
+          Map("transfer" -> mct.numTransfers, "transitOccupancyLevel" -> mct.transitOccupancyLevel)
         } else {
           Map()
         }
-        (mct.mode.value, theParams ++ transferParam)
+        (mct.embodiedBeamTrip, theParams ++ transferParam)
       }.toMap
 
       val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
@@ -82,7 +105,7 @@ class ModeChoiceMultinomialLogit(
               |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
               |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]expectedMaximumUtility:${expectedMaximumUtility}
               |@@@[$personId]-----------------------------------------
               |""".stripMargin
         logger.debug(msgToLog)
@@ -91,7 +114,7 @@ class ModeChoiceMultinomialLogit(
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
+            bestInGroup.filter(_.embodiedBeamTrip == chosenMode.alternativeType)
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -114,17 +137,17 @@ class ModeChoiceMultinomialLogit(
 
   def createModeChoiceOccurredEvent(
     person: Option[Person],
-    alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[String]],
+    alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[EmbodiedBeamTrip]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    chosenModeCostTime: immutable.Iterable[ModeCostTimeTransfer]
+    chosenModeCostTime: Iterable[ModeCostTimeTransfer]
   ): Option[ModeChoiceOccurredEvent] = {
     person match {
       case Some(p) =>
         val altUtility = alternativesWithUtility
           .map(
             au =>
-              au.alternative.toLowerCase() -> ModeChoiceOccurredEvent
+              au.alternative.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
                 .AltUtility(au.utility, au.expUtility)
           )
           .toMap
@@ -132,7 +155,7 @@ class ModeChoiceMultinomialLogit(
         val altCostTimeTransfer = modeCostTimeTransfers
           .map(
             mctt =>
-              mctt.mode.value.toLowerCase() -> ModeChoiceOccurredEvent
+              mctt.embodiedBeamTrip.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
                 .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
           )
           .toMap
@@ -247,11 +270,16 @@ class ModeChoiceMultinomialLogit(
       val scaledTime = attributesOfIndividual.getVOT(
         getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
       )
+      val percentile =
+        beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+      val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
+
       ModeCostTimeTransfer(
-        mode = mode,
+        embodiedBeamTrip = altAndIdx._1,
         cost = incentivizedCost,
         scaledTime = scaledTime,
         numTransfers = numTransfers,
+        transitOccupancyLevel = occupancyLevel,
         index = altAndIdx._2
       )
     }
@@ -322,21 +350,31 @@ class ModeChoiceMultinomialLogit(
   ): Double = {
     val modeCostTimeTransfer =
       altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual, destinationActivity).head
-    utilityOf(
-      modeCostTimeTransfer.mode,
-      modeCostTimeTransfer.cost + modeCostTimeTransfer.scaledTime,
-      modeCostTimeTransfer.scaledTime,
-      modeCostTimeTransfer.numTransfers
-    )
+    utilityOf(modeCostTimeTransfer)
   }
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
-    val variables =
-      Map(
-        "transfer" -> numTransfers.toDouble,
-        "cost"     -> cost
-      )
-    model.getUtilityOfAlternative(mode.value, variables).getOrElse(0)
+  private def utilityOf(mct: ModeCostTimeTransfer): Double = {
+    model
+      .getUtilityOfAlternative(mct.embodiedBeamTrip, attributes(mct.cost, mct.transitOccupancyLevel, mct.numTransfers))
+      .getOrElse(0)
+  }
+
+  override def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double
+  ): Double = {
+    modeModel.getUtilityOfAlternative(mode, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+  }
+
+  private def attributes(cost: Double, transitOccupancyLevel: Double, numTransfers: Int) = {
+    Map(
+      "transfer"              -> numTransfers.toDouble,
+      "cost"                  -> cost,
+      "transitOccupancyLevel" -> transitOccupancyLevel
+    )
   }
 
   override def computeAllDayUtility(
@@ -348,7 +386,9 @@ class ModeChoiceMultinomialLogit(
 
 object ModeChoiceMultinomialLogit {
 
-  def buildModelFromConfig(configHolder: BeamConfigHolder): MultinomialLogit[String, String] = {
+  def buildModelFromConfig(
+    configHolder: BeamConfigHolder
+  ): (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String]) = {
 
     val params = configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
     val commonUtility: Map[String, UtilityFunctionOperation] = Map(
@@ -368,32 +408,43 @@ object ModeChoiceMultinomialLogit {
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),
       "ride_hail_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
+        "intercept"             -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.bike_intercept)),
       "walk_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", params.walk_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
+        "intercept"             -> UtilityFunctionOperation("intercept", params.walk_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "drive_transit" -> Map(
-        "intercept" -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
-        "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
+        "intercept"             -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       )
     )
 
-    logit.MultinomialLogit(
-      mnlUtilityFunctions,
-      commonUtility,
-      scale_factor
+    (
+      new logit.MultinomialLogit(
+        trip => mnlUtilityFunctions.get(trip.tripClassifier.value),
+        commonUtility,
+        scale_factor
+      ),
+      new logit.MultinomialLogit(
+        mode => mnlUtilityFunctions.get(mode.value),
+        commonUtility,
+        scale_factor
+      )
     )
   }
 
   case class ModeCostTimeTransfer(
-    mode: BeamMode,
+    embodiedBeamTrip: EmbodiedBeamTrip,
     cost: Double,
     scaledTime: Double,
     numTransfers: Int,
+    transitOccupancyLevel: Double,
     index: Int = -1
   )
 

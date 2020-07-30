@@ -6,6 +6,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
@@ -62,7 +63,13 @@ trait ModeChoiceCalculator {
     destinationActivity: Option[Activity]
   ): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double = 0.0
+  ): Double
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
@@ -125,10 +132,13 @@ object ModeChoiceCalculator {
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+              val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
-                lccm.modeChoiceModels(Mandatory)(modalityStyle),
+                model,
+                modeModel,
                 configHolder,
+                beamServices.skims.tc_skimmer,
                 eventsManager
               )
             case _ =>
@@ -147,9 +157,16 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder, eventsManager)
+          new ModeChoiceMultinomialLogit(
+            beamServices,
+            routeLogit,
+            modeLogit,
+            configHolder,
+            beamServices.skims.tc_skimmer,
+            eventsManager
+          )
     }
   }
   sealed trait ModeVotMultiplier
