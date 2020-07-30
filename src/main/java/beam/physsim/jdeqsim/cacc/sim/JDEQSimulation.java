@@ -15,21 +15,16 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulation {
     private final static Logger log = LoggerFactory.getLogger(JDEQSimulation.class);
 
     private final CACCSettings caccSettings;
-    private final double speedAdjustmentFactor;
-    private final double adjustedMinimumRoadSpeedInMetersPerSecond;
 
     @Inject
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings, double speedAdjustmentFactor, double adjustedMinimumRoadSpeedInMetersPerSecond) {
+    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings) {
         super(config, scenario, events);
         this.caccSettings = caccSettings;
-        this.speedAdjustmentFactor = speedAdjustmentFactor;
-        this.adjustedMinimumRoadSpeedInMetersPerSecond = adjustedMinimumRoadSpeedInMetersPerSecond;
         Road.setRoadCapacityAdjustmentFunction(caccSettings.roadCapacityAdjustmentFunction());
     }
 
@@ -57,10 +52,9 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
     private void logInitializeVehiclesOutcome(List<String> vehicleNotFound, Map<String, Boolean> isCACCVehicle) {
         if (log.isInfoEnabled()) {
-            int caccEnabledSize = isCACCVehicle.entrySet().stream()
+            int caccEnabledSize = (int) isCACCVehicle.entrySet().stream()
                     .filter(Map.Entry::getValue)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
-                    .size();
+                    .count();
             int populationPersonsSize = scenario.getPopulation().getPersons().values().size();
             String message = MessageFormat.format("isCACCVehicle map -> total vehicles {0}, not found {1}, CACC enabled {2}", populationPersonsSize, vehicleNotFound.size(), caccEnabledSize);
             log.info(message);
@@ -72,8 +66,8 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
         Scheduler scheduler = getScheduler();
         allRoads.clear();
         for (Link link : scenario.getNetwork().getLinks().values()) {
-            allRoads.put(link.getId(), new Road(scheduler, link, speedAdjustmentFactor,
-                    adjustedMinimumRoadSpeedInMetersPerSecond, getConfig(), allRoads));
+            allRoads.put(link.getId(), new Road(scheduler, link, caccSettings.speedAdjustmentFactor(),
+                    caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond(), getConfig(), allRoads));
         }
     }
 
