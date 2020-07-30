@@ -801,7 +801,7 @@ trait ChoosesMode {
                   parkingResponse.stall.locationUTM
                 )
                 val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
-                leg.copy(beamLeg = leg.beamLeg.copy(duration = travelTime))
+                leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
               } else {
                 leg
               }
