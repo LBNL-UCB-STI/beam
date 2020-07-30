@@ -129,7 +129,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case request: RoutingRequest =>
       msgs += 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
-      val eventualResponse: Future[RoutingResponse] = Future {
+      val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           r5.calcRoute(request)
         }
