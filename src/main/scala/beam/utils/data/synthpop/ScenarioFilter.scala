@@ -14,8 +14,10 @@ import scala.collection.mutable
 object ScenarioFilter extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
-    val input = "/mnt/data/work/beam/beam-new-york/test/input/newyork/generic_scenario/5843k"
-    val outputBase = "/mnt/data/work/beam/beam-new-york/test/input/newyork/generic_scenario/4040k-NY-related"
+    val input = "/mnt/data/work/beam/beam-new-york/test/input/newyork/generic_scenario/10034k"
+    val outputBase = "/mnt/data/work/beam/beam-new-york/test/input/newyork/generic_scenario/6853k-NYC-related"
+
+    // https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv
     val fipsCodes = "/home/nikolay/.jupyter-files/fips_codes.csv"
 
     val output = outputBase + SimpleScenarioGenerator.getCurrentDateTime
