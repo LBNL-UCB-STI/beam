@@ -28,12 +28,13 @@ class DefaultNetworkCoordinatorSpec
                     |  baseDate = "2016-10-17T00:00:00-07:00"
                     |  transitOnStreetNetwork = true
                     |  r5 {
-                    |    directory = $r5Dir
-                    |    osmFile = $r5Dir"/test.osm.pbf"
+                    |    directory = "$r5Dir"
+                    |    osmFile = "$r5Dir/test.osm.pbf"
                     |    osmMapdbFile = $r5Dir"/osm.mapdb"
                     |  }
                     |  startingIterationForTravelTimesMSA = 1
                     |}
+                    |beam.physsim.inputNetworkFilePath = "$r5Dir/physsim-network.xml"
                     |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()

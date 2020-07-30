@@ -45,6 +45,7 @@ class FrequencyAdjustingNetworkCoordinatorSpec
          |  startingIterationForTravelTimesMSA = 1
          |}
          |beam.agentsim.scenarios.frequencyAdjustmentFile = $frequencyAdjustmentFile
+         |beam.physsim.inputNetworkFilePath = "$beamR5Dir/physsim-network.xml"
          |""".stripMargin)
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
