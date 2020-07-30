@@ -6,14 +6,14 @@ import beam.utils.scenario.PlanElement
 import scala.util.Try
 
 trait PlanElementWriter {
-  def write(path: String, xs: Iterable[PlanElement]): Unit
+  def write(path: String, xs: Iterator[PlanElement]): Unit
 }
 
 class CsvPlanElementWriter(val path: String) extends AutoCloseable {
   import CsvPlanElementWriter._
   private val csvWriter = new CsvWriter(path, headers)
 
-  def write(xs: Iterable[PlanElement]): Unit = {
+  def write(xs: Iterator[PlanElement]): Unit = {
     writeTo(xs, csvWriter)
   }
   override def close(): Unit = {
@@ -45,7 +45,7 @@ object CsvPlanElementWriter extends PlanElementWriter {
     "geoId"
   )
 
-  override def write(path: String, xs: Iterable[PlanElement]): Unit = {
+  override def write(path: String, xs: Iterator[PlanElement]): Unit = {
     val csvWriter: CsvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
@@ -55,7 +55,7 @@ object CsvPlanElementWriter extends PlanElementWriter {
 
   }
 
-  private def writeTo(xs: Iterable[PlanElement], csvWriter: CsvWriter): Unit = {
+  private def writeTo(xs: Iterator[PlanElement], csvWriter: CsvWriter): Unit = {
     xs.foreach { planElement =>
       val legRouteLinks = planElement.legRouteLinks.mkString("|")
       csvWriter.write(

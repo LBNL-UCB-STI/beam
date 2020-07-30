@@ -383,14 +383,14 @@ class SimpleScenarioGenerator(
           }
           cnt += 1
           val householdList = res.map(_._1)
-          householdInfoWriter.write(householdList)
+          householdInfoWriter.write(householdList.toIterator)
           totalNumberOfHouseholds += householdList.size
 
           val peopleList = res.flatMap(x => x._2.map(_.person))
-          personInfoWriter.write(peopleList)
+          personInfoWriter.write(peopleList.toIterator)
           totalNumberOfPeople += peopleList.size
 
-          val plans = res.flatMap(x => x._2.map(_.plans)).flatten
+          val plans = res.flatMap(x => x._2.map(_.plans)).flatten.toIterator
           plansInfoWriter.write(plans)
           totalNumberOfPlanElements += plans.size
 
