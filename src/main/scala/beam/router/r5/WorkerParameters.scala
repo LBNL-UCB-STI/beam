@@ -60,16 +60,16 @@ object WorkerParameters {
     val tollCalculator = new TollCalculator(beamConfig)
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
     WorkerParameters(
-      beamConfig,
-      networkCoordinator.transportNetwork,
-      vehicleTypes,
-      fuelTypePrices,
-      ptFares,
-      geo,
-      dates,
-      new NetworkHelperImpl(networkCoordinator.network),
-      fareCalculator,
-      tollCalculator
+      beamConfig = beamConfig,
+      transportNetwork = networkCoordinator.transportNetwork,
+      vehicleTypes = vehicleTypes,
+      fuelTypePrices = fuelTypePrices,
+      ptFares = ptFares,
+      geo = geo,
+      dates = dates,
+      networkHelper = new NetworkHelperImpl(networkCoordinator.network),
+      fareCalculator = fareCalculator,
+      tollCalculator = tollCalculator
     )
   }
 
