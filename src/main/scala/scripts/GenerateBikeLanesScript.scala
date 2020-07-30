@@ -8,11 +8,20 @@ import scala.util.Random
 
 import beam.agentsim.infrastructure.geozone.{WgsBoundingBox, WgsCoordinate}
 import beam.agentsim.infrastructure.NetworkUtilsExtensions
-import beam.agentsim.infrastructure.geozone.WgsCoordinate._
 import beam.sim.common.GeoUtils
 import beam.utils.FileUtils
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.Coord
 import scopt.OParser
+
+/*
+Example of parameters usage:
+  --input:test/input/beamville/physsim-network.xml \
+  --mode car \
+  --output:something.txt \
+  --boundBox y1=0.00995,x1=-125.99,x2=17.91,y2=31.5 \
+  --epsg 26910 --samplePercentage:80
+*/
 
 object GenerateBikeLanesScript extends App {
 
@@ -20,7 +29,7 @@ object GenerateBikeLanesScript extends App {
     filePath: Path = null,
     boundingBox: WgsBoundingBox = null,
     mode: String = null,
-    samplePercentage: Double = 1D,
+    samplePercentage: Double = 100D,
     outputFile: Path = null,
     geoUtils: GeoUtils = null
   )
@@ -70,14 +79,18 @@ object GenerateBikeLanesScript extends App {
           if (value >= 0 && value <= 100) success
           else failure("samplePercentage should be between 0 and 100")
         }
+        .action((value, c) => c.copy(samplePercentage = value))
     )
   }
 
   OParser.parse(parser, args, GenerateBikeLanesParams()) match {
     case Some(params) =>
-      val linkIds = generateBikeLanes(params).iterator
-      FileUtils.writeToFile(params.outputFile.toString, linkIds)
+      val linkIds = generateBikeLanes(params).map(v => v + System.lineSeparator())
+      val outputFile = params.outputFile.toString
+      FileUtils.writeToFile(outputFile, linkIds.iterator)
+      println(s"***** File [$outputFile] generated with [${linkIds.size}] linkIds!")
     case _ =>
+      println("Could not process the parameters")
   }
 
   def generateBikeLanes(params: GenerateBikeLanesParams): Set[String] = {
@@ -85,7 +98,7 @@ object GenerateBikeLanesScript extends App {
     val linkIds = network.getLinks.asScala.collect {
       case (value, link) if linkHasModeAndIsWithinBoundingBox(params, link) => value.toString
     }.toSet
-    val itemsToInclude = (linkIds.size * params.samplePercentage).toInt
+    val itemsToInclude = Math.ceil(linkIds.size * params.samplePercentage / 100).toInt
     Random.shuffle(linkIds).take(itemsToInclude)
   }
 
@@ -93,9 +106,24 @@ object GenerateBikeLanesScript extends App {
     params: GenerateBikeLanesParams,
     link: Link
   ): Boolean = {
+    val fromCoordinate = convertToWgs(link.getFromNode.getCoord, params.geoUtils)
+    val toCoordinate = convertToWgs(link.getToNode.getCoord, params.geoUtils)
     link.getAllowedModes.asScala.exists(_.equalsIgnoreCase(params.mode)) &&
-    params.boundingBox.contains(link.getFromNode.getCoord) &&
-    params.boundingBox.contains(link.getToNode.getCoord)
+    params.boundingBox.contains(fromCoordinate) &&
+    params.boundingBox.contains(toCoordinate)
+  }
+
+  def convertToWgs(coord: Coord, geoUtils: GeoUtils): WgsCoordinate = {
+    val coordAsWgs = {
+      if (geoUtils eq GeoUtils.GeoUtilsNad83) {
+        geoUtils.utm2Wgs(coord)
+      } else if (geoUtils eq GeoUtils.GeoUtilsWgs) {
+        coord
+      } else {
+        throw new IllegalArgumentException("GeoUtils is not supported")
+      }
+    }
+    WgsCoordinate(coordAsWgs)
   }
 
   def toBoundBox(allPoints: Map[String, Double]): WgsBoundingBox = {
