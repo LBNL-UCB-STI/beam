@@ -21,6 +21,8 @@ import scala.util.Random
 import scala.collection.JavaConverters._
 import beam.utils.CloseableUtil.RichCloseable
 
+import scala.collection.mutable.Stack.StackBuilder
+
 trait PopulationScaling extends LazyLogging {
 
   def upSample(beamServices: BeamServices, scenario: MutableScenario, beamScenario: BeamScenario): Unit = {
@@ -224,39 +226,53 @@ trait PopulationScaling extends LazyLogging {
       //Build persons probability
       val personDistributionPair = persons
         .map(person => {
-          val industry = person.getAttributes.getAttribute("industry").toString
+          val industry = getIndustry(person)
           val probability = industrialProbability.getOrElse(industry, 0.0)
           new PPair[Person, java.lang.Double](person, probability)
         })
         .toVector
 
-      val enumeratedDistribution = new EnumeratedDistribution[Person](rng, personDistributionPair.asJava)
+      //Processing only if we got any probability greater then 0
+      val probabilitySum = personDistributionPair.count(_.getValue > 0.0)
+      if (probabilitySum > 0) {
+        val enumeratedDistribution = new EnumeratedDistribution[Person](rng, personDistributionPair.asJava)
 
-      //Calculate number of persons to be removed from population
-      val removalItemSize = persons
-        .groupBy(_.getAttributes.getAttribute("industry").toString)
-        .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
-        .sum
+        //Calculate number of persons to be removed from population
+        val removalItemSize = persons
+          .groupBy(getIndustry)
+          .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
+          .sum
 
-      (0 until Math.round(removalItemSize.toFloat)).map { _ =>
-        val person = enumeratedDistribution.sample()
-        scenario.getPopulation.getPersons.remove(person.getId)
+        (0 until Math.round(removalItemSize.toFloat)).map { _ =>
+          val person = enumeratedDistribution.sample()
+          scenario.getPopulation.getPersons.remove(person.getId)
+        }
       }
+
     } finally {
       toClose.close()
     }
   }
 
+  def getIndustry(person: Person): String = {
+    val industryAttribute = person.getAttributes.getAttribute("industry")
+    if (industryAttribute != null) industryAttribute.toString else ""
+  }
+
   def removeWorkPlan(scenario: MutableScenario): Unit = {
     scenario.getPopulation.getPersons.values().asScala.foreach { person: Person =>
       val originalPlan = person.getSelectedPlan
-      val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-      val planElements = originalPlan.getPlanElements
-      planElements.removeIf(isWorkActivity)
-      newPlan.getPlanElements.addAll(planElements)
-      person.addPlan(newPlan)
-      person.removePlan(originalPlan)
-      person.setSelectedPlan(newPlan)
+      val planElements = originalPlan.getPlanElements.asScala
+      if (planElements.exists(isWorkActivity)) {
+        //Keep only first activity of day
+        val daysFirstActivity = planElements.head.asInstanceOf[Activity]
+        val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+        daysFirstActivity.setEndTime(Double.NegativeInfinity)
+        newPlan.addActivity(daysFirstActivity)
+        person.addPlan(newPlan)
+        person.removePlan(originalPlan)
+        person.setSelectedPlan(newPlan)
+      }
     }
   }
 
