@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -14,11 +14,11 @@ import scala.collection.mutable.ListBuffer
 object EventsAccumulator {
   case class ProcessChargingEvents(event: org.matsim.api.core.v01.events.Event)
 
-  def props(scheduler: ActorRef, beamServices: BeamServices): Props =
-    Props(new EventsAccumulator(scheduler, beamServices))
+  def props(beamServices: BeamServices): Props =
+    Props(new EventsAccumulator(beamServices))
 }
 
-class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends Actor {
+class EventsAccumulator(beamServices: BeamServices) extends Actor {
   import EventsAccumulator._
   import beamServices._
 

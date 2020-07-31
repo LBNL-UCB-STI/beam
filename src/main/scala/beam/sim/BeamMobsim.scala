@@ -12,7 +12,6 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager,
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
-import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -368,18 +367,12 @@ class BeamMobsimIteration(
 
   context.watch(parkingManager)
 
-  private val powerController = context.actorOf(
-    Props(new PowerController(beamServices))
-  )
-
-  context.watch(powerController)
-
   private val chargingNetworkManager = context.actorOf(
     Props(
       new ChargingNetworkManager(
+        beamServices,
         beamScenario.beamConfig,
-        new SitePowerManager(beamScenario.privateVehicles), // TODO where to instantiate this class?
-        powerController
+        beamScenario.privateVehicles
       )
     ).withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
@@ -488,16 +481,16 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
-  val eventsAccumulator: Option[ActorRef] =
+  val eventsAccumulatorMaybe: Option[ActorRef] =
     if (beamConfig.beam.agentsim.collectEvents) {
-      val eventsAccumulator = context.actorOf(EventsAccumulator.props(scheduler, beamServices))
+      val eventsAccumulator = context.actorOf(EventsAccumulator.props(beamServices))
       context.watch(eventsAccumulator)
       scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
       Some(eventsAccumulator)
     } else None
   eventsManager match {
     case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulator)
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulatorMaybe)
     case _ =>
   }
 
@@ -531,13 +524,15 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      if (eventsAccumulator.isDefined) {
-        eventsAccumulator.get ! Finish
-        context.stop(eventsAccumulator.get)
+      chargingNetworkManager ! Finish
+      eventsAccumulatorMaybe.foreach { eventsAccumulator =>
+        eventsAccumulator ! Finish
+        context.stop(eventsAccumulator)
       }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
+      context.stop(chargingNetworkManager)
       sharedVehicleFleets.foreach(context.stop)
       context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {

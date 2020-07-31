@@ -34,21 +34,19 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
     collection.mutable.HashMap()
 
-  private var eventsAccumulator: Option[ActorRef] = None
+  private var eventsAccumulatorMaybe: Option[ActorRef] = None
 
   def setEventsAccumulator(accumulator: Option[ActorRef]): Unit = {
-    eventsAccumulator = accumulator
+    eventsAccumulatorMaybe = accumulator
   }
 
   override def processEvent(event: Event): Unit = {
-    eventsAccumulator match {
-      case Some(accumulator) =>
-        event match {
-          case e @ (_: ChargingPlugInEvent | _: ChargingPlugOutEvent | _: RefuelSessionEvent) =>
-            accumulator ! EventsAccumulator.ProcessChargingEvents(e)
-          case _ =>
-        }
-      case None =>
+    eventsAccumulatorMaybe.foreach { accumulator =>
+      event match {
+        case e @ (_: ChargingPlugInEvent | _: ChargingPlugOutEvent | _: RefuelSessionEvent) =>
+          accumulator ! EventsAccumulator.ProcessChargingEvents(e)
+        case _ =>
+      }
     }
     blockingQueue.add(event)
     numOfEvents.incrementAndGet()

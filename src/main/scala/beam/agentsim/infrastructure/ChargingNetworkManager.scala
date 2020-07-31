@@ -1,74 +1,84 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
+import org.matsim.api.core.v01.Id
+
+import scala.collection.concurrent.TrieMap
 
 class ChargingNetworkManager(
+  beamServices: BeamServices,
   beamConfig: BeamConfig,
-  sitePowerManager: SitePowerManager,
-  powerController: ActorRef
+  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
 ) extends Actor
     with ActorLogging {
 
-  import PowerController._
-
+  private val sitePowerManager = new SitePowerManager()
+  private val powerController = new PowerController(beamServices, beamConfig)
+  private val vehiclesCopies: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap.empty
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   override def receive: Receive = {
-    case t @ TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
-      log.info(s"PlanningTimeOutTrigger, tick: $tick, triggerId: $triggerId")
-      powerController ! ConnectedToHelicsRequest()(MsgCtx(sender, t))
+    case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
+      log.info("PlanningTimeOutTrigger, tick: {}, triggerId: {}", tick, triggerId)
 
-    case msg @ ConnectedToHelicsResponse(true) =>
-      import msg.ctx
-      val plannedPower = sitePowerManager.getPowerOverPlanningHorizon
-      val tick = ctx.triggerWithId.trigger.tick
-      powerController ! CalculatePowerRequest(plannedPower, tick)
+      val requiredPower = sitePowerManager.getPowerOverPlanningHorizon(privateVehicles)
 
-    case msg @ ConnectedToHelicsResponse(false) =>
-      import msg.ctx
-      val nextTick = beamConfig.beam.cosim.helics.timeStep * 4 // TODO what is the multiplier ???
-      // in case of not connected to helics we simulate calculation are finished with default PhysicalBounds
-      self ! CalculatePowerResponse(PhysicalBounds.default(0.0), nextTick)
+      powerController.publishPowerOverPlanningHorizon(requiredPower)
+      val (bounds, nextTick) = powerController.calculatePower(requiredPower, tick)
+      val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(bounds, privateVehicles)
 
-    case msg @ CalculatePowerResponse(bounds, nextTick) =>
-      import msg.ctx
+      log.info("Required energy per vehicle before charging: {}", requiredEnergyPerVehicle.mkString(","))
 
-      sitePowerManager.replanHorizon(bounds)
-      val vehiclesWithRequiredEnergy = sitePowerManager.getChargingPlanPerVehicle
+      requiredEnergyPerVehicle.foreach {
+        case (id, energy) if energy > 0 =>
+          val vehicleCopy = vehiclesCopies.getOrElse(id, makeBeamVehicleCopy(privateVehicles(id)))
+          vehicleCopy.addFuel(energy)
+          if (vehicleCopy.beamVehicleType.primaryFuelCapacityInJoule == vehicleCopy.primaryFuelLevelInJoules) {
+            // vehicle is fully charged
+            vehiclesCopies.remove(vehicleCopy.id)
+          }
+        case _ => ()
+      }
 
-      val triggerId = ctx.triggerWithId.triggerId
-      val tick = ctx.triggerWithId.trigger.tick
+      log.info("Copies of vehicles (dummy vehicles) after charging: {}", vehiclesCopies.mkString(","))
 
-      val endRefuelSessionTriggers = vehiclesWithRequiredEnergy.map {
-        case (vehicle, requiredEnergy) =>
-          // TODO where is [for all ChargingPlugs]
-          // TODO where is vehicle endTime?
-          vehicle.addFuel(requiredEnergy)
-          // TODO Where is StartRefuelSessionTrigger ???
-          // TODO where to get sessionDuration ?
-          val sessionDuration = 100
-          ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, requiredEnergy, vehicle), self)
-      }.toVector
-
-      ctx.scheduler ! CompletionNotice(
+      sender ! CompletionNotice(
         triggerId,
         if (tick < endOfSimulationTime)
-          endRefuelSessionTriggers :+ ScheduleTrigger(PlanningTimeOutTrigger(tick + nextTick), self)
+          Vector(ScheduleTrigger(PlanningTimeOutTrigger(tick + nextTick), self))
         else
           Vector()
       )
 
     case Finish =>
-      log.info(s"Finish") // Not sure if this called
+      log.info("Finish sent by {}", sender)
+      powerController.close()
+
+    case Terminated(_) =>
+      log.info("Terminated sent by {}", sender)
+  }
+
+  private def makeBeamVehicleCopy(vehicle: BeamVehicle): BeamVehicle = {
+    val vehicleCopy = new BeamVehicle(
+      vehicle.id,
+      vehicle.powerTrain,
+      vehicle.beamVehicleType,
+      vehicle.randomSeed
+    )
+    vehicleCopy.setManager(vehicle.getManager)
+    vehicleCopy.setMustBeDrivenHome(vehicle.isMustBeDrivenHome)
+    vehicleCopy.setReservedParkingStall(vehicle.reservedStall)
+    vehicleCopy
   }
 }
 

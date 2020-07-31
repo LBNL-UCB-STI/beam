@@ -1,46 +1,61 @@
 package beam.agentsim.infrastructure.power
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.infrastructure.power.SitePowerManager.PowerOverPlanningHorizon
-import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
+import org.slf4j.{Logger, LoggerFactory}
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
-class PowerController(beamServices: BeamServices) extends Actor with ActorLogging {
-  import PowerController._
+class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
-  private lazy val beamFederate: BeamFederate = BeamFederate.getInstance(beamServices)
-  private lazy val isConnectedToHelics: Boolean = Try(beamFederate).isSuccess
+  private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
-  override def receive: Receive = {
-    case msg @ ConnectedToHelicsRequest() =>
-      import msg.ctx
-      sender ! ConnectedToHelicsResponse(isConnectedToHelics)
-    case msg @ CalculatePowerRequest(_, tick) =>
-      import msg.ctx
-      // TODO to be implemented
-      val nextTick = beamFederate.syncAndMoveToNextTimeStep(tick)
-      sender ! CalculatePowerResponse(PhysicalBounds.default(10.0), nextTick)
-
+  logger.info("Init PowerController resources...")
+  private val beamFederateMaybe: Try[BeamFederate] = Try {
+    BeamFederate.loadHelics
+    BeamFederate.getInstance(beamServices)
+  }.recoverWith {
+    case e =>
+      logger.error("Cannot init BeamFederate: {}", e.getMessage)
+      Failure(e)
   }
-}
+  private val isConnectedToHelics: Boolean = beamFederateMaybe.map(_.isFederateValid).getOrElse(false)
 
-object PowerController {
-  // actor's protocol
-  case class MsgCtx(scheduler: ActorRef, triggerWithId: TriggerWithId)
+  def publishPowerOverPlanningHorizon(power: Double): Unit = {
+    beamFederateMaybe
+      .map(_.publishPowerOverPlanningHorizon(power))
+      .recoverWith {
+        case e =>
+          logger.error("Cannot publish power over planning horizon: {}", e.getMessage)
+          Failure(e)
+      }
+      .getOrElse(())
+  }
 
-  case class ConnectedToHelicsRequest()(implicit val ctx: MsgCtx)
-  case class ConnectedToHelicsResponse(isConnected: Boolean)(implicit val ctx: MsgCtx)
+  /**
+    *
+    * @param requiredPower power (in joules) over planning horizon
+    * @param tick
+    * @return PhysicalBounds, Int (next tick)
+    */
+  def calculatePower(requiredPower: Double, tick: Int): (PhysicalBounds, Int) = {
+    logger.info("Calculating required power {} (isConnectedToHelics: {})...", requiredPower, isConnectedToHelics)
+    val (nextTick, powerValue) =
+      beamFederateMaybe
+        .map(_.syncAndGetPowerValue(tick))
+        .recoverWith {
+          case e =>
+            logger.error("Cannot calculate power: {}", e.getMessage)
+            Failure(e)
+        }
+        .getOrElse { (beamConfig.beam.cosim.helics.timeStep * 4, 0.0) } // TODO should be a parameter, timeInterval etc.
+    (PhysicalBounds.default(powerValue), nextTick)
+  }
 
-  case class CalculatePowerRequest(plannedPower: PowerOverPlanningHorizon, tick: Int)(implicit val ctx: MsgCtx)
-  case class CalculatePowerResponse(bounds: PhysicalBounds, nextTick: Int)(implicit val ctx: MsgCtx)
-
-  // actor's internal model
-  case class PhysicalBounds(minPower: Double, maxPower: Double, price: Double)
-
-  object PhysicalBounds {
-    def default(requiredPower: Double): PhysicalBounds = PhysicalBounds(requiredPower, requiredPower, 0)
+  def close(): Unit = {
+    logger.info("Release PowerController resources (isConnectedToHelics: {})...", isConnectedToHelics)
+    beamFederateMaybe.foreach(_.close())
+    BeamFederate.destroyInstance()
   }
 }
