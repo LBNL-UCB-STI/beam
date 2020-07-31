@@ -1,6 +1,8 @@
 package beam.agentsim.agents.choice.logit
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, NonMandatory, TourType}
+import beam.router.Modes.BeamMode
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -18,11 +20,16 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
     beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath
   )
 
-  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = extractClassMembershipModels(
-    lccmData
-  )
+  val classMembershipModelMaps: Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] =
+    extractClassMembershipModels(lccmData)
 
-  val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
+  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = classMembershipModelMaps.mapValues {
+    modelMap =>
+      MultinomialLogit(modelMap)
+  }
+
+  val modeChoiceModels
+    : Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
     extractModeChoiceModels(lccmData)
   }
 
@@ -49,7 +56,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
 
   private def extractClassMembershipModels(
     lccmData: Seq[LccmData]
-  ): Map[TourType, MultinomialLogit[String, String]] = {
+  ): Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] = {
     val classMemData = lccmData.filter(_.model == "classMembership")
     Vector[TourType](Mandatory, NonMandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
@@ -59,7 +66,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
       } yield {
         (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
       }
-      theTourType -> MultinomialLogit(utilityFunctions.toMap)
+      theTourType -> utilityFunctions.toMap
     }.toMap
   }
 
@@ -69,7 +76,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
    */
   def extractModeChoiceModels(
     lccmData: Seq[LccmData]
-  ): Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
+  ): Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
     val uniqueClasses = lccmData.map(_.latentClass).distinct
     val modeChoiceData = lccmData.filter(_.model == "modeChoice")
     Vector[TourType](Mandatory, NonMandatory).map { theTourType: TourType =>
@@ -83,10 +90,13 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
         } yield {
           (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
+        val utilityFunctionMap = utilityFunctions.toMap
 
-        theLatentClass -> MultinomialLogit(
-          utilityFunctions.toMap
-        )
+        theLatentClass -> (new MultinomialLogit[EmbodiedBeamTrip, String](
+          trip => utilityFunctionMap.get(trip.tripClassifier.value),
+          Map.empty
+        ),
+        new MultinomialLogit[BeamMode, String](mode => utilityFunctionMap.get(mode.value), Map.empty))
       }.toMap
     }.toMap
   }
