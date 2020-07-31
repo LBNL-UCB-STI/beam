@@ -1082,7 +1082,7 @@ class PersonAgent(
         log.warning(s"$id is still travelling at end of simulation.")
         log.warning(s"$id events leading up to this point:\n\t${getLog.mkString("\n\t")}")
       } else if (stateName == PerformingActivity) {
-        logger.warn(s"$id is performing Activity at end of simulation")
+        logger.debug(s"$id is performing Activity at end of simulation")
       } else {
         logger.warn(s"$id has received Finish while in state: ${stateName}")
       }
