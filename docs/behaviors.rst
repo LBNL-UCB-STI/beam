@@ -43,6 +43,8 @@ beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_in
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
+beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
 
 Latent Class Mode Choice
 ~~~~~~~~~~~~~~~~~~~~~~~~

@@ -36,7 +36,9 @@ case class PathTraversalEvent(
   secondaryFuelConsumed: Double,
   endLegPrimaryFuelLevel: Double,
   endLegSecondaryFuelLevel: Double,
-  amountPaid: Double /*,
+  amountPaid: Double,
+  fromStopIndex: Option[Int],
+  toStopIndex: Option[Int] /*,
   linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
   linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
   linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
@@ -87,6 +89,8 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
       attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
       attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
+      attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
+      attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       /*
     attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
     attr.put(ATTRIBUTE_LINKID_WITH_SPEED_MAP, linkIdsToSpeedOptions.map{case ((linkId, speedOption)) => s"$linkId:${speedOption.getOrElse(0)}"}.mkString(","))
@@ -130,6 +134,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "secondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
+  val ATTRIBUTE_FROM_STOP_INDEX: String = "fromStopIndex"
+  val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
   /*
   val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
   val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
@@ -186,7 +192,10 @@ object PathTraversalEvent {
       secondaryFuelConsumed = secondaryFuelConsumed,
       endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel = endLegSecondaryFuelLevel,
-      amountPaid = amountPaid /*,
+      amountPaid = amountPaid,
+      fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
+      toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx)
+      /*,
       linkIdsToLaneOptions = linkIdsToLaneOptions,
       linkIdsToSpeedOptions = linkIdsToSpeedOptions,
       linkIdsToGradientOptions = linkIdsToGradientOptions,
@@ -230,6 +239,9 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
+    val fromStopIndex: Option[Int] =
+      attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
+    val toStopIndex: Option[Int] = attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
     /*
     val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
       val linkIdToLaneSplit = x.split(":")
@@ -288,7 +300,10 @@ object PathTraversalEvent {
       secondaryFuelConsumed,
       endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel,
-      amountPaid /*,
+      amountPaid,
+      fromStopIndex,
+      toStopIndex
+      /*,
       linkIdsToLaneOptions,
       linkIdsToSpeedOptions,
       linkIdsToGradientOptions,
