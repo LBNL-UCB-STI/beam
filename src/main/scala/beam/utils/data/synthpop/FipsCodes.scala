@@ -8,7 +8,8 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class FipsCodes (val stateToCountyToName: Map[Int, Map[Int, String]], private val pathToFipsCodes: String) extends LazyLogging {
+class FipsCodes(val stateToCountyToName: Map[Int, Map[Int, String]], private val pathToFipsCodes: String)
+    extends LazyLogging {
 
   def getCountyNameInLowerCase(geoId: String): String = {
     try {
