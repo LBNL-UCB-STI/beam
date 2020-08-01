@@ -1,13 +1,17 @@
 package beam.sim.population
 
-import java.io.FileWriter
+import java.io.{Closeable, File, FileWriter}
 
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.config.BeamConfig.Beam.Exchange.Scenario
+import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.util.{Pair => PPair}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.population.PersonUtils
+import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdImpl}
 import org.matsim.vehicles.Vehicle
@@ -16,6 +20,8 @@ import scala.collection.{mutable, JavaConverters}
 import scala.util.Random
 import scala.collection.JavaConverters._
 import beam.utils.CloseableUtil.RichCloseable
+
+import scala.collection.mutable.Stack.StackBuilder
 
 trait PopulationScaling extends LazyLogging {
 
@@ -193,6 +199,90 @@ trait PopulationScaling extends LazyLogging {
                    )}
                    |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
+  }
+
+  def removeAgent(scenario: MutableScenario, beamConfig: BeamConfig): Unit = {
+    val removeAgent = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removeAgent
+    if (removeAgent) {
+      val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
+      val rng: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
+      if (new File(industryFile).exists()) {
+        removePerson(scenario, industryFile, rng)
+      } else {
+        logger.warn("Industry probability file not available!!!")
+      }
+    } else {
+      removeWorkPlan(scenario)
+    }
+  }
+
+  def removePerson(scenario: MutableScenario, filePath: String, rng: MersenneTwister): Unit = {
+    val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
+      GenericCsvReader.readAs[mutable.Map[String, String]](filePath, rec => rec.asScala, _ => true)
+    try {
+      val industrialProbability = iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
+      val persons = scenario.getPopulation.getPersons.values().asScala
+
+      //Build persons probability
+      val personDistributionPair = persons
+        .map(person => {
+          val industry = getIndustry(person)
+          val probability = industrialProbability.getOrElse(industry, 0.0)
+          new PPair[Person, java.lang.Double](person, probability)
+        })
+        .toVector
+
+      //Processing only if we got any probability greater then 0
+      val probabilitySum = personDistributionPair.count(_.getValue > 0.0)
+      if (probabilitySum > 0) {
+        val enumeratedDistribution = new EnumeratedDistribution[Person](rng, personDistributionPair.asJava)
+
+        //Calculate number of persons to be removed from population
+        val removalItemSize = persons
+          .groupBy(getIndustry)
+          .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
+          .sum
+
+        (0 until Math.round(removalItemSize.toFloat)).map { _ =>
+          val person = enumeratedDistribution.sample()
+          scenario.getPopulation.getPersons.remove(person.getId)
+        }
+      }
+
+    } finally {
+      toClose.close()
+    }
+  }
+
+  def getIndustry(person: Person): String = {
+    val industryAttribute = person.getAttributes.getAttribute("industry")
+    if (industryAttribute != null) industryAttribute.toString else ""
+  }
+
+  def removeWorkPlan(scenario: MutableScenario): Unit = {
+    scenario.getPopulation.getPersons.values().asScala.foreach { person: Person =>
+      val originalPlan = person.getSelectedPlan
+      val planElements = originalPlan.getPlanElements.asScala
+      if (planElements.exists(isWorkActivity)) {
+        //Keep only first activity of day
+        val daysFirstActivity = planElements.head.asInstanceOf[Activity]
+        val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+        daysFirstActivity.setEndTime(Double.NegativeInfinity)
+        newPlan.addActivity(daysFirstActivity)
+        person.addPlan(newPlan)
+        person.removePlan(originalPlan)
+        person.setSelectedPlan(newPlan)
+      }
+    }
+  }
+
+  def isWorkActivity(plan: PlanElement): Boolean = {
+    plan match {
+      case activity: Activity =>
+        activity.getType.toLowerCase() == "work"
+      case _ =>
+        false
+    }
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
