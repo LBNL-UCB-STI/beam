@@ -12,7 +12,7 @@ object ParkingMNL {
     Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0),
-    Parameters.RefuelWaitTime                        -> UtilityFunctionOperation.Multiplier(-1.0)
+    Parameters.RefuelWaitTime                        -> UtilityFunctionOperation.Multiplier(0.0)
   )
 
   /**

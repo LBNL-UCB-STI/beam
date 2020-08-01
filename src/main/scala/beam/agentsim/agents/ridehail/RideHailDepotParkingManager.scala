@@ -1,7 +1,11 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchConfiguration, ParkingZoneSearchParams}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
+  ParkingAlternative,
+  ParkingZoneSearchConfiguration,
+  ParkingZoneSearchParams
+}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location

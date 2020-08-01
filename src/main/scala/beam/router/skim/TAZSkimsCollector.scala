@@ -13,6 +13,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
 import beam.utils.DateUtils
+import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -22,7 +23,8 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
   import TAZSkimsCollector._
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
-  private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
+  private val endOfSimulationTime: Int =
+    Time.parseTime(beamServices.beamScenario.beamConfig.beam.agentsim.endTime).toInt
   private val timeBin: Int = beamServices.beamConfig.beam.router.skim.taz_skimmer.timeBin
 
   override def receive: Receive = {

@@ -13,6 +13,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.utils.misc.Time
 
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -38,8 +39,11 @@ trait SkimmerTimeBin {
 }
 
 abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime) with SkimmerTimeBin with ScalaEvent {
-  override def numOfTimeBins: Int = beamServices.beamConfig.beam.agentsim.endTime.split(":")(0).toInt * 3600 / timeIntervalInSeconds
+    extends Event(eventTime)
+    with SkimmerTimeBin
+    with ScalaEvent {
+  override def numOfTimeBins: Int =
+    Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime).toInt / timeIntervalInSeconds
   protected def skimName: String
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
@@ -47,8 +51,9 @@ abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamService
 }
 
 abstract class AbstractSkimmerReadOnly(beamConfig: BeamConfig) extends LazyLogging with SkimmerTimeBin {
-  override def numOfTimeBins: Int = beamConfig.beam.agentsim.endTime.split(":")(0).toInt * 3600 / timeIntervalInSeconds
-  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = mutable.ListBuffer()
+  override def numOfTimeBins: Int = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt / timeIntervalInSeconds
+  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
+    mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
 }
 

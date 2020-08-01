@@ -10,6 +10,15 @@ case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends 
 
   override def timeIntervalInSeconds: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
 
+  def getLatestSkim(actor: String, key: String): Map[TAZSkimmerKey, TAZSkimmerInternal] = {
+    pastSkims.headOption
+      .map(
+        _.filter(y => y._1.asInstanceOf[TAZSkimmerKey].actor == actor & y._1.asInstanceOf[TAZSkimmerKey].key == key)
+          .map(x => x._1.asInstanceOf[TAZSkimmerKey] -> x._2.asInstanceOf[TAZSkimmerInternal])
+      )
+      .get
+  }
+
   def getLatestSkim(
     time: Int,
     taz: Id[TAZ],

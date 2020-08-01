@@ -8,6 +8,7 @@ import beam.sim.BeamServices
 import beam.utils.DateUtils
 import helics.BeamFederate
 import helics.BeamFederate.BeamFederateTrigger
+import org.matsim.core.utils.misc.Time
 
 import scala.collection.mutable.ListBuffer
 
@@ -22,7 +23,7 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
   import EventsAccumulator._
   import beamServices._
 
-  private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
+  private val endOfSimulationTime: Int = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt
   private val beamFederate = BeamFederate.getInstance(beamServices)
   private val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
     ListBuffer.empty[org.matsim.api.core.v01.events.Event]

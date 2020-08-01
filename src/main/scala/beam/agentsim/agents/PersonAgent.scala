@@ -439,15 +439,12 @@ class PersonAgent(
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
-          (beamVehicles ++ potentiallyChargingBeamVehicles).foreach(idVehicleOrTokenTuple => {
-            beamScenario.privateVehicles
-              .get(idVehicleOrTokenTuple._1)
-              .foreach(beamvehicle => {
-                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
-                }
-              })
-          })
+          (beamVehicles ++ potentiallyChargingBeamVehicles)
+            .flatMap(idVehicleOrTokenTuple => beamScenario.privateVehicles.get(idVehicleOrTokenTuple._1))
+            .filter(v => (v.isPHEV | v.isBEV) & v.isConnectedToChargingPoint())
+            .foreach({
+              handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, _)
+            })
           stay replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
@@ -1002,7 +999,9 @@ class PersonAgent(
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
-                  potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
+                  if ((personalVeh.isBEV | personalVeh.isPHEV) & personalVeh.isConnectedToChargingPoint()) {
+                    potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
+                  }
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
                   None
