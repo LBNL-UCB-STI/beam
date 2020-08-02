@@ -47,6 +47,7 @@ class TravelTimeGoogleStatistic(
   if (cfg.enable && apiKey == null)
     logger.warn("google api key is empty")
   private val queryDate = getQueryDate(cfg.queryDate)
+  logger.info(s"queryDate :$queryDate")
 
   private val enabled = cfg.enable && apiKey != null
   private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
