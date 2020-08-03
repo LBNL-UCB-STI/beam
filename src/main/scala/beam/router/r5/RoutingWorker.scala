@@ -169,7 +169,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       graphHopper = new GraphHopperWrapper(
         noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
         workerParams.vehicleTypes, workerParams.fuelTypePrices,
-        workerParams.links, Some(newTravelTime))
+        workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
@@ -179,9 +179,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
+      val newTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
+      createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
+      graphHopper = new GraphHopperWrapper(
+        noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
+        workerParams.vehicleTypes, workerParams.fuelTypePrices,
+        workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
       r5 = new R5Wrapper(
         workerParams,
-        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map),
+        newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
       log.info(
@@ -213,7 +219,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       workerParams.transportNetwork,
       new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
       graphHopperDir,
-      workerParams.links,
+      workerParams.networkHelper.allLinks.toSeq,
       travelTime
     )
   }
@@ -236,7 +242,6 @@ object RoutingWorker {
       R5Parameters(
         beamScenario.beamConfig,
         transportNetwork,
-        beamScenario.network.getLinks.values().asScala.toSeq,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
         beamScenario.ptFares,

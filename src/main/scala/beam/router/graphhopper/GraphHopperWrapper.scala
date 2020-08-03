@@ -143,13 +143,10 @@ object GraphHopperWrapper {
 
     //    val fastestCar = new FastestWeighting(carFlagEncoder)
     val carCHs = (0 until noOfTimeBins).map { hour =>
-      val weights = travelTime match {
-        case Some(times) =>
+      val weights = travelTime.map{times =>
           links.map(l =>
             l.getId.toString.toLong -> times.getLinkTravelTime(l, 0, null, null)).toMap
-
-        case None => Map[Long, Double]()
-      }
+      }.getOrElse(Map.empty)
 
       CHConfig.nodeBased(s"${BeamGraphHopper.profilePrefix}$hour",
         new BeamWeighting(carFlagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, weights))

@@ -35,13 +35,10 @@ class BeamGraphHopper(links: Seq[Link], travelTime: Option[TravelTime]) extends 
     }
 
     val time = profile.getName.split(BeamGraphHopper.profilePrefix)(1)
-    val wayId2TravelTime = travelTime match {
-      case Some(times) =>
+    val wayId2TravelTime = travelTime.map{times=>
           links.map(l =>
             l.getId.toString.toLong -> times.getLinkTravelTime(l, time.toInt, null, null)).toMap
-
-      case None => Map[Long, Double]()
-    }
+    }.getOrElse(Map.empty)
 
     new BeamWeighting(encoder, turnCostProvider, wayId2TravelTime)
   }
