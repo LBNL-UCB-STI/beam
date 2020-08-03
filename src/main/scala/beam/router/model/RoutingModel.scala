@@ -7,8 +7,6 @@ import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.vehicles.Vehicle
 import scala.collection.mutable.ArrayBuffer
 
-import beam.router.model.RoutingModel.LinksTimesDistances
-
 /**
   * BEAM
   */
