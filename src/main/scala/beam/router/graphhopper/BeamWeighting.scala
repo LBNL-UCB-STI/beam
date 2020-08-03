@@ -9,14 +9,15 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
 
 class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider, wayId2TravelTime: Map[Long, Double])
-  extends FastestWeighting(flagEncoder, turnCostProvider) with LazyLogging {
+    extends FastestWeighting(flagEncoder, turnCostProvider)
+    with LazyLogging {
 
   override def getMinWeight(distance: Double): Double = super.getMinWeight(distance)
 
   override def calcEdgeMillis(edgeState: EdgeIteratorState, reverse: Boolean): Long = {
     calcEdgeTime(edgeState, reverse) match {
       case Some(value) => (1000 * value).toLong
-      case None => super.calcEdgeMillis(edgeState, reverse)
+      case None        => super.calcEdgeMillis(edgeState, reverse)
     }
   }
 
@@ -25,7 +26,7 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
   }
 
   private def calcEdgeTime(edgeState: EdgeIteratorState, reverse: Boolean): Option[Double] = {
-    val edgeId = if (reverse) 2 * edgeState.getEdge else 2 * edgeState.getEdge + 1
+    val edgeId = if (reverse) 2 * edgeState.getEdge + 1 else 2 * edgeState.getEdge
     wayId2TravelTime.get(edgeId)
   }
 

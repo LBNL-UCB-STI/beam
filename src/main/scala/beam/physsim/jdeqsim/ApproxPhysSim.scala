@@ -79,8 +79,7 @@ class ApproxPhysSim(
     dates = beamServices.beamScenario.dates,
     networkHelper = beamServices.networkHelper,
     fareCalculator = beamServices.fareCalculator,
-    tollCalculator = beamServices.tollCalculator,
-    links = Seq()
+    tollCalculator = beamServices.tollCalculator
   )
 
   def run(travelTime: TravelTime): TravelTime = {

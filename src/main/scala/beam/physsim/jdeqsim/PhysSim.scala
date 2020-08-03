@@ -42,8 +42,7 @@ class PhysSim(
     dates = beamServices.beamScenario.dates,
     networkHelper = beamServices.networkHelper,
     fareCalculator = beamServices.fareCalculator,
-    tollCalculator = beamServices.tollCalculator,
-    links = Seq()
+    tollCalculator = beamServices.tollCalculator
   )
 
   def run(nIterations: Int, reroutePerIterPct: Double, travelTime: TravelTime): TravelTime = {
