@@ -8,5 +8,6 @@ case class Route(
   destination: WgsCoordinate,
   distanceInMeters: Int,
   durationIntervalInSeconds: Int,
+  durationInTrafficSeconds: Int,
   segments: Seq[Segment] = Seq.empty
 )
