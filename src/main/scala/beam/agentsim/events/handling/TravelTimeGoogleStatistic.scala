@@ -87,7 +87,7 @@ class TravelTimeGoogleStatistic(
       val result = using(adapter) { adapter =>
         queryGoogleAPI(events, adapter)
       }.sortBy(
-        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
+        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds)
       )
       val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
       val num = writeToCsv(result, filePath)
@@ -125,6 +125,7 @@ class TravelTimeGoogleStatistic(
       "destLng",
       "simTravelTime",
       "googleTravelTime",
+      "googleTravelTimeWithTraffic",
       "euclideanDistanceInMeters",
       "legLength",
       "googleDistance"
@@ -143,6 +144,7 @@ class TravelTimeGoogleStatistic(
               ec.event.endX,
               ec.event.arrivalTime - ec.event.departureTime,
               ec.route.durationIntervalInSeconds,
+              ec.route.durationInTrafficSeconds,
               geoUtils.distLatLon2Meters(
                 new Coord(ec.event.startX, ec.event.startY),
                 new Coord(ec.event.endX, ec.event.endY)
