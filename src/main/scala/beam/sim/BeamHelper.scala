@@ -569,8 +569,8 @@ trait BeamHelper extends LazyLogging {
     beamScenario: BeamScenario,
     outputDir: String
   ): Unit = {
-    if (beamScenario.beamConfig.beam.agentsim.fractionOfNonWorkingPeople != 0.0) {
-      applyFractionOfNonWorkingPeople(scenario, beamServices.beamConfig, scenario.getConfig)
+    if (beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity != 0.0) {
+      applyfractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
 
     samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
@@ -601,7 +601,7 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  private def applyFractionOfNonWorkingPeople(
+  private def applyfractionOfPlansWithSingleActivity(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matSimConf: MatsimConfig
@@ -611,7 +611,7 @@ trait BeamHelper extends LazyLogging {
     val people = random.shuffle(scenario.getPopulation.getPersons.values().asScala)
 
     val peopleForRemovingWorkActivities =
-      (people.size * beamConfig.beam.agentsim.fractionOfNonWorkingPeople).toInt
+      (people.size * beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity).toInt
 
     if (!beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       people
