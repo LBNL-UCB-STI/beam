@@ -570,7 +570,7 @@ trait BeamHelper extends LazyLogging {
     outputDir: String
   ): Unit = {
     if (beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity != 0.0) {
-      applyfractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
+      applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
 
     samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
@@ -601,7 +601,7 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  private def applyfractionOfPlansWithSingleActivity(
+  private def applyFractionOfPlansWithSingleActivity(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matSimConf: MatsimConfig
