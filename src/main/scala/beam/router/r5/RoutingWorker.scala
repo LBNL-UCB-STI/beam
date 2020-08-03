@@ -16,7 +16,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.graphhopper.GraphHopper
+import beam.router.graphhopper.GraphHopperWrapper
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
@@ -34,6 +34,7 @@ import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
@@ -43,6 +44,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       R5Parameters.fromConfig(config)
     })
   }
+
+  private val noOfTimeBins = Math.floor(
+    Time.parseTime(workerParams.beamConfig.beam.agentsim.endTime) /
+      workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
 
   private val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
@@ -75,7 +80,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   )
 
   private val graphHopperDir: String = workerParams.beamConfig.beam.inputDirectory + "/graphhopper"
-  private var graphHopper: GraphHopper = _
+  private var graphHopper: GraphHopperWrapper = _
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -89,7 +94,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   override def preStart(): Unit = {
     createGraphHopperDirectoryIfNotExisting()
-    graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
+    graphHopper = new GraphHopperWrapper(
+      noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
+      workerParams.vehicleTypes, workerParams.fuelTypePrices,
+      Seq(), None)
     askForMoreWork()
   }
 
@@ -158,7 +166,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
-      graphHopper = new GraphHopper(graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices)
+      graphHopper = new GraphHopperWrapper(
+        noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
+        workerParams.vehicleTypes, workerParams.fuelTypePrices,
+        workerParams.links, Some(newTravelTime))
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
@@ -181,11 +192,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
-        leg: BeamLeg,
-        vehicleId: Id[Vehicle],
-        vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int
-        ) =>
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
+    embodyRequestId: Int
+    ) =>
       val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
       sender ! response
       askForMoreWork()
@@ -194,31 +205,34 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  private def createGraphHopperDirectoryIfNotExisting(travelTime:Option[TravelTime] = None): Unit = {
-//    if (!new File(graphHopperDir).delete().exists())
+  private def createGraphHopperDirectoryIfNotExisting(travelTime: Option[TravelTime] = None): Unit = {
+    //    if (!new File(graphHopperDir).delete().exists())
     new File(graphHopperDir).delete()
-      GraphHopper.createGraphDirectoryFromR5(
-        workerParams.transportNetwork,
-        new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
-        graphHopperDir,
-        workerParams.links,
-        travelTime
-      )
+    GraphHopperWrapper.createGraphDirectoryFromR5(
+      noOfTimeBins,
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
+      graphHopperDir,
+      workerParams.links,
+      travelTime
+    )
   }
 }
 
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
+
   import scala.collection.JavaConverters._
+
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
-    beamScenario: BeamScenario,
-    transportNetwork: TransportNetwork,
-    networkHelper: NetworkHelper,
-    fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator
-  ): Props = Props(
-  new RoutingWorker(
+             beamScenario: BeamScenario,
+             transportNetwork: TransportNetwork,
+             networkHelper: NetworkHelper,
+             fareCalculator: FareCalculator,
+             tollCalculator: TollCalculator
+           ): Props = Props(
+    new RoutingWorker(
       R5Parameters(
         beamScenario.beamConfig,
         transportNetwork,
@@ -236,23 +250,23 @@ object RoutingWorker {
   )
 
   case class R5Request(
-    from: Coord,
-    to: Coord,
-    time: Int,
-    directMode: LegMode,
-    accessMode: LegMode,
-    withTransit: Boolean,
-    egressMode: LegMode,
-    timeValueOfMoney: Double,
-    beamVehicleTypeId: Id[BeamVehicleType]
-  )
+                        from: Coord,
+                        to: Coord,
+                        time: Int,
+                        directMode: LegMode,
+                        accessMode: LegMode,
+                        withTransit: Boolean,
+                        egressMode: LegMode,
+                        timeValueOfMoney: Double,
+                        beamVehicleTypeId: Id[BeamVehicleType]
+                      )
 
   def createBushwackingBeamLeg(
-    atTime: Int,
-    startUTM: Location,
-    endUTM: Location,
-    geo: GeoUtils
-  ): BeamLeg = {
+                                atTime: Int,
+                                startUTM: Location,
+                                endUTM: Location,
+                                geo: GeoUtils
+                              ): BeamLeg = {
     val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
@@ -267,12 +281,12 @@ object RoutingWorker {
   }
 
   def createBushwackingTrip(
-    originUTM: Location,
-    destUTM: Location,
-    atTime: Int,
-    body: StreetVehicle,
-    geo: GeoUtils
-  ): EmbodiedBeamTrip = {
+                             originUTM: Location,
+                             destUTM: Location,
+                             atTime: Int,
+                             body: StreetVehicle,
+                             geo: GeoUtils
+                           ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
@@ -288,12 +302,12 @@ object RoutingWorker {
   }
 
   class StopVisitor(
-    val streetLayer: StreetLayer,
-    val dominanceVariable: StreetRouter.State.RoutingVariable,
-    val maxStops: Int,
-    val minTravelTimeSeconds: Int,
-    val destinationSplit: Split
-  ) extends RoutingVisitor {
+                     val streetLayer: StreetLayer,
+                     val dominanceVariable: StreetRouter.State.RoutingVariable,
+                     val maxStops: Int,
+                     val minTravelTimeSeconds: Int,
+                     val destinationSplit: Split
+                   ) extends RoutingVisitor {
     private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
     val stops: TIntIntMap = new TIntIntHashMap
     private var s0: StreetRouter.State = _
