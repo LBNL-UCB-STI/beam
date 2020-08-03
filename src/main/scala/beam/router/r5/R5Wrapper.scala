@@ -1086,7 +1086,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   ): Double = {
     if (vehicleType.vehicleCategory == VehicleCategory.Bike && shouldDecreaseTimeWhenBicycle && bikeLanesLinkIds
           .contains(linkId)) {
-      beamConfig.beam.routing.r5.bikeLaneDecreaseTravelTimeFactor
+      beamConfig.beam.routing.r5.bikeLaneScaleFactor
     } else {
       1D
     }
