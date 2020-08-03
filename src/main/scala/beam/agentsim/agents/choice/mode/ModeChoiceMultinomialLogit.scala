@@ -41,6 +41,7 @@ class ModeChoiceMultinomialLogit(
   private val shouldLogDetails: Boolean = false
 
   override def apply(
+    // ?? go to each bike and adjust according
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
@@ -75,14 +76,14 @@ class ModeChoiceMultinomialLogit(
         val personId = person.map(_.getId)
         val msgToLog =
           s"""|@@@[$personId]-----------------------------------------
-              |@@@[$personId]Alternatives:${alternatives}
-              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]Alternatives:$alternatives
+              |@@@[$personId]AttributesOfIndividual:$attributesOfIndividual
+              |@@@[$personId]DestinationActivity:$destinationActivity
               |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
               |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
-              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]chosenModeOpt:$chosenModeOpt
+              |@@@[$personId]expectedMaximumUtility:$chosenModeOpt
               |@@@[$personId]-----------------------------------------
               |""".stripMargin
         logger.debug(msgToLog)
@@ -372,8 +373,7 @@ object ModeChoiceMultinomialLogit {
         "transfer"  -> UtilityFunctionOperation("multiplier", params.transfer)
       ),
       "bike" -> Map(
-        "intercept"      -> UtilityFunctionOperation("intercept", params.bike_intercept),
-        "attractiveness" -> UtilityFunctionOperation("multiplier", params.bike_attractiviness)
+        "intercept"      -> UtilityFunctionOperation("intercept", params.bike_intercept)
       ),
       "walk_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.walk_transit_intercept),

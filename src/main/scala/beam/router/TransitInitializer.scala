@@ -1,5 +1,6 @@
 package beam.router
 
+import java.io.File
 import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
@@ -11,16 +12,18 @@ import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.{DateUtils, TravelTimeUtils}
+import beam.utils.{DateUtils, FileUtils, TravelTimeUtils}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 class TransitInitializer(
   beamConfig: BeamConfig,
@@ -31,6 +34,29 @@ class TransitInitializer(
   travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
   private val numStopsNotFound = new AtomicInteger()
+
+  private val bikeLanesLinkIds = loadBikeLaneLinkIds()
+
+  type LinkId = Int
+
+  def loadBikeLaneLinkIds(): Set[LinkId] = {
+    Try {
+      val result: Set[String] = {
+        val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
+        if (new File(bikeLaneLinkIdsPath).isFile) {
+          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
+        } else {
+          Set.empty
+        }
+      }
+      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
+    } match {
+      case Failure(exception) =>
+        logger.error("Could not load the bikeLaneLinkIds", exception)
+        Set.empty
+      case Success(value) => value
+    }
+  }
 
   /*
    * Plan of action:
@@ -90,6 +116,7 @@ class TransitInitializer(
           StreetMode.CAR,
           transportNetwork.streetLayer
         )
+        //HERE?
         val scaledLinkTimes = TravelTimeUtils.scaleTravelTime(
           streetSeg.getDuration,
           math.round(linksTimesAndDistances.travelTimes.tail.sum.toFloat),
@@ -154,11 +181,22 @@ class TransitInitializer(
               .map {
                 case Array((departureTimeFrom, from), (_, to)) =>
                   val duration = tripSchedule.arrivals(to) - departureTimeFrom
+                  val bikeScaleFactor = beamConfig.beam.routing.r5.bikeLaneScaleFactor
+                  val path: BeamPath = transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                  val scaledTravelTime = path.linkIds.zip(path.linkTravelTime).map {
+                    case (linkId: LinkId, travelTime: Double) =>
+                      if (bikeLanesLinkIds.contains(linkId)) {
+                        travelTime * bikeScaleFactor
+                      } else {
+                        travelTime
+                      }
+                  }
+                  path.copy(linkTravelTime = scaledTravelTime)
                   BeamLeg(
                     departureTimeFrom,
                     mode,
                     duration,
-                    transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                    path
                   ).scaleToNewDuration(duration)
               }
               .toArray
