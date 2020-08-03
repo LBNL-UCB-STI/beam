@@ -5,6 +5,7 @@ import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
