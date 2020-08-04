@@ -45,6 +45,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     })
   }
 
+  private val carRouter = workerParams.beamConfig.beam.routing.carRouter
+
   private val noOfTimeBins = Math.floor(
     Time.parseTime(workerParams.beamConfig.beam.agentsim.endTime) /
       workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
@@ -93,12 +95,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   override def preStart(): Unit = {
-    createGraphHopperDirectoryIfNotExisting()
-    graphHopper = new GraphHopperWrapper(
-      noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
-      workerParams.vehicleTypes, workerParams.fuelTypePrices,
-      workerParams.networkHelper.allLinks.toSeq, None)
-    askForMoreWork()
+    if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+      createGraphHopperDirectoryIfNotExisting()
+      graphHopper = new GraphHopperWrapper(
+        carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
+        graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
+        workerParams.networkHelper.allLinks.toSeq, None)
+      askForMoreWork()
+    }
   }
 
   override def postStop(): Unit = {
@@ -147,21 +151,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          if (!request.withTransit && request.streetVehicles.size == 1 &&
+          if ((carRouter == "staticGH" || carRouter == "quasiDynamicGH") &&
+            !request.withTransit && request.streetVehicles.size == 1 &&
             request.streetVehicles.head.mode == CAR) {
-            val ghRes = graphHopper.calcRoute(request)
-//            val r5Res = r5.calcRoute(request)
-//            r5.get
-            def toLineString(routingResponse: RoutingResponse):String = routingResponse.itineraries.headOption
-              .flatMap(_.legs.headOption).map(_.beamLeg.travelPath.linkIds)
-              .getOrElse(Seq.empty)
-                .map(id2Link(_)).flatMap{ case (coord, coord1) => Seq(coord,coord1)}.map(x=>s"${x.getX} ${x.getY}")
-              .toIndexedSeq.distinct.mkString("LINESTRING(",",",")")
-//            println(ghRes == r5Res)
-//            val ghLineString = toLineString(ghRes)
-//            val r5LineString = toLineString(r5Res)
-//            println(ghLineString + r5LineString)
-            ghRes
+            graphHopper.calcRoute(request)
           } else {
             r5.calcRoute(request)
           }
@@ -175,11 +168,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
-      graphHopper = new GraphHopperWrapper(
-        noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
-        workerParams.vehicleTypes, workerParams.fuelTypePrices,
-        workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+      if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+        createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
+        graphHopper = new GraphHopperWrapper(
+          carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
+          graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
+          workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+      }
+
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
@@ -190,11 +186,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeRemote(map) =>
       val newTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
-      createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
-      graphHopper = new GraphHopperWrapper(
-        noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
-        workerParams.vehicleTypes, workerParams.fuelTypePrices,
-        workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+      if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+        createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
+        graphHopper = new GraphHopperWrapper(
+          carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
+          graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
+          workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+      }
+
       r5 = new R5Wrapper(
         workerParams,
         newTravelTime,
@@ -225,6 +224,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     //    if (!new File(graphHopperDir).delete().exists())
     new File(graphHopperDir).delete()
     GraphHopperWrapper.createGraphDirectoryFromR5(
+      carRouter,
       noOfTimeBins,
       workerParams.transportNetwork,
       new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
