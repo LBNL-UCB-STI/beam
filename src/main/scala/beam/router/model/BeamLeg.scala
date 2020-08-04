@@ -29,8 +29,6 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
       )
   }
 
-  // scale here or change linkIds
-  // just scale here and that is it
   def scaleToNewDuration(newDuration: Int): BeamLeg = {
     val ratio = if (newDuration == 0 || this.duration == 0) 0 else newDuration.toDouble / this.duration.toDouble
     val newTravelPath = this.travelPath.scaleTravelTimes(ratio)
@@ -48,7 +46,6 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
         duration = newTravelPath.duration,
         travelPath = newTravelPath
       )
-
   }
 
   /**
