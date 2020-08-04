@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
 
 private case class LinkAttributes(nodeId: String, linkId: String) extends Attributes
 private case class TrafficAttributes(linkId: String) extends Attributes
-private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, transcomLinkId: String)
+private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, linkIdT: String)
     extends Attributes
 
 object NewYorkTrafficSpeedAnalysis {
@@ -91,6 +91,7 @@ object NewYorkTrafficSpeedAnalysis {
         .toArray
         .groupBy { case (linkId, linkPoints) => (linkId, linkPoints) }
 
+      var id: Int = 0
       r.foreach {
         case ((linkId, linksPoints), _) =>
           println(s"linkId: $linkId")
@@ -102,17 +103,19 @@ object NewYorkTrafficSpeedAnalysis {
 
             networkShapeWriter.add(
               geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
-              "1",
+              id.toString,
               MappingAttributes(link.getId.toString, link.getFromNode.getId.toString, fromDiff, linkId)
             )
+            id += 1
 
             networkShapeWriter.add(
               geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
-              "1",
+              id.toString,
               MappingAttributes(link.getId.toString, link.getToNode.getId.toString, toDiff, linkId)
             )
+            id += 1
 
-            println(s"Link: ${link}")
+            println(s"Link: ${link}, point: ${point}")
             println(s"Found closest. fromWgs: ${fromWgs}, fromDiff: $fromDiff, toWgs: $toWgs, toDiff: $toDiff")
           }
           println()
