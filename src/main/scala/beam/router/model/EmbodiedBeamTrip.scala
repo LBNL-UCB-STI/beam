@@ -42,12 +42,6 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
 
-  override def toString: String = {
-    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
-      .map(head => head.beamLeg.startTime)
-      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
-  }
-
   def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {
     val deltaStart = newStartTime - legs.head.beamLeg.startTime
     this.copy(legs = legs.map { leg =>
@@ -57,6 +51,12 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
     legs.map(leg => leg.beamVehicleId).distinct
+  }
+
+  override def toString: String = {
+    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
+      .map(head => head.beamLeg.startTime)
+      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
   }
 }
 
