@@ -2,7 +2,6 @@ package beam.utils
 
 object TravelTimeUtils {
 
-  // maybe move all scaling to this class
   def scaleTravelTime(
     newTravelTime: Int,
     originalTravelTime: Int,
