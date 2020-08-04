@@ -46,6 +46,7 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
         duration = newTravelPath.duration,
         travelPath = newTravelPath
       )
+
   }
 
   /**
