@@ -5,9 +5,9 @@ import java.time.ZonedDateTime
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.BeamRouter
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
