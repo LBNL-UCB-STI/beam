@@ -130,7 +130,6 @@ class TransitInitializer(
           StreetMode.CAR,
           transportNetwork.streetLayer
         )
-        //HERE?
         val scaledLinkTimes = TravelTimeUtils.scaleTravelTime(
           streetSeg.getDuration,
           math.round(linksTimesAndDistances.travelTimes.tail.sum.toFloat),
@@ -195,22 +194,11 @@ class TransitInitializer(
               .map {
                 case Array((departureTimeFrom, from), (_, to)) =>
                   val duration = tripSchedule.arrivals(to) - departureTimeFrom
-                  val bikeScaleFactor = beamConfig.beam.routing.r5.bikeLaneScaleFactor
-                  val path: BeamPath = transitPaths(from)(departureTimeFrom, duration, tripVehId)
-                  val scaledTravelTime = path.linkIds.zip(path.linkTravelTime).map {
-                    case (linkId: LinkId, travelTime: Double) =>
-                      if (bikeLanesLinkIds.contains(linkId)) {
-                        travelTime * bikeScaleFactor
-                      } else {
-                        travelTime
-                      }
-                  }
-                  path.copy(linkTravelTime = scaledTravelTime)
                   BeamLeg(
                     departureTimeFrom,
                     mode,
                     duration,
-                    path
+                    transitPaths(from)(departureTimeFrom, duration, tripVehId)
                   ).scaleToNewDuration(duration)
               }
               .toArray
