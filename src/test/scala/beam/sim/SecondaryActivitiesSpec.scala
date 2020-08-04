@@ -97,7 +97,7 @@ class SecondaryActivitiesSpec
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {
         case (mode, value) => {
-          assert(value < modeChoice(mode))
+          assert(value <= modeChoice(mode))
         }
       }
     }
@@ -139,7 +139,7 @@ class SecondaryActivitiesSpec
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {
         case (mode, value) => {
-          assert(value < modeChoice(mode))
+          assert(value <= modeChoice(mode))
         }
       }
     }
