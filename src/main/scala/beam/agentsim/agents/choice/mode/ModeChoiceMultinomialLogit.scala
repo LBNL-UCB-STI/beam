@@ -204,10 +204,35 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
   ): Double = {
-    val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    getGeneralizedTimeOfTripInHours(embodiedBeamTrip, attributesOfIndividual, destinationActivity)
+  }
+
+  private def getGeneralizedTimeOfTripInHours(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity],
+    adjustSpecialBikeLines: Boolean = false
+  ): Double = {
+    val waitingTime: Int = beamTripDurationInSecs(embodiedBeamTrip, adjustSpecialBikeLines = adjustSpecialBikeLines)
     embodiedBeamTrip.legs
       .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
       .sum + getGeneralizedTime(waitingTime, None, None)
+  }
+
+  private def beamTripDurationInSecs(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    adjustSpecialBikeLines: Boolean = false
+  ): Int = {
+    if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
+      embodiedBeamTrip.legs
+        .map { embodiedBeamLeg: EmbodiedBeamLeg =>
+          beamPathDurationInSecondsAdjusted(embodiedBeamLeg.beamLeg.travelPath)
+        }
+        .sum
+        .toInt
+    } else {
+      embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    }
   }
 
   private def beamPathDurationInSecondsAdjusted(path: BeamPath): Double = {
@@ -215,7 +240,7 @@ class ModeChoiceMultinomialLogit(
     path.linkIds
       .zip(path.linkTravelTime)
       .map {
-        case (linkId: LinkId, travelTime: Double) =>
+        case (linkId: Int, travelTime: Double) =>
           if (bikeLanesLinkIds.contains(linkId)) {
             travelTime * bikeScaleFactor
           } else {
@@ -223,26 +248,6 @@ class ModeChoiceMultinomialLogit(
           }
       }
       .sum
-  }
-
-  private def getGeneralizedTimeOfTripAdjustedToBikes(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    attributesOfIndividual: Option[AttributesOfIndividual],
-    destinationActivity: Option[Activity]
-  ): Double = {
-    val waitingTime: Int = if (embodiedBeamTrip.tripClassifier == BIKE) {
-      embodiedBeamTrip.legs
-        .map { embodiedBeamLeg: EmbodiedBeamLeg =>
-          beamPathDurationInSecondsAdjusted(embodiedBeamLeg.beamLeg.travelPath)
-        }
-        .sum
-        .toInt // IS THE SAME UNIT OF TIME?
-    } else {
-      embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
-    }
-    embodiedBeamTrip.legs
-      .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
-      .sum + getGeneralizedTime(waitingTime, None, None)
   }
 
   override def getGeneralizedTimeOfLeg(
@@ -263,7 +268,6 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
-  // Convert from seconds to hours
   override def getGeneralizedTime(
     time: Double,
     beamMode: Option[BeamMode] = None,
@@ -308,8 +312,7 @@ class ModeChoiceMultinomialLogit(
       }
       assert(numTransfers >= 0)
       val scaledTime = attributesOfIndividual.getVOT(
-//        getGeneralizedTimeOfTripAdjustedToBikes(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
-        getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
+        getGeneralizedTimeOfTripInHours(altAndIdx._1, Some(attributesOfIndividual), destinationActivity, adjustSpecialBikeLines = true)
       )
 
       val percentile =
