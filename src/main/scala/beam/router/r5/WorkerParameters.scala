@@ -10,8 +10,8 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
+import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
