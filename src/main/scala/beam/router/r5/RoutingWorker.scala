@@ -97,7 +97,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     graphHopper = new GraphHopperWrapper(
       noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize, graphHopperDir, workerParams.geo,
       workerParams.vehicleTypes, workerParams.fuelTypePrices,
-      Seq(), None)
+      workerParams.networkHelper.allLinks.toSeq, None)
     askForMoreWork()
   }
 
@@ -150,6 +150,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             request.streetVehicles.head.mode == CAR) {
             val ghRes = graphHopper.calcRoute(request)
             val r5Res = r5.calcRoute(request)
+//            r5.get
             println(ghRes == r5Res)
             ghRes
           } else {
