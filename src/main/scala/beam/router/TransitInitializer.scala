@@ -36,29 +36,6 @@ class TransitInitializer(
 ) extends ExponentialLazyLogging {
   private val numStopsNotFound = new AtomicInteger()
 
-  private val bikeLanesLinkIds = loadBikeLaneLinkIds()
-
-  type LinkId = Int
-
-  def loadBikeLaneLinkIds(): Set[LinkId] = {
-    Try {
-      val result: Set[String] = {
-        val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
-        if (new File(bikeLaneLinkIdsPath).isFile) {
-          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
-        } else {
-          Set.empty
-        }
-      }
-      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
-    } match {
-      case Failure(exception) =>
-        logger.error("Could not load the bikeLaneLinkIds", exception)
-        Set.empty
-      case Success(value) => value
-    }
-  }
-
   /*
    * Plan of action:
    * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and
