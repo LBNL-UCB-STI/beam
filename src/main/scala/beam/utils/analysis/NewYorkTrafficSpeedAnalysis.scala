@@ -20,6 +20,8 @@ import scala.util.control.NonFatal
 
 private case class LinkAttributes(nodeId: String, linkId: String) extends Attributes
 private case class TrafficAttributes(linkId: String) extends Attributes
+private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, transcomLinkId: String)
+    extends Attributes
 
 object NewYorkTrafficSpeedAnalysis {
 
@@ -29,7 +31,7 @@ object NewYorkTrafficSpeedAnalysis {
   val geometryFactory: GeometryFactory = new GeometryFactory()
 
   val shouldCreateNetworkShape: Boolean = false
-  val shouldCreateTrafficShape: Boolean = true
+  val shouldCreateTrafficShape: Boolean = false
 
   // An example of input: 11/24/2018 05:48:37 AM
   val dateTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a")
@@ -61,7 +63,7 @@ object NewYorkTrafficSpeedAnalysis {
 
     val envelope = new Envelope()
     network.getLinks.values().asScala.foreach { link =>
-      val (start, end) = getFromToCoords(link)
+      val (start, end) = getFromToCoordsAsWgs(link)
       envelope.expandToInclude(start.getX, start.getY)
       envelope.expandToInclude(end.getX, end.getY)
     }
@@ -70,35 +72,54 @@ object NewYorkTrafficSpeedAnalysis {
     val quadTreeBounds = new QuadTree[Link](envelope.getMinX, envelope.getMinY, envelope.getMaxX, envelope.getMaxY)
 
     network.getLinks.values().asScala.foreach { link =>
-      val (start, end) = getFromToCoords(link)
+      val (start, end) = getFromToCoordsAsWgs(link)
       quadTreeBounds.put(start.getX, start.getY, link)
       quadTreeBounds.put(end.getX, end.getY, link)
     }
     println(s"quadTreeBounds: ${quadTreeBounds.size()}")
 
     val (it, toClose) = GenericCsvReader.readAs[Map[String, String]](pathToCsv, x => x.asScala.toMap, trafficFilter)
+    val networkShapeWriter = ShapeWriter.worldGeodetic[Point, MappingAttributes]("traffic_with_closest_osm.shp")
+
     try {
-      val r = it.take(1000).toVector
-
-      r.foreach { map =>
-        println(s"map: ${map.size}")
-        val linkId = map("LINK_ID")
-        val linksPoints = map.get("LINK_POINTS").map(strToCoords).getOrElse(Vector.empty)
-        println(s"linkId: $linkId")
-        linksPoints.foreach { point =>
-          val link = quadTreeBounds.getClosest(point.getX, point.getY)
-          val (start, end) = getFromToCoords(link)
-          val startDiff = geoUtils.distLatLon2Meters(start, point)
-          val endDiff = geoUtils.distLatLon2Meters(end, point)
-          println(s"Link: ${link}")
-          println(s"Found closest. start: ${start}, startDiff: $startDiff, end: $end, endDiff: $endDiff")
+      val r = it
+        .map { row =>
+          val linkId = row("LINK_ID")
+          val linksPoints = row("LINK_POINTS")
+          (linkId, strToCoords(linksPoints))
         }
-        println()
-      }
+        .toArray
+        .groupBy { case (linkId, linkPoints) => (linkId, linkPoints) }
 
-      println(r.length)
+      r.foreach {
+        case ((linkId, linksPoints), _) =>
+          println(s"linkId: $linkId")
+          linksPoints.foreach { point =>
+            val link = quadTreeBounds.getClosest(point.getX, point.getY)
+            val (fromWgs, toWgs) = getFromToCoordsAsWgs(link)
+            val fromDiff = geoUtils.distLatLon2Meters(fromWgs, point)
+            val toDiff = geoUtils.distLatLon2Meters(toWgs, point)
+
+            networkShapeWriter.add(
+              geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
+              "1",
+              MappingAttributes(link.getId.toString, link.getFromNode.getId.toString, fromDiff, linkId)
+            )
+
+            networkShapeWriter.add(
+              geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
+              "1",
+              MappingAttributes(link.getId.toString, link.getToNode.getId.toString, toDiff, linkId)
+            )
+
+            println(s"Link: ${link}")
+            println(s"Found closest. fromWgs: ${fromWgs}, fromDiff: $fromDiff, toWgs: $toWgs, toDiff: $toDiff")
+          }
+          println()
+      }
+      networkShapeWriter.write()
     } finally {
-      toClose.close()
+      Try(toClose.close())
     }
   }
 
@@ -107,14 +128,14 @@ object NewYorkTrafficSpeedAnalysis {
     try {
       network.getLinks.values().asScala.zipWithIndex.foreach {
         case (link, idx) =>
-          val (fromUTM, toUTM) = getFromToCoords(link)
+          val (fromWgs, toWgs) = getFromToCoordsAsWgs(link)
           networkShapeWriter.add(
-            geometryFactory.createPoint(new Coordinate(fromUTM.getX, fromUTM.getY)),
+            geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
             s"${idx}_start",
             LinkAttributes(link.getFromNode.getId.toString, link.getId.toString)
           )
           networkShapeWriter.add(
-            geometryFactory.createPoint(new Coordinate(toUTM.getX, toUTM.getY)),
+            geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
             s"${idx}_end",
             LinkAttributes(link.getToNode.getId.toString, link.getId.toString)
           )
@@ -190,7 +211,7 @@ object NewYorkTrafficSpeedAnalysis {
     n
   }
 
-  def getFromToCoords(link: Link): (Coord, Coord) = {
+  def getFromToCoordsAsWgs(link: Link): (Coord, Coord) = {
     val fromCoordUTM = link.getFromNode.getCoord
     val toCoordUTM = link.getToNode.getCoord
     val fromCoordWgs = geoUtils.utm2Wgs(fromCoordUTM)
