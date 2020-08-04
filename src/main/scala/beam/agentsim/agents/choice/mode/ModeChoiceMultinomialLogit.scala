@@ -13,6 +13,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.ModeChoiceOccurredEvent
+import beam.agentsim.infrastructure.NetworkUtilsExtensions
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -47,28 +48,7 @@ class ModeChoiceMultinomialLogit(
 
   private val shouldLogDetails: Boolean = false
 
-  type LinkId = Int
-
-  private val bikeLanesLinkIds = loadBikeLaneLinkIds()
-
-  def loadBikeLaneLinkIds(): Set[LinkId] = {
-    Try {
-      val result: Set[String] = {
-        val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
-        if (new File(bikeLaneLinkIdsPath).isFile) {
-          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
-        } else {
-          Set.empty
-        }
-      }
-      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
-    } match {
-      case Failure(exception) =>
-        logger.error("Could not load the bikeLaneLinkIds", exception)
-        Set.empty
-      case Success(value) => value
-    }
-  }
+  private val bikeLanesLinkIds: Set[Int] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],

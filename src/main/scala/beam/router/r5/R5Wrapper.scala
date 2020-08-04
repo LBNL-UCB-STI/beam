@@ -18,6 +18,7 @@ import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.NetworkUtilsExtensions
 import beam.router.Modes.BeamMode.WALK
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
@@ -62,26 +63,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  private val bikeLanesLinkIds = loadBikeLaneLinkIds()
-
-  def loadBikeLaneLinkIds(): Set[LinkId] = {
-    Try {
-      val result: Set[String] = {
-        val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
-        if (new File(bikeLaneLinkIdsPath).isFile) {
-          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
-        } else {
-          Set.empty
-        }
-      }
-      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
-    } match {
-      case Failure(exception) =>
-        logger.error("Could not load the bikeLaneLinkIds", exception)
-        Set.empty
-      case Success(value) => value
-    }
-  }
+  private val bikeLanesLinkIds: Set[LinkId] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
