@@ -108,6 +108,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
+  val id2Link = workerParams.networkHelper.allLinks.map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord)).toMap
 
   override final def receive: Receive = {
     case "tick" =>
@@ -149,9 +150,17 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           if (!request.withTransit && request.streetVehicles.size == 1 &&
             request.streetVehicles.head.mode == CAR) {
             val ghRes = graphHopper.calcRoute(request)
-            val r5Res = r5.calcRoute(request)
+//            val r5Res = r5.calcRoute(request)
 //            r5.get
-            println(ghRes == r5Res)
+            def toLineString(routingResponse: RoutingResponse):String = routingResponse.itineraries.headOption
+              .flatMap(_.legs.headOption).map(_.beamLeg.travelPath.linkIds)
+              .getOrElse(Seq.empty)
+                .map(id2Link(_)).flatMap{ case (coord, coord1) => Seq(coord,coord1)}.map(x=>s"${x.getX} ${x.getY}")
+              .toIndexedSeq.distinct.mkString("LINESTRING(",",",")")
+//            println(ghRes == r5Res)
+//            val ghLineString = toLineString(ghRes)
+//            val r5LineString = toLineString(r5Res)
+//            println(ghLineString + r5LineString)
             ghRes
           } else {
             r5.calcRoute(request)
