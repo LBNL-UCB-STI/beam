@@ -4,24 +4,24 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
-
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
-import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.router.model.RoutingModel.TransitStopsInfo
+import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.{DateUtils, TravelTimeUtils}
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.{DateUtils, TravelTimeUtils}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 
 class TransitInitializer(
   beamConfig: BeamConfig,
