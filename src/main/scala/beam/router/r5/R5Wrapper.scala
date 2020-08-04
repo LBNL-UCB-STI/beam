@@ -893,10 +893,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(
-        vehicleTypes(vehicleTypeId),
-        shouldAddNoise = false,
-      ), // Do not add noise!
+      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false), // Do not add noise!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
@@ -1003,7 +1000,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private def getPattern(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-  private def getStopId(stop: Stop): String = stop.stopId.split(":")(1)
+  private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
