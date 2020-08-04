@@ -17,8 +17,9 @@ import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHiera
 import com.graphhopper.routing.util._
 import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider}
 import com.graphhopper.storage._
-import com.graphhopper.util.{PMap, Parameters, PointList}
-import org.matsim.api.core.v01.Id
+import com.graphhopper.util.Parameters.Routing
+import com.graphhopper.util.{EdgeIteratorState, PMap, Parameters, PointList}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.router.util.TravelTime
 
@@ -34,6 +35,8 @@ class GraphHopperWrapper(
                           links: Seq[Link],
                           travelTime: Option[TravelTime] = None,
                         ) extends Router {
+
+  val id2Link = links.map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord)).toMap
 
   val geoUtils: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
@@ -66,27 +69,47 @@ class GraphHopperWrapper(
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
     request.setProfile(s"beam_car_hour_${Math.floor(routingRequest.departureTime/timeBinSize).toInt}")
+    // set this somehow to remove douglas peuker
+//    request.setPointHints(Routing.WAY_POINT_MAX_DISTANCE,0)
     request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
     val response = graphHopper.route(request)
     val alternatives = if (response.hasErrors) {
       Seq()
     } else {
       response.getAll.asScala.map(responsePath => {
+        var linkIds = IndexedSeq.empty[Int]
         val totalTravelTime = (responsePath.getTime / 1000).toInt
-        var linkIds: IndexedSeq[Int] =
+        var ghLinkIds: IndexedSeq[Int] =
           responsePath.getPathDetails.asScala(Parameters.Details.EDGE_ID).asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
+
         var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
           .asScala(Parameters.Details.TIME)
           .asScala
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
           .toIndexedSeq
-        if (linkIds.isEmpty) {
+        if (ghLinkIds.isEmpty) {
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
           linkIds = IndexedSeq(edgeId, edgeId)
           linkTravelTimes = IndexedSeq(0.0, 0.0)
+        } else {
+          linkIds = ghLinkIds.sliding(2).map { list =>
+            val (ghId1, ghId2) = (list.head, list.last)
+            val leftStraight = id2Link(ghId1 * 2)
+
+            val rightStraight = id2Link(ghId2 * 2)
+            val rightReverse = id2Link(ghId2 * 2 + 1)
+            if (leftStraight._2 == rightStraight._1 || leftStraight._2 == rightReverse._1) {
+              ghId1 * 2
+            } else ghId1 * 2 + 1
+          }.toIndexedSeq
+
+          linkIds = linkIds :+ (if (
+            id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1
+          ) ghLinkIds.last * 2 else ghLinkIds.last * 2 + 1)
         }
+
         val partialFirstLinkTravelTime = linkTravelTimes.head
         val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
         val beamLeg = BeamLeg(
