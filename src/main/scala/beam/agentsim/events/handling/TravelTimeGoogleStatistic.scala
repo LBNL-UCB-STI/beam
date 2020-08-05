@@ -143,7 +143,7 @@ class TravelTimeGoogleStatistic(
               ec.event.endX,
               ec.event.arrivalTime - ec.event.departureTime,
               ec.route.durationIntervalInSeconds,
-              ec.route.durationInTrafficSeconds,
+              ec.route.durationInTrafficSeconds.getOrElse(-1).toString,
               geoUtils.distLatLon2Meters(
                 new Coord(ec.event.startX, ec.event.startY),
                 new Coord(ec.event.endX, ec.event.endY)
