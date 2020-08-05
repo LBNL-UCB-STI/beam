@@ -278,7 +278,7 @@ object RouteDumper {
     val linkTravelTime = {
       new Schema.Field(
         "linkTravelTime",
-        Schema.createArray(Schema.create(Type.INT)),
+        Schema.createArray(Schema.create(Type.DOUBLE)),
         "linkTravelTime",
         null.asInstanceOf[Any]
       )
