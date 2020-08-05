@@ -527,6 +527,8 @@ class UrbanSimScenarioLoader(
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse("#NO_DATA#"))
 
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,

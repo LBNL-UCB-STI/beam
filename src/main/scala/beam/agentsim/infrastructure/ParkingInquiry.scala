@@ -34,7 +34,7 @@ object ParkingInquiry {
 
 //  val simpleDistanceAndParkingTicketEqualUtilityFunction
 //    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
 //      Map.empty,
 //      Map(
 //        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
@@ -43,7 +43,7 @@ object ParkingInquiry {
 //    )
 //
 //  val simpleDistanceEqualUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
 //      Map.empty,
 //      Map(
 //        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1)
