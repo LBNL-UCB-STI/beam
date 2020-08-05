@@ -20,13 +20,14 @@ import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey,
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.DateUtils
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly(beamConfig) {
-
-  override def timeIntervalInSeconds: Int = beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
+case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+  import DateUtils._
+  val timeBin: Int = beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -209,9 +210,9 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     pastSkims
-      .map(_.get(ODSkimmerKey(toTimeBin(time), mode, orig, dest)))
+      .map(_.get(ODSkimmerKey(toTimeBin(time, timeBin), mode, orig, dest)))
       .headOption
-      .getOrElse(aggregatedSkim.get(ODSkimmerKey(toTimeBin(time), mode, orig, dest)))
+      .getOrElse(aggregatedSkim.get(ODSkimmerKey(toTimeBin(time, timeBin), mode, orig, dest)))
       .map(_.asInstanceOf[ODSkimmerInternal])
   }
 

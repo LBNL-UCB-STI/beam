@@ -7,9 +7,6 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.cosim.helics.BeamFederate
 import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.sim.BeamServices
-import beam.utils.DateUtils
-import helics.BeamFederate
-import helics.BeamFederate.BeamFederateTrigger
 import org.matsim.core.utils.misc.Time
 
 import scala.collection.mutable.ListBuffer

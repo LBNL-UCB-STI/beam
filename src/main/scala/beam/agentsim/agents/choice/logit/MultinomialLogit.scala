@@ -1,8 +1,9 @@
 package beam.agentsim.agents.choice.logit
 
 import com.typesafe.scalalogging.LazyLogging
-
+import beam.utils.MathUtils
 import scala.util.Random
+
 /**
   * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *

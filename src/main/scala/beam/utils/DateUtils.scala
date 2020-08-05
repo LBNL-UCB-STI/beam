@@ -3,8 +3,6 @@ package beam.utils
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDate, LocalDateTime, ZonedDateTime}
 
-import beam.sim.BeamScenario
-
 /**
   * BEAM
   */
@@ -17,5 +15,12 @@ case class DateUtils(localBaseDateTime: LocalDateTime, zonedBaseDateTime: ZonedD
     } else {
       ChronoUnit.SECONDS.between(localBaseDateTime, time)
     }
+  }
+}
+
+object DateUtils {
+
+  def toTimeBin(timeInSeconds: Int, timeIntervalInSeconds: Int): Int = {
+    Math.floor(timeInSeconds.toDouble / timeIntervalInSeconds).toInt
   }
 }

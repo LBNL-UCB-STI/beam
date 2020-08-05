@@ -4,7 +4,7 @@ import java.io.BufferedWriter
 import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
-import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
+import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -13,7 +13,6 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.utils.misc.Time
 
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
@@ -30,26 +29,14 @@ trait AbstractSkimmerInternal {
   def toCsv: String
 }
 
-trait SkimmerTimeBin {
-  def timeIntervalInSeconds: Int
-  def numOfTimeBins: Int
-  def toTimeBin(t: Int): Int = Math.floorMod(Math.floor(t.toDouble / timeIntervalInSeconds).toInt, numOfTimeBins)
-}
-
-abstract class AbstractSkimmerEvent(eventTime: Double, beamServices: BeamServices)
-    extends Event(eventTime)
-    with SkimmerTimeBin
-    with ScalaEvent {
-  override def numOfTimeBins: Int =
-    Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime).toInt / timeIntervalInSeconds
+abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected def skimName: String
   def getKey: AbstractSkimmerKey
   def getSkimmerInternal: AbstractSkimmerInternal
   def getEventType: String = skimName + "-event"
 }
 
-abstract class AbstractSkimmerReadOnly(beamConfig: BeamConfig) extends LazyLogging with SkimmerTimeBin {
-  override def numOfTimeBins: Int = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt / timeIntervalInSeconds
+abstract class AbstractSkimmerReadOnly extends LazyLogging {
   protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()

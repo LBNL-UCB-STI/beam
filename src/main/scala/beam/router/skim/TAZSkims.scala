@@ -4,11 +4,12 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
+import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly(beamConfig) {
-
-  override def timeIntervalInSeconds: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
+case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+  import DateUtils._
+  val timeBin: Int = beamConfig.beam.router.skim.taz_skimmer.timeBin
 
   def getLatestSkim(actor: String, key: String): Map[TAZSkimmerKey, TAZSkimmerInternal] = {
     pastSkims.headOption
@@ -27,7 +28,7 @@ case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends 
     key: String
   ): Option[TAZSkimmerInternal] = {
     pastSkims.headOption
-      .flatMap(_.get(TAZSkimmerKey(toTimeBin(time), taz, hex, actor, key)))
+      .flatMap(_.get(TAZSkimmerKey(toTimeBin(time, timeBin), taz, hex, actor, key)))
       .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 
@@ -73,7 +74,7 @@ case class TAZSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends 
     key: String
   ): Option[TAZSkimmerInternal] = {
     aggregatedSkim
-      .get(TAZSkimmerKey(toTimeBin(time), taz, hex, actor, key))
+      .get(TAZSkimmerKey(toTimeBin(time, timeBin), taz, hex, actor, key))
       .asInstanceOf[Option[TAZSkimmerInternal]]
   }
 

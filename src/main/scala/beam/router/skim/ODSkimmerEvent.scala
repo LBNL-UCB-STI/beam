@@ -4,6 +4,7 @@ import beam.router.Modes.BeamMode.WALK
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamServices
+import beam.utils.DateUtils
 
 case class ODSkimmerEvent(
   eventTime: Double,
@@ -12,10 +13,8 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double
-) extends AbstractSkimmerEvent(eventTime, beamServices) {
+) extends AbstractSkimmerEvent(eventTime) {
   override protected def skimName: String = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
-  override def timeIntervalInSeconds: Int = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
-
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
@@ -47,7 +46,10 @@ case class ODSkimmerEvent(
     val destTaz = beamScenario.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    val timeBin = toTimeBin(origLeg.startTime)
+    val timeBin = DateUtils.toTimeBin(
+      origLeg.startTime,
+      beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
+    )
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val key = ODSkimmerKey(timeBin, mode, origTaz, destTaz)
     val payload =

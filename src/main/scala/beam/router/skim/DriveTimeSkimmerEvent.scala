@@ -4,11 +4,11 @@ import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
 import beam.sim.BeamServices
+import beam.utils.DateUtils
 
 case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, carLeg: EmbodiedBeamLeg)
-    extends AbstractSkimmerEvent(eventTime, beamServices) {
+    extends AbstractSkimmerEvent(eventTime) {
   override protected def skimName: String = beamServices.beamConfig.beam.router.skim.drive_time_skimmer.name
-  override def timeIntervalInSeconds: Int = beamServices.beamConfig.beam.router.skim.drive_time_skimmer.timeBin
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
@@ -32,7 +32,10 @@ case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, 
     val destTaz = beamScenario.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    val hour = toTimeBin(carTrip.beamLegs.head.startTime)
+    val hour = DateUtils.toTimeBin(
+      carTrip.beamLegs.head.startTime,
+      beamServices.beamConfig.beam.router.skim.drive_time_skimmer.timeBin
+    )
     val timeSimulated = carTrip.totalTravelTimeInSecs.toDouble
 
     val skimmerKey = DriveTimeSkimmerKey(origTaz, destTaz, hour)
