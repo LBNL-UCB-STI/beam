@@ -11,12 +11,12 @@ import com.conveyal.r5.transit.TransportNetwork;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.misc.Time;
@@ -44,11 +44,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     public static final String RIDE_HAIL = "ride_hail";
     public static final String RIDE_HAIL_POOLED = "ride_hail_pooled";
     public static final String WALK_TRANSIT = "walk_transit";
+    private final OutputDirectoryHierarchy ioController;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
-                                   SimulationMetricCollector simMetricCollector) {
+                                   SimulationMetricCollector simMetricCollector, OutputDirectoryHierarchy ioController) {
         this.statComputation = statComputation;
         this.simMetricCollector = simMetricCollector;
+        this.ioController = ioController;
     }
 
     public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
@@ -177,13 +179,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                                    BeamConfig beamConfig,
                                    SimulationMetricCollector simMetricCollector,
                                    GeoUtils geo,
-                                   TransportNetwork transportNetwork) {
+                                   TransportNetwork transportNetwork, OutputDirectoryHierarchy ioController) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         this.simMetricCollector = simMetricCollector;
         this.geo = geo;
         this.transportNetwork = transportNetwork;
         numberOfTimeBins = calculateNumOfTimeBins(beamConfig);
+        this.ioController = ioController;
     }
 
     private int calculateNumOfTimeBins(BeamConfig beamConfig) {
@@ -303,7 +306,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iteration, rideHailIndividualWaitingTimesFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds,modeChoice";
 
@@ -340,7 +343,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     private void writeRideHailWaitingSingleStatCSV(int iteration, Map<Integer, Double> hourModeFrequency) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailWaitingSingleStatsFileBaseName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iteration, rideHailWaitingSingleStatsFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime(sec),Hour";
             out.write(heading);
@@ -439,7 +442,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         GraphUtils.plotLegendItems(plot, legends, dataset.getRowCount());
 
         // Writing graph to image file
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -447,13 +450,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, false);
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
+        String csvFileName = ioController.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
             out.write(heading);

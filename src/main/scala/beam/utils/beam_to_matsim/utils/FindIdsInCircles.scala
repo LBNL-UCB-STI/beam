@@ -4,7 +4,7 @@ import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
 import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
 
 import scala.collection.mutable
-import scala.xml.XML._
+import scala.xml.XML
 
 /*
 a script to collect ids of all vehicles which move through selected circle
@@ -20,7 +20,7 @@ object FindIdsInCircles extends App {
   //val networkPath = dirPath + "physSimNetwork.xml"
   //val networkPath = dirPath + "physSimNetwork.HQ.xml"
 
-  val networkXml = loadFile(networkPath)
+  val networkXml = XML.loadFile(networkPath)
   val nodes = LinkCoordinate.parseNodes(networkXml)
 
   case class Circle(x: Double, y: Double, r: Double) {

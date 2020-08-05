@@ -35,7 +35,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     public static final int GRAPH_HEIGHT = 600;
     public static final int GRAPH_WIDTH = 800;
     private static final int SECONDS_IN_HOUR = 3600;
-    public static OutputDirectoryHierarchy CONTROLLER_IO;
     // Static Initializer
     private final StatsFactory statsFactory;
     private final BeamConfig beamConfig;
@@ -60,7 +59,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
         }
 
         eventsManager.addHandler(this);
-        CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.beamScenario().vehicleTypes()));
     }
 
@@ -98,12 +96,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                 for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(event);
                 DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
                 deadHeadingStats.createGraph(event, "TNC0");
-                if (CONTROLLER_IO != null) {
+                if (event.getServices().getControlerIO() != null) {
                     // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 
                     // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
                     ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
-                    String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
+                    String outPath = event.getServices().getControlerIO().getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
                     modeChoseStats.writeToRootCSV(outPath);
                     if (beamConfig.beam().calibration().mode().benchmarkFilePath().trim().length() > 0) {
                         Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());

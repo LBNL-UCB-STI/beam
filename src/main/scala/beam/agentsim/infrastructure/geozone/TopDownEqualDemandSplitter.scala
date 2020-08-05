@@ -2,15 +2,14 @@ package beam.agentsim.infrastructure.geozone
 
 object TopDownEqualDemandSplitter {
 
-  val MaxResolution = 12
-
   private[geozone] def chooseOneToSplit(
     children: IndexedSeq[Hexagon[_]],
     bucketsGoal: Int,
-    numberOfPoints: Int
+    numberOfPoints: Int,
+    maxResolution: Int = 12
   ): Int = {
     val diffAndPosition: Map[Double, Int] = children
-      .filter(_.index.resolution < MaxResolution)
+      .filter(_.index.resolution < maxResolution)
       .zipWithIndex
       .map {
         case (child, position) =>

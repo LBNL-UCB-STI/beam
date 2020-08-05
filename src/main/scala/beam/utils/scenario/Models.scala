@@ -32,7 +32,8 @@ case class PlanElement(
   legRouteEndLink: Option[String],
   legRouteTravelTime: Option[Double],
   legRouteDistance: Option[Double],
-  legRouteLinks: Seq[String]
+  legRouteLinks: Seq[String],
+  geoId: Option[String]
 )
 
 case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)

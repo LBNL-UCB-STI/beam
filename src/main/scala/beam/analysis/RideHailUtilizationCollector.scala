@@ -147,7 +147,6 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
         case (nRides, xs) =>
           nRides -> xs.map(_._2).size
       }
-      .toMap
 
     val totalNumberOfNonEmptyRides = rides.count(x => x.numOfPassengers > 0)
 

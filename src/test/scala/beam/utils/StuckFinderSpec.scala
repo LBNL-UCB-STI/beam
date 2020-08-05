@@ -22,19 +22,19 @@ class StuckFinderSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  val threshold = Thresholds$Elm(
+  val threshold: Thresholds$Elm = Thresholds$Elm(
     ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
     100,
     classOf[InitializeTrigger].getName
   )
 
-  val threshold2 = Thresholds$Elm(
+  val threshold2: Thresholds$Elm = Thresholds$Elm(
     ActorTypeToMaxNumberOfMessages(Some(3), Some(3), Some(3), Some(3)),
     100,
     classOf[BoardVehicleTrigger].getName
   )
 
-  val stuckAgentDetectionCfg =
+  val stuckAgentDetectionCfg: StuckAgentDetection =
     StuckAgentDetection(
       enabled = true,
       checkMaxNumberOfMessagesEnabled = true,
@@ -44,10 +44,10 @@ class StuckFinderSpec
       thresholds = List(threshold, threshold2)
     )
 
-  val devNull = system.actorOf(TestActors.blackholeProps)
-  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
+  val devNull: ActorRef = system.actorOf(TestActors.blackholeProps)
+  val st: ScheduledTrigger = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
 
-  val boardVehicleTrigger =
+  val boardVehicleTrigger: ScheduledTrigger =
     ScheduledTrigger(TriggerWithId(BoardVehicleTrigger(1, Id.createVehicleId(1)), 1L), devNull, 1)
 
   "A StuckFinder" should {

@@ -618,7 +618,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
           )
         }
         sorted.sliding(2, 2).flatMap { ptes =>
-          val maybeDriving = ptes.lift(0)
+          val maybeDriving = ptes.headOption
           val maybeParking = ptes.lift(1)
           for {
             driving <- maybeDriving

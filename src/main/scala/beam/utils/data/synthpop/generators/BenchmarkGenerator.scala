@@ -1,6 +1,7 @@
 package beam.utils.data.synthpop.generators
 
 import beam.router.Modes.BeamMode
+import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.{MeansOfTransportation, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.MeansOfTransportationTableReader
@@ -30,7 +31,15 @@ class BenchmarkGenerator(
       } yield isOriginInside && isDestInside
       isInside.getOrElse(false)
     }
-    insideBoundingBox
+    BenchmarkGenerator.toBeamModes(insideBoundingBox)
+  }
+
+}
+
+object BenchmarkGenerator {
+
+  def toBeamModes(odList: Iterable[OD[MeansOfTransportation]]): Map[BeamMode, Double] = {
+    odList
       .map { od =>
         (od.attribute.toBeamMode, od.value)
       }
@@ -39,39 +48,78 @@ class BenchmarkGenerator(
       .map { case (mode, xs) => mode -> xs.view.map(_._2).sum }
   }
 
-}
-
-object BenchmarkGenerator {
-
-  def apply(dbInfo: CTPPDatabaseInfo, pathToTazShapeFile: String, pathToOsmMap: String): BenchmarkGenerator = {
+  def apply(dbInfo: CTPPDatabaseInfo, pathToTazShapeFiles: List[String], pathToOsmMap: String): BenchmarkGenerator = {
     val od =
       new MeansOfTransportationTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
-    val tazGeoIdToGeom: Map[TazGeoId, Geometry] =
-      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper).toMap
+    val tazGeoIdToGeom: Map[TazGeoId, Geometry] = pathToTazShapeFiles.flatMap { pathToTazShapeFile =>
+      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper)
+    }.toMap
     val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
     new BenchmarkGenerator(od, tazGeoIdToGeom, mapBoundingBox)
   }
 
+  private val pathToCTPP: String = "d:/Work/beam/CTPP/"
+  private val newYorkCountiesShapeFile: String =
+    "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp"
+  private val newJerseyCountiesShapeFile: String =
+    "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_34_taz10/tl_2011_34_taz10.shp"
+  private val pathToOSMFile: String = "D:/Work/beam/NewYork/input/OSM/newyork-14-counties-incomplete.osm.pbf"
+
   def main(args: Array[String]): Unit = {
-    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
-    val pathToTazShapeFile = """D:\Work\beam\Austin\input\tl_2011_48_taz10\tl_2011_48_taz10.shp"""
-    val pathToOSMFile = """D:\Work\beam\Austin\input\texas-six-counties-simplified.osm.pbf"""
+    writeModesFromNewYorkCityCounties()
+    writeModesFromOsmBoundingBox()
+  }
+
+  private def writeModesFromOsmBoundingBox(): Unit = {
+    val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPP), Set("36", "34"))
+    val pathToTazShapeFile = List(newYorkCountiesShapeFile, newJerseyCountiesShapeFile)
     val bg = BenchmarkGenerator.apply(databaseInfo, pathToTazShapeFile, pathToOSMFile)
     val modeToODs = bg.calculate.toSeq.sortBy { case (mode, _) => mode.toString }
-    val total = modeToODs.map(_._2).sum
 
-    val table = new AsciiTable()
-    table.addRule()
-    table.addRow("mode", "count", "percent")
+    writeBeamModes("benchmark_from_osm_bounding_box.csv", modeToODs)
+  }
 
-    modeToODs.foreach {
-      case (mode, count) =>
-        val pct = 100 * count / total
-        table.addRule()
-        table.addRow(mode.toString, count.toString, pct.toString)
+  private def writeModesFromNewYorkCityCounties(): Unit = {
+    val countiesOfNewYorkCity = List(
+      ("36047", "Kings County"),
+      ("36005", "Bronx County"),
+      ("36061", "New York County"),
+      ("36081", "Queens County"),
+      ("36085", "Richmond County")
+    )
+    val setOfCounts = countiesOfNewYorkCity.map(_._1).toSet
+    val odList =
+      new MeansOfTransportationTableReader(
+        CTPPDatabaseInfo(PathToData(pathToCTPP), Set("36")),
+        ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
+      ).read()
+
+    println(s"Total number of OD: ${odList.size}")
+    val filtered = odList.filter { od =>
+      val origin = TazGeoId.fromString(od.source)
+      val dest = TazGeoId.fromString(od.destination)
+      val oCode = s"${origin.state.value}${origin.county.value}"
+      val dCode = s"${dest.state.value}${dest.county.value}"
+      setOfCounts.contains(oCode) || setOfCounts.contains(dCode)
     }
-    table.addRule()
-    println(table.render())
+    println(s"Filtered for New York City counties: ${filtered.size}")
+
+    val modes = BenchmarkGenerator.toBeamModes(filtered).toSeq.sortBy { case (mode, _) => mode.toString }
+    writeBeamModes("benchmark_ny_counties.csv", modes)
+  }
+
+  private def writeBeamModes(path: String, modes: Seq[(BeamMode, Double)]): Unit = {
+    val totalCount = modes.map(_._2).sum
+    val csvWriter = new CsvWriter(path, Array("mode", "count", "percent"))
+    try {
+      modes.foreach {
+        case (mode, count) =>
+          val pct = 100 * count / totalCount
+          csvWriter.write(mode, count, pct)
+      }
+    } finally {
+      csvWriter.close()
+    }
   }
 }

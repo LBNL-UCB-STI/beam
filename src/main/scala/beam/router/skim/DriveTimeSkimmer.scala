@@ -3,26 +3,34 @@ package beam.router.skim
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.data.statistics.HistogramDataset
 import org.matsim.api.core.v01.Id
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
-    extends AbstractSkimmer(beamServices, config) {
+class DriveTimeSkimmer @Inject()(
+  matsimServices: MatsimServices,
+  beamScenario: BeamScenario,
+  beamConfig: BeamConfig,
+  geo: GeoUtils,
+) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import DriveTimeSkimmer._
   import SkimsUtils._
-  import beamServices._
+
+  private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
 
   val maxDistanceFromBeamTaz: Double = 500.0 // 500 meters
   val uniqueModes: List[BeamMode.CAR.type] = List(CAR)
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
-  override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims(beamServices)
+  override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims()
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
@@ -30,7 +38,8 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
   private val histogramBinSize: Int = 200
-  private lazy val observedTravelTimes = buildObservedODTravelTime(beamServices, maxDistanceFromBeamTaz)
+  private lazy val observedTravelTimes =
+    buildObservedODTravelTime(beamConfig, geo, beamScenario, maxDistanceFromBeamTaz)
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     var series = new mutable.ListBuffer[(Int, Double, Double)]()
@@ -102,7 +111,7 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
           0,
           0,
           observations = 0,
-          iterations = beamServices.matsimServices.getIterationNumber + 1
+          iterations = matsimServices.getIterationNumber + 1
         )
       ) // no current skim means 0 observation
     DriveTimeSkimmerInternal(
@@ -124,7 +133,7 @@ class DriveTimeSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Route
           0,
           0,
           observations = 0,
-          iterations = beamServices.matsimServices.getIterationNumber + 1
+          iterations = matsimServices.getIterationNumber + 1
         )
       )
     val currSkim = currObservation.asInstanceOf[DriveTimeSkimmerInternal]

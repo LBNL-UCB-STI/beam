@@ -39,7 +39,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
   val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
-  val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
+  val defaultBinContent: SurgePriceBin = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =

@@ -15,7 +15,7 @@ class RoutingFrameworkGraphReaderSpec extends FlatSpec with Matchers {
     graph shouldBe expectedGraph
   }
 
-  val expectedGraph = RoutingFrameworkGraph(
+  val expectedGraph: RoutingFrameworkGraph = RoutingFrameworkGraph(
     Seq(
       Vertex(43, new Coordinate(0.01995, -5.0E-5)),
       Vertex(42, new Coordinate(0.01995, 5.0E-5)),

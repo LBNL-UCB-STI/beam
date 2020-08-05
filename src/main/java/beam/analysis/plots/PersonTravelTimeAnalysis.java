@@ -7,12 +7,12 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
@@ -42,11 +42,13 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation;
     private final boolean writeGraph;
+    private final OutputDirectoryHierarchy ioCotroller;
 
-    public PersonTravelTimeAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
+    public PersonTravelTimeAnalysis(SimulationMetricCollector simMetricCollector, StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph, OutputDirectoryHierarchy ioCotroller) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         this.simMetricCollector = simMetricCollector;
+        this.ioCotroller = ioCotroller;
     }
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
@@ -166,7 +168,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createCSV(Tuple<List<String>, Tuple<double[][], Double>> data, int iteration) {
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond().getFirst();
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, fileBaseName + ".csv");
+        String csvFileName = ioCotroller.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
             int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
@@ -317,7 +319,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, false);
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = ioCotroller.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -329,12 +331,12 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(defaultCategoryDataset, graphTitle, "modes", "count", false);
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, defaultCategoryDataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.png");
+        String graphImageFile = ioCotroller.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     private void createNonArrivalAgentAtTheEndOfSimulationCSV(int iterationNumber) {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.csv");
+        String csvFileName = ioCotroller.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "modes,count";
             out.write(heading);

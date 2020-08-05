@@ -71,7 +71,7 @@ object ParkingZone extends LazyLogging {
   // which would tell us that we had 1 extra releaseStall event.
   val UbiqiutousParkingAvailability: Int = 1000000
 
-  val DefaultParkingZone =
+  val DefaultParkingZone: ParkingZone =
     ParkingZone(DefaultParkingZoneId, TAZ.DefaultTAZId, ParkingType.Public, UbiqiutousParkingAvailability, None, None)
 
   /**

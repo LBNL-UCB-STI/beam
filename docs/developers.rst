@@ -11,23 +11,23 @@ Repositories
 ^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request. 
+The convention for merging into the develop branch is that develop needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into develop. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request.
 
 Please use the following naming convention for feature branches, "<initials-or-username>/<descriptive-feature-branch-name>". Adding the issue number is also helpful, e.g.:
 
-cjrs/issue112-update-docs
+cjrs/#112-update-docs
 
 An example workflow for contributing a new feature beam might look like this:
 
-+ create a new branch off of master (e.g. cjrs/issue112-update-docs)
++ create a new branch off of develop (e.g. cjrs/#112-update-docs)
 + push and create a pull request right away
-+ work in cjrs/issue112-update-docs
++ work in cjrs/#112-update-docs
 + get it to compile, pass tests
 + request reviews from pull request
-+ after reviews and any subsequent iterations, merge into master and close pull request
++ after reviews and any subsequent iterations, merge into develop and close pull request
 + delete feature branch unless continued work to happy imminently on same feature branch
 
-The pev-only and related feature branches hold a previous version of BEAM (v0.1.X) which is incompatible with master but is still used for modeling and analysis work.
+The pev-only and related feature branches hold a previous version of BEAM (v0.1.X) which is incompatible with develop but is still used for modeling and analysis work.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -42,9 +42,9 @@ and start customizing the configurations to your use case.
 
 To add new parameters or change the structure of the configuration class itself, simply edit the `config-template.conf` file and run the gradle task::
 
-  gradle generateConfig
+  ./gradlew generateConfig
 
-This will generate a new class `src/main/scala/beam/metasim/config/BeamConfig.scala` which will reflect the new structure and parameters.
+This will generate a new class `src/main/scala/beam/sim/config/BeamConfig.scala` which will reflect the new structure and parameters.
 
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -157,7 +157,7 @@ BEAM run on EC2
 
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
-  gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
+  ./gradlew deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
 
@@ -187,11 +187,11 @@ The order which will be used to look for parameter values is follow:
 
 To run a batch simulation, you can specify multiple configuration files separated by commas::
 
-  gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+  ./gradlew deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
 
 Similarly for experiment batch, you can specify comma-separated experiment files::
 
-  gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+  ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
 For demo and presentation material, please follow the link_ on google drive.
 
@@ -201,7 +201,7 @@ PILATES run on EC2
 
 It is possible to start PILATES simulation on AWS instance from gradle task  ::
 
-  gradle deployPilates [-Pparam1name=param1value [... -PparamNname=paramNvalue]]
+  ./gradlew deployPilates [-Pparam1name=param1value [... -PparamNname=paramNvalue]]
 
 This command will start PILATES simulation on ec2 instance with specified parameters.
 
@@ -262,7 +262,7 @@ You can start already available instances using a simple `startEC2` gradle task 
 You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
 Below is syntax to use the command::
 
-  gradle startEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+  ./gradlew startEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 As a result of task, instance DNS would be printed on the console.
 
@@ -271,14 +271,14 @@ Just like starting instance, you can also stop already running instances using a
 You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
 Below is syntax to use the command::
 
-  gradle stopEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+  ./gradlew stopEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 It is possible not just stop instance but terminate it using `terminateEC2` gradle task.
 Terminated instances are not available to start and will be completely removed along with all data they contain.
 You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
 Below is syntax to use the command::
 
-  gradle terminateEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+  ./gradlew terminateEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 .. _Colin: mailto:colin.sheppard@lbl.gov
 .. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
@@ -564,7 +564,7 @@ Scala Collection
 Use ``mutable`` buffer instead of ``immutable var``:
 ****************************************************
 
-::
+.. code-block:: scala
 
    // Before
    var buffer = scala.collection.immutable.Vector.empty[Int]
@@ -578,18 +578,18 @@ Use ``mutable`` buffer instead of ``immutable var``:
    
 **Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
 
-::
+.. code-block:: scala
 
    val mutableList = scala.collection.mutable.MutableList(1,2)
    mutableList += 3
-   mutableList.toList //returns scala.collection.immutable.List
-                      //or return mutableList but explicitly set the method return type to 
-                      //a common, assumed immutable one from scala.collection (more dangerous)
+   mutableList.toList // returns scala.collection.immutable.List
+                      // or return mutableList but explicitly set the method return type to
+                      // a common, assumed immutable one from scala.collection (more dangerous)
 
 Don’t create temporary collections, use `view`_:
 ************************************************
 
-::
+.. code-block:: scala
 
    val seq: Seq[Int] = Seq(1, 2, 3, 4, 5)
 
@@ -602,7 +602,7 @@ Don’t create temporary collections, use `view`_:
 Don’t emulate ``collectFirst`` and ``collect``:
 ***********************************************
 
-::
+.. code-block:: scala
 
    // collectFirst
    // Get first number >= 4
@@ -629,20 +629,20 @@ Don’t emulate ``collectFirst`` and ``collect``:
 Prefer ``nonEmpty`` over ``size > 0``:
 **************************************
 
-::
+.. code-block:: scala
  
-  //Before
+  // Before
   (1 to x).size > 0
   
-  //After
+  // After
   (1 to x).nonEmpty
   
-  //nonEmpty shortcircuits as soon as the first element is encountered
+  // nonEmpty shortcircuits as soon as the first element is encountered
 
 Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
 **********************************************************************
 
-::
+.. code-block:: scala
 
    // Get odd elements of sequence s
    val predicate: Int => Boolean = (idx: Int)  => { idx % 2 == 1 }
@@ -679,7 +679,7 @@ When you log, prefer to use API which are lazy. If you use
 Akka, you should not use `string interpolation`_, but use method with
 replacement arguments:
 
-::
+.. code-block:: scala
 
    // Before
    log.debug(s"Hello: $name")

@@ -18,7 +18,7 @@ case class PointInfo(offset: Double, geofenceRadius: Double) {
 
 object GeoFenceVerifier extends LazyLogging {
 
-  val geoUtils = new beam.sim.common.GeoUtils {
+  val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
 

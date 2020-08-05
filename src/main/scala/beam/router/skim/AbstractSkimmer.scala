@@ -1,21 +1,21 @@
 package beam.router.skim
 
 import java.io.BufferedWriter
+import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
 import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.{immutable, mutable}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.reflect.io.File
 import scala.util.control.NonFatal
 
@@ -46,19 +46,17 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
 }
 
-abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
+abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
     extends BasicEventHandler
     with IterationStartsListener
     with IterationEndsListener
     with LazyLogging {
 
-  import beamServices._
-
   protected[skim] val readOnlySkim: AbstractSkimmerReadOnly
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
   protected val skimName: String
-  lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
 
   private val awaitSkimLoading = 20.minutes
@@ -81,24 +79,12 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
       readOnlySkim.aggregatedSkim = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
-        val files = File(file).toDirectory.files
-          .filter(_.isFile)
-          .filter(_.name.contains(BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode))
-          .map(_.path)
-          .toList
-
-        if (files.isEmpty) {
-          logger.info(s"warmStart skim NO PATH FOUND '${filePath}'")
-        }
-
-        val futures = files.map(
-          f =>
-            Future {
-              new CsvSkimReader(f, fromCsv, logger).readAggregatedSkims
+        val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
+        FileUtils
+          .flatParRead(Paths.get(file.path), filePattern, awaitSkimLoading) { (path, reader) =>
+            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader)
           }
-        )
-
-        Await.result(Future.sequence(futures), awaitSkimLoading).flatten.toMap
+          .toMap
       }
     }
   }
@@ -106,8 +92,9 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
     if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
-      if (readOnlySkim.pastSkims.size == beamConfig.beam.router.skim.keepKLatestSkims) {
-        readOnlySkim.pastSkims.dropRight(1)
+      if (readOnlySkim.pastSkims.size >= beamConfig.beam.router.skim.keepKLatestSkims) {
+        val toBeRemoved = readOnlySkim.pastSkims.size - beamConfig.beam.router.skim.keepKLatestSkims + 1
+        readOnlySkim.pastSkims.remove(beamConfig.beam.router.skim.keepKLatestSkims - 1, toBeRemoved)
       }
       readOnlySkim.pastSkims.prepend(currentSkim.toMap)
     }
@@ -131,20 +118,22 @@ abstract class AbstractSkimmer(beamServices: BeamServices, config: BeamConfig.Be
 
   protected def writeToDisk(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
-      ProfilingUtils.timed(s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}", logger.info(_)) {
+      ProfilingUtils.timed(
+        s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}",
+        v => logger.info(v)
+      ) {
         val filePath =
-          beamServices.matsimServices.getControlerIO
-            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
+          ioController.getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
         writeSkim(currentSkim.toMap, filePath)
       }
 
     if (beamConfig.beam.router.skim.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
-        logger.info(_)
+        v => logger.info(v)
       ) {
         val filePath =
-          beamServices.matsimServices.getControlerIO
+          ioController
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_Aggregated.csv.gz")
         writeSkim(readOnlySkim.aggregatedSkim, filePath)
       }

@@ -29,7 +29,7 @@ public class PersonTravelTimeTest {
 
     private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
             new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
-            }, true);
+            }, true, null);
 
     @Before
     public void setUpClass() {

@@ -49,7 +49,7 @@ class ZonalParkingManagerSpec
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
 
-  val beamConfig = BeamConfig(system.settings.config)
+  val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
   describe("ZonalParkingManager with no parking") {
@@ -83,7 +83,7 @@ class ZonalParkingManagerSpec
 //          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
 //        )
 //        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-//        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+//        val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
