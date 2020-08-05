@@ -1727,6 +1727,7 @@ object BeamConfig {
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
+          offPeakEnabled: scala.Boolean,
           queryDate: java.lang.String,
           tolls: scala.Boolean
         )
@@ -1741,6 +1742,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
               numDataPointsOver24Hours =
                 if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              offPeakEnabled = c.hasPathOrNull("offPeakEnabled") && c.getBoolean("offPeakEnabled"),
               queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
               tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
             )
