@@ -1,26 +1,27 @@
 package beam.router.r5
 
+import java.util
+
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.Schema.Type
 import org.apache.avro.generic.GenericData
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetWriter
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.handler.BasicEventHandler
-
-import scala.collection.JavaConverters._
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
+import org.matsim.core.events.handler.BasicEventHandler
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class RouteDumper(beamServices: BeamServices)
@@ -249,7 +250,7 @@ object RouteDumper {
     beamLeg.travelPath.transitStops.foreach { transitStop =>
       record.put("transitStops_agencyId", transitStop.agencyId)
       record.put("transitStops_routeId", transitStop.routeId)
-      record.put("transitStops_vehicleId", transitStop.vehicleId)
+      record.put("transitStops_vehicleId", transitStop.vehicleId.toString)
       record.put("transitStops_fromIdx", transitStop.fromIdx)
       record.put("transitStops_toIdx", transitStop.toIdx)
     }
@@ -452,10 +453,11 @@ object RouteDumper {
         null.asInstanceOf[Any]
       )
     }
+
     val attributesOfIndividual = {
       new Schema.Field(
         "attributesOfIndividual",
-        attributesOfIndividualSchema,
+        Schema.createUnion(util.Arrays.asList(attributesOfIndividualSchema, Schema.create(Schema.Type.NULL))),
         "attributesOfIndividual",
         null.asInstanceOf[Any]
       )
