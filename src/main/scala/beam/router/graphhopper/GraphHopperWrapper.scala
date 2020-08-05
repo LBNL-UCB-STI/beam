@@ -45,6 +45,7 @@ class GraphHopperWrapper(
   private val graphHopper = {
     val profiles = GraphHopperWrapper.getProfiles(carRouter, noOfTimeBins)
     val graphHopper = new BeamGraphHopper(links, travelTime)
+    graphHopper.setPathDetailsBuilderFactory(new BeamPathDetailsBuilderFactory())
     graphHopper.setGraphHopperLocation(graphDir)
     graphHopper.setProfiles(profiles.asJava)
     graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
@@ -84,9 +85,11 @@ class GraphHopperWrapper(
       response.getAll.asScala.map(responsePath => {
         var linkIds = IndexedSeq.empty[Int]
         val totalTravelTime = (responsePath.getTime / 1000).toInt
-        var ghLinkIds: IndexedSeq[Int] =
+        val ghLinkIds: IndexedSeq[Int] =
           responsePath.getPathDetails.asScala(Parameters.Details.EDGE_ID).asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
-
+        val ghOriginalLinkIds: IndexedSeq[Int] =
+          responsePath.getPathDetails.asScala("original_edge_id").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
+        println(ghOriginalLinkIds)
         var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
           .asScala(Parameters.Details.TIME)
           .asScala
