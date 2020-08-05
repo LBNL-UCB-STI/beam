@@ -3,6 +3,7 @@ package beam.router.r5
 import java.io.File
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -28,7 +29,7 @@ import com.conveyal.osmlib.OSM
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.common.util.concurrent.{AtomicDouble, ThreadFactoryBuilder}
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
@@ -114,6 +115,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   // be the dispatcher on which this actor is running.
   val id2Link = workerParams.networkHelper.allLinks.map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord)).toMap
 
+  val routeRequestCounter = new AtomicInteger(0)
+  val routeRequestExecutionTime = new AtomicDouble(0.0)
   override final def receive: Receive = {
     case "tick" =>
       firstMsgTime match {
@@ -151,13 +154,19 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          if ((carRouter == "staticGH" || carRouter == "quasiDynamicGH") &&
-            !request.withTransit && request.streetVehicles.size == 1 &&
+          if (!request.withTransit && request.streetVehicles.size == 1 &&
             request.streetVehicles.head.mode == CAR) {
-            val ghRes = graphHopper.calcRoute(request)
-            val r5Res = r5.calcRoute(request)
-            println(ghRes == r5Res)
+            routeRequestCounter.incrementAndGet()
+            val start = System.currentTimeMillis()
+            val res = if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+              graphHopper.calcRoute(request)
+            } else {
+              r5.calcRoute(request)
+            }
+            routeRequestExecutionTime.addAndGet(System.currentTimeMillis() - start)
+            res
           } else {
+            routeRequestCounter.incrementAndGet()
             r5.calcRoute(request)
           }
         }
@@ -170,7 +179,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+      log.info("===================================================================")
+      log.info(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
+      log.info("===================================================================")
+      routeRequestExecutionTime.set(0)
+      routeRequestCounter.set(0)
+      if (carRouter == "quasiDynamicGH") {
         createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
         graphHopper = new GraphHopperWrapper(
           carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
@@ -187,8 +201,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
+      log.info("===================================================================")
+      log.info(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
+      log.info("===================================================================")
+      routeRequestExecutionTime.set(0)
+      routeRequestCounter.set(0)
       val newTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
-      if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
+      if (carRouter == "quasiDynamicGH") {
         createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
         graphHopper = new GraphHopperWrapper(
           carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,

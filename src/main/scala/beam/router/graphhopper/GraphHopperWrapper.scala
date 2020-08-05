@@ -45,7 +45,6 @@ class GraphHopperWrapper(
   private val graphHopper = {
     val profiles = GraphHopperWrapper.getProfiles(carRouter, noOfTimeBins)
     val graphHopper = new BeamGraphHopper(links, travelTime)
-    graphHopper.setPathDetailsBuilderFactory(new BeamPathDetailsBuilderFactory())
     graphHopper.setGraphHopperLocation(graphDir)
     graphHopper.setProfiles(profiles.asJava)
     graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
@@ -75,8 +74,6 @@ class GraphHopperWrapper(
       request.setProfile("fastest_car")
     }
 
-    // set this somehow to remove douglas peuker
-    //    request.setPointHints(Routing.WAY_POINT_MAX_DISTANCE,0)
     request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
     val response = graphHopper.route(request)
     val alternatives = if (response.hasErrors) {
@@ -87,20 +84,30 @@ class GraphHopperWrapper(
         val totalTravelTime = (responsePath.getTime / 1000).toInt
         val ghLinkIds: IndexedSeq[Int] =
           responsePath.getPathDetails.asScala(Parameters.Details.EDGE_ID).asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
-        val ghOriginalLinkIds: IndexedSeq[Int] =
-          responsePath.getPathDetails.asScala("original_edge_id").asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
-        println(ghOriginalLinkIds)
+
         var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
           .asScala(Parameters.Details.TIME)
           .asScala
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+//          .map { x =>
+//            require(x > 0, "GOING BACK IN TIME")
+//            x
+//          }
           .toIndexedSeq
-        if (ghLinkIds.isEmpty) {
+          //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+          .take(ghLinkIds.size)
+
+        if (ghLinkIds.size != 1) {
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
-          linkIds = IndexedSeq(edgeId, edgeId)
-          linkTravelTimes = IndexedSeq(0.0, 0.0)
+
+          //FIXME THIS IS INVALID BECAUSE OF ASSERT LATER
+//          linkIds = IndexedSeq(edgeId, edgeId)
+//          linkTravelTimes = IndexedSeq(0.0, 0.0)
+
+          linkIds = IndexedSeq(edgeId)
+          linkTravelTimes = IndexedSeq(0.0)
         } else {
           linkIds = ghLinkIds.sliding(2).map { list =>
             val (ghId1, ghId2) = (list.head, list.last)
@@ -113,9 +120,11 @@ class GraphHopperWrapper(
             } else ghId1 * 2 + 1
           }.toIndexedSeq
 
-          linkIds = linkIds :+ (if (
-            id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1
-          ) ghLinkIds.last * 2 else ghLinkIds.last * 2 + 1)
+          if (ghLinkIds.size > 1) {
+            linkIds = linkIds :+ (if (
+              id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1
+            ) ghLinkIds.last * 2 else ghLinkIds.last * 2 + 1)
+          }
         }
 
         val partialFirstLinkTravelTime = linkTravelTimes.head
