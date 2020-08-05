@@ -614,8 +614,15 @@ trait BeamHelper extends LazyLogging {
               )
             }
           }
+
           val scenario =
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+            new UrbanSimScenarioLoader(
+              emptyScenario,
+              beamScenario,
+              source,
+              new GeoUtilsImpl(beamConfig)
+            ).loadScenario()
+
           if (src == "urbansim_v2") {
             new ScenarioAdjuster(
               beamConfig.beam.urbansim,
@@ -623,6 +630,7 @@ trait BeamHelper extends LazyLogging {
               beamConfig.matsim.modules.global.randomSeed
             ).adjust()
           }
+
           scenario
         }.asInstanceOf[MutableScenario]
         (scenario, beamScenario)

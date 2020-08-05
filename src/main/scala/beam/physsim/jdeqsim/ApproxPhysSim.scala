@@ -71,6 +71,8 @@ class ApproxPhysSim(
 
   val workerParams: WorkerParameters = WorkerParameters(
     beamConfig = beamConfig,
+    scenario = agentSimScenario,
+    outputDirectory = WorkerParameters.makeOutputDirectory(beamConfig),
     transportNetwork = beamServices.beamScenario.transportNetwork,
     vehicleTypes = beamServices.beamScenario.vehicleTypes,
     fuelTypePrices = beamServices.beamScenario.fuelTypePrices,

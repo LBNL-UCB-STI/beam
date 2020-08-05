@@ -57,6 +57,8 @@ import scala.util.Try
 
 case class WorkerParameters(
   beamConfig: BeamConfig,
+  scenario: Scenario,
+  outputDirectory: String,
   transportNetwork: TransportNetwork,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   fuelTypePrices: Map[FuelType, Double],
@@ -72,11 +74,7 @@ object WorkerParameters {
 
   def fromConfig(config: Config): WorkerParameters = {
     val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
+    val outputDirectory = makeOutputDirectory(beamConfig)
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.init()
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
@@ -99,6 +97,8 @@ object WorkerParameters {
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
     WorkerParameters(
       beamConfig,
+      scenario,
+      outputDirectory,
       networkCoordinator.transportNetwork,
       vehicleTypes,
       fuelTypePrices,
@@ -110,6 +110,13 @@ object WorkerParameters {
       tollCalculator
     )
   }
+
+  def makeOutputDirectory(beamConfig: BeamConfig): String =
+    FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
 }
 
 class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
@@ -263,6 +270,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
 
   private val WorkerParameters(
     beamConfig,
+    scenario,
+    outputDirectory,
     transportNetwork,
     vehicleTypes,
     fuelTypePrices,
@@ -1289,6 +1298,8 @@ object R5RoutingWorker {
     new R5RoutingWorker(
       WorkerParameters(
         beamScenario.beamConfig,
+        scenario,
+        WorkerParameters.makeOutputDirectory(beamScenario.beamConfig),
         transportNetwork,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
