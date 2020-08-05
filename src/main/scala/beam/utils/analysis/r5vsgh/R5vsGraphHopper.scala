@@ -19,6 +19,7 @@ import org.matsim.api.core.v01.population.{Person => MatsimPerson}
 import org.matsim.api.core.v01.Id
 import scopt.OptionParser
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -45,14 +46,27 @@ object R5vsGraphHopper extends BeamHelper {
 
     val outputDir = s"${workerParams.outputDirectory}/R5vsGraphHopper"
     FileUtils.createDirectoryIfNotExists(outputDir)
-    val gpxOutputDir = s"$outputDir/gpx"
-    FileUtils.createDirectoryIfNotExists(gpxOutputDir)
 
-    // One may also use `readUtmPlanCsv("/path/to/plan.csv.gz")`
-    val personPlanODs = takePlans(
-      workerParams.scenario,
-      arguments.populationSamplingFactor.getOrElse(1.0)
-    )
+    //
+    // ODs
+    //
+
+    val allPersonPlanODs = arguments.plan match {
+      case Some(p) => readUtmPlanCsv(p)
+      case None    => makePersonPlanODs(
+        workerParams.scenario.getPopulation.getPersons.values().asScala.toSeq
+      )
+    }
+    val allPersonIds = allPersonPlanODs.keys.toSeq
+
+    val populationSamplingFactor = arguments.populationSamplingFactor.getOrElse(1.0)
+    val populationSampleSize = {
+      val s = (allPersonIds.size * populationSamplingFactor).intValue()
+      if (s == 0 && populationSamplingFactor > 0) 1 else s
+    }
+
+    val personIds = allPersonIds.sorted.take(populationSampleSize)
+    val personPlanODs = allPersonPlanODs.filterKeys(personIds.contains)
 
     val odsCount = personPlanODs.values.map(_.size).sum
     logger.info(s"Origin-Destination pairs count: $odsCount")
@@ -128,7 +142,8 @@ object R5vsGraphHopper extends BeamHelper {
 
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
-          logger.info(s"R5 progress: ${(progressBar * 100).intValue()}%")
+          val progressPct = math.round(progressBar * 100)
+          logger.info(s"R5 progress: $progressPct%")
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
       }
@@ -201,7 +216,8 @@ object R5vsGraphHopper extends BeamHelper {
 
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
-          logger.info(s"GH progress: ${(progressBar * 100).intValue()}%")
+          val progressPct = math.round(progressBar * 100)
+          logger.info(s"GH progress: $progressPct%")
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
       }
@@ -223,6 +239,9 @@ object R5vsGraphHopper extends BeamHelper {
     //
     // GPX
     //
+
+    val gpxOutputDir = s"$outputDir/gpx"
+    FileUtils.createDirectoryIfNotExists(gpxOutputDir)
 
     r5PersonResponses.foreach { case (personId, r5Responses) =>
       val gpxPoints = r5ResponsesToGpxPoints(
@@ -351,6 +370,8 @@ object R5vsGraphHopper extends BeamHelper {
           } else success
         }
         .text("""Plan (".csv" or ".csv.gz") file location""")
+
+      override def errorOnUnknownArgument: Boolean = false
     }
   }
 }

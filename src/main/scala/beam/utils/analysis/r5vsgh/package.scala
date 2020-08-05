@@ -4,7 +4,7 @@ import java.io.{BufferedReader, InputStreamReader}
 
 import beam.router.BeamRouter.{Location, RoutingResponse}
 import beam.utils.csv.CsvWriter
-import beam.utils.FileUtils.{getInputStream, readerFromFile, using}
+import beam.utils.FileUtils.{getInputStream, using}
 import beam.utils.NetworkHelper
 import beam.utils.map.GpxPoint
 import com.graphhopper.GHResponse
@@ -85,48 +85,16 @@ package object r5vsgh {
   // Plan
   //
 
-  /**
-   * Returns plans sample from the scenario.
-   * Sample size = (persons count) * populationSamplingFactor.
-   *
-   * The populationSamplingFactor should be within (0.0 < x < 1.0]
-   * boundary, throwing an IllegalArgumentException otherwise.
-   *
-   * Sorting by Id[MatsimPerson] is employed.
-   */
-  def takePlans(
-    scenario: Scenario,
-    populationSamplingFactor: Double
-  ): Map[Id[MatsimPerson], Seq[PlanOD]] = {
-    if (populationSamplingFactor <= 0.0 || populationSamplingFactor > 1.0) {
-      throw new IllegalArgumentException(
-        "Population sampling factor should be within (0.0 < x < 1.0]"
-      )
-    }
+  case class PlanOD(
+    origin: Location,
+    destination: Location
+  )
 
-    val allPersonIds =
-      scenario.getPopulation.getPersons.keySet().asScala.toSeq.sorted
-
-    val populationSampleSize = {
-      val s = (allPersonIds.size * populationSamplingFactor).intValue()
-      if (s == 0 && populationSamplingFactor > 0) 1 else s
-    }
-
-    val personIds = allPersonIds.take(populationSampleSize)
-
-    getPersonPlans(scenario, personIds)
-  }
-
-  /** Returns plans of certain Person IDs from the scenario. */
-  def getPersonPlans(
-    scenario: Scenario,
-    personIds: Seq[Id[MatsimPerson]]
-  ): Map[Id[MatsimPerson], List[PlanOD]] =
-    scenario.getPopulation.getPersons.asScala.view
-      .filter { case (personId, _) => personIds.contains(personId) }
+  def makePersonPlanODs(persons: Seq[MatsimPerson]): Map[Id[MatsimPerson], List[PlanOD]] =
+    persons.view
       .aggregate(ListBuffer.empty[(Id[MatsimPerson], List[PlanOD])])(
-        { case (acc, (personId, person)) =>
-          acc.append((personId, makePlanODs(person.getPlans.asScala)))
+        { case (acc, person) =>
+          acc.append((person.getId, makePlanODs(person.getPlans.asScala)))
           acc
         },
         { (plan1, plan2) =>
@@ -135,11 +103,6 @@ package object r5vsgh {
         }
       )
       .toMap
-
-  case class PlanOD(
-    origin: Location,
-    destination: Location
-  )
 
   private def makePlanODs(plans: Seq[Plan]): List[PlanOD] = {
     def makeODs(plans: List[PlanElement]): List[PlanOD] = {
@@ -159,12 +122,7 @@ package object r5vsgh {
   }
 
   /** Reads PlanODs from ".csv" or ".csv.gz" files. */
-  //noinspection ScalaUnusedSymbol
-  private def readUtmPlanCsv(
-    path: String,
-    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
-  ): Map[Id[MatsimPerson], List[PlanOD]] = {
-
+  def readUtmPlanCsv(path: String): Map[Id[MatsimPerson], List[PlanOD]] = {
     val personPlans = collection.mutable.Map.empty[Id[MatsimPerson], ListBuffer[PlanOD]]
 
     var currentPersonId: Id[MatsimPerson] = null
@@ -172,7 +130,7 @@ package object r5vsgh {
 
     using(getInputStream(path)) { csvIS =>
       using(new BufferedReader(new InputStreamReader(csvIS))) { csvBR =>
-        val csvRdr = new CsvMapReader(readerFromFile(path), preference)
+        val csvRdr = new CsvMapReader(csvBR, CsvPreference.STANDARD_PREFERENCE)
         val header = csvRdr.getHeader(true)
 
         Iterator
@@ -237,8 +195,7 @@ package object r5vsgh {
     personId: Id[MatsimPerson],
     ghResponses: Seq[GHResponse]
   ): Seq[GpxPoint] = for {
-    ghResp <- ghResponses
-    // Note: path.getWaypoints are just origin+destination pair
+    ghResp            <- ghResponses
     (point, pointIdx) <- ghResp.getBest.getPoints.iterator().asScala.zipWithIndex
     } yield GpxPoint(s"$personId-$pointIdx", new Coord(point.getLon, point.getLat))
 
