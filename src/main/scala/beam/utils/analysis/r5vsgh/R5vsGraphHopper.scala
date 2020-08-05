@@ -52,20 +52,29 @@ object R5vsGraphHopper extends BeamHelper {
     //
 
     val allPersonPlanODs = arguments.plan match {
-      case Some(p) => readUtmPlanCsv(p)
-      case None    => makePersonPlanODs(
-        workerParams.scenario.getPopulation.getPersons.values().asScala.toSeq
-      )
+      case Some(p) =>
+        logger.info(s"Reading Plans file: $p")
+        readUtmPlanCsv(p)
+      case None =>
+        logger.info(s"Loading scenario Plans")
+        makePersonPlanODs(
+          workerParams.scenario.getPopulation.getPersons.values().asScala.toSeq
+        )
     }
     val allPersonIds = allPersonPlanODs.keys.toSeq
+    logger.info(s"Population size: ${allPersonIds.size}")
 
     val populationSamplingFactor = arguments.populationSamplingFactor.getOrElse(1.0)
     val populationSampleSize = {
-      val s = (allPersonIds.size * populationSamplingFactor).intValue()
+      val s = math.round(allPersonIds.size * populationSamplingFactor).toInt
       if (s == 0 && populationSamplingFactor > 0) 1 else s
     }
 
     val personIds = allPersonIds.sorted.take(populationSampleSize)
+    logger.info(
+      s"Population sample size: ${personIds.size} (${math.round(100.0 * personIds.size / allPersonIds.size).toInt}%)"
+    )
+
     val personPlanODs = allPersonPlanODs.filterKeys(personIds.contains)
 
     val odsCount = personPlanODs.values.map(_.size).sum
@@ -142,7 +151,7 @@ object R5vsGraphHopper extends BeamHelper {
 
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
-          val progressPct = math.round(progressBar * 100)
+          val progressPct = math.round(100.0 * progressBar)
           logger.info(s"R5 progress: $progressPct%")
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
@@ -216,7 +225,7 @@ object R5vsGraphHopper extends BeamHelper {
 
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
-          val progressPct = math.round(progressBar * 100)
+          val progressPct = math.round(100.0 * progressBar)
           logger.info(s"GH progress: $progressPct%")
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
