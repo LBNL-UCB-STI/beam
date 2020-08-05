@@ -252,15 +252,24 @@ class ZonalParkingManager(
           case Some(result) =>
             result
           case None =>
-            // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.getX + 2000,
-              inquiry.destinationUtm.getX - 2000,
-              inquiry.destinationUtm.getY + 2000,
-              inquiry.destinationUtm.getY - 2000
-            )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+            inquiry.activityType match {
+              case "init" =>
+                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+              case "home" =>
+                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+              case _ =>
+                // didn't find any stalls, so, as a last resort, create a very expensive stall
+                val boxAroundRequest = new Envelope(
+                  inquiry.destinationUtm.getX + 2000,
+                  inquiry.destinationUtm.getX - 2000,
+                  inquiry.destinationUtm.getY + 2000,
+                  inquiry.destinationUtm.getY - 2000
+                )
+                val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+            }
         }
 
       log.debug(
