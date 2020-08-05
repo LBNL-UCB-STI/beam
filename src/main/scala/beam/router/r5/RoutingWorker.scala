@@ -154,7 +154,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           if ((carRouter == "staticGH" || carRouter == "quasiDynamicGH") &&
             !request.withTransit && request.streetVehicles.size == 1 &&
             request.streetVehicles.head.mode == CAR) {
-            graphHopper.calcRoute(request)
+            val ghRes = graphHopper.calcRoute(request)
+            val r5Res = r5.calcRoute(request)
+            println(ghRes == r5Res)
           } else {
             r5.calcRoute(request)
           }
