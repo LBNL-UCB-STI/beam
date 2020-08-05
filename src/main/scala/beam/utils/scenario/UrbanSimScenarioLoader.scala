@@ -42,10 +42,31 @@ class UrbanSimScenarioLoader(
   def loadScenario(): Scenario = {
     clear()
 
+    val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+
     val plansF = Future {
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
-      plans
+      val activities = plans.view.filter { p =>
+        p.activityType.exists(actType => actType.toLowerCase == "home")
+      }
+      val personIdsWithinRange =
+        activities
+          .filter { act =>
+            val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
+            val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
+            beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+          }
+          .map { act =>
+            act.personId
+          }
+          .toSet
+      val planWithinRange = plans.filter(p => personIdsWithinRange.contains(p.personId))
+      val filteredCnt = plans.size - planWithinRange.size
+      if (filteredCnt > 0) {
+        logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
+      }
+      planWithinRange
     }
     val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
@@ -55,17 +76,39 @@ class UrbanSimScenarioLoader(
     val householdsF = Future {
       val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
-      households
+      val householdIdsWithinBoundingBox = households.view
+        .filter { hh =>
+          val coord = new Coord(hh.locationX, hh.locationY)
+          val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(coord) else coord
+          beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+        }
+        .map { hh =>
+          hh.householdId
+        }
+        .toSet
+
+      val householdsInsideBoundingBox =
+        households.filter(household => householdIdsWithinBoundingBox.contains(household.householdId))
+      val filteredCnt = households.size - householdsInsideBoundingBox.size
+      if (filteredCnt > 0) {
+        logger.info(
+          s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
+        )
+      }
+      householdsInsideBoundingBox
     }
     val plans = Await.result(plansF, 500.seconds)
     val persons = Await.result(personsF, 500.seconds)
+    val households = Await.result(householdsF, 500.seconds)
+
+    val householdIds = households.map(_.householdId.id).toSet
 
     val personsWithPlans = getPersonsWithPlan(persons, plans)
+      .filter(p => householdIds.contains(p.householdId.id))
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val households = Await.result(householdsF, 500.seconds)
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
@@ -129,6 +172,10 @@ class UrbanSimScenarioLoader(
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
+    val bikeVehicleType = beamScenario.vehicleTypes.values
+      .find(_.vehicleCategory == VehicleCategory.Bike)
+      .getOrElse(throw new RuntimeException("Bike not found in vehicle types."))
+
     assignVehicles(households, householdIdToPersons, personId2Score).foreach {
       case (householdInfo, nVehicles) =>
         val id = Id.create(householdInfo.householdId.id, classOf[Household])
@@ -161,13 +208,10 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        beamScenario.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike) match {
-          case Some(vehType) =>
-            vehicleTypes.append(vehType)
-          case None =>
-            throw new RuntimeException("Bike not found in vehicle types.")
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
+          vehicleTypes.append(bikeVehicleType)
         }
+
         initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
 
@@ -469,20 +513,25 @@ class UrbanSimScenarioLoader(
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
       val personAttrib = population.getPersonAttributes
+      val hh = personHouseholds(person.getId)
+      val sexChar = if (personInfo.isFemale) "F" else "M"
+
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
-
-      val sexChar = if (personInfo.isFemale) "F" else "M"
+      personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
       personAttrib.putAttribute(personId, "sex", sexChar)
+
       person.getAttributes.putAttribute("sex", sexChar)
+      person.getAttributes.putAttribute("age", personInfo.age)
+      person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
 
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,
         person,
-        personHouseholds(person.getId),
+        hh,
         population,
         availableModes.split(",")
       )

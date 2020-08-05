@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
-import java.util.zip.GZIPInputStream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
@@ -96,6 +96,13 @@ object FileUtils extends LazyLogging {
       resource.close()
     }
 
+  def using[A, B](resource: A)(close: A => Unit)(f: A => B): B =
+    try {
+      f(resource)
+    } finally {
+      close(resource)
+    }
+
   def usingTemporaryDirectory[B](f: Path => B): B = {
     val tmpFolder: Path = Files.createTempDirectory("tempDirectory")
     try {
@@ -176,6 +183,10 @@ object FileUtils extends LazyLogging {
 
   def readerFromFile(filePath: String): java.io.BufferedReader = {
     IOUtils.getBufferedReader(filePath)
+  }
+
+  def readerFromStream(stream: InputStream): java.io.BufferedReader = {
+    new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
   }
 
   def readerFromURL(url: String): java.io.BufferedReader = {
@@ -394,5 +405,29 @@ object FileUtils extends LazyLogging {
         }
     }
     Await.result(Future.sequence(futures), atMost)
+  }
+
+  def getStreamFromZipFolder(pathToZip: String, fileName: String): Option[InputStream] = {
+    val zipInputStream = new ZipInputStream(Files.newInputStream(new File(pathToZip).toPath))
+
+    @tailrec
+    def loop(maybeNext: Option[ZipEntry], result: Option[ZipEntry]): Option[ZipEntry] = {
+      if (maybeNext.isEmpty) result
+      else {
+        Option(zipInputStream.getNextEntry) match {
+          case Some(zipEntry) if zipEntry.getName == fileName =>
+            loop(None, Some(zipEntry))
+          case Some(_) => loop(Option(zipInputStream.getNextEntry), None)
+          case None    => loop(None, result)
+        }
+      }
+    }
+
+    loop(Option(zipInputStream.getNextEntry), None) match {
+      case Some(_) => Some(zipInputStream)
+      case None =>
+        org.apache.commons.io.IOUtils.closeQuietly(zipInputStream)
+        None
+    }
   }
 }

@@ -71,6 +71,10 @@ class JointDistribution(
   scale: Boolean = false
 ) {
 
+  // TODO: Remove this once moved to R-Tree or IntervalTree
+  private val cache: collection.mutable.Map[Seq[(String, Either[String, CustomRange])], Array[Map[String, String]]] =
+    collection.mutable.HashMap()
+
   def getProbabilityList(keyValueTuple: (String, Either[String, CustomRange])*): Array[String] = {
     getRangeList(keyValueTuple: _*).map(_(RETURN_COLUMN))
   }
@@ -79,13 +83,10 @@ class JointDistribution(
     sampleWithinRange: Boolean,
     keyValueTuple: (String, Either[String, CustomRange])*
   ): Map[String, String] = {
-
-    val pmf = getRangeList(keyValueTuple: _*)
-      .map(
-        value =>
-          new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
-      )
-      .toVector
+    val rngList: Array[Map[String, String]] = cache.getOrElseUpdate(keyValueTuple, getRangeList(keyValueTuple: _*))
+    val pmf = rngList.map { value =>
+      new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
+    }.toVector
 
     val values = pmf.map(_.getValue)
     if (values.isEmpty || values.reduce(_ + _) == 0.0) {

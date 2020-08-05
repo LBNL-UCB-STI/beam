@@ -15,6 +15,7 @@ case class ODSkimmerEvent(
 ) extends AbstractSkimmerEvent(eventTime, beamServices) {
   override protected def skimName: String = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
   override def timeIntervalInSeconds: Int = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.timeBin
+
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 

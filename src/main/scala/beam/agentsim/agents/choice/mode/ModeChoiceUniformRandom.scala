@@ -33,7 +33,13 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
     destinationActivity: Option[Activity]
   ): Double = 0.0
 
-  override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
+  override def utilityOf(
+    mode: Modes.BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int,
+    transitOccupancyLevel: Double
+  ): Double = 0.0
 
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],

@@ -6,6 +6,8 @@ import org.matsim.api.core.v01.Coord
 case class WgsCoordinate(latitude: Double, longitude: Double) {
 
   override def toString: String = s"($latitude,$longitude)"
+
+  def coord: Coord = new Coord(longitude, latitude)
 }
 
 object WgsCoordinate {
