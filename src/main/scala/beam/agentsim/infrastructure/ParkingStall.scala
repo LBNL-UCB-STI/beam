@@ -64,6 +64,7 @@ object ParkingStall {
       parkingType = ParkingType.Public
     )
   }
+
   /**
     * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
     * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
