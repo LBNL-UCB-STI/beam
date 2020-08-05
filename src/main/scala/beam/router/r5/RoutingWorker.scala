@@ -248,7 +248,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       carRouter,
       noOfTimeBins,
       workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.inputDirectory + "/r5/osm.mapdb"),
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
       graphHopperDir,
       workerParams.networkHelper.allLinks.toSeq,
       travelTime
