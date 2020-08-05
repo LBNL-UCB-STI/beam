@@ -196,7 +196,9 @@ object RouteDumper {
     record.put("destinationUTM_Y", routingRequest.destinationUTM.getY)
     record.put("departureTime", routingRequest.departureTime)
     record.put("withTransit", routingRequest.withTransit)
-    record.put("streetVehicles", toRecord(routingRequest.streetVehicles))
+    record.put("streetVehicles_0", routingRequest.streetVehicles.lift(0).map(toRecord).orNull)
+    record.put("streetVehicles_1", routingRequest.streetVehicles.lift(1).map(toRecord).orNull)
+    record.put("streetVehicles_2", routingRequest.streetVehicles.lift(2).map(toRecord).orNull)
     routingRequest.attributesOfIndividual.foreach { attibs =>
       record.put("attributesOfIndividual", toRecord(attibs))
     }
@@ -245,8 +247,8 @@ object RouteDumper {
     record.put("startTime", beamLeg.startTime)
     record.put("mode", beamLeg.mode.value)
     record.put("duration", beamLeg.duration)
-    record.put("linkIds", beamLeg.travelPath.linkIds.toArray)
-    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.toArray)
+    record.put("linkIds", beamLeg.travelPath.linkIds.mkString(", "))
+    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.mkString(", "))
     beamLeg.travelPath.transitStops.foreach { transitStop =>
       record.put("transitStops_agencyId", transitStop.agencyId)
       record.put("transitStops_routeId", transitStop.routeId)
@@ -274,12 +276,12 @@ object RouteDumper {
       new Schema.Field("duration", Schema.create(Type.INT), "duration", null.asInstanceOf[Any])
     }
     val linkIds = {
-      new Schema.Field("linkIds", Schema.createArray(Schema.create(Type.INT)), "linkIds", null.asInstanceOf[Any])
+      new Schema.Field("linkIds", Schema.create(Type.STRING), "linkIds", null.asInstanceOf[Any])
     }
     val linkTravelTime = {
       new Schema.Field(
         "linkTravelTime",
-        Schema.createArray(Schema.create(Type.DOUBLE)),
+        Schema.create(Type.STRING),
         "linkTravelTime",
         null.asInstanceOf[Any]
       )
@@ -445,11 +447,29 @@ object RouteDumper {
     val withTransit = {
       new Schema.Field("withTransit", Schema.create(Type.BOOLEAN), "withTransit", null.asInstanceOf[Any])
     }
-    val streetVehicles = {
+    val streetVehicles_0 = {
       new Schema.Field(
-        "streetVehicles",
-        Schema.createArray(streetVehicleSchema),
-        "streetVehicles",
+        "streetVehicles_0",
+        Schema.createUnion(util.Arrays.asList(streetVehicleSchema, Schema.create(Schema.Type.NULL))),
+        "streetVehicles_0",
+        null.asInstanceOf[Any]
+      )
+    }
+
+    val streetVehicles_1 = {
+      new Schema.Field(
+        "streetVehicles_1",
+        Schema.createUnion(util.Arrays.asList(streetVehicleSchema, Schema.create(Schema.Type.NULL))),
+        "streetVehicles_1",
+        null.asInstanceOf[Any]
+      )
+    }
+
+    val streetVehicles_2 = {
+      new Schema.Field(
+        "streetVehicles_2",
+        Schema.createUnion(util.Arrays.asList(streetVehicleSchema, Schema.create(Schema.Type.NULL))),
+        "streetVehicles_2",
         null.asInstanceOf[Any]
       )
     }
@@ -481,7 +501,9 @@ object RouteDumper {
       destinationUTM_Y,
       departureTime,
       withTransit,
-      streetVehicles,
+      streetVehicles_0,
+      streetVehicles_1,
+      streetVehicles_2,
       attributesOfIndividual,
       streetVehiclesUseIntermodalUse,
       initiatedFrom,
