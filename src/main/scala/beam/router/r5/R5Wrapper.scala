@@ -44,6 +44,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
 
   private val WorkerParameters(
     beamConfig,
+    scenario,
+    outputDirectory,
     transportNetwork,
     vehicleTypes,
     fuelTypePrices,

@@ -195,6 +195,8 @@ object R5RoutingWorker {
     new R5RoutingWorker(
       WorkerParameters(
         beamScenario.beamConfig,
+        scenario,
+        WorkerParameters.makeOutputDirectory(beamScenario.beamConfig),
         transportNetwork,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
