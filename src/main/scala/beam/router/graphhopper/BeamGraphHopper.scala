@@ -4,13 +4,11 @@ import com.graphhopper.GraphHopper
 import com.graphhopper.config.Profile
 import com.graphhopper.routing.weighting.TurnCostProvider.NO_TURN_COST_PROVIDER
 import com.graphhopper.routing.weighting.Weighting.INFINITE_U_TURN_COSTS
-import com.graphhopper.routing.weighting.{DefaultTurnCostProvider, FastestWeighting, TurnCostProvider, Weighting}
+import com.graphhopper.routing.weighting.{DefaultTurnCostProvider, Weighting}
 import com.graphhopper.util.PMap
 import com.graphhopper.util.Parameters.Routing
-import org.matsim.api.core.v01.network.Link
-import org.matsim.core.router.util.TravelTime
 
-class BeamGraphHopper(links: Seq[Link], travelTime: Option[TravelTime]) extends GraphHopper {
+class BeamGraphHopper(wayId2TravelTime: Map[Long, Double]) extends GraphHopper {
 
   override def createWeighting(profile: Profile, hints: PMap, disableTurnCosts: Boolean): Weighting = {
     if (profile.getWeighting == BeamGraphHopper.weightingName) {
@@ -34,17 +32,11 @@ class BeamGraphHopper(links: Seq[Link], travelTime: Option[TravelTime]) extends 
       NO_TURN_COST_PROVIDER
     }
 
-    val time = profile.getName.split(BeamGraphHopper.profilePrefix)(1)
-    val wayId2TravelTime = travelTime.map{times=>
-          links.map(l =>
-            l.getId.toString.toLong -> times.getLinkTravelTime(l, time.toInt, null, null)).toMap
-    }.getOrElse(Map.empty)
-
     new BeamWeighting(encoder, turnCostProvider, wayId2TravelTime)
   }
 }
 
 object BeamGraphHopper {
-  val profilePrefix = "beam_car_hour_"
+  val profile = "beam_car"
   val weightingName = "beam"
 }
