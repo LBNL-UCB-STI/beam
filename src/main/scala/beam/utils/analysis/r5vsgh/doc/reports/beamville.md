@@ -13,4 +13,4 @@
 * [GitHub Comment](https://github.com/LBNL-UCB-STI/beam/issues/2804#issuecomment-667139581)
 
 ## GPX
-Open [beamville.qgz](beamville.qgz) in *QGIS*.
+Open [beamville.qgz](beamville.qgz) in **QGIS**.
