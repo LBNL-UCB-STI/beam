@@ -18,7 +18,7 @@ import com.graphhopper.routing.util._
 import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.router.util.TravelTime
 
@@ -36,7 +36,7 @@ class GraphHopperWrapper(
                           travelTime: Option[TravelTime] = None,
                         ) extends Router {
 
-  val id2Link = links.map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord)).toMap
+  val id2Link: Map[Int, (Coord, Coord)] = links.map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord)).toMap
 
   val geoUtils: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
