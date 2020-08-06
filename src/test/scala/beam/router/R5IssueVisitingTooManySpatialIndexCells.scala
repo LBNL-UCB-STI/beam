@@ -20,8 +20,7 @@ class R5IssueVisitingTooManySpatialIndexCells extends FlatSpec with Matchers {
   val transportNetwork: TransportNetwork = TransportNetwork.fromDirectory(dir)
   val streetLayer = transportNetwork.streetLayer
 
-  // val location: Location = new Coord(-83.140673203295833, 42.378642536832911)
-  val location: Location = new Coord(-83.40862361941298, 42.41622317907699)
+  val location: Location = new Coord(-83.140673203295833, 42.378642536832911)
 
   it should "be able to snap to R5 edge" in {
     val split = streetLayer.findSplit(location.getY, location.getX, 10000, StreetMode.WALK)

@@ -7,11 +7,14 @@ import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import beam.utils.EventReader;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.nio.file.Paths;
 
+import static org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,11 +33,16 @@ class GraphTestUtil {
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
     private static final BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
     private static final BeamServices services = mock(BeamServices.class);
+    private static final MatsimServices matsimServices = mock(MatsimServices.class);
+    private static final OutputDirectoryHierarchy ioController =
+            new OutputDirectoryHierarchy(BASE_PATH + "/output/beam-test-output", overwriteExistingFiles);
     private static final EventsManager events;
 
     static {
         when(services.beamConfig()).thenReturn(beamconfig);
         when(services.simMetricCollector()).thenReturn(NoOpSimulationMetricCollector$.MODULE$);
+        when(services.matsimServices()).thenReturn(matsimServices);
+        when(matsimServices.getControlerIO()).thenReturn(ioController);
         events = EventsUtils.createEventsManager();
     }
 

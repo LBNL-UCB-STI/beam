@@ -1,15 +1,20 @@
 package beam.agentsim.agents.vehicles
 
+import java.nio.charset.StandardCharsets
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
+import org.apache.commons.io.IOUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{FunSpecLike, Matchers, _}
+
+import scala.collection.immutable.TreeMap
 
 /**
   *
@@ -98,6 +103,33 @@ class PassengerScheduleTest
       passengerSchedule.schedule(leg3).boarders.size should ===(0)
       passengerSchedule.schedule(leg3).alighters.size should ===(2)
     }
+  }
+
+  import beam.utils.json.AllNeededFormats._
+  import io.circe._, io.circe.parser._
+
+  it("should be able to find a beam leg (after fixing beam.agentsim.agents.vehicles.BeamLegOrdering)") {
+    val scheduleJsonStr = IOUtils.toString(getClass.getResourceAsStream("/files/schedule.json"), StandardCharsets.UTF_8)
+    val newBeamLegJsonStr = IOUtils.toString(getClass.getResourceAsStream("/files/newLeg.json"), StandardCharsets.UTF_8)
+    val program = for {
+      scheduleWithLegs <- decode[List[(BeamLeg, PassengerSchedule.Manifest)]](scheduleJsonStr)
+      newLeg           <- decode[BeamLeg](newBeamLegJsonStr)
+      schedule = PassengerSchedule(TreeMap(scheduleWithLegs: _*)(BeamLegOrdering))
+    } yield (schedule, newLeg)
+
+    program match {
+      case Left(value) =>
+        fail(value.toString)
+      case Right((schedule, newLeg)) =>
+        schedule.schedule.get(newLeg) match {
+          case None =>
+            fail(s"Expected to find Manifest by leg '${newLeg}")
+          case Some(value) =>
+            require(value.riders.size == 1)
+            require(value.riders.head.personId.toString == "Hello")
+        }
+    }
+
   }
 
   override def afterAll: Unit = {

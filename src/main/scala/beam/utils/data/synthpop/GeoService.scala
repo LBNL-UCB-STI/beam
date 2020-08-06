@@ -31,7 +31,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     extends StrictLogging {
   import GeoService._
 
-  private val crsCode: String = "EPSG:4326"
+  val crsCode: String = "EPSG:4326"
   private val THRESHOLD_IN_METERS: Double = 1000.0
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
@@ -132,7 +132,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
         CheckResult.InsideBoundingBoxAndFeasbleForR5
       }
     } else {
-      CheckResult.OutsideOfBoundingBox
+      CheckResult.OutsideOfBoundingBox(mapBoundingBox)
     }
   }
 }
@@ -230,6 +230,6 @@ object GeoService {
 
     final case object InsideBoundingBoxAndFeasbleForR5 extends CheckResult
 
-    final case object OutsideOfBoundingBox extends CheckResult
+    final case class OutsideOfBoundingBox(boundingBox: Envelope) extends CheckResult
   }
 }

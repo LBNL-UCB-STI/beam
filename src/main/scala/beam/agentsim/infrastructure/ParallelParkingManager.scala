@@ -53,7 +53,7 @@ class ParallelParkingManager(
     new SimpleCounter(log, logLevel, "Receiving {} per seconds of ParkingInquiry for {}")
   }
   private val tickTask: Cancellable =
-    context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
   private val workers: Vector[Worker] =
     clusters.zipWithIndex.map {

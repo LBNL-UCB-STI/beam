@@ -22,6 +22,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
+import beam.router.skim.TransitCrowdingSkimmerEvent
 import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -108,7 +109,7 @@ object DrivesVehicle {
     newPassSchedule
   }
 
-  def stripLiterallyDrivingData(data: DrivingData) = {
+  def stripLiterallyDrivingData(data: DrivingData): DrivingData = {
     data match {
       case LiterallyDrivingData(subData, _, _) =>
         subData
@@ -191,7 +192,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-  protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+  protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  protected def currentBeamVehicle: BeamVehicle =
+    beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
@@ -214,7 +217,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
   }
 
-  def updateLatestObservedTick(newTick: Int) = if (newTick > latestObservedTick) latestObservedTick = newTick
+  def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
     case ev @ Event(
@@ -298,19 +301,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      eventsManager.processEvent(
-        PathTraversalEvent(
-          tick,
-          currentVehicleUnderControl,
-          id.toString,
-          currentBeamVehicle.beamVehicleType,
-          data.passengerSchedule.schedule(currentLeg).riders.size,
-          currentLeg,
-          fuelConsumed.primaryFuel,
-          fuelConsumed.secondaryFuel,
-          currentBeamVehicle.primaryFuelLevelInJoules,
-          currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg /*,
+      val pte = PathTraversalEvent(
+        tick,
+        currentVehicleUnderControl,
+        id.toString,
+        currentBeamVehicle.beamVehicleType,
+        data.passengerSchedule.schedule(currentLeg).riders.size,
+        currentLeg,
+        fuelConsumed.primaryFuel,
+        fuelConsumed.secondaryFuel,
+        currentBeamVehicle.primaryFuelLevelInJoules,
+        currentBeamVehicle.secondaryFuelLevelInJoules,
+        tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -319,8 +321,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
-        )
       )
+      eventsManager.processEvent(pte)
+      generateTCSEventIfPossible(pte)
 
       if (!isLastLeg) {
         if (data.hasParkingBehaviors) {
@@ -460,19 +463,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
         val tollOnCurrentLeg = toll(currentLeg)
         tollsAccumulated += tollOnCurrentLeg
-        eventsManager.processEvent(
-          PathTraversalEvent(
-            updatedStopTick,
-            currentVehicleUnderControl,
-            id.toString,
-            currentBeamVehicle.beamVehicleType,
-            data.passengerSchedule.schedule(currentLeg).riders.size,
-            partiallyCompletedBeamLeg,
-            fuelConsumed.primaryFuel,
-            fuelConsumed.secondaryFuel,
-            currentBeamVehicle.primaryFuelLevelInJoules,
-            currentBeamVehicle.secondaryFuelLevelInJoules,
-            tollOnCurrentLeg /*,
+        val pte = PathTraversalEvent(
+          updatedStopTick,
+          currentVehicleUnderControl,
+          id.toString,
+          currentBeamVehicle.beamVehicleType,
+          data.passengerSchedule.schedule(currentLeg).riders.size,
+          partiallyCompletedBeamLeg,
+          fuelConsumed.primaryFuel,
+          fuelConsumed.secondaryFuel,
+          currentBeamVehicle.primaryFuelLevelInJoules,
+          currentBeamVehicle.secondaryFuelLevelInJoules,
+          tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -481,8 +483,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
-          )
         )
+        eventsManager.processEvent(pte)
+        generateTCSEventIfPossible(pte)
         partiallyCompletedBeamLeg.travelPath.endPoint
       } else {
         currentLeg.travelPath.startPoint
@@ -519,19 +522,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      eventsManager.processEvent(
-        PathTraversalEvent(
-          stopTick,
-          currentVehicleUnderControl,
-          id.toString,
-          currentBeamVehicle.beamVehicleType,
-          data.passengerSchedule.schedule(currentLeg).riders.size,
-          currentLeg,
-          fuelConsumed.primaryFuel,
-          fuelConsumed.secondaryFuel,
-          currentBeamVehicle.primaryFuelLevelInJoules,
-          currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg /*,
+      val pte = PathTraversalEvent(
+        stopTick,
+        currentVehicleUnderControl,
+        id.toString,
+        currentBeamVehicle.beamVehicleType,
+        data.passengerSchedule.schedule(currentLeg).riders.size,
+        currentLeg,
+        fuelConsumed.primaryFuel,
+        fuelConsumed.secondaryFuel,
+        currentBeamVehicle.primaryFuelLevelInJoules,
+        currentBeamVehicle.secondaryFuelLevelInJoules,
+        tollOnCurrentLeg /*,
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -540,8 +542,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
           fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
-        )
       )
+      eventsManager.processEvent(pte)
+      generateTCSEventIfPossible(pte)
 
       if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
         self ! PassengerScheduleEmptyMessage(
@@ -577,6 +580,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), triggerId), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay replying CompletionNotice(triggerId)
+  }
+
+  private def generateTCSEventIfPossible(pte: PathTraversalEvent): Unit = {
+    (pte.fromStopIndex, pte.toStopIndex) match {
+      case (Some(fromStopIdx), Some(toStopIdx)) =>
+        eventsManager.processEvent(
+          new TransitCrowdingSkimmerEvent(
+            pte.time,
+            beamConfig.beam.router.skim.transit_crowding_skimmer,
+            pte.vehicleId,
+            fromStopIdx,
+            toStopIdx,
+            pte.numberOfPassengers,
+            pte.capacity,
+          )
+        )
+      case _ =>
+    }
   }
 
   when(WaitingToDrive) {
@@ -849,7 +870,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
-  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
+  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
     val chargingPlugInEvent = new ChargingPlugInEvent(
@@ -869,7 +890,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     * @param currentTick
     * @param vehicle
     */
-  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle) = {
+  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
 
     val (chargingDuration, energyInJoules) =
       vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))

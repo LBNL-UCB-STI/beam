@@ -20,11 +20,11 @@ class UtilityBasedModeChoice @Inject()(
   beamScenario: BeamScenario
 ) extends Provider[PlanStrategy] {
 
-  val householdMembershipAllocator =
+  val householdMembershipAllocator: HouseholdMembershipAllocator =
     HouseholdMembershipAllocator(scenario.getHouseholds, scenario.getPopulation)
   val chainBasedModes: Set[String] = Set[String]("car")
 
-  val chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(
+  val chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(
     scenario.getVehicles,
     householdMembershipAllocator,
     chainBasedModes

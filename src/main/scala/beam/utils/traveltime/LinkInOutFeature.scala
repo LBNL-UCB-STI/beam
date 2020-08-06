@@ -21,7 +21,7 @@ class LinkInOutFeature(
 ) extends LazyLogging
     with FeatureExtractor {
   import NetworkUtil._
-  val start = System.currentTimeMillis()
+  val start: Long = System.currentTimeMillis()
   val allLinks: Array[Link] = links.values().asScala.toArray
 
   val vehicleOnUpstreamRoads: mutable.Map[String, Array[Int]] = mutable.Map[String, Array[Int]]()
@@ -61,7 +61,7 @@ class LinkInOutFeature(
   val maxOutColumns: Int = linkIdToOutLinks.values.maxBy(_.length).length
   val maxInColumns: Int = linkIdToInLinks.values.maxBy(_.length).length
 
-  val end = System.currentTimeMillis()
+  val end: Long = System.currentTimeMillis()
   logger.info(s"Prepared in ${end - start} ms")
 
   val shouldWriteMapping: Boolean = true

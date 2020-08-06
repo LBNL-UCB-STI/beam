@@ -1,7 +1,7 @@
 package beam.agentsim.events.handling
 
 import java.nio.file.Paths
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
 import java.util.Objects
 import java.util.concurrent.TimeUnit
 
@@ -12,6 +12,7 @@ import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
+import beam.utils.csv.CsvWriter
 import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
 import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
@@ -85,7 +86,7 @@ class TravelTimeGoogleStatistic(
       val result = using(adapter) { adapter =>
         queryGoogleAPI(events, adapter)
       }.sortBy(
-        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
+        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds)
       )
       val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
       val num = writeToCsv(result, filePath)
@@ -113,15 +114,26 @@ class TravelTimeGoogleStatistic(
     implicit def doubleToString(x: Double): String = formatter.format(x)
     implicit def intToString(x: Int): String = x.toString
 
-    using(IOUtils.getBufferedWriter(filePath)) { writer =>
-      writer.write(
-        "vehicleId,vehicleType,departureTime,originLat,originLng,destLat,destLng,simTravelTime,googleTravelTime," +
-        "euclideanDistanceInMeters,legLength,googleDistance"
-      )
+    val headers = Vector(
+      "vehicleId",
+      "vehicleType",
+      "departureTime",
+      "originLat",
+      "originLng",
+      "destLat",
+      "destLng",
+      "simTravelTime",
+      "googleTravelTime",
+      "googleTravelTimeWithTraffic",
+      "euclideanDistanceInMeters",
+      "legLength",
+      "googleDistance"
+    )
+    using(new CsvWriter(filePath, headers)) { csvWriter =>
       seq
         .map(
           ec =>
-            List[String](
+            Vector[String](
               Objects.toString(ec.event.vehicleId),
               ec.event.vehicleType,
               ec.event.departureTime,
@@ -131,17 +143,17 @@ class TravelTimeGoogleStatistic(
               ec.event.endX,
               ec.event.arrivalTime - ec.event.departureTime,
               ec.route.durationIntervalInSeconds,
+              ec.route.durationInTrafficSeconds,
               geoUtils.distLatLon2Meters(
                 new Coord(ec.event.startX, ec.event.startY),
                 new Coord(ec.event.endX, ec.event.endY)
               ),
               ec.event.legLength,
               ec.route.distanceInMeters,
-            ).mkString(",")
+          )
         )
         .foreach { line =>
-          writer.newLine()
-          writer.write(line)
+          csvWriter.writeRow(line)
         }
     }
     seq.size
@@ -150,25 +162,39 @@ class TravelTimeGoogleStatistic(
   private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
     val chosenEvents = Random.shuffle(events).take(numEventsPerHour)
     // Use the same events, but with departure time on 3am
-    val offPeakEvents = chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
+    val offPeakEvents = if (cfg.offPeakEnabled) {
+      chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
+    } else {
+      Seq.empty
+    }
     chosenEvents ++ offPeakEvents
   }
 
-  private def getQueryDate(dateStr: String) = {
-    val parsedDate = Try(LocalDate.parse(dateStr)).getOrElse(futureDate())
+  private def getQueryDate(dateStr: String): LocalDateTime = {
+    val triedDate = Try(LocalDate.parse(dateStr))
+    triedDate.failed.foreach { throwable =>
+      logger.error("Cannot parse date {}, using a future one", dateStr, throwable)
+    }
+    val parsedDate = triedDate.getOrElse(futureWednesday())
     val date = if (parsedDate.compareTo(LocalDate.now()) <= 0) {
-      futureDate()
+      logger.warn("Date in the past: {}, using a future one", dateStr)
+      futureWednesday()
     } else {
       parsedDate
     }
     LocalDateTime.of(date, LocalTime.MIDNIGHT)
   }
 
-  private def futureDate(): LocalDate = {
-    LocalDate.now().plusDays(2)
+  private def futureWednesday(): LocalDate = {
+    @scala.annotation.tailrec
+    def findWednesday(date: LocalDate): LocalDate = {
+      if (date.getDayOfWeek == DayOfWeek.WEDNESDAY) date else findWednesday(date.plusDays(1))
+    }
+
+    findWednesday(LocalDate.now().plusDays(1))
   }
 
-  private def toRouteRequest(event: PathTraversalEvent) = {
+  private def toRouteRequest(event: PathTraversalEvent): RouteRequest[PathTraversalEvent] = {
     RouteRequest(
       userObject = event,
       origin = WgsCoordinate(event.startY, event.startX),
@@ -178,7 +204,7 @@ class TravelTimeGoogleStatistic(
     )
   }
 
-  def loadedEventNumber = acc.size
+  def loadedEventNumber: Int = acc.size
 
   override def reset(iteration: Int): Unit = {
     acc.clear()

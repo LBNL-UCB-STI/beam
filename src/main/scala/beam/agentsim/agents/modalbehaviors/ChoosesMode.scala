@@ -13,7 +13,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -28,9 +28,9 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
 import beam.agentsim.infrastructure.parking.ParkingMNL
 
 /**
@@ -40,7 +40,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
-  val dummyRHVehicle =
+  val dummyRHVehicle: StreetVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[BeamVehicle]),
       Id.create(
@@ -52,7 +52,7 @@ trait ChoosesMode {
       asDriver = false
     )
 
-  def bodyVehiclePersonId = PersonIdWithActorRef(id, self)
+  def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   def boundingBox: Envelope
 
@@ -795,6 +795,13 @@ trait ChoosesMode {
             case (leg, i) =>
               if (i == 2) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
+              } else if (i == 3) {
+                val dist = geo.distUTMInMeters(
+                  geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
+                  parkingResponse.stall.locationUTM
+                )
+                val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
+                leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
               } else {
                 leg
               }

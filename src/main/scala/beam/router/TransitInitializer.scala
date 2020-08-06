@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
+import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -43,11 +44,17 @@ class TransitInitializer(
    * be used to decide what type of vehicle to assign
    *
    */
-  def initMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
+  def initMap: Map[Id[BeamVehicle], (RouteInfo, Array[BeamLeg])] = {
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = TrieMap[(Int, Int), Option[StreetPath]]()
-    def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
+
+    def pathWithoutStreetRoute(
+      fromStop: Int,
+      toStop: Int,
+      fromStopIdx: Int,
+      toStopIdx: Int
+    ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
       val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
@@ -68,12 +75,20 @@ class TransitInitializer(
 
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
         BeamPath(
-          Vector(),
-          Vector(),
-          None,
-          SpaceTime(fromCoord, departureTime),
-          SpaceTime(toCoord, departureTime + duration),
-          geo.distLatLon2Meters(fromCoord, toCoord)
+          linkIds = Vector(),
+          linkTravelTime = Vector(),
+          transitStops = Some(
+            TransitStopsInfo(
+              "",
+              "",
+              vehicleId,
+              fromStopIdx,
+              toStopIdx
+            )
+          ),
+          startPoint = SpaceTime(fromCoord, departureTime),
+          endPoint = SpaceTime(toCoord, departureTime + duration),
+          distanceInM = geo.distLatLon2Meters(fromCoord, toCoord)
         )
     }
 
@@ -117,10 +132,10 @@ class TransitInitializer(
         )
     }
 
-    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.toStream.par.flatMap { tripPattern =>
+    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.par.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val transitPaths = tripPattern.stops.indices
+      val transitPaths: Seq[(Int, Int, Id[Vehicle]) => BeamPath] = tripPattern.stops.indices
         .sliding(2)
         .map {
           case IndexedSeq(fromStopIdx, toStopIdx) =>
@@ -134,10 +149,10 @@ class TransitInitializer(
                 case Some(streetSeg) =>
                   pathWithStreetRoute(fromStop, toStop, streetSeg)
                 case None =>
-                  pathWithoutStreetRoute(fromStop, toStop)
+                  pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
               }
             } else {
-              pathWithoutStreetRoute(fromStop, toStop)
+              pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
             }
         }
         .toSeq
@@ -160,7 +175,7 @@ class TransitInitializer(
                     transitPaths(from)(departureTimeFrom, duration, tripVehId)
                   ).scaleToNewDuration(duration)
               }
-              .toSeq
+              .toArray
           (tripVehId, (route, legs))
         }
     }

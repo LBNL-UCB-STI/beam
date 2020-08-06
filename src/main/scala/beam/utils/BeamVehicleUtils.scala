@@ -70,7 +70,7 @@ object BeamVehicleUtils {
         val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
         val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
         val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
-        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
+        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString)
         val secondaryFuelConsumptionInJoule =
           Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
         val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)

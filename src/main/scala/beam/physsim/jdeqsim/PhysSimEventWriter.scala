@@ -54,7 +54,7 @@ object PhysSimEventWriter extends LazyLogging {
     fmt: BeamEventsFileFormats
   ): CommonEventWriter = {
     val eventsFileBasePath = beamServices.matsimServices.getControlerIO
-      .getIterationFilename(beamServices.matsimServices.getIterationNumber, "physSimEvents");
+      .getIterationFilename(beamServices.matsimServices.getIterationNumber, "physSimEvents")
     val path = eventsFileBasePath + "." + fmt.getSuffix
     fmt match {
       case BeamEventsFileFormats.XML | BeamEventsFileFormats.XML_GZ =>

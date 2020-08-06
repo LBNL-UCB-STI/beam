@@ -29,24 +29,24 @@ object ShapeUtils {
   object HasQuadBounds {
     import scala.language.implicitConversions
 
-    implicit val coord = new HasQuadBounds[Coord] {
-      override def getMinX(coord: Coord) = coord.getX
+    implicit val coord: HasQuadBounds[Coord] = new HasQuadBounds[Coord] {
+      override def getMinX(coord: Coord): Double = coord.getX
 
-      override def getMaxX(coord: Coord) = coord.getX
+      override def getMaxX(coord: Coord): Double = coord.getX
 
-      override def getMinY(coord: Coord) = coord.getY
+      override def getMinY(coord: Coord): Double = coord.getY
 
-      override def getMaxY(coord: Coord) = coord.getY
+      override def getMaxY(coord: Coord): Double = coord.getY
     }
 
-    implicit val envelope = new HasQuadBounds[Envelope] {
-      override def getMinX(envelope: Envelope) = envelope.getMinX
+    implicit val envelope: HasQuadBounds[Envelope] = new HasQuadBounds[Envelope] {
+      override def getMinX(envelope: Envelope): Double = envelope.getMinX
 
-      override def getMaxX(envelope: Envelope) = envelope.getMaxX
+      override def getMaxX(envelope: Envelope): Double = envelope.getMaxX
 
-      override def getMinY(envelope: Envelope) = envelope.getMinY
+      override def getMinY(envelope: Envelope): Double = envelope.getMinY
 
-      override def getMaxY(envelope: Envelope) = envelope.getMaxY
+      override def getMaxY(envelope: Envelope): Double = envelope.getMaxY
     }
 
   }

@@ -445,7 +445,7 @@ class BeamAgentScheduler(
   def scheduleMonitorTask: Option[Cancellable] = {
     if (beamConfig.beam.debug.debugEnabled)
       Some(
-        context.system.scheduler.schedule(
+        context.system.scheduler.scheduleWithFixedDelay(
           new FiniteDuration(initialDelay, TimeUnit.SECONDS),
           new FiniteDuration(interval, TimeUnit.SECONDS),
           self,
@@ -458,7 +458,7 @@ class BeamAgentScheduler(
   def scheduleStuckAgentCheck: Option[Cancellable] = {
     if (beamConfig.beam.debug.stuckAgentDetection.enabled)
       Some(
-        context.system.scheduler.schedule(
+        context.system.scheduler.scheduleWithFixedDelay(
           new FiniteDuration(
             beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
             TimeUnit.MILLISECONDS

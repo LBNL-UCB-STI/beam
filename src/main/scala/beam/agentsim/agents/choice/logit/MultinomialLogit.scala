@@ -1,20 +1,21 @@
 package beam.agentsim.agents.choice.logit
 
-import scala.collection.immutable.SortedSet
+import beam.utils.MathUtils
+
 import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
 
 /**
   * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *
   * @param utilityFunctions mappings from alternatives to the attributes which can be evaluated against them
   * @param common common attributes of all alternatives
+  * @param scale_factor amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
   * @tparam A the type of alternatives we are choosing between
   * @tparam T the attributes of this multinomial logit function
   */
 class MultinomialLogit[A, T](
-  val utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
+  val utilityFunctions: A => Option[Map[T, UtilityFunctionOperation]],
   common: Map[T, UtilityFunctionOperation],
   scale_factor: Double = 1.0
 ) extends LazyLogging {
@@ -121,16 +122,16 @@ class MultinomialLogit[A, T](
   def getExpectedMaximumUtility(
     alternatives: Map[A, Map[T, Double]]
   ): Option[Double] = {
-    val utilityOfAlternatives: Iterable[Double] =
+    val scaledUtilityOfAlternatives: Iterable[Double] =
       for {
         (alt, attributes) <- alternatives
         utility           <- getUtilityOfAlternative(alt, attributes)
       } yield {
-        Math.exp(utility)
+        utility * scale_factor
       }
 
-    if (utilityOfAlternatives.isEmpty) None
-    else Some { Math.log(utilityOfAlternatives.sum) }
+    if (scaledUtilityOfAlternatives.isEmpty) None
+    else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / scale_factor }
   }
 
   /**
@@ -156,9 +157,10 @@ class MultinomialLogit[A, T](
     }
 
     val alternativeUtility: Iterable[Double] = for {
-      utilFnsForAlt <- utilityFunctions.get(alternative).toList
-      attribute     <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
-      mnlOperation  <- utilFnsForAlt.get(attribute)
+      utilFnsForAlt <- utilityFunctions(alternative).toList
+      //FIXME don't need this union?, see issue https://github.com/LBNL-UCB-STI/beam/issues/2862
+      attribute    <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
+      mnlOperation <- utilFnsForAlt.get(attribute)
       functionParam = attributes.getOrElse(attribute, 0.0)
     } yield {
       mnlOperation(functionParam)
@@ -189,14 +191,14 @@ object MultinomialLogit {
   )
 
   def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, Map.empty)
+    new MultinomialLogit(utilityFunctions.get, Map.empty)
   }
 
   def apply[A, T](
     utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
     commonUtilityFunction: Map[T, UtilityFunctionOperation]
   ): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, commonUtilityFunction, 1.0)
+    new MultinomialLogit(utilityFunctions.get, commonUtilityFunction, 1.0)
   }
 
   def apply[A, T](
@@ -204,6 +206,6 @@ object MultinomialLogit {
     commonUtilityFunction: Map[T, UtilityFunctionOperation],
     scale_factor: Double
   ): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, commonUtilityFunction, scale_factor)
+    new MultinomialLogit(utilityFunctions.get, commonUtilityFunction, scale_factor)
   }
 }

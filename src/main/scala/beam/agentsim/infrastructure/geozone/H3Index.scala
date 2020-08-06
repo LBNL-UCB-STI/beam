@@ -4,7 +4,7 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-case class H3Index private[geozone] (value: String, resolution: Int)
+case class H3Index private (value: String, resolution: Int)
 
 object H3Index extends StrictLogging {
   def apply(value: String): H3Index = new H3Index(value, H3Wrapper.getResolution(value))

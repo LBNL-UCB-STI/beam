@@ -81,7 +81,7 @@ class BeamEventsWriterParquet(
       .withCompressionCodec(CompressionCodecName.GZIP)
       .withValidation(false)
       .withDictionaryEncoding(false)
-      .build();
+      .build()
   }
 
   override protected def writeEvent(event: Event): Unit = {
