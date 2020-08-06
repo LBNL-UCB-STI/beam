@@ -70,7 +70,7 @@ object R5vsGraphHopper extends BeamHelper {
       if (s == 0 && populationSamplingFactor > 0) 1 else s
     }
 
-    val personIds = allPersonIds.sorted.take(populationSampleSize)
+    val personIds = allPersonIds.sorted.take(populationSampleSize).toSet
     logger.info(
       "Population sample size: {} ({}%)",
       personIds.size,
