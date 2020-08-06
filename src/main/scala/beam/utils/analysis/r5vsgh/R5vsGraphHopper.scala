@@ -91,7 +91,7 @@ object R5vsGraphHopper extends BeamHelper {
     val r5Results = ListBuffer.empty[R5vsGHResultRoute]
     var r5ErrorCount = 0
 
-    ProfilingUtils.timed("R5 run", logger.info) {
+    ProfilingUtils.timed("R5 run", x => logger.info(x)) {
       var i: Int = 0
       var progressBar: Double = 0.0
       var progressBarStep: Double = 0.1
@@ -178,7 +178,7 @@ object R5vsGraphHopper extends BeamHelper {
     val ghResults = ListBuffer.empty[R5vsGHResultRoute]
     var ghErrorCount = 0
 
-    ProfilingUtils.timed("GraphHopper run", logger.info) {
+    ProfilingUtils.timed("GraphHopper run", x => logger.info(x)) {
       var i: Int = 0
 
       var progressBar: Double = 0.0
