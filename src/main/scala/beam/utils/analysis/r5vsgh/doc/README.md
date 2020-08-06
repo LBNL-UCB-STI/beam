@@ -14,7 +14,7 @@ Additional arguments may be specified:
 * `'--plan','/path/to/plans.csv[.gz]'` to override the scenario plans
 * `'--population-sampling-factor','0.05'` to limit the input size
 
-See [runR5vsGraphHopper.sh](r5vsgh/runR5vsGraphHopper.sh) for guidance.
+See [runR5vsGraphHopper.sh](../scripts/runR5vsGraphHopper.sh) for guidance.
 
 ## What is the output?
 Output directory (see `beam.outputs.baseOutputDirectory` config value) will be created as usual. It will contain `R5vsGraphHopper` directory:
