@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.{ExecutorService, Executors}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -66,7 +66,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
-  private var msgs: Long = 0
+  private val msgs = new AtomicLong()
   private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
@@ -124,10 +124,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           val seconds =
             ChronoUnit.SECONDS.between(firstMsgTimeValue, ZonedDateTime.now(ZoneOffset.UTC))
           if (seconds > 0) {
-            val rate = msgs.toDouble / seconds
+            val rate = msgs.get().toDouble / seconds
             if (seconds > 60) {
               firstMsgTime = None
-              msgs = 0
+              msgs.set(0)
             }
             if (workerParams.beamConfig.beam.outputs.displayPerformanceTimings) {
               log.info(
@@ -150,7 +150,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case request: RoutingRequest =>
-      msgs += 1
+      msgs.incrementAndGet()
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
@@ -160,7 +160,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
             //run graphHopper for only cars
             val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
-              val idx = Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+              val idx =
+                if (carRouter == "quasiDynamicGH")
+                  Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+                else 0
               Some(graphHoppers(idx).calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
             } else None
 
@@ -191,10 +194,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       log.info("===================================================================")
-      log.info(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
+      log.info(s"TOTAL NON TRANSIT ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL REQUESTS ${msgs.get()}")
       log.info("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
+
       if (carRouter == "quasiDynamicGH") {
         createGraphHoppers(Some(newTravelTime))
       }
@@ -247,7 +251,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def createGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
     new Directory(new File(graphHopperDir)).deleteRecursively()
 
-     val futures = (0 until noOfTimeBins).map { i =>
+    val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
+
+    val futures = (0 until graphHopperInstances).map { i =>
       Future {
         val ghDir = Paths.get(graphHopperDir, i.toString).toString
 
@@ -268,7 +274,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       }
     }
 
-    graphHoppers = Await.result(Future.sequence(futures), 5.minutes).toMap
+    graphHoppers = Await.result(Future.sequence(futures), 10.minutes).toMap
   }
 }
 
