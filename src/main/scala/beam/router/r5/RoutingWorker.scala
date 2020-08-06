@@ -154,19 +154,29 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          if (!request.withTransit && request.streetVehicles.size == 1 &&
-            request.streetVehicles.head.mode == CAR) {
+          if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             routeRequestCounter.incrementAndGet()
             val start = System.currentTimeMillis()
-            val res = if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
-              graphHopper.calcRoute(request)
-            } else {
-              r5.calcRoute(request)
-            }
+
+            //run graphHopper for only cars
+            val ghResponse = if (request.streetVehicles.exists(_.mode == CAR))
+              Some(graphHopper.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
+            else None
+
+            //run r5 for everything except cars
+            val r5Response = if (request.streetVehicles.exists(_.mode != CAR)) {
+              Some(r5.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode != CAR))))
+            } else None
+
             routeRequestExecutionTime.addAndGet(System.currentTimeMillis() - start)
-            res
+
+            //combine into one response
+            val response = Seq(ghResponse, r5Response).collectFirst { case Some(res) => res }.get
+            response.copy(
+              ghResponse.map(_.itineraries).getOrElse(Seq.empty) ++
+                r5Response.map(_.itineraries).getOrElse(Seq.empty)
+            )
           } else {
-            routeRequestCounter.incrementAndGet()
             r5.calcRoute(request)
           }
         }
