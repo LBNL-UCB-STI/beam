@@ -1,12 +1,13 @@
 package beam.router.r5
 
 import java.io.File
+import java.nio.file.Paths
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import akka.actor._
@@ -37,6 +38,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
+
+import scala.reflect.io.Directory
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
@@ -82,8 +85,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
 
-  private val graphHopperDir: String = workerParams.beamConfig.beam.inputDirectory + "/graphhopper"
-  private var graphHopper: GraphHopperWrapper = _
+  private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
+  private var graphHoppers: Map[Int, GraphHopperWrapper] = _
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -97,11 +100,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   override def preStart(): Unit = {
     if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
-      createGraphHopperDirectoryIfNotExisting()
-      graphHopper = new GraphHopperWrapper(
-        carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
-        graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
-        workerParams.networkHelper.allLinks.toSeq, None)
+      createGraphHoppers()
       askForMoreWork()
     }
   }
@@ -117,6 +116,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   val routeRequestCounter = new AtomicInteger(0)
   val routeRequestExecutionTime = new AtomicDouble(0.0)
+
   override final def receive: Receive = {
     case "tick" =>
       firstMsgTime match {
@@ -159,9 +159,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             val start = System.currentTimeMillis()
 
             //run graphHopper for only cars
-            val ghResponse = if (request.streetVehicles.exists(_.mode == CAR))
-              Some(graphHopper.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
-            else None
+            val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
+              val idx = Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+              Some(graphHoppers(idx).calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
+            } else None
 
             //run r5 for everything except cars
             val r5Response = if (request.streetVehicles.exists(_.mode != CAR)) {
@@ -195,11 +196,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
       if (carRouter == "quasiDynamicGH") {
-        createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
-        graphHopper = new GraphHopperWrapper(
-          carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
-          graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
-          workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+        createGraphHoppers(Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -218,11 +215,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       routeRequestCounter.set(0)
       val newTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
-        createGraphHopperDirectoryIfNotExisting(Some(newTravelTime))
-        graphHopper = new GraphHopperWrapper(
-          carRouter, noOfTimeBins, workerParams.beamConfig.beam.agentsim.timeBinSize,
-          graphHopperDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
-          workerParams.networkHelper.allLinks.toSeq, Some(newTravelTime))
+        createGraphHoppers(Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -251,18 +244,31 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  private def createGraphHopperDirectoryIfNotExisting(travelTime: Option[TravelTime] = None): Unit = {
-    //    if (!new File(graphHopperDir).delete().exists())
-    new File(graphHopperDir).delete()
-    GraphHopperWrapper.createGraphDirectoryFromR5(
-      carRouter,
-      noOfTimeBins,
-      workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
-      graphHopperDir,
-      workerParams.networkHelper.allLinks.toSeq,
-      travelTime
-    )
+  private def createGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+    new Directory(new File(graphHopperDir)).deleteRecursively()
+
+     val futures = (0 until noOfTimeBins).map { i =>
+      Future {
+        val ghDir = Paths.get(graphHopperDir, i.toString).toString
+
+        val wayId2TravelTime = travelTime.map { times =>
+          workerParams.networkHelper.allLinks.toSeq.map(l =>
+            l.getId.toString.toLong -> times.getLinkTravelTime(l, 0, null, null)).toMap
+        }.getOrElse(Map.empty)
+
+        GraphHopperWrapper.createGraphDirectoryFromR5(
+          carRouter, workerParams.transportNetwork,
+          new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile), ghDir, wayId2TravelTime
+        )
+
+        i -> new GraphHopperWrapper(
+          carRouter, ghDir, workerParams.geo, workerParams.vehicleTypes, workerParams.fuelTypePrices,
+          wayId2TravelTime,
+          id2Link)
+      }
+    }
+
+    graphHoppers = Await.result(Future.sequence(futures), 5.minutes).toMap
   }
 }
 
