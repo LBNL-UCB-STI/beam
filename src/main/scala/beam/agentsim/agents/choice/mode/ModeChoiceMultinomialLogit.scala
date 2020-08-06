@@ -220,13 +220,13 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Int = {
     if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      val newResult = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs
+      val result = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs
         .map { embodiedBeamLeg: EmbodiedBeamLeg =>
           beamPathDurationInSecondsAdjusted(embodiedBeamLeg.beamLeg.travelPath)
         }
         .sum
         .toInt
-      Math.max(0, newResult)
+      Math.max(0, result)
     } else {
       embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
