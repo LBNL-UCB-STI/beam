@@ -118,9 +118,15 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     val segments = parseSegments((jsObject \ "steps").as[JsArray].value)
     val distanceInMeter = (jsObject \ "distance" \ "value").as[Int]
     val durationInSeconds = (jsObject \ "duration" \ "value").as[Int]
+    // https://developers.google.com/maps/documentation/directions/overview?_gac=1.187038170.1596465170.Cj0KCQjw6575BRCQARIsAMp-ksPk0sK6Ztey7UXWPBRyjP0slBRVw3msLAYU6PPEZRHdAQUQGbsDrI0aAgxvEALw_wcB&_ga=2.204378384.1892646518.1596465112-448741100.1596465112#optional-parameters
+    // For requests where the travel mode is driving: You can specify the departure_time to receive a route
+    // and trip duration (response field: duration_in_traffic) that take traffic conditions into account.
+    // This option is only available if the request contains a valid API key, or a valid Google Maps Platform Premium Plan client ID and signature.
+    // The departure_time must be set to the current time or some time in the future. It cannot be in the past.
+    val durationInTrafficSeconds = (jsObject \ "duration_in_traffic" \ "value").as[Int]
     val startLocation = parseWgsCoordinate(jsObject \ "start_location")
     val endLocation = parseWgsCoordinate(jsObject \ "end_location")
-    Route(startLocation, endLocation, distanceInMeter, durationInSeconds, segments)
+    Route(startLocation, endLocation, distanceInMeter, durationInSeconds, durationInTrafficSeconds, segments)
   }
 
   private def parseStep(jsObject: JsObject): Segment = {
