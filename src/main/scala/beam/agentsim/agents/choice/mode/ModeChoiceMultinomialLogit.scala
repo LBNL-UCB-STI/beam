@@ -237,8 +237,8 @@ class ModeChoiceMultinomialLogit(
 
   private def beamPathDurationInSecondsAdjusted(path: BeamPath): Double = {
     val bikeScaleFactor = beamConfig.beam.routing.r5.bikeLaneScaleFactor
-    path.linkIds
-      .zip(path.linkTravelTime)
+    path.linkIds.drop(1)
+      .zip(path.linkTravelTime.drop(1))
       .map {
         case (linkId: Int, travelTime: Double) =>
           if (bikeLanesLinkIds.contains(linkId)) {
