@@ -53,10 +53,10 @@ object R5vsGraphHopper extends BeamHelper {
 
     val allPersonPlanODs = arguments.plan match {
       case Some(p) =>
-        logger.info(s"Reading Plans file: $p")
+        logger.info("Reading plans file: {}", p)
         readUtmPlanCsv(p)
       case None =>
-        logger.info(s"Loading scenario Plans")
+        logger.info(s"Loading scenario plans")
         makePersonPlanODs(
           workerParams.scenario.getPopulation.getPersons.values().asScala.toSeq
         )
@@ -72,13 +72,15 @@ object R5vsGraphHopper extends BeamHelper {
 
     val personIds = allPersonIds.sorted.take(populationSampleSize)
     logger.info(
-      s"Population sample size: ${personIds.size} (${math.round(100.0 * personIds.size / allPersonIds.size).toInt}%)"
+      "Population sample size: {} ({}%)",
+      personIds.size,
+      math.round(100.0 * personIds.size / allPersonIds.size).toInt
     )
 
     val personPlanODs = allPersonPlanODs.filterKeys(personIds.contains)
 
     val odsCount = personPlanODs.values.map(_.size).sum
-    logger.info(s"Origin-Destination pairs count: $odsCount")
+    logger.info("Origin-Destination pairs count: {}", odsCount)
 
     //
     // R5
@@ -89,7 +91,7 @@ object R5vsGraphHopper extends BeamHelper {
     val r5Results = ListBuffer.empty[R5vsGHResultRoute]
     var r5ErrorCount = 0
 
-    ProfilingUtils.timed("R5 run", x => logger.info(x)) {
+    ProfilingUtils.timed("R5 run", logger.info) {
       var i: Int = 0
       var progressBar: Double = 0.0
       var progressBarStep: Double = 0.1
@@ -152,7 +154,7 @@ object R5vsGraphHopper extends BeamHelper {
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
           val progressPct = math.round(100.0 * progressBar)
-          logger.info(s"R5 progress: $progressPct%")
+          logger.info("R5 progress: {}%", progressPct)
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
       }
@@ -176,7 +178,7 @@ object R5vsGraphHopper extends BeamHelper {
     val ghResults = ListBuffer.empty[R5vsGHResultRoute]
     var ghErrorCount = 0
 
-    ProfilingUtils.timed("GraphHopper run", x => logger.info(x)) {
+    ProfilingUtils.timed("GraphHopper run", logger.info) {
       var i: Int = 0
 
       var progressBar: Double = 0.0
@@ -226,7 +228,7 @@ object R5vsGraphHopper extends BeamHelper {
         val currentProgress = i.toDouble / odsCount
         if (progressBar == 0.0 || currentProgress >= progressBar) {
           val progressPct = math.round(100.0 * progressBar)
-          logger.info(s"GH progress: $progressPct%")
+          logger.info("GH progress: {}%", progressPct)
           if (currentProgress >= progressBar) progressBar += progressBarStep
         }
       }
@@ -239,11 +241,11 @@ object R5vsGraphHopper extends BeamHelper {
 
     val r5ResultsOutput = s"$outputDir/r5_routes.csv.gz"
     writeResultRoutesCsv(r5ResultsOutput, r5Results)
-    logger.info(s"R5 results written to: $r5ResultsOutput")
+    logger.info("R5 results written to {}", r5ResultsOutput)
 
     val ghResultsOutput = s"$outputDir/gh_routes.csv.gz"
     writeResultRoutesCsv(ghResultsOutput, ghResults)
-    logger.info(s"GH results written to: $ghResultsOutput")
+    logger.info("GH results written to: {}", ghResultsOutput)
 
     //
     // GPX
