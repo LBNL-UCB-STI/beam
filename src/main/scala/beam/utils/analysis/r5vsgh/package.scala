@@ -51,7 +51,7 @@ package object r5vsgh {
         s"$travelTime",
         s"$executionTimeMs",
         if (isError) "1" else "0",
-        comment
+        s"""\"$comment\""""
       )
   }
 
