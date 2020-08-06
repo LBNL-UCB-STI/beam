@@ -23,14 +23,14 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
- * See issue #2804 Get R5 vs. CCH Graphhopper performance for urbansim routes
+ * Issue #2804 "Get R5 vs. CCH Graphhopper performance for urbansim routes"
  * https://github.com/LBNL-UCB-STI/beam/issues/2804
  *
- * See README.rst
- *
- * Run from gradle:
- * ./gradlew :execute -PmainClass=beam.utils.analysis.r5vsgh.R5vsGraphHopper -PmaxRAM=4 \
- *   -PappArgs="['--config', 'test/input/texas/austin-prod-200k.conf', '--population-sampling-factor', '0.1']"
+ * Run with gradle:
+ * ./gradlew :execute \
+ *   -PmainClass=beam.utils.analysis.r5vsgh.R5vsGraphHopper \
+ *   -PappArgs="['--config','test/input/beamville/beam.conf']" \
+ *   -PlogbackCfg=logback.xml
  */
 object R5vsGraphHopper extends BeamHelper {
 
