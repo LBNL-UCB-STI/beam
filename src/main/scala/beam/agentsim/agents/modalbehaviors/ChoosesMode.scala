@@ -642,10 +642,11 @@ trait ChoosesMode {
     val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
-    val firstPathEndpoint = SpaceTime(
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
-      leg.beamLeg.startTime + firstDuration
-    )
+    val firstPathEndpoint =
+      SpaceTime(
+        beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
+        leg.beamLeg.startTime + firstDuration
+      )
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
