@@ -259,7 +259,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
         val wayId2TravelTime = travelTime.map { times =>
           workerParams.networkHelper.allLinks.toSeq.map(l =>
-            l.getId.toString.toLong -> times.getLinkTravelTime(l, 0, null, null)).toMap
+            l.getId.toString.toLong ->
+              times.getLinkTravelTime(l, i * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null)).toMap
         }.getOrElse(Map.empty)
 
         GraphHopperWrapper.createGraphDirectoryFromR5(
