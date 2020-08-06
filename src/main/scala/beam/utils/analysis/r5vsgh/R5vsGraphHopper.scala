@@ -148,6 +148,7 @@ object R5vsGraphHopper extends BeamHelper {
               .append(r5Resp)
           }
 
+          r5Results += resultRoute
           i += 1
         }
 
@@ -222,6 +223,7 @@ object R5vsGraphHopper extends BeamHelper {
               .append(ghResp)
           }
 
+          ghResults += resultRoute
           i += 1
         }
 
