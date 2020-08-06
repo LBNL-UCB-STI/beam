@@ -1,10 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.File
-
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.{Failure, Success, Try}
 
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
@@ -23,7 +20,6 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.FileUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -224,12 +220,13 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Int = {
     if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      embodiedBeamTrip.legs
+      val newResult = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs
         .map { embodiedBeamLeg: EmbodiedBeamLeg =>
           beamPathDurationInSecondsAdjusted(embodiedBeamLeg.beamLeg.travelPath)
         }
         .sum
         .toInt
+      Math.max(0, newResult)
     } else {
       embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
@@ -237,7 +234,8 @@ class ModeChoiceMultinomialLogit(
 
   private def beamPathDurationInSecondsAdjusted(path: BeamPath): Double = {
     val bikeScaleFactor = beamConfig.beam.routing.r5.bikeLaneScaleFactor
-    path.linkIds.drop(1)
+    path.linkIds
+      .drop(1)
       .zip(path.linkTravelTime.drop(1))
       .map {
         case (linkId: Int, travelTime: Double) =>
@@ -312,7 +310,12 @@ class ModeChoiceMultinomialLogit(
       }
       assert(numTransfers >= 0)
       val scaledTime = attributesOfIndividual.getVOT(
-        getGeneralizedTimeOfTripInHours(altAndIdx._1, Some(attributesOfIndividual), destinationActivity, adjustSpecialBikeLines = true)
+        getGeneralizedTimeOfTripInHours(
+          altAndIdx._1,
+          Some(attributesOfIndividual),
+          destinationActivity,
+          adjustSpecialBikeLines = true
+        )
       )
 
       val percentile =
