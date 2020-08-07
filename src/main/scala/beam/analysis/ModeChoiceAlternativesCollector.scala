@@ -134,7 +134,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
     csvFilePath = beamServices.matsimServices.getControlerIO.getIterationFilename(
       iteration,
-      "modeChoiceAlternativesWhenRHPooled.csv.gz"
+      "modeChoiceDetailed.csv.gz"
     )
 
     csvWriter = new CsvWriter(
