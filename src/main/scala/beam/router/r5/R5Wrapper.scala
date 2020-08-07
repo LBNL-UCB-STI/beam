@@ -63,6 +63,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     vehicleTypeId: Id[BeamVehicleType],
     embodyRequestId: Int
   ): RoutingResponse = {
+    val s = System.currentTimeMillis()
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -89,6 +90,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
     val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
+
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -106,7 +108,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true
+      isEmbodyWithCurrentTravelTime = true,
+      System.currentTimeMillis() - s
     )
     response
   }
@@ -202,6 +205,7 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   }
 
   def calcRoute(request: RoutingRequest): RoutingResponse = {
+    val routeCalcStarted = System.currentTimeMillis()
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -802,18 +806,26 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(
+        embodiedTrips,
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        System.currentTimeMillis() - routeCalcStarted
+      )
     }
   }
 
