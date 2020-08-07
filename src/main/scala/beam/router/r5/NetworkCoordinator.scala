@@ -119,6 +119,14 @@ trait NetworkCoordinator extends LazyLogging {
     }
   }
 
+  def getScaledLinkFreeSpeed(link: Link): Double = {
+    if (link.getLength <= beamConfig.beam.physsim.maxLinkLengthToApplySpeedScalingFactor) {
+      link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor
+    } else {
+      link.getFreespeed
+    }
+  }
+
   def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
     val rmNetBuilder = new R5MnetBuilder(
@@ -126,8 +134,12 @@ trait NetworkCoordinator extends LazyLogging {
       beamConfig,
       NetworkCoordinator.createHighwaySetting(beamConfig.beam.physsim.network.overwriteRoadTypeProperties)
     )
+
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
+
+    // TODO: write out number of ways without speed
+    // TODO: write out number of ways with speed
 
     require(
       beamConfig.beam.physsim.speedScalingFactor <= Int.MaxValue,
@@ -139,7 +151,7 @@ trait NetworkCoordinator extends LazyLogging {
 
     // Scale the speed after overwriting link params. Important!
     network.getLinks.values.asScala.foreach { link =>
-      link.setFreespeed(link.getFreespeed * beamConfig.beam.physsim.speedScalingFactor)
+      link.setFreespeed(getScaledLinkFreeSpeed(link))
     }
 
     logger.info(s"MATSim network created")
