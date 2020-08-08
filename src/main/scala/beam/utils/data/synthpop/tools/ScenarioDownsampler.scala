@@ -20,7 +20,7 @@ object ScenarioDownsampler {
     val pathToPersons = s"$pathToScenarioFolder/persons.csv.gz"
     val pathToPlans = s"$pathToScenarioFolder/plans.csv.gz"
 
-    val pathToOutput: String = "test/input/newyork/generic_scenario/1000k-NYC-related"
+    val pathToOutput: String = "test/input/newyork/generic_scenario/1051k-NYC-related"
 
     ProfilingUtils.timed(s"Downsample scenario to $newScenarioSize with seed $seed", println) {
 
@@ -54,18 +54,23 @@ object ScenarioDownsampler {
       val selectedPersonIds = selectedPersons.map(_.personId.id).toSet
 
       val csvPlanWriter = new CsvPlanElementWriter(pathToOutput + "/plans.csv.gz")
-      val (planIt, toClose) = CsvPlanElementReader.readWithFilter(
-        pathToPlans,
-        planElement => selectedPersonIds.contains(planElement.personId.id)
-      )
       var nSelectedPlans: Int = 0
       try {
-        planIt.foreach { plan =>
-          csvPlanWriter.write(Iterator.single(plan))
-          nSelectedPlans += 1
+        val (planIt, toClose) = CsvPlanElementReader.readWithFilter(
+          pathToPlans,
+          planElement => selectedPersonIds.contains(planElement.personId.id)
+        )
+        try {
+          planIt.foreach { plan =>
+            csvPlanWriter.write(Iterator.single(plan))
+            nSelectedPlans += 1
+          }
+        } finally {
+          toClose.close()
         }
-      } finally {
-        toClose.close()
+      }
+      finally {
+        csvPlanWriter.close()
       }
 
       println(s"Number of selected plans: $nSelectedPlans")
