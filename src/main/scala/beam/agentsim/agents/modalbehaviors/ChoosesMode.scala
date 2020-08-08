@@ -330,8 +330,10 @@ trait ChoosesMode {
             withParking = willRequestDrivingRoute
           )
         case Some(WALK) =>
-          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), withParking = false)
+          // FIXME: Our previous tour was WALK, but this should not stop us to use RideHail or try transit!
+          // This is important for the secondary activties because you can end-up walking very far (the problem was that whenever the person chooses WALK, he will never use any other mode anymore)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withRideHail = true, withRideHailTransit = true)
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
