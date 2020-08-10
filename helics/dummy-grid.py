@@ -26,7 +26,7 @@ if isconnected == 1:
 fedinfo = h.helicsCreateFederateInfo()
 
 # Set Federate name #
-h.helicsFederateInfoSetCoreName(fedinfo, "PowerOverNextInterval Federate")
+h.helicsFederateInfoSetCoreName(fedinfo, "Power Federate")
 
 # Set core type from string #
 h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
@@ -43,35 +43,43 @@ h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
 h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
 
 # Create value federate #
-vfed = h.helicsCreateValueFederate("PowerOverNextInterval Federate", fedinfo)
+vfed = h.helicsCreateValueFederate("Power Federate", fedinfo)
 print("SENDER: Value federate created")
 
 # Register the publication #
-pub = h.helicsFederateRegisterGlobalTypePublication(vfed, "powerOverNextInterval", "double", "")
+pub = h.helicsFederateRegisterGlobalTypePublication(vfed, "powerOverNextIntervalResponse", "double", "")
 print("SENDER: Publication registered")
+
+# Subscribe to PI SENDER's publication
+sub = h.helicsFederateRegisterSubscription(vfed, "powerOverNextIntervalRequest", "")
+print("RECEIVER: Subscription registered")
+
 
 # Enter execution mode #
 h.helicsFederateEnterExecutingMode(vfed)
 print("SENDER: Entering execution mode")
 
-# This federate will be publishing deltat*value for numsteps steps #
-this_time = 0.0
-value = 10000
-time_m = 600
+value = 0.0
+prevtime = 0
+currenttime = -1
+time_step = 300
 
-for t in range(0, 10000):
-    val = value
+while currenttime <= 100000:
 
-    currenttime = h.helicsFederateRequestTime(vfed, t * time_m)
+    currenttime = h.helicsFederateRequestTime(vfed, time_step + prevtime)
+
+    # if h.helicsInputIsUpdated(sub):
+    value = h.helicsInputGetString(sub)
+    print("RECEIVER: Received value = {} at time {} from a SENDER".format(value, currenttime))
+
+    # TODO introduce a dummy logic and a delay
+    val = 12345
 
     h.helicsPublicationPublishDouble(pub, val)
-    print(
-        "SENDER: Sending value = {} at time {} to a RECEIVER".format(
-            val, currenttime
-        )
-    )
+    print("SENDER: Sending value = {} at time {} to a RECEIVER".format(val, currenttime))
 
-    time.sleep(deltat)
+    prevtime = currenttime
+    time.sleep(0.1)
 
 h.helicsFederateFinalize(vfed)
 print("SENDER: Federate finalized")

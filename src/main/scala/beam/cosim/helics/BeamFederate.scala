@@ -55,16 +55,17 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   private val fedComb = helics.helicsCreateCombinationFederate(fedName, fedInfo)
   logger.debug(s"CombinationFederate created")
   // Constants
-  private val PowerOverNextInterval = "PowerOverNextInterval"
+  private val PowerOverNextIntervalReq = "PowerOverNextIntervalRequest"
+  private val PowerOverNextIntervalResp = "PowerOverNextIntervalResponse"
   // ******
   // register new BEAM events here
   registerEvent[String](ChargingPlugInEvent.EVENT_TYPE, "chargingPlugIn")
   registerEvent[String](ChargingPlugOutEvent.EVENT_TYPE, "chargingPlugOut")
   registerEvent[String](RefuelSessionEvent.EVENT_TYPE, "refuelSession")
-  registerEvent[Double](PowerOverNextInterval, "powerOverNextInterval")
+  registerEvent[Double](PowerOverNextIntervalReq, "powerOverNextIntervalRequest")
   // ******
   // register new BEAM subscriptions here
-  registerSubscription[Double](PowerOverNextInterval, "powerOverNextInterval")
+  registerSubscription[Double](PowerOverNextIntervalResp, "powerOverNextIntervalResponse")
   // ******
 
   helics.helicsFederateEnterInitializingMode(fedComb)
@@ -91,7 +92,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   def isFederateValid: Boolean = helics.helicsFederateIsValid(fedComb) == 1
 
   def publishPowerOverPlanningHorizon(power: Double) = {
-    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), power)
+    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextIntervalReq), power)
   }
 
   def syncAndGetPowerValue(time: Int): (Int, Double) = {
@@ -100,7 +101,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     logger.debug(s"requesting the time $time from the broker")
     while (currentTime < time) {
       currentTime = helics.helicsFederateRequestTime(fedComb, time)
-      value = helics.helicsInputGetDouble(registeredSubscriptions(PowerOverNextInterval))
+      value = helics.helicsInputGetDouble(registeredSubscriptions(PowerOverNextIntervalResp))
       logger.info("Received value = {} at time {} from Sender (current time = {})", value, time, currentTime)
     }
     logger.debug(s"the time $time granted was $currentTime")
