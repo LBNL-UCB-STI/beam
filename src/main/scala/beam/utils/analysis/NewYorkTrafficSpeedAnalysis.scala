@@ -6,9 +6,9 @@ import java.time.format.DateTimeFormatter
 import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.GenericCsvReader
-import beam.utils.shape.{Attributes, ShapeWriter}
+import beam.utils.shape.{Attributes, NoAttributeShapeWriter, ShapeWriter}
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, Point}
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -20,8 +20,7 @@ import scala.util.control.NonFatal
 
 private case class LinkAttributes(nodeId: String, linkId: String) extends Attributes
 private case class TrafficAttributes(linkId: String) extends Attributes
-private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, linkIdT: String)
-    extends Attributes
+private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, linkIdT: String) extends Attributes
 
 object NewYorkTrafficSpeedAnalysis {
 
@@ -60,6 +59,8 @@ object NewYorkTrafficSpeedAnalysis {
         createShapeFromNetwork(network, "network.shp")
       }
     }
+
+//    writeOriginAndDestinationFromPathTraversal("C:/Users/User/Downloads/pte_from_walkers.csv")
 
     val envelope = new Envelope()
     network.getLinks.values().asScala.foreach { link =>
@@ -124,6 +125,41 @@ object NewYorkTrafficSpeedAnalysis {
     } finally {
       Try(toClose.close())
     }
+  }
+
+  private def writeOriginAndDestinationFromPathTraversal(path: String) = {
+    val oShapeWriter = NoAttributeShapeWriter.worldGeodetic[Point]("origin.shp")
+    val dhapeWriter = NoAttributeShapeWriter.worldGeodetic[Point]("destination.shp")
+
+    val (pteIter, toClose2) =
+      GenericCsvReader.readAs[Map[String, String]](path, mapper => mapper.asScala.toMap, _ => true)
+
+    val ptes = try {
+      pteIter.toArray
+    } finally {
+      toClose2.close()
+    }
+
+    var www: Int = 0
+    ptes.foreach { pte =>
+      val wgsStartX = pte("startX").toDouble
+      val wgsStartY = pte("startY").toDouble
+      val wgsEndX = pte("endX").toDouble
+      val wgsEndY = pte("endY").toDouble
+      oShapeWriter.add(
+        geometryFactory.createPoint(new Coordinate(wgsStartX, wgsStartY)),
+        www.toString,
+      )
+
+      dhapeWriter.add(
+        geometryFactory.createPoint(new Coordinate(wgsEndX, wgsEndY)),
+        www.toString,
+      )
+
+      www += 1
+    }
+    oShapeWriter.write()
+    dhapeWriter.write()
   }
 
   def createShapeFromNetwork(network: Network, pathToShapeFile: String): Unit = {

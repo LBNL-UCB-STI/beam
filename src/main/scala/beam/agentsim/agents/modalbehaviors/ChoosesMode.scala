@@ -330,8 +330,10 @@ trait ChoosesMode {
             withParking = willRequestDrivingRoute
           )
         case Some(WALK) =>
+          // FIXME: Our previous tour was WALK, but this should not stop us to use RideHail or try transit!
+          // This is important for the secondary activties because you can end-up walking very far (the problem was that whenever the person chooses WALK, he will never use any other mode anymore)
           responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), withParking = false)
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
@@ -452,7 +454,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
