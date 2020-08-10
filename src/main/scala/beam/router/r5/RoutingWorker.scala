@@ -156,7 +156,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          if (/*!request.withTransit && */(carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
+          if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             routeRequestCounter.incrementAndGet()
             val start = System.currentTimeMillis()
 
@@ -166,7 +166,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
                 if (carRouter == "quasiDynamicGH")
                   Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
                 else 0
-              Some(graphHoppers(idx).calcRoute(request.copy(withTransit = false, streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
+              Some(graphHoppers(idx).calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))))
             } else None
 
             //run r5 for everything except cars
