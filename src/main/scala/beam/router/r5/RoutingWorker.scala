@@ -67,6 +67,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private val msgs = new AtomicLong()
+  private val totalRequests = new AtomicLong()
   private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
@@ -151,6 +152,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case request: RoutingRequest =>
       msgs.incrementAndGet()
+      totalRequests.incrementAndGet()
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
@@ -194,10 +196,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       log.info("===================================================================")
-      log.info(s"TOTAL NON TRANSIT ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL REQUESTS ${msgs.get()}")
+      log.info(s"TOTAL NON TRANSIT ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL REQUESTS ${totalRequests.get()}")
       log.info("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
+      totalRequests.set(0)
 
       if (carRouter == "quasiDynamicGH") {
         createGraphHoppers(Some(newTravelTime))
