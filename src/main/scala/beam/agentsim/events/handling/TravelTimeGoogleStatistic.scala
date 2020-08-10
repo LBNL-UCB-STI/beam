@@ -62,9 +62,10 @@ class TravelTimeGoogleStatistic(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if (enabled
-        && cfg.iterationInterval > 0
-        && event.getIteration % cfg.iterationInterval == 0) {
+    val iterationIsInInterval = cfg.iterationInterval > 0 && event.getIteration % cfg.iterationInterval == 0
+    if (enabled && (iterationIsInInterval
+        || cfg.exactOffPeakRequestIterationNumber == event.getIteration
+        || cfg.exactRegularRequestIterationNumber == event.getIteration)) {
       logger.info(
         "Executing google API call for iteration #{}, query date = {}",
         event.getIteration,
@@ -76,7 +77,7 @@ class TravelTimeGoogleStatistic(
       }
       val events = byHour
         .flatMap {
-          case (_, events) => getAppropriateEvents(events, numEventsPerHour)
+          case (_, events) => getAppropriateEvents(events, numEventsPerHour, event.getIteration, iterationIsInInterval)
         }
       logger.info("Number of events: {}", events.size)
 
@@ -159,15 +160,24 @@ class TravelTimeGoogleStatistic(
     seq.size
   }
 
-  private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
+  private def getAppropriateEvents(
+    events: Seq[PathTraversalEvent],
+    numEventsPerHour: Int,
+    currentIteration: Int,
+    iterationIsInInterval: Boolean
+  ): Seq[PathTraversalEvent] = {
     val chosenEvents = Random.shuffle(events).take(numEventsPerHour)
     // Use the same events, but with departure time on 3am
-    val offPeakEvents = if (cfg.offPeakEnabled) {
+    val offPeakEvents = if (cfg.offPeakEnabled || cfg.exactOffPeakRequestIterationNumber == currentIteration) {
       chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
     } else {
       Seq.empty
     }
-    chosenEvents ++ offPeakEvents
+    if (cfg.exactRegularRequestIterationNumber == currentIteration || iterationIsInInterval) {
+      chosenEvents ++ offPeakEvents
+    } else {
+      offPeakEvents
+    }
   }
 
   private def getQueryDate(dateStr: String): LocalDateTime = {

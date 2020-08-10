@@ -1724,6 +1724,8 @@ object BeamConfig {
       object Google {
         case class TravelTimes(
           enable: scala.Boolean,
+          exactOffPeakRequestIterationNumber: scala.Int,
+          exactRegularRequestIterationNumber: scala.Int,
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
@@ -1737,6 +1739,14 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes = {
             BeamConfig.Beam.Calibration.Google.TravelTimes(
               enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+              exactOffPeakRequestIterationNumber =
+                if (c.hasPathOrNull("exactRequestOffPeakIterationNumber"))
+                  c.getInt("exactRequestOffPeakIterationNumber")
+                else -1,
+              exactRegularRequestIterationNumber =
+                if (c.hasPathOrNull("exactRequestRegularIterationNumber"))
+                  c.getInt("exactRequestRegularIterationNumber")
+                else -1,
               iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
               minDistanceInMeters =
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
