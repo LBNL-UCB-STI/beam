@@ -964,6 +964,12 @@ trait ChoosesMode {
           .asInstanceOf[AttributesOfIndividual]
       val availableAlts = Some(filteredItinerariesForChoice.map(_.tripClassifier).mkString(":"))
 
+      if (filteredItinerariesForChoice.size == 1 && filteredItinerariesForChoice.head.tripClassifier == WALK) {
+        log.info(s"Person ${id}, filteredItinerariesForChoice: ${filteredItinerariesForChoice}")
+      }
+
+
+
       modeChoiceCalculator(
         filteredItinerariesForChoice,
         attributesOfIndividual,
