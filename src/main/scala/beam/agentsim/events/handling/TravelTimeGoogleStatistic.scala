@@ -65,6 +65,8 @@ class TravelTimeGoogleStatistic(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (enabled
         && cfg.iterationInterval > 0
+        // HACK: to avoid requests at iteration 0
+        && event.getIteration > 0
         && event.getIteration % cfg.iterationInterval == 0) {
       logger.info(
         "Executing google API call for iteration #{}, query date = {}",
