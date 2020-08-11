@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.{Actor, ActorLogging, Terminated}
+import akka.actor.{Actor, ActorLogging}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
@@ -29,7 +29,7 @@ class ChargingNetworkManager(
 
   override def receive: Receive = {
     case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
-      log.info("PlanningTimeOutTrigger, tick: {}, triggerId: {}", tick, triggerId)
+      log.debug("PlanningTimeOutTrigger, tick: {}", tick)
 
       val requiredPower = sitePowerManager.getPowerOverPlanningHorizon(privateVehicles)
 
@@ -37,13 +37,13 @@ class ChargingNetworkManager(
       val (bounds, nextTick) = powerController.calculatePower(requiredPower, tick)
       val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(bounds, privateVehicles)
 
-      log.info("Required energy per vehicle before charging: {}", requiredEnergyPerVehicle.mkString(","))
+      log.info("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))
 
       requiredEnergyPerVehicle.foreach {
         case (id, energy) if energy > 0 =>
           val vehicleCopy = vehiclesCopies.getOrElse(id, makeVehicleCopy(privateVehicles(id)))
-          log.info(
-            "Charging copy of vehicle {} (primaryFuelLevel = {}) on energy {}",
+          log.debug(
+            "Charging vehicle {} (primaryFuelLevel = {}) with energy {}",
             vehicleCopy,
             vehicleCopy.primaryFuelLevelInJoules,
             energy
@@ -53,10 +53,23 @@ class ChargingNetworkManager(
             // vehicle is fully charged
             vehiclesCopies.remove(vehicleCopy.id)
           }
-        case _ => ()
+        case (id, energy) if energy < 0 =>
+          log.warning(
+            "Vehicle {}  (primaryFuelLevel = {}) requires negative energy {} - how could it be?",
+            privateVehicles(id),
+            privateVehicles(id).primaryFuelLevelInJoules,
+            energy
+          )
+        case (id, 0) =>
+          log.debug(
+            "Vehicle {} is fully charged (primaryFuelLevel = {})",
+            privateVehicles(id),
+            privateVehicles(id).primaryFuelLevelInJoules
+          )
+
       }
 
-      log.info("Copies of vehicles (dummy vehicles) after charging: {}", vehiclesCopies.mkString(","))
+      log.debug("Copies of vehicles (dummy vehicles) after charging: {}", vehiclesCopies.mkString(","))
 
       sender ! CompletionNotice(
         triggerId,
@@ -67,11 +80,7 @@ class ChargingNetworkManager(
       )
 
     case Finish =>
-      log.info("Finish sent by {}", sender)
       powerController.close()
-
-    case Terminated(_) =>
-      log.info("Terminated sent by {}", sender)
   }
 
   private def makeVehicleCopy(vehicle: BeamVehicle): BeamVehicle = {

@@ -20,10 +20,11 @@ class SitePowerManager() {
       .sum
 
   /**
+    * Replans horizon per electrical vehicles
     *
     * @param physicalBounds
     * @param vehicles beam vehicles
-    * @return map of electrical vehicles withrequired amount of energy in joules
+    * @return map of electrical vehicles with required amount of energy in joules
     */
   def replanHorizonAndGetChargingPlanPerVehicle(
     physicalBounds: PhysicalBounds,

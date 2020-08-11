@@ -11,51 +11,51 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
-  logger.info("Init PowerController resources...")
-  private val beamFederateMaybe: Try[BeamFederate] = Try {
+  logger.debug("Init PowerController resources...")
+  private val beamFederateMaybe: Option[BeamFederate] = Try {
     BeamFederate.loadHelics
     BeamFederate.getInstance(beamServices)
   }.recoverWith {
     case e =>
       logger.error("Cannot init BeamFederate: {}", e.getMessage)
       Failure(e)
-  }
-  private val isConnectedToHelics: Boolean = beamFederateMaybe.map(_.isFederateValid).getOrElse(false)
+  }.toOption
 
   def publishPowerOverPlanningHorizon(power: Double): Unit = {
     beamFederateMaybe
       .map(_.publishPowerOverPlanningHorizon(power))
-      .recoverWith {
-        case e =>
-          logger.error("Cannot publish power over planning horizon: {}", e.getMessage)
-          Failure(e)
+      .getOrElse {
+        logger.warn("Not connected to Grid, nothing was sent")
       }
-      .getOrElse(())
   }
 
   /**
     *
     * @param requiredPower power (in joules) over planning horizon
-    * @param tick
-    * @return PhysicalBounds, Int (next tick)
+    * @param tick current tick
+    * @return tuple of PhysicalBounds and Int (next tick)
     */
   def calculatePower(requiredPower: Double, tick: Int): (PhysicalBounds, Int) = {
-    logger.info("Calculating required power {} (isConnectedToHelics: {})...", requiredPower, isConnectedToHelics)
+    logger.debug("Calculating required power {} at time {}...", requiredPower, tick)
     val (nextTick, powerValue) =
       beamFederateMaybe
-        .map(_.syncAndGetPowerValue(tick))
-        .recoverWith {
-          case e =>
-            logger.error("Cannot calculate power: {}", e.getMessage)
-            Failure(e)
+        .map(_.syncAndGetPowerFlowValue(tick))
+        .getOrElse {
+          logger.warn("Not connected to Grid, using default physical bounds (0.0)")
+          val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
+          (fedTimeStep * (1 + (tick / fedTimeStep)), 0.0)
         }
-        .getOrElse { (beamConfig.beam.cosim.helics.timeStep * 4, 0.0) } // TODO should be a parameter, timeInterval etc.
+    logger.debug("Calculated required power {}...", powerValue)
     (PhysicalBounds.default(powerValue), nextTick)
   }
 
   def close(): Unit = {
-    logger.info("Release PowerController resources (isConnectedToHelics: {})...", isConnectedToHelics)
-    beamFederateMaybe.foreach(_.close())
+    logger.debug("Release PowerController resources...")
+    beamFederateMaybe
+      .map(_.close())
+      .getOrElse {
+        logger.warn("Not connected to Grid, just releasing helics resources")
+      }
     BeamFederate.destroyInstance()
   }
 }

@@ -9,7 +9,7 @@ fedname = "GridFederate"
 
 helicsversion = h.helicsGetVersion()
 
-print("SENDER: Helics version = {}".format(helicsversion))
+print("GRID: Helics version = {}".format(helicsversion))
 
 # Create broker #
 print("Creating Broker")
@@ -46,37 +46,32 @@ print("GRID: Value federate created")
 
 # Register the publication #
 pub = h.helicsFederateRegisterTypePublication(cfed, "powerFlow", "double", "")
-print("SENDER: Publication registered")
+print("GRID: Publication 'powerFlow' registered")
 
 # Subscribe to PI SENDER's publication
 sub = h.helicsFederateRegisterSubscription(cfed, "BeamFederate/powerOverNextInterval", "")
-print("RECEIVER: Subscription registered")
-
+print("GRID: Subscription 'powerOverNextInterval' registered")
 
 # Enter execution mode #
 h.helicsFederateEnterExecutingMode(cfed)
 print("GRID: Entering execution mode")
 
-#
-# prevtime = 0
-# currenttime = -1
-# time_step = 300
-
+# start execution loop #
+timebin = 300
+currenttime = -1
 rec_value = 0.0
 send_value = 12345 # a dummy value
 
-# start execution loop #
-timebin = 300
-currenttime = 0
-for t in range(timebin, timebin*360+1, timebin):
+for t in range(0, timebin*360+1, timebin):
     while currenttime < t:
         currenttime = h.helicsFederateRequestTime(cfed, t)
+        
     if h.helicsInputIsUpdated(sub):
         rec_value = h.helicsInputGetString(sub)
-        print("RECEIVER: Received value = {} at time {} from a SENDER".format(rec_value, currenttime))
+        print("GRID: Received 'powerOverNextInterval' with value = {} at time {} from BeamFederate".format(rec_value, currenttime))
 
         h.helicsPublicationPublishDouble(pub, send_value)
-        print("SENDER: Sending value = {} at time {} to a RECEIVER".format(send_value, currenttime))
+        print("GRID: Sending 'powerFlow' with value = {} at time {} to BeamFederate".format(send_value, currenttime))
 
 #     time.sleep(1.0)
 

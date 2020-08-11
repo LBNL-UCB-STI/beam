@@ -65,7 +65,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   registerEvent[Double](PowerOverNextInterval, "powerOverNextInterval")
   // ******
   // register new BEAM subscriptions here
-  registerSubscription[Double](PowerFlow, "GridFederate/powerFlow")
+  registerSubscription(PowerFlow, "GridFederate/powerFlow")
   // ******
 
   helics.helicsFederateEnterInitializingMode(fedComb)
@@ -89,20 +89,18 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     }
   }
 
-  def isFederateValid: Boolean = helics.helicsFederateIsValid(fedComb) == 1
-
-  def publishPowerOverPlanningHorizon(power: Double) = {
+  def publishPowerOverPlanningHorizon(power: Double): Unit = {
     helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), power)
   }
 
-  def syncAndGetPowerValue(time: Int): (Int, Double) = {
+  def syncAndGetPowerFlowValue(time: Int): (Int, Double) = {
     var currentTime = -1.0
     var value = 0.0
     logger.debug(s"requesting the time $time from the broker")
     while (currentTime < time) {
       currentTime = helics.helicsFederateRequestTime(fedComb, time)
       value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
-      logger.info("Received value = {} at time {} from Sender (current time = {})", value, time, currentTime)
+      logger.debug("Received value = {} at time {} from Sender (current time = {})", value, time, currentTime)
     }
     logger.debug(s"the time $time granted was $currentTime")
     (fedTimeStep * (1 + (currentTime / fedTimeStep).toInt), value)
@@ -117,11 +115,11 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   }
 
   def close(): Unit = {
-    if (isFederateValid) {
+    if (helics.helicsFederateIsValid(fedComb) == 1) {
       helics.helicsFederateFinalize(fedComb)
       helics.helicsFederateFree(fedComb)
       helics.helicsCloseLibrary()
-      logger.info(s"closing BeamFederate")
+      logger.debug(s"closing BeamFederate")
     } else {
       logger.error(s"helics federate is not valid!")
     }
@@ -148,7 +146,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     logger.debug(s"registering $pubName to CombinationFederate")
   }
 
-  private def registerSubscription[A](eventType: String, pubName: String): Unit = {
+  private def registerSubscription(eventType: String, pubName: String): Unit = {
     registeredSubscriptions.put(
       eventType,
       helics.helicsFederateRegisterSubscription(fedComb, pubName, "")
