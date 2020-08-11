@@ -148,6 +148,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "age", personInfo.age)
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
+      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes)
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
 
