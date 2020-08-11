@@ -644,7 +644,8 @@ trait ChoosesMode {
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
     val firstPathEndpoint =
       SpaceTime(
-        beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
+        beamServices.geo
+          .coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
         leg.beamLeg.startTime + firstDuration
       )
     val secondPath = leg.beamLeg.travelPath.copy(

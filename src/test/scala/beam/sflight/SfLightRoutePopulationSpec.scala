@@ -7,7 +7,7 @@ import beam.router.BeamRouter._
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
-import beam.router.r5.{R5Wrapper, R5Parameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.tags.{ExcludeRegular, Periodic}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._

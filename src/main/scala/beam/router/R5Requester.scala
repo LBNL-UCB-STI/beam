@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
-import beam.router.r5.{R5Wrapper, R5Parameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import com.typesafe.config.Config

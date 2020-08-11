@@ -25,7 +25,8 @@ class BeamGraphHopper(wayId2TravelTime: Map[Long, Double]) extends GraphHopper {
 
     val encoder = getEncodingManager.getEncoder(profile.getVehicle)
     val turnCostProvider = if (profile.isTurnCosts && !disableTurnCosts) {
-      if (!encoder.supportsTurnCosts) throw new IllegalArgumentException("Encoder " + encoder + " does not support turn costs")
+      if (!encoder.supportsTurnCosts)
+        throw new IllegalArgumentException("Encoder " + encoder + " does not support turn costs")
       val uTurnCosts = hints.getInt(Routing.U_TURN_COSTS, INFINITE_U_TURN_COSTS)
       new DefaultTurnCostProvider(encoder, getGraphHopperStorage.getTurnCostStorage, uTurnCosts)
     } else {
