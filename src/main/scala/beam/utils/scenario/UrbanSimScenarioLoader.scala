@@ -97,9 +97,9 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val plans = Await.result(plansF, 500.seconds)
-    val persons = Await.result(personsF, 500.seconds)
-    val households = Await.result(householdsF, 500.seconds)
+    val plans = Await.result(plansF, 2500.seconds)
+    val persons = Await.result(personsF, 2500.seconds)
+    val households = Await.result(householdsF, 2500.seconds)
 
     val householdIds = households.map(_.householdId.id).toSet
 
