@@ -12,20 +12,19 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 import scala.util.Try
-
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.WALK
-import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
+import beam.router.gtfs.FareCalculator.{BeamFareSegment, filterFaresOnTransfers}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
-import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
+import beam.router.Modes.{BeamMode, mapLegMode, toR5StreetMode}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
-import beam.router.Modes
-import beam.router.r5.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.{Modes, RoutingWorker}
+import beam.router.RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
