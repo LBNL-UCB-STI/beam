@@ -55,17 +55,17 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   private val fedComb = helics.helicsCreateCombinationFederate(fedName, fedInfo)
   logger.debug(s"CombinationFederate created")
   // Constants
-  private val PowerOverNextIntervalReq = "PowerOverNextIntervalRequest"
-  private val PowerOverNextIntervalResp = "PowerOverNextIntervalResponse"
+  private val PowerOverNextInterval = "PowerOverNextInterval"
+  private val PowerFlow = "PowerFlow"
   // ******
   // register new BEAM events here
   registerEvent[String](ChargingPlugInEvent.EVENT_TYPE, "chargingPlugIn")
   registerEvent[String](ChargingPlugOutEvent.EVENT_TYPE, "chargingPlugOut")
   registerEvent[String](RefuelSessionEvent.EVENT_TYPE, "refuelSession")
-  registerEvent[Double](PowerOverNextIntervalReq, "powerOverNextIntervalRequest")
+  registerEvent[Double](PowerOverNextInterval, "powerOverNextInterval")
   // ******
   // register new BEAM subscriptions here
-  registerSubscription[Double](PowerOverNextIntervalResp, "powerOverNextIntervalResponse")
+  registerSubscription[Double](PowerFlow, "GridFederate/powerFlow")
   // ******
 
   helics.helicsFederateEnterInitializingMode(fedComb)
@@ -92,7 +92,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
   def isFederateValid: Boolean = helics.helicsFederateIsValid(fedComb) == 1
 
   def publishPowerOverPlanningHorizon(power: Double) = {
-    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextIntervalReq), power)
+    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), power)
   }
 
   def syncAndGetPowerValue(time: Int): (Int, Double) = {
@@ -101,7 +101,7 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     logger.debug(s"requesting the time $time from the broker")
     while (currentTime < time) {
       currentTime = helics.helicsFederateRequestTime(fedComb, time)
-      value = helics.helicsInputGetDouble(registeredSubscriptions(PowerOverNextIntervalResp))
+      value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
       logger.info("Received value = {} at time {} from Sender (current time = {})", value, time, currentTime)
     }
     logger.debug(s"the time $time granted was $currentTime")

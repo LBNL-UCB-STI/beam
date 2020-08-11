@@ -41,7 +41,13 @@ class ChargingNetworkManager(
 
       requiredEnergyPerVehicle.foreach {
         case (id, energy) if energy > 0 =>
-          val vehicleCopy = vehiclesCopies.getOrElse(id, makeBeamVehicleCopy(privateVehicles(id)))
+          val vehicleCopy = vehiclesCopies.getOrElse(id, makeVehicleCopy(privateVehicles(id)))
+          log.info(
+            "Charging copy of vehicle {} (primaryFuelLevel = {}) on energy {}",
+            vehicleCopy,
+            vehicleCopy.primaryFuelLevelInJoules,
+            energy
+          )
           vehicleCopy.addFuel(energy)
           if (vehicleCopy.beamVehicleType.primaryFuelCapacityInJoule == vehicleCopy.primaryFuelLevelInJoules) {
             // vehicle is fully charged
@@ -68,16 +74,15 @@ class ChargingNetworkManager(
       log.info("Terminated sent by {}", sender)
   }
 
-  private def makeBeamVehicleCopy(vehicle: BeamVehicle): BeamVehicle = {
+  private def makeVehicleCopy(vehicle: BeamVehicle): BeamVehicle = {
     val vehicleCopy = new BeamVehicle(
       vehicle.id,
       vehicle.powerTrain,
       vehicle.beamVehicleType,
       vehicle.randomSeed
     )
-    vehicleCopy.setManager(vehicle.getManager)
-    vehicleCopy.setMustBeDrivenHome(vehicle.isMustBeDrivenHome)
-    vehicleCopy.setReservedParkingStall(vehicle.reservedStall)
+    val initPrimaryFuel = -vehicle.beamVehicleType.primaryFuelCapacityInJoule + vehicle.primaryFuelLevelInJoules
+    vehicleCopy.addFuel(initPrimaryFuel)
     vehicleCopy
   }
 }
