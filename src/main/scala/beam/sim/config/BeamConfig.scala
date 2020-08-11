@@ -472,6 +472,8 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
+              transit_crowding: scala.Double,
+              transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
               walk_transit_intercept: scala.Double
             )
@@ -496,6 +498,10 @@ object BeamConfig {
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
+                  transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
+                  transit_crowding_percentile =
+                    if (c.hasPathOrNull("transit_crowding_percentile")) c.getDouble("transit_crowding_percentile")
+                    else 90.0,
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
                     if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0
@@ -1721,6 +1727,7 @@ object BeamConfig {
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
+          offPeakEnabled: scala.Boolean,
           queryDate: java.lang.String,
           tolls: scala.Boolean
         )
@@ -1735,6 +1742,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
               numDataPointsOver24Hours =
                 if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              offPeakEnabled = c.hasPathOrNull("offPeakEnabled") && c.getBoolean("offPeakEnabled"),
               queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
               tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
             )
@@ -2288,6 +2296,7 @@ object BeamConfig {
     }
 
     case class Physsim(
+      bprsim: BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment: BeamConfig.Beam.Physsim.CchRoutingAssignment,
       events: BeamConfig.Beam.Physsim.Events,
       eventsForFullVersionOfVia: scala.Boolean,
@@ -2298,9 +2307,10 @@ object BeamConfig {
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
+      name: java.lang.String,
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
-      physSimType: java.lang.String,
+      parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
       ptSampleSize: scala.Double,
       quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
@@ -2314,6 +2324,27 @@ object BeamConfig {
     )
 
     object Physsim {
+      case class Bprsim(
+        inFlowAggregationTimeWindowInSeconds: scala.Int,
+        minFlowToUseBPRFunction: scala.Int,
+        travelTimeFunction: java.lang.String
+      )
+
+      object Bprsim {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Bprsim = {
+          BeamConfig.Beam.Physsim.Bprsim(
+            inFlowAggregationTimeWindowInSeconds =
+              if (c.hasPathOrNull("inFlowAggregationTimeWindowInSeconds"))
+                c.getInt("inFlowAggregationTimeWindowInSeconds")
+              else 900,
+            minFlowToUseBPRFunction =
+              if (c.hasPathOrNull("minFlowToUseBPRFunction")) c.getInt("minFlowToUseBPRFunction") else 0,
+            travelTimeFunction = if (c.hasPathOrNull("travelTimeFunction")) c.getString("travelTimeFunction") else "BPR"
+          )
+        }
+      }
+
       case class CchRoutingAssignment(
         congestionFactor: scala.Double
       )
@@ -2770,6 +2801,21 @@ object BeamConfig {
         }
       }
 
+      case class Parbprsim(
+        numberOfClusters: scala.Int,
+        syncInterval: scala.Int
+      )
+
+      object Parbprsim {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Parbprsim = {
+          BeamConfig.Beam.Physsim.Parbprsim(
+            numberOfClusters = if (c.hasPathOrNull("numberOfClusters")) c.getInt("numberOfClusters") else 8,
+            syncInterval = if (c.hasPathOrNull("syncInterval")) c.getInt("syncInterval") else 60
+          )
+        }
+      }
+
       case class Relaxation(
         experiment2_0: BeamConfig.Beam.Physsim.Relaxation.Experiment20,
         experiment2_1: BeamConfig.Beam.Physsim.Relaxation.Experiment21,
@@ -2945,6 +2991,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim = {
         BeamConfig.Beam.Physsim(
+          bprsim = BeamConfig.Beam.Physsim.Bprsim(
+            if (c.hasPathOrNull("bprsim")) c.getConfig("bprsim")
+            else com.typesafe.config.ConfigFactory.parseString("bprsim{}")
+          ),
           cchRoutingAssignment = BeamConfig.Beam.Physsim.CchRoutingAssignment(
             if (c.hasPathOrNull("cchRoutingAssignment")) c.getConfig("cchRoutingAssignment")
             else com.typesafe.config.ConfigFactory.parseString("cchRoutingAssignment{}")
@@ -2971,13 +3021,17 @@ object BeamConfig {
           linkStatsBinSize = if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
           linkStatsWriteInterval =
             if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval") else 0,
+          name = if (c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network = BeamConfig.Beam.Physsim.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
             else com.typesafe.config.ConfigFactory.parseString("network{}")
           ),
           overwriteLinkParamPath =
             if (c.hasPathOrNull("overwriteLinkParamPath")) c.getString("overwriteLinkParamPath") else "",
-          physSimType = if (c.hasPathOrNull("physSimType")) c.getString("physSimType") else "JDEQSim",
+          parbprsim = BeamConfig.Beam.Physsim.Parbprsim(
+            if (c.hasPathOrNull("parbprsim")) c.getConfig("parbprsim")
+            else com.typesafe.config.ConfigFactory.parseString("parbprsim{}")
+          ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
           quick_fix_minCarSpeedInMetersPerSecond =
             if (c.hasPathOrNull("quick_fix_minCarSpeedInMetersPerSecond"))
@@ -3066,6 +3120,7 @@ object BeamConfig {
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
+        transit_crowding_skimmer: BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
         writeAggregatedSkimsInterval: scala.Int,
         writeSkimsInterval: scala.Int
       )
@@ -3128,6 +3183,22 @@ object BeamConfig {
           }
         }
 
+        case class TransitCrowdingSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object TransitCrowdingSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer = {
+            BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              fileBaseName =
+                if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTransitCrowding",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "transit-crowding-skimmer"
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
@@ -3142,6 +3213,10 @@ object BeamConfig {
             taz_skimmer = BeamConfig.Beam.Router.Skim.TazSkimmer(
               if (c.hasPathOrNull("taz-skimmer")) c.getConfig("taz-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("taz-skimmer{}")
+            ),
+            transit_crowding_skimmer = BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              if (c.hasPathOrNull("transit-crowding-skimmer")) c.getConfig("transit-crowding-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("transit-crowding-skimmer{}")
             ),
             writeAggregatedSkimsInterval =
               if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else 0,

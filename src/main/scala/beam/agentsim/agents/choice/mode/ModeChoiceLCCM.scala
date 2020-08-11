@@ -77,7 +77,7 @@ class ModeChoiceLCCM(
           "cost" -> alt.cost,
           "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
         )
-        (alt.mode.value, theParams)
+        (alt.mode, theParams)
       }.toMap
 
       val attribIndivData: Map[String, Map[String, Double]] = {
@@ -96,9 +96,10 @@ class ModeChoiceLCCM(
       }
 
       val classMembershipInputData =
-        lccm.classMembershipModels.head._2.utilityFunctions.keySet.map { theClassName =>
+        lccm.classMembershipModelMaps.head._2.keySet.map { theClassName =>
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
+            ._2
             .getExpectedMaximumUtility(modeChoiceInputData)
           val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility.getOrElse(0))
@@ -121,16 +122,18 @@ class ModeChoiceLCCM(
         case Some(chosenClass) =>
           val chosenModeOpt = lccm
             .modeChoiceModels(tourType)(chosenClass.alternativeType)
+            ._2
             .sampleAlternative(modeChoiceInputData, new Random())
           expectedMaximumUtility = lccm
             .modeChoiceModels(tourType)(chosenClass.alternativeType)
+            ._2
             .getExpectedMaximumUtility(modeChoiceInputData)
             .getOrElse(0)
 
           chosenModeOpt match {
             case Some(chosenMode) =>
               val chosenAlt =
-                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
+                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType.value))
               if (chosenAlt.isEmpty) {
                 None
               } else {
@@ -143,24 +146,31 @@ class ModeChoiceLCCM(
     }
   }
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double =
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double
+  ): Double =
     0.0
 
   def sampleMode(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     conditionedOnModalityStyle: String,
     tourType: TourType
-  ): Option[MNLSample[String]] = {
+  ): Option[MNLSample[BeamMode]] = {
     val bestInGroup = altsToBestInGroup(alternatives, tourType)
     val modeChoiceInputData = bestInGroup.map { alt =>
       val theParams = Map(
         "cost" -> alt.cost,
         "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
       )
-      (alt.mode.value, theParams)
+      (alt.mode, theParams)
     }.toMap
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
+      ._2
       .sampleAlternative(modeChoiceInputData, new Random())
   }
 
@@ -169,8 +179,7 @@ class ModeChoiceLCCM(
     tourType: TourType
   ): Map[String, Double] = {
     lccm
-      .classMembershipModels(tourType)
-      .utilityFunctions
+      .classMembershipModelMaps(tourType)
       .keySet
       .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
       .toMap
@@ -266,7 +275,8 @@ class ModeChoiceLCCM(
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .getUtilityOfAlternative(mode.value, theParams)
+      ._2
+      .getUtilityOfAlternative(mode, theParams)
       .getOrElse(0)
   }
 

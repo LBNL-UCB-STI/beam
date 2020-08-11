@@ -263,6 +263,19 @@ object GeoUtils {
   }
 
   /**
+    * Generate the vector coordinates from the link nodes
+    *
+    * @param link link in the network
+    * @return vector coordinates
+    */
+  def linkCenter(link: Link): Coord = {
+    new Coord(
+      (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX) / 2,
+      (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY) / 2
+    )
+  }
+
+  /**
     * Computes the angle between two coordinates
     *
     * @param source source coordinates

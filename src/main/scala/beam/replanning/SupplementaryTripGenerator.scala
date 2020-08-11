@@ -44,7 +44,7 @@ class SupplementaryTripGenerator(
       SupplementaryTripAlternative,
       DestinationChoiceModel.DestinationParameters
     ] =
-      new MultinomialLogit(
+      MultinomialLogit(
         Map.empty,
         destinationChoiceModel.DefaultMNLParameters,
         beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor
@@ -54,14 +54,14 @@ class SupplementaryTripGenerator(
       SupplementaryTripAlternative,
       DestinationChoiceModel.TripParameters
     ] =
-      new MultinomialLogit(
+      MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
         beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.destination_nest_scale_factor
       )
 
     val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
-      new MultinomialLogit(
+      MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
         beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.trip_nest_scale_factor
@@ -160,14 +160,12 @@ class SupplementaryTripGenerator(
             false -> noTrip,
           )
 
-        val makeTrip: Boolean = tripMNL.sampleAlternative(tripChoice, r).get.alternativeType
-
-        if (makeTrip) {
-          destinationMNL.sampleAlternative(modeChoice, r)
-        } else {
-          None
+        tripMNL.sampleAlternative(tripChoice, r) match {
+          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+          case _                                            => None
         }
     }
+
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
