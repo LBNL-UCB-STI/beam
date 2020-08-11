@@ -193,9 +193,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      log.info("===================================================================")
-      log.info(s"TOTAL NON TRANSIT ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL REQUESTS ${msgs.get()}")
-      log.info("===================================================================")
+      log.debug("===================================================================")
+      log.debug(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
+      log.debug("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
 
@@ -212,9 +212,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      log.info("===================================================================")
-      log.info(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
-      log.info("===================================================================")
+      log.debug("===================================================================")
+      log.debug(s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}")
+      log.debug("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
       val newTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
