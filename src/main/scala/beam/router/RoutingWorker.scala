@@ -1,27 +1,24 @@
-package beam.router.r5
+package beam.router
 
 import java.io.File
 import java.nio.file.Paths
-import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
-import beam.router._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.graphhopper.GraphHopperWrapper
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -39,6 +36,9 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.reflect.io.Directory
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
@@ -69,7 +69,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
-  private val msgs = new AtomicLong()
+  private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
@@ -129,10 +129,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           val seconds =
             ChronoUnit.SECONDS.between(firstMsgTimeValue, ZonedDateTime.now(ZoneOffset.UTC))
           if (seconds > 0) {
-            val rate = msgs.get().toDouble / seconds
+            val rate = msgs.toDouble / seconds
             if (seconds > 60) {
               firstMsgTime = None
-              msgs.set(0)
+              msgs = 0
             }
             if (workerParams.beamConfig.beam.outputs.displayPerformanceTimings) {
               log.info(
@@ -155,7 +155,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case request: RoutingRequest =>
-      msgs.incrementAndGet()
+      msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
@@ -307,8 +307,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
-
-  import scala.collection.JavaConverters._
 
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
