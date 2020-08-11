@@ -38,12 +38,6 @@ class GraphHopperWrapper(
     graphHopper.setProfiles(profiles.asJava)
     graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
     graphHopper.importOrLoad()
-    //    val ghConfig = new GraphHopperConfig()
-    //    ghConfig.putObject("graph.location", graphDir)
-    //    ghConfig.setProfiles(GraphHopper.profiles.asJava)
-    //    ghConfig.setCHProfiles(GraphHopper.profiles.map(p => new CHProfile(p.getName)).asJava)
-    //    graphHopper.init(ghConfig)
-    //    graphHopper.load(graphDir)
     graphHopper
   }
 
@@ -78,6 +72,7 @@ class GraphHopperWrapper(
           .asScala(Parameters.Details.TIME)
           .asScala
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+        // TODO ask why GH is producing negative travel time
 //          .map { x =>
 //            require(x > 0, "GOING BACK IN TIME")
 //            x
@@ -90,10 +85,6 @@ class GraphHopperWrapper(
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
-
-          //FIXME THIS IS INVALID BECAUSE OF ASSERT LATER
-//          linkIds = IndexedSeq(edgeId, edgeId)
-//          linkTravelTimes = IndexedSeq(0.0, 0.0)
 
           linkIds = IndexedSeq(edgeId)
           linkTravelTimes = IndexedSeq(0.0)
