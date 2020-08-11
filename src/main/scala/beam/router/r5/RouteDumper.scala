@@ -231,6 +231,7 @@ object RouteDumper {
             record.put("computedInMs", routingResponse.computedInMs)
             record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
+            record.put("itineraries", routingResponse.itineraries.length)
             record.put("itineraryIndex", itineraryIndex)
             record.put("costEstimate", itinerary.costEstimate)
             record.put("tripClassifier", itinerary.tripClassifier.value)
@@ -351,6 +352,7 @@ object RouteDumper {
       null.asInstanceOf[Any]
     )
 
+    val itineraries = new Schema.Field("itineraries", Schema.create(Type.INT), "itineraries", null.asInstanceOf[Any])
     val itineraryIndex =
       new Schema.Field("itineraryIndex", Schema.create(Type.INT), "itineraryIndex", null.asInstanceOf[Any])
     val costEstimate =
@@ -389,6 +391,7 @@ object RouteDumper {
       requestIdField,
       computedInMs,
       isEmbodyWithCurrentTravelTime,
+      itineraries,
       itineraryIndex,
       costEstimate,
       tripClassifier,

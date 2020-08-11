@@ -12,13 +12,14 @@ import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.csv.GenericCsvReader
-import beam.utils.scenario.PlanElement
+import beam.utils.scenario.{PersonId, PlanElement}
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import beam.utils.{ProfilingUtils, Statistics}
 import com.conveyal.r5.streets.{RoutingVisitor, StreetRouter}
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.{Coord, Id}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 class MyDebugRoutingVisitor extends RoutingVisitor {
@@ -84,15 +85,15 @@ object R5Requester extends BeamHelper {
     val r5Wrapper = createR5Wrapper(cfg)
     val personIds: Set[String] = readPersonIds("C:/Users/User/Downloads/onlywalk.csv")
     val pathToPlans = "C:/Users/User/Downloads/plans.csv.gz"
-    val workWithHome = CsvPlanElementReader
-      .read(pathToPlans)
-      .filter(x => x.planElementType.equalsIgnoreCase("activity") && personIds.contains(x.personId.id))
-      .groupBy(x => x.personId.id)
-      .flatMap {
-        case (personId, xs) =>
-          xs.sliding(2, 1)
-      }
-      .filter(_.length == 2)
+//    val workWithHome = CsvPlanElementReader
+//      .read(pathToPlans)
+//      .filter(x => x.planElementType.equalsIgnoreCase("activity") && personIds.contains(x.personId.id))
+//      .groupBy(x => x.personId.id)
+//      .flatMap {
+//        case (personId, xs) =>
+//          xs.sliding(2, 1)
+//      }
+//      .filter(_.length == 2)
 
     val allMs: ArrayBuffer[Double] = ArrayBuffer()
     val carMs: ArrayBuffer[Double] = ArrayBuffer()
@@ -115,6 +116,26 @@ object R5Requester extends BeamHelper {
     val shouldComputeWalk: Boolean = true
 
     val walkTransits: ArrayBuffer[RoutingResponse] = ArrayBuffer()
+
+    val (pteIter, toClose2) = GenericCsvReader.readAs[Map[String, String]](
+      "C:/Users/User/Downloads/pte_from_walkers.csv",
+      mapper => mapper.asScala.toMap,
+      x => true
+    )
+    val ptes = try { pteIter.toArray } finally { toClose2.close() }
+
+    val workWithHome = ptes.map { pte =>
+      val startWgsCoord = new Coord(pte("startX").toDouble, pte("startY").toDouble)
+      val endWgsCoord = new Coord(pte("endX").toDouble, pte("endY").toDouble)
+      val departureTime = pte("departureTime").toDouble
+      Array(
+        createActivityPlanElement("3816745", "Home", startWgsCoord, departureTime),
+        createActivityPlanElement("3816745", "Work", endWgsCoord, departureTime)
+      )
+    }
+
+//    val workWithHome = Array(Array(createActivityPlanElement("3816745", "Home", new Coord(-74.17345197835338, 40.55232541650765), 145),
+//      createActivityPlanElement("3816745", "Work", new Coord(-74.0062321680475, 40.76305541131651), 52331)))
 
     workWithHome.foreach { arr: Array[PlanElement] =>
       val startUTM = new Coord(arr(0).activityLocationX.get, arr(0).activityLocationY.get)
@@ -301,5 +322,37 @@ object R5Requester extends BeamHelper {
       mode = beamMode,
       asDriver = true
     )
+  }
+
+  def createActivityPlanElement(
+    personId: String,
+    activityType: String,
+    wgsCoord: Coord,
+    endTime: Double
+  ): PlanElement = {
+    val utmCoord = geoUtils.wgs2Utm(wgsCoord)
+    PlanElement(
+      personId = PersonId(personId),
+      0,
+      0,
+      true,
+      "Activity",
+      0,
+      Some(activityType),
+      Some(utmCoord.getX),
+      Some(utmCoord.getY),
+      Some(endTime),
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      Seq.empty,
+      None
+    )
+
   }
 }
