@@ -64,7 +64,7 @@ class GraphHopperWrapper(
     } else {
       response.getAll.asScala.map(responsePath => {
         var linkIds = IndexedSeq.empty[Int]
-        val totalTravelTime = (responsePath.getTime / 1000).toInt
+        var totalTravelTime = (responsePath.getTime / 1000).toInt
         val ghLinkIds: IndexedSeq[Int] =
           responsePath.getPathDetails
             .asScala(Parameters.Details.EDGE_ID)
@@ -72,20 +72,28 @@ class GraphHopperWrapper(
             .map(pd => pd.getValue.asInstanceOf[Int])
             .toIndexedSeq
 
-        var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
+        val allLinkTravelTimes = responsePath.getPathDetails
           .asScala(Parameters.Details.TIME)
           .asScala
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+          .toIndexedSeq
+
+        var linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
           // TODO ask why GH is producing negative travel time
 //          .map { x =>
 //            require(x > 0, "GOING BACK IN TIME")
 //            x
 //          }
-          .toIndexedSeq
           //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
           .take(ghLinkIds.size)
 
-        if (ghLinkIds.size != 1) {
+        if (allLinkTravelTimes.size > ghLinkIds.size) {
+          allLinkTravelTimes.drop(ghLinkIds.size).foreach { time =>
+            totalTravelTime -= time.toInt
+          }
+        }
+
+        if (ghLinkIds.size < 2) {
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
