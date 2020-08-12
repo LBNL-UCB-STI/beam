@@ -470,13 +470,13 @@ trait BeamHelper extends LazyLogging {
       beamScenario: BeamScenario,
       services: BeamServices
     ) = prepareBeamService(config)
-
-    scenario.getPopulation.getPersons.values().asScala.foreach { person =>
-      val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
-      personLegs.foreach { leg =>
-        leg.setMode("car")
-      }
-    }
+//
+//    scenario.getPopulation.getPersons.values().asScala.foreach { person =>
+//      val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+//      personLegs.foreach { leg =>
+//        leg.setMode("car")
+//      }
+//    }
 
     runBeam(
       services,
