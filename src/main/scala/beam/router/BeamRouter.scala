@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.{RoutingWorker, RouteDumper}
+import beam.router.r5.RouteDumper
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -481,8 +481,7 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
     request: Option[RoutingRequest],
-    isEmbodyWithCurrentTravelTime: Boolean,
-    computedInMs: Long = -1
+    isEmbodyWithCurrentTravelTime: Boolean
   )
 
   case class RoutingFailure(cause: Throwable, requestId: Int)

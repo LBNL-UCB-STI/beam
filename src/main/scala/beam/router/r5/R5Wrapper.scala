@@ -12,7 +12,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 import scala.util.Try
-
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -24,8 +23,8 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
-import beam.router.Modes
-import beam.router.r5.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.{Modes, RoutingWorker}
+import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
@@ -63,7 +62,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     vehicleTypeId: Id[BeamVehicleType],
     embodyRequestId: Int
   ): RoutingResponse = {
-    val s = System.currentTimeMillis()
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -90,7 +88,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
     val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
-
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -108,8 +105,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true,
-      System.currentTimeMillis() - s
+      isEmbodyWithCurrentTravelTime = true
     )
     response
   }
@@ -205,7 +201,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   def calcRoute(request: RoutingRequest): RoutingResponse = {
-    val routeCalcStarted = System.currentTimeMillis()
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -806,26 +801,18 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false,
-          System.currentTimeMillis() - routeCalcStarted
+          isEmbodyWithCurrentTravelTime = false
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false,
-          System.currentTimeMillis() - routeCalcStarted
+          isEmbodyWithCurrentTravelTime = false
         )
       }
     } else {
-      RoutingResponse(
-        embodiedTrips,
-        request.requestId,
-        Some(request),
-        isEmbodyWithCurrentTravelTime = false,
-        System.currentTimeMillis() - routeCalcStarted
-      )
+      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
     }
   }
 

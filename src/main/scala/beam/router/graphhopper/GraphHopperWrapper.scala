@@ -23,14 +23,14 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 
 class GraphHopperWrapper(
-                          carRouter: String,
-                          graphDir: String,
-                          geo: GeoUtils,
-                          vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-                          fuelTypePrices: FuelTypePrices,
-                          wayId2TravelTime: Map[Long, Double],
-                          id2Link: Map[Int, (Coord, Coord)]
-                        ) extends Router {
+  carRouter: String,
+  graphDir: String,
+  geo: GeoUtils,
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  fuelTypePrices: FuelTypePrices,
+  wayId2TravelTime: Map[Long, Double],
+  id2Link: Map[Int, (Coord, Coord)]
+) extends Router {
   private val graphHopper = {
     val profiles = GraphHopperWrapper.getProfiles(carRouter)
     val graphHopper = new BeamGraphHopper(wayId2TravelTime)
@@ -38,12 +38,6 @@ class GraphHopperWrapper(
     graphHopper.setProfiles(profiles.asJava)
     graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
     graphHopper.importOrLoad()
-    //    val ghConfig = new GraphHopperConfig()
-    //    ghConfig.putObject("graph.location", graphDir)
-    //    ghConfig.setProfiles(GraphHopper.profiles.asJava)
-    //    ghConfig.setCHProfiles(GraphHopper.profiles.map(p => new CHProfile(p.getName)).asJava)
-    //    graphHopper.init(ghConfig)
-    //    graphHopper.load(graphDir)
     graphHopper
   }
 
@@ -72,12 +66,17 @@ class GraphHopperWrapper(
         var linkIds = IndexedSeq.empty[Int]
         val totalTravelTime = (responsePath.getTime / 1000).toInt
         val ghLinkIds: IndexedSeq[Int] =
-          responsePath.getPathDetails.asScala(Parameters.Details.EDGE_ID).asScala.map(pd => pd.getValue.asInstanceOf[Int]).toIndexedSeq
+          responsePath.getPathDetails
+            .asScala(Parameters.Details.EDGE_ID)
+            .asScala
+            .map(pd => pd.getValue.asInstanceOf[Int])
+            .toIndexedSeq
 
         var linkTravelTimes: IndexedSeq[Double] = responsePath.getPathDetails
           .asScala(Parameters.Details.TIME)
           .asScala
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+          // TODO ask why GH is producing negative travel time
 //          .map { x =>
 //            require(x > 0, "GOING BACK IN TIME")
 //            x
@@ -91,28 +90,26 @@ class GraphHopperWrapper(
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
 
-          //FIXME THIS IS INVALID BECAUSE OF ASSERT LATER
-//          linkIds = IndexedSeq(edgeId, edgeId)
-//          linkTravelTimes = IndexedSeq(0.0, 0.0)
-
           linkIds = IndexedSeq(edgeId)
           linkTravelTimes = IndexedSeq(0.0)
         } else {
-          linkIds = ghLinkIds.sliding(2).map { list =>
-            val (ghId1, ghId2) = (list.head, list.last)
-            val leftStraight = id2Link(ghId1 * 2)
+          linkIds = ghLinkIds
+            .sliding(2)
+            .map { list =>
+              val (ghId1, ghId2) = (list.head, list.last)
+              val leftStraight = id2Link(ghId1 * 2)
 
-            val rightStraight = id2Link(ghId2 * 2)
-            val rightReverse = id2Link(ghId2 * 2 + 1)
-            if (leftStraight._2 == rightStraight._1 || leftStraight._2 == rightReverse._1) {
-              ghId1 * 2
-            } else ghId1 * 2 + 1
-          }.toIndexedSeq
+              val rightStraight = id2Link(ghId2 * 2)
+              val rightReverse = id2Link(ghId2 * 2 + 1)
+              if (leftStraight._2 == rightStraight._1 || leftStraight._2 == rightReverse._1) {
+                ghId1 * 2
+              } else ghId1 * 2 + 1
+            }
+            .toIndexedSeq
 
           if (ghLinkIds.size > 1) {
-            linkIds = linkIds :+ (if (
-              id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1
-            ) ghLinkIds.last * 2 else ghLinkIds.last * 2 + 1)
+            linkIds = linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
+                                  else ghLinkIds.last * 2 + 1)
           }
         }
 
@@ -153,11 +150,12 @@ class GraphHopperWrapper(
 object GraphHopperWrapper {
 
   def createGraphDirectoryFromR5(
-                                  carRouter: String,
-                                  transportNetwork: TransportNetwork,
-                                  osm: OSM, directory: String,
-                                  wayId2TravelTime: Map[Long, Double]
-                                ): Unit = {
+    carRouter: String,
+    transportNetwork: TransportNetwork,
+    osm: OSM,
+    directory: String,
+    wayId2TravelTime: Map[Long, Double]
+  ): Unit = {
     val carFlagEncoderParams = new PMap
     carFlagEncoderParams.putObject("turn_costs", false)
     val carFlagEncoder = new CarFlagEncoder(carFlagEncoderParams)
@@ -171,16 +169,19 @@ object GraphHopperWrapper {
     val encodingManager = emBuilder.build
 
     val carCH = if (carRouter == "quasiDynamicGH") {
-        CHConfig.nodeBased(BeamGraphHopper.profile,
-          new BeamWeighting(carFlagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, wayId2TravelTime))
+      CHConfig.nodeBased(
+        BeamGraphHopper.profile,
+        new BeamWeighting(carFlagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, wayId2TravelTime)
+      )
     } else {
       CHConfig.nodeBased("fastest_car", new FastestWeighting(carFlagEncoder))
     }
 
-    val bikeCH = CHConfig.nodeBased("best_bike",
-      new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER))
-    val footCH = CHConfig.nodeBased("fastest_foot",
-      new FastestWeighting(footFlagEncoder))
+    val bikeCH = CHConfig.nodeBased(
+      "best_bike",
+      new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER)
+    )
+    val footCH = CHConfig.nodeBased("fastest_foot", new FastestWeighting(footFlagEncoder))
 
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)
     val graphHopperStorage = new GraphHopperStorage(ghDirectory, encodingManager, false)
