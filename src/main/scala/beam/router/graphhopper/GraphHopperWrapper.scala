@@ -85,7 +85,7 @@ class GraphHopperWrapper(
           //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
           .take(ghLinkIds.size)
 
-        if (ghLinkIds.size != 1) {
+        if (ghLinkIds.size == 1) {
           // An empty path by GH's definition. But we still want it to be from a link to a link.
           val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
           val edgeId = snappedPoint.getClosestEdge.getEdge * 2
