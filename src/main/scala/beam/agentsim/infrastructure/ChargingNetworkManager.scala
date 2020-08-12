@@ -34,7 +34,7 @@ class ChargingNetworkManager(
       val requiredPower = sitePowerManager.getPowerOverPlanningHorizon(privateVehicles)
 
       powerController.publishPowerOverPlanningHorizon(requiredPower)
-      val (bounds, nextTick) = powerController.calculatePower(requiredPower, tick)
+      val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(tick)
       val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(bounds, privateVehicles)
 
       log.info("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))

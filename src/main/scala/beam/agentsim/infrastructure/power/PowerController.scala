@@ -12,7 +12,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
   logger.debug("Init PowerController resources...")
-  private val beamFederateMaybe: Option[BeamFederate] = Try {
+  private[power] lazy val beamFederateMaybe: Option[BeamFederate] = Try {
     BeamFederate.loadHelics
     BeamFederate.getInstance(beamServices)
   }.recoverWith {
@@ -21,22 +21,27 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
       Failure(e)
   }.toOption
 
-  def publishPowerOverPlanningHorizon(power: Double): Unit = {
+  /**
+    * Publishes required power to the grid
+    *
+    * @param requiredPower power (in joules) over planning horizon
+    */
+  def publishPowerOverPlanningHorizon(requiredPower: Double): Unit = {
     beamFederateMaybe
-      .map(_.publishPowerOverPlanningHorizon(power))
+      .map(_.publishPowerOverPlanningHorizon(requiredPower))
       .getOrElse {
         logger.warn("Not connected to Grid, nothing was sent")
       }
   }
 
   /**
+    * Obtains physical bounds from the grid
     *
-    * @param requiredPower power (in joules) over planning horizon
     * @param tick current tick
     * @return tuple of PhysicalBounds and Int (next tick)
     */
-  def calculatePower(requiredPower: Double, tick: Int): (PhysicalBounds, Int) = {
-    logger.debug("Calculating required power {} at time {}...", requiredPower, tick)
+  def obtainPowerPhysicalBounds(tick: Int): (PhysicalBounds, Int) = {
+    logger.debug("Obtaining power from the grid at time {}...", tick)
     val (nextTick, powerValue) =
       beamFederateMaybe
         .map(_.syncAndGetPowerFlowValue(tick))
@@ -45,7 +50,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
           val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
           (fedTimeStep * (1 + (tick / fedTimeStep)), 0.0)
         }
-    logger.debug("Calculated required power {}...", powerValue)
+    logger.debug("Obtained power from the grid {}...", powerValue)
     (PhysicalBounds.default(powerValue), nextTick)
   }
 
