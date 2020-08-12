@@ -44,6 +44,7 @@ import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -469,6 +470,13 @@ trait BeamHelper extends LazyLogging {
       beamScenario: BeamScenario,
       services: BeamServices
     ) = prepareBeamService(config)
+
+    scenario.getPopulation.getPersons.values().asScala.foreach { person =>
+      val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+      personLegs.foreach { leg =>
+        leg.setMode("car")
+      }
+    }
 
     runBeam(
       services,

@@ -68,8 +68,7 @@ object ScenarioDownsampler {
         } finally {
           toClose.close()
         }
-      }
-      finally {
+      } finally {
         csvPlanWriter.close()
       }
 

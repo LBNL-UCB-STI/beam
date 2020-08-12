@@ -228,7 +228,6 @@ object RouteDumper {
           case (embodiedBeamLeg, legIndex) =>
             val record = new GenericData.Record(routingResponseSchema)
             record.put("requestId", routingResponse.requestId)
-            record.put("computedInMs", routingResponse.computedInMs)
             record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
             record.put("itineraryIndex", itineraryIndex)

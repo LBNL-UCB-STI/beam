@@ -19,11 +19,12 @@ class OriginalIdDetails extends AbstractPathDetailsBuilder("original_edge_id") {
   private def getEdgeId(edge: EdgeIteratorState) = {
     edge match {
       case state: VirtualEdgeIteratorState => GHUtility.getEdgeFromEdgeKey(state.getOriginalEdgeKey)
-      case _ => if (edge.getAdjNode == edge.getBaseNode) {
-        edge.getEdge * 2 + 1
-      } else {
-        edge.getEdge * 2
-      }
+      case _ =>
+        if (edge.getAdjNode == edge.getBaseNode) {
+          edge.getEdge * 2 + 1
+        } else {
+          edge.getEdge * 2
+        }
     }
   }
 

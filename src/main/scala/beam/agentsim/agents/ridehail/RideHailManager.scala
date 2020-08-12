@@ -1880,8 +1880,7 @@ class RideHailManager(
             modRHA2Cust,
             rideHailAgent2CustomerResponse.requestId,
             None,
-            isEmbodyWithCurrentTravelTime = false,
-            rideHailAgent2CustomerResponse.computedInMs
+            isEmbodyWithCurrentTravelTime = false
           )
 
         val passengerSchedule = PassengerSchedule().addLegs(

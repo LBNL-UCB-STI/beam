@@ -200,11 +200,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      log.debug("===================================================================")
-      log.debug(
+      log.info("===================================================================")
+      log.info(
         s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}"
       )
-      log.debug("===================================================================")
+      log.info("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
 
@@ -221,11 +221,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      log.debug("===================================================================")
-      log.debug(
+      log.info("===================================================================")
+      log.info(
         s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}"
       )
-      log.debug("===================================================================")
+      log.info("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
       val newTravelTime =

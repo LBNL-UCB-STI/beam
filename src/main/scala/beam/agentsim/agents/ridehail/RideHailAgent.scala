@@ -78,6 +78,12 @@ object RideHailAgent {
     currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
   }
 
+  sealed trait InterruptReply {
+    val interruptId: Int
+    val vehicleId: Id[BeamVehicle]
+    val tick: Int
+  }
+
   case class RideHailAgentData(
     currentVehicleToken: BeamVehicle,
     currentVehicle: VehicleStack = Vector(),
@@ -120,14 +126,6 @@ object RideHailAgent {
 
   case class Interrupt(interruptId: Int, tick: Int)
 
-  case object Resume
-
-  sealed trait InterruptReply {
-    val interruptId: Int
-    val vehicleId: Id[BeamVehicle]
-    val tick: Int
-  }
-
   case class InterruptedWhileDriving(
     interruptId: Int,
     vehicleId: Id[BeamVehicle],
@@ -139,15 +137,9 @@ object RideHailAgent {
   case class InterruptedWhileIdle(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
 
   case class InterruptedWhileOffline(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int) extends InterruptReply
+
   case class InterruptedWhileWaitingToDrive(interruptId: Int, vehicleId: Id[BeamVehicle], tick: Int)
       extends InterruptReply
-
-  case object Idle extends BeamAgentState
-
-  case object Offline extends BeamAgentState
-  case object OfflineInterrupted extends BeamAgentState
-
-  case object IdleInterrupted extends BeamAgentState
 
   case class StartShiftTrigger(tick: Int) extends Trigger
 
@@ -156,6 +148,16 @@ object RideHailAgent {
   case class StartParkingTrigger(tick: Int) extends Trigger
 
   case class EndParkingTrigger(tick: Int) extends Trigger
+
+  case object Resume
+
+  case object Idle extends BeamAgentState
+
+  case object Offline extends BeamAgentState
+
+  case object OfflineInterrupted extends BeamAgentState
+
+  case object IdleInterrupted extends BeamAgentState
 
 }
 
@@ -179,7 +181,6 @@ class RideHailAgent(
 
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
-  var isOnWayToParkAtStall: Option[ParkingStall] = None
 
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
@@ -246,6 +247,7 @@ class RideHailAgent(
       stay()
 
   }
+  var isOnWayToParkAtStall: Option[ParkingStall] = None
   onTransition {
     case _ -> _ =>
       unstashAll()
@@ -322,7 +324,7 @@ class RideHailAgent(
       beamServices.beamRouter ! veh2StallRequest
 //      }
       stay
-    case Event(RoutingResponse(itineraries, _, _, _, _), data) =>
+    case Event(RoutingResponse(itineraries, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
@@ -410,7 +412,7 @@ class RideHailAgent(
     case ev @ Event(ParkingInquiryResponse(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_, _, _, _, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _, _), _) =>
       stash()
       stay()
   }
@@ -693,14 +695,6 @@ class RideHailAgent(
     handleStartRefuel(tick, triggerId)
   }
 
-  def requestParkingStall(): Unit = {
-    val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
-    val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
-    parkingManager ! inquiry
-  }
-
   def handleStartRefuel(tick: Int, triggerId: Long): Unit = {
     val (sessionDuration, energyDelivered) =
       vehicle.refuelingSessionDurationAndEnergyInJoules()
@@ -717,6 +711,14 @@ class RideHailAgent(
         ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered, vehicle), self)
       )
     )
+  }
+
+  def requestParkingStall(): Unit = {
+    val rideHailAgentLocation =
+      RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
+    val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
+    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
+    parkingManager ! inquiry
   }
 
   def handleNotifyVehicleResourceIdleReply(
