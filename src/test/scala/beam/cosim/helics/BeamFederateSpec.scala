@@ -44,8 +44,15 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
       .resolve()
     val chargingPlugInEvents = new AtomicInteger(0)
     val chargingPlugOutEvents = new AtomicInteger(0)
+    val powerOverNextIntervalEvents = new AtomicInteger(0)
 
-    val f1 = Future { createBrokerAndReaderFederate(chargingPlugInEvents, chargingPlugOutEvents) }
+    val f1 = Future {
+      createBrokerAndReaderFederate(
+        chargingPlugInEvents,
+        chargingPlugOutEvents,
+        powerOverNextIntervalEvents
+      )
+    }
     val f2 = Future { runCosimulationTest(config) }
     val aggregatedFuture = for {
       f1Result <- f1
@@ -53,8 +60,9 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     } yield (f1Result, f2Result)
     try {
       Await.result(aggregatedFuture, 5.minutes)
-      require(chargingPlugInEvents.get() > 0)
-      require(chargingPlugOutEvents.get() > 0)
+      chargingPlugInEvents.get() should be > 0
+      chargingPlugOutEvents.get() should be > 0
+      powerOverNextIntervalEvents.get() should be > 0
     } catch {
       case _: TimeoutException =>
         fail("something went wrong with the cosimulation")
@@ -85,7 +93,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
 
   private def createBrokerAndReaderFederate(
     chargingPlugInEvents: AtomicInteger,
-    chargingPlugOutEvents: AtomicInteger
+    chargingPlugOutEvents: AtomicInteger,
+    powerOverNextIntervalEvents: AtomicInteger
   ): Unit = {
     val broker = helics.helicsCreateBroker("zmq", "", s"-f 2 --name=BeamBrokerTemp")
     val fedName = "BeamFederateTemp"
@@ -102,13 +111,15 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
       helics.helicsFederateRegisterSubscription(fedComb, "BeamFederate/chargingPlugIn", "string")
     val subsChargingPlugOut: SWIGTYPE_p_void =
       helics.helicsFederateRegisterSubscription(fedComb, "BeamFederate/chargingPlugOut", "string")
+    val subsPowerOverNextInterval: SWIGTYPE_p_void =
+      helics.helicsFederateRegisterSubscription(fedComb, "BeamFederate/powerOverNextInterval", "double")
     helics.helicsFederateEnterInitializingMode(fedComb)
     helics.helicsFederateEnterExecutingMode(fedComb)
 
     try {
       val timeBin = 300
       var currentTime: Double = 0.0
-      (1 to 360).foreach { i =>
+      (0 to 360).foreach { i =>
         val t: Double = i * timeBin
         while (currentTime < t) currentTime = helics.helicsFederateRequestTime(fedComb, t)
         val buffer = new Array[Byte](1000)
@@ -126,7 +137,10 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
           val arr = chargingPlugOutEvent.split(",")
           require(arr.size == 4, "chargingPlugOut is not transmitting four values")
           chargingPlugOutEvents.incrementAndGet()
-
+        }
+        if (helics.helicsInputIsUpdated(subsPowerOverNextInterval) == 1) {
+          helics.helicsInputGetDouble(subsPowerOverNextInterval)
+          powerOverNextIntervalEvents.incrementAndGet()
         }
       }
     } finally {
