@@ -367,19 +367,22 @@ class BeamMobsimIteration(
 
   context.watch(parkingManager)
 
-  private val chargingNetworkManager = context.actorOf(
-    Props(
-      new ChargingNetworkManager(
-        beamServices,
-        beamScenario.beamConfig,
-        beamScenario.privateVehicles
+  private val chargingNetworkManagerMaybe: Option[ActorRef] =
+    if (beamConfig.beam.agentsim.chargingNetworkManagerEnabeld) {
+      val chargingNetworkManager = context.actorOf(
+        Props(
+          new ChargingNetworkManager(
+            beamServices,
+            beamScenario.beamConfig,
+            beamScenario.privateVehicles
+          )
+        ).withDispatcher("charging-network-manager-pinned-dispatcher"),
+        "ChargingNetworkManager"
       )
-    ).withDispatcher("charging-network-manager-pinned-dispatcher"),
-    "ChargingNetworkManager"
-  )
-
-  context.watch(chargingNetworkManager)
-  scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
+      context.watch(chargingNetworkManager)
+      scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
+      Some(chargingNetworkManager)
+    } else None
 
   private val rideHailManager = context.actorOf(
     Props(
@@ -524,15 +527,17 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      chargingNetworkManager ! Finish
       eventsAccumulatorMaybe.foreach { eventsAccumulator =>
         eventsAccumulator ! Finish
         context.stop(eventsAccumulator)
       }
+      chargingNetworkManagerMaybe.foreach { chargingNetworkManager =>
+        chargingNetworkManager ! Finish
+        context.stop(chargingNetworkManager)
+      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
-      context.stop(chargingNetworkManager)
       sharedVehicleFleets.foreach(context.stop)
       context.stop(tazSkimmer)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {

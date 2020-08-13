@@ -34,6 +34,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
       .parseString("""
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.agentsim.collectEvents = true
+                     |beam.agentsim.chargingNetworkManagerEnabeld = true
                      |beam.agentsim.lastIteration = 0
                      |beam.cosim.helics = {
                      |  timeStep = 300

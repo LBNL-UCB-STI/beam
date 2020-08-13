@@ -60,7 +60,7 @@ print("GRID: Entering execution mode")
 timebin = 300
 currenttime = -1
 rec_value = 0.0
-send_value = 12345 # a dummy value
+time_sleep = 0
 
 for t in range(0, timebin*360+1, timebin):
     while currenttime < t:
@@ -70,10 +70,15 @@ for t in range(0, timebin*360+1, timebin):
         rec_value = h.helicsInputGetString(sub)
         print("GRID: Received 'powerOverNextInterval' with value = {} at time {} from BeamFederate".format(rec_value, currenttime))
 
+        if time_sleep > 0:
+            print("artificial sleep for {} sec before power flow".format(time_sleep))
+            time.sleep(time_sleep)
+
+        send_value = 12345 # a dummy value
+
         h.helicsPublicationPublishDouble(pub, send_value)
         print("GRID: Sending 'powerFlow' with value = {} at time {} to BeamFederate".format(send_value, currenttime))
 
-#     time.sleep(1.0)
 
 h.helicsFederateFinalize(cfed)
 print("GRID: Federate finalized")

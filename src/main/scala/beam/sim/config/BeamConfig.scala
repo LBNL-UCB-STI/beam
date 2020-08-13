@@ -35,6 +35,7 @@ object BeamConfig {
     case class Agentsim(
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
+      chargingNetworkManagerEnabeld: scala.Boolean,
       collectEvents: scala.Boolean,
       endTime: java.lang.String,
       firstIteration: scala.Int,
@@ -1642,6 +1643,9 @@ object BeamConfig {
           agents = BeamConfig.Beam.Agentsim.Agents(
             if (c.hasPathOrNull("agents")) c.getConfig("agents")
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
+          ),
+          chargingNetworkManagerEnabeld = c.hasPathOrNull("chargingNetworkManagerEnabeld") && c.getBoolean(
+            "chargingNetworkManagerEnabeld"
           ),
           collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
           endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
