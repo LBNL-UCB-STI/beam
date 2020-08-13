@@ -28,7 +28,8 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   override def beforeEach = {
     reset(beamServicesMock, beamFederateMock)
-    when(beamFederateMock.syncAndGetPowerFlowValue(300)).thenReturn((600, 5678.90))
+    when(beamFederateMock.syncAndMoveToNextTimeStep(300)).thenReturn(600)
+    when(beamFederateMock.obtainPowerFlowValue).thenReturn(5678.90)
   }
 
   "PowerController when connected to grid" should {
@@ -37,14 +38,15 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     }
 
     "publish power over planning horizon" in {
-      powerController.publishPowerOverPlanningHorizon(100.0)
+      powerController.publishPowerOverPlanningHorizon(100.0, 300)
       verify(beamFederateMock, times(1)).publishPowerOverPlanningHorizon(100.0)
     }
     "obtain power physical bounds" in {
       val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(300)
       bounds shouldBe PhysicalBounds(5678.90, 5678.90, 0.0)
       nextTick shouldBe 600
-      verify(beamFederateMock, times(1)).syncAndGetPowerFlowValue(300)
+      verify(beamFederateMock, times(1)).syncAndMoveToNextTimeStep(300)
+      verify(beamFederateMock, times(1)).obtainPowerFlowValue
     }
   }
   "PowerController when not connected to grid" should {
@@ -53,7 +55,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     }
 
     "publish nothing" in {
-      powerController.publishPowerOverPlanningHorizon(100.0)
+      powerController.publishPowerOverPlanningHorizon(100.0, 300)
       verify(beamFederateMock, never()).publishPowerOverPlanningHorizon(any())
     }
 
@@ -61,7 +63,8 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(300)
       bounds shouldBe PhysicalBounds(0.0, 0.0, 0.0)
       nextTick shouldBe 600
-      verify(beamFederateMock, never()).syncAndGetPowerFlowValue(300)
+      verify(beamFederateMock, never()).syncAndMoveToNextTimeStep(300)
+      verify(beamFederateMock, never()).obtainPowerFlowValue
     }
 
   }
