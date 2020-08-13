@@ -504,6 +504,10 @@ trait BeamHelper extends LazyLogging {
       beamExecutionConfig.matsimConfig,
     )
 
+    logger.info(s"Heap size: ${MathUtils.formatBytes(Runtime.getRuntime.totalMemory())}")
+    logger.info(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
+    logger.info(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
+
     val logStart = {
       val populationSize = scenario.getPopulation.getPersons.size()
       val vehiclesSize = scenario.getVehicles.getVehicles.size()
@@ -525,7 +529,7 @@ trait BeamHelper extends LazyLogging {
     }
     logger.warn(logStart)
 
-    val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    val injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
 
     val services = injector.getInstance(classOf[BeamServices])
     (beamExecutionConfig, scenario, beamScenario, services)
