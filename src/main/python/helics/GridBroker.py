@@ -71,7 +71,7 @@ for t in range(0, timebin*360+1, timebin):
         print("GRID: Received 'powerOverNextInterval' with value = {} at time {} from BeamFederate".format(rec_value, currenttime))
 
         if time_sleep > 0:
-            print("Simulating work (sleep for {} sec) before power flow response".format(time_sleep))
+            print("GRID: Simulating work (sleep for {} sec) before power flow response".format(time_sleep))
             time.sleep(time_sleep)
 
         send_value = 12345 # a dummy value
