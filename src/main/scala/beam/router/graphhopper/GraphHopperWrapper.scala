@@ -79,12 +79,12 @@ class GraphHopperWrapper(
           .toIndexedSeq
 
         var linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-          // TODO ask why GH is producing negative travel time
+        // TODO ask why GH is producing negative travel time
 //          .map { x =>
 //            require(x > 0, "GOING BACK IN TIME")
 //            x
 //          }
-          //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+        //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
           .take(ghLinkIds.size)
 
         if (allLinkTravelTimes.size > ghLinkIds.size) {
