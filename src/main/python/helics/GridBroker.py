@@ -71,7 +71,7 @@ for t in range(0, timebin*360+1, timebin):
         print("GRID: Received 'powerOverNextInterval' with value = {} at time {} from BeamFederate".format(rec_value, currenttime))
 
         if time_sleep > 0:
-            print("artificial sleep for {} sec before power flow".format(time_sleep))
+            print("Simulating work (sleep for {} sec) before power flow response".format(time_sleep))
             time.sleep(time_sleep)
 
         send_value = 12345 # a dummy value
@@ -83,14 +83,15 @@ for t in range(0, timebin*360+1, timebin):
 h.helicsFederateFinalize(cfed)
 print("GRID: Federate finalized")
 
-h.helicsFederateDestroy(cfed)
-h.helicsFederateFree(cfed)
-
 # don't wait more than half an hour for all other federates to finalize and write
 second = 0
 while h.helicsBrokerIsConnected(broker) == 1 and second < 1800:
     time.sleep(1)
     second += 1
+
+h.helicsFederateDestroy(cfed)
+h.helicsFederateFree(cfed)
+print("GRID: Federate Destroyed")
 
 h.helicsCloseLibrary()
 print("GRID: Broker disconnected")

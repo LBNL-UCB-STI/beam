@@ -33,11 +33,11 @@ class ChargingNetworkManager(
 
       val requiredPower = sitePowerManager.getPowerOverPlanningHorizon(privateVehicles)
 
-      powerController.publishPowerOverPlanningHorizon(requiredPower)
+      powerController.publishPowerOverPlanningHorizon(requiredPower, tick)
       val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(tick)
       val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(bounds, privateVehicles)
 
-      log.info("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))
+      log.debug("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))
 
       requiredEnergyPerVehicle.foreach {
         case (id, energy) if energy > 0 =>
@@ -74,7 +74,7 @@ class ChargingNetworkManager(
       sender ! CompletionNotice(
         triggerId,
         if (tick < endOfSimulationTime)
-          Vector(ScheduleTrigger(PlanningTimeOutTrigger(tick + nextTick), self))
+          Vector(ScheduleTrigger(PlanningTimeOutTrigger(nextTick), self))
         else
           Vector()
       )

@@ -26,7 +26,8 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     *
     * @param requiredPower power (in joules) over planning horizon
     */
-  def publishPowerOverPlanningHorizon(requiredPower: Double): Unit = {
+  def publishPowerOverPlanningHorizon(requiredPower: Double, currentTime: Int): Unit = {
+    logger.debug("Sending power over planning horizon {} to the grid at time {}...", requiredPower, currentTime)
     beamFederateMaybe
       .map(_.publishPowerOverPlanningHorizon(requiredPower))
       .getOrElse {
@@ -37,21 +38,25 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
   /**
     * Obtains physical bounds from the grid
     *
-    * @param tick current tick
-    * @return tuple of PhysicalBounds and Int (next tick)
+    * @param currentTime current time
+    * @return tuple of PhysicalBounds and Int (next time)
     */
-  def obtainPowerPhysicalBounds(tick: Int): (PhysicalBounds, Int) = {
-    logger.debug("Obtaining power from the grid at time {}...", tick)
-    val (nextTick, powerValue) =
+  def obtainPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
+    logger.debug("Obtaining power from the grid at time {}...", currentTime)
+    val (nextTime, powerValue) =
       beamFederateMaybe
-        .map(_.syncAndGetPowerFlowValue(tick))
+        .map { f =>
+          val nextTime = f.syncAndMoveToNextTimeStep(currentTime)
+          val value = f.obtainPowerFlowValue
+          (nextTime, value)
+        }
         .getOrElse {
           logger.warn("Not connected to Grid, using default physical bounds (0.0)")
           val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
-          (fedTimeStep * (1 + (tick / fedTimeStep)), 0.0)
+          (fedTimeStep * (1 + (currentTime / fedTimeStep)), 0.0)
         }
     logger.debug("Obtained power from the grid {}...", powerValue)
-    (PhysicalBounds.default(powerValue), nextTick)
+    (PhysicalBounds.default(powerValue), nextTime)
   }
 
   def close(): Unit = {
@@ -61,6 +66,5 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
       .getOrElse {
         logger.warn("Not connected to Grid, just releasing helics resources")
       }
-    BeamFederate.destroyInstance()
   }
 }

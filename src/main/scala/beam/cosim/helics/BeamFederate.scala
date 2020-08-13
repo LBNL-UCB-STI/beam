@@ -89,21 +89,15 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     }
   }
 
-  def publishPowerOverPlanningHorizon(power: Double): Unit = {
-    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), power)
+  def publishPowerOverPlanningHorizon(value: Double): Unit = {
+    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), value)
+    logger.debug("Sent power over next interval value = {} from Grid", value)
   }
 
-  def syncAndGetPowerFlowValue(time: Int): (Int, Double) = {
-    var currentTime = -1.0
-    var value = 0.0
-    logger.debug(s"requesting the time $time from the broker")
-    while (currentTime < time) {
-      currentTime = helics.helicsFederateRequestTime(fedComb, time)
-      value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
-      logger.debug("Received value = {} at time {} from Sender (current time = {})", value, time, currentTime)
-    }
-    logger.debug(s"the time $time granted was $currentTime")
-    (fedTimeStep * (1 + (currentTime / fedTimeStep).toInt), value)
+  def obtainPowerFlowValue: Double = {
+    val value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
+    logger.debug("Received power flow value = {} from Grid", value)
+    value
   }
 
   def syncAndMoveToNextTimeStep(time: Int): Int = {
