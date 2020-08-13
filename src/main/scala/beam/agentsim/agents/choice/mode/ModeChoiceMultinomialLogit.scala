@@ -42,8 +42,8 @@ class ModeChoiceMultinomialLogit(
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
+  private val bikeLaneScaleFactor: Double = beamConfig.beam.routing.r5.bikeLaneScaleFactor
   private val shouldLogDetails: Boolean = false
-
   private val bikeLanesLinkIds: Set[Int] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
 
   override def apply(
@@ -209,43 +209,50 @@ class ModeChoiceMultinomialLogit(
     destinationActivity: Option[Activity],
     adjustSpecialBikeLines: Boolean = false
   ): Double = {
-    val waitingTime: Int = beamTripDurationInSecs(embodiedBeamTrip, adjustSpecialBikeLines = adjustSpecialBikeLines)
-    embodiedBeamTrip.legs
-      .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
-      .sum + getGeneralizedTime(waitingTime, None, None)
-  }
-
-  private def beamTripDurationInSecs(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    adjustSpecialBikeLines: Boolean = false
-  ): Int = {
-    if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      val result = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs
-        .map { embodiedBeamLeg: EmbodiedBeamLeg =>
-          beamPathDurationInSecondsAdjusted(embodiedBeamLeg.beamLeg.travelPath)
-        }
-        .sum
-        .toInt
-      Math.max(0, result)
+    val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
+      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip)
     } else {
-      embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+      embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
+    val waitingTime: Int = embodiedBeamTrip.totalTravelTimeInSecs - adjustedTripDuration
+    embodiedBeamTrip.legs.map { x =>
+      val factor = if (x.beamLeg.mode == BIKE && adjustSpecialBikeLines) {
+        bikeLaneScaleFactor
+      } else {
+        1D
+      }
+      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+    }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
-  private def beamPathDurationInSecondsAdjusted(path: BeamPath): Double = {
-    val bikeScaleFactor = beamConfig.beam.routing.r5.bikeLaneScaleFactor
+  private def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
+    embodiedBeamTrip: EmbodiedBeamTrip
+  ): Int = {
+    embodiedBeamTrip.legs
+      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
+        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath)
+      }
+      .sum
+      .toInt
+  }
+
+  private def pathScaledForWaiting(path: BeamPath): Double = {
     path.linkIds
       .drop(1)
       .zip(path.linkTravelTime.drop(1))
       .map {
         case (linkId: Int, travelTime: Double) =>
-          if (bikeLanesLinkIds.contains(linkId)) {
-            travelTime * bikeScaleFactor
+          if (shouldApplyScaleFactorOnLinkId(linkId)) {
+            travelTime * 1D / bikeLaneScaleFactor
           } else {
             travelTime
           }
       }
       .sum
+  }
+
+  private def shouldApplyScaleFactorOnLinkId(linkId: Int): Boolean = {
+    bikeLanesLinkIds.contains(linkId)
   }
 
   override def getGeneralizedTimeOfLeg(

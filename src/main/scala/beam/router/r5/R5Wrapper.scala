@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
@@ -30,7 +30,6 @@ import beam.router.Modes
 import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.router.RouteHistory.LinkId
 import beam.sim.metrics.{Metrics, MetricsSupport}
-import beam.utils.FileUtils
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -64,6 +63,8 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
   private val bikeLanesLinkIds: Set[LinkId] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
+
+  private val bikeLaneScaleFactor: Double = beamConfig.beam.routing.r5.bikeLaneScaleFactor
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -1049,26 +1050,25 @@ class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime, travelTi
              }).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
-        } else if (streetMode == StreetMode.BICYCLE) {
-          val decreaseFactor = calculateBicycleTimeDecreaseFactor(vehicleType, shouldApplyBicycleScaleFactor, linkId)
-          minTravelTime * decreaseFactor
+        } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+          val scaleFactor = calculateBicycleScaleFactor(vehicleType, linkId)
+          minTravelTime * scaleFactor
         } else {
           minTravelTime
         }
       }
   }
 
-  private def calculateBicycleTimeDecreaseFactor(
-    vehicleType: BeamVehicleType,
-    shouldDecreaseTimeWhenBicycle: Boolean,
-    linkId: LinkId
-  ): Double = {
-    if (vehicleType.vehicleCategory == VehicleCategory.Bike && shouldDecreaseTimeWhenBicycle && bikeLanesLinkIds
-          .contains(linkId)) {
-      beamConfig.beam.routing.r5.bikeLaneScaleFactor
+  private def calculateBicycleScaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
+    if (vehicleType.vehicleCategory == VehicleCategory.Bike && applyScaleFactorOnLinkId(linkId)) {
+      bikeLaneScaleFactor
     } else {
       1D
     }
+  }
+
+  private def applyScaleFactorOnLinkId(linkId: LinkId): Boolean = {
+    bikeLanesLinkIds.contains(linkId)
   }
 
   private val turnCostCalculator: TurnCostCalculator =
