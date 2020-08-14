@@ -73,24 +73,27 @@ class SecondaryActivitiesSpec
     interceptPath.close()
   }
 
-  "Beam Run" should {
+  "Secondary Activities Run" should {
 
-    "check increased activities " in {
-      val eventsType = new ListBuffer[String]()
+    "check newly added activities " in {
+
+      java.util.concurrent.ConcurrentLinkedQueue
+      val eventsType = new java.util.concurrent.ConcurrentLinkedQueue[String]()
       val basicEventHandler = new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
           event match {
             case event: ActivityEndEvent =>
-              eventsType.append(event.getActType)
+              eventsType.add(event.getActType)
             case _ =>
           }
         }
       }
       processHandlers(List(basicEventHandler))
-      assert(eventsType.toSet.intersect(interceptMode) == interceptMode)
+
+      assert(eventsType.asScala.toSet.intersect(interceptMode) == interceptMode)
     }
 
-    "check mode for secondary activities" in {
+    "check secondary activity mode count is less then original run mode count" in {
 
       val (_, output, _) = runBeamWithConfig(config)
       val modeChoice = extractFileContent(output, "modeChoice.csv")
@@ -102,7 +105,7 @@ class SecondaryActivitiesSpec
       }
     }
 
-    "check mode for secondary activities with 0" in {
+    "check mode for secondary activities with 0 values" in {
 
       val baseConf = ConfigFactory
         .parseString(s"""
