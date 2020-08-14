@@ -15,7 +15,6 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigge
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.cosim.helics.BeamFederate
 import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
 import beam.router.Modes.BeamMode
@@ -44,7 +43,6 @@ import org.matsim.households.Households
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.control.NonFatal
 
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
@@ -469,24 +467,16 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
-  var beamFederateCreated: Boolean = false
-
-  private val chargingNetworkManagerMaybe: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.chargingNetworkManagerEnabeld) {
-      beamFederateCreated = true
-      val chargingNetworkManager = context.actorOf(
-        Props(new ChargingNetworkManager(beamServices, beamScenario))
-          .withDispatcher("charging-network-manager-pinned-dispatcher"),
-        "ChargingNetworkManager"
-      )
-      context.watch(chargingNetworkManager)
-      scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
-      Some(chargingNetworkManager)
-    } else None
+  private val chargingNetworkManager = context.actorOf(
+    Props(new ChargingNetworkManager(beamServices, beamScenario))
+      .withDispatcher("charging-network-manager-pinned-dispatcher"),
+    "ChargingNetworkManager"
+  )
+  context.watch(chargingNetworkManager)
+  scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
 
   val eventsAccumulatorMaybe: Option[ActorRef] =
     if (beamConfig.beam.agentsim.collectEvents) {
-      beamFederateCreated = true
       val eventsAccumulator = context.actorOf(EventsAccumulator.props(beamServices))
       context.watch(eventsAccumulator)
       scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
@@ -532,15 +522,12 @@ class BeamMobsimIteration(
         eventsAccumulator ! Finish
         context.stop(eventsAccumulator)
       }
-      chargingNetworkManagerMaybe.foreach { chargingNetworkManager =>
-        chargingNetworkManager ! Finish
-        context.stop(chargingNetworkManager)
-      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
       context.stop(tazSkimmer)
+      context.stop(chargingNetworkManager)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)
@@ -551,14 +538,6 @@ class BeamMobsimIteration(
         runSender ! Success("Ran.")
       } else {
         log.debug("Remaining: {}", context.children)
-      }
-      if (beamFederateCreated) {
-        try {
-          log.debug("Destroying BeamFederate")
-          BeamFederate.destroyInstance()
-        } catch {
-          case NonFatal(ex) => log.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
-        }
       }
 
     case "Run!" =>

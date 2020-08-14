@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.{Actor, ActorLogging}
-import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
@@ -29,17 +28,27 @@ class ChargingNetworkManager(
   private val vehiclesCopies: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap.empty
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
+  private val gridConnectionEnabled = beamConfig.beam.agentsim.chargingNetworkManager.gridConnectionEnabled
+  log.info(s"ChargingNetworkManager should be connected to grid: ${gridConnectionEnabled}")
+  if (gridConnectionEnabled) {
+    log.info(s"ChargingNetworkManager is connected to grid: ${powerController.isConnectedToGrid}")
+  }
+
   override def receive: Receive = {
     case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
       log.debug("PlanningTimeOutTrigger, tick: {}", tick)
 
       val requiredPower = sitePowerManager.getPowerOverPlanningHorizon(privateVehicles)
 
-      powerController.publishPowerOverPlanningHorizon(requiredPower, tick)
-      val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(tick)
+      val (bounds, nextTick) = if (gridConnectionEnabled) {
+        powerController.publishPowerOverPlanningHorizon(requiredPower, tick)
+        powerController.obtainPowerPhysicalBounds(tick)
+      } else {
+        powerController.defaultPowerPhysicalBounds(tick)
+      }
       val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(bounds, privateVehicles)
 
-      log.debug("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))
+      log.info("Required energy per vehicle: {}", requiredEnergyPerVehicle.mkString(","))
 
       requiredEnergyPerVehicle.foreach {
         case (id, energy) if energy > 0 =>
@@ -80,9 +89,14 @@ class ChargingNetworkManager(
         else
           Vector()
       )
+  }
 
-    case Finish =>
+  override def postStop: Unit = {
+    log.info("postStop")
+    if (gridConnectionEnabled) {
       powerController.close()
+    }
+    super.postStop()
   }
 
   private def makeVehicleCopy(vehicle: BeamVehicle): BeamVehicle = {

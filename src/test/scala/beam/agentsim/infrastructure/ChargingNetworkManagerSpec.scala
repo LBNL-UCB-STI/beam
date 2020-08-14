@@ -8,6 +8,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
+import com.typesafe.config.ConfigFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -15,7 +16,14 @@ class ChargingNetworkManagerSpec
     extends TestKit(
       ActorSystem(
         "ChargingNetworkManagerSpec",
-        testConfig("test/input/beamville/beam.conf").resolve()
+        ConfigFactory
+          .parseString("""
+           |akka.log-dead-letters = 10
+           |akka.actor.debug.fsm = true
+           |akka.loglevel = debug
+           |akka.test.timefactor = 2
+           |akka.test.single-expect-default = 10 s""".stripMargin)
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with WordSpecLike

@@ -91,12 +91,12 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
 
   def publishPowerOverPlanningHorizon(value: Double): Unit = {
     helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), value)
-    logger.debug("Sent power over next interval value = {} from Grid", value)
+    logger.debug("Sent power over next interval value = {} from grid", value)
   }
 
   def obtainPowerFlowValue: Double = {
     val value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
-    logger.debug("Received power flow value = {} from Grid", value)
+    logger.debug("Received power flow value = {} from grid", value)
     value
   }
 

@@ -35,7 +35,7 @@ object BeamConfig {
     case class Agentsim(
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
-      chargingNetworkManagerEnabeld: scala.Boolean,
+      chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
       collectEvents: scala.Boolean,
       endTime: java.lang.String,
       firstIteration: scala.Int,
@@ -1492,6 +1492,19 @@ object BeamConfig {
         }
       }
 
+      case class ChargingNetworkManager(
+        gridConnectionEnabled: scala.Boolean
+      )
+
+      object ChargingNetworkManager {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
+          BeamConfig.Beam.Agentsim.ChargingNetworkManager(
+            gridConnectionEnabled = c.hasPathOrNull("gridConnectionEnabled") && c.getBoolean("gridConnectionEnabled")
+          )
+        }
+      }
+
       case class H3taz(
         lowerBoundResolution: scala.Int,
         upperBoundResolution: scala.Int
@@ -1644,8 +1657,9 @@ object BeamConfig {
             if (c.hasPathOrNull("agents")) c.getConfig("agents")
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
           ),
-          chargingNetworkManagerEnabeld = c.hasPathOrNull("chargingNetworkManagerEnabeld") && c.getBoolean(
-            "chargingNetworkManagerEnabeld"
+          chargingNetworkManager = BeamConfig.Beam.Agentsim.ChargingNetworkManager(
+            if (c.hasPathOrNull("chargingNetworkManager")) c.getConfig("chargingNetworkManager")
+            else com.typesafe.config.ConfigFactory.parseString("chargingNetworkManager{}")
           ),
           collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
           endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
