@@ -475,13 +475,8 @@ class BeamMobsimIteration(
     if (beamConfig.beam.agentsim.chargingNetworkManagerEnabeld) {
       beamFederateCreated = true
       val chargingNetworkManager = context.actorOf(
-        Props(
-          new ChargingNetworkManager(
-            beamServices,
-            beamScenario.beamConfig,
-            beamScenario.privateVehicles
-          )
-        ).withDispatcher("charging-network-manager-pinned-dispatcher"),
+        Props(new ChargingNetworkManager(beamServices, beamScenario))
+          .withDispatcher("charging-network-manager-pinned-dispatcher"),
         "ChargingNetworkManager"
       )
       context.watch(chargingNetworkManager)

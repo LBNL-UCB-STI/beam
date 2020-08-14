@@ -8,8 +8,8 @@ import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 
@@ -17,10 +17,12 @@ import scala.collection.concurrent.TrieMap
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
-  beamConfig: BeamConfig,
-  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+  beamScenario: BeamScenario
 ) extends Actor
     with ActorLogging {
+
+  private val beamConfig: BeamConfig = beamScenario.beamConfig
+  private val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = beamScenario.privateVehicles
 
   private val sitePowerManager = new SitePowerManager()
   private val powerController = new PowerController(beamServices, beamConfig)

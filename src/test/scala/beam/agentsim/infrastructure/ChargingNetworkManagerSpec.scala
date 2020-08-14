@@ -36,13 +36,7 @@ class ChargingNetworkManagerSpec
       .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
 
     chargingNetworkManager = system.actorOf(
-      Props(
-        new ChargingNetworkManager(
-          beamServices,
-          beamScenario.beamConfig,
-          beamScenario.privateVehicles
-        )
-      )
+      Props(new ChargingNetworkManager(beamServices, beamScenario))
     )
     "process trigger event" in {
       val request = TriggerWithId(PlanningTimeOutTrigger(300), 0)
