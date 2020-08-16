@@ -248,21 +248,30 @@ trait PopulationScaling extends LazyLogging {
           .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
           .sum
 
+        val removedPersons = mutable.HashSet.empty[Id[Person]]
+
         (0 until Math.round(removalItemSize.toFloat)).map { _ =>
-          val person = enumeratedDistribution.sample()
-          scenario.getPopulation.getPersons.remove(person.getId)
+          var person = enumeratedDistribution.sample()
+          while (removedPersons.contains(person.getId)) {
+            person = enumeratedDistribution.sample()
+          }
 
           val personId: Id[Person] = person.getId
-
           memberIdToHousehold.get(personId) match {
             case Some(hhId) =>
               val hh = scenario.getHouseholds.getHouseholds.get(hhId).asInstanceOf[HouseholdImpl]
               val members = hh.getMemberIds.asScala.filter(pId => pId != personId).asJava
               hh.setMemberIds(members)
             case _ =>
-              logger.error(s"Household for person ${person.getId} is missing.")
+              logger.error(s"Household for person $personId is missing.")
           }
+
+          scenario.getPopulation.getPersons.remove(personId)
+          removedPersons += personId
         }
+
+        val removed = removedPersons.size
+        logger.info(s"Removing done. removed $removed persons")
       }
 
     } finally {
