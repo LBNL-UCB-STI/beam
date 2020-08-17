@@ -10,10 +10,10 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.ModeChoiceOccurredEvent
-import beam.agentsim.infrastructure.NetworkUtilsExtensions
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
@@ -42,9 +42,8 @@ class ModeChoiceMultinomialLogit(
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
-  private val bikeLaneScaleFactor: Double = beamConfig.beam.routing.r5.bikeLaneScaleFactor
   private val shouldLogDetails: Boolean = false
-  private val bikeLanesLinkIds: Set[Int] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
+  private val bikeLanesAdjustment: BikeLanesAdjustment = beamServices.bikeLanesAdjustment
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -215,9 +214,9 @@ class ModeChoiceMultinomialLogit(
       embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
     val waitingTime: Int = embodiedBeamTrip.totalTravelTimeInSecs - adjustedTripDuration
-    embodiedBeamTrip.legs.map { x =>
-      val factor = if (x.beamLeg.mode == BIKE && adjustSpecialBikeLines) {
-        bikeLaneScaleFactor
+    embodiedBeamTrip.legs.map { x: EmbodiedBeamLeg =>
+      val factor = if (adjustSpecialBikeLines) {
+        bikeLanesAdjustment.bikeLaneScaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
       } else {
         1D
       }
@@ -242,17 +241,9 @@ class ModeChoiceMultinomialLogit(
       .zip(path.linkTravelTime.drop(1))
       .map {
         case (linkId: Int, travelTime: Double) =>
-          if (shouldApplyScaleFactorOnLinkId(linkId)) {
-            travelTime * 1D / bikeLaneScaleFactor
-          } else {
-            travelTime
-          }
+          travelTime * 1D / bikeLanesAdjustment.scaleFactor(linkId)
       }
       .sum
-  }
-
-  private def shouldApplyScaleFactorOnLinkId(linkId: Int): Boolean = {
-    bikeLanesLinkIds.contains(linkId)
   }
 
   override def getGeneralizedTimeOfLeg(

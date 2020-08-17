@@ -1,6 +1,5 @@
 package beam.router.r5
 
-import java.io.File
 import java.time.temporal.ChronoUnit
 import java.time.ZonedDateTime
 import java.util
@@ -13,11 +12,12 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 import scala.util.Try
+
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.NetworkUtilsExtensions
+import beam.router.{Modes, RoutingWorker}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
@@ -25,9 +25,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
-import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
-import beam.router.RouteHistory.LinkId
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
@@ -61,9 +59,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  private val bikeLanesLinkIds: Set[LinkId] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
-
-  private val bikeLaneScaleFactor: Double = beamConfig.beam.routing.r5.bikeLaneScaleFactor
+  private val bikeLanesAdjustment = new BikeLanesAdjustment(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -1050,24 +1046,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-          val scaleFactor = calculateBicycleScaleFactor(vehicleType, linkId)
+          val scaleFactor = bikeLanesAdjustment.calculateBicycleScaleFactor(vehicleType, linkId)
           minTravelTime * scaleFactor
         } else {
           minTravelTime
         }
       }
-  }
-
-  private def calculateBicycleScaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
-    if (vehicleType.vehicleCategory == VehicleCategory.Bike && applyScaleFactorOnLinkId(linkId)) {
-      bikeLaneScaleFactor
-    } else {
-      1D
-    }
-  }
-
-  private def applyScaleFactorOnLinkId(linkId: LinkId): Boolean = {
-    bikeLanesLinkIds.contains(linkId)
   }
 
   private val turnCostCalculator: TurnCostCalculator =
