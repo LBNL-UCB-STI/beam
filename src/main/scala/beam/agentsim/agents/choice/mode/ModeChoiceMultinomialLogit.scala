@@ -216,7 +216,8 @@ class ModeChoiceMultinomialLogit(
           embodiedBeamLeg,
           this,
           beamServices,
-          destinationActivity
+          destinationActivity,
+          Some(transitCrowding)
         )
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
