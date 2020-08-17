@@ -1,8 +1,7 @@
-package beam.router.gtfs
+package beam.utils.transit
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
-import beam.sim.config.BeamConfig
 import org.onebusaway.csv_entities.schema.BeanWrapper
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl
 import org.onebusaway.gtfs.model.{AgencyAndId, Stop, StopTime, Trip}
@@ -21,23 +20,19 @@ import scala.collection.concurrent.TrieMap
 /**
   * Loading of GTFS feeds should be done one-by-one, each for a separate instance of [[org.onebusaway.gtfs.services.GtfsRelationalDao]],
   * because if several feeds contain the same AgencyId then a [[org.onebusaway.gtfs.serialization.DuplicateEntityException]] could be thrown
-  * @param beamConfig
   */
-class GtfsLoader(beamConfig: BeamConfig) {
-  import GtfsLoader._
-
-  private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
+object GtfsUtils {
 
   /**
     * Loads GTFS feed into sequence of trips with their stop times
     * @param gtfsFeed could be either zip file or directory with GTFS data
     */
-  def loadTripsFromGtfs(gtfsFeed: String): Seq[TripAndStopTimes] = {
+  def loadTripsFromGtfs(gtfsFeed: Path): Seq[TripAndStopTimes] = {
     val dao = new GtfsRelationalDaoImpl
 
     val reader = new GtfsReader
     reader.setEntityStore(dao)
-    reader.setInputLocation(dataDirectory.resolve(gtfsFeed).toFile)
+    reader.setInputLocation(gtfsFeed.toFile)
     reader.run()
 
     getSortedTripsWithStopTimes(dao)
@@ -46,18 +41,18 @@ class GtfsLoader(beamConfig: BeamConfig) {
   /**
     * Loads GTFS feed into sequence of trips with their stop times
     * and applies transformation strategies
-    * @param gtfsFeed could be either zip file or directory with GTFS data
-    * @param gtfsFeedOut could be either zip file or directory with GTFS data
+    * @param gtfsFeed path could be either zip file or directory with GTFS data
+    * @param gtfsFeedOut path could be either zip file or directory with GTFS data
     * @param transformerStrategies list of transform strategies to be applied to GTFS entities
     */
   def transformGtfs(
-    gtfsFeed: String,
-    gtfsFeedOut: String,
+    gtfsFeed: Path,
+    gtfsFeedOut: Path,
     transformerStrategies: List[GtfsTransformStrategy]
   ): Seq[TripAndStopTimes] = {
     val transformer = new GtfsTransformer
-    transformer.setGtfsInputDirectory(dataDirectory.resolve(gtfsFeed).toFile)
-    transformer.setOutputDirectory(dataDirectory.resolve(gtfsFeedOut).toFile)
+    transformer.setGtfsInputDirectory(gtfsFeed.toFile)
+    transformer.setOutputDirectory(gtfsFeedOut.toFile)
     transformerStrategies.foreach(transformer.addTransform)
     transformer.run()
 
@@ -69,7 +64,7 @@ class GtfsLoader(beamConfig: BeamConfig) {
       .map(trip => TripAndStopTimes(trip, dao.getStopTimesForTrip(trip).asScala.sortBy(_.getStopSequence)))
       .sortBy(_.stopTimes.head.getArrivalTime)
 
-  private[gtfs] def findRepeatingTrips(
+  private[transit] def findRepeatingTrips(
     tripsWithStopTimes: Seq[TripAndStopTimes],
     sameServiceOnly: Boolean = true
   ): TrieMap[String, Seq[(TripAndStopTimes, Int)]] = {
@@ -253,46 +248,42 @@ class GtfsLoader(beamConfig: BeamConfig) {
     newTrip
   }
 
-}
-
-object GtfsLoader {
-  case class TripAndStopTimes(trip: Trip, stopTimes: Seq[StopTime])
+  final case class TripAndStopTimes(trip: Trip, stopTimes: Seq[StopTime])
 
   /**
     * @param startTime start time in milliseconds
     * @param endTime   end time in milliseconds
     */
-  case class TimeFrame(startTime: Int, endTime: Int)
-
-  object TimeFrame {
-    val WholeDay = TimeFrame(0, 86400)
+  final case class TimeFrame(startTime: Int, endTime: Int)
+  final object TimeFrame {
+    val WholeDay: TimeFrame = TimeFrame(0, 86400)
   }
 
-  case class TripDiffAcc(
+  private final case class TripDiffAcc(
     trip: TripAndStopTimes,
     arrivalDiffs: List[Int],
     departureDiffs: List[Int],
     stops: List[Stop]
   )
-  case class HandledRepeatingAcc(
+  private final case class HandledRepeatingAcc(
     handledDiffs: List[TripDiffAcc],
     repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]]
   )
 
   // additional classes for 'onebusaway' strategies
-  class IntValueSetter(replacementValue: Integer) extends ValueSetter {
+  final class IntValueSetter(replacementValue: Integer) extends ValueSetter {
     override def setValue(bean: BeanWrapper, propertyName: String): Unit =
       if (replacementValue != null) bean.setPropertyValue(propertyName, replacementValue)
   }
 
-  class StopTimeMatch(stopTime: StopTime) extends EntityMatch {
+  final class StopTimeMatch(stopTime: StopTime) extends EntityMatch {
     override def isApplicableToObject(obj: Any): Boolean = obj match {
       case testStopTime: StopTime => testStopTime.getId == stopTime.getId
       case _                      => false
     }
   }
 
-  class StopTimeUpdateStrategy(arrivalTime: Int, departureTime: Int) extends EntityTransformStrategy {
+  final class StopTimeUpdateStrategy(arrivalTime: Int, departureTime: Int) extends EntityTransformStrategy {
     override def run(context: TransformContext, dao: GtfsMutableRelationalDao, entity: Any): Unit = entity match {
       case stopTime: StopTime =>
         stopTime.setArrivalTime(arrivalTime)
@@ -301,7 +292,7 @@ object GtfsLoader {
     }
   }
 
-  class FilterServiceIdStrategy(serviceIdFilter: String) extends GtfsTransformStrategy {
+  final class FilterServiceIdStrategy(serviceIdFilter: String) extends GtfsTransformStrategy {
     override def run(context: TransformContext, dao: GtfsMutableRelationalDao): Unit = {
       for (serviceId <- dao.getAllServiceIds.asScala if serviceId.getId != serviceIdFilter) {
         for (trip <- dao.getTripsForServiceId(serviceId).asScala) {

@@ -1,27 +1,18 @@
-package beam.router.gtfs
+package beam.utils.transit
 
-import java.io.File
+import java.nio.file.Paths
 
-import beam.router.gtfs.GtfsLoader.{FilterServiceIdStrategy, TimeFrame}
-import beam.sim.config.BeamConfig
-import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import beam.utils.transit.GtfsUtils.{FilterServiceIdStrategy, TimeFrame}
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 
-class GtfsLoaderSpec extends WordSpecLike with Matchers {
+class GtfsUtilsSpec extends WordSpecLike with Matchers {
   private val serviceId = "EF33A604"
 
-  "Using test GtfsLoader" when {
-    val testDirectory = new File(getClass.getResource("/r5-mod-gtfs").getFile).getAbsolutePath
-    val config = ConfigFactory
-      .parseString(s"beam.routing.r5.directory=${testDirectory}")
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
-    val gtfsLoader = new GtfsLoader(BeamConfig(config))
-
-    val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("train.zip")
+  "GtfsUtils using feed from test resources" when {
+    val testDir = Paths.get(getClass.getResource("/r5-mod-gtfs").getPath)
+    val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve("train.zip"))
 
     "load trips and stop times from train feed" must {
       "have 2 trips with 2 stops each" in {
@@ -31,7 +22,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         }
       }
       "have no repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimes)
         for ((_, tripWithOffset) <- repeatingTrips) {
           tripWithOffset should have size 1
           tripWithOffset.head._2 shouldBe 0
@@ -39,12 +30,12 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       }
     }
     "load trips and stop times from train feed after doubling" must {
-      val doubledStrategy = gtfsLoader.doubleTripsStrategy(tripsAndStopTimes)
-      gtfsLoader.transformGtfs("train.zip", "train-doubled.zip", List(doubledStrategy))
-      val tripsAndStopTimesDoubled = gtfsLoader.loadTripsFromGtfs("train-doubled.zip")
+      val doubledStrategy = GtfsUtils.doubleTripsStrategy(tripsAndStopTimes)
+      GtfsUtils.transformGtfs(testDir.resolve("train.zip"), testDir.resolve("train-doubled.zip"), List(doubledStrategy))
+      val tripsAndStopTimesDoubled = GtfsUtils.loadTripsFromGtfs(testDir.resolve("train-doubled.zip"))
 
       "have doubled repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesDoubled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesDoubled)
 
         for ((_, tripWithOffset) <- repeatingTrips) {
           tripWithOffset should have size 2
@@ -65,7 +56,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
     }
 
     "load trips and stop times from bus feed" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("bus.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve("bus.zip"))
 
       "have 3 trips with 5 stops each" in {
         tripsAndStopTimes.map(_.trip.toString) shouldBe Seq(
@@ -78,7 +69,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         }
       }
       "have 1 repeating trip" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimes)
         repeatingTrips should have size 2
         repeatingTrips("B1-EAST-1") should have size 2
         repeatingTrips("B1-WEST-1") should have size 1
@@ -97,14 +88,14 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       }
     }
     "load trips and stop times from bus feed after doubling" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("bus.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve("bus.zip"))
 
-      val doubledStrategy = gtfsLoader.doubleTripsStrategy(tripsAndStopTimes)
-      gtfsLoader.transformGtfs("bus.zip", "bus-doubled.zip", List(doubledStrategy))
-      val tripsAndStopTimesDoubled = gtfsLoader.loadTripsFromGtfs("bus-doubled.zip")
+      val doubledStrategy = GtfsUtils.doubleTripsStrategy(tripsAndStopTimes)
+      GtfsUtils.transformGtfs(testDir.resolve("bus.zip"), testDir.resolve("bus-doubled.zip"), List(doubledStrategy))
+      val tripsAndStopTimesDoubled = GtfsUtils.loadTripsFromGtfs(testDir.resolve("bus-doubled.zip"))
 
       "have doubled repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesDoubled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesDoubled)
 
         repeatingTrips should have size 2
         repeatingTrips("B1-EAST-1") should have size 4
@@ -136,14 +127,14 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       }
     }
     "load trips and stop times from bus feed after scaling" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("bus.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve("bus.zip"))
 
-      val scaleStrategy = gtfsLoader.scaleTripsStrategy(tripsAndStopTimes, 0.5)
-      gtfsLoader.transformGtfs("bus.zip", "bus-scaled.zip", List(scaleStrategy))
-      val tripsAndStopTimesScaled = gtfsLoader.loadTripsFromGtfs("bus-scaled.zip")
+      val scaleStrategy = GtfsUtils.scaleTripsStrategy(tripsAndStopTimes, 0.5)
+      GtfsUtils.transformGtfs(testDir.resolve("bus.zip"), testDir.resolve("bus-scaled.zip"), List(scaleStrategy))
+      val tripsAndStopTimesScaled = GtfsUtils.loadTripsFromGtfs(testDir.resolve("bus-scaled.zip"))
 
       "have scaled repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesScaled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesScaled)
 
         repeatingTrips should have size 2
         repeatingTrips("B1-EAST-1") should have size 2
@@ -170,14 +161,10 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
     }
   }
 
-  "Using test LI NY GtfsLoader for all serviceIds " when {
-    val config = ConfigFactory
-      .parseString(s"beam.routing.r5.directory=test/input/ny-gtfs/r5")
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
+  "GtfsUtils using LI NY feed for all serviceIds" when {
+    val testDir = Paths.get("test/test-resources/ny-gtfs")
 
-    val gtfsLoader = new GtfsLoader(BeamConfig(config))
-    val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs("Long_Island_Rail_20200215.zip")
+    val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve("Long_Island_Rail_20200215.zip"))
 
     "load trips and stop times from Long_Island_Rail_20200215 feed" must {
       "have 2709 trips sorted by stop times" in {
@@ -189,7 +176,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         tripsAndStopTimes.last.stopTimes.head.getDepartureTime shouldBe (23.hours + 59.minutes).toSeconds
       }
       "have 960 repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimes)
         repeatingTrips should have size 960
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
@@ -216,7 +203,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         offset4 shouldBe (6.hours).toSeconds
       }
       "have 402 repeating trips not taking into account tips' service ids" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes, sameServiceOnly = false)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimes, sameServiceOnly = false)
         repeatingTrips should have size 402
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
@@ -246,21 +233,17 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
   }
 
   // For more clear results do testing for trips from one serviceId
-  s"Using test LI NY GtfsLoader for particular serviceId $serviceId" when {
-    val config = ConfigFactory
-      .parseString(s"beam.routing.r5.directory=test/input/ny-gtfs/r5")
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
+  s"GtfsUtils using LI NY feed for particular serviceId $serviceId" when {
+    val testDir = Paths.get("test/test-resources/ny-gtfs")
 
-    val gtfsLoader = new GtfsLoader(BeamConfig(config))
-    gtfsLoader.transformGtfs(
-      "Long_Island_Rail_20200215.zip",
-      s"Long_Island_Rail_20200215-$serviceId.zip",
+    GtfsUtils.transformGtfs(
+      testDir.resolve("Long_Island_Rail_20200215.zip"),
+      testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"),
       List(new FilterServiceIdStrategy(serviceId))
     )
 
     s"load trips and stop times from Long_Island_Rail_20200215-$serviceId feed" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"))
 
       "have 518 trips sorted by stop times" in {
         tripsAndStopTimes should have size 518
@@ -271,7 +254,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         tripsAndStopTimes.last.stopTimes.head.getDepartureTime shouldBe (23.hours + 59.minutes).toSeconds
       }
       "have 92 repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimes)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimes)
         repeatingTrips should have size 92
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
@@ -305,17 +288,17 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
     }
 
     s"load trips and stop times from Long_Island_Rail_20200215-$serviceId feed after doubling" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"))
 
       val factor = 2
-      val doubledStrategy = gtfsLoader.doubleTripsStrategy(tripsAndStopTimes, factor)
-      gtfsLoader.transformGtfs(
-        s"Long_Island_Rail_20200215-$serviceId.zip",
-        s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor.zip",
+      val doubledStrategy = GtfsUtils.doubleTripsStrategy(tripsAndStopTimes, factor)
+      GtfsUtils.transformGtfs(
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"),
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor.zip"),
         List(doubledStrategy)
       )
       val tripsAndStopTimesDoubled =
-        gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor.zip")
+        GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor.zip"))
 
       s"have close to 518x$factor trips sorted by stop times" in {
         tripsAndStopTimesDoubled should have size 1012 // there are a lot of duplicates, that's why it's not exactly 2x518
@@ -326,7 +309,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         tripsAndStopTimesDoubled.last.stopTimes.head.getDepartureTime shouldBe (23.hours + 59.minutes).toSeconds
       }
       s"have 92 repeating trips with x$factor stops" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesDoubled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesDoubled)
         repeatingTrips should have size 92
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
@@ -367,18 +350,18 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       }
     }
     s"load trips and stop times from Long_Island_Rail_20200215-$serviceId feed after doubling at specified time frame" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"))
 
       val factor = 2
       val timeFrame = TimeFrame(36000, 50400)
-      val doubledStrategy = gtfsLoader.doubleTripsStrategy(tripsAndStopTimes, factor, timeFrame)
-      gtfsLoader.transformGtfs(
-        s"Long_Island_Rail_20200215-$serviceId.zip",
-        s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor-10-14.zip",
+      val doubledStrategy = GtfsUtils.doubleTripsStrategy(tripsAndStopTimes, factor, timeFrame)
+      GtfsUtils.transformGtfs(
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"),
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor-10-14.zip"),
         List(doubledStrategy)
       )
       val tripsAndStopTimesDoubled =
-        gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor-10-14.zip")
+        GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-doubled-x$factor-10-14.zip"))
 
       s"have a bit more than 518 trips sorted by stop times" in {
         tripsAndStopTimesDoubled should have size 598
@@ -389,7 +372,7 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
         tripsAndStopTimesDoubled.last.stopTimes.head.getDepartureTime shouldBe (23.hours + 59.minutes).toSeconds
       }
       s"have 92 repeating trips with x$factor stops for the time frame" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesDoubled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesDoubled)
         repeatingTrips should have size 92
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
@@ -422,20 +405,20 @@ class GtfsLoaderSpec extends WordSpecLike with Matchers {
       }
     }
     s"load trips and stop times from Long_Island_Rail_20200215-$serviceId feed after scaling" must {
-      val tripsAndStopTimes = gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId.zip")
+      val tripsAndStopTimes = GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"))
 
       val scale = 0.5
-      val scaleStrategy = gtfsLoader.scaleTripsStrategy(tripsAndStopTimes, scale)
-      gtfsLoader.transformGtfs(
-        s"Long_Island_Rail_20200215-$serviceId.zip",
-        s"Long_Island_Rail_20200215-$serviceId-scaled-x$scale.zip",
+      val scaleStrategy = GtfsUtils.scaleTripsStrategy(tripsAndStopTimes, scale)
+      GtfsUtils.transformGtfs(
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId.zip"),
+        testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-scaled-x$scale.zip"),
         List(scaleStrategy)
       )
       val tripsAndStopTimesScaled =
-        gtfsLoader.loadTripsFromGtfs(s"Long_Island_Rail_20200215-$serviceId-scaled-x$scale.zip")
+        GtfsUtils.loadTripsFromGtfs(testDir.resolve(s"Long_Island_Rail_20200215-$serviceId-scaled-x$scale.zip"))
 
       s"have 92 scaled by $scale repeating trips" in {
-        val repeatingTrips = gtfsLoader.findRepeatingTrips(tripsAndStopTimesScaled)
+        val repeatingTrips = GtfsUtils.findRepeatingTrips(tripsAndStopTimesScaled)
         repeatingTrips should have size 92
 
         // a repeating sequence with many elements - the trip itself as a first, and subsequent trips with offsets
