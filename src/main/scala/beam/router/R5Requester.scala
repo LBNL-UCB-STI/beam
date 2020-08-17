@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
@@ -295,7 +295,7 @@ object R5Requester extends BeamHelper {
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
-    val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
+    val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
     new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
   }
 
