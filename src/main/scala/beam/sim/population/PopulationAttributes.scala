@@ -105,7 +105,8 @@ case class AttributesOfIndividual(
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
         transitCrowdingSkims match {
           case Some(transitCrowding) =>
-            val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+            val modeMultiplier =
+              getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
             val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
             val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
               embodiedBeamLeg,
