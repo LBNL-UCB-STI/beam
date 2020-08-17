@@ -10,6 +10,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, 
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -169,11 +170,18 @@ class SupplementaryTripGenerator(
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
-
+        val newActivityLocation = beamServices.geo.wgs2Utm(
+          beamServices.geo.snapToR5Edge(
+            beamServices.beamScenario.transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)),
+            maxRadius = 1E5D,
+            StreetMode.WALK
+          )
+        )
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+            newActivityLocation
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
