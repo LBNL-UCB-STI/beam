@@ -3237,6 +3237,7 @@ object BeamConfig {
 
     case class Routing(
       baseDate: java.lang.String,
+      carRouter: java.lang.String,
       r5: BeamConfig.Beam.Routing.R5,
       startingIterationForTravelTimesMSA: scala.Int,
       transitOnStreetNetwork: scala.Boolean
@@ -3316,6 +3317,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing = {
         BeamConfig.Beam.Routing(
           baseDate = if (c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
+          carRouter = if (c.hasPathOrNull("carRouter")) c.getString("carRouter") else "R5",
           r5 = BeamConfig.Beam.Routing.R5(
             if (c.hasPathOrNull("r5")) c.getConfig("r5") else com.typesafe.config.ConfigFactory.parseString("r5{}")
           ),
