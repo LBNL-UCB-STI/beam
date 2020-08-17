@@ -34,6 +34,10 @@ trait ModeChoiceCalculator {
     embodiedBeamTrip.totalTravelTimeInSecs / 3600
   }
 
+  def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    0.0
+  }
+
   def getGeneralizedTimeOfLeg(
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
