@@ -221,7 +221,7 @@ trait PopulationScaling extends LazyLogging {
       scenario.getPopulation.getPersons.values().asScala,
       industrialProbability
     )
-    logger.info(s"Selected ${selectedPersons.length} out of ${selectedPersons.length}")
+    logger.info(s"Selected ${selectedPersons.length} out of ${scenario.getPopulation.getPersons.size()}")
 
     beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy match {
       case "RemovePersonFromScenario" =>
