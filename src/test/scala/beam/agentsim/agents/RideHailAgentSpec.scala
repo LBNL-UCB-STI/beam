@@ -61,7 +61,7 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, None, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
 
