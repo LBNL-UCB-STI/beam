@@ -221,13 +221,21 @@ trait PopulationScaling extends LazyLogging {
       scenario.getPopulation.getPersons.values().asScala,
       industrialProbability
     )
-    logger.info(s"Selected ${selectedPersons.length} out of ${scenario.getPopulation.getPersons.size()}")
+    logger.info(s"Selected ${selectedPersons.length} out of ${scenario.getPopulation.getPersons.size()} people")
 
     beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy match {
       case "RemovePersonFromScenario" =>
         removePeople(scenario, selectedPersons)
       case "KeepPersonButRemoveAllActivities" =>
+        val nPeopleWithWorkingActivitiesBefore = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"Before plan removal. $nPeopleWithWorkingActivitiesBefore out ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
         removeWorkPlan(selectedPersons)
+        val nPeopleWithWorkingActivitiesAfter = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"After plan removal. $nPeopleWithWorkingActivitiesAfter out of ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
       case x =>
         logger.warn(
           s"Don't know beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy=${beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy}"
@@ -297,7 +305,7 @@ trait PopulationScaling extends LazyLogging {
         nRemovedWorkPlans += 1
       }
     }
-    logger.info(s"Removed $nRemovedWorkPlans working plans")
+    logger.info(s"Removed $nRemovedWorkPlans working plans from ${persons.size} people")
   }
 
   def isWorkActivity(plan: PlanElement): Boolean = {
@@ -339,6 +347,13 @@ trait PopulationScaling extends LazyLogging {
       }
     }
   }
+
+  private def getNumberOfWorkingActivities(scenario: MutableScenario): Int = {
+    scenario.getPopulation.getPersons.values().asScala.count { p =>
+      p.getSelectedPlan.getPlanElements.asScala.exists(isWorkActivity)
+    }
+  }
+
 }
 
 object PopulationScaling extends PopulationScaling
