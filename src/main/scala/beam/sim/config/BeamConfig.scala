@@ -1731,6 +1731,7 @@ object BeamConfig {
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
+          offPeakEnabled: scala.Boolean,
           queryDate: java.lang.String,
           tolls: scala.Boolean
         )
@@ -1745,6 +1746,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
               numDataPointsOver24Hours =
                 if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              offPeakEnabled = c.hasPathOrNull("offPeakEnabled") && c.getBoolean("offPeakEnabled"),
               queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
               tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
             )
@@ -3243,6 +3245,7 @@ object BeamConfig {
 
     case class Routing(
       baseDate: java.lang.String,
+      carRouter: java.lang.String,
       r5: BeamConfig.Beam.Routing.R5,
       startingIterationForTravelTimesMSA: scala.Int,
       transitOnStreetNetwork: scala.Boolean
@@ -3316,6 +3319,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing = {
         BeamConfig.Beam.Routing(
           baseDate = if (c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
+          carRouter = if (c.hasPathOrNull("carRouter")) c.getString("carRouter") else "R5",
           r5 = BeamConfig.Beam.Routing.R5(
             if (c.hasPathOrNull("r5")) c.getConfig("r5") else com.typesafe.config.ConfigFactory.parseString("r5{}")
           ),
