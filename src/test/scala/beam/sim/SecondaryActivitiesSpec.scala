@@ -77,7 +77,6 @@ class SecondaryActivitiesSpec
 
     "check newly added activities " in {
 
-      java.util.concurrent.ConcurrentLinkedQueue
       val eventsType = new java.util.concurrent.ConcurrentLinkedQueue[String]()
       val basicEventHandler = new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
