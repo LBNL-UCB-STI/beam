@@ -95,6 +95,7 @@ object BeamConfig {
           lccm: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm,
           lowTimeSensitivity: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity,
           maximumNumberOfReplanningAttempts: scala.Int,
+          minimumValueOfTime: scala.Double,
           modeChoiceClass: java.lang.String,
           modeVotMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.ModeVotMultiplier,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
@@ -563,6 +564,8 @@ object BeamConfig {
               maximumNumberOfReplanningAttempts =
                 if (c.hasPathOrNull("maximumNumberOfReplanningAttempts")) c.getInt("maximumNumberOfReplanningAttempts")
                 else 3,
+              minimumValueOfTime =
+                if (c.hasPathOrNull("minimumValueOfTime")) c.getDouble("minimumValueOfTime") else 7.25,
               modeChoiceClass =
                 if (c.hasPathOrNull("modeChoiceClass")) c.getString("modeChoiceClass")
                 else "ModeChoiceMultinomialLogit",
