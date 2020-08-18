@@ -5,13 +5,13 @@ import io.circe.Decoder
 package object json {
 
   case class GoogleRoutes(
-    geocodedWaypoints: Seq[GeocodedWaypoint],
+    geocodedWaypoints: Option[Seq[GeocodedWaypoint]],
     routes: Seq[GoogleRoute],
     status: String
   )
 
   case class GeocodedWaypoint(
-    geocoderStatus: String
+    geocoderStatus: Option[String]
     // Note: partial definition
   )
 
