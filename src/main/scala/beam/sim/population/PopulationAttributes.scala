@@ -111,7 +111,7 @@ case class AttributesOfIndividual(
             val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
               embodiedBeamLeg,
               beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_multiplier,
-              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_cutoff
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_threshold
             )
             modeMultiplier * durationInHours * crowdingMultiplier
           case _ =>
