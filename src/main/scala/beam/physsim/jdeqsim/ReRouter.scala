@@ -10,7 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{ProfilingUtils, Statistics}
@@ -20,7 +20,7 @@ import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 
-class ReRouter(val workerParams: WorkerParameters, val beamServices: BeamServices) extends StrictLogging {
+class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
 
   private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
