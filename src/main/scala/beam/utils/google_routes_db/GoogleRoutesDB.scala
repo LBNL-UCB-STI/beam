@@ -81,7 +81,14 @@ object GoogleRoutesDB extends LazyLogging {
               .map { bs ⇒
                 val jsonStr = bs.utf8String
                 decode[immutable.Seq[GoogleRoutes]](jsonStr) match {
-                  case Right(json) ⇒ json
+                  case Right(googleRoutesArrayJson) ⇒
+                    logger.info(
+                      "{}: overall routes={}, overall legs={}",
+                      uri,
+                      googleRoutesArrayJson.map(_.routes.size).sum,
+                      googleRoutesArrayJson.flatMap(_.routes).map(_.legs.size).sum
+                    )
+                    googleRoutesArrayJson
                   case Left(e) ⇒
                     val head = jsonStr.take(200).replaceAll("\\s+", "")
                     logger.warn(s"Failed to parse $uri (<$head...>): ${e.getMessage}")
@@ -91,20 +98,15 @@ object GoogleRoutesDB extends LazyLogging {
           }
       }
       .mapAsync(1) { grsSeq: immutable.Seq[GoogleRoutes] ⇒
-        Future.sequence(
-          grsSeq.map { grs ⇒
-            insertGoogleRoutes(dataSource, grs.routes)
-              .map { seq: Seq[(json.GoogleRoute, Int)] ⇒
-                seq.flatMap { case (gr, routeId) ⇒
-                  gr.legs.map { leg ⇒
-                    sql.Update.GoogleRouteLeg.fromJson(routeId, leg)
-                  }
-                }.toList
-              }
-          }
-        ).map(_.flatten)
+        insertGoogleRoutes(dataSource, grsSeq.flatMap(_.routes))
       }
-      .flatMapConcat(Source(_))
+      .flatMapConcat { routesWithIds: immutable.Seq[(GoogleRoute, Int)] ⇒
+        Source(
+          routesWithIds.flatMap { case (gr, routeId) ⇒
+            gr.legs.map { leg ⇒ sql.Update.GoogleRouteLeg.fromJson(routeId, leg) }
+          }
+        )
+      }
       .grouped(1000)
       .viaMat(batchUpdateFlow)(Keep.right)
       .toMat(sink)(Keep.both)
@@ -158,8 +160,8 @@ object GoogleRoutesDB extends LazyLogging {
 
   private def insertGoogleRoutes(
     dataSource: DataSource,
-    grs: Seq[json.GoogleRoute]
-  )(implicit executor: ExecutionContext): Future[Seq[(json.GoogleRoute, Int)]] = Future({
+    grs: immutable.Seq[json.GoogleRoute]
+  )(implicit executor: ExecutionContext): Future[immutable.Seq[(json.GoogleRoute, Int)]] = Future({
     using(dataSource.getConnection) { con ⇒
       using(
         con.prepareStatement(
@@ -175,6 +177,8 @@ object GoogleRoutesDB extends LazyLogging {
           ps.addBatch()
         }
         ps.executeBatch()
+
+        logger.debug("Inserted routes: {}", grs.map(_.summary).mkString("[", ", ", "]"))
 
         val keysRS = ps.getGeneratedKeys
 
