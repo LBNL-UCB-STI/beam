@@ -768,7 +768,7 @@ trait BeamHelper extends LazyLogging {
   ): Unit = {
     import PopulationScaling._
     if (beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.enabled) {
-      removeAgent(scenario, beamConfig)
+      sampleByIndustry(scenario, beamConfig)
     }
     if (!beamConfig.beam.warmStart.enabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       downSample(beamServices, scenario, beamScenario, outputDir)

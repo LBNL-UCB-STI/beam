@@ -1,5 +1,7 @@
 package beam.utils
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
+import scala.util.Random
 
 /**
   * Created by sfeygin on 4/10/17.
@@ -105,4 +107,24 @@ object MathUtils {
   }
 
   def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
+
+  def selectElementsByProbability[T](
+    rndSeed: Long,
+    elementToProbability: T => Double,
+    xs: Iterable[T]
+  )(implicit ct: ClassTag[T]): Array[T] = {
+    if (xs.isEmpty) Array.empty
+    else {
+      val rnd = new Random(rndSeed)
+      xs.flatMap { person =>
+        val removalProbability = elementToProbability(person)
+        if (removalProbability == 0.0) None
+        else {
+          val isSelected = rnd.nextDouble() < removalProbability
+          if (isSelected) Some(person)
+          else None
+        }
+      }.toArray
+    }
+  }
 }
