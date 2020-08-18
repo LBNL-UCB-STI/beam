@@ -78,7 +78,16 @@ object GoogleRoutesDB extends LazyLogging {
         Http().singleRequest(HttpRequest(uri = uri))
           .flatMap { resp ⇒
             resp.entity.httpEntity.withSizeLimit(134217728L).dataBytes.runReduce(_ ++ _)
-              .flatMap(bs ⇒ Future.fromTry(decode[immutable.Seq[GoogleRoutes]](bs.utf8String).toTry))
+              .map { bs ⇒
+                val jsonStr = bs.utf8String
+                decode[immutable.Seq[GoogleRoutes]](jsonStr) match {
+                  case Right(json) ⇒ json
+                  case Left(e) ⇒
+                    val head = jsonStr.take(200).replaceAll("\\s+", "")
+                    logger.warn(s"Failed to parse $uri (<$head...>): ${e.getMessage}")
+                    immutable.Seq.empty
+                }
+              }
           }
       }
       .mapAsync(1) { grsSeq: immutable.Seq[GoogleRoutes] ⇒
