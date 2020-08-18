@@ -1,8 +1,7 @@
 package beam.utils.google_routes_db
 
 import java.nio.file.Paths
-import java.sql.Statement
-import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
@@ -12,13 +11,14 @@ import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import akka.{Done, NotUsed}
-import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.json._
-import beam.utils.google_routes_db.sql.BatchUpdateGraphStage
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.parser.decode
-import javax.sql.DataSource
-import org.apache.commons.dbcp2.BasicDataSource
+import org.apache.http.HttpHost
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
+import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.client.indices.{CreateIndexRequest, GetIndexRequest}
+import org.elasticsearch.client.{RequestOptions, RestClient, RestHighLevelClient}
 import scopt.OptionParser
 
 import scala.collection.immutable
@@ -45,22 +45,13 @@ object GoogleRoutesDB extends LazyLogging {
   def main(args: Array[String]): Unit = {
     val arguments = parseArguments(args)
 
-    val dataSource = makeDataSource(
-      arguments.pgUrl.get,
-      arguments.pgUser.get,
-      arguments.pgPass.get
-    )
-
-    val batchUpdateFlow: Flow[
-      immutable.Seq[sql.Update.GoogleRouteLeg],
-      immutable.Seq[sql.Update.GoogleRouteLeg],
-      Future[BatchUpdateGraphStage.Result]
-    ] = Flow.fromGraph(
-      new BatchUpdateGraphStage[sql.Update.GoogleRouteLeg](
-        dataSource,
-        con ⇒ con.prepareStatement(sql.Update.GoogleRouteLeg.insertSql)
+    val client = new RestHighLevelClient(
+      RestClient.builder(
+        new HttpHost("localhost", 9200, "http")
       )
     )
+
+    client.indices().delete(new DeleteIndexRequest("google_route", "google_routes"), RequestOptions.DEFAULT)
 
     val uriSource: Source[Uri, NotUsed] =
       FileIO.fromPath(Paths.get(arguments.jsonUrlsFile.get))
@@ -71,8 +62,18 @@ object GoogleRoutesDB extends LazyLogging {
 
     val sink: Sink[Any, Future[Done]] = Sink.ignore  // just consume the steam
 
-    val (batchUpdateFuture, doneFuture) = Source
-      .future(createGoogleRoutesTables(dataSource))
+    val doneFuture = Source
+      .future(Future {
+        val indexExists = client.indices().exists(
+          new GetIndexRequest(elasticsearch.googleRoutesIndex),
+          RequestOptions.DEFAULT
+        )
+        if (!indexExists) {
+          val req = new CreateIndexRequest(elasticsearch.googleRoutesIndex)
+          req.mapping(elasticsearch.mapping)
+          client.indices().create(req, RequestOptions.DEFAULT)
+        }
+      })
       .flatMapConcat { _ ⇒ uriSource }
       .mapAsync(2) { uri ⇒
         logger.info(s"Downloading $uri")
@@ -99,39 +100,24 @@ object GoogleRoutesDB extends LazyLogging {
           }
           .map { grsSeq ⇒ (uri, grsSeq) }
       }
-      .mapAsync(1) { case (uri, grsSeq) ⇒
+      .mapAsync(1) { case (uri, grsSeq) ⇒ Future {
         val uriStr = uri.toString()
-        insertGoogleRoutes(
-          dataSource,
-          grsSeq.flatMap(_.routes),
-          uriStr,
-          timestampFromUri(uriStr).getOrElse(Instant.now())
-        )
-      }
-      .flatMapConcat { routesWithIds: immutable.Seq[(GoogleRoute, Int)] ⇒
-        Source(
-          routesWithIds.flatMap { case (gr, routeId) ⇒
-            gr.legs.map { leg ⇒ sql.Update.GoogleRouteLeg.fromJson(routeId, leg) }
-          }
-        )
-      }
-      .grouped(1000)
-      .viaMat(batchUpdateFlow)(Keep.right)
-      .toMat(sink)(Keep.both)
+        elasticsearch.googleRoutesToESMap(grsSeq, uriStr).foreach { doc ⇒
+          val indxReq = new IndexRequest(elasticsearch.googleRoutesIndex)
+          indxReq.id(UUID.randomUUID().toString)
+          indxReq.source(doc)
+          val resp = client.index(indxReq, RequestOptions.DEFAULT)
+          logger.info(resp.toString)
+        }
+      }}
+      .toMat(sink)(Keep.right)
       .run()
 
     val allDoneFuture = for {
-      batchUpdateResult ← batchUpdateFuture
-      _ ← Future { logger.info(
-        "Routes legs: batchesProcessed={}, itemsProcessed={}, rowsUpdated={}",
-        batchUpdateResult.batchesProcessed,
-        batchUpdateResult.itemsProcessed,
-        batchUpdateResult.rowsUpdated
-      )}
       _ ← doneFuture
     } yield Done
 
-    allDoneFuture.onComplete {
+    doneFuture.onComplete {
       case Success(_) ⇒
       case Failure(e) ⇒
         logger.error("An error occurred: {}", e.getMessage)
@@ -142,74 +128,6 @@ object GoogleRoutesDB extends LazyLogging {
     Await.ready(system.terminate(), 1.minute)
 
     System.exit(0)
-  }
-
-  private def makeDataSource(pgUrl: String, pgUser: String, pgPass: String): DataSource = {
-    val ds = new BasicDataSource()
-    ds.setDriverClassName("org.postgresql.Driver")
-    ds.setUrl(pgUrl)
-    ds.setUsername(pgUser)
-    ds.setPassword(pgPass)
-
-    ds
-  }
-
-  private def createGoogleRoutesTables(dataSource: DataSource)
-      (implicit executor: ExecutionContext): Future[Done] = {
-    Future({
-      using(dataSource.getConnection) { con ⇒
-        using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps ⇒ ps.execute() }
-        using(con.prepareStatement(sql.DDL.legTable)) { ps ⇒ ps.execute() }
-      }
-
-      Done
-    })(executor)
-  }
-
-  private def insertGoogleRoutes(
-    dataSource: DataSource,
-    grs: immutable.Seq[json.GoogleRoute],
-    outputFileUri: String,
-    timestamp: Instant
-  )(implicit executor: ExecutionContext): Future[immutable.Seq[(json.GoogleRoute, Int)]] = Future({
-    using(dataSource.getConnection) { con ⇒
-      using(
-        con.prepareStatement(
-          sql.Update.GoogleRoute.insertSql,
-          Statement.RETURN_GENERATED_KEYS
-        )
-      ) { ps ⇒
-        grs.foreach { gr ⇒
-          sql.Update.GoogleRoute.psMapping.mapPrepared(
-            sql.Update.GoogleRoute.fromJson(gr, Some(outputFileUri), timestamp),
-            ps
-          )
-          ps.addBatch()
-        }
-        ps.executeBatch()
-
-        logger.debug(
-          "Inserted routes: {}",
-          grs.map(_.summary).mkString("[", ", ", "]")
-        )
-
-        val keysRS = ps.getGeneratedKeys
-
-        grs.map { gr ⇒
-          keysRS.next()
-          (gr, keysRS.getInt(1))
-        }
-      }
-    }
-  })(executor)
-
-  def timestampFromUri(uri: String): Option[Instant] = {
-    val p = ".*__(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)_(\\d\\d)-(\\d\\d)-(\\d\\d)_.*".r
-    uri match {
-      case p(y, m, d, h, mi, s) ⇒
-        Some(Instant.parse(s"$y-$m-${d}T$h:$mi:$s.000Z"))
-      case _ ⇒ None
-    }
   }
 
   //

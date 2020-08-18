@@ -28,7 +28,7 @@ package object sql {
         |  bound_southwest geometry(POINT),
         |  summary TEXT,
         |  copyrights TEXT,
-        |  output_file_uri TEXT,
+        |  json_file_uri TEXT,
         |  timestamp TIMESTAMP WITH TIME ZONE NOT NULL
         |)
         |""".stripMargin
@@ -65,7 +65,7 @@ package object sql {
       boundSouthwest: GeometryPoint,
       summary: String,
       copyrights: String,
-      outputFileUri: Option[String],
+      jsonFileUri: Option[String],
       timestamp: Instant
     )
 
@@ -73,14 +73,14 @@ package object sql {
 
       def fromJson(
         grJson: json.GoogleRoute,
-        outputFileUri: Option[String],
+        jsonFileUri: Option[String],
         timestamp: Instant
       ): GoogleRoute = GoogleRoute(
         boundNortheast = makeGeometryPoint(grJson.bounds.northeast),
         boundSouthwest = makeGeometryPoint(grJson.bounds.southwest),
         summary = grJson.summary,
         copyrights = grJson.copyrights,
-        outputFileUri = outputFileUri,
+        jsonFileUri = jsonFileUri,
         timestamp = timestamp
       )
 
@@ -88,7 +88,7 @@ package object sql {
         s"""
           |INSERT INTO gr_route (
           |  bound_northeast, bound_southwest,
-          |  copyrights, summary, output_file_uri, timestamp
+          |  copyrights, summary, json_file_uri, timestamp
           |) VALUES (
           |  ST_GeometryFromText(?, $projection), ST_GeometryFromText(?, $projection),
           |  ?, ?, ?, ?
@@ -101,7 +101,7 @@ package object sql {
           ps.setString(2, item.boundSouthwest)
           ps.setString(3, item.copyrights)
           ps.setString(4, item.summary)
-          item.outputFileUri match {
+          item.jsonFileUri match {
             case Some(value) ⇒ ps.setString(5, value)
             case None ⇒ ps.setNull(5, Types.VARCHAR)
           }
