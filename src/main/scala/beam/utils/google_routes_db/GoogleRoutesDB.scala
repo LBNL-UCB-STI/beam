@@ -95,7 +95,6 @@ object GoogleRoutesDB extends LazyLogging {
           grsSeq.map { grs ⇒
             insertGoogleRoutes(dataSource, grs.routes)
               .map { seq: Seq[(json.GoogleRoute, Int)] ⇒
-                logger.info(s"Inserted ${seq.size} routes")
                 seq.flatMap { case (gr, routeId) ⇒
                   gr.legs.map { leg ⇒
                     sql.Update.GoogleRouteLeg.fromJson(routeId, leg)
