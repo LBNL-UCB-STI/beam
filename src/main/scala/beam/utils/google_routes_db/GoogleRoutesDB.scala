@@ -2,6 +2,7 @@ package beam.utils.google_routes_db
 
 import java.nio.file.Paths
 import java.sql.Statement
+import java.time.Instant
 import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
@@ -96,9 +97,16 @@ object GoogleRoutesDB extends LazyLogging {
                 }
               }
           }
+          .map { grsSeq ⇒ (uri, grsSeq) }
       }
-      .mapAsync(1) { grsSeq: immutable.Seq[GoogleRoutes] ⇒
-        insertGoogleRoutes(dataSource, grsSeq.flatMap(_.routes))
+      .mapAsync(1) { case (uri, grsSeq) ⇒
+        val uriStr = uri.toString()
+        insertGoogleRoutes(
+          dataSource,
+          grsSeq.flatMap(_.routes),
+          uriStr,
+          timestampFromUri(uriStr).getOrElse(Instant.now())
+        )
       }
       .flatMapConcat { routesWithIds: immutable.Seq[(GoogleRoute, Int)] ⇒
         Source(
@@ -160,7 +168,9 @@ object GoogleRoutesDB extends LazyLogging {
 
   private def insertGoogleRoutes(
     dataSource: DataSource,
-    grs: immutable.Seq[json.GoogleRoute]
+    grs: immutable.Seq[json.GoogleRoute],
+    outputFileUri: String,
+    timestamp: Instant
   )(implicit executor: ExecutionContext): Future[immutable.Seq[(json.GoogleRoute, Int)]] = Future({
     using(dataSource.getConnection) { con ⇒
       using(
@@ -171,14 +181,17 @@ object GoogleRoutesDB extends LazyLogging {
       ) { ps ⇒
         grs.foreach { gr ⇒
           sql.Update.GoogleRoute.psMapping.mapPrepared(
-            sql.Update.GoogleRoute.fromJson(gr),
+            sql.Update.GoogleRoute.fromJson(gr, Some(outputFileUri), timestamp),
             ps
           )
           ps.addBatch()
         }
         ps.executeBatch()
 
-        logger.debug("Inserted routes: {}", grs.map(_.summary).mkString("[", ", ", "]"))
+        logger.debug(
+          "Inserted routes: {}",
+          grs.map(_.summary).mkString("[", ", ", "]")
+        )
 
         val keysRS = ps.getGeneratedKeys
 
@@ -189,6 +202,15 @@ object GoogleRoutesDB extends LazyLogging {
       }
     }
   })(executor)
+
+  def timestampFromUri(uri: String): Option[Instant] = {
+    val p = ".*__(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)_(\\d\\d)-(\\d\\d)-(\\d\\d)_.*".r
+    uri match {
+      case p(y, m, d, h, mi, s) ⇒
+        Some(Instant.parse(s"$y-$m-${d}T$h:$mi:$s.000Z"))
+      case _ ⇒ None
+    }
+  }
 
   //
   // CLI Arguments

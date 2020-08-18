@@ -1,6 +1,7 @@
 package beam.utils.google_routes_db
 
 import java.sql.{PreparedStatement, Types}
+import java.time.Instant
 
 package object sql {
 
@@ -26,7 +27,9 @@ package object sql {
         |  bound_northeast geometry(POINT),
         |  bound_southwest geometry(POINT),
         |  summary TEXT,
-        |  copyrights TEXT
+        |  copyrights TEXT,
+        |  output_file_uri TEXT,
+        |  timestamp TIMESTAMP WITH TIME ZONE NOT NULL
         |)
         |""".stripMargin
 
@@ -61,26 +64,34 @@ package object sql {
       boundNortheast: GeometryPoint,
       boundSouthwest: GeometryPoint,
       summary: String,
-      copyrights: String
+      copyrights: String,
+      outputFileUri: Option[String],
+      timestamp: Instant
     )
 
     object GoogleRoute {
 
-      def fromJson(grJson: json.GoogleRoute): GoogleRoute = GoogleRoute(
+      def fromJson(
+        grJson: json.GoogleRoute,
+        outputFileUri: Option[String],
+        timestamp: Instant
+      ): GoogleRoute = GoogleRoute(
         boundNortheast = makeGeometryPoint(grJson.bounds.northeast),
         boundSouthwest = makeGeometryPoint(grJson.bounds.southwest),
         summary = grJson.summary,
-        copyrights = grJson.copyrights
+        copyrights = grJson.copyrights,
+        outputFileUri = outputFileUri,
+        timestamp = timestamp
       )
 
       val insertSql: String =
         s"""
           |INSERT INTO gr_route (
           |  bound_northeast, bound_southwest,
-          |  copyrights, summary
+          |  copyrights, summary, output_file_uri, timestamp
           |) VALUES (
           |  ST_GeometryFromText(?, $projection), ST_GeometryFromText(?, $projection),
-          |  ?, ?
+          |  ?, ?, ?, ?
           |) RETURNING id
           |""".stripMargin
 
@@ -90,6 +101,11 @@ package object sql {
           ps.setString(2, item.boundSouthwest)
           ps.setString(3, item.copyrights)
           ps.setString(4, item.summary)
+          item.outputFileUri match {
+            case Some(value) ⇒ ps.setString(5, value)
+            case None ⇒ ps.setNull(5, Types.VARCHAR)
+          }
+          ps.setTimestamp(6, java.sql.Timestamp.from(item.timestamp))
         }
     }
 
