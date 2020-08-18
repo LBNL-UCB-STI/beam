@@ -74,6 +74,7 @@ object GoogleRoutesDB extends LazyLogging {
       .future(createGoogleRoutesTables(dataSource))
       .flatMapConcat { _ ⇒ uriSource }
       .mapAsync(2) { uri ⇒
+        logger.info(s"Downloading $uri")
         Http().singleRequest(HttpRequest(uri = uri))
           .flatMap { resp ⇒
             resp.entity.httpEntity.withSizeLimit(134217728L).dataBytes.runReduce(_ ++ _)
@@ -85,6 +86,7 @@ object GoogleRoutesDB extends LazyLogging {
           grsSeq.map { grs ⇒
             insertGoogleRoutes(dataSource, grs.routes)
               .map { seq: Seq[(json.GoogleRoute, Int)] ⇒
+                logger.info(s"Inserted ${seq.size} routes")
                 seq.flatMap { case (gr, routeId) ⇒
                   gr.legs.map { leg ⇒
                     sql.Update.GoogleRouteLeg.fromJson(routeId, leg)
@@ -103,7 +105,7 @@ object GoogleRoutesDB extends LazyLogging {
     val allDoneFuture = for {
       batchUpdateResult ← batchUpdateFuture
       _ ← Future { logger.info(
-        "batchesProcessed={}, itemsProcessed={}, rowsUpdated={}",
+        "Routes legs: batchesProcessed={}, itemsProcessed={}, rowsUpdated={}",
         batchUpdateResult.batchesProcessed,
         batchUpdateResult.itemsProcessed,
         batchUpdateResult.rowsUpdated
@@ -114,7 +116,7 @@ object GoogleRoutesDB extends LazyLogging {
     allDoneFuture.onComplete {
       case Success(_) ⇒
       case Failure(e) ⇒
-        logger.error("An error occurred")
+        logger.error("An error occurred: {}", e.getMessage)
         e.printStackTrace()
     }
 
