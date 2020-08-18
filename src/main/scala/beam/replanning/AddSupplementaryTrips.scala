@@ -86,10 +86,11 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     }
     if (nonWorker) {
       listOfActivities.flatMap(
-        activity => activity.getType match {
-          case "Home" => addSubtourToActivity(activity)
-          case "Work" => List[Activity](activity)
-          case _ => List[Activity](activity)
+        activity =>
+          activity.getType match {
+            case "Home" => addSubtourToActivity(activity)
+            case "Work" => List[Activity](activity)
+            case _      => List[Activity](activity)
         }
       )
     } else {
