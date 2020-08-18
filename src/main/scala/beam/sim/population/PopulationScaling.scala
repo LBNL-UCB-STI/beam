@@ -20,8 +20,10 @@ import scala.collection.{mutable, JavaConverters}
 import scala.util.Random
 import scala.collection.JavaConverters._
 import beam.utils.CloseableUtil.RichCloseable
+import beam.utils.MathUtils
 
 import scala.collection.mutable.Stack.StackBuilder
+import scala.reflect.ClassTag
 
 trait PopulationScaling extends LazyLogging {
 
@@ -201,82 +203,84 @@ trait PopulationScaling extends LazyLogging {
 
   }
 
-  def removeAgent(scenario: MutableScenario, beamConfig: BeamConfig): Unit = {
-    val removeAgent = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removeAgent
-    if (removeAgent) {
-      val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
-      val rng: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
+  def sampleByIndustry(scenario: MutableScenario, beamConfig: BeamConfig): Unit = {
+    val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
+    val industrialProbability: Map[String, Double] = {
       if (new File(industryFile).exists()) {
-        removePerson(scenario, industryFile, rng)
-      } else {
-        logger.warn("Industry probability file not available!!!")
-      }
-    } else {
-      removeWorkPlan(scenario)
+        val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
+          GenericCsvReader.readAs[mutable.Map[String, String]](industryFile, rec => rec.asScala, _ => true)
+        try {
+          iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
+        } finally {
+          toClose.close()
+        }
+      } else Map.empty
+    }
+    val selectedPersons = getSelectedPersons(
+      beamConfig.matsim.modules.global.randomSeed,
+      scenario.getPopulation.getPersons.values().asScala,
+      industrialProbability
+    )
+    logger.info(s"Selected ${selectedPersons.length} out of ${scenario.getPopulation.getPersons.size()} people")
+
+    beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy match {
+      case "RemovePersonFromScenario" =>
+        removePeople(scenario, selectedPersons)
+      case "KeepPersonButRemoveAllActivities" =>
+        val nPeopleWithWorkingActivitiesBefore = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"Before plan removal. $nPeopleWithWorkingActivitiesBefore out ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
+        removeWorkPlan(selectedPersons)
+        val nPeopleWithWorkingActivitiesAfter = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"After plan removal. $nPeopleWithWorkingActivitiesAfter out of ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
+      case x =>
+        logger.warn(
+          s"Don't know beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy=${beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy}"
+        )
     }
   }
 
-  def removePerson(scenario: MutableScenario, filePath: String, rng: MersenneTwister): Unit = {
-    val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
-      GenericCsvReader.readAs[mutable.Map[String, String]](filePath, rec => rec.asScala, _ => true)
-    try {
-      val industrialProbability = iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
-      val persons = scenario.getPopulation.getPersons.values().asScala
-      val memberIdToHousehold = scenario.getHouseholds.getHouseholds
-        .values()
-        .asScala
-        .flatMap(hh => hh.getMemberIds.asScala.map(memberId => memberId -> hh.getId))
-        .toMap
+  def removePeople(scenario: MutableScenario, peopleToRemove: Iterable[Person]): Unit = {
+    val memberIdToHousehold = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(hh => hh.getMemberIds.asScala.map(memberId => memberId -> hh.getId))
+      .toMap
 
-      //Build persons probability
-      val personDistributionPair = persons
-        .map(person => {
-          val industry = getIndustry(person)
-          val probability = industrialProbability.getOrElse(industry, 0.0)
-          new PPair[Person, java.lang.Double](person, probability)
-        })
-        .toVector
-
-      //Processing only if we got any probability greater then 0
-      val probabilitySum = personDistributionPair.count(_.getValue > 0.0)
-      if (probabilitySum > 0) {
-        val enumeratedDistribution = new EnumeratedDistribution[Person](rng, personDistributionPair.asJava)
-
-        //Calculate number of persons to be removed from population
-        val removalItemSize = persons
-          .groupBy(getIndustry)
-          .map { case (industry, persons) => industrialProbability.getOrElse(industry, 0.0) * persons.size }
-          .sum
-
-        val removedPersons = mutable.HashSet.empty[Id[Person]]
-
-        (0 until Math.round(removalItemSize.toFloat)).map { _ =>
-          var person = enumeratedDistribution.sample()
-          while (removedPersons.contains(person.getId)) {
-            person = enumeratedDistribution.sample()
-          }
-
-          val personId: Id[Person] = person.getId
-          memberIdToHousehold.get(personId) match {
-            case Some(hhId) =>
-              val hh = scenario.getHouseholds.getHouseholds.get(hhId).asInstanceOf[HouseholdImpl]
-              val members = hh.getMemberIds.asScala.filter(pId => pId != personId).asJava
-              hh.setMemberIds(members)
-            case _ =>
-              logger.error(s"Household for person $personId is missing.")
-          }
-
-          scenario.getPopulation.getPersons.remove(personId)
-          removedPersons += personId
-        }
-
-        val removed = removedPersons.size
-        logger.info(s"Removing done. removed $removed persons")
+    var nRemoved: Int = 0
+    peopleToRemove.foreach { person =>
+      val personId: Id[Person] = person.getId
+      memberIdToHousehold.get(personId) match {
+        case Some(hhId) =>
+          val hh = scenario.getHouseholds.getHouseholds.get(hhId).asInstanceOf[HouseholdImpl]
+          val members = hh.getMemberIds.asScala.filter(pId => pId != personId).asJava
+          hh.setMemberIds(members)
+        case _ =>
+          logger.error(s"Household for person $personId is missing.")
       }
-
-    } finally {
-      toClose.close()
+      if (Option(scenario.getPopulation.getPersons.remove(personId)).nonEmpty) {
+        nRemoved += 1
+      }
     }
+
+    logger.info(
+      s"Removing done, removed $nRemoved persons, new population size: ${scenario.getPopulation.getPersons.size()}"
+    )
+  }
+
+  def getSelectedPersons(
+    rndSeed: Int,
+    persons: Iterable[Person],
+    industrialProbability: Map[String, Double]
+  ): Array[Person] = {
+    def probabilityFunction(person: Person): Double = {
+      industrialProbability.getOrElse(getIndustry(person), 0.0)
+    }
+    val selectedPersons = MathUtils.selectElementsByProbability(rndSeed, probabilityFunction, persons)
+    selectedPersons
   }
 
   def getIndustry(person: Person): String = {
@@ -284,8 +288,9 @@ trait PopulationScaling extends LazyLogging {
     if (industryAttribute != null) industryAttribute.toString else ""
   }
 
-  def removeWorkPlan(scenario: MutableScenario): Unit = {
-    scenario.getPopulation.getPersons.values().asScala.foreach { person: Person =>
+  def removeWorkPlan(persons: Iterable[Person]): Unit = {
+    var nRemovedWorkPlans: Int = 0
+    persons.foreach { person: Person =>
       val originalPlan = person.getSelectedPlan
       val planElements = originalPlan.getPlanElements.asScala
       if (planElements.exists(isWorkActivity)) {
@@ -297,8 +302,10 @@ trait PopulationScaling extends LazyLogging {
         person.addPlan(newPlan)
         person.removePlan(originalPlan)
         person.setSelectedPlan(newPlan)
+        nRemovedWorkPlans += 1
       }
     }
+    logger.info(s"Removed $nRemovedWorkPlans working plans from ${persons.size} people")
   }
 
   def isWorkActivity(plan: PlanElement): Boolean = {
@@ -340,6 +347,13 @@ trait PopulationScaling extends LazyLogging {
       }
     }
   }
+
+  private def getNumberOfWorkingActivities(scenario: MutableScenario): Int = {
+    scenario.getPopulation.getPersons.values().asScala.count { p =>
+      p.getSelectedPlan.getPlanElements.asScala.exists(isWorkActivity)
+    }
+  }
+
 }
 
 object PopulationScaling extends PopulationScaling

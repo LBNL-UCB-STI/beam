@@ -692,7 +692,7 @@ object BeamConfig {
           case class IndustryRemovalProbabilty(
             enabled: scala.Boolean,
             inputFilePath: java.lang.String,
-            removeAgent: scala.Boolean
+            removalStrategy: java.lang.String
           )
 
           object IndustryRemovalProbabilty {
@@ -703,7 +703,8 @@ object BeamConfig {
               BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(
                 enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
                 inputFilePath = if (c.hasPathOrNull("inputFilePath")) c.getString("inputFilePath") else "",
-                removeAgent = c.hasPathOrNull("removeAgent") && c.getBoolean("removeAgent")
+                removalStrategy =
+                  if (c.hasPathOrNull("removalStrategy")) c.getString("removalStrategy") else "RemovePersonFromScenario"
               )
             }
           }
