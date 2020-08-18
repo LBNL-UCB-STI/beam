@@ -107,7 +107,7 @@ package object sql {
       durationInTrafficText: Option[String],
       endAddress: String,
       endLocation: GeometryPoint,
-      startAddress: String,
+      startAddress: Option[String],
       startLocation: GeometryPoint,
       steps: GeometryLinestring
     )
@@ -169,7 +169,10 @@ package object sql {
           }
           ps.setString(8, item.endAddress)
           ps.setString(9, item.endLocation)
-          ps.setString(10, item.startAddress)
+          item.startAddress match {
+            case Some(value) ⇒ ps.setString(10, value)
+            case None ⇒ ps.setNull(10, Types.VARCHAR)
+          }
           ps.setString(11, item.startLocation)
           ps.setString(12, item.steps)
         }

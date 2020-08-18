@@ -39,7 +39,7 @@ package object json {
       durationInTraffic: Option[ValueTxt],
       endAddress: String,
       endLocation: Coord,
-      startAddress: String,
+      startAddress: Option[String],
       startLocation: Coord,
       steps: Seq[Step]
       // Note: partial definition
