@@ -95,6 +95,7 @@ object BeamConfig {
           lccm: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm,
           lowTimeSensitivity: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity,
           maximumNumberOfReplanningAttempts: scala.Int,
+          minimumValueOfTime: scala.Double,
           modeChoiceClass: java.lang.String,
           modeVotMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.ModeVotMultiplier,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
@@ -572,6 +573,8 @@ object BeamConfig {
               maximumNumberOfReplanningAttempts =
                 if (c.hasPathOrNull("maximumNumberOfReplanningAttempts")) c.getInt("maximumNumberOfReplanningAttempts")
                 else 3,
+              minimumValueOfTime =
+                if (c.hasPathOrNull("minimumValueOfTime")) c.getDouble("minimumValueOfTime") else 7.25,
               modeChoiceClass =
                 if (c.hasPathOrNull("modeChoiceClass")) c.getString("modeChoiceClass")
                 else "ModeChoiceMultinomialLogit",
@@ -3254,6 +3257,8 @@ object BeamConfig {
 
     object Routing {
       case class R5(
+        bikeLaneLinkIdsFilePath: java.lang.String,
+        bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
         directory: java.lang.String,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
@@ -3295,6 +3300,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            bikeLaneLinkIdsFilePath =
+              if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
+            bikeLaneScaleFactor =
+              if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
