@@ -9,6 +9,7 @@ import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.utils.plan.sampling.AvailableModeUtils
+import com.google.common.annotations.VisibleForTesting
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
@@ -132,6 +133,7 @@ class BeamScenarioLoader(
     }
   }
 
+  @VisibleForTesting
   private[utils] def buildPopulation(persons: Iterable[PersonInfo]): Population = {
     logger.info("Applying persons...")
     val result = scenarioBuilder.buildPopulation
