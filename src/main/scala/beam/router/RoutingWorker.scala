@@ -203,11 +203,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      log.info("===================================================================")
-      log.info(
+      log.debug("===================================================================")
+      log.debug(
         s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL RECALL R5 REQUESTS ${recallR5ForEmptyGHResponse.get()}"
       )
-      log.info("===================================================================")
+      log.debug("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
       recallR5ForEmptyGHResponse.set(0)
@@ -225,11 +225,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      log.info("===================================================================")
-      log.info(
+      log.debug("===================================================================")
+      log.debug(
         s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}, TOTAL RECALL R5 REQUESTS ${recallR5ForEmptyGHResponse.get()}"
       )
-      log.info("===================================================================")
+      log.debug("===================================================================")
       routeRequestExecutionTime.set(0)
       routeRequestCounter.set(0)
       recallR5ForEmptyGHResponse.set(0)
