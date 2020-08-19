@@ -80,7 +80,7 @@ object LeavingParkingEvent {
       stall.chargingPointType
     )
 
-  def apply(genericEvent: GenericEvent): LeavingParkingEvent = {
+  def apply(genericEvent: Event): LeavingParkingEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
