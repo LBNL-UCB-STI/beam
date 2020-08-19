@@ -14,6 +14,7 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
+import beam.router.model.EmbodiedBeamTrip.determineTripMode
 import org.matsim.api.core.v01.Id
 
 case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
@@ -40,6 +41,27 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
   def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
+
+  def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {
+    val deltaStart = newStartTime - legs.head.beamLeg.startTime
+    this.copy(legs = legs.map { leg =>
+      leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
+    })
+  }
+
+  def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
+    legs.map(leg => leg.beamVehicleId).distinct
+  }
+
+  override def toString: String = {
+    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
+      .map(head => head.beamLeg.startTime)
+      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+  }
+}
+
+object EmbodiedBeamTrip {
+  val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
 
   def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
     var theMode: BeamMode = WALK
@@ -76,24 +98,4 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     }
   }
 
-  def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {
-    val deltaStart = newStartTime - legs.head.beamLeg.startTime
-    this.copy(legs = legs.map { leg =>
-      leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
-    })
-  }
-
-  def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
-    legs.map(leg => leg.beamVehicleId).distinct
-  }
-
-  override def toString: String = {
-    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
-      .map(head => head.beamLeg.startTime)
-      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
-  }
-}
-
-object EmbodiedBeamTrip {
-  val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
 }
