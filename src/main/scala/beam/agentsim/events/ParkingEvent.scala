@@ -92,7 +92,7 @@ object ParkingEvent {
     )
   }
 
-  def apply(genericEvent: GenericEvent): ParkingEvent = {
+  def apply(genericEvent: Event): ParkingEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
 
