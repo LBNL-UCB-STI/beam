@@ -78,7 +78,7 @@ class GraphHopperWrapper(
           .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
           .toIndexedSeq
 
-        var linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
+        val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
         // TODO ask why GH is producing negative travel time
 //          .map { x =>
 //            require(x > 0, "GOING BACK IN TIME")
@@ -94,12 +94,14 @@ class GraphHopperWrapper(
         }
 
         if (ghLinkIds.size < 2) {
+          None
+          // Zero linkTravelTime produce NaN speed in CarTripStatsFromPathTraversalEventHandler
           // An empty path by GH's definition. But we still want it to be from a link to a link.
-          val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
-          val edgeId = snappedPoint.getClosestEdge.getEdge * 2
-
-          linkIds = IndexedSeq(edgeId)
-          linkTravelTimes = IndexedSeq(0.0)
+//          val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
+//          val edgeId = snappedPoint.getClosestEdge.getEdge * 2
+//
+//          linkIds = IndexedSeq(edgeId)
+//          linkTravelTimes = IndexedSeq(0.0)
         } else {
           linkIds = ghLinkIds
             .sliding(2)
@@ -117,38 +119,39 @@ class GraphHopperWrapper(
 
           if (ghLinkIds.size > 1) {
             linkIds = linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
-                                  else ghLinkIds.last * 2 + 1)
+            else ghLinkIds.last * 2 + 1)
           }
-        }
 
-        val partialFirstLinkTravelTime = linkTravelTimes.head
-        val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
-        val beamLeg = BeamLeg(
-          routingRequest.departureTime,
-          Modes.BeamMode.CAR,
-          beamTotalTravelTime,
-          BeamPath(
-            linkIds,
-            linkTravelTimes,
-            None,
-            SpaceTime(origin, routingRequest.departureTime),
-            SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
-            responsePath.getDistance
-          )
-        )
-        EmbodiedBeamTrip(
-          IndexedSeq(
-            EmbodiedBeamLeg(
-              beamLeg,
-              streetVehicle.id,
-              streetVehicle.vehicleTypeId,
-              asDriver = true,
-              DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
-              unbecomeDriverOnCompletion = true
+
+          val partialFirstLinkTravelTime = linkTravelTimes.head
+          val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
+          val beamLeg = BeamLeg(
+            routingRequest.departureTime,
+            Modes.BeamMode.CAR,
+            beamTotalTravelTime,
+            BeamPath(
+              linkIds,
+              linkTravelTimes,
+              None,
+              SpaceTime(origin, routingRequest.departureTime),
+              SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
+              responsePath.getDistance
             )
           )
-        )
-      })
+          Some(EmbodiedBeamTrip(
+            IndexedSeq(
+              EmbodiedBeamLeg(
+                beamLeg,
+                streetVehicle.id,
+                streetVehicle.vehicleTypeId,
+                asDriver = true,
+                DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          ))
+        }
+      }).filter(_.isDefined).map(_.get)
     }
     RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
   }
