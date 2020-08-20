@@ -96,13 +96,6 @@ class GraphHopperWrapper(
 
           if (ghLinkIds.size < 2) {
             None
-            // Zero linkTravelTime produce NaN speed in CarTripStatsFromPathTraversalEventHandler
-            // An empty path by GH's definition. But we still want it to be from a link to a link.
-//          val snappedPoint = graphHopper.getLocationIndex.findClosest(origin.getY, origin.getX, EdgeFilter.ALL_EDGES)
-//          val edgeId = snappedPoint.getClosestEdge.getEdge * 2
-//
-//          linkIds = IndexedSeq(edgeId)
-//          linkTravelTimes = IndexedSeq(0.0)
           } else {
             linkIds = ghLinkIds
               .sliding(2)
