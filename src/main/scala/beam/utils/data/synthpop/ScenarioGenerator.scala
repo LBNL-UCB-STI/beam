@@ -272,7 +272,7 @@ class SimpleScenarioGenerator(
 
     try {
       blockGroupGeoIdToHouseholds.foreach {
-        case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
+        case (blockGroupGeoId, householdsWithPersonData: Seq[(Models.Household, Seq[PersonWithExtraInfo])]) =>
           val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
           logger.info(
             s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
@@ -435,10 +435,10 @@ class SimpleScenarioGenerator(
 
   def findWorkingLocation(
     tazGeoId: TazGeoId,
-    households: Iterable[Models.Household],
+    households: Seq[Models.Household],
     rndGen: RandomGenerator
-  ): Iterable[Seq[Option[PersonWithExtraInfo]]] = {
-    val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
+  ): Seq[Seq[Option[PersonWithExtraInfo]]] = {
+    val personData =
       households.map { household =>
         val persons = householdWithPersons(household)
         val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
@@ -475,9 +475,9 @@ class SimpleScenarioGenerator(
     personData
   }
 
-  private def assignWorkingLocations: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+  private def assignWorkingLocations: Map[BlockGroupGeoId, Seq[(Models.Household, List[PersonWithExtraInfo])]] = {
     val numberOfProcessed = new AtomicInteger(0)
-    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
+    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Seq[(Models.Household, List[PersonWithExtraInfo])]] =
       geoIdToHouseholds.toSeq.par // Process in parallel!
         .map { // We process it in parallel, but there is no shared state
           case (blockGroupGeoId, households) =>
