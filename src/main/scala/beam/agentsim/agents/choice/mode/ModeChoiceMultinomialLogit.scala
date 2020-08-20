@@ -257,11 +257,18 @@ class ModeChoiceMultinomialLogit(
           embodiedBeamLeg,
           this,
           beamServices,
-          destinationActivity
+          destinationActivity,
+          Some(transitCrowding)
         )
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
     }
+  }
+
+  override def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    val percentile =
+      beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+    transitCrowding.getTransitOccupancyLevelForPercentile(embodiedBeamTrip, percentile)
   }
 
   override def getGeneralizedTime(
@@ -315,10 +322,7 @@ class ModeChoiceMultinomialLogit(
           adjustSpecialBikeLines = true
         )
       )
-
-      val percentile =
-        beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
-      val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
+      val occupancyLevel = getCrowdingForTrip(altAndIdx._1)
 
       ModeCostTimeTransfer(
         embodiedBeamTrip = altAndIdx._1,
