@@ -10,6 +10,8 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, 
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.scenario.PlanElement
+import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -17,6 +19,7 @@ import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class SupplementaryTripGenerator(
@@ -75,22 +78,37 @@ class SupplementaryTripGenerator(
 
     if (!elements(1).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.head) }
 
+    var updatedPreviousActivity = elements.head
+
+    val activityAccumulator = ListBuffer[Activity]()
+
     elements.sliding(3).foreach {
       case List(prev, curr, next) =>
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
-          val newActivities = generateSubtour(prev, curr, next, modeMNL, destinationMNL, tripMNL, modes)
+          val newActivities =
+            generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           newActivities.foreach { x =>
-            newPlan.addActivity(x)
+            activityAccumulator.lastOption match {
+              case Some(lastTrip) =>
+                if (lastTrip.getType == x.getType) {
+                  activityAccumulator -= activityAccumulator.last
+                }
+              case _ =>
+            }
+            activityAccumulator.append(x)
           }
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
-            newPlan.addActivity(curr)
+            activityAccumulator.append(curr)
           }
         }
+        updatedPreviousActivity = activityAccumulator.last
       case _ =>
     }
-
+    activityAccumulator.foreach { x =>
+      newPlan.addActivity(x)
+    }
     if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
 
     if (anyChanges) {
@@ -169,11 +187,18 @@ class SupplementaryTripGenerator(
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
-
+        val newActivityLocation = beamServices.geo.wgs2Utm(
+          beamServices.geo.snapToR5Edge(
+            beamServices.beamScenario.transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)),
+            maxRadius = 1E5D,
+            StreetMode.WALK
+          )
+        )
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+            newActivityLocation
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
