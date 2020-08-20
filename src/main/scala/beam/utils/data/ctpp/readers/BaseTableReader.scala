@@ -44,11 +44,11 @@ abstract class BaseTableReader(
     }
   }
 
-  protected def readRaw(): Iterable[CTPPEntry] = {
+  protected def readRaw(): Seq[CTPPEntry] = {
     stateToCsvTablePath.values.flatMap { path =>
       CTPPParser
         .readTable(path, geographyLevelFilter)
-    }
+    }.toSeq
   }
 }
 
