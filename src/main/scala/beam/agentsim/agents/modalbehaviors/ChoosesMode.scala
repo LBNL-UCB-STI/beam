@@ -19,7 +19,6 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
@@ -32,6 +31,7 @@ import org.matsim.core.utils.misc.Time
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.router.RoutingWorker
 
 /**
   * BEAM
@@ -644,10 +644,12 @@ trait ChoosesMode {
     val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
-    val firstPathEndpoint = SpaceTime(
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
-      leg.beamLeg.startTime + firstDuration
-    )
+    val firstPathEndpoint =
+      SpaceTime(
+        beamServices.geo
+          .coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
+        leg.beamLeg.startTime + firstDuration
+      )
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
@@ -1007,7 +1009,7 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               } else {
-                val bushwhackingTrip = R5RoutingWorker.createBushwackingTrip(
+                val bushwhackingTrip = RoutingWorker.createBushwackingTrip(
                   choosesModeData.currentLocation.loc,
                   nextActivity(choosesModeData.personData).get.getCoord,
                   _currentTick.get,
@@ -1026,7 +1028,7 @@ trait ChoosesMode {
                   case Some(originalWalkTrip) =>
                     originalWalkTrip.legs.head
                   case None =>
-                    R5RoutingWorker
+                    RoutingWorker
                       .createBushwackingTrip(
                         beamServices.geo.utm2Wgs(currentPersonLocation.loc),
                         beamServices.geo.utm2Wgs(nextAct.getCoord),
