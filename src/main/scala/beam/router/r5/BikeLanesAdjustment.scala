@@ -1,21 +1,25 @@
 package beam.router.r5
 
-import javax.inject.Inject
+import java.io.File
+
+import scala.util.{Failure, Success, Try}
 
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
-import beam.agentsim.infrastructure.NetworkUtilsExtensions
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.BIKE
 import beam.router.RouteHistory.LinkId
 import beam.sim.config.BeamConfig
+import beam.utils.FileUtils
+import com.typesafe.scalalogging.StrictLogging
+import org.jheaps.annotations.VisibleForTesting
 
-class BikeLanesAdjustment @Inject()(beamConfig: BeamConfig) {
+class BikeLanesAdjustment(scaleFactorFromConfig: Double, bikeLanesLinkIds: Set[Int]) {
 
-  private val scaleFactorFromConfig: Double = beamConfig.beam.routing.r5.bikeLaneScaleFactor
+  def this(beamConfig: BeamConfig) {
+    this(beamConfig.beam.routing.r5.bikeLaneScaleFactor, BikeLanesAdjustment.loadBikeLaneLinkIds(beamConfig))
+  }
 
-  private val bikeLanesLinkIds: Set[Int] = NetworkUtilsExtensions.loadBikeLaneLinkIds(beamConfig)
-
-  def bikeLaneScaleFactor(beamMode: BeamMode, isScaleFactorEnabled: Boolean = true): Double = {
+  def scaleFactor(beamMode: BeamMode, isScaleFactorEnabled: Boolean = true): Double = {
     if (beamMode == BIKE && isScaleFactorEnabled) {
       scaleFactorFromConfig
     } else {
@@ -23,7 +27,7 @@ class BikeLanesAdjustment @Inject()(beamConfig: BeamConfig) {
     }
   }
 
-  def calculateBicycleScaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
+  def scaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
     if (vehicleType.vehicleCategory == VehicleCategory.Bike) {
       scaleFactor(linkId)
     } else {
@@ -37,6 +41,35 @@ class BikeLanesAdjustment @Inject()(beamConfig: BeamConfig) {
       scaleFactorFromConfig
     } else {
       1D
+    }
+  }
+
+}
+
+object BikeLanesAdjustment extends StrictLogging {
+
+  @VisibleForTesting
+  private[r5] def loadBikeLaneLinkIds(beamConfig: BeamConfig): Set[Int] = {
+    val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
+    loadBikeLaneLinkIds(bikeLaneLinkIdsPath)
+  }
+
+  @VisibleForTesting
+  private[r5] def loadBikeLaneLinkIds(bikeLaneLinkIdsPath: String): Set[Int] = {
+    Try {
+      val result: Set[String] = {
+        if (new File(bikeLaneLinkIdsPath).isFile) {
+          FileUtils.readAllLines(bikeLaneLinkIdsPath).toSet
+        } else {
+          Set.empty
+        }
+      }
+      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
+    } match {
+      case Failure(exception) =>
+        logger.error("Could not load the bikeLaneLinkIds", exception)
+        Set.empty
+      case Success(value) => value
     }
   }
 
