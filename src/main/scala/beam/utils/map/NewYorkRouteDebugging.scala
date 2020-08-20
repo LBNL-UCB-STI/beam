@@ -8,7 +8,7 @@ import beam.router.BeamRouter.RoutingRequest
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.R5Requester.prepareConfig
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.common.GeoUtils
 import beam.utils.ParquetReader
 import beam.utils.json.AllNeededFormats._
@@ -75,7 +75,7 @@ object NewYorkRouteDebugging {
     val runArgs = Array("--config", "test/input/newyork/new-york-20k-best-calibration-results.conf")
     val (_, cfg) = prepareConfig(runArgs, isConfigArgRequired = true)
 
-    val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
+    val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
     val r5Wrapper: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
 
     val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
