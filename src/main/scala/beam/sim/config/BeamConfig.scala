@@ -474,6 +474,8 @@ object BeamConfig {
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
+              transit_crowding_VOT_multiplier: scala.Double,
+              transit_crowding_VOT_threshold: scala.Double,
               transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
               walk_transit_intercept: scala.Double
@@ -500,6 +502,13 @@ object BeamConfig {
                     else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
+                  transit_crowding_VOT_multiplier =
+                    if (c.hasPathOrNull("transit_crowding_VOT_multiplier"))
+                      c.getDouble("transit_crowding_VOT_multiplier")
+                    else 0.0,
+                  transit_crowding_VOT_threshold =
+                    if (c.hasPathOrNull("transit_crowding_VOT_threshold")) c.getDouble("transit_crowding_VOT_threshold")
+                    else 0.5,
                   transit_crowding_percentile =
                     if (c.hasPathOrNull("transit_crowding_percentile")) c.getDouble("transit_crowding_percentile")
                     else 90.0,

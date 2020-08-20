@@ -7,6 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
 import beam.router.model.EmbodiedBeamLeg
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
@@ -80,7 +81,8 @@ case class AttributesOfIndividual(
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    transitCrowdingSkims: Option[TransitCrowdingSkims]
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
@@ -100,9 +102,26 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.isPooledTrip
           )
         )
+      case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
+        transitCrowdingSkims match {
+          case Some(transitCrowding) =>
+            val modeMultiplier =
+              getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+            val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
+            val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
+              embodiedBeamLeg,
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_multiplier,
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_threshold
+            )
+            modeMultiplier * durationInHours * crowdingMultiplier
+          case _ =>
+            getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers) *
+            embodiedBeamLeg.beamLeg.duration.toDouble / 3600
+        }
+
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers) *
-        embodiedBeamLeg.beamLeg.duration / 3600
+        embodiedBeamLeg.beamLeg.duration.toDouble / 3600
     }
   }
 
