@@ -390,8 +390,8 @@ class SimpleScenarioGenerator(
           personInfoWriter.write(peopleList.toIterator)
           totalNumberOfPeople += peopleList.size
 
-          val plans = res.flatMap(x => x._2.map(_.plans)).flatten.toIterator
-          plansInfoWriter.write(plans)
+          val plans = res.flatMap(x => x._2.map(_.plans)).flatten
+          plansInfoWriter.write(plans.toIterator)
           totalNumberOfPlanElements += plans.size
 
           plans.filter(_.planElementType == "activity").foreach { plan =>
