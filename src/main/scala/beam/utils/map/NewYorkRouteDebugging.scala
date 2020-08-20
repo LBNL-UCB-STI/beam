@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode.WALK_TRANSIT
+import beam.router.Modes.{BeamMode, toR5StreetMode}
 import beam.router.R5Requester.prepareConfig
 import beam.router.r5.{R5Wrapper, WorkerParameters}
 import beam.sim.common.GeoUtils
@@ -14,8 +15,10 @@ import beam.utils.ParquetReader
 import beam.utils.json.AllNeededFormats._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
+import com.conveyal.r5.streets.{StreetLayer, StreetRouter}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.util.Utf8
+import org.matsim.api.core.v01.Coord
 
 import scala.collection.JavaConverters._
 
@@ -28,9 +31,10 @@ object NewYorkRouteDebugging {
     val isWithinTransitTime = record.get("startPoint_time").asInstanceOf[Int] >= TimeUnit.HOURS.toSeconds(6) && record
       .get("startPoint_time")
       .asInstanceOf[Int] <= TimeUnit.HOURS.toSeconds(19)
+    val isEmptyLinkIds = Option(record.get("linkIds").asInstanceOf[Utf8]).forall(x => new String(x.getBytes, StandardCharsets.UTF_8).isEmpty)
     record.get("itineraries").asInstanceOf[Int] == 1 && record
       .get("tripClassifier")
-      .toString == "walk" && isWithinTransitTime
+      .toString == "walk" && isWithinTransitTime && isEmptyLinkIds
   }
 
   def main(args: Array[String]): Unit = {
@@ -72,7 +76,7 @@ object NewYorkRouteDebugging {
     }
     println(s"requests: ${requests.length}")
 
-    val runArgs = Array("--config", "test/input/newyork/new-york-20k-best-calibration-results.conf")
+    val runArgs = Array("--config", "test/input/newyork/new-york-PROD-baseline.conf")
     val (_, cfg) = prepareConfig(runArgs, isConfigArgRequired = true)
 
     val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
@@ -81,11 +85,24 @@ object NewYorkRouteDebugging {
     val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
 
     var totalWalkTransitsByPointToPointQuery: Int = 0
-    requests.take(100).foreach { req =>
+    List.fill(1000)(requests.head).foreach { req =>
       val resp = r5Wrapper.calcRoute(req)
+      val startWgs = geoUtils.utm2Wgs(req.originUTM)
+      val endWgs = geoUtils.utm2Wgs(req.destinationUTM)
+
+      val streetRouter = routeWithStreetRouter(r5Wrapper, workerParams.transportNetwork.streetLayer, BeamMode.WALK, startWgs, endWgs)
+      println(s"streetRouter: $streetRouter")
+      val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+      println(s"lastState: $lastState")
+
+
+      if (resp.itineraries.head.legs.head.beamLeg.travelPath.linkIds.isEmpty) {
+        val resp2 = r5Wrapper.calcRoute(req)
+
+        println(resp2)
+      }
       if (!resp.itineraries.exists(x => x.tripClassifier == WALK_TRANSIT)) {
-        val startWgs = geoUtils.utm2Wgs(req.originUTM)
-        val endWgs = geoUtils.utm2Wgs(req.destinationUTM)
+
 
         val r5Req = r5Wrapper.createProfileRequest
         r5Req.fromLon = startWgs.getX
@@ -99,6 +116,8 @@ object NewYorkRouteDebugging {
         r5Req.fromTime = req.departureTime
         r5Req.toTime = req.departureTime + 61
 
+
+
         val plan = ppQuery.getPlan(r5Req)
         val withTransits = plan.options.asScala.filter(x => Option(x.transit).map(_.size()).getOrElse(0) > 0)
         if (withTransits.nonEmpty) totalWalkTransitsByPointToPointQuery += 1
@@ -107,12 +126,31 @@ object NewYorkRouteDebugging {
         println(s"Plan size: ${plan.options.size()}, withTransits: ${withTransits.size}")
 
         println(s"Plan: ${plan}")
-//        val link = s"http://localhost:8080/transit_plan?fromLat=${startWgs.getY}&fromLon=${startWgs.getX}&toLat=${endWgs.getY}&toLon=${endWgs.getX}&mode=WALK&full=false&departureTime=" + req.departureTime
-//        println(s"Link to R5 PointToPointRouterServer: ${link}")
+//        val transitLink = s"http://localhost:8080/transit_plan?fromLat=${startWgs.getY}&fromLon=${startWgs.getX}&toLat=${endWgs.getY}&toLon=${endWgs.getX}&mode=WALK&full=false&departureTime=" + req.departureTime
+        val planLink = s"http://localhost:8080/plan?fromLat=${startWgs.getY}&fromLon=${startWgs.getX}&toLat=${endWgs.getY}&toLon=${endWgs.getX}&mode=WALK&full=false"
+        println(s"Link to R5 PointToPointRouterServer: ${planLink}")
       }
     }
     println(s"totalWalkTransitsByPointToPointQuery: $totalWalkTransitsByPointToPointQuery")
 
+  }
+
+  def routeWithStreetRouter(r5Wrapper: R5Wrapper, streetLayer: StreetLayer, beamMode: BeamMode, startWgs: Coord, endWgs: Coord): StreetRouter = {
+    val r5Req = r5Wrapper.createProfileRequest
+    r5Req.fromLon = startWgs.getX
+    r5Req.fromLat = startWgs.getY
+    r5Req.toLon = endWgs.getX
+    r5Req.toLat = endWgs.getY
+
+    val streetRouter = new StreetRouter(streetLayer)
+
+    streetRouter.profileRequest = r5Req
+    streetRouter.streetMode = toR5StreetMode(beamMode)
+    streetRouter.timeLimitSeconds = r5Req.streetTime * 60
+    require(streetRouter.setOrigin(r5Req.fromLat, r5Req.fromLon))
+    require(streetRouter.setDestination(r5Req.toLat, r5Req.toLon))
+    streetRouter.route()
+    streetRouter
   }
 
 }
