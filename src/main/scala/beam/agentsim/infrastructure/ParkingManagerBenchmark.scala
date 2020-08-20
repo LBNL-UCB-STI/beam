@@ -2,6 +2,11 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
+import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.Random
+
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
@@ -13,19 +18,12 @@ import beam.utils.{BeamConfigUtils, FileUtils, ProfilingUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.network.NetworkUtils
-import org.matsim.core.network.io.NetworkReaderMatsimV2
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
-
-import scala.collection.JavaConverters._
-import scala.collection.immutable
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.Random
 
 class ParkingManagerBenchmark(val possibleParkingLocations: Array[(Coord, String)], val parkingManagerActor: ActorRef)(
   implicit val actorSystem: ActorSystem,
@@ -119,8 +117,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       )
       logger.info(s"Number of zones: ${zones.length}")
       logger.info(s"SearchTree size: ${searchTree.size}")
-
-      val network = readNetwork(pathToNetwork)
+      val network = NetworkUtilsExtensions.readNetwork(pathToNetwork)
       logger.info(s"Network contains ${network.getLinks.size()} links")
 
       val boundingBox: Envelope = getNetworkBoundingBox(network)
@@ -213,13 +210,6 @@ object ParkingManagerBenchmark extends StrictLogging {
         x.stall.tazId
       }
       .map { case (tazId, xs) => (tazId, xs) }
-  }
-
-  private def readNetwork(path: String): Network = {
-    val network = NetworkUtils.createNetwork
-    val reader = new NetworkReaderMatsimV2(network)
-    reader.parse(FileUtils.getInputStream(path))
-    network
   }
 
   private def getNetworkBoundingBox(network: Network): Envelope = {

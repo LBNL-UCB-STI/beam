@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.Skims
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -73,11 +74,13 @@ trait BeamServices {
   def skims: Skims
 
   def simMetricCollector: SimulationMetricCollector
+  def bikeLanesAdjustment: BikeLanesAdjustment
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
-
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
+
+  override val bikeLanesAdjustment: BikeLanesAdjustment = injector.getInstance(classOf[BikeLanesAdjustment])
 
   def beamConfig: BeamConfig = {
     val inst = injector.getInstance(classOf[BeamConfigChangesObservable])
