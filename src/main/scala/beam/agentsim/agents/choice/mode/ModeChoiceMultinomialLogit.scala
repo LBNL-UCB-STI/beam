@@ -1,5 +1,8 @@
 package beam.agentsim.agents.choice.mode
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
@@ -9,19 +12,17 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable
 
 /**
   * BEAM
@@ -42,6 +43,7 @@ class ModeChoiceMultinomialLogit(
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 
   private val shouldLogDetails: Boolean = false
+  private val bikeLanesAdjustment: BikeLanesAdjustment = beamServices.bikeLanesAdjustment
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -49,33 +51,12 @@ class ModeChoiceMultinomialLogit(
     destinationActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
-
-    def findBestIn(group: IndexedSeq[ModeCostTimeTransfer]): ModeCostTimeTransfer = {
-      if (group.size == 1) {
-        group.head
-      } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
-        val inputData = group
-          .map(
-            mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
-          )
-          .toMap
-        val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
-        val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
-        chosenModeOpt
-          .flatMap(sample => group.find(_.embodiedBeamTrip == sample.alternativeType))
-          .getOrElse(group minBy timeAndCost)
-      } else {
-        group minBy timeAndCost
-      }
-    }
-
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
-      val bestInGroup =
-      modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
+      val bestInGroup = modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
         case (_, group) => findBestIn(group)
       }
       val inputData = bestInGroup.map { mct =>
@@ -135,7 +116,26 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
-  def createModeChoiceOccurredEvent(
+  private def findBestIn(group: IndexedSeq[ModeCostTimeTransfer]): ModeCostTimeTransfer = {
+    if (group.size == 1) {
+      group.head
+    } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
+      val inputData = group
+        .map(
+          mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
+        )
+        .toMap
+      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+      val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+      chosenModeOpt
+        .flatMap(sample => group.find(_.embodiedBeamTrip == sample.alternativeType))
+        .getOrElse(group minBy timeAndCost)
+    } else {
+      group minBy timeAndCost
+    }
+  }
+
+  private def createModeChoiceOccurredEvent(
     person: Option[Person],
     alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[EmbodiedBeamTrip]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
@@ -188,7 +188,7 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
-  def timeAndCost(mct: ModeCostTimeTransfer): Double = {
+  private def timeAndCost(mct: ModeCostTimeTransfer): Double = {
     mct.scaledTime + mct.cost
   }
 
@@ -199,10 +199,51 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
   ): Double = {
-    val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    getGeneralizedTimeOfTripInHours(embodiedBeamTrip, attributesOfIndividual, destinationActivity)
+  }
+
+  private def getGeneralizedTimeOfTripInHours(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity],
+    adjustSpecialBikeLines: Boolean = false
+  ): Double = {
+    val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
+      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip)
+    } else {
+      embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    }
+    val waitingTime: Int = embodiedBeamTrip.totalTravelTimeInSecs - adjustedTripDuration
+    embodiedBeamTrip.legs.map { x: EmbodiedBeamLeg =>
+      val factor = if (adjustSpecialBikeLines) {
+        bikeLanesAdjustment.bikeLaneScaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
+      } else {
+        1D
+      }
+      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+    }.sum + getGeneralizedTime(waitingTime, None, None)
+  }
+
+  private def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
+    embodiedBeamTrip: EmbodiedBeamTrip
+  ): Int = {
     embodiedBeamTrip.legs
-      .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
-      .sum + getGeneralizedTime(waitingTime, None, None)
+      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
+        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath)
+      }
+      .sum
+      .toInt
+  }
+
+  private def pathScaledForWaiting(path: BeamPath): Double = {
+    path.linkIds
+      .drop(1)
+      .zip(path.linkTravelTime.drop(1))
+      .map {
+        case (linkId: Int, travelTime: Double) =>
+          travelTime * 1D / bikeLanesAdjustment.scaleFactor(linkId)
+      }
+      .sum
   }
 
   override def getGeneralizedTimeOfLeg(
@@ -231,7 +272,7 @@ class ModeChoiceMultinomialLogit(
     time / 3600 * modeMultipliers.getOrElse(beamMode, 1.0)
   }
 
-  def altsToModeCostTimeTransfers(
+  private def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
@@ -241,8 +282,7 @@ class ModeChoiceMultinomialLogit(
       val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-      val incentivizedCost =
-        Math.max(0, totalCost.toDouble - incentive)
+      val incentivizedCost = Math.max(0, totalCost.toDouble - incentive)
 
       if (totalCost < incentive)
         logger.warn(
@@ -268,8 +308,14 @@ class ModeChoiceMultinomialLogit(
       }
       assert(numTransfers >= 0)
       val scaledTime = attributesOfIndividual.getVOT(
-        getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
+        getGeneralizedTimeOfTripInHours(
+          altAndIdx._1,
+          Some(attributesOfIndividual),
+          destinationActivity,
+          adjustSpecialBikeLines = true
+        )
       )
+
       val percentile =
         beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
       val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
