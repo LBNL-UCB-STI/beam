@@ -146,7 +146,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
   }
 
   private lazy val parentRunPath: String =
-    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
+    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/")
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize: Int = warmConfig.agentsimTimeBinSize
