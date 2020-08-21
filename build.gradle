@@ -417,6 +417,29 @@ task removeTempConfig(type: Delete) {
 generateConfig.finalizedBy(copyConfigWithoutTimeStamp)
 copyConfigWithoutTimeStamp.finalizedBy(removeTempConfig)
 
+task generateBeamUtilsGoogleRoutesDBConfig {
+    doLast {
+        def tscfgJarFile = project.file('build/tscfg-' + tscfgVersion + '.jar')
+        if (!tscfgJarFile.exists() || !tscfgJarFile.isFile()) {
+            download {
+                src 'https://github.com/carueda/tscfg/releases/download/v' + tscfgVersion + '/tscfg-' + tscfgVersion + '.jar'
+                dest buildDir
+            }
+        }
+        javaexec {
+            main = "-jar"
+            args = [
+                    "build/tscfg-${tscfgVersion}.jar",
+                    "--spec", "src/main/resources/beam-utils-google_routes_db-template.conf",
+                    "--scala",
+                    "--pn", "beam.utils.google_routes_db.config",
+                    "--cn", "GoogleRoutesDBConfig",
+                    "--dd", "src/main/scala/beam/utils/google_routes_db/config"
+            ]
+        }
+    }
+}
+
 task repl(type: JavaExec) {
     main = "scala.tools.nsc.MainGenericRunner"
     classpath = sourceSets.main.runtimeClasspath
