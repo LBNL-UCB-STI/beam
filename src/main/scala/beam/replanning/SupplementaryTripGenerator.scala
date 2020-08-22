@@ -78,37 +78,22 @@ class SupplementaryTripGenerator(
 
     if (!elements(1).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.head) }
 
-    var updatedPreviousActivity = elements.head
-
-    val activityAccumulator = ListBuffer[Activity]()
-
     elements.sliding(3).foreach {
       case List(prev, curr, next) =>
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
-          val newActivities =
-            generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
+          val newActivities = generateSubtour(prev, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           newActivities.foreach { x =>
-            activityAccumulator.lastOption match {
-              case Some(lastTrip) =>
-                if (lastTrip.getType == x.getType) {
-                  activityAccumulator -= activityAccumulator.last
-                }
-              case _ =>
-            }
-            activityAccumulator.append(x)
+            newPlan.addActivity(x)
           }
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
-            activityAccumulator.append(curr)
+            newPlan.addActivity(curr)
           }
         }
-        updatedPreviousActivity = activityAccumulator.last
       case _ =>
     }
-    activityAccumulator.foreach { x =>
-      newPlan.addActivity(x)
-    }
+
     if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
 
     if (anyChanges) {
