@@ -10,7 +10,7 @@ import scala.collection.mutable
 package object request {
 
   case class GoogleRouteRequest(
-    vehicleId: Int,
+    vehicleId: String,
     vehicleType: String,
     departureTime: Int,
     originLat: Double,
@@ -42,7 +42,7 @@ package object request {
 
     def toGoogleRouteRequest(map: java.util.Map[String, String]): GoogleRouteRequest =
       GoogleRouteRequest(
-        vehicleId = map.get("vehicleId").toInt,
+        vehicleId = map.get("vehicleId"),
         vehicleType = map.get("vehicleType"),
         departureTime = map.get("departureTime").toInt,
         originLat = map.get("originLat").toDouble,
