@@ -28,7 +28,7 @@ import scala.util.{Failure, Success}
  *  * Run with gradle:
  * ./gradlew :execute \
  *   -PmainClass=beam.utils.google_routes_db.GoogleRoutesDB \
- *   -PappArgs="['--config','beam/src/main/scala/beam/utils/google_routes_db/google_routes_db.conf']" \
+ *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/google_routes_db.conf']" \
  *   -PlogbackCfg=logback.xml
  */
 object GoogleRoutesDB extends BeamHelper {
