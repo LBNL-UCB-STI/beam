@@ -10,8 +10,8 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, 
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.scenario.PlanElement
 import com.conveyal.r5.profile.StreetMode
+import beam.utils.scenario.PlanElement
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
