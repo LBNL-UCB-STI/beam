@@ -20,7 +20,7 @@ import scala.util.{Failure, Success}
 object ReqRespMapping extends BeamHelper {
 
   private implicit val system: ActorSystem = ActorSystem("google-routes-db")
-  private implicit val execCtx: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+  private implicit val execCtx: ExecutionContext = system.dispatcher
   private implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
   def main(args: Array[String]): Unit = try {
