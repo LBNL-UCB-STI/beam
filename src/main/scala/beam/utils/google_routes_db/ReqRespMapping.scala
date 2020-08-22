@@ -170,7 +170,7 @@ object ReqRespMapping extends BeamHelper {
         csvWriter.close()
     }
 
-    Await.ready(doneFuture, 1.minute)
+    Await.ready(doneFuture, 300.minutes)
     Await.ready(system.terminate(), 1.minute)
     System.exit(0)
   } catch {
