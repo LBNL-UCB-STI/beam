@@ -32,6 +32,8 @@ object ReqRespMapping extends BeamHelper {
   private implicit val execCtx: ExecutionContext = system.dispatcher
   private implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
+  private var csvWriter: CsvWriter = _
+
   //noinspection DuplicatedCode
   def main(args: Array[String]): Unit = try {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
@@ -52,9 +54,7 @@ object ReqRespMapping extends BeamHelper {
       }
     )
 
-    val csvWriter: CsvWriter = {
-      new CsvWriter(s"ReqRespMapping.csv", header)
-    }
+    csvWriter = new CsvWriter(s"ReqRespMapping.csv", header)
 
     val doneFuture: Future[Done] = sourceGoogleapiFiles(config)
       .flatMapConcat { googleapiFiles ⇒
@@ -174,13 +174,11 @@ object ReqRespMapping extends BeamHelper {
       .run()
 
     doneFuture.onComplete {
-      case Success(_) ⇒
-        csvWriter.flush()
-        csvWriter.close()
+      case Success(_) ⇒ closeCsvWriter()
       case Failure(e) ⇒
         logger.error("An error occurred: {}", e.getMessage)
         e.printStackTrace()
-        csvWriter.close()
+        closeCsvWriter()
     }
 
     Await.ready(doneFuture, 300.minutes)
@@ -190,7 +188,23 @@ object ReqRespMapping extends BeamHelper {
     case e: Throwable ⇒
       e.printStackTrace()
 
+      closeCsvWriter()
       Await.ready(system.terminate(), 1.minute)
       System.exit(1)
+  }
+
+  private def closeCsvWriter(): Unit = {
+    try {
+      Option(csvWriter).foreach(_.flush())
+    } catch {
+      case e: Throwable ⇒
+        logger.warn("Failed to flush csvWriter: {}", e.getMessage)
+    }
+    try {
+      Option(csvWriter).foreach(_.close())
+    } catch {
+      case e: Throwable ⇒
+        logger.warn("Failed to close csvWriter: {}", e.getMessage)
+    }
   }
 }
