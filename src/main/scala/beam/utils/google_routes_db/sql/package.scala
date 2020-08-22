@@ -3,6 +3,8 @@ package beam.utils.google_routes_db
 import java.sql.{PreparedStatement, Types}
 import java.time.Instant
 
+import beam.utils.google_routes_db.{response ⇒ resp}
+
 package object sql {
 
   type GeometryPoint = String
@@ -10,10 +12,10 @@ package object sql {
 
   private val projection: Int = 4326
 
-  def makeGeometryPoint(coord: json.GoogleRoute.Coord): GeometryPoint =
+  def makeGeometryPoint(coord: resp.GoogleRoute.Coord): GeometryPoint =
     s"POINT(${coord.lat} ${coord.lng})"
 
-  def makeGeometryLinestring(coords: Seq[json.GoogleRoute.Coord]): GeometryLinestring = {
+  def makeGeometryLinestring(coords: Seq[resp.GoogleRoute.Coord]): GeometryLinestring = {
     val coordSs = coords.map { coord ⇒ s"${coord.lat} ${coord.lng}"}
     s"LINESTRING(${coordSs.mkString(",")})"
   }
@@ -71,15 +73,15 @@ package object sql {
 
     object GoogleRoute {
 
-      def fromJson(
-        grJson: json.GoogleRoute,
+      def fromResp(
+        googleRoute: resp.GoogleRoute,
         googleapiResponsesJsonFileUri: Option[String],
         timestamp: Instant
       ): GoogleRoute = GoogleRoute(
-        boundNortheast = makeGeometryPoint(grJson.bounds.northeast),
-        boundSouthwest = makeGeometryPoint(grJson.bounds.southwest),
-        summary = grJson.summary,
-        copyrights = grJson.copyrights,
+        boundNortheast = makeGeometryPoint(googleRoute.bounds.northeast),
+        boundSouthwest = makeGeometryPoint(googleRoute.bounds.southwest),
+        summary = googleRoute.summary,
+        copyrights = googleRoute.copyrights,
         googleapiResponsesJsonFileUri = googleapiResponsesJsonFileUri,
         timestamp = timestamp
       )
@@ -130,22 +132,22 @@ package object sql {
 
     object GoogleRouteLeg {
 
-      def fromJson(routeId: Int, legJson: json.GoogleRoute.Leg): GoogleRouteLeg = GoogleRouteLeg(
+      def fromResp(routeId: Int, leg: resp.GoogleRoute.Leg): GoogleRouteLeg = GoogleRouteLeg(
         routeId = routeId,
-        distance = legJson.distance.value,
-        distanceText = legJson.distance.text,
-        duration = legJson.duration.value,
-        durationText = legJson.duration.text,
-        durationInTraffic = legJson.durationInTraffic.map(_.value),
-        durationInTrafficText = legJson.durationInTraffic.map(_.text),
-        endAddress = legJson.endAddress,
-        endLocation = makeGeometryPoint(legJson.endLocation),
-        startAddress = legJson.startAddress,
-        startLocation = makeGeometryPoint(legJson.startLocation),
+        distance = leg.distance.value,
+        distanceText = leg.distance.text,
+        duration = leg.duration.value,
+        durationText = leg.duration.text,
+        durationInTraffic = leg.durationInTraffic.map(_.value),
+        durationInTrafficText = leg.durationInTraffic.map(_.text),
+        endAddress = leg.endAddress,
+        endLocation = makeGeometryPoint(leg.endLocation),
+        startAddress = leg.startAddress,
+        startLocation = makeGeometryPoint(leg.startLocation),
         steps = makeGeometryLinestring(
           // Take head.startLocation as first point,
           // take all other endLocations as next points (including head).
-          Seq(legJson.steps.head.startLocation) ++ legJson.steps.map(_.endLocation)
+          Seq(leg.steps.head.startLocation) ++ leg.steps.map(_.endLocation)
         )
       )
 

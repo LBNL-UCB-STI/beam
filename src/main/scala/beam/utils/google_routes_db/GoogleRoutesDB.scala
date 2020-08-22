@@ -2,7 +2,6 @@ package beam.utils.google_routes_db
 
 import java.sql.Statement
 import java.time.Instant
-import java.util.concurrent.Executors
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -11,7 +10,7 @@ import akka.stream.scaladsl._
 import beam.sim.BeamHelper
 import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.config.GoogleRoutesDBConfig
-import beam.utils.google_routes_db.json._
+import beam.utils.google_routes_db.{response ⇒ resp}
 import beam.utils.google_routes_db.sql.BatchUpdateGraphStage
 import javax.sql.DataSource
 import org.apache.commons.dbcp2.BasicDataSource
@@ -25,7 +24,7 @@ import scala.util.{Failure, Success}
  * Issue #2872 "TravelTimeGoogleStatistic: Build database of the computed routes"
  * https://github.com/LBNL-UCB-STI/beam/issues/2872
  *
- *  * Run with gradle:
+ * Run with Gradle:
  * ./gradlew :execute \
  *   -PmainClass=beam.utils.google_routes_db.GoogleRoutesDB \
  *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/google_routes_db.conf']" \
@@ -56,19 +55,12 @@ object GoogleRoutesDB extends BeamHelper {
         .flatMapConcat { _ ⇒ sourceGoogleapiFiles(config) }
         .mapAsync(1) { googleapiFiles ⇒
 
-          val requests =
-            parseGoogleTravelTimeEstimationCsv(
-              googleapiFiles.googleTravelTimeEstimationCsvText
-            )
-
-          val grsSeq: immutable.Seq[json.GoogleRoutes] =
-            parseGoogleapiResponsesJson(
+          val grsSeq: immutable.Seq[resp.GoogleRoutes] =
+            resp.json.parseGoogleapiResponsesJson(
               googleapiFiles.googleapiResponsesJsonText
             )
 
           val googleRoutes = grsSeq.flatMap(_.routes)
-
-          // todo
 
           insertGoogleRoutes(
             googleRoutes,
@@ -77,10 +69,10 @@ object GoogleRoutesDB extends BeamHelper {
             dataSource
           )
         }
-        .flatMapConcat { routesWithIds: immutable.Seq[(GoogleRoute, Int)] ⇒
+        .flatMapConcat { routesWithIds: immutable.Seq[(resp.GoogleRoute, Int)] ⇒
           Source(
             routesWithIds.flatMap { case (gr, routeId) ⇒
-              gr.legs.map { leg ⇒ sql.Update.GoogleRouteLeg.fromJson(routeId, leg) }
+              gr.legs.map { leg ⇒ sql.Update.GoogleRouteLeg.fromResp(routeId, leg) }
             }
           )
         }
@@ -148,11 +140,11 @@ object GoogleRoutesDB extends BeamHelper {
   }
 
   private def insertGoogleRoutes(
-    grs: immutable.Seq[json.GoogleRoute],
+    grs: immutable.Seq[resp.GoogleRoute],
     googleapiResponsesJsonFileUri: String,
     timestamp: Instant,
     dataSource: DataSource
-  )(implicit executor: ExecutionContext): Future[immutable.Seq[(json.GoogleRoute, Int)]] = Future({
+  )(implicit executor: ExecutionContext): Future[immutable.Seq[(resp.GoogleRoute, Int)]] = Future({
     using(dataSource.getConnection) { con ⇒
       using(
         con.prepareStatement(
@@ -162,7 +154,7 @@ object GoogleRoutesDB extends BeamHelper {
       ) { ps ⇒
         grs.foreach { gr ⇒
           sql.Update.GoogleRoute.psMapping.mapPrepared(
-            sql.Update.GoogleRoute.fromJson(gr, Some(googleapiResponsesJsonFileUri), timestamp),
+            sql.Update.GoogleRoute.fromResp(gr, Some(googleapiResponsesJsonFileUri), timestamp),
             ps
           )
           ps.addBatch()

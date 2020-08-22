@@ -1,9 +1,6 @@
 package beam.utils
 
-import java.io.StringReader
-import java.lang.Math.abs
 import java.time.Instant
-import java.util
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -13,15 +10,9 @@ import akka.stream.scaladsl._
 import beam.utils.FileUtils.readAllLines
 import beam.utils.google_routes_db.config.GoogleRoutesDBConfig
 import beam.utils.google_routes_db.config.GoogleRoutesDBConfig.GoogleapiFiles$Elm
-import beam.utils.google_routes_db.json._
 import com.typesafe.scalalogging.LazyLogging
-import io.circe.Decoder
-import io.circe.parser.decode
-import org.supercsv.io.CsvMapReader
-import org.supercsv.prefs.CsvPreference
 
-import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 package object google_routes_db extends LazyLogging {
@@ -107,27 +98,6 @@ package object google_routes_db extends LazyLogging {
     }
   }
 
-  def parseGoogleTravelTimeEstimationCsv(text: String): Seq[Map[String, String]] = {
-    val csvReader = new CsvMapReader(new StringReader(text), CsvPreference.STANDARD_PREFERENCE)
-    val header = csvReader.getHeader(true)
-    val result = new mutable.ArrayBuffer[Map[String, String]]()
-
-    Iterator
-      .continually(csvReader.read(header: _*))
-      .takeWhile(_ != null)
-      .foreach { entry: util.Map[String, String] =>
-        result.append(entry.asScala.toMap)
-      }
-
-    result
-  }
-
-  def coordsNearby(
-    c1: json.GoogleRoute.Coord,
-    c2: json.GoogleRoute.Coord,
-    epsilon: Double
-  ): Boolean = abs(c1.lat - c2.lat) < epsilon && abs(c1.lng - c2.lng) < epsilon
-
   def getSizeFrequencies(map: Map[_, Seq[_]]): Map[Int, Int] = {
     val freq = mutable.LinkedHashMap[Int, Int]()
     map.foreach { case (_, seq) ⇒
@@ -135,17 +105,5 @@ package object google_routes_db extends LazyLogging {
     }
 
     freq.toMap
-  }
-
-  def parseGoogleapiResponsesJson
-    (text: String)
-      (implicit D: Decoder[immutable.Seq[json.GoogleRoutes]]): immutable.Seq[json.GoogleRoutes] = {
-    decode[immutable.Seq[GoogleRoutes]](text) match {
-      case Right(json) ⇒ json
-      case Left(e) ⇒
-        val head = text.take(200).replaceAll("\\s+", "")
-        logger.warn(s"Failed to parse GoogleRoutes (<$head...>): ${e.getMessage}")
-        immutable.Seq.empty
-    }
   }
 }

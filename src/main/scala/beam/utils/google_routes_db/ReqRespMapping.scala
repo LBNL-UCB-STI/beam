@@ -1,15 +1,15 @@
 package beam.utils.google_routes_db
 
-import java.util.concurrent.Executors
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.stream.scaladsl._
 import beam.sim.BeamHelper
+import beam.sim.common.SimpleGeoUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.google_routes_db.config.GoogleRoutesDBConfig
-import beam.utils.google_routes_db.json._
+import beam.utils.google_routes_db.{request ⇒ req, response ⇒ resp}
+import org.matsim.api.core.{v01 ⇒ matsim}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
@@ -17,15 +17,26 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+/**
+ * Output file: ReqRespMapping.csv
+ *
+ * Run with Gradle:
+ * ./gradlew :execute \
+ *   -PmainClass=beam.utils.google_routes_db.ReqRespMapping \
+ *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/google_routes_db.conf']" \
+ *   -PlogbackCfg=logback.xml
+ */
 object ReqRespMapping extends BeamHelper {
 
   private implicit val system: ActorSystem = ActorSystem("google-routes-db")
   private implicit val execCtx: ExecutionContext = system.dispatcher
   private implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
+  //noinspection DuplicatedCode
   def main(args: Array[String]): Unit = try {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val config = GoogleRoutesDBConfig(cfg)
+    val geoUtils = SimpleGeoUtils()
 
     val epsilons = immutable.Seq(0.001, 0.0001, 0.00001)
     val maxSizeKey = 7
@@ -51,85 +62,87 @@ object ReqRespMapping extends BeamHelper {
       }
       .toMat(Sink.foreach { case (googleapiFiles, epsilon) ⇒
         val requests =
-          parseGoogleTravelTimeEstimationCsv(
+          req.csv.parseGoogleTravelTimeEstimationCsv(
             googleapiFiles.googleTravelTimeEstimationCsvText
           )
 
-        val grsSeq: immutable.Seq[json.GoogleRoutes] =
-          parseGoogleapiResponsesJson(
+        val grsSeq: immutable.Seq[resp.GoogleRoutes] =
+          resp.json.parseGoogleapiResponsesJson(
             googleapiFiles.googleapiResponsesJsonText
           )
 
-        val reqReqMapping: Map[Map[String, String], Seq[Map[String, String]]] =
+        val reqReqMapping: Map[req.GoogleRouteRequest, Seq[req.GoogleRouteRequest]] =
           requests.map { request ⇒
-            val nearby = requests.filter { other ⇒
-                coordsNearby(
-                  json.GoogleRoute.Coord(request("originLat").toDouble, request("originLng").toDouble),
-                  json.GoogleRoute.Coord(other("originLat").toDouble, other("originLng").toDouble),
-                  epsilon
-                ) &&
-                coordsNearby(
-                  json.GoogleRoute.Coord(request("destLat").toDouble, request("destLng").toDouble),
-                  json.GoogleRoute.Coord(other("destLat").toDouble, other("destLng").toDouble),
-                  epsilon
-                )
+            val nearbyRequests = requests.filter { otherRequest ⇒
+
+              val originDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.originLat, request.originLng),
+                new matsim.Coord(otherRequest.originLat, otherRequest.originLng)
+              )
+              val destinationDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.destLat, request.destLng),
+                new matsim.Coord(otherRequest.destLat, otherRequest.destLng)
+              )
+
+              originDifference < epsilon && destinationDifference < epsilon
             }
-            (request, nearby)
+            (request, nearbyRequests)
           }.toMap
 
-        val reqRespMapping: Map[Map[String, String], Seq[GoogleRoute]] =
+        val reqRespMapping: Map[req.GoogleRouteRequest, Seq[resp.GoogleRoute]] =
           requests.map { request ⇒
             val nearbyResponses = grsSeq.flatMap(_.routes).filter { route ⇒
-                coordsNearby(
-                  json.GoogleRoute.Coord(request("originLat").toDouble, request("originLng").toDouble),
-                  route.legs.head.startLocation,
-                  epsilon
-                ) &&
-                coordsNearby(
-                  json.GoogleRoute.Coord(request("destLat").toDouble, request("destLng").toDouble),
-                  route.legs.head.endLocation,
-                  epsilon
-                )
+              val leg = route.legs.head  // data holds 1 leg per route
+
+              val originDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.originLat, request.originLng),
+                new matsim.Coord(leg.startLocation.lat, leg.startLocation.lng)
+              )
+              val destinationDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.destLat, request.destLng),
+                new matsim.Coord(leg.endLocation.lat, leg.endLocation.lng)
+              )
+
+              originDifference < epsilon && destinationDifference < epsilon
             }
             (request, nearbyResponses)
           }.toMap
 
-        val respReqMapping: Map[GoogleRoute, Seq[Map[String, String]]] =
+        val respReqMapping: Map[resp.GoogleRoute, Seq[req.GoogleRouteRequest]] =
           grsSeq.flatMap(_.routes).map { route ⇒
             val nearbyRequests = requests.filter { request ⇒
-                coordsNearby(
-                  json.GoogleRoute.Coord(
-                    request("originLat").toDouble,
-                    request("originLng").toDouble
-                  ),
-                  route.legs.head.startLocation,
-                  epsilon
-                ) &&
-                coordsNearby(
-                  json.GoogleRoute.Coord(
-                    request("destLat").toDouble,
-                    request("destLng").toDouble
-                  ),
-                  route.legs.head.endLocation,
-                  epsilon
-                )
+              val leg = route.legs.head  // data holds 1 leg per route
+
+              val originDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.originLat, request.originLng),
+                new matsim.Coord(leg.startLocation.lat, leg.startLocation.lng)
+              )
+              val destinationDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(request.destLat, request.destLng),
+                new matsim.Coord(leg.endLocation.lat, leg.endLocation.lng)
+              )
+
+              originDifference < epsilon && destinationDifference < epsilon
             }
             (route, nearbyRequests)
           }.toMap
 
-        val respRespMapping: Map[GoogleRoute, Seq[GoogleRoute]] =
+        val respRespMapping: Map[resp.GoogleRoute, Seq[resp.GoogleRoute]] =
           grsSeq.flatMap(_.routes).map { route ⇒
-            val nearby = grsSeq.flatMap(_.routes).filter { other ⇒
-                coordsNearby(
-                  route.legs.head.startLocation,
-                  other.legs.head.startLocation,
-                  epsilon
-                ) &&
-                coordsNearby(
-                  route.legs.head.endLocation,
-                  other.legs.head.endLocation,
-                  epsilon
-                )
+            val nearby = grsSeq.flatMap(_.routes).filter { otherRoute ⇒
+              val leg = route.legs.head
+              val otherLeg = otherRoute.legs.head
+
+              val originDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(leg.startLocation.lat, leg.startLocation.lng),
+                new matsim.Coord(otherLeg.startLocation.lat, otherLeg.startLocation.lng)
+              )
+              val destinationDifference = geoUtils.distLatLon2Meters(
+                new matsim.Coord(leg.endLocation.lat, leg.endLocation.lng),
+                new matsim.Coord(otherLeg.endLocation.lat, otherLeg.endLocation.lng)
+              )
+
+              originDifference < epsilon && destinationDifference < epsilon
             }
             (route, nearby)
           }.toMap
@@ -143,7 +156,7 @@ object ReqRespMapping extends BeamHelper {
           reqReqMappingSizeFreq,
           reqRespMappingSizeFreq,
           respReqMappingSizeFreq,
-          reqRespMappingSizeFreq
+          respRespMappingSizeFreq
         )
 
         val keySet: Set[Int] = rrmsfs.map(_.keySet).reduce(_ ++ _)
