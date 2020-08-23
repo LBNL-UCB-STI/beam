@@ -172,18 +172,11 @@ class SupplementaryTripGenerator(
     chosenAlternativeOption match {
       case Some(outcome) =>
         val chosenAlternative = outcome.alternativeType
-        val newActivityLocation = beamServices.geo.wgs2Utm(
-          beamServices.geo.snapToR5Edge(
-            beamServices.beamScenario.transportNetwork.streetLayer,
-            beamServices.geo.utm2Wgs(TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)),
-            maxRadius = 1E5D,
-            StreetMode.WALK
-          )
-        )
+
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            newActivityLocation
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)

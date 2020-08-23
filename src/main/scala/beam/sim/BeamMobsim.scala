@@ -351,14 +351,7 @@ class BeamMobsimIteration(
     val pmProps = managerName match {
       case "DEFAULT" =>
         ZonalParkingManager
-          .props(
-            beamScenario.beamConfig,
-            beamScenario.tazTreeMap,
-            Some(beamScenario.transportNetwork),
-            geo,
-            beamRouter,
-            envelopeInUTM
-          )
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
           .withDispatcher("zonal-parking-manager-pinned-dispatcher")
       case "PARALLEL" =>
         ParallelParkingManager
