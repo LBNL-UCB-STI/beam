@@ -214,6 +214,7 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+          bind(classOf[beam.router.r5.BikeLanesData]).to(classOf[beam.router.r5.BikeLanesDataImpl]).asEagerSingleton()
           bind(classOf[BikeLanesAdjustment]).in(Scopes.SINGLETON)
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()

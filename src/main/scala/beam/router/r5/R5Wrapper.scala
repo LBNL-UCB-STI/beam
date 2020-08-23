@@ -59,7 +59,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  private val bikeLanesAdjustment = new BikeLanesAdjustment(beamConfig)
+  private val bikeLanesAdjustment = new BikeLanesAdjustment(new BikeLanesDataImpl(beamConfig))
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,

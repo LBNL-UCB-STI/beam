@@ -1,6 +1,7 @@
 package beam.router.r5
 
 import java.io.File
+import javax.inject.Inject
 
 import scala.util.{Failure, Success, Try}
 
@@ -13,11 +14,20 @@ import beam.utils.FileUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.jheaps.annotations.VisibleForTesting
 
-class BikeLanesAdjustment(scaleFactorFromConfig: Double, bikeLanesLinkIds: Set[Int]) {
+trait BikeLanesData{
+  val scaleFactorFromConfig: Double
+  val bikeLanesLinkIds: Set[Int]
+}
 
-  def this(beamConfig: BeamConfig) {
-    this(beamConfig.beam.routing.r5.bikeLaneScaleFactor, BikeLanesAdjustment.loadBikeLaneLinkIds(beamConfig))
-  }
+class BikeLanesDataImpl @Inject()(beamConfig: BeamConfig) extends BikeLanesData {
+  val scaleFactorFromConfig = beamConfig.beam.routing.r5.bikeLaneScaleFactor
+  val bikeLanesLinkIds = BikeLanesAdjustment.loadBikeLaneLinkIds(beamConfig)
+}
+
+
+class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
+  private val scaleFactorFromConfig = bikeLanesData.scaleFactorFromConfig
+  private val bikeLanesLinkIds = bikeLanesData.bikeLanesLinkIds
 
   def scaleFactor(beamMode: BeamMode, isScaleFactorEnabled: Boolean = true): Double = {
     if (beamMode == BIKE && isScaleFactorEnabled) {
