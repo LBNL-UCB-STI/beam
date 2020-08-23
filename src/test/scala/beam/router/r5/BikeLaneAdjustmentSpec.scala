@@ -23,7 +23,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData{
+    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
       val scaleFactorFromConfig = scaleFactor
       val bikeLanesLinkIds = linkIds
     })
@@ -44,7 +44,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val randomMode = Random.shuffle(BeamMode.allModes).head
     val randomModeNotBike = Random.shuffle(notBikeMode).head
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData{
+    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
       val scaleFactorFromConfig = scaleFactor
       val bikeLanesLinkIds = linkIds
     })
@@ -66,7 +66,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val bikeVehicleType = mockBikeVehicleType
     val nonBikeVehicleType = mockNonBikeVehicleType
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData{
+    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
       val scaleFactorFromConfig = scaleFactor
       val bikeLanesLinkIds = linkIds
     })
