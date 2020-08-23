@@ -35,13 +35,13 @@ object NewYorkRouteDebugging {
       .forall(x => new String(x.getBytes, StandardCharsets.UTF_8).isEmpty)
     record.get("itineraries").asInstanceOf[Int] == 1 && record
       .get("tripClassifier")
-      .toString == "walk" && isWithinTransitTime && isEmptyLinkIds
+      .toString == "walk" && isWithinTransitTime //&& isEmptyLinkIds
   }
 
   def main(args: Array[String]): Unit = {
     val onlyWalkResponseRecords = {
       val (it, toClose) = ParquetReader.read(
-        "C:/repos/beam/output/newyork/NYC-20k__2020-08-11_23-10-55_djq/ITERS/it.0/0.routingResponse.parquet"
+        "D:/Work/beam/NewYork/Runs/new-york-1k-DEBUG-with-four-branches-without-part-of-commit-plus-develop-plus-nyc-taz-parking__2020-08-22_14-26-56_etj/0.routingResponse.parquet"
       )
       try {
         it.filter(walkWithOneItinerary).toArray
@@ -55,7 +55,7 @@ object NewYorkRouteDebugging {
     }.toSet
     val requestRecords = {
       val (it, toClose) = ParquetReader.read(
-        "C:/repos/beam/output/newyork/NYC-20k__2020-08-11_23-10-55_djq/ITERS/it.0/0.routingRequest.parquet"
+        "D:/Work/beam/NewYork/Runs/new-york-1k-DEBUG-with-four-branches-without-part-of-commit-plus-develop-plus-nyc-taz-parking__2020-08-22_14-26-56_etj/0.routingRequest.parquet"
       )
       try {
         it.filter(
@@ -86,7 +86,8 @@ object NewYorkRouteDebugging {
     val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
 
     var totalWalkTransitsByPointToPointQuery: Int = 0
-    List.fill(1000)(requests.head).foreach { req =>
+//    List.fill(1000)(requests.head).foreach { req =>
+    requests.foreach { req =>
       val resp = r5Wrapper.calcRoute(req)
       val startWgs = geoUtils.utm2Wgs(req.originUTM)
       val endWgs = geoUtils.utm2Wgs(req.destinationUTM)
