@@ -82,12 +82,12 @@ object NewYorkRouteDebugging {
     }
     println(s"requests: ${requests.length}")
 
-    val runArgs = Array("--config", "test/input/newyork/new-york-PROD-baseline.conf")
+    val runArgs = args
     val (_, cfg) = prepareConfig(runArgs, isConfigArgRequired = true)
 
     val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+    println(s"baseDate: ${workerParams.dates.localBaseDate}")
     val r5Wrapper: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
-
     val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
 
     var totalWalkTransitsByPointToPointQuery: Int = 0
