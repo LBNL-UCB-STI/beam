@@ -14,16 +14,6 @@ import beam.utils.FileUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.jheaps.annotations.VisibleForTesting
 
-trait BikeLanesData {
-  val scaleFactorFromConfig: Double
-  val bikeLanesLinkIds: Set[Int]
-}
-
-class BikeLanesDataImpl @Inject()(beamConfig: BeamConfig) extends BikeLanesData {
-  val scaleFactorFromConfig = beamConfig.beam.routing.r5.bikeLaneScaleFactor
-  val bikeLanesLinkIds = BikeLanesAdjustment.loadBikeLaneLinkIds(beamConfig)
-}
-
 class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
   private val scaleFactorFromConfig = bikeLanesData.scaleFactorFromConfig
   private val bikeLanesLinkIds = bikeLanesData.bikeLanesLinkIds
@@ -56,6 +46,10 @@ class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
 }
 
 object BikeLanesAdjustment extends StrictLogging {
+
+  def apply(config: BeamConfig): BikeLanesAdjustment = {
+    new BikeLanesAdjustment(BikeLanesData(beamConfig = config))
+  }
 
   @VisibleForTesting
   private[r5] def loadBikeLaneLinkIds(beamConfig: BeamConfig): Set[Int] = {

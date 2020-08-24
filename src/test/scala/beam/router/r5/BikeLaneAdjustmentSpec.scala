@@ -23,10 +23,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
-      val scaleFactorFromConfig = scaleFactor
-      val bikeLanesLinkIds = linkIds
-    })
+    val adjustment = new BikeLanesAdjustment(BikeLanesData(scaleFactor, linkIds))
 
     val randomValidLinkId = Random.shuffle(linkIds).head
     val randomInvalidLinkId = linkIds.max + 1
@@ -44,10 +41,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val randomMode = Random.shuffle(BeamMode.allModes).head
     val randomModeNotBike = Random.shuffle(notBikeMode).head
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
-      val scaleFactorFromConfig = scaleFactor
-      val bikeLanesLinkIds = linkIds
-    })
+    val adjustment = new BikeLanesAdjustment(BikeLanesData(scaleFactor, linkIds))
 
     assertResult(scaleFactor)(adjustment.scaleFactor(beamMode = BeamMode.BIKE))
     assertResult(identityScalaFactor)(
@@ -66,10 +60,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     val bikeVehicleType = mockBikeVehicleType
     val nonBikeVehicleType = mockNonBikeVehicleType
 
-    val adjustment = new BikeLanesAdjustment(new BikeLanesData {
-      val scaleFactorFromConfig = scaleFactor
-      val bikeLanesLinkIds = linkIds
-    })
+    val adjustment = new BikeLanesAdjustment(BikeLanesData(scaleFactor, linkIds))
 
     assertResult(scaleFactor)(adjustment.scaleFactor(bikeVehicleType, existingLinkId))
     assertResult(identityScalaFactor)(adjustment.scaleFactor(bikeVehicleType, nonExistingLinkId))
@@ -97,7 +88,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
     FixtureUtils.usingTemporaryTextFileWithContent(fileContent) { filePath =>
       val config = BeamConfig(minimumBikeLaneConfig(filePath, predefinedScaleFactor))
 
-      val bikeLanesAdjustment = new BikeLanesAdjustment(new BikeLanesDataImpl(config))
+      val bikeLanesAdjustment = BikeLanesAdjustment(config)
 
       assertResult(predefinedScaleFactor)(bikeLanesAdjustment.scaleFactor(randomValidLinkId))
       assertResult(identifyScaleFactor)(bikeLanesAdjustment.scaleFactor(invalidLinkId))
