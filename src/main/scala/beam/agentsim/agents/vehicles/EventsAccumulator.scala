@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -19,7 +19,7 @@ object EventsAccumulator {
     Props(new EventsAccumulator(scheduler, beamServices))
 }
 
-class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends Actor with LazyLogging {
+class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends Actor with ActorLogging {
   import EventsAccumulator._
   import beamServices._
 
@@ -32,7 +32,7 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
     case t @ TriggerWithId(BeamFederateTrigger(tick), _) =>
       val nextTick = beamFederate.syncAndMoveToNextTimeStep(tick)
       chargingEventsBuffer.foreach(x => {
-        logger.error(s"publishing $x to beam fed at $tick")
+        log.error(s"publishing $x to beam fed at $tick")
         beamFederate.publish(x, tick)
       })
       clearStates()
