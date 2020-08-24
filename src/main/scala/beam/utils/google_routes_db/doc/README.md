@@ -1,5 +1,5 @@
 # TravelTimeGoogleStatistic: Build database of the computed routes
-Issue [#2872](https://github.com/LBNL-UCB-STI/beam/issues/2872)
+Issue [#2872](https://github.com/LBNL-UCB-STI/beam/issues/2872)  
 PR: [#2904](https://github.com/LBNL-UCB-STI/beam/pull/2904)
 
 ## GoogleRoutesDB
@@ -8,8 +8,8 @@ PR: [#2904](https://github.com/LBNL-UCB-STI/beam/pull/2904)
 set up with [PostGIS extension](https://postgis.net/).
 
 A database must be prepared beforehand:
-	1. Create a database: `CREATE DATABASE google_routes_db WITH ENCODING 'UTF8';`
-	2. Create PostGIS extension: `CREATE EXTENSION postgis;` 
+1. Create a database: `CREATE DATABASE google_routes_db WITH ENCODING 'UTF8';`
+2. Create PostGIS extension: `CREATE EXTENSION postgis;` 
 
 All necessary tables are created automatically.
 
