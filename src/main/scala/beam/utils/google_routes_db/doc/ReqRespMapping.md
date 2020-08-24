@@ -1,8 +1,8 @@
 # Mapping between maps.googleapi.responses.json and  googleTravelTimeEstimation.csv
 For every computed route in _maps.googleapi.responses.json_ (`responses`) there is an entry in _googleTravelTimeEstimation.csv_ (`requests`) that represents original routing request.  Our goal is to reconstruct one-to-one relationship.
 
-[GoogleRouteRequest](https://github.com/LBNL-UCB-STI/beam/blob/aaltergot/google_routes_db/src/main/scala/beam/utils/google_routes_db/request/package.scala#L12) - structure of `request` 
-[GoogleRoutes](https://github.com/LBNL-UCB-STI/beam/blob/aaltergot/google_routes_db/src/main/scala/beam/utils/google_routes_db/response/package.scala#L9) - structure of `response`
+[GoogleRouteRequest](../request/package.scala#L12) - structure of `request`  
+[GoogleRoutes](../response/package.scala#L9) - structure of `response`
 
 We compare Origin-Destination pairs to find the match between `request` and `response`. There are no more common properties to employ except coordinates. The cartesian product `requests x responses` is filtered keeping pairs with close coordinates. The proximity is calculated using "distance in meters" metric and a threshold - some `epsilon`. 
 
