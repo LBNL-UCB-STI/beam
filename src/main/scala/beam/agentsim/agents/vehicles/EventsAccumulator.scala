@@ -31,7 +31,7 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
   override def receive: Receive = {
     case t @ TriggerWithId(BeamFederateTrigger(tick), _) =>
       val nextTick = beamFederate.syncAndMoveToNextTimeStep(tick)
-      chargingEventsBuffer.foreach(x=>{
+      chargingEventsBuffer.foreach(x => {
         logger.error(s"publishing $x to beam fed at $tick")
         beamFederate.publish(x, tick)
       })
