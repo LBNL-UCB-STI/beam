@@ -8,6 +8,7 @@ import beam.cosim.helics.BeamFederate
 import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.sim.BeamServices
 import beam.utils.DateUtils
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable.ListBuffer
 
@@ -18,7 +19,7 @@ object EventsAccumulator {
     Props(new EventsAccumulator(scheduler, beamServices))
 }
 
-class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends Actor {
+class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends Actor with LazyLogging {
   import EventsAccumulator._
   import beamServices._
 
@@ -30,7 +31,10 @@ class EventsAccumulator(scheduler: ActorRef, beamServices: BeamServices) extends
   override def receive: Receive = {
     case t @ TriggerWithId(BeamFederateTrigger(tick), _) =>
       val nextTick = beamFederate.syncAndMoveToNextTimeStep(tick)
-      chargingEventsBuffer.foreach(beamFederate.publish(_, tick))
+      chargingEventsBuffer.foreach(x=>{
+        logger.error(s"publishing $x to beam fed at $tick")
+        beamFederate.publish(x, tick)
+      })
       clearStates()
       sender ! CompletionNotice(
         t.triggerId,
