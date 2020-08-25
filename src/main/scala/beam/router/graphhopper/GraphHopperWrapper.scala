@@ -23,17 +23,19 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 
 class GraphHopperWrapper(
-  carRouter: String,
-  graphDir: String,
-  geo: GeoUtils,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  fuelTypePrices: FuelTypePrices,
-  wayId2TravelTime: Map[Long, Double],
-  id2Link: Map[Int, (Coord, Coord)]
-) extends Router {
+                          carRouter: String,
+                          graphDir: String,
+                          geo: GeoUtils,
+                          vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+                          fuelTypePrices: FuelTypePrices,
+                          wayId2TravelTime: Map[Long, Double],
+                          id2Link: Map[Int, (Coord, Coord)]
+                        ) extends Router {
+
   private val graphHopper = {
     val profiles = GraphHopperWrapper.getProfiles(carRouter)
     val graphHopper = new BeamGraphHopper(wayId2TravelTime)
+    graphHopper.setPathDetailsBuilderFactory(new BeamPathDetailsBuilderFactory())
     graphHopper.setGraphHopperLocation(graphDir)
     graphHopper.setProfiles(profiles.asJava)
     graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
@@ -73,19 +75,32 @@ class GraphHopperWrapper(
               .map(pd => pd.getValue.asInstanceOf[Int])
               .toIndexedSeq
 
-          val allLinkTravelTimes = responsePath.getPathDetails
-            .asScala(Parameters.Details.TIME)
+          val allLinkTravelBeamTimes = responsePath.getPathDetails
+            .asScala(BeamTimeDetails.BEAM_TIME)
             .asScala
             .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
             .toIndexedSeq
 
+          val allLinkTravelBeamTimesReverse = responsePath.getPathDetails
+            .asScala(BeamTimeReverseDetails.BEAM_REVERSE_TIME)
+            .asScala
+            .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
+            .toIndexedSeq
+
+          val allLinkTravelTimes =
+            if (Math.abs(totalTravelTime - allLinkTravelBeamTimes.sum.toInt) <= 2) {
+            allLinkTravelBeamTimes
+          } else {
+            allLinkTravelBeamTimesReverse
+          }
+
           val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-          // TODO ask why GH is producing negative travel time
-//          .map { x =>
-//            require(x > 0, "GOING BACK IN TIME")
-//            x
-//          }
-          //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+            // TODO ask why GH is producing negative travel time
+            //          .map { x =>
+            //            require(x > 0, "GOING BACK IN TIME")
+            //            x
+            //          }
+            //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
             .take(ghLinkIds.size)
 
           if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -113,38 +128,43 @@ class GraphHopperWrapper(
 
             if (ghLinkIds.size > 1) {
               linkIds = linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
-                                    else ghLinkIds.last * 2 + 1)
+              else ghLinkIds.last * 2 + 1)
             }
 
             val partialFirstLinkTravelTime = linkTravelTimes.head
             val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
-            val beamLeg = BeamLeg(
-              routingRequest.departureTime,
-              Modes.BeamMode.CAR,
-              beamTotalTravelTime,
-              BeamPath(
-                linkIds,
-                linkTravelTimes,
-                None,
-                SpaceTime(origin, routingRequest.departureTime),
-                SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
-                responsePath.getDistance
+
+            try {
+              val beamLeg = BeamLeg(
+                routingRequest.departureTime,
+                Modes.BeamMode.CAR,
+                beamTotalTravelTime,
+                BeamPath(
+                  linkIds,
+                  linkTravelTimes,
+                  None,
+                  SpaceTime(origin, routingRequest.departureTime),
+                  SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),
+                  responsePath.getDistance
+                )
               )
-            )
-            Some(
-              EmbodiedBeamTrip(
-                IndexedSeq(
-                  EmbodiedBeamLeg(
-                    beamLeg,
-                    streetVehicle.id,
-                    streetVehicle.vehicleTypeId,
-                    asDriver = true,
-                    DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
-                    unbecomeDriverOnCompletion = true
+              Some(
+                EmbodiedBeamTrip(
+                  IndexedSeq(
+                    EmbodiedBeamLeg(
+                      beamLeg,
+                      streetVehicle.id,
+                      streetVehicle.vehicleTypeId,
+                      asDriver = true,
+                      DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
+                      unbecomeDriverOnCompletion = true
+                    )
                   )
                 )
               )
-            )
+            } catch {
+              case _: Exception => None
+            }
           }
         })
         .filter(_.isDefined)
@@ -158,12 +178,12 @@ class GraphHopperWrapper(
 object GraphHopperWrapper {
 
   def createGraphDirectoryFromR5(
-    carRouter: String,
-    transportNetwork: TransportNetwork,
-    osm: OSM,
-    directory: String,
-    wayId2TravelTime: Map[Long, Double]
-  ): Unit = {
+                                  carRouter: String,
+                                  transportNetwork: TransportNetwork,
+                                  osm: OSM,
+                                  directory: String,
+                                  wayId2TravelTime: Map[Long, Double]
+                                ): Unit = {
     val carFlagEncoderParams = new PMap
     carFlagEncoderParams.putObject("turn_costs", false)
     val carFlagEncoder = new CarFlagEncoder(carFlagEncoderParams)
