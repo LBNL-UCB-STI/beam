@@ -137,7 +137,7 @@ class PumaLevelScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: ScenarioResult = {
+  override def generate(pathToOutput: String): ScenarioResult = {
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -226,7 +226,8 @@ class PumaLevelScenarioGenerator(
                             rank = 0,
                             age = person.age,
                             isFemale = person.gender == Gender.Female,
-                            valueOfTime = valueOfTime
+                            valueOfTime = valueOfTime,
+                            industry = person.industry
                           )
                           val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
@@ -304,7 +305,7 @@ class PumaLevelScenarioGenerator(
         blockGroupGeoId -> res
     }
 
-    ScenarioResult(finalResult.values.flatten, Map.empty)
+    ScenarioResult(0, 0, 0, Map.empty)
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
@@ -472,33 +473,33 @@ object PumaLevelScenarioGenerator {
         42
       )
 
-    val scenarioResult = gen.generate
-    val generatedData = scenarioResult.householdWithTheirPeople
-    println(s"Number of households: ${generatedData.size}")
-    println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
-
-    val households = generatedData.map(_._1).toVector
-    val householdFilePath = s"$pathToOutput/households.csv"
-    CsvHouseholdInfoWriter.write(householdFilePath, households)
-    println(s"Wrote households information to $householdFilePath")
-    val readHouseholds = CsvHouseholdInfoReader.read(householdFilePath)
-    val areHouseholdsEqual = readHouseholds.toVector == households
-    println(s"areHouseholdsEqual: $areHouseholdsEqual")
-
-    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
-    val personsFilePath = s"$pathToOutput/persons.csv"
-    CsvPersonInfoWriter.write(personsFilePath, persons)
-    println(s"Wrote persons information to $personsFilePath")
-    val readPersons = CsvPersonInfoReader.read(personsFilePath)
-    val arePersonsEqual = readPersons.toVector == persons
-    println(s"arePersonsEqual: $arePersonsEqual")
-
-    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    val plansFilePath = s"$pathToOutput/plans.csv"
-    CsvPlanElementWriter.write(plansFilePath, planElements)
-    println(s"Wrote plans information to $plansFilePath")
-    val readPlanElements = CsvPlanElementReader.read(plansFilePath)
-    val arePlanElementsEqual = readPlanElements.toVector == planElements
-    println(s"arePlanElementsEqual: $arePlanElementsEqual")
+    val scenarioResult = gen.generate(pathToOutput)
+//    val generatedData = scenarioResult.householdWithTheirPeople
+//    println(s"Number of households: ${generatedData.size}")
+//    println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+//
+//    val households = generatedData.map(_._1).toVector
+//    val householdFilePath = s"$pathToOutput/households.csv"
+//    CsvHouseholdInfoWriter.write(householdFilePath, households)
+//    println(s"Wrote households information to $householdFilePath")
+//    val readHouseholds = CsvHouseholdInfoReader.read(householdFilePath)
+//    val areHouseholdsEqual = readHouseholds.toVector == households
+//    println(s"areHouseholdsEqual: $areHouseholdsEqual")
+//
+//    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
+//    val personsFilePath = s"$pathToOutput/persons.csv"
+//    CsvPersonInfoWriter.write(personsFilePath, persons)
+//    println(s"Wrote persons information to $personsFilePath")
+//    val readPersons = CsvPersonInfoReader.read(personsFilePath)
+//    val arePersonsEqual = readPersons.toVector == persons
+//    println(s"arePersonsEqual: $arePersonsEqual")
+//
+//    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
+//    val plansFilePath = s"$pathToOutput/plans.csv"
+//    CsvPlanElementWriter.write(plansFilePath, planElements)
+//    println(s"Wrote plans information to $plansFilePath")
+//    val readPlanElements = CsvPlanElementReader.read(plansFilePath)
+//    val arePlanElementsEqual = readPlanElements.toVector == planElements
+//    println(s"arePlanElementsEqual: $arePlanElementsEqual")
   }
 }

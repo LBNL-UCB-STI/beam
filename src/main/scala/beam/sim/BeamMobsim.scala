@@ -14,9 +14,9 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSy
 import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
+import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
 import beam.router.Modes.BeamMode
-import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
@@ -139,6 +139,7 @@ class BeamMobsim @Inject()(
       ),
       "BeamMobsim.iteration"
     )
+
     Await.result(iteration ? "Run!", timeout.duration)
 
     logger.info("Agentsim finished.")

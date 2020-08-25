@@ -58,7 +58,7 @@ object FlowStatsForParking {
     val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
 
     def mapper(mathTransform: MathTransform, feature: SimpleFeature) = {
-      val (tazGeoId, geom) = defaultTazMapper(mathTransform, feature)
+      val (tazGeoId, geom, _) = defaultTazMapper(mathTransform, feature)
       val landArea = feature.getAttribute("ALAND10").asInstanceOf[Long]
       (tazGeoId, (geom, landArea))
     }
