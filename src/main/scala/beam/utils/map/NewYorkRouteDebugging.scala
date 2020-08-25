@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode.WALK_TRANSIT
-import beam.router.Modes.{BeamMode, toR5StreetMode}
+import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.R5Requester.prepareConfig
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.common.GeoUtils
@@ -44,43 +44,7 @@ object NewYorkRouteDebugging {
   }
 
   def main(args: Array[String]): Unit = {
-    val onlyWalkResponseRecords = {
-      val (it, toClose) = ParquetReader.read(
-        "d:/Work/beam/NewYork/Runs/new-york-200k-baseline__2020-08-22_19-16-08_bhu/0.routingResponse.parquet"
-      )
-      try {
-        it.filter(walkWithOneItinerary).toArray
-      } finally {
-        toClose.close()
-      }
-    }
-
-    val requestIds = onlyWalkResponseRecords.map { resp =>
-      resp.get("requestId").asInstanceOf[Int]
-    }.toSet
-    val requestRecords = {
-      val (it, toClose) = ParquetReader.read(
-        "d:/Work/beam/NewYork/Runs/new-york-200k-baseline__2020-08-22_19-16-08_bhu/0.routingRequest.parquet"
-      )
-      try {
-        it.filter(
-            req =>
-              req.get("withTransit").asInstanceOf[Boolean] && requestIds
-                .contains(req.get("requestId").asInstanceOf[Int])
-          )
-          .toArray
-      } finally {
-        toClose.close()
-      }
-    }
-    println(s"requestRecords: ${requestRecords.length}")
-    println(s"onlyWalkResponseRecords: ${onlyWalkResponseRecords.length}")
-
-    val requests = requestRecords.map { req =>
-      val reqJsonStr = new String(req.get("requestAsJson").asInstanceOf[Utf8].getBytes, StandardCharsets.UTF_8)
-      io.circe.parser.parse(reqJsonStr).right.get.as[RoutingRequest].right.get
-    }
-    println(s"requests: ${requests.length}")
+    val requests = getRequests
 
     val runArgs = args
     val (_, cfg) = prepareConfig(runArgs, isConfigArgRequired = true)
@@ -92,26 +56,27 @@ object NewYorkRouteDebugging {
 
     var totalWalkTransitsByPointToPointQuery: Int = 0
 
-
 //    showDatesAndServices(workerParams)
 //    writeTransitServiceInfo(workerParams)
 
     val withWalkTransit = new AtomicInteger(0)
     val nDone = new AtomicInteger(0)
     val s = System.currentTimeMillis()
-    requests.par.foreach { req =>
+    requests.foreach { req =>
       val resp = r5Wrapper.calcRoute(req)
       if (resp.itineraries.exists(x => x.tripClassifier == WALK_TRANSIT)) {
         withWalkTransit.incrementAndGet()
       }
       val idx = nDone.getAndIncrement()
-      if (idx % 1000 == 0){
+      if (idx % 1000 == 0) {
         val diffS = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - s)
         val avg = idx.toDouble / diffS
-        println(s"Done $idx out of ${requests.length}. Total time: ${diffS} seconds, AVG per second: ${avg}, withWalkTransit: ${withWalkTransit}")
+        println(
+          s"Done $idx out of ${requests.length}. Total time: ${diffS} seconds, AVG per second: ${avg}, withWalkTransit: ${withWalkTransit}"
+        )
       }
 
-      //      val startWgs = geoUtils.utm2Wgs(req.originUTM)
+    //      val startWgs = geoUtils.utm2Wgs(req.originUTM)
 //      val endWgs = geoUtils.utm2Wgs(req.destinationUTM)
 //
 //      val streetRouter =
@@ -156,25 +121,118 @@ object NewYorkRouteDebugging {
 
   }
 
+  def getRequestsFakeWalkers: Array[RoutingRequest] = {
+    val onlyWalkResponseRecords = {
+      val (it, toClose) = ParquetReader.read(
+        "D:/Work/beam/NewYork/Runs/new-york-200k-baseline-test-transit-feb__2020-08-23_18-59-19_gev/0.routingResponse.parquet"
+      )
+      try {
+        it.filter(walkWithOneItinerary).toArray
+      } finally {
+        toClose.close()
+      }
+    }
+
+    val requestIds = onlyWalkResponseRecords.map { resp =>
+      resp.get("requestId").asInstanceOf[Int]
+    }.toSet
+    val requestRecords = {
+      val (it, toClose) = ParquetReader.read(
+        "d:/Work/beam/NewYork/Runs/new-york-200k-fixed-walk-high-transit-capacity__2020-08-09_13-23-50_ayk/0.routingRequest.parquet"
+      )
+      try {
+        it.filter(
+            req =>
+              req.get("withTransit").asInstanceOf[Boolean] && requestIds
+                .contains(req.get("requestId").asInstanceOf[Int])
+          )
+          .toArray
+      } finally {
+        toClose.close()
+      }
+    }
+    println(s"requestRecords: ${requestRecords.length}")
+    println(s"onlyWalkResponseRecords: ${onlyWalkResponseRecords.length}")
+
+    val requests = requestRecords.map { req =>
+      val reqJsonStr = new String(req.get("requestAsJson").asInstanceOf[Utf8].getBytes, StandardCharsets.UTF_8)
+      io.circe.parser.parse(reqJsonStr).right.get.as[RoutingRequest].right.get
+    }
+    println(s"requests: ${requests.length}")
+    requests
+  }
+
+  def getRequests: Array[RoutingRequest] = {
+    val requestRecords = {
+      val (it, toClose) = ParquetReader.read(
+        "d:/Work/beam/NewYork/Runs/new-york-200k-fixed-walk-high-transit-capacity__2020-08-09_13-23-50_ayk/0.routingRequest.parquet"
+      )
+      try {
+        it.filter(
+            req => req.get("requestId").asInstanceOf[Int] == 2192429
+          )
+          .toArray
+      } finally {
+        toClose.close()
+      }
+    }
+    println(s"requestRecords: ${requestRecords.length}")
+
+    val requests = requestRecords.map { req =>
+      val reqJsonStr = new String(req.get("requestAsJson").asInstanceOf[Utf8].getBytes, StandardCharsets.UTF_8)
+      io.circe.parser.parse(reqJsonStr).right.get.as[RoutingRequest].right.get
+    }
+    println(s"requests: ${requests.length}")
+    requests
+  }
+
   private def writeTransitServiceInfo(workerParams: R5Parameters): Unit = {
-    val headers = Vector("service_id", "is_working", "feed_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date")
+    val headers = Vector(
+      "service_id",
+      "is_working",
+      "feed_id",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+      "start_date",
+      "end_date"
+    )
     val csvWriter = new CsvWriter("services.csv", headers)
 
     def escape(str: String): String = "\"" + str + "\""
 
-    val activeServices = workerParams.transportNetwork.transitLayer.getActiveServicesForDate(workerParams.dates.localBaseDate)
-    workerParams.transportNetwork.transitLayer.services.asScala.zipWithIndex.foreach { case (svc, idx) =>
-      val isWorking = activeServices.get(idx).toString
-      workerParams.transportNetwork.transitLayer.services
-      Option(svc.calendar) match {
-        case Some(calendar) =>
-          csvWriter.write(Vector(escape(svc.service_id), isWorking, escape(calendar.feed_id), calendar.monday.toString, calendar.tuesday.toString,
-            calendar.wednesday.toString, calendar.thursday.toString, calendar.friday.toString, calendar.saturday.toString, calendar.sunday.toString,
-            calendar.start_date.toString, calendar.end_date.toString): _*)
-        case None =>
-          val row = Vector(escape(svc.service_id), isWorking) ++ Vector.fill(headers.size - 2)("")
-          csvWriter.write(row: _*)
-      }
+    val activeServices =
+      workerParams.transportNetwork.transitLayer.getActiveServicesForDate(workerParams.dates.localBaseDate)
+    workerParams.transportNetwork.transitLayer.services.asScala.zipWithIndex.foreach {
+      case (svc, idx) =>
+        val isWorking = activeServices.get(idx).toString
+        workerParams.transportNetwork.transitLayer.services
+        Option(svc.calendar) match {
+          case Some(calendar) =>
+            csvWriter.write(
+              Vector(
+                escape(svc.service_id),
+                isWorking,
+                escape(calendar.feed_id),
+                calendar.monday.toString,
+                calendar.tuesday.toString,
+                calendar.wednesday.toString,
+                calendar.thursday.toString,
+                calendar.friday.toString,
+                calendar.saturday.toString,
+                calendar.sunday.toString,
+                calendar.start_date.toString,
+                calendar.end_date.toString
+              ): _*
+            )
+          case None =>
+            val row = Vector(escape(svc.service_id), isWorking) ++ Vector.fill(headers.size - 2)("")
+            csvWriter.write(row: _*)
+        }
     }
     csvWriter.close()
   }
@@ -195,13 +253,17 @@ object NewYorkRouteDebugging {
       }
     }
 
-    val dateToActiveServices = it.map { date =>
-      val activeServices = workerParams.transportNetwork.transitLayer.getActiveServicesForDate(date)
-      val nActiveServices = (0 until nServices).count(idx => activeServices.get(idx))
-      (date, nActiveServices)
-    }.toList.sortBy { case (_, n) => n }(Ordering[Int].reverse)
-    dateToActiveServices.foreach { case (d, n) =>
-      println(s"$d => $n")
+    val dateToActiveServices = it
+      .map { date =>
+        val activeServices = workerParams.transportNetwork.transitLayer.getActiveServicesForDate(date)
+        val nActiveServices = (0 until nServices).count(idx => activeServices.get(idx))
+        (date, nActiveServices)
+      }
+      .toList
+      .sortBy { case (_, n) => n }(Ordering[Int].reverse)
+    dateToActiveServices.foreach {
+      case (d, n) =>
+        println(s"$d => $n")
     }
   }
 
