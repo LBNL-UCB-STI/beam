@@ -6,7 +6,7 @@ import com.graphhopper.util.EdgeIteratorState
 import com.typesafe.scalalogging.LazyLogging
 
 class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider, wayId2TravelTime: Map[Long, Double])
-  extends FastestWeighting(flagEncoder, turnCostProvider)
+    extends FastestWeighting(flagEncoder, turnCostProvider)
     with LazyLogging {
 
   override def getMinWeight(distance: Double): Double = super.getMinWeight(distance)
@@ -14,14 +14,14 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
   override def calcEdgeMillis(edgeState: EdgeIteratorState, reverse: Boolean): Long = {
     calcEdgeTime(edgeState, getReverseFlag(edgeState, reverse)) match {
       case Some(value) => (1000 * value).toLong
-      case None => super.calcEdgeMillis(edgeState, reverse)
+      case None        => super.calcEdgeMillis(edgeState, reverse)
     }
   }
 
   def calcEdgeMillisForDetails(edgeState: EdgeIteratorState, reverse: Boolean): Long = {
     calcEdgeTime(edgeState, getReverseFlag(edgeState, reverse)) match {
       case Some(value) => (1000 * value).toLong
-      case None => super.calcEdgeMillis(edgeState, false)
+      case None        => super.calcEdgeMillis(edgeState, false)
     }
   }
 
@@ -34,7 +34,7 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
     wayId2TravelTime.get(edgeId)
   }
 
-  private def getReverseFlag(edgeState: EdgeIteratorState, reverse: Boolean) =  {
+  private def getReverseFlag(edgeState: EdgeIteratorState, reverse: Boolean) = {
     val reverseFlag = edgeState.get(EdgeIteratorState.REVERSE_STATE)
     if (reverse) {
       !reverseFlag

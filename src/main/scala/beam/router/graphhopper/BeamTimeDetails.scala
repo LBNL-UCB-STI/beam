@@ -15,7 +15,7 @@ class BeamTimeDetails(val weighting: Weighting) extends AbstractPathDetailsBuild
       time = try {
         weighting match {
           case bWeighting: BeamWeighting => bWeighting.calcEdgeMillisForDetails(edge, reverse = false)
-          case _ => getDefaultTime(edge)
+          case _                         => getDefaultTime(edge)
         }
       } catch {
         case _: Exception => getDefaultTime(edge)
@@ -28,7 +28,8 @@ class BeamTimeDetails(val weighting: Weighting) extends AbstractPathDetailsBuild
     }
   }
 
-  private def getDefaultTime(edge: EdgeIteratorState) = GHUtility.calcMillisWithTurnMillis(weighting, edge, false, prevEdgeId)
+  private def getDefaultTime(edge: EdgeIteratorState) =
+    GHUtility.calcMillisWithTurnMillis(weighting, edge, false, prevEdgeId)
 
   override def getCurrentValue: Object = time.asInstanceOf[Object]
 }

@@ -172,7 +172,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
                     Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
                   else 0
                 Some(
-                  graphHoppers(idx).calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR)))
+                  graphHoppers(idx).calcRoute(
+                    request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))
+                  )
                 )
               }
             } else None

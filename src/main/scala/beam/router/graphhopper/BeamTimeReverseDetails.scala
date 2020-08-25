@@ -5,7 +5,8 @@ import com.graphhopper.routing.weighting.Weighting
 import com.graphhopper.util.details.AbstractPathDetailsBuilder
 import com.graphhopper.util.{EdgeIteratorState, GHUtility}
 
-class BeamTimeReverseDetails(val weighting: Weighting) extends AbstractPathDetailsBuilder(BeamTimeReverseDetails.BEAM_REVERSE_TIME) {
+class BeamTimeReverseDetails(val weighting: Weighting)
+    extends AbstractPathDetailsBuilder(BeamTimeReverseDetails.BEAM_REVERSE_TIME) {
 
   private var prevEdgeId = -1
   // will include the turn time penalty
@@ -16,7 +17,7 @@ class BeamTimeReverseDetails(val weighting: Weighting) extends AbstractPathDetai
       time = try {
         weighting match {
           case bWeighting: BeamWeighting => bWeighting.calcEdgeMillisForDetails(edge, reverse = true)
-          case _ => getDefaultTime(edge)
+          case _                         => getDefaultTime(edge)
         }
       } catch {
         case _: Exception => getDefaultTime(edge)
@@ -29,7 +30,8 @@ class BeamTimeReverseDetails(val weighting: Weighting) extends AbstractPathDetai
     }
   }
 
-  private def getDefaultTime(edge: EdgeIteratorState) = GHUtility.calcMillisWithTurnMillis(weighting, edge, false, prevEdgeId)
+  private def getDefaultTime(edge: EdgeIteratorState) =
+    GHUtility.calcMillisWithTurnMillis(weighting, edge, false, prevEdgeId)
 
   override def getCurrentValue: Object = time.asInstanceOf[Object]
 }
