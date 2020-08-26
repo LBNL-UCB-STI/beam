@@ -35,6 +35,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.agentsim.collectEvents = true
                      |beam.agentsim.lastIteration = 0
+                     |beam.agentsim.agents.vehicles.vehicleTypesFilePath = "test/input/beamville/vehicleTypesForMoreFrequentCharges.csv"
                      |beam.cosim.helics = {
                      |  timeStep = 300
                      |  federateName = "BeamFederate"
