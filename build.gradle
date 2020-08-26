@@ -25,6 +25,7 @@ plugins {
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.0"
     id 'com.bmuschko.docker-java-application' version '6.6.1'
+    id 'org.ajoberstar.grgit' version '4.0.2'
 }
 
 apply plugin: 'java'
@@ -598,21 +599,38 @@ docker {
         username = System.getenv("DOCKER_USER")
         password = System.getenv("DOCKER_PASSWORD")
     }
-
-    javaApplication {
-        baseImage = 'beammodel/miniconda3'
-        maintainer = 'LBNL Beam Team'
-        mainClassName = 'beam.sim.RunBeam'
-    }
 }
 
-dockerCreateDockerfile  {
-    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+
+// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
+// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
+task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
+    from 'beammodel/miniconda3'
+    label(['maintainer': 'LBNL Beam Team'])
     instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
     instruction 'RUN pip3 install --upgrade setuptools'
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
-    addFile 'src/main/python/events_analysis/', 'src/main/python/events_analysis/'
-    addFile 'test/', 'test/'
+    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+    workingDir("/app")
+    copyFile("libs", "libs")
+    copyFile("resources", "resources")
+    copyFile("classes", "classes")
+    addFile 'src/main/python', 'src/main/python'
+    addFile 'entrypoint.sh', 'entrypoint.sh'
+    runCommand('chmod +x /app/entrypoint.sh')
+    entryPoint('/app/entrypoint.sh')
+}
+
+task buildImage(type: DockerBuildImage, dependsOn: createDockerfile) {
+}
+
+dockerSyncBuildContext {
+    from('src/main/python') {
+        into('src/main/python')
+    }
+    from file('docker/entrypoint.sh')
 }
 
 jmh {
