@@ -134,7 +134,11 @@ class GraphHopperWrapper(
             val partialFirstLinkTravelTime = linkTravelTimes.head
             val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
 
-            try {
+            // FIXME It's temporary hack to check run
+            if (linkTravelTimes.size > 1 && math.abs(math.round(linkTravelTimes.tail.sum).toInt -
+              (SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime).time - SpaceTime(origin, routingRequest.departureTime).time)) > 2) {
+              None
+            } else {
               val beamLeg = BeamLeg(
                 routingRequest.departureTime,
                 Modes.BeamMode.CAR,
@@ -163,8 +167,6 @@ class GraphHopperWrapper(
                   )
                 )
               )
-            } catch {
-              case _: Exception => None
             }
           }
         })
