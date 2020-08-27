@@ -21,7 +21,7 @@ import PSMapping._
  */
 class BatchUpdateGraphStage[A : PSMapping](
   private val dataSource: DataSource,
-  private val psCreator: Connection ⇒ PreparedStatement
+  private val psCreator: Connection => PreparedStatement
 ) extends GraphStageWithMaterializedValue[
             FlowShape[Seq[A], Seq[A]],
             Future[BatchUpdateGraphStage.Result]] {
@@ -48,7 +48,7 @@ class BatchUpdateGraphStage[A : PSMapping](
             val ps0 = psCreator(con0)
             (con0, ps0)
           } catch {
-            case e: Throwable ⇒
+            case e: Throwable =>
               failStage(e)
               (null, null)
           }
@@ -79,8 +79,8 @@ class BatchUpdateGraphStage[A : PSMapping](
         //
 
         private def commitAndComplete(): Unit = Try { con.commit() } match {
-          case Success(_) ⇒ completeSuccessfully()
-          case Failure(e) ⇒ failWithException(e)
+          case Success(_) => completeSuccessfully()
+          case Failure(e) => failWithException(e)
         }
 
         private def completeSuccessfully(): Unit = {
@@ -107,7 +107,7 @@ class BatchUpdateGraphStage[A : PSMapping](
           try {
             con.rollback()
           } catch {
-            case ex: Throwable ⇒
+            case ex: Throwable =>
               log.error(ex, "Rollback failure")
           }
         }
@@ -116,7 +116,7 @@ class BatchUpdateGraphStage[A : PSMapping](
           try {
             con.close()
           } catch {
-            case e: Throwable ⇒
+            case e: Throwable =>
               log.error(e, "Close failure")
           }
         }
@@ -126,7 +126,7 @@ class BatchUpdateGraphStage[A : PSMapping](
           val batchSize = batch.size
           if (batchSize > 0) {
             try {
-              batch.foreach { item ⇒
+              batch.foreach { item =>
                 item.mapPrepared(ps)
                 ps.addBatch()
               }
@@ -138,7 +138,7 @@ class BatchUpdateGraphStage[A : PSMapping](
               rowsUpdated += updatedSum
               push(out, batch)
             } catch {
-              case e: Throwable ⇒ failWithException(e)
+              case e: Throwable => failWithException(e)
             }
           } else {
             log.debug("Empty batch")

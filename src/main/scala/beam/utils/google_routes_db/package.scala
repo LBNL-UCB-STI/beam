@@ -31,7 +31,7 @@ package object google_routes_db extends LazyLogging {
       .mapAsync(1) {
 
         // HTTP sourcing (e.g. s3 bucket)
-        case GoogleapiFiles$Elm(Some(http), _) ⇒
+        case GoogleapiFiles$Elm(Some(http), _) =>
           val googleapiResponsesJsonFileUri = http.googleapiResponsesJsonFile.get
           val googleTravelTimeEstimationCsvFileUri = http.googleTravelTimeEstimationCsvFile.get
 
@@ -42,8 +42,8 @@ package object google_routes_db extends LazyLogging {
           val reqs = downloadAsString(googleTravelTimeEstimationCsvFileUri)
 
           for {
-            googleTravelTimeEstimationCsvText  ← reqs
-            googleapiResponsesJsonText ← resps
+            googleTravelTimeEstimationCsvText  <- reqs
+            googleapiResponsesJsonText <- resps
           } yield {
             GoogleapiFiles(
               googleapiResponsesJsonFileUri,
@@ -54,7 +54,7 @@ package object google_routes_db extends LazyLogging {
           }
 
         // Local files sourcing
-        case GoogleapiFiles$Elm(None, Some(local)) ⇒
+        case GoogleapiFiles$Elm(None, Some(local)) =>
           val googleapiResponsesJsonFileLoc = local.googleapiResponsesJsonFile.get
           val googleTravelTimeEstimationCsvFileLoc = local.googleTravelTimeEstimationCsvFile.get
 
@@ -70,7 +70,7 @@ package object google_routes_db extends LazyLogging {
             )
           }
 
-        case _ ⇒
+        case _ =>
           Future.failed(new IllegalArgumentException(
             "google_routes_db config is corrupted"
           ))
@@ -80,7 +80,7 @@ package object google_routes_db extends LazyLogging {
     (uri: Uri)
       (implicit AS: ActorSystem, EC: ExecutionContext): Future[String] = {
     Http().singleRequest(HttpRequest(uri = uri))
-      .flatMap { resp ⇒
+      .flatMap { resp =>
         resp.entity.httpEntity
           .withSizeLimit(134217728L)
           .dataBytes
@@ -92,15 +92,15 @@ package object google_routes_db extends LazyLogging {
   def parseBeamOutputTimestamp(path: String): Option[Instant] = {
     val p = ".*__(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)_(\\d\\d)-(\\d\\d)-(\\d\\d)_.*".r
     path match {
-      case p(y, m, d, h, mi, s) ⇒
+      case p(y, m, d, h, mi, s) =>
         Some(Instant.parse(s"$y-$m-${d}T$h:$mi:$s.000Z"))
-      case _ ⇒ None
+      case _ => None
     }
   }
 
   def getSizeFrequencies(map: Map[_, Seq[_]]): Map[Int, Int] = {
     val freq = mutable.LinkedHashMap[Int, Int]()
-    map.foreach { case (_, seq) ⇒
+    map.foreach { case (_, seq) =>
       freq(seq.size) = freq.getOrElse(seq.size, 0) + 1
     }
 

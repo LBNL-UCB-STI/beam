@@ -2,8 +2,8 @@ package beam.agentsim.events.handling
 
 import java.nio.file.Paths
 import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
-import java.util.Objects
 import java.util.concurrent.TimeUnit
+import java.util.{Objects, UUID}
 
 import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
@@ -13,7 +13,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
 import beam.utils.csv.CsvWriter
-import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
+import beam.utils.mapsapi.googleapi.GoogleAdapter.{FindRouteRequest, FindRouteResult}
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
 import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
 import com.typesafe.scalalogging.LazyLogging
@@ -22,9 +22,9 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.collection.{immutable, mutable}
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
@@ -71,10 +71,10 @@ class TravelTimeGoogleStatistic(
         queryDate.toLocalDate
       )
       val numEventsPerHour = Math.max(1, cfg.numDataPointsOver24Hours / 24)
-      val byHour = acc.groupBy(_.departureTime % 3600).filter {
+      val byHour: Map[Int, ListBuffer[PathTraversalEvent]] = acc.groupBy(_.departureTime % 3600).filter {
         case (hour, _) => hour < 24
       }
-      val events = byHour
+      val events: immutable.Iterable[PathTraversalEvent] = byHour
         .flatMap {
           case (_, events) => getAppropriateEvents(events, numEventsPerHour)
         }
@@ -94,27 +94,35 @@ class TravelTimeGoogleStatistic(
     }
   }
 
-  private def queryGoogleAPI(events: Iterable[PathTraversalEvent], adapter: GoogleAdapter): List[EventContainer] = {
-    val futureResult = for {
-      result <- adapter.findRoutes(events.map(e => toRouteRequest(e)))
-      list = result.toList
-      _ = list.collect {
-        case (Left(throwable), uo) => logger.error(s"Error when calling google API for $uo", throwable)
-      }
-    } yield
-      list.collect {
-        case (Right(routes), event) => routes.map(EventContainer(event, _))
-      }.flatten
-    Await.result(futureResult, 10.minutes)
+  private def queryGoogleAPI(events: Iterable[PathTraversalEvent], adapter: GoogleAdapter): Seq[EventContainer] = {
+    val containersFuture = adapter.findRoutes(events.map(toRouteRequest))
+      .map(_.flatMap { result =>
+        val FindRouteResult(event, requestId, eitherRoutes) = result
+
+        eitherRoutes match {
+          case Left(e) =>
+            logger.error(s"Error when calling google API for $event", e)
+            Seq.empty[EventContainer]
+
+          case Right(routes) =>
+            routes.map { route =>
+              EventContainer(event, requestId, route)
+            }
+            Seq.empty[EventContainer]
+        }
+      })
+
+    Await.result(containersFuture, 10.minutes)
   }
 
-  private def writeToCsv(seq: List[EventContainer], filePath: String): Int = {
+  private def writeToCsv(seq: Seq[EventContainer], filePath: String): Int = {
     import scala.language.implicitConversions
     val formatter = new java.text.DecimalFormat("#.########")
     implicit def doubleToString(x: Double): String = formatter.format(x)
     implicit def intToString(x: Int): String = x.toString
 
     val headers = Vector(
+      "requestId",
       "vehicleId",
       "vehicleType",
       "departureTime",
@@ -134,6 +142,7 @@ class TravelTimeGoogleStatistic(
         .map(
           ec =>
             Vector[String](
+              ec.requestId,
               Objects.toString(ec.event.vehicleId),
               ec.event.vehicleType,
               ec.event.departureTime,
@@ -194,14 +203,29 @@ class TravelTimeGoogleStatistic(
     findWednesday(LocalDate.now().plusDays(1))
   }
 
-  private def toRouteRequest(event: PathTraversalEvent): RouteRequest[PathTraversalEvent] = {
-    RouteRequest(
+  private def toRouteRequest(event: PathTraversalEvent): FindRouteRequest[PathTraversalEvent] = {
+    val origin = WgsCoordinate(event.startY, event.startX)
+    val destination = WgsCoordinate(event.endY, event.endX)
+    FindRouteRequest(
       userObject = event,
-      origin = WgsCoordinate(event.startY, event.startX),
-      destination = WgsCoordinate(event.endY, event.endX),
+      requestId = makeFindRouteRequestId(origin, destination, event.departureTime, constraints),
+      origin = origin,
+      destination = destination,
       departureAt = queryDate.plusSeconds(event.departureTime),
       constraints = constraints
     )
+  }
+
+  private def makeFindRouteRequestId(
+    origin: WgsCoordinate,
+    destination: WgsCoordinate,
+    departureTime: Int,
+    constraints: Set[TravelConstraint]
+  ): String = {
+    val bytes: Array[Byte] =
+      s"$origin$destination$departureTime${constraints.mkString("")}"
+        .getBytes("UTF-8")
+    UUID.nameUUIDFromBytes(bytes).toString
   }
 
   def loadedEventNumber: Int = acc.size
@@ -211,4 +235,4 @@ class TravelTimeGoogleStatistic(
   }
 }
 
-case class EventContainer(event: PathTraversalEvent, route: Route)
+case class EventContainer(event: PathTraversalEvent, requestId: String, route: Route)

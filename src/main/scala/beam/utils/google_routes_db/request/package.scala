@@ -10,6 +10,7 @@ import scala.collection.mutable
 package object request {
 
   case class GoogleRouteRequest(
+    requestId: String,
     vehicleId: String,
     vehicleType: String,
     departureTime: Int,
@@ -35,13 +36,14 @@ package object request {
       Iterator
         .continually(csvReader.read(header: _*))
         .takeWhile(_ != null)
-        .foreach { entry ⇒ result.append(toGoogleRouteRequest(entry)) }
+        .foreach { entry => result.append(toGoogleRouteRequest(entry)) }
 
       result
     }
 
     def toGoogleRouteRequest(map: java.util.Map[String, String]): GoogleRouteRequest =
       GoogleRouteRequest(
+        requestId = map.get("requestId"),
         vehicleId = map.get("vehicleId"),
         vehicleType = map.get("vehicleType"),
         departureTime = map.get("departureTime").toInt,

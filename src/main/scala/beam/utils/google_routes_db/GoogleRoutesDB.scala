@@ -2,6 +2,7 @@ package beam.utils.google_routes_db
 
 import java.sql.Statement
 import java.time.Instant
+import java.util.concurrent.Executors
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -10,7 +11,7 @@ import akka.stream.scaladsl._
 import beam.sim.BeamHelper
 import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.config.GoogleRoutesDBConfig
-import beam.utils.google_routes_db.{response ⇒ resp}
+import beam.utils.google_routes_db.{request => req, response => resp}
 import beam.utils.google_routes_db.sql.BatchUpdateGraphStage
 import javax.sql.DataSource
 import org.apache.commons.dbcp2.BasicDataSource
@@ -33,9 +34,11 @@ import scala.util.{Failure, Success}
 object GoogleRoutesDB extends BeamHelper {
 
   private implicit val system: ActorSystem = ActorSystem("google-routes-db")
-  private implicit val execCtx: ExecutionContext = system.dispatcher
+  private implicit val execCtx: ExecutionContext =
+    ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
   private implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
+  //noinspection DuplicatedCode
   def main(args: Array[String]): Unit = try {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val config = GoogleRoutesDBConfig(cfg)
@@ -52,27 +55,39 @@ object GoogleRoutesDB extends BeamHelper {
     val (batchUpdateFuture, doneFuture) =
       Source
         .future(createGoogleRoutesTables(dataSource))
-        .flatMapConcat { _ ⇒ sourceGoogleapiFiles(config) }
-        .mapAsync(1) { googleapiFiles ⇒
+        .flatMapConcat { _ => sourceGoogleapiFiles(config) }
+        .mapAsync(1) { googleapiFiles =>
 
-          val grsSeq: immutable.Seq[resp.GoogleRoutes] =
+          val grsSeq: immutable.Seq[resp.GoogleRoutesResponse] =
             resp.json.parseGoogleapiResponsesJson(
               googleapiFiles.googleapiResponsesJsonText
             )
 
-          val googleRoutes = grsSeq.flatMap(_.routes)
+          val requests =
+            req.csv.parseGoogleTravelTimeEstimationCsv(
+              googleapiFiles.googleTravelTimeEstimationCsvText
+            )
 
-          insertGoogleRoutes(
-            googleRoutes,
-            googleapiFiles.googleapiResponsesJsonFileUri,
-            googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
-            dataSource
-          )
+          val departureTimes: Map[String, Option[Int]] = requests.groupBy(_.requestId)
+            .mapValues(_.headOption.map(_.departureTime))
+
+          Future.sequence {
+            grsSeq.map { resp =>
+              insertGoogleRoutes(
+                immutable.Seq(resp.response.routes: _*),
+                resp.requestId,
+                departureTimes.get(resp.requestId).flatten,
+                googleapiFiles.googleapiResponsesJsonFileUri,
+                googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
+                dataSource
+              )
+            }
+          }.map(_.flatten)
         }
-        .flatMapConcat { routesWithIds: immutable.Seq[(resp.GoogleRoute, Int)] ⇒
+        .flatMapConcat { routesWithIds: immutable.Seq[(resp.GoogleRoute, Int)] =>
           Source(
-            routesWithIds.flatMap { case (gr, routeId) ⇒
-              gr.legs.map { leg ⇒ sql.Update.GoogleRouteLeg.fromResp(routeId, leg) }
+            routesWithIds.flatMap { case (gr, routeId) =>
+              gr.legs.map { leg => sql.Update.GoogleRouteLeg.fromResp(routeId, leg) }
             }
           )
         }
@@ -81,7 +96,7 @@ object GoogleRoutesDB extends BeamHelper {
           Flow.fromGraph(
             new BatchUpdateGraphStage[sql.Update.GoogleRouteLeg](
               dataSource,
-              con ⇒ con.prepareStatement(sql.Update.GoogleRouteLeg.insertSql)
+              con => con.prepareStatement(sql.Update.GoogleRouteLeg.insertSql)
             )
           )
         )(Keep.right)
@@ -89,20 +104,20 @@ object GoogleRoutesDB extends BeamHelper {
         .run()
 
     val allDoneFuture = for {
-      batchUpdateResult ← batchUpdateFuture
-      _ ← Future { logger.info(
+      batchUpdateResult <- batchUpdateFuture
+      _ <- Future { logger.info(
         "Routes insertion stats: batchesProcessed={}, itemsProcessed={}, rowsUpdated={}",
         batchUpdateResult.batchesProcessed,
         batchUpdateResult.itemsProcessed,
         batchUpdateResult.rowsUpdated
       )}
-      _ ← doneFuture
+      _ <- doneFuture
     } yield Done
 
     allDoneFuture.onComplete {
-      case Success(_) ⇒
-      case Failure(e) ⇒
-        logger.error("An error occurred: {}", e.getMessage)
+      case Success(_) =>
+      case Failure(e) =>
+        logger.error("An error occurred", e)
         e.printStackTrace()
     }
 
@@ -110,8 +125,8 @@ object GoogleRoutesDB extends BeamHelper {
     Await.ready(system.terminate(), 1.minute)
     System.exit(0)
   } catch {
-    case e: Throwable ⇒
-      e.printStackTrace()
+    case e: Throwable =>
+      logger.error("GoogleRoutesDB failed", e)
 
       Await.ready(system.terminate(), 1.minute)
       System.exit(1)
@@ -130,9 +145,9 @@ object GoogleRoutesDB extends BeamHelper {
   private def createGoogleRoutesTables(dataSource: DataSource)
       (implicit executor: ExecutionContext): Future[Done] = {
     Future({
-      using(dataSource.getConnection) { con ⇒
-        using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps ⇒ ps.execute() }
-        using(con.prepareStatement(sql.DDL.legTable)) { ps ⇒ ps.execute() }
+      using(dataSource.getConnection) { con =>
+        using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps => ps.execute() }
+        using(con.prepareStatement(sql.DDL.legTable)) { ps => ps.execute() }
       }
 
       Done
@@ -141,20 +156,28 @@ object GoogleRoutesDB extends BeamHelper {
 
   private def insertGoogleRoutes(
     grs: immutable.Seq[resp.GoogleRoute],
+    requestId: String,
+    departureTime: Option[Int],
     googleapiResponsesJsonFileUri: String,
     timestamp: Instant,
     dataSource: DataSource
   )(implicit executor: ExecutionContext): Future[immutable.Seq[(resp.GoogleRoute, Int)]] = Future({
-    using(dataSource.getConnection) { con ⇒
+    using(dataSource.getConnection) { con =>
       using(
         con.prepareStatement(
           sql.Update.GoogleRoute.insertSql,
           Statement.RETURN_GENERATED_KEYS
         )
-      ) { ps ⇒
-        grs.foreach { gr ⇒
+      ) { ps =>
+        grs.foreach { gr =>
           sql.Update.GoogleRoute.psMapping.mapPrepared(
-            sql.Update.GoogleRoute.fromResp(gr, Some(googleapiResponsesJsonFileUri), timestamp),
+            sql.Update.GoogleRoute.fromResp(
+              googleRoute = gr,
+              requestId = requestId,
+              departureTime = departureTime,
+              googleapiResponsesJsonFileUri = Some(googleapiResponsesJsonFileUri),
+              timestamp = timestamp
+            ),
             ps
           )
           ps.addBatch()
@@ -168,7 +191,7 @@ object GoogleRoutesDB extends BeamHelper {
 
         val keysRS = ps.getGeneratedKeys
 
-        grs.map { gr ⇒
+        grs.map { gr =>
           keysRS.next()
           (gr, keysRS.getInt(1))
         }

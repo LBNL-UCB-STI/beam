@@ -4,13 +4,14 @@ import java.io.{BufferedOutputStream, File}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.time.{LocalDateTime, ZoneOffset}
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.pattern.ask
-import akka.stream.scaladsl.{Keep, Sink, Source, StreamConverters}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.Segment
@@ -20,7 +21,6 @@ import org.apache.commons.io.{FileUtils, IOUtils}
 import play.api.libs.json._
 
 import scala.concurrent.ExecutionContext.Implicits._
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -31,53 +31,55 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
 
   private val fileWriter = outputResponseToFile.map(path => system.actorOf(ResponseSaverActor.props(path.toFile)))
 
-  private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
-
-  def findRoutes(
-    origin: WgsCoordinate,
-    destination: WgsCoordinate,
-    departureAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
-    mode: TravelModes.TravelMode = TravelModes.Driving,
-    trafficModel: TrafficModels.TrafficModel = TrafficModels.BestGuess,
-    constraints: Set[TravelConstraints.TravelConstraint] = Set.empty
-  ): Future[Seq[Route]] = {
-    val url = buildUrl(apiKey, origin, destination, departureAt, mode, trafficModel, constraints)
-    call(url).map(writeToFileIfSetup).map(toRoutes)
-  }
-
   def findRoutes[T](
-    requests: Iterable[RouteRequest[T]]
-  ): Future[IndexedSeq[(Either[Throwable, Seq[Route]], T)]] = {
-    val poolClientFlow = Http().cachedHostConnectionPoolHttps[RouteRequest[T]]("maps.googleapis.com")
+    requests: Iterable[FindRouteRequest[T]]
+  ): Future[Seq[FindRouteResult[T]]] = {
+    val poolClientFlow = Http().cachedHostConnectionPoolHttps[FindRouteRequest[T]]("maps.googleapis.com")
     val results = Source(requests.toList)
-      .map { r =>
-        val url = buildUrl(apiKey, r.origin, r.destination, r.departureAt, r.mode, r.trafficModel, r.constraints)
-        (HttpRequest(uri = url), r)
+      .map { request =>
+        val url = buildUrl(apiKey, request)
+        (HttpRequest(uri = url), request)
       }
       .via(poolClientFlow)
       .mapAsync(10) {
-        case (Success(httpResponse), rr) =>
-          parseResponse(httpResponse)
-            .map(writeToFileIfSetup)
+
+        case (Success(httpResponse), request) =>
+          val routesResponseFuture: Future[JsObject] = parseResponse(httpResponse)
+
+          routesResponseFuture
+            .map { resp =>
+              JsObject(Map(
+                "requestId" -> JsString(request.requestId),
+                "response" -> resp
+              ))
+            }
+            .foreach(writeToFileIfSetup)
+
+          routesResponseFuture
             .map(toRoutes)
-            .map(routes => (Right(routes), rr.userObject))
-        case (Failure(throwable), rr) => Future.successful(Left(throwable), rr.userObject)
+            .map { routes =>
+              FindRouteResult(
+                request.userObject,
+                request.requestId,
+                Right(routes)
+              )
+            }
+
+        case (Failure(throwable), request) =>
+          Future.successful(
+            FindRouteResult(
+              request.userObject,
+              request.requestId,
+              Left(throwable)
+            )
+          )
       }
       .toMat(Sink.collection)(Keep.right)
       .run
     results
   }
 
-  private def call(url: String): Future[JsObject] = {
-    val httpRequest = HttpRequest(uri = url)
-    val responseFuture: Future[HttpResponse] = Http().singleRequest(httpRequest)
-    responseFuture.map { response =>
-      val inputStream = response.entity.dataBytes.runWith(StreamConverters.asInputStream(timeout))
-      Json.parse(inputStream).as[JsObject]
-    }
-  }
-
-  private def parseResponse(response: HttpResponse) = {
+  private def parseResponse(response: HttpResponse): Future[JsObject] = {
     val reduced = response.entity.dataBytes.runReduce(_ ++ _)
     reduced.map { bs =>
       val jsObject = Json.parse(bs.iterator.asInputStream).as[JsObject]
@@ -103,13 +105,13 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-    (jsObject \ "status") match {
+    jsObject \ "status" match {
       case JsDefined(value) =>
         if (value != JsString("OK")) {
           val error = jsObject \ "error_message"
-          logger.error(s"Google route request failed. Status: ${value}, error: $error")
+          logger.error(s"Google route request failed. Status: $value, error: $error")
         }
-      case undefined: JsUndefined =>
+      case _: JsUndefined =>
     }
     parseRoutes((jsObject \ "routes").as[JsArray].value)
   }
@@ -151,7 +153,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   override def close(): Unit = {
-    implicit val timeOut = new Timeout(20L, TimeUnit.SECONDS)
+    implicit val timeOut: Timeout = new Timeout(20L, TimeUnit.SECONDS)
     fileWriter.foreach { ref =>
       val closed = ref ? ResponseSaverActor.CloseMsg
       Try(Await.result(closed, timeOut.duration))
@@ -167,8 +169,9 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
 }
 
 object GoogleAdapter {
-  case class RouteRequest[T](
+  case class FindRouteRequest[T](
     userObject: T,
+    requestId: String = UUID.randomUUID().toString,
     origin: WgsCoordinate,
     destination: WgsCoordinate,
     departureAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
@@ -177,16 +180,26 @@ object GoogleAdapter {
     constraints: Set[TravelConstraints.TravelConstraint] = Set.empty
   )
 
-  private[googleapi] def buildUrl(
+  case class FindRouteResult[T](
+    userObject: T,
+    requestId: String,
+    eitherRoutes: Either[Throwable, Seq[Route]]
+  )
+
+  private[googleapi] def buildUrl[T](
     apiKey: String,
-    origin: WgsCoordinate,
-    destination: WgsCoordinate,
-    departureAt: LocalDateTime,
-    mode: TravelModes.TravelMode,
-    trafficModel: TrafficModels.TrafficModel = TrafficModels.BestGuess,
-    constraints: Set[TravelConstraints.TravelConstraint]
+    request: FindRouteRequest[T]
   ): String = {
-    // avoid=tolls|highways|ferries
+    val FindRouteRequest(
+      _, _,
+      origin,
+      destination,
+      departureAt,
+      mode,
+      trafficModel,
+      constraints
+    ) = request
+
     val originStr = s"${origin.latitude},${origin.longitude}"
     val destinationStr = s"${destination.latitude},${destination.longitude}"
     val params = Seq(
@@ -202,6 +215,7 @@ object GoogleAdapter {
       s"departure_time=${dateAsEpochSecond(departureAt)}",
     )
     val optionalParams = {
+      // avoid=tolls|highways|ferries
       if (constraints.isEmpty) Seq.empty
       else Seq(s"avoid=${constraints.map(_.apiName).mkString("|")}")
     }
@@ -218,7 +232,7 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
-  override def receive = {
+  override def receive: Receive = {
     case jsObject: JsObject =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)

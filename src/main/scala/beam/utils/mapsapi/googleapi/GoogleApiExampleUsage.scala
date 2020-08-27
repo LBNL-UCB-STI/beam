@@ -2,13 +2,14 @@ package beam.utils.mapsapi.googleapi
 
 import java.nio.file.{Path, Paths}
 import java.time.LocalDateTime
+import java.util.concurrent.Executors
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
-
 import beam.utils.mapsapi.RichSegments._
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
+import beam.utils.mapsapi.googleapi.GoogleAdapter.FindRouteRequest
 
 object GoogleApiExampleUsage extends App {
   if (args.length != 3) {
@@ -20,14 +21,18 @@ object GoogleApiExampleUsage extends App {
   val originCoordinate = toWgsCoordinate(args(1))
   val destinationCoordinate = toWgsCoordinate(args(2))
 
+  private implicit val execCtx: ExecutionContext =
+    ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+
   // You can build the URL yourself
   val url = GoogleAdapter.buildUrl(
     apiKey = apiKey,
-    origin = originCoordinate,
-    destination = destinationCoordinate,
-    departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
-    mode = TravelModes.Driving,
-    constraints = Set.empty
+    request = FindRouteRequest(
+      userObject = "dummy",
+      origin = originCoordinate,
+      destination = destinationCoordinate,
+      departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+    )
   )
 
   val outputJson: Path = Paths.get("outputJson.json")
@@ -49,14 +54,20 @@ object GoogleApiExampleUsage extends App {
 
   private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[Route] = {
     FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
-      val eventualRoutes = adapter.findRoutes(
-        origin = originCoordinate,
-        destination = destinationCoordinate,
-        departureAt = LocalDateTime.of(2020, 6, 5, 17, 20),
-        mode = TravelModes.Driving,
-        trafficModel = TrafficModels.BestGuess,
-        constraints = Set.empty
-      )
+      val eventualRoutes = adapter
+        .findRoutes(Seq(
+          FindRouteRequest(
+            userObject = "dummy",
+            origin = originCoordinate,
+            destination = destinationCoordinate,
+            departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+          )
+        ))
+        .map(_.map(_.eitherRoutes).flatMap {
+          case Right(routes) => routes
+          case Left(_) => Seq.empty
+        })
+
       Await.result(eventualRoutes, Duration.Inf)
     }
   }

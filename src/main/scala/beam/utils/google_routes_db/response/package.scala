@@ -6,6 +6,11 @@ import scala.collection.immutable
 
 package object response {
 
+  case class GoogleRoutesResponse(
+    requestId: String,
+    response: GoogleRoutes
+  )
+
   case class GoogleRoutes(
     geocodedWaypoints: Option[Seq[GeocodedWaypoint]],
     routes: Seq[GoogleRoute],
@@ -112,10 +117,16 @@ package object response {
         "status"
       )(GoogleRoutes.apply)
 
-    def parseGoogleapiResponsesJson(text: String): immutable.Seq[GoogleRoutes] = {
-      parser.decode[immutable.Seq[GoogleRoutes]](text) match {
-        case Right(json) ⇒ json
-        case Left(e) ⇒
+    implicit val googleRoutesResponseDecoder: Decoder[GoogleRoutesResponse] =
+      Decoder.forProduct2(
+        "requestId",
+        "response"
+      )(GoogleRoutesResponse.apply)
+
+    def parseGoogleapiResponsesJson(text: String): immutable.Seq[GoogleRoutesResponse] = {
+      parser.decode[immutable.Seq[GoogleRoutesResponse]](text) match {
+        case Right(json) => json
+        case Left(e) =>
           val head = text.take(200).replaceAll("\\s+", "")
           logger.warn(s"Failed to parse GoogleRoutes (<$head...>): ${e.getMessage}")
           immutable.Seq.empty

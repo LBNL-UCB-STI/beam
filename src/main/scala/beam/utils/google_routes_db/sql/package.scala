@@ -3,7 +3,7 @@ package beam.utils.google_routes_db
 import java.sql.{PreparedStatement, Types}
 import java.time.Instant
 
-import beam.utils.google_routes_db.{response ⇒ resp}
+import beam.utils.google_routes_db.{response => resp}
 
 package object sql {
 
@@ -16,7 +16,7 @@ package object sql {
     s"POINT(${coord.lat} ${coord.lng})"
 
   def makeGeometryLinestring(coords: Seq[resp.GoogleRoute.Coord]): GeometryLinestring = {
-    val coordSs = coords.map { coord ⇒ s"${coord.lat} ${coord.lng}"}
+    val coordSs = coords.map { coord => s"${coord.lat} ${coord.lng}"}
     s"LINESTRING(${coordSs.mkString(",")})"
   }
 
@@ -26,6 +26,8 @@ package object sql {
       """
         |CREATE TABLE IF NOT EXISTS gr_route (
         |  id BIGSERIAL PRIMARY KEY,
+        |  request_id TEXT,
+        |  departure_time INTEGER,
         |  bound_northeast geometry(POINT),
         |  bound_southwest geometry(POINT),
         |  summary TEXT,
@@ -63,6 +65,8 @@ package object sql {
     //
 
     case class GoogleRoute(
+      requestId: String,
+      departureTime: Option[Int],
       boundNortheast: GeometryPoint,
       boundSouthwest: GeometryPoint,
       summary: String,
@@ -75,9 +79,13 @@ package object sql {
 
       def fromResp(
         googleRoute: resp.GoogleRoute,
+        requestId: String,
+        departureTime: Option[Int],
         googleapiResponsesJsonFileUri: Option[String],
         timestamp: Instant
       ): GoogleRoute = GoogleRoute(
+        requestId = requestId,
+        departureTime = departureTime,
         boundNortheast = makeGeometryPoint(googleRoute.bounds.northeast),
         boundSouthwest = makeGeometryPoint(googleRoute.bounds.southwest),
         summary = googleRoute.summary,
@@ -89,9 +97,11 @@ package object sql {
       val insertSql: String =
         s"""
           |INSERT INTO gr_route (
+          |  request_id, departure_time,
           |  bound_northeast, bound_southwest,
           |  copyrights, summary, googleapi_responses_json_file_uri, timestamp
           |) VALUES (
+          |  ?, ?
           |  ST_GeometryFromText(?, $projection), ST_GeometryFromText(?, $projection),
           |  ?, ?, ?, ?
           |) RETURNING id
@@ -99,15 +109,20 @@ package object sql {
 
       implicit val psMapping: PSMapping[Update.GoogleRoute] =
         (item: Update.GoogleRoute, ps: PreparedStatement) => {
-          ps.setString(1, item.boundNortheast)
-          ps.setString(2, item.boundSouthwest)
-          ps.setString(3, item.copyrights)
-          ps.setString(4, item.summary)
-          item.googleapiResponsesJsonFileUri match {
-            case Some(value) ⇒ ps.setString(5, value)
-            case None ⇒ ps.setNull(5, Types.VARCHAR)
+          ps.setString(1, item.requestId)
+          item.departureTime match {
+            case Some(value) => ps.setInt(2, value)
+            case None => ps.setNull(2, Types.INTEGER)
           }
-          ps.setTimestamp(6, java.sql.Timestamp.from(item.timestamp))
+          ps.setString(3, item.boundNortheast)
+          ps.setString(4, item.boundSouthwest)
+          ps.setString(5, item.copyrights)
+          ps.setString(6, item.summary)
+          item.googleapiResponsesJsonFileUri match {
+            case Some(value) => ps.setString(7, value)
+            case None => ps.setNull(7, Types.VARCHAR)
+          }
+          ps.setTimestamp(8, java.sql.Timestamp.from(item.timestamp))
         }
     }
 
@@ -178,18 +193,18 @@ package object sql {
           ps.setInt(4, item.duration)
           ps.setString(5, item.durationText)
           item.durationInTraffic match {
-            case Some(value) ⇒ ps.setInt(6, value)
-            case None ⇒ ps.setNull(6, Types.INTEGER)
+            case Some(value) => ps.setInt(6, value)
+            case None => ps.setNull(6, Types.INTEGER)
           }
           item.durationInTrafficText match {
-            case Some(text) ⇒ ps.setString(7, text)
-            case None ⇒ ps.setNull(7, Types.VARCHAR)
+            case Some(text) => ps.setString(7, text)
+            case None => ps.setNull(7, Types.VARCHAR)
           }
           ps.setString(8, item.endAddress)
           ps.setString(9, item.endLocation)
           item.startAddress match {
-            case Some(value) ⇒ ps.setString(10, value)
-            case None ⇒ ps.setNull(10, Types.VARCHAR)
+            case Some(value) => ps.setString(10, value)
+            case None => ps.setNull(10, Types.VARCHAR)
           }
           ps.setString(11, item.startLocation)
           ps.setString(12, item.steps)

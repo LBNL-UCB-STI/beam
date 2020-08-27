@@ -2,7 +2,8 @@ package beam.utils.google_routes_db.config
 
 case class GoogleRoutesDBConfig(
   googleapiFiles : scala.List[GoogleRoutesDBConfig.GoogleapiFiles$Elm],
-  postgresql     : GoogleRoutesDBConfig.Postgresql
+  postgresql     : GoogleRoutesDBConfig.Postgresql,
+  spatial        : GoogleRoutesDBConfig.Spatial
 )
 object GoogleRoutesDBConfig {
   case class GoogleapiFiles$Elm(
@@ -59,10 +60,22 @@ object GoogleRoutesDBConfig {
     }
   }
         
+  case class Spatial(
+    localCRS : java.lang.String
+  )
+  object Spatial {
+    def apply(c: com.typesafe.config.Config): GoogleRoutesDBConfig.Spatial = {
+      GoogleRoutesDBConfig.Spatial(
+        localCRS = c.getString("localCRS")
+      )
+    }
+  }
+        
   def apply(c: com.typesafe.config.Config): GoogleRoutesDBConfig = {
     GoogleRoutesDBConfig(
       googleapiFiles = $_LGoogleRoutesDBConfig_GoogleapiFiles$Elm(c.getList("googleapiFiles")),
-      postgresql     = GoogleRoutesDBConfig.Postgresql(if(c.hasPathOrNull("postgresql")) c.getConfig("postgresql") else com.typesafe.config.ConfigFactory.parseString("postgresql{}"))
+      postgresql     = GoogleRoutesDBConfig.Postgresql(if(c.hasPathOrNull("postgresql")) c.getConfig("postgresql") else com.typesafe.config.ConfigFactory.parseString("postgresql{}")),
+      spatial        = GoogleRoutesDBConfig.Spatial(if(c.hasPathOrNull("spatial")) c.getConfig("spatial") else com.typesafe.config.ConfigFactory.parseString("spatial{}"))
     )
   }
   private def $_LGoogleRoutesDBConfig_GoogleapiFiles$Elm(cl:com.typesafe.config.ConfigList): scala.List[GoogleRoutesDBConfig.GoogleapiFiles$Elm] = {
