@@ -555,6 +555,17 @@ If everything turned out well, the cloning process should not ask for the creden
    git checkout -b master upstream/master
    git pull
 
+Build BEAM docker image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To build Beam docker image run::
+
+    $ ./gradlew buildImage
+
+in the root of Beam project. If you want to tag the built image run::
+
+    $ ./gradlew tagImage
+
+
 
 Scala tips
 ^^^^^^^^^^
