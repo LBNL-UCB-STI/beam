@@ -585,6 +585,7 @@ docker {
 
 import com.bmuschko.gradle.docker.tasks.image.Dockerfile
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
 
 // Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
 // Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
@@ -606,6 +607,12 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 }
 
 task buildImage(type: DockerBuildImage, dependsOn: createDockerfile) {
+}
+
+task tagImage(type: DockerTagImage, dependsOn: buildImage) {
+    repository = "beammodel/beam"
+    tag = version
+    targetImageId buildImage.getImageId()
 }
 
 dockerSyncBuildContext {
