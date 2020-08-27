@@ -571,7 +571,7 @@ class UrbanSimScenarioLoader(
           } else {
             new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
           }
-          val activityType = planInfo.activityType.getOrElse(
+          val activityType = planInfo.activityType.map(_.toLowerCase).getOrElse(
             throw new IllegalStateException(
               s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
             )
