@@ -6,9 +6,9 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
-import beam.router.graphhopper.GraphHopperRouteResolver
+import beam.router.graphhopper.GraphHopperWrapper
 import beam.router.model.BeamPath
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.map.GpxWriter
@@ -39,12 +39,25 @@ object R5vsGraphHopper extends BeamHelper {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val arguments = parseArguments(args)
 
-    val workerParams: WorkerParameters = WorkerParameters.fromConfig(cfg)
-    val r5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
+    val r5Params@R5Parameters(
+      beamConfig,
+      scenario,
+      outputDirectory,
+      transportNetwork,
+      vehicleTypes,
+      fuelTypePrices,
+      _,
+      geo,
+      _,
+      networkHelper,
+      _, _
+    ) = R5Parameters.fromConfig(cfg)
 
-    val utm2Wgs = workerParams.geo.utm2Wgs
+    val r5Wrapper = new R5Wrapper(r5Params, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
 
-    val outputDir = s"${workerParams.outputDirectory}/R5vsGraphHopper"
+    val utm2Wgs = geo.utm2Wgs
+
+    val outputDir = s"$outputDirectory/R5vsGraphHopper"
     FileUtils.createDirectoryIfNotExists(outputDir)
 
     //
@@ -58,7 +71,7 @@ object R5vsGraphHopper extends BeamHelper {
       case None =>
         logger.info(s"Loading scenario plans")
         makePersonPlanODs(
-          workerParams.scenario.getPopulation.getPersons.values().asScala.toSeq
+          scenario.getPopulation.getPersons.values().asScala.toSeq
         )
     }
     val allPersonIds = allPersonPlanODs.keys.toSeq
@@ -97,23 +110,13 @@ object R5vsGraphHopper extends BeamHelper {
       var progressBarStep: Double = 0.1
       personPlanODs.foreach { case (personId, planODs) =>
         planODs.foreach { case PlanOD(origin, destination) =>
-          val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(destination))
-
-          val carStreetVehicle = getStreetVehicle(
-            s"dummy-car-for-r5-vs-gh-$personId-$i",
-            BeamMode.CAV,
-            origin
-          )
-          val req = baseRoutingRequest.copy(
-            originUTM = origin,
-            destinationUTM = destination,
-            streetVehicles = Vector(carStreetVehicle),
-            withTransit = false
-          )
+          val req = makeRoutingRequest(i, personId, origin, destination)
           val (r5Resp, executionTimeMs) = ProfilingUtils.timed { r5Wrapper.calcRoute(req) }
 
           val maybeTravelPath: Option[BeamPath] =
             r5Resp.itineraries.headOption.flatMap(_.legs.headOption).map(_.beamLeg.travelPath)
+
+          val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(destination))
 
           val resultRoute: R5vsGHResultRoute = maybeTravelPath match {
             case None =>
@@ -166,13 +169,28 @@ object R5vsGraphHopper extends BeamHelper {
     // GraphHopper
     //
 
+    val carRouter = "staticGH"
+
     val ghLocation = s"$outputDir/ghLocation"
-    GraphHopperRouteResolver.createGHLocationFromR5(
-      workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
-      ghLocation
+    GraphHopperWrapper.createGraphDirectoryFromR5(
+      carRouter,
+      transportNetwork,
+      new OSM(beamConfig.beam.routing.r5.osmMapdbFile),
+      ghLocation,
+      Map.empty
     )
-    val gh = new GraphHopperRouteResolver(ghLocation)
+
+    val gh = new GraphHopperWrapper(
+      carRouter,
+      ghLocation,
+      geo,
+      vehicleTypes,
+      fuelTypePrices,
+      Map.empty,
+      networkHelper.allLinks
+        .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
+        .toMap
+    )
 
     val ghPersonResponses =
       collection.mutable.Map.empty[Id[MatsimPerson], ListBuffer[GHResponse]]
@@ -186,9 +204,13 @@ object R5vsGraphHopper extends BeamHelper {
       var progressBarStep: Double = 0.1
       personPlanODs.foreach { case (personId, planODs) =>
         planODs.foreach { case PlanOD(origin, destination) =>
-          val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(destination))
+          val req = makeRoutingRequest(i, personId, origin, destination)
 
-          val ((_, ghResp), executionTimeMs) = ProfilingUtils.timed { gh.route(origWgs, destWgs) }
+          val (ghResp, executionTimeMs) = ProfilingUtils.timed {
+            GraphHopperWrapper.calcGHResponse(gh, req)
+          }
+
+          val (origWgs, destWgs) = (utm2Wgs.transform(origin), utm2Wgs.transform(destination))
 
           val resultRoute: R5vsGHResultRoute = if (ghResp.hasErrors) {
             R5vsGHResultRoute(
@@ -258,7 +280,7 @@ object R5vsGraphHopper extends BeamHelper {
 
     r5PersonResponses.foreach { case (personId, r5Responses) =>
       val gpxPoints = r5ResponsesToGpxPoints(
-        r5Responses, workerParams.networkHelper, utm2Wgs
+        r5Responses, networkHelper, utm2Wgs
       )
       val personR5RoutesGpxFile = gpxOutputDir + s"/r5_$personId.gpx"
       GpxWriter.write(personR5RoutesGpxFile, gpxPoints)
@@ -289,6 +311,25 @@ object R5vsGraphHopper extends BeamHelper {
       withTransit = true,
       streetVehicles = Vector.empty,
       attributesOfIndividual = Some(personAttribs)
+    )
+  }
+
+  private def makeRoutingRequest(
+    num: Int,
+    personId: Id[MatsimPerson],
+    origin: Location,
+    destination: Location
+  ): RoutingRequest = {
+    val carStreetVehicle = getStreetVehicle(
+      s"dummy-car-for-r5-vs-gh-$personId-$num",
+      BeamMode.CAV,
+      origin
+    )
+    baseRoutingRequest.copy(
+      originUTM = origin,
+      destinationUTM = destination,
+      streetVehicles = Vector(carStreetVehicle),
+      withTransit = false
     )
   }
 

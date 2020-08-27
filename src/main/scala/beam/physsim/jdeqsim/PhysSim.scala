@@ -35,7 +35,7 @@ class PhysSim(
   val workerParams: R5Parameters = R5Parameters(
     beamConfig = beamConfig,
     scenario = agentSimScenario,
-    outputDirectory = WorkerParameters.makeOutputDirectory(beamConfig),
+    outputDirectory = R5Parameters.makeOutputDirectory(beamConfig),
     transportNetwork = beamServices.beamScenario.transportNetwork,
     vehicleTypes = beamServices.beamScenario.vehicleTypes,
     fuelTypePrices = beamServices.beamScenario.fuelTypePrices,

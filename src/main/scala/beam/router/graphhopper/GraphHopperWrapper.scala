@@ -10,7 +10,7 @@ import beam.router.{Modes, Router}
 import beam.sim.common.GeoUtils
 import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
-import com.graphhopper.GHRequest
+import com.graphhopper.{GHRequest, GHResponse}
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
@@ -41,7 +41,7 @@ class GraphHopperWrapper(
     graphHopper
   }
 
-  override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+  private def calcGHResponse(routingRequest: RoutingRequest): GHResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
     assert(
       routingRequest.streetVehicles.size == 1,
@@ -49,7 +49,6 @@ class GraphHopperWrapper(
     )
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
-    val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
     if (carRouter == "quasiDynamicGH") {
       request.setProfile("beam_car")
@@ -58,7 +57,16 @@ class GraphHopperWrapper(
     }
 
     request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
-    val response = graphHopper.route(request)
+    graphHopper.route(request)
+  }
+
+  override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+    val response = calcGHResponse(routingRequest)
+
+    val origin = geo.utm2Wgs(routingRequest.originUTM)
+    val destination = geo.utm2Wgs(routingRequest.destinationUTM)
+    val streetVehicle = routingRequest.streetVehicles.head
+
     val alternatives = if (response.hasErrors) {
       Seq()
     } else {
@@ -250,7 +258,7 @@ object GraphHopperWrapper {
     graphHopperStorage.flush()
   }
 
-  def getProfiles(carRouter: String) = {
+  def getProfiles(carRouter: String): List[Profile] = {
     val carProfiles = if (carRouter == "quasiDynamicGH") {
       val profile = new Profile(BeamGraphHopper.profile)
       profile.setVehicle("car")
@@ -274,4 +282,8 @@ object GraphHopperWrapper {
     fastestFootProfile.setTurnCosts(false)
     List(carProfiles, bestBikeProfile, fastestFootProfile)
   }
+
+  def calcGHResponse(ghw: GraphHopperWrapper, routingRequest: RoutingRequest): GHResponse =
+    ghw.calcGHResponse(routingRequest)
+
 }

@@ -14,13 +14,13 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Link
-import org.matsim.core.router.util.TravelTime
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 case class R5Parameters(
   beamConfig: BeamConfig,
+  scenario: Scenario,
+  outputDirectory: String,
   transportNetwork: TransportNetwork,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   fuelTypePrices: Map[FuelType, Double],
@@ -36,11 +36,7 @@ object R5Parameters {
 
   def fromConfig(config: Config): R5Parameters = {
     val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
+    val outputDirectory = makeOutputDirectory(beamConfig)
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.init()
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
@@ -63,6 +59,8 @@ object R5Parameters {
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
     R5Parameters(
       beamConfig = beamConfig,
+      scenario = scenario,
+      outputDirectory = outputDirectory,
       transportNetwork = networkCoordinator.transportNetwork,
       vehicleTypes = vehicleTypes,
       fuelTypePrices = fuelTypePrices,
@@ -74,4 +72,11 @@ object R5Parameters {
       tollCalculator = tollCalculator
     )
   }
+
+  def makeOutputDirectory(beamConfig: BeamConfig): String =
+    FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
 }
