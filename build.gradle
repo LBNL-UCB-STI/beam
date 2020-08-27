@@ -615,9 +615,16 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
     environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
+    // Beam dependencies, resources and compiled Java classes
     copyFile("libs", "libs")
     copyFile("resources", "resources")
     copyFile("classes", "classes")
+    // Test scenarios
+    copyFile("test/input/common", "test/input/common")
+    copyFile("test/input/dtd", "test/input/dtd")
+    copyFile("test/input/beamville", "test/input/beamville")
+    copyFile("test/input/sf-light", "test/input/sf-light")
+
     addFile 'src/main/python', 'src/main/python'
     addFile 'entrypoint.sh', 'entrypoint.sh'
     runCommand('chmod +x /app/entrypoint.sh')
@@ -637,6 +644,19 @@ dockerSyncBuildContext {
     from('src/main/python') {
         into('src/main/python')
     }
+    from('test/input/common') {
+        into('test/input/common')
+    }
+    from('test/input/dtd') {
+        into('test/input/dtd')
+    }
+    from('test/input/beamville') {
+        into('test/input/beamville')
+    }
+    from('test/input/sf-light') {
+        into('test/input/sf-light')
+    }
+
     from file('docker/entrypoint.sh')
 }
 
