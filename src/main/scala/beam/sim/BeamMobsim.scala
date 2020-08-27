@@ -14,7 +14,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSy
 import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
+import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
 import beam.router.Modes.BeamMode
 import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.router._
@@ -55,6 +55,7 @@ class BeamMobsim @Inject()(
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val geo: GeoUtils,
+  val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper
 ) extends Mobsim
     with LazyLogging
@@ -119,6 +120,7 @@ class BeamMobsim @Inject()(
     eventsManager.initProcessing()
 
     clearRoutesAndModesIfNeeded(beamServices.matsimServices.getIterationNumber)
+    planCleaner.clearModesAccordingToStrategy(beamServices.matsimServices.getIterationNumber)
 
     if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
@@ -348,7 +350,14 @@ class BeamMobsimIteration(
     val pmProps = managerName match {
       case "DEFAULT" =>
         ZonalParkingManager
-          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+          .props(
+            beamScenario.beamConfig,
+            beamScenario.tazTreeMap,
+            Some(beamScenario.transportNetwork),
+            geo,
+            beamRouter,
+            envelopeInUTM
+          )
           .withDispatcher("zonal-parking-manager-pinned-dispatcher")
       case "PARALLEL" =>
         ParallelParkingManager

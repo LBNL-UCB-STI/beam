@@ -42,10 +42,31 @@ class UrbanSimScenarioLoader(
   def loadScenario(): Scenario = {
     clear()
 
+    val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+
     val plansF = Future {
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
-      plans
+      val activities = plans.view.filter { p =>
+        p.activityType.exists(actType => actType.toLowerCase == "home")
+      }
+      val personIdsWithinRange =
+        activities
+          .filter { act =>
+            val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
+            val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
+            beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+          }
+          .map { act =>
+            act.personId
+          }
+          .toSet
+      val planWithinRange = plans.filter(p => personIdsWithinRange.contains(p.personId))
+      val filteredCnt = plans.size - planWithinRange.size
+      if (filteredCnt > 0) {
+        logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
+      }
+      planWithinRange
     }
     val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
@@ -55,17 +76,39 @@ class UrbanSimScenarioLoader(
     val householdsF = Future {
       val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
-      households
+      val householdIdsWithinBoundingBox = households.view
+        .filter { hh =>
+          val coord = new Coord(hh.locationX, hh.locationY)
+          val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(coord) else coord
+          beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
+        }
+        .map { hh =>
+          hh.householdId
+        }
+        .toSet
+
+      val householdsInsideBoundingBox =
+        households.filter(household => householdIdsWithinBoundingBox.contains(household.householdId))
+      val filteredCnt = households.size - householdsInsideBoundingBox.size
+      if (filteredCnt > 0) {
+        logger.info(
+          s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
+        )
+      }
+      householdsInsideBoundingBox
     }
     val plans = Await.result(plansF, 500.seconds)
     val persons = Await.result(personsF, 500.seconds)
+    val households = Await.result(householdsF, 500.seconds)
+
+    val householdIds = households.map(_.householdId.id).toSet
 
     val personsWithPlans = getPersonsWithPlan(persons, plans)
+      .filter(p => householdIds.contains(p.householdId.id))
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val households = Await.result(householdsF, 500.seconds)
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 

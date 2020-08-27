@@ -8,7 +8,7 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.H3Wrapper
 import beam.router.Modes.BeamMode
-import beam.router.r5.{R5Wrapper, WorkerParameters}
+import beam.router.r5.{R5Parameters, R5Wrapper, WorkerParameters}
 import beam.router.skim.urbansim.MasterActor.Response
 import beam.router.skim.{GeoUnit, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
@@ -30,7 +30,7 @@ class BackgroundSkimsCreator(
   private implicit val timeout: Timeout = Timeout(6, TimeUnit.HOURS)
 
   private val r5Wrapper: R5Wrapper = new R5Wrapper(
-    WorkerParameters(
+    R5Parameters(
       beamServices.beamConfig,
       beamScenario.transportNetwork,
       beamScenario.vehicleTypes,

@@ -15,9 +15,7 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.{immutable, mutable}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.reflect.io.File
 import scala.util.control.NonFatal
 
@@ -94,8 +92,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
     if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
-      if (readOnlySkim.pastSkims.size == beamConfig.beam.router.skim.keepKLatestSkims) {
-        readOnlySkim.pastSkims.dropRight(1)
+      if (readOnlySkim.pastSkims.size >= beamConfig.beam.router.skim.keepKLatestSkims) {
+        val toBeRemoved = readOnlySkim.pastSkims.size - beamConfig.beam.router.skim.keepKLatestSkims + 1
+        readOnlySkim.pastSkims.remove(beamConfig.beam.router.skim.keepKLatestSkims - 1, toBeRemoved)
       }
       readOnlySkim.pastSkims.prepend(currentSkim.toMap)
     }

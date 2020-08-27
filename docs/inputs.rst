@@ -20,7 +20,7 @@ https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/test/input/beamville/beam.conf
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documntation for details on the following inputs.
 
-.. _MATSim convention: http://archive.matsim.org/docs
+.. _MATSim convention: https://matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
 
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
@@ -65,6 +65,8 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = -1.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = -3.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
    beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
    #Toll params
    beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
@@ -80,6 +82,8 @@ Mode choice parameters
 * params.ride_hail_intercept: Constant utility (where 1 util = 1 dollar) of taking ride hail.
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
+* params.transit_crowding: Multiplier utility of avoiding "crowded" transit vehicle. Should be negative.
+* params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
 * toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
 
@@ -112,6 +116,8 @@ TAZs, Scaling, and Physsim Tuning
    beam.agentsim.tuning.transitPrice = 1.0
    beam.agentsim.tuning.tollPrice = 1.0
    beam.agentsim.tuning.rideHailPrice = 1.0
+   # PhysSim name (JDEQSim | BPRSim | PARBPRSim | CCHRoutingAssignment)
+   beam.physsim.name = "JDEQSim
    # PhysSim Scaling Params
    beam.physsim.flowCapacityFactor = 0.0001
    beam.physsim.storageCapacityFactor = 0.0001
@@ -119,6 +125,12 @@ TAZs, Scaling, and Physsim Tuning
    beam.physsim.ptSampleSize = 1.0
    beam.physsim.jdeqsim.agentSimPhysSimInterfaceDebugger.enabled = false
    beam.physsim.skipPhysSim = false
+   # Travel time function for (PAR)PBR sim (BPR | FREE_FLOW)
+   beam.physsim.bprsim.travelTimeFunction = "BPR"
+   beam.physsim.bprsim.minFlowToUseBPRFunction = 10
+   beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds = 900
+   beam.physsim.parbprsim.numberOfClusters = 8
+   beam.physsim.parbprsim.syncInterval = 60
 
 * agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
 * taz.parking: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then ulimited free parking is assumed.
@@ -128,12 +140,18 @@ TAZs, Scaling, and Physsim Tuning
 * tuning.transitPrice: Scale the price of riding on transit. Applies uniformly to all transit trips.
 * tuning.tollPrice: Scale the price to cross tolls.
 * tuning.rideHailPrice: Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
+* physsim.name: Name of the physsim. BPR physsim calculates the travel time of a vehicle for a particular link basing on the inFlow value for that link (number of vehicle entered that link within last n minutes. This value is upscaled to one hour value.). PARBPR splits the network into clusters and simulates vehicle movement for each cluster in parallel.
 * physsim.flowCapacityFactor: Flow capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.storageCapacityFactor: Storage capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.writeMATSimNetwork: A copy of the network used by JDEQSim will be written to outputs folder (typically only needed for debugging).
 * physsim.ptSampleSize: A scaling factor used to reduce the seating capacity of all transit vehicles. This is typically used in the context of running a partial sample of the population, it is advisable to reduce the capacity of the transit vehicles, but not necessarily proportionately. This should be calibrated.
 * agentSimPhysSimInterfaceDebugger.enabled: Enables special debugging output.
 * skipPhysSim: Turns off the JDEQSim traffic flow simulation. If set to true, then network congestion will not change from one iteration to the next. Typically this is only used for debugging issues that are unrelated to the physsim.
+* physsim.bprsim.travelTimeFunction: Travel time function (BPR of free flow). For BPR function see https://en.wikipedia.org/wiki/Route_assignment. Free flow implies that the vehicles go on the free speed on that link.
+* physsim.bprsim.minFlowToUseBPRFunction: If the inFlow is below this value then BPR function is not used. Free flow is used in this case.
+* physsim.bprsim.inFlowAggregationTimeWindowInSeconds: The length of inFlow aggregation in seconds.
+* physsim.parbprsim.numberOfClusters: the number of clusters for PARBPR physsim.
+* physsim.parbprsim.syncInterval: The sync interval in seconds for PARBPRsim. When the sim time reaches this interval in a particular cluster then it waits for the other clusters at that time point.
 
 
 Warm Mode

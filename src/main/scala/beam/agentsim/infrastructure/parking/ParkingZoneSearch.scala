@@ -206,7 +206,7 @@ object ParkingZoneSearch {
             }.toMap
 
           val mnl: MultinomialLogit[ParkingAlternative, ParkingMNL.Parameters] =
-            new MultinomialLogit(
+            MultinomialLogit(
               Map.empty,
               params.parkingMNLConfig
             )

@@ -185,6 +185,10 @@ object FileUtils extends LazyLogging {
     IOUtils.getBufferedReader(filePath)
   }
 
+  def readerFromStream(stream: InputStream): java.io.BufferedReader = {
+    new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
+  }
+
   def readerFromURL(url: String): java.io.BufferedReader = {
     require(isRemote(url, "http://") || isRemote(url, "https://"))
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
