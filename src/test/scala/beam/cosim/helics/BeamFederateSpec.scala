@@ -54,14 +54,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     } yield (f1Result, f2Result)
     try {
       Await.result(aggregatedFuture, 5.minutes)
-      assert(
-        chargingPlugInEvents.get() > 0,
-        s"Charging Plugin Event expected to be greater than 0 but is ${chargingPlugInEvents.get}"
-      )
-      assert(
-        chargingPlugOutEvents.get() > 0,
-        s"Chaging Plugout Event expected to be greater than 0 but is ${chargingPlugOutEvents.get}"
-      )
+      chargingPlugInEvents.get() should be > 0
+      chargingPlugOutEvents.get() should be > 0
     } catch {
       case _: TimeoutException =>
         fail("something went wrong with the cosimulation")
