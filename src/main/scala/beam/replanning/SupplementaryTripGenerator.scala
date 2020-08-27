@@ -98,12 +98,13 @@ class SupplementaryTripGenerator(
             }
             activityAccumulator.append(x)
           }
+          updatedPreviousActivity = activityAccumulator.last
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
             activityAccumulator.append(curr)
           }
+          updatedPreviousActivity = curr
         }
-        updatedPreviousActivity = activityAccumulator.last
       case _ =>
     }
     activityAccumulator.foreach { x =>
