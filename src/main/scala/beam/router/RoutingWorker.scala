@@ -166,17 +166,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
             //run graphHopper for only cars
             val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
-              latency("gh-router-time", Metrics.RegularLevel) {
-                val idx =
-                  if (carRouter == "quasiDynamicGH")
-                    Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
-                  else 0
-                Some(
-                  graphHoppers(idx).calcRoute(
-                    request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))
-                  )
+              val idx = if (carRouter == "quasiDynamicGH")
+                  Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+                else 0
+              Some(
+                graphHoppers(idx).calcRoute(
+                  request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR))
                 )
-              }
+              )
             } else None
 
             val response = if (!ghResponse.exists(_.itineraries.nonEmpty)) {
