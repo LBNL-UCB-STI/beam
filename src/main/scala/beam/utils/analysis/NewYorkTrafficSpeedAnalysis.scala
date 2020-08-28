@@ -1,5 +1,6 @@
 package beam.utils.analysis
 
+import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -7,8 +8,11 @@ import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.GenericCsvReader
 import beam.utils.shape.{Attributes, NoAttributeShapeWriter, ShapeWriter}
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, Point}
-import org.matsim.api.core.v01.{Coord, Id}
+import beam.utils.traveltime.NetworkUtil
+import beam.utils.traveltime.NetworkUtil.Direction
+import com.conveyal.r5.kryo.KryoNetworkSerializer
+import com.vividsolutions.jts.geom._
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -20,7 +24,7 @@ import scala.util.control.NonFatal
 
 private case class LinkAttributes(nodeId: String, linkId: String) extends Attributes
 private case class TrafficAttributes(linkId: String) extends Attributes
-private case class MappingAttributes(linkId: String, nodeId: String, diff: Double, linkIdT: String) extends Attributes
+private case class MappingAttributes(beamLink: String, trafLink: String) extends Attributes
 
 object NewYorkTrafficSpeedAnalysis {
 
@@ -46,6 +50,8 @@ object NewYorkTrafficSpeedAnalysis {
   def main(args: Array[String]): Unit = {
     val pathToCsv = "D:/Work/beam/NewYork/data_sources/DOT_Traffic_Speeds_NBE.csv.gz"
     val pathToNetwork = "C:/repos/beam/test/input/newyork/r5-prod/physsim-network.xml"
+
+    val r5Network = KryoNetworkSerializer.read(new File("C:/repos/beam/test/input/newyork/r5-prod/network.dat"))
 
     if (shouldCreateTrafficShape) {
       ProfilingUtils.timed("Create shape file from traffic speeds", x => println(x)) {
@@ -80,7 +86,7 @@ object NewYorkTrafficSpeedAnalysis {
     println(s"quadTreeBounds: ${quadTreeBounds.size()}")
 
     val (it, toClose) = GenericCsvReader.readAs[Map[String, String]](pathToCsv, x => x.asScala.toMap, trafficFilter)
-    val networkShapeWriter = ShapeWriter.worldGeodetic[Point, MappingAttributes]("traffic_with_closest_osm.shp")
+    val networkShapeWriter = ShapeWriter.worldGeodetic[LineString, MappingAttributes]("traffic_with_closest_links_r5.shp")
 
     try {
       val r = it
@@ -90,41 +96,44 @@ object NewYorkTrafficSpeedAnalysis {
           (linkId, strToCoords(linksPoints))
         }
         .toArray
-        .groupBy { case (linkId, linkPoints) => (linkId, linkPoints) }
+        .distinct
 
       var id: Int = 0
-      r.foreach {
-        case ((linkId, linksPoints), _) =>
-          println(s"linkId: $linkId")
-          linksPoints.foreach { point =>
-            val link = quadTreeBounds.getClosest(point.getX, point.getY)
-            val (fromWgs, toWgs) = getFromToCoordsAsWgs(link)
-            val fromDiff = geoUtils.distLatLon2Meters(fromWgs, point)
-            val toDiff = geoUtils.distLatLon2Meters(toWgs, point)
-
-            networkShapeWriter.add(
-              geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
-              id.toString,
-              MappingAttributes(link.getId.toString, link.getFromNode.getId.toString, fromDiff, linkId)
-            )
-            id += 1
-
-            networkShapeWriter.add(
-              geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
-              id.toString,
-              MappingAttributes(link.getId.toString, link.getToNode.getId.toString, toDiff, linkId)
-            )
-            id += 1
-
-            println(s"Link: ${link}, point: ${point}")
-            println(s"Found closest. fromWgs: ${fromWgs}, fromDiff: $fromDiff, toWgs: $toWgs, toDiff: $toDiff")
+      val level: Int = 5
+      val toWrite = r.foldLeft(Set[(Link, MappingAttributes)]()) {
+        case (acc: Set[(Link, MappingAttributes)], (trafficLinkId, linksPoints)) =>
+          println(s"trafficLinkId: $trafficLinkId")
+          val closestBeamLinks =  linksPoints.flatMap { point =>
+            val closestLink = quadTreeBounds.getClosest(point.getX, point.getY)
+            val connectedLinks = getConnectedLinks(closestLink, level = level)
+            println(s"Found closest $closestLink which has ${connectedLinks.size} connected links on level ${level}")
+            connectedLinks
           }
-          println()
+        val withAttributes: Seq[(Link, MappingAttributes)] = closestBeamLinks.map { link =>
+          (link, MappingAttributes(link.getId.toString, trafficLinkId))
+        }
+        acc ++ withAttributes
       }
+
+      toWrite.foreach { case (link, attrib) =>
+        val linkId = link.getId.toString.toInt
+        val edge = r5Network.streetLayer.edgeStore.getCursor(linkId)
+        networkShapeWriter.add(
+          edge.getGeometry,
+          id.toString,
+          attrib
+        )
+        id += 1
+      }
+
       networkShapeWriter.write()
     } finally {
       Try(toClose.close())
     }
+  }
+
+  private def getConnectedLinks(link: Link, level: Int): Seq[Link] = {
+    (Array(link) ++ NetworkUtil.getLinks(link, level, Direction.In) ++ NetworkUtil.getLinks(link, level, Direction.Out)).distinct
   }
 
   private def writeOriginAndDestinationFromPathTraversal(path: String) = {
