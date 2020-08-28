@@ -103,6 +103,6 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         return personId;
     }
 
-    public String getMode() { return mode; };
+    public String getMode() { return mode; }
 
 }

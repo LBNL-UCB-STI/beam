@@ -97,7 +97,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
   override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
-  override def skims = injector.getInstance(classOf[Skims])
+  override def skims: Skims = injector.getInstance(classOf[Skims])
 
   override def simMetricCollector: SimulationMetricCollector = injector.getInstance(classOf[SimulationMetricCollector])
 }

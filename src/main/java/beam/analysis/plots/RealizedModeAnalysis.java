@@ -330,9 +330,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         Map<String, Double> totalModeChoice = new HashMap<>();
         hourModeFrequency.values().forEach(iterationHourData -> {
             if (iterationHourData != null) {
-                iterationHourData.forEach((iterationMode, freq) -> {
-                    totalModeChoice.merge(iterationMode, freq, Double::sum);
-                });
+                iterationHourData.forEach((iterationMode, freq) -> totalModeChoice.merge(iterationMode, freq, Double::sum));
             }
         });
         iterationTypeSet.add("it." + iteration);
