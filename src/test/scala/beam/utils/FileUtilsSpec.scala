@@ -46,7 +46,7 @@ class FileUtilsSpec extends WordSpecLike with Matchers {
 
     "write data to files in parallel" in {
       val data = Array.ofDim[String](111)
-      for (i <- 0 until data.length) {
+      for (i <- data.indices) {
         data(i) = i + (",CAR,101241,101241,153,153.0,0.128873295,0.468873295," +
         "1175.0,0.0,0,0,CAR,101241,101241,153,153.0,0.128873295,0.468873295,1175.0,0.0,0,0CAR,101241,101241,153," +
         "153.0,0.128873295,0.468873295,1175.0,0.0,0,0")
