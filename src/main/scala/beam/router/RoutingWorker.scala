@@ -166,7 +166,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
             //run graphHopper for only cars
             val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
-              val idx = if (carRouter == "quasiDynamicGH")
+              val idx =
+                if (carRouter == "quasiDynamicGH")
                   Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
                 else 0
               Some(
