@@ -175,6 +175,7 @@ dependencies {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
+    compile group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0'
     compile "com.sigopt:sigopt-java:4.9.0"
 
     compile("com.uber:h3:3.4.1")
@@ -191,11 +192,11 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:2.12.11"
+    compile "org.scala-lang:scala-library:2.12.12"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:2.12.11"
+    compile "org.scala-lang:scala-compiler:2.12.12"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.8'
@@ -210,7 +211,7 @@ dependencies {
     // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
     compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
 
-    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
+    compile "com.github.scopt:scopt_${scalaBinaryVersion}:4.0.0-RC2"
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
