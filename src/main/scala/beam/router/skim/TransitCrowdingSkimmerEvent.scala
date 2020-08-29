@@ -22,5 +22,6 @@ class TransitCrowdingSkimmerEvent(
 
   override val getKey: AbstractSkimmerKey = TransitCrowdingSkimmerKey(vehicleId, fromStopIdx)
 
-  override val getSkimmerInternal: AbstractSkimmerInternal = TransitCrowdingSkimmerInternal(numberOfPassengers, capacity)
+  override val getSkimmerInternal: AbstractSkimmerInternal =
+    TransitCrowdingSkimmerInternal(numberOfPassengers, capacity)
 }
