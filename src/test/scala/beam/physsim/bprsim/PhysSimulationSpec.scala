@@ -5,7 +5,15 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, HasLinkId, LinkEnterEvent, LinkLeaveEvent, PersonDepartureEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  Event,
+  HasLinkId,
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  PersonDepartureEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.core.config.{Config => MatsimConfig}

@@ -31,7 +31,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
 
   "Running a beamville scenario with cosimulation" must "result event being published and read" in {
     val config = ConfigFactory
-      .parseString("""
+      .parseString(
+        """
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.agentsim.collectEvents = true
                      |beam.agentsim.lastIteration = 0
@@ -40,7 +41,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
                      |  timeStep = 300
                      |  federateName = "BeamFederate"
                      |}
-        """.stripMargin)
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val chargingPlugInEvents = new AtomicInteger(0)
@@ -89,6 +91,9 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     chargingPlugOutEvents: AtomicInteger
   ): Unit = {
     val broker = helics.helicsCreateBroker("zmq", "", s"-f 2 --name=BeamBrokerTemp")
+    val isHelicsBrokerConnected = helics.helicsBrokerIsConnected(broker)
+    isHelicsBrokerConnected should be > 0
+
     val fedName = "BeamFederateTemp"
     val fedInfo = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
