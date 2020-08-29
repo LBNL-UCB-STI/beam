@@ -7,7 +7,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.GenericCsvReader
 import beam.utils.shape.{Attributes, NoAttributeShapeWriter, ShapeWriter}
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, Point}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, LineString, Point}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
@@ -257,4 +257,27 @@ object NewYorkTrafficSpeedAnalysis {
     val toCoordWgs = geoUtils.utm2Wgs(toCoordUTM)
     (fromCoordWgs, toCoordWgs)
   }
+
+  def matchByDirection(nyLink: LineString, beamCandidates: Seq[LineString]): LineString = {
+    import com.vividsolutions.jts.algorithm.Angle
+
+    def linkAngle(link: LineString) = {
+      val start = link.getStartPoint.getCoordinate
+      val end = link.getEndPoint.getCoordinate
+      Angle.angle(start, end)
+    }
+
+    val a = linkAngle(nyLink)
+    val (link, _) = beamCandidates.map(l => l -> linkAngle(l)).minBy {
+      case (_, angle) =>
+        angle - a match {
+          case x if x > Math.PI  => Math.abs(x - 2 * Math.PI)
+          case x if x < -Math.PI => Math.abs(x + 2 * Math.PI)
+          case x                 => Math.abs(x)
+        }
+
+    }
+    link
+  }
+
 }
