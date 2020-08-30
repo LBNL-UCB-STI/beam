@@ -27,7 +27,7 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
+    private final PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
             new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
             }, true, null);
 
