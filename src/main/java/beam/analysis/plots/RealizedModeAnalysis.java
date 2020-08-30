@@ -60,9 +60,10 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
     private final FilterEvent filterEvent;
+    private final OutputDirectoryHierarchy ioController;
 
     private OutputDirectoryHierarchy controllerIo() {
-        return GraphsStatsAgentSimEventsListener.CONTROLLER_IO;
+        return ioController;
     }
 
     private String iterationFilename(final int iterationNumber, final String fileName, final String suffix) {
@@ -79,21 +80,22 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
             boolean writeGraph,
             BeamConfig beamConfig,
-            FilterEvent filterEvent
+            FilterEvent filterEvent, OutputDirectoryHierarchy ioController
     ) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         this.filterEvent = filterEvent;
         fileName = defaultFileName;
         benchMarkData = benchMarkCSVLoader(beamConfig.beam().calibration().mode().benchmarkFilePath());
+        this.ioController = ioController;
     }
 
     public RealizedModeAnalysis(
             StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation,
             boolean writeGraph,
-            BeamConfig beamConfig
+            BeamConfig beamConfig, OutputDirectoryHierarchy ioController
     ) {
-        this(statComputation, writeGraph, beamConfig, AllEventsFilter$.MODULE$);
+        this(statComputation, writeGraph, beamConfig, AllEventsFilter$.MODULE$, ioController);
     }
 
     @Override
@@ -328,9 +330,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         Map<String, Double> totalModeChoice = new HashMap<>();
         hourModeFrequency.values().forEach(iterationHourData -> {
             if (iterationHourData != null) {
-                iterationHourData.forEach((iterationMode, freq) -> {
-                    totalModeChoice.merge(iterationMode, freq, Double::sum);
-                });
+                iterationHourData.forEach((iterationMode, freq) -> totalModeChoice.merge(iterationMode, freq, Double::sum));
             }
         });
         iterationTypeSet.add("it." + iteration);

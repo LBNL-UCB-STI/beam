@@ -4,12 +4,16 @@ import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 public class DeadHeadingGraphTest {
-    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$, true);
+    private final OutputDirectoryHierarchy ioController = mock(OutputDirectoryHierarchy.class);
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(NoOpSimulationMetricCollector$.MODULE$,
+            true, ioController);
 
     @BeforeClass
     public static void setUpClass() {

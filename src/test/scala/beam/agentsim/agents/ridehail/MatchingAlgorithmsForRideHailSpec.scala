@@ -93,7 +93,6 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     )
     implicit val services: BeamServices = injector.getInstance(classOf[BeamServices])
     implicit val actorRef: ActorRef = ActorRef.noSender
-    Skims.setup
     val sc = MatchingAlgorithmsForRideHailSpec.scenario1
     val alg: AlonsoMoraMatchingWithMIPAssignment =
       new AlonsoMoraMatchingWithMIPAssignment(

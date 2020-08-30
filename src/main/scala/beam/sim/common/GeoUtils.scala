@@ -191,6 +191,22 @@ object GeoUtils {
     new Coordinate(coord.getX, coord.getY)
   }
 
+  val GeoUtilsWgs: GeoUtils = new GeoUtils {
+    override def localCRS: String = "EPSG:4326"
+  }
+
+  val GeoUtilsNad83: GeoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:26910"
+  }
+
+  def fromEpsg(code: String): GeoUtils = {
+    code match {
+      case "26910" => GeoUtilsNad83
+      case "4326"  => GeoUtilsWgs
+      case _       => throw new IllegalArgumentException("")
+    }
+  }
+
   def isInvalidWgsCoordinate(coord: Coord): Boolean = {
     coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90
   }
@@ -263,6 +279,19 @@ object GeoUtils {
   }
 
   /**
+    * Generate the vector coordinates from the link nodes
+    *
+    * @param link link in the network
+    * @return vector coordinates
+    */
+  def linkCenter(link: Link): Coord = {
+    new Coord(
+      (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX) / 2,
+      (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY) / 2
+    )
+  }
+
+  /**
     * Computes the angle between two coordinates
     *
     * @param source source coordinates
@@ -295,3 +324,5 @@ object GeoUtils {
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
   override def localCRS: String = beamConfig.beam.spatial.localCRS
 }
+
+case class SimpleGeoUtils(localCRS: String = "epsg:26910") extends GeoUtils

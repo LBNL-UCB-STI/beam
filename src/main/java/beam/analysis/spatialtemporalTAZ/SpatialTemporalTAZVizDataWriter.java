@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class SpatialTemporalTAZVizDataWriter {
 
-    private List<TazOutput.TazStructure> jsonStructure;
+    private final List<TazOutput.TazStructure> jsonStructure;
     private final Map<TazKey, TazValue> dataMap = new HashMap<>();
     private final String mainCat;
     public SpatialTemporalTAZVizDataWriter(String filePath, String mainCat) throws Exception {

@@ -55,9 +55,9 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     public void process(IterationEndsEvent event) throws IOException {
         double[][] matrixDataSet = buildMatrixDataSet();
         CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode ", "", matrixDataSet);
-        writeCSV(matrixDataSet, event.getIteration());
+        writeCSV(matrixDataSet, event.getIteration(), event.getServices().getControlerIO());
 
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle, event.getServices().getControlerIO());
     }
 
     public double[][] buildMatrixDataSet() {

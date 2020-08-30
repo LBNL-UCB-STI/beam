@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Identify}
@@ -9,26 +10,22 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
+import beam.agentsim.events.handling.TravelTimeGoogleStatistic
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{
-  DelayMetricAnalysis,
-  IterationStatsProvider,
-  ModeChoiceAlternativesCollector,
-  RideHailUtilizationCollector,
-  VMInformationCollector
-}
+import beam.analysis._
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
-import beam.router.r5.RouteDumper
-import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.sim.metrics.{BeamStaticMetricsWriter, Metrics, MetricsSupport}
+import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
@@ -39,7 +36,9 @@ import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsP
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 //import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
 import org.apache.commons.io.FileUtils
@@ -110,13 +109,40 @@ class BeamSim @Inject()(
 
   val routeDumper: RouteDumper = new RouteDumper(beamServices)
 
+  val transitOccupancyByStop = new TransitOccupancyByStopAnalysis()
+
   val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
     List(routeDumper)
 
-  val carTravelTimeFromPte: CarTripStatsFromPathTraversalEventHandler =
-    new CarTripStatsFromPathTraversalEventHandler(
+  val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
+    val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
       networkHelper,
-      Some(beamServices.matsimServices.getControlerIO)
+      beamServices.matsimServices.getControlerIO,
+      TakeAllTripsTripFilter,
+      "",
+      treatMismatchAsWarning = true
+    )
+    val studyAreCarTravelTime = if (beamServices.beamConfig.beam.calibration.studyArea.enabled) {
+      Some(
+        new CarTripStatsFromPathTraversalEventHandler(
+          networkHelper,
+          beamServices.matsimServices.getControlerIO,
+          new StudyAreaTripFilter(beamServices.beamConfig.beam.calibration.studyArea, beamServices.geo),
+          "studyarea",
+          treatMismatchAsWarning = false // It is expected that for study area some PathTraversals will be taken, so do not treat it as warning
+        )
+      )
+    } else {
+      None
+    }
+    List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
+  }
+
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
+    new TravelTimeGoogleStatistic(
+      beamServices.beamConfig.beam.calibration.google.travelTimes,
+      actorSystem,
+      beamServices.geo
     )
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
@@ -141,9 +167,11 @@ class BeamSim @Inject()(
 //    metricsPrinter ! Subscribe("counter", "**")
 //    metricsPrinter ! Subscribe("histogram", "**")
 
+    eventsManager.addHandler(transitOccupancyByStop)
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
-    eventsManager.addHandler(carTravelTimeFromPte)
+    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
+    eventsManager.addHandler(travelTimeGoogleStatistic)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
 
     beamServices.beamRouter = actorSystem.actorOf(
@@ -212,6 +240,10 @@ class BeamSim @Inject()(
     )
 
     val controllerIO = event.getServices.getControlerIO
+
+    // FIXME: Remove this once ready to merge
+    // generateRandomCoordinates()
+
     PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv.gz"))
     VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv.gz"))
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
@@ -224,7 +256,6 @@ class BeamSim @Inject()(
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
     FailFast.run(beamServices)
-    Skims.setup(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
@@ -262,6 +293,7 @@ class BeamSim @Inject()(
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
+    travelTimeGoogleStatistic.reset(event.getIteration)
     startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
 
     beamServices.simMetricCollector.clear()
@@ -288,7 +320,9 @@ class BeamSim @Inject()(
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     rideHailUtilizationCollector.notifyIterationEnds(event)
-    carTravelTimeFromPte.notifyIterationEnds(event)
+    carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
+    transitOccupancyByStop.notifyIterationEnds(event)
+    travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
@@ -298,7 +332,7 @@ class BeamSim @Inject()(
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
-        modalityStyleStats.buildModalityStyleGraph()
+        modalityStyleStats.buildModalityStyleGraph(event.getServices.getControlerIO)
       }
       createGraphsFromEvents.createGraphs(event)
 
@@ -436,11 +470,25 @@ class BeamSim @Inject()(
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
+          dumpHouseholdAttributes
+
           // Rename files
           renameGeneratedOutputFiles(event)
         case x =>
           logger.warn("dumper is not `ShutdownListener`")
       }
+    }
+  }
+
+  private def dumpHouseholdAttributes(): Unit = {
+    val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
+    if (householdAttributes != null) {
+      val writer = new ObjectAttributesXmlWriter(householdAttributes)
+      writer.setPrettyPrint(true)
+      writer.putAttributeConverters(Collections.emptyMap())
+      writer.writeFile(
+        beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
+      )
     }
   }
 
@@ -450,7 +498,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    carTravelTimeFromPte.notifyShutdown(event)
+    carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
@@ -492,8 +540,6 @@ class BeamSim @Inject()(
         process.waitFor(5, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
-
-    Skims.clear()
 
     beamServices.simMetricCollector.close()
   }

@@ -189,8 +189,7 @@ class DelayMetricAnalysis @Inject()(
     val plot: CategoryPlot = chart.getCategoryPlot
     GraphUtils.plotLegendItems(plot, legends.toList.asJava, delayTotalByLinkCapacityDataset.getRowCount)
 
-    val graphImageFile =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".png")
+    val graphImageFile = controlerIO.getOutputFilename(fileName + ".png")
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       graphImageFile,
@@ -223,9 +222,7 @@ class DelayMetricAnalysis @Inject()(
       dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
     }
 
-    val graphImageFile: String =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-        .getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
+    val graphImageFile: String = controlerIO.getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
 
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,

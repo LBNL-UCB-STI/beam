@@ -6,6 +6,7 @@ import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,7 @@ public interface IGraphPassengerPerTrip {
         return (int) time / SECONDS_IN_HOUR;
     }
 
-    default void draw(CategoryDataset dataSet, int iterationNumber, String xAxisTitle, String yAxisTitle) throws IOException {
+    default void draw(CategoryDataset dataSet, int iterationNumber, String xAxisTitle, String yAxisTitle, OutputDirectoryHierarchy ioController) throws IOException {
         String fileName = getFileName("png");
         String graphTitle = getTitle();
         boolean legend = true;
@@ -43,13 +44,13 @@ public interface IGraphPassengerPerTrip {
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> legendItemList = getLegendItemList(dataSet.getRowCount());
         GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = ioController.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    default void writeCSV(double[][] dataMatrix, int iterationNumber) {
+    default void writeCSV(double[][] dataMatrix, int iterationNumber, OutputDirectoryHierarchy ioController) {
         String fileName = getFileName("csv");
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String csvFileName = ioController.getIterationFilename(iterationNumber, fileName);
         try(final BufferedWriter writer = new BufferedWriter(new FileWriter(csvFileName))) {
             List<String> legendItemList = getLegendItemList(dataMatrix.length);
             writer.write("hours");

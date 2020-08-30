@@ -1,5 +1,6 @@
 package beam.sim
 
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
@@ -42,6 +43,8 @@ case class BeamScenario(
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ
 ) {
+  val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
+
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
     else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))

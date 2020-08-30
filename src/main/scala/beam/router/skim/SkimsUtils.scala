@@ -19,7 +19,7 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
@@ -175,8 +175,12 @@ object SkimsUtils extends LazyLogging {
     }
   }
 
-  def buildObservedODTravelTime(beamServices: BeamServices, maxDistanceFromBeamTaz: Double): Map[PathCache, Float] = {
-    import beamServices._
+  def buildObservedODTravelTime(
+    beamConfig: BeamConfig,
+    geo: GeoUtils,
+    beamScenario: BeamScenario,
+    maxDistanceFromBeamTaz: Double
+  ): Map[PathCache, Float] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
     val zoneODTravelTimesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath
     if (zoneBoundariesFilePath.nonEmpty && zoneODTravelTimesFilePath.nonEmpty) {

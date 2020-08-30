@@ -2,7 +2,6 @@ package beam.router.skim
 
 import java.io.File
 
-import akka.actor.ActorRef
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
@@ -166,39 +165,39 @@ object SkimmerSpec extends LazyLogging {
       if (event.getIteration == 1) {
         // taz_skimmer
         assume(
-          Skims.taz_skimmer.pastSkims.size == 1,
+          beamServices.skims.taz_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.TAZ_SKIMMER} collected"
         )
-        Skims.taz_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.taz_skimmer.aggregatedSkim.foreach {
           case (key, value) =>
             assume(
-              value == Skims.taz_skimmer.pastSkims.head(key),
+              value == beamServices.skims.taz_skimmer.pastSkims.head(key),
               s"the aggregated skims should be equal to the first collected ${SkimType.TAZ_SKIMMER}"
             )
         }
 
         // od_skimmer
         assume(
-          Skims.od_skimmer.pastSkims.size == 1,
+          beamServices.skims.od_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.OD_SKIMMER} collected"
         )
-        Skims.od_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.od_skimmer.aggregatedSkim.foreach {
           case (key, value) =>
             assume(
-              value == Skims.od_skimmer.pastSkims.head(key),
+              value == beamServices.skims.od_skimmer.pastSkims.head(key),
               s"the aggregated skims should be equal to the first collected ${SkimType.OD_SKIMMER}"
             )
         }
 
         // dt_skimmer
         assume(
-          Skims.dt_skimmer.pastSkims.size == 1,
+          beamServices.skims.dt_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.DT_SKIMMER} collected"
         )
-        Skims.dt_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.dt_skimmer.aggregatedSkim.foreach {
           case (key, value) =>
             assume(
-              value == Skims.dt_skimmer.pastSkims.head(key),
+              value == beamServices.skims.dt_skimmer.pastSkims.head(key),
               s"the aggregated skims should be equal to the first collected ${SkimType.DT_SKIMMER}"
             )
         }
@@ -218,9 +217,9 @@ object SkimmerSpec extends LazyLogging {
         SkimType.TAZ_SKIMMER,
         event.getServices.getControlerIO.getIterationFilename(1, "skimsTAZ_Aggregated.csv.gz")
       )
-      skimsMap.put(SkimType.DT_SKIMMER, Skims.dt_skimmer.aggregatedSkim)
-      skimsMap.put(SkimType.OD_SKIMMER, Skims.od_skimmer.aggregatedSkim)
-      skimsMap.put(SkimType.TAZ_SKIMMER, Skims.taz_skimmer.aggregatedSkim)
+      skimsMap.put(SkimType.DT_SKIMMER, beamServices.skims.dt_skimmer.aggregatedSkim)
+      skimsMap.put(SkimType.OD_SKIMMER, beamServices.skims.od_skimmer.aggregatedSkim)
+      skimsMap.put(SkimType.TAZ_SKIMMER, beamServices.skims.taz_skimmer.aggregatedSkim)
     }
   }
 

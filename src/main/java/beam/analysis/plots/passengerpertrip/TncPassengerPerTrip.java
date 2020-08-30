@@ -113,9 +113,9 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         double[][] matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName));
 
         CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode", "", matrixDataSet);
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle, event.getServices().getControlerIO());
 
-        writeCSV(matrixDataSet, event.getIteration());
+        writeCSV(matrixDataSet, event.getIteration(), event.getServices().getControlerIO());
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data) {

@@ -1,10 +1,9 @@
 package beam.integration
 
-import java.io.File
+import java.nio.charset.StandardCharsets
 
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -23,6 +22,8 @@ import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+
+import scala.io.Source
 
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
@@ -66,18 +67,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       travelDistanceStats.close()
   }
 
-  it should "contain the same bus trips entries" in {
-    tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs(new File("test/input/beamville/r5/bus-freq/trips.txt"))
-  }
-
-  it should "contain the same train trips entries" in {
-    tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
-//    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
-    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
-  }
-
-  private def tripsFromEvents(vehicleType: String) = {
+  private def tripsFromEvents(vehicleType: String): Set[String] = {
     val trips = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getAttributes.get("vehicleType") == vehicleType
@@ -86,23 +76,18 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     trips.toSet
   }
 
-  private def tripsFromGtfs(file: File): Set[String] = {
-    val trips = for (line <- FileUtils.readAllLines(file).drop(1))
+  private def tripsFromGtfs(gtfsZip: String): Set[String] = {
+    val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "trips.txt").map { stream =>
+      Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
+    }
+    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
+
+    val trips = for (line <- maybeLines.get)
       yield line.split(",")(2)
     trips.toSet
   }
 
-  it should "contain same pathTraversal defined at stop times file for bus input file" in {
-    stopToStopLegsFromEventsByTrip("BUS-DEFAULT").keys should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus-freq/stop_times.txt").keys
-  }
-
-  it should "contain same pathTraversal defined at stop times file for train input file" in {
-    stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT").keys should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train-freq/stop_times.txt").keys
-  }
-
-  private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
+  private def stopToStopLegsFromEventsByTrip(vehicleType: String): Map[String, Int] = {
     val pathTraversals = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
@@ -113,11 +98,36 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     eventsByTrip.map { case (k, v) => (k, v.size) }
   }
 
-  private def stopToStopLegsFromGtfsByTrip(stopTimesFile: String): Map[String, Int] = {
-    val stopTimes = for (line <- FileUtils.readAllLines(stopTimesFile).drop(1))
+  private def stopToStopLegsFromGtfsByTrip(gtfsZip: String): Map[String, Int] = {
+    val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "stop_times.txt").map { stream =>
+      Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
+    }
+    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
+
+    val stopTimes = for (line <- maybeLines.get)
       yield line.split(",")
-    val stopTimesByTrip = stopTimes.toList.groupBy(_(0))
+    val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
+  }
+
+  it should "contain the same bus trips entries" in {
+    tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
+    tripsFromGtfs("test/input/beamville/r5/bus.zip")
+  }
+
+  it should "contain the same train trips entries" in {
+    tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
+    tripsFromGtfs("test/input/beamville/r5/train.zip")
+  }
+
+  it should "contain same pathTraversal defined at stop times file for bus input file" in {
+    stopToStopLegsFromEventsByTrip("BUS-DEFAULT").keys should contain theSameElementsAs
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus.zip").keys
+  }
+
+  it should "contain same pathTraversal defined at stop times file for train input file" in {
+    stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT").keys should contain theSameElementsAs
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train.zip").keys
   }
 
   it should "also be available as csv file" in {

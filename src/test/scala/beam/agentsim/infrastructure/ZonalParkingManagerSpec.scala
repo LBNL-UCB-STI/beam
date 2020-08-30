@@ -83,7 +83,7 @@ class ZonalParkingManagerSpec
 //          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
 //        )
 //        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-//        val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+//        val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(

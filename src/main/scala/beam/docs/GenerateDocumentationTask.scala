@@ -5,8 +5,7 @@ import java.nio.file.{FileSystems, Path, Paths}
 
 import scala.collection.JavaConverters._
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription, ScoreStatsOutputs}
+import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription}
 import beam.utils.OutputDataDescriptor
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -24,7 +23,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
       .toAbsolutePath
       .normalize()
 
-    initializeDependencies(outputDirectory.toString)
+    val ioController = initializeDependencies(outputDirectory.toString)
 
     val outputFile = Paths.get(outputDirectory.toString, "outputs.rst")
 
@@ -32,7 +31,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
 
     BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs.foreach { clazz: OutputDataDescriptor =>
       logger.info(s"Writing ${clazz.getClass.getName.dropRight(1)}...")
-      val classContent = buildDocument(clazz)
+      val classContent = buildDocument(clazz, ioController)
       appendToFile(classContent, outputFile)
     }
     logger.info("Generating Output data description finished.")
@@ -47,19 +46,15 @@ object GenerateDocumentationTask extends App with StrictLogging {
       .close()
   }
 
-  def loadValues(): Seq[OutputDataDescription] = {
-    ScoreStatsOutputs.getOutputDataDescriptions.asScala
-  }
-
-  private def initializeDependencies(outputDirectory: String): Unit = {
-    GraphsStatsAgentSimEventsListener.CONTROLLER_IO = new OutputDirectoryHierarchy(
+  private def initializeDependencies(outputDirectory: String): OutputDirectoryHierarchy = {
+    new OutputDirectoryHierarchy(
       outputDirectory,
       OverwriteFileSetting.overwriteExistingFiles
     )
   }
 
-  def buildDocument(descriptor: OutputDataDescriptor): String = {
-    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions.asScala
+  def buildDocument(descriptor: OutputDataDescriptor, ioController: OutputDirectoryHierarchy): String = {
+    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions(ioController).asScala
 
     val columns: Seq[String] = Seq("field", "description")
     val columnsSize: Map[String, Int] = calculateColumnSize(allValues, columns)
