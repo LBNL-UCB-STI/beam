@@ -200,7 +200,7 @@ class JDEQSimRunner(
     }
   }
 
-  def createCaccSettings() = {
+  def createCaccSettings(): CACCSettings = {
     logger.info("CACC enabled")
     val roadCapacityAdjustmentFunction: RoadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
       beamConfig,

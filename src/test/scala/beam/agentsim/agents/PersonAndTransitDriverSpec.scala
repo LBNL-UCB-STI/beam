@@ -71,8 +71,7 @@ class PersonAndTransitDriverSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(beamConfig, beamScenario.tazTreeMap, None, services.geo, services.beamRouter, boundingBox),
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
 

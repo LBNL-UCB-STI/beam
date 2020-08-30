@@ -250,7 +250,7 @@ object GraphHopperWrapper {
     graphHopperStorage.flush()
   }
 
-  def getProfiles(carRouter: String) = {
+  def getProfiles(carRouter: String): List[Profile] = {
     val carProfiles = if (carRouter == "quasiDynamicGH") {
       val profile = new Profile(BeamGraphHopper.profile)
       profile.setVehicle("car")

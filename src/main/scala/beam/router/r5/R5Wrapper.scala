@@ -59,7 +59,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  private val bikeLanesAdjustment = new BikeLanesAdjustment(beamConfig)
+  private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -1046,7 +1046,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-          val scaleFactor = bikeLanesAdjustment.calculateBicycleScaleFactor(vehicleType, linkId)
+          val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
           minTravelTime * scaleFactor
         } else {
           minTravelTime

@@ -15,8 +15,6 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import com.conveyal.r5.profile.StreetMode
-import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -25,7 +23,6 @@ import scala.util.{Failure, Random, Success, Try}
 
 class ZonalParkingManager(
   tazTreeMap: TAZTreeMap,
-  transportNetworkOption: Option[TransportNetwork],
   geo: GeoUtils,
   parkingZones: Array[ParkingZone],
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
@@ -153,22 +150,7 @@ class ZonalParkingManager(
               log.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
               TAZ.DefaultTAZ.coord
             case Some(taz) =>
-              transportNetworkOption match {
-                case Some(transportNetwork) =>
-                  geo.wgs2Utm(
-                    geo.snapToR5Edge(
-                      transportNetwork.streetLayer,
-                      coordWGS = geo.utm2Wgs(
-                        ParkingStallSampling
-                          .availabilityAwareSampling(rand, inquiry.destinationUtm, taz, zone.availability)
-                      ),
-                      maxRadius = 1E5D,
-                      StreetMode.CAR
-                    )
-                  )
-                case None =>
-                  ParkingStallSampling.availabilityAwareSampling(rand, inquiry.destinationUtm, taz, zone.availability)
-              }
+              ParkingStallSampling.availabilityAwareSampling(rand, inquiry.destinationUtm, taz, zone.availability)
           }
         }
 
@@ -277,9 +259,7 @@ class ZonalParkingManager(
               inquiry.destinationUtm.getY + 2000,
               inquiry.destinationUtm.getY - 2000
             )
-            // TODO: Also snap emergency stall to grid
-            val newStall =
-              ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
+            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
         }
 
@@ -388,7 +368,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
-    transportNetworkOption: Option[TransportNetwork],
     parkingZones: Array[ParkingZone],
     searchTree: ZoneSearchTree[TAZ],
     emergencyTAZId: Id[TAZ],
@@ -419,7 +398,6 @@ object ZonalParkingManager extends LazyLogging {
 
     new ZonalParkingManager(
       tazTreeMap,
-      transportNetworkOption,
       geo,
       parkingZones,
       searchTree,
@@ -440,7 +418,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
-    transportNetworkOption: Option[TransportNetwork],
     geo: GeoUtils,
     boundingBox: Envelope
   ): ZonalParkingManager = {
@@ -462,7 +439,6 @@ object ZonalParkingManager extends LazyLogging {
     ZonalParkingManager(
       beamConfig,
       tazTreeMap,
-      transportNetworkOption,
       stalls,
       searchTree,
       TAZ.EmergencyTAZId,
@@ -515,7 +491,6 @@ object ZonalParkingManager extends LazyLogging {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, random, 1.0, 1.0, true)
     new ZonalParkingManager(
       tazTreeMap,
-      None,
       geo,
       parking.zones,
       parking.tree,
@@ -537,7 +512,6 @@ object ZonalParkingManager extends LazyLogging {
   def props(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
-    transportNetworkOption: Option[TransportNetwork],
     geo: GeoUtils,
     beamRouter: ActorRef,
     boundingBox: Envelope
@@ -547,7 +521,6 @@ object ZonalParkingManager extends LazyLogging {
       ZonalParkingManager(
         beamConfig,
         tazTreeMap,
-        transportNetworkOption,
         geo,
         boundingBox
       )
@@ -574,7 +547,6 @@ object ZonalParkingManager extends LazyLogging {
       ZonalParkingManager(
         beamConfig,
         tazTreeMap,
-        None,
         parkingZones,
         searchTree,
         emergencyTAZId,
