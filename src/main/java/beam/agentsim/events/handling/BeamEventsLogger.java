@@ -60,13 +60,15 @@ public class BeamEventsLogger {
 
         if (writeAllEvents || writeExtraEvents) {
             matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
-            final String eventsFileBasePath =
-                    matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
 
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
+
                 if (writeAllEvents) {
+                    final String allEventsFileBasePath =
+                            matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+
                     final BeamEventsWriterBase writer =
-                           createEventWriterForClassAndFormat(eventsFileBasePath,
+                           createEventWriterForClassAndFormat(allEventsFileBasePath,
                                                               null,
                                                               fmt);
                     writers.add(writer);
@@ -75,8 +77,11 @@ public class BeamEventsLogger {
 
                 if (writeExtraEvents) {
                     for (Class<?> eventClass : extraEventsClasses) {
+                        final String extraEventFileBasePath = matsimServices.getControlerIO()
+                                .getIterationFilename(iterationNumber, eventClass.getSimpleName());
+
                         final BeamEventsWriterBase writer =
-                                createEventWriterForClassAndFormat(eventsFileBasePath,
+                                createEventWriterForClassAndFormat(extraEventFileBasePath,
                                                                    eventClass,
                                                                    fmt);
                         writers.add(writer);
