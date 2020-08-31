@@ -7,12 +7,10 @@ import com.graphhopper.util.{EdgeIteratorState, GHUtility}
 import scala.util.Try
 
 /**
- * It's custom implementation of TimeDetails
- */
-abstract class AbstractBeamTimeDetails(
-                                        val weighting: Weighting,
-                                        name: String,
-                                        val reverse: Boolean) extends AbstractPathDetailsBuilder(name) {
+  * It's custom implementation of TimeDetails
+  */
+abstract class AbstractBeamTimeDetails(val weighting: Weighting, name: String, val reverse: Boolean)
+    extends AbstractPathDetailsBuilder(name) {
 
   private var prevEdgeId = -1
   // will include the turn time penalty
@@ -21,8 +19,9 @@ abstract class AbstractBeamTimeDetails(
   override def isEdgeDifferentToLastEdge(edge: EdgeIteratorState): Boolean = {
     if (edge.getEdge != prevEdgeId) {
       time = weighting match {
-        case bWeighting: BeamWeighting => Try(bWeighting.calcEdgeMillisForDetails(edge, reverse))
-          .getOrElse(getDefaultTime(edge))
+        case bWeighting: BeamWeighting =>
+          Try(bWeighting.calcEdgeMillisForDetails(edge, reverse))
+            .getOrElse(getDefaultTime(edge))
         case _ => getDefaultTime(edge)
       }
 
@@ -38,5 +37,3 @@ abstract class AbstractBeamTimeDetails(
 
   override def getCurrentValue: Object = time.asInstanceOf[Object]
 }
-
-
