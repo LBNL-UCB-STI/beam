@@ -2,6 +2,7 @@ package beam.agentsim.events.handling;
 
 import beam.agentsim.events.*;
 import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -47,16 +48,41 @@ public class BeamEventsLogger {
 
     protected void createEventsWriters() {
         int iterationNumber = matsimServices.getIterationNumber();
-        final int writeEventsInterval = beamServices.beamConfig().beam().outputs().writeEventsInterval();
-        final boolean writeThisIteration = (writeEventsInterval > 0) && (iterationNumber % writeEventsInterval == 0);
-        if (writeThisIteration) {
+
+        final BeamConfig.Beam.Outputs outputsConfig = beamServices.beamConfig().beam().outputs();
+
+        final int writeEventsInterval = outputsConfig.writeEventsInterval();
+        final boolean writeAllEvents = (writeEventsInterval > 0) && (iterationNumber % writeEventsInterval == 0);
+
+        final String extraEventsToWrite = outputsConfig.events().extraEventsToWrite().getOrElse(() -> "");
+        final List<Class<?>> extraEventsClasses = getEventsClasses(extraEventsToWrite);
+        final boolean writeExtraEvents = !extraEventsClasses.isEmpty();
+
+        if (writeAllEvents || writeExtraEvents) {
             matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
-            String eventsFileBasePath = matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+            final String eventsFileBasePath =
+                    matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
+
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
-                BeamEventsWriterBase newWriter;
-                newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, null, fmt);
-                writers.add(newWriter);
-                eventsManager.addHandler(newWriter);
+                if (writeAllEvents) {
+                    final BeamEventsWriterBase writer =
+                           createEventWriterForClassAndFormat(eventsFileBasePath,
+                                                              null,
+                                                              fmt);
+                    writers.add(writer);
+                    eventsManager.addHandler(writer);
+                }
+
+                if (writeExtraEvents) {
+                    for (Class<?> eventClass : extraEventsClasses) {
+                        final BeamEventsWriterBase writer =
+                                createEventWriterForClassAndFormat(eventsFileBasePath,
+                                                                   eventClass,
+                                                                   fmt);
+                        writers.add(writer);
+                        eventsManager.addHandler(writer);
+                    }
+                }
             }
         }
     }
@@ -104,81 +130,85 @@ public class BeamEventsLogger {
      * Overrides the default logger setup
      */
     private void overrideDefaultLoggerSetup(String eventsToWrite) {
-        Class<?> eventClass = null;
+        //add the matched event class to the list of events to log
+        eventsToLog.addAll(getEventsClasses(eventsToWrite));
+    }
+
+    private List<Class<?>> getEventsClasses(String eventsToWrite) {
+        final List<Class<?>> eventClasses = new LinkedList<>();
         // Generate the required event class reference based on the class name
         if (!eventsToWrite.isEmpty()) {
             for (String className : eventsToWrite.split(",")) {
                 switch (className) {
                     case "ActivityStartEvent":
-                        eventClass = ActivityStartEvent.class;
+                        eventClasses.add(ActivityStartEvent.class);
                         break;
                     case "ActivityEndEvent":
-                        eventClass = ActivityEndEvent.class;
+                        eventClasses.add(ActivityEndEvent.class);
                         break;
                     case "LeavingParkingEvent":
-                        eventClass = LeavingParkingEvent.class;
+                        eventClasses.add(LeavingParkingEvent.class);
                         break;
                     case "LinkEnterEvent":
-                        eventClass = LinkEnterEvent.class;
+                        eventClasses.add(LinkEnterEvent.class);
                         break;
                     case "LinkLeaveEvent":
-                        eventClass = LinkLeaveEvent.class;
+                        eventClasses.add(LinkLeaveEvent.class);
                         break;
                     case "ModeChoiceEvent":
-                        eventClass = ModeChoiceEvent.class;
+                        eventClasses.add(ModeChoiceEvent.class);
                         break;
                     case "ParkingEvent":
-                        eventClass = ParkingEvent.class;
+                        eventClasses.add(ParkingEvent.class);
                         break;
                     case "PathTraversalEvent":
-                        eventClass = PathTraversalEvent.class;
+                        eventClasses.add(PathTraversalEvent.class);
                         break;
                     case "PersonArrivalEvent":
-                        eventClass = PersonArrivalEvent.class;
+                        eventClasses.add(PersonArrivalEvent.class);
                         break;
                     case "PersonDepartureEvent":
-                        eventClass = PersonDepartureEvent.class;
+                        eventClasses.add(PersonDepartureEvent.class);
                         break;
                     case "PersonEntersVehicleEvent":
-                        eventClass = PersonEntersVehicleEvent.class;
+                        eventClasses.add(PersonEntersVehicleEvent.class);
                         break;
                     case "PersonLeavesVehicleEvent":
-                        eventClass = PersonLeavesVehicleEvent.class;
+                        eventClasses.add(PersonLeavesVehicleEvent.class);
                         break;
                     case "RefuelSessionEvent":
-                        eventClass = RefuelSessionEvent.class;
+                        eventClasses.add(RefuelSessionEvent.class);
                         break;
                     case "ChargingPlugOutEvent":
-                        eventClass = ChargingPlugOutEvent.class;
+                        eventClasses.add(ChargingPlugOutEvent.class);
                         break;
                     case "ChargingPlugInEvent":
-                        eventClass = ChargingPlugInEvent.class;
+                        eventClasses.add(ChargingPlugInEvent.class);
                         break;
                     case "ReplanningEvent":
-                        eventClass = ReplanningEvent.class;
+                        eventClasses.add(ReplanningEvent.class);
                         break;
                     case "ReserveRideHailEvent":
-                        eventClass = ReserveRideHailEvent.class;
+                        eventClasses.add(ReserveRideHailEvent.class);
                         break;
                     case "VehicleEntersTrafficEvent":
-                        eventClass = VehicleEntersTrafficEvent.class;
+                        eventClasses.add(VehicleEntersTrafficEvent.class);
                         break;
                     case "VehicleLeavesTrafficEvent":
-                        eventClass = VehicleLeavesTrafficEvent.class;
+                        eventClasses.add(VehicleLeavesTrafficEvent.class);
                         break;
                     case "PersonCostEvent":
-                        eventClass = PersonCostEvent.class;
+                        eventClasses.add(PersonCostEvent.class);
                         break;
                     case "AgencyRevenueEvent":
-                        eventClass = AgencyRevenueEvent.class;
+                        eventClasses.add(AgencyRevenueEvent.class);
                         break;
                     default:
                         DebugLib.stopSystemAndReportInconsistency(
                                 "Logging class name: Unidentified event type class " + className);
                 }
-                //add the matched event class to the list of events to log
-                eventsToLog.add(eventClass);
             }
         }
+        return eventClasses;
     }
 }
