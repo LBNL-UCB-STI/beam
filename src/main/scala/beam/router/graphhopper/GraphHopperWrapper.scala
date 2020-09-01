@@ -69,8 +69,16 @@ class GraphHopperWrapper(
         .map(responsePath => {
           for {
             (beamTotalTravelTime, linkIds, linkTravelTimes, distance) <- processResponsePath(responsePath)
-            response <- getRouteResponse(routingRequest, beamTotalTravelTime, linkIds,
-              linkTravelTimes, origin, destination, distance, streetVehicle)
+            response <- getRouteResponse(
+              routingRequest,
+              beamTotalTravelTime,
+              linkIds,
+              linkTravelTimes,
+              origin,
+              destination,
+              distance,
+              streetVehicle
+            )
           } yield {
             response
           }
@@ -110,12 +118,12 @@ class GraphHopperWrapper(
       }
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-      // TODO ask why GH is producing negative travel time
-      //          .map { x =>
-      //            require(x > 0, "GOING BACK IN TIME")
-      //            x
-      //          }
-      //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+    // TODO ask why GH is producing negative travel time
+    //          .map { x =>
+    //            require(x > 0, "GOING BACK IN TIME")
+    //            x
+    //          }
+    //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
       .take(ghLinkIds.size)
 
     if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -135,14 +143,15 @@ class GraphHopperWrapper(
   }
 
   private def getRouteResponse(
-                                routingRequest: RoutingRequest,
-                                beamTotalTravelTime: Int,
-                                linkIds: IndexedSeq[Int],
-                                linkTravelTimes: IndexedSeq[Double],
-                                origin: Coord,
-                                destination: Coord,
-                                distance: Double,
-                                streetVehicle: StreetVehicle) = {
+    routingRequest: RoutingRequest,
+    beamTotalTravelTime: Int,
+    linkIds: IndexedSeq[Int],
+    linkTravelTimes: IndexedSeq[Double],
+    origin: Coord,
+    destination: Coord,
+    distance: Double,
+    streetVehicle: StreetVehicle
+  ) = {
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
@@ -191,8 +200,8 @@ class GraphHopperWrapper(
       }
       .toIndexedSeq
 
-      linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
-      else ghLinkIds.last * 2 + 1)
+    linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
+                else ghLinkIds.last * 2 + 1)
   }
 }
 
