@@ -309,7 +309,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       }
     }
 
-    graphHoppers = Await.result(Future.sequence(futures), 10.minutes).toMap
+    graphHoppers = Await.result(Future.sequence(futures), 20.minutes).toMap
   }
 }
 
