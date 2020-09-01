@@ -152,10 +152,11 @@ class BeamMobsim @Inject()(
   }
 
   private def fillInSecondaryActivities(households: Households, iteration: Int): Unit = {
-    PlansCsvWriter.toCsv(
-      scenario,
-      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_before_fill_in.csv.gz")
-    )
+    //    PlansCsvWriter.toCsv(
+    //      scenario,
+    //      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_before_fill_in.csv.gz")
+    //    )
+
     households.getHouseholds.values.forEach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamServices.beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
@@ -212,10 +213,10 @@ class BeamMobsim @Inject()(
       }
 
     }
-    PlansCsvWriter.toCsv(
-      scenario,
-      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_after_fill_in.csv.gz")
-    )
+    //    PlansCsvWriter.toCsv(
+    //      scenario,
+    //      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_after_fill_in.csv.gz")
+    //    )
     logger.info("Done filling in secondary trips in plans")
   }
 
