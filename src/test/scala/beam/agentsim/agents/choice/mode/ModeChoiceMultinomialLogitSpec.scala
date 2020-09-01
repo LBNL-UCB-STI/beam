@@ -19,22 +19,27 @@ class ModeChoiceMultinomialLogitSpec extends WordSpec {
         val value1 = 11.4D
         val value2 = 12.3D
         val path = randomPath(travelTimes = 10D, value1, value2)
-        val data = BikeLanesData(scaleFactorFromConfig = 1D, bikeLanesLinkIds = randomIntList.toSet)
+        val bikeLaneLinkIds = randomIntList.toSet
+        val data = BikeLanesData(scaleFactorFromConfig = 1D, bikeLanesLinkIds = bikeLaneLinkIds)
         val adjustment = new BikeLanesAdjustment(data)
 
         val result: Double = ModeChoiceMultinomialLogit.pathScaledForWaiting(path, adjustment)
 
-        assert(result === value1 + value2)
+        val clue = s"Input path: [$path]; bikeLaneLinkIds: [$bikeLaneLinkIds]"
+        assert(result === value1 + value2, clue)
       }
 
       "be zero when path has zero or only one element" in {
         val path = if (Random.nextBoolean()) randomPath() else randomPath(travelTimes = 10D)
-        val data = BikeLanesData(scaleFactorFromConfig = Random.nextDouble(), bikeLanesLinkIds = randomIntList.toSet)
+        val scaleFactor = Random.nextDouble()
+        val bikeLaneLinkIds = randomIntList.toSet
+        val data = BikeLanesData(scaleFactorFromConfig = scaleFactor, bikeLanesLinkIds = bikeLaneLinkIds)
         val adjustment = new BikeLanesAdjustment(data)
 
         val result: Double = ModeChoiceMultinomialLogit.pathScaledForWaiting(path, adjustment)
 
-        assert(result === 0)
+        val clue = s"Input path: [$path]; scaleFactor: [$scaleFactor]; bikeLaneLinkIds: [$bikeLaneLinkIds]"
+        assert(result === 0, clue)
       }
 
       "pathScaledForWaiting scale disproportionately linkIds that are specified on BikeLaneAdjustment" in {
@@ -52,7 +57,8 @@ class ModeChoiceMultinomialLogitSpec extends WordSpec {
 
         val result: Double = ModeChoiceMultinomialLogit.pathScaledForWaiting(path, adjustment)
 
-        assert(result === value1 * 1 / data.scaleFactorFromConfig + value2)
+        val clue = s"Input path: [$path]"
+        assert(result === value1 * 1 / data.scaleFactorFromConfig + value2, clue)
       }
 
     }
