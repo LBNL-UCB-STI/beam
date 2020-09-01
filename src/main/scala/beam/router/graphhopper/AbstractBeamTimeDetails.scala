@@ -14,16 +14,16 @@ abstract class AbstractBeamTimeDetails(val weighting: Weighting, name: String, v
 
   private var prevEdgeId = -1
   // will include the turn time penalty
-  private var time = 0L
+  private var time = 0.0D
 
   override def isEdgeDifferentToLastEdge(edge: EdgeIteratorState): Boolean = {
     if (edge.getEdge != prevEdgeId) {
-      time = weighting match {
+      time = (weighting match {
         case bWeighting: BeamWeighting =>
           Try(bWeighting.calcEdgeMillisForDetails(edge, reverse))
             .getOrElse(getDefaultTime(edge))
         case _ => getDefaultTime(edge)
-      }
+      }).toDouble / 1000.0
 
       prevEdgeId = edge.getEdge
       true
