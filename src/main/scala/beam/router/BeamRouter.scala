@@ -127,6 +127,7 @@ class BeamRouter(
     val localWorker = context.actorOf(
       RoutingWorker.props(
         beamScenario,
+        scenario,
         transportNetwork,
         networkHelper,
         fareCalculator,

@@ -70,6 +70,8 @@ object ArgumentsParser {
             failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
           else success
       )
+
+      override def errorOnUnknownArgument: Boolean = false
     }
   }
 

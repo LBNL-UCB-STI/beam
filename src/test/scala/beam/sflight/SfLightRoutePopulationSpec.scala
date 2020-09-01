@@ -25,6 +25,8 @@ class SfLightRoutePopulationSpec
       val router = new R5Wrapper(
         R5Parameters(
           beamConfig,
+          scenario,
+          outputDirPath,
           beamScenario.transportNetwork,
           beamScenario.vehicleTypes,
           beamScenario.fuelTypePrices,

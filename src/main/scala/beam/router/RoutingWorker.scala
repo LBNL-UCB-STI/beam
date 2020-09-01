@@ -31,7 +31,7 @@ import com.google.common.util.concurrent.{AtomicDouble, ThreadFactoryBuilder}
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
@@ -311,6 +311,7 @@ object RoutingWorker {
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
+    scenario: Scenario,
     transportNetwork: TransportNetwork,
     networkHelper: NetworkHelper,
     fareCalculator: FareCalculator,
@@ -319,6 +320,8 @@ object RoutingWorker {
     new RoutingWorker(
       R5Parameters(
         beamScenario.beamConfig,
+        scenario,
+        R5Parameters.makeOutputDirectory(beamScenario.beamConfig),
         transportNetwork,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
