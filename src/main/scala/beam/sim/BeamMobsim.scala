@@ -28,6 +28,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -124,7 +125,7 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds)
+      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, beamServices.matsimServices.getIterationNumber)
     }
 
     val iteration = actorSystem.actorOf(
@@ -150,7 +151,11 @@ class BeamMobsim @Inject()(
     logger.info("Processing Agentsim Events (End)")
   }
 
-  private def fillInSecondaryActivities(households: Households): Unit = {
+  private def fillInSecondaryActivities(households: Households, iteration: Int): Unit = {
+    PlansCsvWriter.toCsv(
+      scenario,
+      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_before_fill_in.csv.gz")
+    )
     households.getHouseholds.values.forEach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamServices.beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
@@ -207,7 +212,10 @@ class BeamMobsim @Inject()(
       }
 
     }
-
+    PlansCsvWriter.toCsv(
+      scenario,
+      beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "plans_after_fill_in.csv.gz")
+    )
     logger.info("Done filling in secondary trips in plans")
   }
 
