@@ -49,11 +49,9 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
   private Map<Id<Person>, Household> buildServicesPersonHouseholds(Households households) {
     Map<Id<Person>, Household> personToHousehold = new HashMap<>();
-    households.getHouseholds().values().forEach(h -> {
-      h.getMemberIds().forEach(id -> {
+    households.getHouseholds().values().forEach(h -> h.getMemberIds().forEach(id -> {
         personToHousehold.put(id, h);
-      });
-    });
+      }));
     return personToHousehold;
   }
 

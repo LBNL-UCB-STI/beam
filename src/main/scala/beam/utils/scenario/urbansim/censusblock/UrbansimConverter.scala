@@ -24,7 +24,7 @@ object UrbansimConverter {
     )
   }
 
-  def transform(inputTripPath: String, inputPlanPath: String, outputPlanPath: String) = {
+  def transform(inputTripPath: String, inputPlanPath: String, outputPlanPath: String): Unit = {
     logger.info("Reading of the trips...")
     val tripReader = new TripReader(inputTripPath)
 

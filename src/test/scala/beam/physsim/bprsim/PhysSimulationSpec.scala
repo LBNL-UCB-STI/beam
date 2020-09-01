@@ -25,9 +25,9 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest._
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   *
@@ -40,11 +40,11 @@ class PhysSimulationSpec extends WordSpecLike with Matchers {
   val beamConfig: BeamConfig = BeamConfig(config)
 
   val configBuilder = new MatSimBeamConfigBuilder(config)
-  val matsimConfig = configBuilder.buildMatSimConf()
+  val matsimConfig: MatsimConfig = configBuilder.buildMatSimConf()
 
-  val network = PhysSimulationSpec.readNetwork("test/test-resources/beam/physsim/beamville-network-output.xml")
+  val network: Network = PhysSimulationSpec.readNetwork("test/test-resources/beam/physsim/beamville-network-output.xml")
 
-  val scenario =
+  val scenario: MutableScenario =
     readScenario(matsimConfig, network, "test/test-resources/beam/physsim/physsim-plans-few-persons.xml")
   val jdeqConfig = new JDEQSimConfigGroup
   jdeqConfig.setFlowCapacityFactor(beamConfig.beam.physsim.flowCapacityFactor)
@@ -166,7 +166,7 @@ object PhysSimulationSpec {
 }
 
 class BufferEventHandler extends BasicEventHandler {
-  val buffer = mutable.ArrayBuffer.empty[Event]
+  val buffer: ArrayBuffer[Event] = mutable.ArrayBuffer.empty[Event]
 
   override def handleEvent(event: Event): Unit = {
     buffer += event

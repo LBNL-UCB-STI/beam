@@ -49,12 +49,12 @@ object MathUtils {
     * https://github.com/sameersingh/scala-utils/blob/master/misc/src/main/scala/org/sameersingh/utils/misc/Math.scala
     */
 
-  def logSumExp(a: Double, b: Double) = {
+  def logSumExp(a: Double, b: Double): Double = {
     val output: Double =
       if (a == Double.NegativeInfinity) b
       else if (b == Double.NegativeInfinity) a
       else if (a < b) b + math.log(1 + math.exp(a - b))
-      else a + math.log(1 + math.exp(b - a));
+      else a + math.log(1 + math.exp(b - a))
     output
   }
 
@@ -63,7 +63,7 @@ object MathUtils {
     * @return log(\sum exp(a_i))
     */
   def logSumExp(a: Double, b: Double, c: Double*): Double = {
-    logSumExp(Array(a, b) ++ c);
+    logSumExp(Array(a, b) ++ c)
   }
 
   /**
@@ -71,13 +71,13 @@ object MathUtils {
     * @return log(\sum exp(a_i))
     */
   def logSumExp(iter: Iterator[Double], max: Double): Double = {
-    var accum = 0.0;
+    var accum = 0.0
     while (iter.hasNext) {
-      val b = iter.next;
+      val b = iter.next
       if (b != Double.NegativeInfinity)
-        accum += math.exp(b - max);
+        accum += math.exp(b - max)
     }
-    max + math.log(accum);
+    max + math.log(accum)
   }
 
   /**
@@ -93,13 +93,13 @@ object MathUtils {
         val m = a.max
         if (m.isInfinite) m
         else {
-          var i = 0;
-          var accum = 0.0;
+          var i = 0
+          var accum = 0.0
           a.foreach { x =>
-            accum += math.exp(x - m);
+            accum += math.exp(x - m)
             i += 1;
           }
-          m + math.log(accum);
+          m + math.log(accum)
         }
     }
   }

@@ -144,7 +144,7 @@ class SimpleScenarioGenerator(
   private val uniqueGeoIds = geoIdToHouseholds.keySet
   logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
-  private val uniqueStates = households.map(_.geoId.state).toSet
+  private val uniqueStates: Set[State] = households.map(_.geoId.state)
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(

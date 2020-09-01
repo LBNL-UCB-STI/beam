@@ -26,11 +26,11 @@ abstract class SimEvent(
 ) {
   def previousActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx - 1).asInstanceOf[Activity]
   def nextActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx + 1).asInstanceOf[Activity]
-  val leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
-  val isLegStart = linkIdx < 0
+  val leg: Leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
+  val isLegStart: Boolean = linkIdx < 0
   val epsilon = 0.001
   val epsilon2 = 0.0001
-  def immidiateTime = time + epsilon
+  def immidiateTime: Double = time + epsilon
 
   val (linkId, lastLink): (Id[Link], Boolean) =
     leg.getRoute match {
