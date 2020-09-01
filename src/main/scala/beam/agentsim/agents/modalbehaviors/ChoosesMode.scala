@@ -90,7 +90,7 @@ trait ChoosesMode {
             )
             .map { listOfResponses =>
               MobilityStatusResponse(
-                listOfResponses.flatMap { case MobilityStatusResponse(vehicles) => vehicles }.toVector
+                listOfResponses.collect { case MobilityStatusResponse(vehicles) => vehicles }.flatten.toVector
               )
             } pipeTo self
         // Otherwise, send empty list to self
