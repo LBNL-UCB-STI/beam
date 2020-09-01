@@ -165,8 +165,7 @@ class GraphHopperWrapper(
               streetVehicle.id,
               streetVehicle.vehicleTypeId,
               asDriver = true,
-              DrivingCost
-                .estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
+              DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices),
               unbecomeDriverOnCompletion = true
             )
           )

@@ -274,7 +274,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
-    private class SpeedWithFrequency {
+    private static class SpeedWithFrequency {
         final int speed;
         final int frequency;
 

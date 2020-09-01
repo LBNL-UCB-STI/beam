@@ -115,7 +115,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
-  val id2Link = workerParams.networkHelper.allLinks
+  val id2Link: Map[Int, (Location, Location)] = workerParams.networkHelper.allLinks
     .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
     .toMap
 

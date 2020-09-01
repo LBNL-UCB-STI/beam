@@ -196,7 +196,7 @@ class BeamScoringFunctionFactory @Inject()(
             .lift(tripIndex + 1)
           val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
           val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
-          val mode = trip.determineTripMode(trip.legs)
+          val mode = trip.tripClassifier
           val score = modeChoiceCalculator.utilityOf(trip, attributes, tripPurpose)
           val cost = trip.costEstimate
           s"$personId,$tripIndex,$departureTime,$totalTravelTimeInSecs,$mode,$cost,$score"

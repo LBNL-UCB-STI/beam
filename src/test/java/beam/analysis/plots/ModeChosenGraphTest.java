@@ -39,7 +39,7 @@ public class ModeChosenGraphTest {
 
     private Map<Integer, Map<String, Integer>> stats;
 
-    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(NoOpSimulationMetricCollector$.MODULE$, new ModeChosenAnalysis.ModeChosenComputation() {
+    private final ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(NoOpSimulationMetricCollector$.MODULE$, new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();
