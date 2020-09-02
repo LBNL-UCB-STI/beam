@@ -297,11 +297,16 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
               Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
             case None =>
+              val personId = orig.person match {
+                case Some(personIdWithActorRef) => personIdWithActorRef.personId.toString
+                case None                       => ""
+              }
               val routingRequest = RoutingRequest(
                 orig.activity.getCoord,
                 dest.activity.getCoord,
                 origin.time,
                 withTransit = false,
+                personId,
                 IndexedSeq(
                   StreetVehicle(
                     cav.id,

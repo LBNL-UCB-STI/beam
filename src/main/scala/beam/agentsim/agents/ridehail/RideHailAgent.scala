@@ -315,6 +315,7 @@ class RideHailAgent(
         stall.locationUTM,
         _currentTick.get,
         withTransit = false,
+        personId = "",
         Vector(carStreetVeh),
         None
       )

@@ -265,11 +265,16 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 scheduleToCache = scheduleToCache :+ orig
                 None
               } else {
+                val personId = orig.person match {
+                  case Some(personIdWithActorRef) => personIdWithActorRef.personId.toString
+                  case None                       => ""
+                }
                 val routingRequest = RoutingRequest(
                   originUTM = orig.activity.getCoord,
                   destinationUTM = dest.activity.getCoord,
                   departureTime = origin.time,
                   withTransit = false,
+                  personId = personId,
                   streetVehicles = IndexedSeq(
                     StreetVehicle(
                       vehicleAndOldSchedule.vehicle.id,

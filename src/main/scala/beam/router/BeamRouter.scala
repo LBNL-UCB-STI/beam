@@ -248,14 +248,12 @@ class BeamRouter(
   }
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
-    if (shouldWriteR5Routes(currentIteration)) {
-      work match {
-        case e: EmbodyWithCurrentTravelTime =>
-          eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
-        case req: RoutingRequest =>
-          eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
-        case _ =>
-      }
+    work match {
+      case e: EmbodyWithCurrentTravelTime if (shouldWriteR5Routes(currentIteration)) =>
+        eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
+      case req: RoutingRequest =>
+        eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
+      case _ =>
     }
   }
 
@@ -456,6 +454,7 @@ object BeamRouter {
     destinationUTM: Location,
     departureTime: Int,
     withTransit: Boolean,
+    personId: String,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,

@@ -27,12 +27,14 @@ object R5Requester extends BeamHelper {
       age = None,
       income = Some(70000.0)
     )
+    val personId = Id.createPersonId(1)
     RoutingRequest(
       originUTM = originUTM,
       destinationUTM = new Location(2967932.9521744307, 3635449.522501624),
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
+      personId = personId.toString,
       attributesOfIndividual = Some(personAttribs)
     )
   }
