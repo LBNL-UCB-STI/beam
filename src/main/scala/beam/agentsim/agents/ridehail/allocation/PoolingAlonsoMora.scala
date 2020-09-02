@@ -266,8 +266,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 None
               } else {
                 val personId = orig.person match {
-                  case Some(personIdWithActorRef) => personIdWithActorRef.personId.toString
-                  case None                       => ""
+                  case Some(personIdWithActorRef) => Some(personIdWithActorRef.personId)
+                  case None                       => None
                 }
                 val routingRequest = RoutingRequest(
                   originUTM = orig.activity.getCoord,

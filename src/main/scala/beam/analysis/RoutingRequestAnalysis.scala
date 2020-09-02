@@ -2,6 +2,7 @@ package beam.analysis
 
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.GraphAnalysis
+import beam.router.BeamRouter.RoutingRequest
 import beam.router.r5.RouteDumper.RoutingRequestEvent
 import beam.sim.config.BeamConfig
 import beam.utils.csv.CsvWriter
@@ -22,8 +23,8 @@ class RoutingRequestAnalysis(beamConfig: BeamConfig) extends GraphAnalysis {
 
   override def processStats(event: Event): Unit = {
     event match {
-      case RoutingRequestEvent(routingRequest) =>
-        personRoutingIds(routingRequest.personId) = personRoutingIds(routingRequest.personId) :+ routingRequest.requestId
+      case RoutingRequestEvent(RoutingRequest(_, _, _, _, personId, _, _, _, requestId)) if personId.isDefined =>
+        personRoutingIds(personId.get.toString) = personRoutingIds(personId.get.toString) :+ requestId
       case modeChoiceEvent: ModeChoiceEvent =>
         val personId = modeChoiceEvent.personId.toString
         val routingIds = personRoutingIds.remove(personId).getOrElse(Vector.empty)

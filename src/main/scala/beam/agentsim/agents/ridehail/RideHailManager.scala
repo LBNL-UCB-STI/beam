@@ -878,7 +878,7 @@ class RideHailManager(
         destinationUTM = stall.locationUTM,
         departureTime = agentLocation.currentLocationUTM.time,
         withTransit = false,
-        personId = "",
+        personId = None,
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
@@ -1322,7 +1322,7 @@ class RideHailManager(
       request.pickUpLocationUTM,
       requestTime,
       withTransit = false,
-      request.customer.personId.toString,
+      Some(request.customer.personId),
       Vector(rideHailVehicleAtOrigin)
     )
 // route from customer to destination
@@ -1331,7 +1331,7 @@ class RideHailManager(
       request.destinationUTM,
       requestTime,
       withTransit = false,
-      request.customer.personId.toString,
+      Some(request.customer.personId),
       Vector(rideHailVehicleAtPickup)
     )
 
@@ -1858,7 +1858,7 @@ class RideHailManager(
           destinationUTM = destinationLocation,
           departureTime = tick,
           withTransit = false,
-          personId = "",
+          personId = None,
           streetVehicles = Vector(rideHailVehicleAtOrigin)
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest

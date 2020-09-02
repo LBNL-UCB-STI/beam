@@ -34,7 +34,7 @@ object R5Requester extends BeamHelper {
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
-      personId = personId.toString,
+      personId = Some(personId),
       attributesOfIndividual = Some(personAttribs)
     )
   }

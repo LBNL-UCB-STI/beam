@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 object AllNeededFormats {
@@ -15,6 +16,7 @@ object AllNeededFormats {
   implicit val beamModeFormat: Format[BeamMode] = new Format[BeamMode]
   implicit val vehicleIdFormat: IdFormat[Vehicle] = new IdFormat[Vehicle]
   implicit val beamVehicleIdFormat: IdFormat[BeamVehicle] = new IdFormat[BeamVehicle]
+  implicit val personIdFormat: IdFormat[Person] = new IdFormat[Person]
   implicit val beamVehicleTypeFormat: IdFormat[BeamVehicleType] = new IdFormat[BeamVehicleType]
 
   implicit val spaceTimeFormat: Format[SpaceTime] = new Format[SpaceTime]

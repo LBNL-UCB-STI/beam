@@ -238,7 +238,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           departTime,
           withTransit,
-          id.toString,
+          Some(id),
           vehicles,
           Some(attributes),
           streetVehiclesIntermodalUse
@@ -277,7 +277,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           startWithWaitBuffer,
           withTransit = true,
-          id.toString,
+          Some(id),
           Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
