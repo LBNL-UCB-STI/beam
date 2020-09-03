@@ -170,29 +170,36 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    val plans = getPlanInfo(scenario)
-    plans.toIterator.map { planInfo =>
-      PlanEntry(
-        personId = planInfo.personId.id,
-        planIndex = planInfo.planIndex,
-        planScore = planInfo.planScore,
-        planSelected = planInfo.planSelected,
-        planElementType = planInfo.planElementType,
-        planElementIndex = planInfo.planElementIndex,
-        activityType = planInfo.activityType.getOrElse(""),
-        activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
-        activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
-        activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
-        legMode = planInfo.legMode.getOrElse(""),
-        legDepartureTime = planInfo.legDepartureTime.getOrElse(""),
-        legTravelTime = planInfo.legTravelTime.getOrElse(""),
-        legRouteType = planInfo.legRouteType.getOrElse(""),
-        legRouteStartLink = planInfo.legRouteStartLink.getOrElse(""),
-        legRouteEndLink = planInfo.legRouteEndLink.getOrElse(""),
-        legRouteTravelTime = planInfo.legRouteTravelTime,
-        legRouteDistance = planInfo.legRouteDistance,
-        legRouteLinks = planInfo.legRouteLinks
-      ).toString
+    val plans: Iterable[PlanElement] = getPlanInfo(scenario)
+    contentIterator(plans.toIterator)
+  }
+
+  override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
+    elements.flatMap {
+      case planInfo: PlanElement =>
+        val result = PlanEntry(
+          personId = planInfo.personId.id,
+          planIndex = planInfo.planIndex,
+          planScore = planInfo.planScore,
+          planSelected = planInfo.planSelected,
+          planElementType = planInfo.planElementType,
+          planElementIndex = planInfo.planElementIndex,
+          activityType = planInfo.activityType.getOrElse(""),
+          activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
+          activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
+          activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
+          legMode = planInfo.legMode.getOrElse(""),
+          legDepartureTime = planInfo.legDepartureTime.getOrElse(""),
+          legTravelTime = planInfo.legTravelTime.getOrElse(""),
+          legRouteType = planInfo.legRouteType.getOrElse(""),
+          legRouteStartLink = planInfo.legRouteStartLink.getOrElse(""),
+          legRouteEndLink = planInfo.legRouteEndLink.getOrElse(""),
+          legRouteTravelTime = planInfo.legRouteTravelTime,
+          legRouteDistance = planInfo.legRouteDistance,
+          legRouteLinks = planInfo.legRouteLinks
+        ).toString
+        Some(result)
+      case _ => None
     }
   }
 

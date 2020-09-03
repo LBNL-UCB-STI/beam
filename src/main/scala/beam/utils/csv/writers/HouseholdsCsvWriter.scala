@@ -4,8 +4,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
-
 import scala.collection.JavaConverters._
+import scala.util.Try
+
+import beam.utils.scenario.{HouseholdId, HouseholdInfo}
 
 object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
@@ -28,15 +30,32 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
     val attributes: ObjectAttributes = scenario.getHouseholds.getHouseholdAttributes
 
     val households = scenario.getHouseholds.getHouseholds.asScala.values
-    households.toIterator.map { h: Household =>
+    val values = households.toIterator.map { h: Household =>
       val id = h.getId.toString
-      HouseholdEntry(
-        householdId = id,
-        incomeValue = h.getIncome.getIncome,
-        locationX = attributes.getAttribute(id, "homecoordx").toString,
-        locationY = attributes.getAttribute(id, "homecoordy").toString
-      ).toString
+      HouseholdInfo(
+        householdId = HouseholdId(id),
+        income = h.getIncome.getIncome,
+        locationX = Try(attributes.getAttribute(id, "homecoordx").toString.toDouble).getOrElse(0),
+        locationY = Try(attributes.getAttribute(id, "homecoordy").toString.toDouble).getOrElse(0),
+        cars = 0 // TODO: how to get this from scenario?
+      )
     }
+    contentIterator(values)
   }
 
+  override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
+    elements.flatMap { item =>
+      item match {
+        case info: HouseholdInfo =>
+          val result = Seq(
+            info.householdId,
+            info.income,
+            info.locationX,
+            info.locationY
+          ).mkString("", FieldSeparator, LineSeparator)
+          Some(result)
+        case _ => None
+      }
+    }
+  }
 }

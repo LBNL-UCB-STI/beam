@@ -10,7 +10,8 @@ case class PersonInfo(
   rank: Int,
   age: Int,
   isFemale: Boolean,
-  valueOfTime: Double
+  valueOfTime: Double,
+  excludedModes: Seq[String] = Seq.empty
 )
 
 case class PlanElement(

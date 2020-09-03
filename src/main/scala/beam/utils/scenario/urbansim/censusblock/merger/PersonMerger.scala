@@ -12,12 +12,12 @@ class PersonMerger(inputHousehold: Map[String, InputHousehold]) extends Merger[I
     val income = PopulationAdjustment.incomeToValueOfTime(inputIncome).getOrElse(0d)
 
     PersonInfo(
-      PersonId(inputPersonInfo.personId),
-      HouseholdId(inputPersonInfo.householdId),
-      0,
-      inputPersonInfo.age,
-      inputPersonInfo.sex.isFemale,
-      income.toDouble
+      personId = PersonId(inputPersonInfo.personId),
+      householdId = HouseholdId(inputPersonInfo.householdId),
+      rank = 0,
+      age = inputPersonInfo.age,
+      isFemale = inputPersonInfo.sex.isFemale,
+      valueOfTime = income.toDouble
     )
   }
 }
