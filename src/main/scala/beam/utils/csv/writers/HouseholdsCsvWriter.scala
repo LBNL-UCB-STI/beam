@@ -37,7 +37,8 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
         income = h.getIncome.getIncome,
         locationX = Try(attributes.getAttribute(id, "homecoordx").toString.toDouble).getOrElse(0),
         locationY = Try(attributes.getAttribute(id, "homecoordy").toString.toDouble).getOrElse(0),
-        cars = 0 // TODO: how to get this from scenario?
+        // TODO: this information is not available in CSV file
+        cars = h.getVehicleIds.size()
       )
     }
     contentIterator(values)
