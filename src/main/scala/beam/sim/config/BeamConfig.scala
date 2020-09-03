@@ -1651,7 +1651,8 @@ object BeamConfig {
           endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
           firstIteration = if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
           fractionOfPlansWithSingleActivity =
-            if (c.hasPathOrNull("fractionOfPlansWithSingleActivity")) c.getDouble("fractionOfPlansWithSingleActivity") else 0.0,
+            if (c.hasPathOrNull("fractionOfPlansWithSingleActivity")) c.getDouble("fractionOfPlansWithSingleActivity")
+            else 0.0,
           h3taz = BeamConfig.Beam.Agentsim.H3taz(
             if (c.hasPathOrNull("h3taz")) c.getConfig("h3taz")
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
