@@ -96,6 +96,7 @@ object BeamConfig {
           lccm: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm,
           lowTimeSensitivity: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity,
           maximumNumberOfReplanningAttempts: scala.Int,
+          minimumValueOfTime: scala.Double,
           modeChoiceClass: java.lang.String,
           modeVotMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.ModeVotMultiplier,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
@@ -473,6 +474,8 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
+              transit_crowding: scala.Double,
+              transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
               walk_transit_intercept: scala.Double
             )
@@ -497,6 +500,10 @@ object BeamConfig {
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
+                  transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
+                  transit_crowding_percentile =
+                    if (c.hasPathOrNull("transit_crowding_percentile")) c.getDouble("transit_crowding_percentile")
+                    else 90.0,
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
                     if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0
@@ -558,6 +565,8 @@ object BeamConfig {
               maximumNumberOfReplanningAttempts =
                 if (c.hasPathOrNull("maximumNumberOfReplanningAttempts")) c.getInt("maximumNumberOfReplanningAttempts")
                 else 3,
+              minimumValueOfTime =
+                if (c.hasPathOrNull("minimumValueOfTime")) c.getDouble("minimumValueOfTime") else 7.25,
               modeChoiceClass =
                 if (c.hasPathOrNull("modeChoiceClass")) c.getString("modeChoiceClass")
                 else "ModeChoiceMultinomialLogit",
@@ -1724,6 +1733,7 @@ object BeamConfig {
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
+          offPeakEnabled: scala.Boolean,
           queryDate: java.lang.String,
           tolls: scala.Boolean
         )
@@ -1738,6 +1748,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
               numDataPointsOver24Hours =
                 if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+              offPeakEnabled = c.hasPathOrNull("offPeakEnabled") && c.getBoolean("offPeakEnabled"),
               queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
               tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
             )
@@ -3115,6 +3126,7 @@ object BeamConfig {
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
+        transit_crowding_skimmer: BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
         writeAggregatedSkimsInterval: scala.Int,
         writeSkimsInterval: scala.Int
       )
@@ -3177,6 +3189,22 @@ object BeamConfig {
           }
         }
 
+        case class TransitCrowdingSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object TransitCrowdingSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer = {
+            BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              fileBaseName =
+                if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTransitCrowding",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "transit-crowding-skimmer"
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
@@ -3191,6 +3219,10 @@ object BeamConfig {
             taz_skimmer = BeamConfig.Beam.Router.Skim.TazSkimmer(
               if (c.hasPathOrNull("taz-skimmer")) c.getConfig("taz-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("taz-skimmer{}")
+            ),
+            transit_crowding_skimmer = BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer(
+              if (c.hasPathOrNull("transit-crowding-skimmer")) c.getConfig("transit-crowding-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("transit-crowding-skimmer{}")
             ),
             writeAggregatedSkimsInterval =
               if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else 0,
@@ -3211,6 +3243,7 @@ object BeamConfig {
 
     case class Routing(
       baseDate: java.lang.String,
+      carRouter: java.lang.String,
       r5: BeamConfig.Beam.Routing.R5,
       startingIterationForTravelTimesMSA: scala.Int,
       transitOnStreetNetwork: scala.Boolean
@@ -3218,6 +3251,8 @@ object BeamConfig {
 
     object Routing {
       case class R5(
+        bikeLaneLinkIdsFilePath: java.lang.String,
+        bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
         directory: java.lang.String,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
@@ -3259,6 +3294,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            bikeLaneLinkIdsFilePath =
+              if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
+            bikeLaneScaleFactor =
+              if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
@@ -3284,6 +3323,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing = {
         BeamConfig.Beam.Routing(
           baseDate = if (c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
+          carRouter = if (c.hasPathOrNull("carRouter")) c.getString("carRouter") else "R5",
           r5 = BeamConfig.Beam.Routing.R5(
             if (c.hasPathOrNull("r5")) c.getConfig("r5") else com.typesafe.config.ConfigFactory.parseString("r5{}")
           ),

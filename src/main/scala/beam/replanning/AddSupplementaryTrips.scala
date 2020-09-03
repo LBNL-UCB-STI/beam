@@ -57,14 +57,17 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
         listOfAct.lastOption match {
           case Some(lastAct) =>
             if (lastAct.getType == currentAct.getType) {
-              listOfAct.last.setEndTime(currentAct.getEndTime)
-              listOfAct
+              val lastActivity = PopulationUtils.createActivity(lastAct)
+              lastActivity.setEndTime(currentAct.getEndTime)
+              val newList = listOfAct.dropRight(1)
+              newList :+ lastActivity
             } else {
               listOfAct += currentAct
             }
           case None => mutable.MutableList[Activity](currentAct)
       }
     )
+
     newElements.foreach { x =>
       newPlan.addActivity(x)
     }
@@ -73,12 +76,25 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
 
   private def definitelyAddSubtours(
     activity: Activity,
-    person: Person
+    person: Person,
+    nonWorker: Boolean = false
   ): List[Activity] = {
-    activity.getType match {
+    val listOfActivities = activity.getType match {
       case "Home" => addSubtourToActivity(activity)
       case "Work" => addSubtourToActivity(activity)
       case _      => List[Activity](activity)
+    }
+    if (nonWorker) {
+      listOfActivities.flatMap(
+        activity =>
+          activity.getType match {
+            case "Home" => addSubtourToActivity(activity)
+            case "Work" => List[Activity](activity)
+            case _      => List[Activity](activity)
+        }
+      )
+    } else {
+      listOfActivities
     }
   }
 
@@ -121,6 +137,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     newPlan.setType(plan.getType)
 
     val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
+    val nonWorker = (elements.length == 1)
     val newActivitiesToAdd = elements.zipWithIndex.map {
       case (planElement, idx) =>
         val prevEndTime = if (idx > 0) {
@@ -130,7 +147,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
         }
         planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
         planElement.setStartTime(prevEndTime)
-        definitelyAddSubtours(planElement, person)
+        definitelyAddSubtours(planElement, person, nonWorker)
     }
     newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)

@@ -13,13 +13,12 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
@@ -28,10 +27,11 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.router.RoutingWorker
 
 /**
   * BEAM
@@ -642,10 +642,12 @@ trait ChoosesMode {
     val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
-    val firstPathEndpoint = SpaceTime(
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
-      leg.beamLeg.startTime + firstDuration
-    )
+    val firstPathEndpoint =
+      SpaceTime(
+        beamServices.geo
+          .coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
+        leg.beamLeg.startTime + firstDuration
+      )
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
@@ -795,6 +797,13 @@ trait ChoosesMode {
             case (leg, i) =>
               if (i == 2) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
+              } else if (i == 3) {
+                val dist = geo.distUTMInMeters(
+                  geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
+                  parkingResponse.stall.locationUTM
+                )
+                val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
+                leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
               } else {
                 leg
               }
@@ -994,7 +1003,7 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               } else {
-                val bushwhackingTrip = R5RoutingWorker.createBushwackingTrip(
+                val bushwhackingTrip = RoutingWorker.createBushwackingTrip(
                   choosesModeData.currentLocation.loc,
                   nextActivity(choosesModeData.personData).get.getCoord,
                   _currentTick.get,
@@ -1013,10 +1022,10 @@ trait ChoosesMode {
                   case Some(originalWalkTrip) =>
                     originalWalkTrip.legs.head
                   case None =>
-                    R5RoutingWorker
+                    RoutingWorker
                       .createBushwackingTrip(
-                        beamServices.geo.utm2Wgs(currentPersonLocation.loc),
-                        beamServices.geo.utm2Wgs(nextAct.getCoord),
+                        currentPersonLocation.loc,
+                        nextAct.getCoord,
                         _currentTick.get,
                         body.toStreetVehicle,
                         beamServices.geo

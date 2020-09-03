@@ -86,7 +86,7 @@ class TravelTimeGoogleStatistic(
       val result = using(adapter) { adapter =>
         queryGoogleAPI(events, adapter)
       }.sortBy(
-        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationIntervalInSeconds)
+        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds)
       )
       val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
       val num = writeToCsv(result, filePath)
@@ -124,6 +124,7 @@ class TravelTimeGoogleStatistic(
       "destLng",
       "simTravelTime",
       "googleTravelTime",
+      "googleTravelTimeWithTraffic",
       "euclideanDistanceInMeters",
       "legLength",
       "googleDistance"
@@ -142,6 +143,7 @@ class TravelTimeGoogleStatistic(
               ec.event.endX,
               ec.event.arrivalTime - ec.event.departureTime,
               ec.route.durationIntervalInSeconds,
+              ec.route.durationInTrafficSeconds,
               geoUtils.distLatLon2Meters(
                 new Coord(ec.event.startX, ec.event.startY),
                 new Coord(ec.event.endX, ec.event.endY)
@@ -160,7 +162,11 @@ class TravelTimeGoogleStatistic(
   private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
     val chosenEvents = Random.shuffle(events).take(numEventsPerHour)
     // Use the same events, but with departure time on 3am
-    val offPeakEvents = chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
+    val offPeakEvents = if (cfg.offPeakEnabled) {
+      chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
+    } else {
+      Seq.empty
+    }
     chosenEvents ++ offPeakEvents
   }
 

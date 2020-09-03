@@ -37,6 +37,7 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
         age = person.age,
+        excludedModes = person.excludedModes,
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime
       )

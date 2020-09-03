@@ -172,7 +172,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       event.getServices.getIterationNumber,
       skimFileBaseName + "Full.csv.gz"
     )
-    val uniqueModes = currentSkim.map(keyVal => keyVal.asInstanceOf[ODSkimmerKey].mode).toList.distinct
+    val uniqueModes = currentSkim.keys.map(key => key.asInstanceOf[ODSkimmerKey].mode).toList.distinct
     val uniqueTimeBins = 0 to 23
 
     val dummyId = Id.create(

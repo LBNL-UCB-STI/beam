@@ -54,9 +54,9 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
      */
     private final Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
     private BeamConfig beamConfig;
-    private Network network;
-    private OutputDirectoryHierarchy controllerIO;
-    private BeamCalcLinkStats linkStats;
+    private final Network network;
+    private final OutputDirectoryHierarchy controllerIO;
+    private final BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
