@@ -6,7 +6,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.core.scenario.MutableScenario
 import org.mockito.Mockito.when
-import org.scalatest.{Assertion, AsyncWordSpec, BeforeAndAfterEach, Matchers}
+import org.scalatest.{AsyncWordSpec, BeforeAndAfterEach, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 
 class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with MockitoSugar with BeforeAndAfterEach {
@@ -142,7 +142,7 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Mockit
   private def assertCarNumbers(
     result: Iterable[(HouseholdInfo, Int)],
     householdId2ExpectedCarNumbers: (String, Int)*
-  ): Assertion = {
+  ) = {
     result.size shouldBe householdId2ExpectedCarNumbers.size
 
     result
