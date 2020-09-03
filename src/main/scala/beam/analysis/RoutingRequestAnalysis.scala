@@ -2,17 +2,22 @@ package beam.analysis
 
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.GraphAnalysis
+import beam.physsim.cchRoutingAssignment.OD
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.r5.RouteDumper.RoutingRequestEvent
 import beam.sim.config.BeamConfig
+import beam.utils.FileUtils
 import beam.utils.csv.CsvWriter
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-case class CsvRow(personId: String, modeChoice: String, routingRequests: Vector[Int])
+case class CsvRow(personId: String, modeChoice: String, routingRequests: Vector[Int]) {
+  override def toString: String = s"$personId,$modeChoice,${routingRequests.mkString(",")}"
+}
 
 class RoutingRequestAnalysis(beamConfig: BeamConfig) extends GraphAnalysis {
 
@@ -41,10 +46,14 @@ class RoutingRequestAnalysis(beamConfig: BeamConfig) extends GraphAnalysis {
   override def createGraph(event: IterationEndsEvent): Unit = {
     val controller = event.getServices.getControlerIO
     val filePath = controller.getIterationFilename(event.getIteration, "routingModeChoice.csv")
-    val csvWriter = new CsvWriter(filePath, IndexedSeq("PersonId", "ModeChoice", "RoutingRequestIds"))
-    modeChoiceList.foreach(
-      row => csvWriter.writeRow(IndexedSeq(row.personId, row.modeChoice, row.routingRequests.mkString(",")))
-    )
-    csvWriter.close()
+
+    FileUtils.using(IOUtils.getBufferedWriter(filePath)) { bw =>
+      bw.write("PersonId,ModeChoice,RoutingRequestIds")
+      bw.newLine()
+      modeChoiceList.foreach { modeChoice =>
+        bw.write(modeChoice.toString)
+        bw.newLine()
+      }
+    }
   }
 }
