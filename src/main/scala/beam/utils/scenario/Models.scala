@@ -9,6 +9,7 @@ case class PersonInfo(
   householdId: HouseholdId,
   rank: Int,
   age: Int,
+  excludedModes: String,
   isFemale: Boolean,
   valueOfTime: Double
 )
