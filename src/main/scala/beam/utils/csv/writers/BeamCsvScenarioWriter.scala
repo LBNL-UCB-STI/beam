@@ -3,9 +3,8 @@ package beam.utils.csv.writers
 import scala.language.implicitConversions
 
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, VehicleInfo}
-import com.typesafe.scalalogging.LazyLogging
 
-object BeamCsvScenarioWriter extends LazyLogging {
+object BeamCsvScenarioWriter {
 
   implicit class PopulationWriter(arr: Array[PersonInfo]) {
     def this(elements: Iterable[PersonInfo]) {
