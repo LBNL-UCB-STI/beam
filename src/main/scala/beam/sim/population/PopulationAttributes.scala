@@ -1,5 +1,6 @@
 package beam.sim.population
 
+import beam.agentsim.agents.TransitVehicleInitializer
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -103,20 +104,22 @@ case class AttributesOfIndividual(
           )
         )
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
+        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+
+        val beamVehicleTypeId = TransitVehicleInitializer.transitModeToBeamVehicleType(embodiedBeamLeg.beamLeg.mode)
+        val multiplier = modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
+
+        val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
         transitCrowdingSkims match {
           case Some(transitCrowding) =>
-            val modeMultiplier =
-              getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
-            val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
             val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
               embodiedBeamLeg,
               beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_multiplier,
               beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_threshold
             )
-            modeMultiplier * durationInHours * crowdingMultiplier
+            multiplier * durationInHours * crowdingMultiplier
           case _ =>
-            getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers) *
-            embodiedBeamLeg.beamLeg.duration.toDouble / 3600
+            multiplier * durationInHours
         }
 
       case _ =>
