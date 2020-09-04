@@ -22,7 +22,7 @@ trait ScenarioCsvWriter {
 
   def toCsv(scenario: Scenario): Iterator[String] = header ++ contentIterator(scenario)
 
-  final def toCsv(scenario: Scenario, outputFile: String): File = {
+  def toCsv(scenario: Scenario, outputFile: String): File = {
     FileUtils.writeToFile(outputFile, toCsv(scenario))
     new File(outputFile)
   }
