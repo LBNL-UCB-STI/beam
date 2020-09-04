@@ -484,7 +484,7 @@ object ModeChoiceMultinomialLogit {
       .toInt
   }
 
-  def pathScaledForWaiting(path: BeamPath, bikeLanesAdjustment: BikeLanesAdjustment): Double = {
+  private[mode] def pathScaledForWaiting(path: BeamPath, bikeLanesAdjustment: BikeLanesAdjustment): Double = {
     path.linkIds
       .drop(1)
       .zip(path.linkTravelTime.drop(1))

@@ -1024,8 +1024,8 @@ trait ChoosesMode {
                   case None =>
                     RoutingWorker
                       .createBushwackingTrip(
-                        beamServices.geo.utm2Wgs(currentPersonLocation.loc),
-                        beamServices.geo.utm2Wgs(nextAct.getCoord),
+                        currentPersonLocation.loc,
+                        nextAct.getCoord,
                         _currentTick.get,
                         body.toStreetVehicle,
                         beamServices.geo
