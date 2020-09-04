@@ -1,16 +1,15 @@
 package beam.utils.csv.writers
 
-import beam.sim.BeamServices
-import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType}
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.sim.BeamServices
 import beam.utils.scenario.VehicleInfo
+import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], String])
     extends ScenarioCsvWriter
@@ -25,29 +24,30 @@ class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], Stri
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val households: mutable.Map[Id[Household], Household] = scenario.getHouseholds.getHouseholds.asScala
 
-    val allVehicles: Iterable[VehicleInfo] = households.values.flatMap { hh =>
+    val allVehicles: Iterator[VehicleInfo] = households.values.iterator.flatMap { hh =>
       hh.getVehicleIds.asScala.map { id: Id[Vehicle] =>
         VehicleInfo(id.toString, vehicleType(id), hh.getId.toString)
       }
     }
-    contentIterator(allVehicles.toIterator)
+    contentIterator(allVehicles)
   }
 
   override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
     elements.flatMap { item =>
       item match {
-        case vehicleInfo: VehicleInfo =>
-          val result = Seq(
-            vehicleInfo.vehicleId,
-            vehicleInfo.vehicleTypeId,
-            vehicleInfo.householdId
-          ).mkString("", FieldSeparator, LineSeparator)
-          Some(result)
-        case _ => None
+        case vehicleInfo: VehicleInfo => Some(toLine(vehicleInfo))
+        case _                        => None
       }
     }
   }
 
+  private def toLine[A](vehicleInfo: A with VehicleInfo) = {
+    Seq(
+      vehicleInfo.vehicleId,
+      vehicleInfo.vehicleTypeId,
+      vehicleInfo.householdId
+    ).mkString("", FieldSeparator, LineSeparator)
+  }
 }
 
 object VehiclesCsvWriter {
