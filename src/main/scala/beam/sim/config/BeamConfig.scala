@@ -101,7 +101,8 @@ object BeamConfig {
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
           overrideAutomationForVOTT: scala.Boolean,
           overrideAutomationLevel: scala.Int,
-          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier
+          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier,
+          transitVehicleTypeVOTMultipliers: scala.Option[scala.List[java.lang.String]]
         )
 
         object ModalBehaviors {
@@ -594,7 +595,11 @@ object BeamConfig {
               poolingMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier(
                 if (c.hasPathOrNull("poolingMultiplier")) c.getConfig("poolingMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("poolingMultiplier{}")
-              )
+              ),
+              transitVehicleTypeVOTMultipliers =
+                if (c.hasPathOrNull("transitVehicleTypeVOTMultipliers"))
+                  scala.Some($_L$_str(c.getList("transitVehicleTypeVOTMultipliers")))
+                else None
             )
           }
         }
