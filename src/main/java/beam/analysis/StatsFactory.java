@@ -170,7 +170,7 @@ public class StatsFactory {
             case PersonAverageTravelTimeAnalysis:
                 return new PersonAverageTravelTimeAnalysis(beamConfig);
             case RoutingRequestAnalysis:
-                return new RoutingRequestAnalysis(beamConfig);
+                return new RoutingRequestAnalysis();
             default:
                 return null;
         }
