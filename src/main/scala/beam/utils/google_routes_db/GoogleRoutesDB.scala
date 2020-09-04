@@ -118,7 +118,6 @@ object GoogleRoutesDB extends BeamHelper {
       case Success(_) =>
       case Failure(e) =>
         logger.error("An error occurred", e)
-        e.printStackTrace()
     }
 
     Await.ready(allDoneFuture, 300.minutes)

@@ -101,7 +101,7 @@ package object sql {
           |  bound_northeast, bound_southwest,
           |  copyrights, summary, googleapi_responses_json_file_uri, timestamp
           |) VALUES (
-          |  ?, ?
+          |  ?, ?,
           |  ST_GeometryFromText(?, $projection), ST_GeometryFromText(?, $projection),
           |  ?, ?, ?, ?
           |) RETURNING id
