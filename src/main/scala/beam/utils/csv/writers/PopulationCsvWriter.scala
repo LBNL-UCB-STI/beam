@@ -40,10 +40,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
 
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
-    val values: Iterator[PersonInfo] = scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val maybeAttribs: Option[AttributesOfIndividual] =
-        Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
-
+    scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
       val personId: Id[Person] = person.getId
 
       val excludedModes: Seq[String] = Option(
@@ -53,6 +50,10 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         case None      => Seq.empty
         case Some(att) => att.toString.split(",").toSeq
       }
+
+      val maybeAttribs: Option[AttributesOfIndividual] =
+        Option(person.getCustomAttributes.get("beam-attributes"))
+          .map(_.asInstanceOf[AttributesOfIndividual])
 
       val personAge = readAge(
         maybeAttribs.flatMap(_.age),
@@ -72,7 +73,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
 
       val houseHoldId: String = personIdToHouseHoldId.get(personId).map(_.toString).getOrElse("")
 
-      PersonInfo(
+      val info = PersonInfo(
         personId = PersonId(personId.toString),
         householdId = HouseholdId(houseHoldId),
         rank = Try(rank.toInt).getOrElse(0),
@@ -81,8 +82,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
         excludedModes = excludedModes
       )
+      toLine(info)
     }
-    contentIterator(values)
   }
 
   override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
