@@ -23,7 +23,7 @@ object BeamCsvScenarioWriter extends LazyLogging {
       this(elements.toArray)
     }
 
-    def writeCsvHouseholdsFile(outputFileStr: String): Array[VehicleInfo] = {
+    def writeCsvVehiclesFile(outputFileStr: String): Array[VehicleInfo] = {
       VehiclesCsvWriter(arr.toIterable).toCsv(arr.toIterator, outputFileStr)
       arr
     }
