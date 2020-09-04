@@ -108,7 +108,6 @@ class TravelTimeGoogleStatistic(
             routes.map { route =>
               EventContainer(event, requestId, route)
             }
-            Seq.empty[EventContainer]
         }
       })
 
