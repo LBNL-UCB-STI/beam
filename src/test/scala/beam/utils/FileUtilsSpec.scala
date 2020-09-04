@@ -12,7 +12,8 @@ import scala.collection.JavaConverters._
   * @author Dmitry Openkov
   */
 class FileUtilsSpec extends WordSpecLike with Matchers {
-  val skimPath: Path = Paths.get(getClass.getResource("/files/multi-part-od-skims").toURI)
+
+  val skimPath: Path = Paths.get(System.getenv("PWD"), "test/test-resources/multi-part-od-skims")
 
   "FileUtils" must {
     "read files in parallel into a map" in {
