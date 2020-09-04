@@ -24,7 +24,7 @@ class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], Stri
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val households: mutable.Map[Id[Household], Household] = scenario.getHouseholds.getHouseholds.asScala
 
-    val allVehicles: Iterator[VehicleInfo] = households.values.iterator.flatMap { hh =>
+    val allVehicles = households.values.iterator.flatMap { hh =>
       hh.getVehicleIds.asScala.map { id: Id[Vehicle] =>
         VehicleInfo(id.toString, vehicleType(id), hh.getId.toString)
       }
