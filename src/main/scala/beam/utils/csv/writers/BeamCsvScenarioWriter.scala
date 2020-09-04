@@ -3,6 +3,7 @@ package beam.utils.csv.writers
 import scala.language.implicitConversions
 
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, VehicleInfo}
+
 /*
  * This file keeps symmetry with BeamCsvScenarioReader. Examples below:
  *   import beam.utils.csv.readers.BeamCsvScenarioReader
