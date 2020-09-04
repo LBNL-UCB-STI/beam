@@ -9,10 +9,9 @@ case class PersonInfo(
   householdId: HouseholdId,
   rank: Int,
   age: Int,
-  excludedModes: String,
   isFemale: Boolean,
   valueOfTime: Double,
-  excludedModes: Seq[String] = Seq.empty
+  excludedModes: Seq[String] = Seq.empty,
 )
 
 case class PlanElement(
