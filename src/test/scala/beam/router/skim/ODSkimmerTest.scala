@@ -16,8 +16,10 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
 
+  val basePath = s"${System.getenv("PWD")}/test/test-resources/beam/od-skims"
+
   test("Read OD skims from single file with warm start mode") {
-    val inputFilePath = getClass.getResource("/files/od_for_test.csv.gz").getFile
+    val inputFilePath = s"$basePath/od_for_test.csv.gz"
     val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(inputFilePath, odConstructor)
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
@@ -25,11 +27,11 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
   }
 
   test("Read OD skims from multi files in the directory with warm start mode") {
-    val skimsFilePath = getClass.getResource("/files/multi-part-od-skims").getFile
+    val skimsFilePath = s"$basePath/multi-part-od-skims"
     val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(skimsFilePath, odConstructor)
 
     val origData = new CsvSkimReader(
-      getClass.getResource("/files/od_for_test.csv.gz").getFile,
+      s"$basePath/od_for_test.csv.gz",
       ODSkimmer.fromCsv,
       logger
     ).readAggregatedSkims
