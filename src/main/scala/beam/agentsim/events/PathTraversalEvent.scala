@@ -240,8 +240,9 @@ object PathTraversalEvent {
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
     val fromStopIndex: Option[Int] =
-      attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
-    val toStopIndex: Option[Int] = attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
+      Option(attr(ATTRIBUTE_FROM_STOP_INDEX)).flatMap(x => if (x == "") None else Some(x.toInt))
+    val toStopIndex: Option[Int] =
+      Option(attr(ATTRIBUTE_TO_STOP_INDEX)).flatMap(x => if (x == "") None else Some(x.toInt))
     /*
     val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
       val linkIdToLaneSplit = x.split(":")
