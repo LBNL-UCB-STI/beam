@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.GraphAnalysis
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.r5.RouteDumper.RoutingRequestEvent
+import beam.utils.FileUtils
 import beam.utils.csv.CsvWriter
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -41,9 +42,13 @@ class RoutingRequestAnalysis extends GraphAnalysis {
     val controller = event.getServices.getControlerIO
     val filePath = controller.getIterationFilename(event.getIteration, "routingModeChoice.csv")
     val csvWriter = new CsvWriter(filePath, IndexedSeq("PersonId", "ModeChoice", "RoutingRequestIds"))
-    modeChoiceList.foreach(
-      row => csvWriter.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
-    )
-    csvWriter.close()
+    FileUtils.using(csvWriter) { writer =>
+      {
+        modeChoiceList.foreach(
+          row =>
+            writer.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
+        )
+      }
+    }
   }
 }
