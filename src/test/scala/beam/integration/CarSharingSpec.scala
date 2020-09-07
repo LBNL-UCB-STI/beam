@@ -148,7 +148,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   // REPOSITION
-  "Reposition scenario" must "results at least a person driving in the second iteration" in {
+  "Reposition scenario" must "results at least a person driving in the second iteration" ignore {
     val config = ConfigFactory
       .parseString("""
          |beam.outputs.events.fileOutputFormats = xml
