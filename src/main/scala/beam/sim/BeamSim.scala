@@ -97,6 +97,11 @@ class BeamSim @Inject()(
     beamServices
   )
 
+  private val maybeRealizedModeChoiceWriter: Option[RealizedModeChoiceWriter] =
+    Option(beamServices.beamConfig.beam.debug.writeRealizedModeChoiceFile).collect {
+      case true => new RealizedModeChoiceWriter(beamServices)
+    }
+
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
@@ -173,6 +178,7 @@ class BeamSim @Inject()(
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     eventsManager.addHandler(travelTimeGoogleStatistic)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
+    maybeRealizedModeChoiceWriter.foreach(eventsManager.addHandler(_))
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -274,6 +280,8 @@ class BeamSim @Inject()(
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
     }
 
+    maybeRealizedModeChoiceWriter.foreach(_.notifyIterationStarts(event))
+
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       beamServices,
@@ -328,6 +336,8 @@ class BeamSim @Inject()(
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationEnds(event)
     }
+
+    maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
