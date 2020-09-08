@@ -225,7 +225,7 @@ class PumaLevelScenarioGenerator(
                             householdId = createdHousehold.householdId,
                             rank = 0,
                             age = person.age,
-                            excludedModes = "",
+                            excludedModes = Seq.empty,
                             isFemale = person.gender == Gender.Female,
                             valueOfTime = valueOfTime
                           )
