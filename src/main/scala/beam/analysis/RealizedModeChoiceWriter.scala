@@ -75,10 +75,10 @@ class RealizedModeChoiceWriter(beamServices: BeamServices)
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     personIdPrevMCE.values.foreach {
-        case Some(modeChoiceEvent @ _) =>
-          csvWriter.handleEvent(modeChoiceEvent)
+      case Some(modeChoiceEvent @ _) =>
+        csvWriter.handleEvent(modeChoiceEvent)
 
-        case _ =>
+      case _ =>
     }
 
     csvWriter.closeFile()
