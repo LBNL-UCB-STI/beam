@@ -1,5 +1,7 @@
 package beam.router.graphhopper
 
+import java.util
+
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
@@ -10,9 +12,10 @@ import beam.router.{Modes, Router}
 import beam.sim.common.GeoUtils
 import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
-import com.graphhopper.GHRequest
+import com.graphhopper.{GHRequest, GraphHopper, GraphHopperConfig}
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
+import com.graphhopper.reader.osm.GraphHopperOSM
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
 import com.graphhopper.routing.util._
 import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider}
@@ -273,5 +276,26 @@ object GraphHopperWrapper {
     fastestFootProfile.setWeighting("fastest")
     fastestFootProfile.setTurnCosts(false)
     List(carProfiles, bestBikeProfile, fastestFootProfile)
+  }
+
+  def fromOsm(pathToOsm: String): GraphHopper = {
+    val cfg = new GraphHopperConfig()
+    cfg.putObject("graph.flag_encoders", "car")
+
+    val fastestCarProfile = new Profile("car")
+    fastestCarProfile.setVehicle("car")
+    fastestCarProfile.setWeighting("fastest")
+    cfg.setProfiles(util.Arrays.asList(fastestCarProfile))
+
+    val chProfile = new CHProfile("car")
+    cfg.setCHProfiles(util.Arrays.asList(chProfile))
+
+    val tempGh = new GraphHopperOSM()
+    tempGh
+      .setOSMFile(pathToOsm)
+      .forServer()
+      .init(cfg)
+      .importOrLoad()
+
   }
 }
