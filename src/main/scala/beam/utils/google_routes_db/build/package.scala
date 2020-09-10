@@ -1,4 +1,4 @@
-package beam.utils
+package beam.utils.google_routes_db
 
 import java.time.Instant
 
@@ -8,14 +8,14 @@ import akka.http.scaladsl._
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import beam.utils.FileUtils.readAllLines
-import beam.utils.google_routes_db.config.GoogleRoutesDBConfig
-import beam.utils.google_routes_db.config.GoogleRoutesDBConfig.GoogleapiFiles$Elm
+import beam.utils.google_routes_db.build.config.BuildGoogleRoutesDBConfig
+import beam.utils.google_routes_db.build.config.BuildGoogleRoutesDBConfig._
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
-package object google_routes_db extends LazyLogging {
+package object build extends LazyLogging {
 
   case class GoogleapiFiles(
     googleapiResponsesJsonFileUri: String,
@@ -25,7 +25,7 @@ package object google_routes_db extends LazyLogging {
   )
 
   def sourceGoogleapiFiles
-    (config: GoogleRoutesDBConfig)
+    (config: BuildGoogleRoutesDBConfig)
       (implicit AS: ActorSystem, EC: ExecutionContext): Source[GoogleapiFiles, NotUsed] =
     Source(config.googleapiFiles)
       .mapAsync(1) {
