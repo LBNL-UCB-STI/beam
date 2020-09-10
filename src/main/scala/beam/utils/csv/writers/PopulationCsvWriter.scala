@@ -1,12 +1,16 @@
 package beam.utils.csv.writers
 
+import java.io.File
+
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
-
 import scala.collection.JavaConverters._
+import scala.util.Try
+
+import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
@@ -37,40 +41,76 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val maybeAttribs: Option[AttributesOfIndividual] =
-        Option(person.getCustomAttributes.get("beam-attributes")).map(_.asInstanceOf[AttributesOfIndividual])
+      val personId: Id[Person] = person.getId
 
-      // `personAttributes.getAttribute(...)` can return `null`
-      val excludedModes = Option(
+      val excludedModes: Seq[String] = Option(
         personAttributes
-          .getAttribute(person.getId.toString, "excluded-modes")
-      ).map { attrib =>
-          attrib.toString
-            .replaceAll(",", ArrayItemSeparator)
-            .split(ArrayItemSeparator)
-            .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
-        }
-        .getOrElse("")
+          .getAttribute(personId.toString, "excluded-modes")
+      ) match {
+        case None      => Seq.empty
+        case Some(att) => att.toString.split(",").toSeq
+      }
+
+      val maybeAttribs: Option[AttributesOfIndividual] =
+        Option(person.getCustomAttributes.get("beam-attributes"))
+          .map(_.asInstanceOf[AttributesOfIndividual])
 
       val personAge = readAge(
         maybeAttribs.flatMap(_.age),
-        Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
+        Option(personAttributes.getAttribute(personId.toString, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
-      val isMale =
-        maybeAttribs.map(_.isMale).getOrElse(personAttributes.getAttribute(person.getId.toString, "sex") == "F")
-      val values = Seq(
-        person.getId.toString,
-        personAge,
-        !isMale,
-        personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
-        String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
-        excludedModes,
-        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
-          .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
+      val isFemale = {
+        val isMale = maybeAttribs
+          .map(_.isMale)
+          .getOrElse(personAttributes.getAttribute(personId.toString, "sex") == "F")
+        !isMale
+      }
+      val valueOfTime = Option(personAttributes.getAttribute(personId.toString, "valueOfTime"))
+        .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
+
+      val rank = String.valueOf(personAttributes.getAttribute(personId.toString, "rank"))
+
+      val houseHoldId: String = personIdToHouseHoldId.get(personId).map(_.toString).getOrElse("")
+
+      val info = PersonInfo(
+        personId = PersonId(personId.toString),
+        householdId = HouseholdId(houseHoldId),
+        rank = Try(rank.toInt).getOrElse(0),
+        age = Try(personAge.toInt).getOrElse(0),
+        isFemale = isFemale,
+        valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
+        excludedModes = excludedModes
       )
-      values.mkString("", FieldSeparator, LineSeparator)
+      toLine(info)
     }
+  }
+
+  override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
+    elements.flatMap {
+      case e: PersonInfo => Some(toLine(e))
+      case _             => None
+    }
+  }
+
+  private def toLine(personInfo: PersonInfo): String = {
+    val excludedModes = {
+      val excludedModesBeforeConvert = personInfo.excludedModes.mkString(",")
+      excludedModesBeforeConvert
+        .replaceAll(",", ArrayItemSeparator)
+        .split(ArrayItemSeparator)
+        .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
+    }
+    val values = Seq(
+      personInfo.personId,
+      personInfo.age,
+      personInfo.isFemale,
+      personInfo.householdId,
+      personInfo.rank,
+      excludedModes,
+      personInfo.valueOfTime
+    )
+    values.mkString("", FieldSeparator, LineSeparator)
   }
 
 }
