@@ -267,7 +267,7 @@ class ZonalParkingManager(
         s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
       )
       log.debug(
-        s"sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
+        "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
         chargingTypeToNo(parkingZonesSampled),
         parkingTypeToNo(parkingZonesSampled),
         listOfCosts(parkingZonesSampled)
@@ -287,9 +287,9 @@ class ZonalParkingManager(
           totalStallsAvailable -= 1
         }
 
-        log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
+        log.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
 
-        if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
+        if (totalStallsInUse % 1000 == 0) log.debug("Parking stalls in use: {}", totalStallsInUse)
       }
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)

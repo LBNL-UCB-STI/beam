@@ -604,7 +604,7 @@ object BeamRouter {
           dates.localBaseDateTime
         )) {
       throw new RuntimeException(
-        s"Time Zone Mismatch\n\n" +
+        "Time Zone Mismatch\n\n" +
         s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(dates.localBaseDateTime)}\n" +
         s"\tZone offset specified in Beam config file: ${dates.zonedBaseDateTime.getOffset}\n\n" +
         "Detailed Explanation:\n\n" +

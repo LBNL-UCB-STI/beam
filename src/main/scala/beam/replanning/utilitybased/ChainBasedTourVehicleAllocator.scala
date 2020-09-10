@@ -211,8 +211,7 @@ object ChainBasedTourVehicleAllocator {
           case act: Activity =>
             Option(act.getEndTime).getOrElse(
               throw new RuntimeException(
-                s"could not get " +
-                s"time from $act"
+                s"could not get time from $act"
               )
             )
           case leg: Leg =>

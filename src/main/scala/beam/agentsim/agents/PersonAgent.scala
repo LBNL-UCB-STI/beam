@@ -435,7 +435,7 @@ class PersonAgent(
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
-          logger.warn(s"didn't get nextActivity, PersonAgent:438")
+          logger.warn("didn't get nextActivity, PersonAgent:438")
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
@@ -1083,7 +1083,7 @@ class PersonAgent(
         log.warning(s"$id events leading up to this point:\n\t${getLog.mkString("\n\t")}")
       } else if (stateName == PerformingActivity) {
         logger.debug(s"$id is performing Activity at end of simulation")
-        logger.warn(s"Performing Activity at end of simulation")
+        logger.warn("Performing Activity at end of simulation")
       } else {
         logger.warn(s"$id has received Finish while in state: ${stateName}")
       }

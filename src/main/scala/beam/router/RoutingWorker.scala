@@ -223,7 +223,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
-      log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
+      log.info("{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
@@ -248,7 +248,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
       log.info(
-        s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
+        "{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
         map.keySet().size()
       )

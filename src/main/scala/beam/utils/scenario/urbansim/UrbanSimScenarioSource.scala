@@ -86,7 +86,7 @@ class UrbanSimScenarioSource(
     val householdIdToCoord = getHouseholdIdToCoord(householdInfo)
     householdInfo.map { householdInfo =>
       val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
-        logger.warn(s"Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
+        logger.warn("Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
         new Coord(0, 0)
       })
       HouseholdInfo(
