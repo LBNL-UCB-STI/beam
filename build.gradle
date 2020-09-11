@@ -344,7 +344,7 @@ tasks.withType(ScalaCompile) {
                               "-P:scapegoat:verbose:false",
                               "-P:scapegoat:consoleOutput:true"]
     }
-    scalaCompileOptions.additionalParameters = additionalParameters + ["-unchecked", "-deprecation", "-feature",  "-Xfatal-warnings"]
+    scalaCompileOptions.additionalParameters = additionalParameters + ["-unchecked", "-deprecation", "-feature"]
 }
 
 
