@@ -119,7 +119,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
     .toMap
 
-  val notTransitRouteRequestCounter = new AtomicInteger(0)
+  val notTransitCarRouteRequestCounter = new AtomicInteger(0)
   val notTransitRouteRequestExecutionTime = new AtomicDouble(0.0)
   val recallCarRequestToR5 = new AtomicInteger(0)
 
@@ -161,11 +161,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
-            notTransitRouteRequestCounter.incrementAndGet()
             val start = System.currentTimeMillis()
 
             //run graphHopper for only cars
             val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
+              notTransitCarRouteRequestCounter.incrementAndGet()
               val idx =
                 if (carRouter == "quasiDynamicGH")
                   Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
@@ -208,13 +208,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     case UpdateTravelTimeLocal(newTravelTime) =>
       log.debug("===================================================================")
       log.debug(
-        s"TOTAL NOT TRANSIT ROUTING REQUESTS: ${notTransitRouteRequestCounter
+        s"TOTAL NOT TRANSIT CAR ROUTING REQUESTS: ${notTransitCarRouteRequestCounter
           .get()}, TOTAL NOT TRANSIT EXECUTION TIME: ${notTransitRouteRequestExecutionTime
           .get()}, TOTAL RECALL R5 FOR CAR MODE REQUESTS: ${recallCarRequestToR5.get()}"
       )
       log.debug("===================================================================")
       notTransitRouteRequestExecutionTime.set(0)
-      notTransitRouteRequestCounter.set(0)
+      notTransitCarRouteRequestCounter.set(0)
       recallCarRequestToR5.set(0)
 
       if (carRouter == "quasiDynamicGH") {
@@ -232,13 +232,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     case UpdateTravelTimeRemote(map) =>
       log.debug("===================================================================")
       log.debug(
-        s"TOTAL NOT TRANSIT ROUTING REQUESTS: ${notTransitRouteRequestCounter
+        s"TOTAL NOT TRANSIT CAR ROUTING REQUESTS: ${notTransitCarRouteRequestCounter
           .get()}, TOTAL NOT TRANSIT EXECUTION TIME: ${notTransitRouteRequestExecutionTime
           .get()}, TOTAL RECALL R5 FOR CAR MODE REQUESTS: ${recallCarRequestToR5.get()}"
       )
       log.debug("===================================================================")
       notTransitRouteRequestExecutionTime.set(0)
-      notTransitRouteRequestCounter.set(0)
+      notTransitCarRouteRequestCounter.set(0)
       recallCarRequestToR5.set(0)
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
