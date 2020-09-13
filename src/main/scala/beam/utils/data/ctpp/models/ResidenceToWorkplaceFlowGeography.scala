@@ -50,6 +50,12 @@ object ResidenceToWorkplaceFlowGeography {
     override def level: String = "C49"
   }
 
+  case object `Tract` extends ResidenceToWorkplaceFlowGeography {
+    override def from: String = "Tract"
+    override def to: String = "Tract"
+    override def level: String = "C54"
+  }
+
   case object `TAZ To TAZ` extends ResidenceToWorkplaceFlowGeography {
     override def from: String = "TAZ"
     override def to: String = "TAZ"
