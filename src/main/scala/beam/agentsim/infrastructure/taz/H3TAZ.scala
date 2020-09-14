@@ -41,7 +41,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   )
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
-    ProfilingUtils.timed("Constructed tazToH3TAZMapping", logger.info) {
+    ProfilingUtils.timed("Constructed tazToH3TAZMapping", str => logger.info(str)) {
       fillBoxResult.par
         .map { hex =>
           val centroid = getCentroid(hex)
