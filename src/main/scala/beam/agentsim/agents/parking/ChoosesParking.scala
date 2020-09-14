@@ -159,6 +159,7 @@ trait ChoosesParking extends {
           stall.locationUTM,
           currentPoint.time,
           withTransit = false,
+          Some(id),
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
@@ -170,6 +171,7 @@ trait ChoosesParking extends {
           beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
           withTransit = false,
+          Some(id),
           Vector(
             StreetVehicle(
               body.id,
