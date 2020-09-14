@@ -30,7 +30,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     network.getNodes.values().asScala.map(n => toH3CoordSystem.transform(n.getCoord))
   )
   private val fillBoxResult: Iterable[String] =
-    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $getResolution", x => logger.info(x)) {
+    ProfilingUtils.timed(s"fillBox for boundingBox $boundingBox with resolution $getResolution", logger.info) {
       fillBox(boundingBox, getResolution)
     }
   logger.info(

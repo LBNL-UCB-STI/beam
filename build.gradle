@@ -37,8 +37,6 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 apply plugin: 'com.bmuschko.docker-java-application'
 
-
-
 group = 'beam'
 version = '0.8.0'
 
@@ -359,6 +357,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
             "-PS$n", '-T', '120']
     classpath = sourceSets.test.runtimeClasspath
 }
+build.dependsOn spec
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
