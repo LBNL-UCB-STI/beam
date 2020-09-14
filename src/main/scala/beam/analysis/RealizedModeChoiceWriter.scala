@@ -5,6 +5,7 @@ import java.util
 import beam.agentsim.events.handling.{BeamEventsLoggingSettings, BeamEventsWriterCSV}
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
 import beam.sim.BeamServices
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -22,13 +23,16 @@ import scala.collection.mutable
 class RealizedModeChoiceWriter(beamServices: BeamServices)
     extends BasicEventHandler
     with IterationEndsListener
-    with IterationStartsListener {
+    with IterationStartsListener
+    with LazyLogging {
 
   private var csvWriter: BeamEventsWriterCSV = _
   private var csvFilePath: String = _
 
   /** Collects a previous ModeChoiceEvent for each person */
   private val personIdPrevMCE = mutable.Map.empty[Id[Person], Option[ModeChoiceEvent]]
+
+  private val realizedModeChoiceFileName: String = "realizedModeChoice.csv.gz"
 
   override def handleEvent(event: Event): Unit = {
     event match {
@@ -57,7 +61,7 @@ class RealizedModeChoiceWriter(beamServices: BeamServices)
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     csvFilePath = beamServices.matsimServices.getControlerIO.getIterationFilename(
       event.getIteration,
-      "realizedModeChoice.csv.gz"
+      realizedModeChoiceFileName
     )
 
     // writeHeader is invoked in constructor
@@ -74,13 +78,20 @@ class RealizedModeChoiceWriter(beamServices: BeamServices)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    personIdPrevMCE.values.foreach {
-      case Some(modeChoiceEvent @ _) =>
-        csvWriter.handleEvent(modeChoiceEvent)
+    try {
+      personIdPrevMCE.values.foreach {
+        case Some(modeChoiceEvent @ _) =>
+          csvWriter.handleEvent(modeChoiceEvent)
 
-      case _ =>
+        case _ =>
+      }
+    } catch {
+      case e: Throwable =>
+        logger.error(s"Failed to write $realizedModeChoiceFileName", e)
+    } finally {
+      try {
+        csvWriter.closeFile()
+      } catch { case _: Throwable => }
     }
-
-    csvWriter.closeFile()
   }
 }
