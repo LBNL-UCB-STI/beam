@@ -1,21 +1,30 @@
 package beam.utils.analysis
 
+import beam.sim.common.GeoUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
 import beam.utils.map.ShapefileReader
+import beam.utils.scenario.PlanElement
+import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import beam.utils.shape.Attributes
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import com.vividsolutions.jts.geom.{Geometry, MultiPolygon}
 import org.geotools.geometry.jts.JTS
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
 private case class Attrib(nPeople: Int) extends Attributes
 
 object NewYorkHomeWorkLocationAnalysis {
+
+  val geoUtils: GeoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:32118"
+  }
 
   def main(args: Array[String]): Unit = {
     // Source is uploaded to our S3: https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#new_city/ctpp/
@@ -48,8 +57,9 @@ object NewYorkHomeWorkLocationAnalysis {
     println(s"allTazGeoIds: ${allTazGeoIds.size}")
 
     // TAZ Shape file for New York state: https://catalog.data.gov/dataset/tiger-line-shapefile-2011-2010-state-new-york-2010-census-traffic-analysis-zone-taz-state-based29d50/resource/25db8b3b-86d1-4ba0-8f05-2ea371ab0d26
-    val newYorkTazs = readTaz("D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp")
-      .filter { case (tazGeoId, _) => allTazGeoIds.contains(tazGeoId) }
+    val newYorkTazs: Map[String, MultiPolygon] =
+      readTaz("D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp")
+        .filter { case (tazGeoId, _) => allTazGeoIds.contains(tazGeoId) }
     println(s"newYorkTazs: ${allTazGeoIds.size}")
 
     // Borough Boundaries shape file from https://data.cityofnewyork.us/City-Government/Borough-Boundaries/tqmj-j8zm
@@ -58,7 +68,7 @@ object NewYorkHomeWorkLocationAnalysis {
     )
     println(s"boroughMap: ${boroughMap.size}")
 
-    val tazGeoIdToBorough = ProfilingUtils.timed("TAZ to Borough", x => println(x)) {
+    val tazGeoIdToBorough: Map[String, String] = ProfilingUtils.timed("TAZ to Borough", x => println(x)) {
       newYorkTazs.par.map {
         case (tazGeoId, tazGeom) =>
           boroughMap.find { case (_, boroughGeom) => !boroughGeom.intersection(tazGeom).isEmpty } match {
@@ -70,6 +80,127 @@ object NewYorkHomeWorkLocationAnalysis {
     }
     println(s"tazGeoIdToBorough: ${tazGeoIdToBorough.size}")
 
+    computeFullStats(srcDstToPeople, tazGeoIdToBorough, "household_income_borough.csv")
+    println
+
+    computeBeamScenario(
+      tazGeoIdToBorough,
+      newYorkTazs,
+      "https://beam-outputs.s3.amazonaws.com/output/newyork/nyc-200k-crowding-exp8__2020-09-11_18-09-53_gsq/ITERS/it.0/0.plans.csv.gz",
+      "beam_200k_scenario_derived_from_location_household_income_borough.csv",
+      isUtmCoord = true
+    )
+    println
+
+    computeBeamScenario(
+      tazGeoIdToBorough,
+      newYorkTazs,
+      "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
+      "beam_full_scenario_derived_from_location_household_income_borough.csv",
+      isUtmCoord = false
+    )
+    println
+
+  }
+
+  private def computeBeamScenario(
+    tazGeoIdToBorough: Map[String, String],
+    newYorkTazs: Map[String, MultiPolygon],
+    pathToPlans: String,
+    outputCsvPath: String,
+    isUtmCoord: Boolean
+  ): Unit = {
+    println("###### computeBeamScenario started ####")
+    println("######################################################################")
+    println(s"Plans: $pathToPlans")
+    val homeWorkLocationsFromScenario = getHomeWorkLocations(pathToPlans, isUtmCoord)
+    println(s"homeWorkLocationsFromScenario: ${homeWorkLocationsFromScenario.size}")
+
+    // FIXME Better to use QuadTree?
+    val homeWorkGeoIds = homeWorkLocationsFromScenario.par.flatMap {
+      case ((src, dst), count) =>
+        val maybeSrcGeoId = newYorkTazs
+          .find {
+            case (_, polygon) =>
+              polygon.contains(MGC.coord2Point(src))
+          }
+          .map(_._1)
+        val maybeDstGeoId = newYorkTazs
+          .find {
+            case (_, polygon) =>
+              polygon.contains(MGC.coord2Point(dst))
+          }
+          .map(_._1)
+        for {
+          srcGeoId <- maybeSrcGeoId
+          dstGeoId <- maybeDstGeoId
+        } yield ((srcGeoId, dstGeoId), count)
+    }.seq
+    println(s"homeWorkGeoIds: ${homeWorkGeoIds.size}")
+
+    computeFullStats(
+      homeWorkGeoIds,
+      tazGeoIdToBorough,
+      outputCsvPath
+    )
+    println("######################################################################")
+    println("###### computeBeamScenario finshed ####")
+
+  }
+
+  private def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Double)] = {
+    def filter(planElement: PlanElement): Boolean = {
+      planElement.planSelected && planElement.planElementType == "activity" && planElement.activityType.exists(
+        actType => actType.toLowerCase == "home" || actType.toLowerCase == "work"
+      )
+    }
+
+    val (tempPlans, toClose) = CsvPlanElementReader.readWithFilter(pathToPlans, filter)
+    try {
+      tempPlans.toArray
+        .groupBy { x =>
+          x.personId
+        }
+        .toSeq
+        .flatMap {
+          case (_, xs) =>
+            if (xs.length < 2) None
+            else {
+              val sorted = xs.sortBy(x => x.activityEndTime.getOrElse(Double.MaxValue))
+              val homeWorkActivities = sorted
+                .sliding(2, 1)
+                .filter { xs =>
+                  xs.length == 2
+                }
+                .filter { xs =>
+                  val isFirstOk = xs(0).activityType.exists(actType => actType.toLowerCase == "home")
+                  val isSecondOk = xs(1).activityType.exists(actType => actType.toLowerCase == "work")
+                  isFirstOk && isSecondOk
+                }
+                .toVector
+              homeWorkActivities.map { sorted =>
+                val srcCoord = new Coord(sorted(0).activityLocationX.get, sorted(0).activityLocationY.get)
+                val srcWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(srcCoord) else srcCoord
+                val dstCoord = new Coord(sorted(1).activityLocationX.get, sorted(1).activityLocationY.get)
+                val dstWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(dstCoord) else dstCoord
+                Some(((srcWgsCoord, dstWgsCoord), 1))
+              }
+            }
+        }
+        .flatten
+        .groupBy { case ((src, dst), _) => (src, dst) }
+        .map { case (x, xs) => (x, xs.map(_._2).sum.toDouble) }
+        .toSeq
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private def computeFullStats(
+    srcDstToPeople: Seq[((String, String), Double)],
+    tazGeoIdToBorough: Map[String, String],
+    outputCsvPath: String
+  ): Unit = {
     val boroughToBorough = srcDstToPeople
       .map {
         case ((src, dst), cnt) =>
@@ -79,12 +210,11 @@ object NewYorkHomeWorkLocationAnalysis {
       .map { case ((src, dst), xs) => ((src, dst), xs.map(_._2).sum) }
     println(s"boroughToBorough: ${boroughToBorough.size}")
 
-    val csvWriter = new CsvWriter("household_income_borough.csv", Array("source", "destination", "count"))
+    val csvWriter = new CsvWriter(outputCsvPath, Array("source", "destination", "count"))
 
     boroughToBorough.foreach {
       case ((src, dst), count) =>
         csvWriter.write(src, dst, count)
-        println(s"${src}:${dst} = $count")
     }
     csvWriter.close()
   }
