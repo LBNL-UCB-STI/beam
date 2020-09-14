@@ -270,6 +270,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   destinationUTM = dest.activity.getCoord,
                   departureTime = origin.time,
                   withTransit = false,
+                  personId = orig.person.map(_.personId),
                   streetVehicles = IndexedSeq(
                     StreetVehicle(
                       vehicleAndOldSchedule.vehicle.id,

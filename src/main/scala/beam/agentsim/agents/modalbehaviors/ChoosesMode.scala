@@ -238,6 +238,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           departTime,
           withTransit,
+          Some(id),
           vehicles,
           Some(attributes),
           streetVehiclesIntermodalUse
@@ -276,6 +277,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           startWithWaitBuffer,
           withTransit = true,
+          Some(id),
           Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
@@ -325,7 +327,7 @@ trait ChoosesMode {
             requestId = None
           }
           parkingRequestId = makeRequestWith(
-            withTransit = true,
+            withTransit = availableModes.exists(_.isTransit),
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute
           )

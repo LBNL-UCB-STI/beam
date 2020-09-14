@@ -132,12 +132,12 @@ class GraphHopperWrapper(
       }
     }
 
-    if (ghLinkIds.size < 2) {
+    // got NaN speed if travel time equals to 0
+    if (ghLinkIds.size < 2 || (totalTravelTime - linkTravelTimes.head.toInt) == 0) {
       None
     } else {
       val linkIds = convertGhLinksToR5(ghLinkIds)
-      val partialFirstLinkTravelTime = linkTravelTimes.head
-      val beamTotalTravelTime = totalTravelTime - partialFirstLinkTravelTime.toInt
+      val beamTotalTravelTime = totalTravelTime - linkTravelTimes.head.toInt
       Some(beamTotalTravelTime, linkIds, linkTravelTimes, responsePath.getDistance)
     }
   }
