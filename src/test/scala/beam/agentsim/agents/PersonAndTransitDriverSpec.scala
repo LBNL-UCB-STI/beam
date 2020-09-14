@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -12,7 +12,7 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{ChargingNetworkManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -74,6 +74,9 @@ class PersonAndTransitDriverSpec
     ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
+
+  private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -253,6 +256,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
+          chargingNetworkManager = chargingNetworkManager(scheduler),
           transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
           vehicle = bus,
           Array(busLeg.beamLeg, busLeg2.beamLeg),
@@ -268,6 +272,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
+          chargingNetworkManager = chargingNetworkManager(scheduler),
           transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
           vehicle = tram,
           Array(tramLeg.beamLeg),
@@ -342,6 +347,7 @@ class PersonAndTransitDriverSpec
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,
+          chargingNetworkManager = chargingNetworkManager(scheduler),
           eventsManager = eventsManager,
           population = population,
           household = household,

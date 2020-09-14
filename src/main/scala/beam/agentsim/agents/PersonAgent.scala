@@ -31,9 +31,11 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent}
+import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -42,11 +44,9 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
+
 import scala.annotation.tailrec
 import scala.concurrent.duration._
-
-import beam.sim.common.GeoUtils
-import beam.utils.NetworkHelper
 
 /**
   */
@@ -64,6 +64,7 @@ object PersonAgent {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     personId: Id[PersonAgent],
     householdRef: ActorRef,
@@ -85,6 +86,7 @@ object PersonAgent {
         personId,
         plan,
         parkingManager,
+        chargingNetworkManager,
         tollCalculator,
         householdRef,
         sharedVehicleFleets,
@@ -242,6 +244,7 @@ class PersonAgent(
   override val id: Id[PersonAgent],
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
@@ -435,7 +438,7 @@ class PersonAgent(
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
-          logger.warn(s"didn't get nextActivity, PersonAgent:438")
+          logger.warn(s"didn't get nextActivity, PersonAgent:$id")
 
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
@@ -443,9 +446,13 @@ class PersonAgent(
             beamScenario.privateVehicles
               .get(idVehicleOrTokenTuple._1)
               .foreach(beamvehicle => {
-                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
-                }
+                // TODO  move it to CNM
+//                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
+//                  chargingNetworkManager ! ChargingUnplugRequest(
+//                    beamvehicle
+////                    Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt
+//                  )
+//                }
               })
           })
           stay replying CompletionNotice(triggerId)
@@ -1161,9 +1168,12 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
+    case Event(
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
+        _
+        ) =>
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle)
+        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>

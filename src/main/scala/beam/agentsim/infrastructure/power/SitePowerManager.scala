@@ -3,8 +3,6 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.BeamVehicle
 import org.matsim.api.core.v01.Id
 
-import scala.collection.concurrent.TrieMap
-
 class SitePowerManager() {
 
   /**
@@ -13,7 +11,7 @@ class SitePowerManager() {
     * @param vehicles beam vehicles
     * @return power (in joules) over planning horizon
     */
-  def getPowerOverPlanningHorizon(vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]): Double =
+  def getPowerOverPlanningHorizon(vehicles: Map[Id[BeamVehicle], BeamVehicle]): Double =
     vehicles.view
       .filter { case (_, v) => v.beamVehicleType.isEV }
       .map { case (_, v) => v.beamVehicleType.primaryFuelCapacityInJoule - v.primaryFuelLevelInJoules }
@@ -28,7 +26,7 @@ class SitePowerManager() {
     */
   def replanHorizonAndGetChargingPlanPerVehicle(
     physicalBounds: PhysicalBounds,
-    vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+    vehicles: Map[Id[BeamVehicle], BeamVehicle]
   ): Map[Id[BeamVehicle], Double] =
     vehicles.view
       .filter { case (_, v) => v.beamVehicleType.isEV }

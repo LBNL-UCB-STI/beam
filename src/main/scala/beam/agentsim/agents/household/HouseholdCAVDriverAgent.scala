@@ -33,6 +33,7 @@ class HouseholdCAVDriverAgent(
   val beamScenario: BeamScenario,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val vehicle: BeamVehicle,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
@@ -126,6 +127,7 @@ object HouseholdCAVDriverAgent {
     beamScenario: BeamScenario,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg],
     transportNetwork: TransportNetwork,
@@ -139,6 +141,7 @@ object HouseholdCAVDriverAgent {
         beamScenario,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         vehicle,
         transportNetwork,
         tollCalculator

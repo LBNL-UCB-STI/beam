@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -14,7 +14,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{ChargingNetworkManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -64,6 +64,9 @@ class RideHailAgentSpec
     ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
+
+  private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
   case class TestTrigger(tick: Int) extends Trigger
 
@@ -171,6 +174,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          chargingNetworkManager(scheduler),
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -247,6 +251,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          chargingNetworkManager(scheduler),
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -317,6 +322,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          chargingNetworkManager(scheduler),
           services,
           beamScenario,
           beamScenario.transportNetwork,

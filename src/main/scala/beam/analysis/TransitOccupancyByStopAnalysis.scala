@@ -33,7 +33,10 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
       pathTraversalEvents.toList.groupBy(_.vehicleId.toString).map {
         case (k, v) => k -> v.map(_.numberOfPassengers.toString)
       }
-    val max = analysis.values.map(_.size).max
+    val max = analysis.values.map(_.size) match {
+      case Nil => 0
+      case seq => seq.max
+    }
     val resultData = analysis.map { case (k, v) => k -> getList(max, v) }
     val values = resultData.values.transpose
     val headers = analysis.keys.toIndexedSeq

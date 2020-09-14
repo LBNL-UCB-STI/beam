@@ -6,7 +6,6 @@ import beam.utils.BeamVehicleUtils
 import org.matsim.api.core.v01.Id
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
 
 class SitePowerManagerSpec extends WordSpecLike with Matchers {
@@ -30,16 +29,16 @@ class SitePowerManagerSpec extends WordSpecLike with Matchers {
     val sitePowerManager = new SitePowerManager
 
     "get power over planning horizon 0.0 for charged vehicles" in {
-      val vehiclesMap = TrieMap(vehiclesList.map(v => v.id -> v): _*)
+      val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       sitePowerManager.getPowerOverPlanningHorizon(vehiclesMap) shouldBe 0.0
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
-      val vehiclesMap = TrieMap(vehiclesList.map(v => v.id -> v): _*)
+      val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.getPowerOverPlanningHorizon(vehiclesMap) shouldBe 10000.0
     }
     "replan horizon and get charging plan per vehicle" in {
-      val vehiclesMap = TrieMap(vehiclesList.map(v => v.id -> v): _*)
+      val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(PhysicalBounds.default(0.0), vehiclesMap) shouldBe Map(
         Id.createVehicleId("id1") -> 10000.0

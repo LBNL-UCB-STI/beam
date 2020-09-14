@@ -325,6 +325,7 @@ class BeamMobsimIteration(
   private val errorListener = context.actorOf(ErrorListener.props())
   context.watch(errorListener)
   context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
+  context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   private val scheduler = context.actorOf(
     Props(
       classOf[BeamAgentScheduler],
@@ -335,7 +336,6 @@ class BeamMobsimIteration(
     ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
     "scheduler"
   )
-  context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
   private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
@@ -367,6 +367,14 @@ class BeamMobsimIteration(
 
   context.watch(parkingManager)
 
+  private val chargingNetworkManager = context.actorOf(
+    Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler))
+      .withDispatcher("charging-network-manager-pinned-dispatcher"),
+    "ChargingNetworkManager"
+  )
+  context.watch(chargingNetworkManager)
+  scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
+
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
@@ -380,6 +388,7 @@ class BeamMobsimIteration(
         scheduler,
         beamRouter,
         parkingManager,
+        chargingNetworkManager,
         envelopeInUTM,
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
@@ -424,6 +433,7 @@ class BeamMobsimIteration(
         beamScenario.transportNetwork,
         scheduler,
         parkingManager,
+        chargingNetworkManager,
         tollCalculator,
         geo,
         networkHelper,
@@ -446,6 +456,7 @@ class BeamMobsimIteration(
       beamRouter,
       rideHailManager,
       parkingManager,
+      chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
       routeHistory,
@@ -466,14 +477,6 @@ class BeamMobsimIteration(
   )
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
-
-  private val chargingNetworkManager = context.actorOf(
-    Props(new ChargingNetworkManager(beamServices, beamScenario))
-      .withDispatcher("charging-network-manager-pinned-dispatcher"),
-    "ChargingNetworkManager"
-  )
-  context.watch(chargingNetworkManager)
-  scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
 
   val eventsAccumulatorMaybe: Option[ActorRef] =
     if (beamConfig.beam.agentsim.collectEvents) {
@@ -509,6 +512,7 @@ class BeamMobsimIteration(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
+      log.debug(s"CompletionNotice sent by $sender")
       stopMeasuring("agentsim-execution:agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")

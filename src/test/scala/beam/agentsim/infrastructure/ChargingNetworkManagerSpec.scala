@@ -1,12 +1,14 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -43,8 +45,17 @@ class ChargingNetworkManagerSpec
     beamScenario = loadScenario(beamConfig)
       .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
 
+    val scheduler = TestActorRef[BeamAgentScheduler](
+      SchedulerProps(
+        beamConfig,
+        stopTick = 64800,
+        maxWindow = 10,
+        new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+      )
+    )
+
     chargingNetworkManager = system.actorOf(
-      Props(new ChargingNetworkManager(beamServices, beamScenario))
+      Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler))
     )
     "process trigger event" in {
       val request = TriggerWithId(PlanningTimeOutTrigger(300), 0)

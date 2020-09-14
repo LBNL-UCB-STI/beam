@@ -45,6 +45,7 @@ object RideHailAgent {
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
     rideHailManager: ActorRef,
     vehicle: BeamVehicle,
@@ -63,6 +64,7 @@ object RideHailAgent {
         geofence,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         services,
         beamScenario,
         transportNetwork,
@@ -169,6 +171,7 @@ class RideHailAgent(
   val geofence: Option[Geofence],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
@@ -636,6 +639,7 @@ class RideHailAgent(
       vehicle.id,
       vehicle.beamVehicleType
     )
+    log.info(s"RefuelSessionEvent: $refuelSessionEvent")
     eventsManager.processEvent(refuelSessionEvent)
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
