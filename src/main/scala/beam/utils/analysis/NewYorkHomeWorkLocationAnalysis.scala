@@ -13,7 +13,9 @@ import beam.utils.shape.Attributes
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
 import com.vividsolutions.jts.geom.{Geometry, MultiPolygon}
 import org.geotools.geometry.jts.JTS
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
@@ -83,29 +85,30 @@ object NewYorkHomeWorkLocationAnalysis {
     computeFullStats(srcDstToPeople, tazGeoIdToBorough, "household_income_borough.csv")
     println
 
-    computeBeamScenario(
-      tazGeoIdToBorough,
-      newYorkTazs,
-      "https://beam-outputs.s3.amazonaws.com/output/newyork/nyc-200k-crowding-exp8__2020-09-11_18-09-53_gsq/ITERS/it.0/0.plans.csv.gz",
-      "beam_200k_scenario_derived_from_location_household_income_borough.csv",
-      isUtmCoord = true
-    )
+    ProfilingUtils.timed("Compute for 200k scenario", println) {
+      computeBeamScenario(
+        boroughMap,
+        "https://beam-outputs.s3.amazonaws.com/output/newyork/nyc-200k-crowding-exp8__2020-09-11_18-09-53_gsq/ITERS/it.0/0.plans.csv.gz",
+        "beam_200k_scenario_derived_from_location_household_income_borough.csv",
+        isUtmCoord = true
+      )
+    }
     println
 
-    computeBeamScenario(
-      tazGeoIdToBorough,
-      newYorkTazs,
-      "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
-      "beam_full_scenario_derived_from_location_household_income_borough.csv",
-      isUtmCoord = false
-    )
+    ProfilingUtils.timed("Compute for 1049k scenario", println) {
+      computeBeamScenario(
+        boroughMap,
+        "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
+        "beam_full_scenario_derived_from_location_household_income_borough.csv",
+        isUtmCoord = false
+      )
+    }
     println
 
   }
 
   private def computeBeamScenario(
-    tazGeoIdToBorough: Map[String, String],
-    newYorkTazs: Map[String, MultiPolygon],
+    boroughMap: Map[String, MultiPolygon],
     pathToPlans: String,
     outputCsvPath: String,
     isUtmCoord: Boolean
@@ -113,36 +116,69 @@ object NewYorkHomeWorkLocationAnalysis {
     println("###### computeBeamScenario started ####")
     println("######################################################################")
     println(s"Plans: $pathToPlans")
+
     val homeWorkLocationsFromScenario = getHomeWorkLocations(pathToPlans, isUtmCoord)
     println(s"homeWorkLocationsFromScenario: ${homeWorkLocationsFromScenario.size}")
 
-    // FIXME Better to use QuadTree?
-    val homeWorkGeoIds = homeWorkLocationsFromScenario.par.flatMap {
+    val envelope = boroughMap.foldLeft(new Envelope()) {
+      case (env, (k, v)) =>
+        val center = v.getCentroid
+        env.expandToInclude(center.getX, center.getY)
+        env
+    }
+
+    val quadTree =
+      new QuadTree[(String, MultiPolygon)](envelope.getMinX, envelope.getMinY, envelope.getMaxX, envelope.getMaxY)
+    boroughMap.foreach {
+      case (k, v) =>
+        quadTree.put(v.getCentroid.getX, v.getCentroid.getY, (k, v))
+    }
+
+    def getViaQuadTree(coord: Coord): Option[String] = {
+      val (borough, polygon) = quadTree.getClosest(coord.getX, coord.getY)
+      if (polygon.contains(MGC.coord2Point(coord))) Some(borough)
+      else None
+    }
+
+    val homeWorkBoroughToBorough = homeWorkLocationsFromScenario.par.flatMap {
       case ((src, dst), count) =>
-        val maybeSrcGeoId = newYorkTazs
-          .find {
-            case (_, polygon) =>
-              polygon.contains(MGC.coord2Point(src))
-          }
-          .map(_._1)
-        val maybeDstGeoId = newYorkTazs
-          .find {
-            case (_, polygon) =>
-              polygon.contains(MGC.coord2Point(dst))
-          }
-          .map(_._1)
+        val maybeSrcGeoId = getViaQuadTree(src).fold {
+          boroughMap
+            .find {
+              case (_, polygon) =>
+                polygon.contains(MGC.coord2Point(src))
+            }
+            .map(_._1)
+        }(Some(_))
+        val maybeDstGeoId = getViaQuadTree(dst).fold {
+          boroughMap
+            .find {
+              case (_, polygon) =>
+                polygon.contains(MGC.coord2Point(dst))
+            }
+            .map(_._1)
+        }(Some(_))
+
         for {
           srcGeoId <- maybeSrcGeoId
           dstGeoId <- maybeDstGeoId
         } yield ((srcGeoId, dstGeoId), count)
     }.seq
-    println(s"homeWorkGeoIds: ${homeWorkGeoIds.size}")
+    println(s"homeWorkBoroughToBorough: ${homeWorkBoroughToBorough.size}")
 
-    computeFullStats(
-      homeWorkGeoIds,
-      tazGeoIdToBorough,
-      outputCsvPath
-    )
+    val boroughToBoroughAggregated = homeWorkBoroughToBorough
+      .groupBy { case ((src, dst), _) => (src, dst) }
+      .map { case ((src, dst), xs) => ((src, dst), xs.map(_._2).sum) }
+    println(s"boroughToBoroughAggregated: ${boroughToBoroughAggregated.size}")
+
+    val csvWriter = new CsvWriter(outputCsvPath, Array("source", "destination", "count"))
+
+    boroughToBoroughAggregated.foreach {
+      case ((src, dst), count) =>
+        csvWriter.write(src, dst, count)
+    }
+    csvWriter.close()
+
     println("######################################################################")
     println("###### computeBeamScenario finshed ####")
 
