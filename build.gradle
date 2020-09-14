@@ -37,8 +37,6 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 apply plugin: 'com.bmuschko.docker-java-application'
 
-
-
 group = 'beam'
 version = '0.8.0'
 
