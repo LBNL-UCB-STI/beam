@@ -24,9 +24,9 @@ package object build extends LazyLogging {
     googleapiResponsesJsonText: String
   )
 
-  def sourceGoogleapiFiles
-    (config: BuildGoogleRoutesDBConfig)
-      (implicit AS: ActorSystem, EC: ExecutionContext): Source[GoogleapiFiles, NotUsed] =
+  def sourceGoogleapiFiles(
+    config: BuildGoogleRoutesDBConfig
+  )(implicit AS: ActorSystem, EC: ExecutionContext): Source[GoogleapiFiles, NotUsed] =
     Source(config.googleapiFiles)
       .mapAsync(1) {
 
@@ -42,8 +42,8 @@ package object build extends LazyLogging {
           val reqs = downloadAsString(googleTravelTimeEstimationCsvFileUri)
 
           for {
-            googleTravelTimeEstimationCsvText  <- reqs
-            googleapiResponsesJsonText <- resps
+            googleTravelTimeEstimationCsvText <- reqs
+            googleapiResponsesJsonText        <- resps
           } yield {
             GoogleapiFiles(
               googleapiResponsesJsonFileUri,
@@ -71,15 +71,16 @@ package object build extends LazyLogging {
           }
 
         case _ =>
-          Future.failed(new IllegalArgumentException(
-            "google_routes_db config is corrupted"
-          ))
+          Future.failed(
+            new IllegalArgumentException(
+              "google_routes_db config is corrupted"
+            )
+          )
       }
 
-  def downloadAsString
-    (uri: Uri)
-      (implicit AS: ActorSystem, EC: ExecutionContext): Future[String] = {
-    Http().singleRequest(HttpRequest(uri = uri))
+  def downloadAsString(uri: Uri)(implicit AS: ActorSystem, EC: ExecutionContext): Future[String] = {
+    Http()
+      .singleRequest(HttpRequest(uri = uri))
       .flatMap { resp =>
         resp.entity.httpEntity
           .withSizeLimit(134217728L)
@@ -100,8 +101,9 @@ package object build extends LazyLogging {
 
   def getSizeFrequencies(map: Map[_, Seq[_]]): Map[Int, Int] = {
     val freq = mutable.LinkedHashMap[Int, Int]()
-    map.foreach { case (_, seq) =>
-      freq(seq.size) = freq.getOrElse(seq.size, 0) + 1
+    map.foreach {
+      case (_, seq) =>
+        freq(seq.size) = freq.getOrElse(seq.size, 0) + 1
     }
 
     freq.toMap

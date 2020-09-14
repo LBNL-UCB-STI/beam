@@ -48,10 +48,12 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
 
           routesResponseFuture
             .map { resp =>
-              JsObject(Map(
-                "requestId" -> JsString(request.requestId),
-                "response" -> resp
-              ))
+              JsObject(
+                Map(
+                  "requestId" -> JsString(request.requestId),
+                  "response"  -> resp
+                )
+              )
             }
             .foreach(writeToFileIfSetup)
 
@@ -191,7 +193,8 @@ object GoogleAdapter {
     request: FindRouteRequest[T]
   ): String = {
     val FindRouteRequest(
-      _, _,
+      _,
+      _,
       origin,
       destination,
       departureAt,

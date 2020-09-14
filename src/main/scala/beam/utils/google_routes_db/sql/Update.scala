@@ -59,7 +59,7 @@ object Update {
         ps.setString(1, item.requestId)
         item.departureTime match {
           case Some(value) => ps.setInt(2, value)
-          case None => ps.setNull(2, Types.INTEGER)
+          case None        => ps.setNull(2, Types.INTEGER)
         }
         ps.setString(3, item.boundNortheast)
         ps.setString(4, item.boundSouthwest)
@@ -67,7 +67,7 @@ object Update {
         ps.setString(6, item.summary)
         item.googleapiResponsesJsonFileUri match {
           case Some(value) => ps.setString(7, value)
-          case None => ps.setNull(7, Types.VARCHAR)
+          case None        => ps.setNull(7, Types.VARCHAR)
         }
         ps.setTimestamp(8, java.sql.Timestamp.from(item.timestamp))
       }
@@ -141,17 +141,17 @@ object Update {
         ps.setString(5, item.durationText)
         item.durationInTraffic match {
           case Some(value) => ps.setInt(6, value)
-          case None => ps.setNull(6, Types.INTEGER)
+          case None        => ps.setNull(6, Types.INTEGER)
         }
         item.durationInTrafficText match {
           case Some(text) => ps.setString(7, text)
-          case None => ps.setNull(7, Types.VARCHAR)
+          case None       => ps.setNull(7, Types.VARCHAR)
         }
         ps.setString(8, item.endAddress)
         ps.setString(9, item.endLocation)
         item.startAddress match {
           case Some(value) => ps.setString(10, value)
-          case None => ps.setNull(10, Types.VARCHAR)
+          case None        => ps.setNull(10, Types.VARCHAR)
         }
         ps.setString(11, item.startLocation)
         ps.setString(12, item.steps)

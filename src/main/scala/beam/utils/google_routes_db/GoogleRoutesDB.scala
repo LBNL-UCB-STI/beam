@@ -16,8 +16,12 @@ object GoogleRoutesDB extends LazyLogging {
   type InsertedGoogleRouteLegId = Int
 
   def createGoogleRoutesTables(con: Connection): Unit = {
-    using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps => ps.execute() }
-    using(con.prepareStatement(sql.DDL.googleRouteLegTable)) { ps => ps.execute() }
+    using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps =>
+      ps.execute()
+    }
+    using(con.prepareStatement(sql.DDL.googleRouteLegTable)) { ps =>
+      ps.execute()
+    }
   }
 
   def insertGoogleRoutes(
@@ -36,7 +40,7 @@ object GoogleRoutesDB extends LazyLogging {
     insertMappableBatch(items, sql.Update.GoogleRouteLegItem.insertSql, con)
   }
 
-  private def insertMappableBatch[T : PSMapping](
+  private def insertMappableBatch[T: PSMapping](
     items: Seq[T],
     sql: String,
     con: Connection

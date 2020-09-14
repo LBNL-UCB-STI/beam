@@ -11,7 +11,9 @@ package object sql {
     s"POINT(${coord.lat} ${coord.lng})"
 
   def makeGeometryLinestring(coords: Seq[GoogleRoute.Coord]): GeometryLinestring = {
-    val coordSs = coords.map { coord => s"${coord.lat} ${coord.lng}"}
+    val coordSs = coords.map { coord =>
+      s"${coord.lat} ${coord.lng}"
+    }
     s"LINESTRING(${coordSs.mkString(",")})"
   }
 }

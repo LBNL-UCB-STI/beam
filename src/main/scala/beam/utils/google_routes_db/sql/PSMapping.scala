@@ -9,7 +9,8 @@ trait PSMapping[T] {
 
 object PSMapping {
 
-  implicit class PSMappingOps[T : PSMapping](item: T) {
+  implicit class PSMappingOps[T: PSMapping](item: T) {
+
     def mapPrepared(ps: PreparedStatement): Unit = {
       implicitly[PSMapping[T]].mapPrepared(item, ps)
     }

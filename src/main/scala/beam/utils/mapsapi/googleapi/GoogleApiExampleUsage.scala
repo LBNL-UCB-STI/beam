@@ -55,17 +55,19 @@ object GoogleApiExampleUsage extends App {
   private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[Route] = {
     FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
       val eventualRoutes = adapter
-        .findRoutes(Seq(
-          FindRouteRequest(
-            userObject = "dummy",
-            origin = originCoordinate,
-            destination = destinationCoordinate,
-            departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+        .findRoutes(
+          Seq(
+            FindRouteRequest(
+              userObject = "dummy",
+              origin = originCoordinate,
+              destination = destinationCoordinate,
+              departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+            )
           )
-        ))
+        )
         .map(_.map(_.eitherRoutes).flatMap {
           case Right(routes) => routes
-          case Left(_) => Seq.empty
+          case Left(_)       => Seq.empty
         })
 
       Await.result(eventualRoutes, Duration.Inf)
