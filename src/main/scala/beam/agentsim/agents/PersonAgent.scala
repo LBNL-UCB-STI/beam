@@ -439,22 +439,6 @@ class PersonAgent(
       nextActivity(data) match {
         case None =>
           logger.warn(s"didn't get nextActivity, PersonAgent:$id")
-
-          // if we still have a BEV/PHEV that is connected to a charging point,
-          // we assume that they will charge until the end of the simulation and throwing events accordingly
-          (beamVehicles ++ potentiallyChargingBeamVehicles).foreach(idVehicleOrTokenTuple => {
-            beamScenario.privateVehicles
-              .get(idVehicleOrTokenTuple._1)
-              .foreach(beamvehicle => {
-                // TODO  move it to CNM
-//                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-//                  chargingNetworkManager ! ChargingUnplugRequest(
-//                    beamvehicle
-////                    Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt
-//                  )
-//                }
-              })
-          })
           stay replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")

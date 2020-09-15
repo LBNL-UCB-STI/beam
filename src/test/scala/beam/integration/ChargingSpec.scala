@@ -87,13 +87,15 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val services = injector.getInstance(classOf[BeamServices])
     val transportNetwork = injector.getInstance(classOf[TransportNetwork])
 
-    // single person in first household in town
-    // empty all other households
+    // single person in a single household in town
     val population = scenario.getPopulation
     (2 to 50).map(Id.create(_, classOf[Person])).foreach(population.removePerson)
 
     val households = scenario.getHouseholds
-//    (2 to 21).map(Id.create(_, classOf[Household])).foreach(households.getHouseholds.remove)
+    (2 to 21).map(Id.create(_, classOf[Household])).foreach(households.getHouseholds.remove)
+
+    assume(population.getPersons.size == 1, "A single person in the town")
+    assume(households.getHouseholds.size == 1, "A single household in the town")
 
     households.getHouseholds.forEach {
       case (_, household) =>
@@ -115,38 +117,22 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     }
     transportNetwork.transitLayer.tripPatterns.clear()
 
-    population.getPersons should have size 1
-    households.getHouseholds should have size 21
-
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controler = services.controler
     controler.run()
 
+    // TODO remove after debugging
     println(totalSessionDuration)
     println(totalEnergyInJoules)
-
-//    1721.0
-//    6016300
-
-//    420.0
-//    3024000
-
-//    210.0
-//    1512000
-
-//    1961.0
-//    4510300
-
-//    2616.0
-//    6016800
-
-//    1066.0
-//    4509800
-
     println(chargingPlugInEvents)
     println(chargingPlugOutEvents)
-    assume(chargingPlugInEvents >= 2, "Something's wildly broken, I am not seeing any chargingPlugInEvents.")
-    assume(chargingPlugOutEvents >= 2, "Something's wildly broken, I am not seeing any chargingPlugOutEvents.")
+
+    assume(chargingPlugInEvents >= 1, "Something's wildly broken, I am not seeing any chargingPlugInEvents.")
+    assume(chargingPlugOutEvents >= 1, "Something's wildly broken, I am not seeing any chargingPlugOutEvents.")
+
+    chargingPlugInEvents should equal(chargingPlugOutEvents)
+    totalSessionDuration shouldBe >=(chargingPlugInEvents * 100.0)
+    totalEnergyInJoules shouldBe >=(chargingPlugInEvents * 1.5e6)
   }
 }

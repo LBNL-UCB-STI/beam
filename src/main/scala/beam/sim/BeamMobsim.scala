@@ -512,7 +512,6 @@ class BeamMobsimIteration(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
-      log.debug(s"CompletionNotice sent by $sender")
       stopMeasuring("agentsim-execution:agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")

@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -45,7 +44,7 @@ class ChargingNetworkManager(
         drivingAgent.path.name,
         vehicle.stall
       )
-      vehiclesToCharge.put(vehicle.id, ChargingVehicle(vehicle, drivingAgent, 0, 0))
+      vehiclesToCharge.put(vehicle.id, ChargingVehicle(vehicle, drivingAgent, 0))
 
     case ChargingUnplugRequest(vehicle, tick) =>
       log.info("ChargingUnplugRequest for vehicle {} at {}", vehicle, tick)
@@ -70,81 +69,62 @@ class ChargingNetworkManager(
         log.debug("PlanningTimeOutTrigger, tick: {}", tick)
 
       val (nextTick, requiredEnergyPerVehicle) = replanHorizon(tick)
+      val maxChargeDuration = nextTick - tick
 
       val scheduleTriggers = requiredEnergyPerVehicle.flatMap {
         case (vehicleId, requiredEnergy) if requiredEnergy > 0 =>
-          val cv @ ChargingVehicle(vehicle, agent, totalDuration, totalEnergy) = vehiclesToCharge(vehicleId)
-          log.debug(
-            "Charging vehicle {} (primaryFuelLevel = {}). Required energy = {}",
-            vehicle,
-            vehicle.primaryFuelLevelInJoules,
-            requiredEnergy
-          )
+          val cv @ ChargingVehicle(vehicle, agent, totalProvidedEnergy) = vehiclesToCharge(vehicleId)
+          log.debug("Charging vehicle {}. Required energy = {}", vehicle, requiredEnergy)
 
-          val (chargingDuration, providedEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules()
-          // TODO calc chargingDuration
+          val (chargingDuration, providedEnergy) =
+            vehicle.refuelingSessionDurationAndEnergyInJoules(Some(maxChargeDuration))
 
           vehicle.addFuel(providedEnergy)
-          val updCv = cv.copy(
-            totalDuration = totalDuration + chargingDuration,
-            totalEnergy = totalEnergy + providedEnergy
-          )
+          val newTotalProvidedEnergy = totalProvidedEnergy + providedEnergy
 
-          if (vehicle.primaryFuelLevelInJoules >= vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
-            log.debug(
-              "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
-              vehicleId,
-              tick + 1,
-              updCv.totalEnergy
-            )
-
-            // vehicle is fully charged. Schedule trigger and remove it from vehicles
-            vehiclesToCharge.remove(vehicleId)
-            Option(
-              ScheduleTrigger(
-                EndRefuelSessionTrigger(tick + 1, vehicle.getChargerConnectedTick(), updCv.totalEnergy, vehicle),
-                agent
-              )
-            )
-          } else {
-            log.debug(
-              "Ending refuel cycle for vehicle {}. Required {} J. Provided {} J. during {}",
-              vehicleId,
-              requiredEnergy,
-              providedEnergy,
-              chargingDuration
-            )
-
-            vehiclesToCharge.update(vehicleId, updCv)
-            None
-          }
+          endRefuelSessionTriggerMaybe(
+            vehicle,
+            tick,
+            chargingDuration,
+            providedEnergy,
+            maxChargeDuration,
+            newTotalProvidedEnergy
+          ).map { endRefuelSession =>
+              vehiclesToCharge.remove(vehicleId)
+              ScheduleTrigger(endRefuelSession, agent)
+            }
+            .orElse {
+              vehiclesToCharge.update(vehicleId, cv.copy(totalEnergy = newTotalProvidedEnergy))
+              None
+            }
 
         case (id, energy) if energy < 0 =>
           log.warning(
-            "Vehicle {}  (primaryFuelLevel = {}) requires negative energy {} - how could it be?",
+            "Vehicle {}  (primaryFuelLevel = {}) requires energy {} - which is less or equals zero",
             vehicles(id),
             vehicles(id).primaryFuelLevelInJoules,
             energy
           )
           None
-        case (id, 0) =>
-          log.debug(
-            "Vehicle {} is fully charged (primaryFuelLevel = {})",
-            vehicles(id),
-            vehicles(id).primaryFuelLevelInJoules
-          )
-          None
       }.toVector
-
-      if (vehicles.nonEmpty)
-        log.debug("Vehicles after charging: {}", vehicles.mkString(","))
 
       sender ! CompletionNotice(
         triggerId,
         if (tick < endOfSimulationTime)
           scheduleTriggers :+ ScheduleTrigger(PlanningTimeOutTrigger(nextTick), self)
-        else
-          scheduleTriggers
+        else {
+          // if we still have a BEV/PHEV that is connected to a charging point,
+          // we assume that they will charge until the end of the simulation and throwing events accordingly
+          val completeTriggers = scheduleTriggers ++ vehiclesToCharge.map {
+            case (_, cv) =>
+              ScheduleTrigger(
+                EndRefuelSessionTrigger(tick, cv.vehicle.getChargerConnectedTick(), cv.totalEnergy, cv.vehicle),
+                cv.agent
+              )
+          }
+          vehiclesToCharge.clear()
+          completeTriggers
+        }
       )
   }
 
@@ -165,6 +145,56 @@ class ChargingNetworkManager(
     (nextTick, requiredEnergyPerVehicle)
   }
 
+  private def endRefuelSessionTriggerMaybe(
+    vehicle: BeamVehicle,
+    tick: Int,
+    chargingDuration: Long,
+    providedEnergy: Double,
+    currentChargeDuration: Long,
+    totalProvidedEnergy: Double
+  ): Option[EndRefuelSessionTrigger] = {
+    if (vehicle.primaryFuelLevelInJoules >= vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
+      log.debug(
+        "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
+        vehicle.id,
+        tick + chargingDuration.toInt,
+        totalProvidedEnergy
+      )
+      Some(
+        EndRefuelSessionTrigger(
+          tick + chargingDuration.toInt,
+          vehicle.getChargerConnectedTick(),
+          totalProvidedEnergy,
+          vehicle
+        )
+      )
+    } else if (chargingDuration < currentChargeDuration) {
+      log.debug(
+        "Vehicle {} is charged by a short time: {}. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
+        vehicle.id,
+        chargingDuration,
+        tick + chargingDuration.toInt,
+        totalProvidedEnergy
+      )
+      Some(
+        EndRefuelSessionTrigger(
+          tick + chargingDuration.toInt,
+          vehicle.getChargerConnectedTick(),
+          totalProvidedEnergy,
+          vehicle
+        )
+      )
+    } else {
+      log.debug(
+        "Ending refuel cycle for vehicle {}. Provided {} J. during {}",
+        vehicle.id,
+        providedEnergy,
+        chargingDuration
+      )
+      None
+    }
+  }
+
   override def postStop: Unit = {
     log.info("postStop")
     if (gridConnectionEnabled) {
@@ -177,5 +207,5 @@ class ChargingNetworkManager(
 
 object ChargingNetworkManager {
   final case class PlanningTimeOutTrigger(tick: Int) extends Trigger
-  final case class ChargingVehicle(vehicle: BeamVehicle, agent: ActorRef, totalDuration: Long, totalEnergy: Double)
+  final case class ChargingVehicle(vehicle: BeamVehicle, agent: ActorRef, totalEnergy: Double)
 }
