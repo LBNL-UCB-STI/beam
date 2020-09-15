@@ -1,10 +1,15 @@
 package beam.utils.transit
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
+import java.util.stream.Collectors
 
 import beam.utils.transit.GtfsUtils.{TimeFrame, TripAndStopTimes}
+import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.io.FilenameUtils
 import org.onebusaway.gtfs.services.GtfsMutableRelationalDao
 import org.onebusaway.gtfs_transformer.services.{GtfsTransformStrategy, TransformContext}
+
+import scala.collection.JavaConverters._
 
 /**
   * Run directly from CLI with, for example:
@@ -20,7 +25,7 @@ import org.onebusaway.gtfs_transformer.services.{GtfsTransformStrategy, Transfor
   *   ]"
   * }}}
   */
-object GtfsFeedAdjuster extends App {
+object GtfsFeedAdjuster extends App with StrictLogging {
 
   final case class GtfsFeedAdjusterConfig(
     strategy: (Seq[TripAndStopTimes], Double, TimeFrame) => GtfsTransformStrategy = (_, _, _) => NoOpTransformStrategy,
@@ -54,13 +59,43 @@ object GtfsFeedAdjuster extends App {
 
   val adjusterConfig = parseArgs(args)
 
-  val trips = GtfsUtils.loadTripsFromGtfs(adjusterConfig.in)
-  GtfsUtils.transformGtfs(
-    adjusterConfig.in,
-    adjusterConfig.out,
-    List(
-      adjusterConfig.strategy(trips, adjusterConfig.multiplier, adjusterConfig.timeFrame)
+  val zipList = findZips(adjusterConfig.in)
+  if (zipList.nonEmpty) {
+    logger.info("Found {} zip files", zipList.size)
+    zipList.foreach { zip =>
+      val cfg = adjusterConfig.copy(in = zip, out = adjusterConfig.out.resolve(zip.getFileName))
+      transformSingleEntry(cfg)
+    }
+  } else
+    transformSingleEntry(adjusterConfig)
+
+  private def findZips(dir: Path): List[Path] = {
+    if (Files.isDirectory(dir))
+      Files
+        .walk(dir, 1)
+        .filter(
+          (file: Path) =>
+            Files.isRegularFile(file)
+            && "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
+        )
+        .sorted()
+        .collect(Collectors.toList[Path])
+        .asScala
+        .toList
+    else
+      List()
+  }
+
+  private def transformSingleEntry(cfg: GtfsFeedAdjusterConfig) = {
+    logger.info("Processing file {}", cfg.in)
+    val trips = GtfsUtils.loadTripsFromGtfs(cfg.in)
+    GtfsUtils.transformGtfs(
+      cfg.in,
+      cfg.out,
+      List(
+        cfg.strategy(trips, cfg.multiplier, cfg.timeFrame)
+      )
     )
-  )
+  }
 
 }
