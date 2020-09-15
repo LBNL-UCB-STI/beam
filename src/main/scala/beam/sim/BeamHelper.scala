@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.FileOutputStream
+import java.io.{File, FileOutputStream, PrintWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -26,12 +26,7 @@ import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.{
-  BikeLanesAdjustment,
-  DefaultNetworkCoordinator,
-  FrequencyAdjustingNetworkCoordinator,
-  NetworkCoordinator
-}
+import beam.router.r5.{BikeLanesAdjustment, NetworkCoordinator}
 import beam.router.skim.{DriveTimeSkimmer, ODSkimmer, Skims, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
@@ -318,15 +313,13 @@ trait BeamHelper extends LazyLogging {
   private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
-        vehicleTypes.map {
-          case (id, bvt) =>
-            id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
+        vehicleTypes.mapValues { bvt =>
+          if (bvt.vehicleCategory == MediumDutyPassenger) {
+            bvt.copy(
+              seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+              standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+            )
+          } else bvt
         }
       case None => vehicleTypes
     }
@@ -344,13 +337,11 @@ trait BeamHelper extends LazyLogging {
   }
 
   def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
-    val parsedArgs = ArgumentsParser.parseArguments(args) match {
-      case Some(pArgs) => pArgs
-      case None =>
-        throw new IllegalArgumentException(
-          "Arguments provided were unable to be parsed. See above for reasoning."
-        )
-    }
+    val parsedArgs = ArgumentsParser
+      .parseArguments(args)
+      .getOrElse(
+        throw new IllegalArgumentException("Arguments provided were unable to be parsed. See above for reasoning.")
+      )
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
       "Please provide a valid configuration file."
@@ -714,13 +705,9 @@ trait BeamHelper extends LazyLogging {
   }
 
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
-    val result = if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
-      FrequencyAdjustingNetworkCoordinator(beamConfig)
-    } else {
-      DefaultNetworkCoordinator(beamConfig)
-    }
-    result.init()
-    result
+    val networkCoordinator = NetworkCoordinator.create(beamConfig)
+    networkCoordinator.init()
+    networkCoordinator
   }
 
   private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {

@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
-import beam.utils.{BeamVehicleUtils, FileUtils}
+import beam.utils.{CsvFileUtils, FileUtils}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
@@ -47,20 +47,14 @@ case class LinkParam(
 trait NetworkCoordinator extends LazyLogging {
 
   val beamConfig: BeamConfig
-
   var transportNetwork: TransportNetwork
-
   var network: Network
 
-  protected def preprocessing(): Unit
-
   def init(): Unit = {
-    preprocessing()
     loadNetwork()
-    postProcessing()
+    postLoadNetwork()
+    convertFrequenciesToTrips()
   }
-
-  protected def postProcessing(): Unit
 
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
@@ -104,7 +98,9 @@ trait NetworkCoordinator extends LazyLogging {
       .get
   }
 
-  def overwriteLinkParams(
+  protected[r5] def postLoadNetwork(): Unit = {}
+
+  private def overwriteLinkParams(
     overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
@@ -127,7 +123,7 @@ trait NetworkCoordinator extends LazyLogging {
     }
   }
 
-  def createPhyssimNetwork(): Unit = {
+  private def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
     val rmNetBuilder = new R5MnetBuilder(
       transportNetwork,
@@ -160,7 +156,7 @@ trait NetworkCoordinator extends LazyLogging {
     logger.info(s"MATSim network written")
   }
 
-  def convertFrequenciesToTrips(): Unit = {
+  private[r5] def convertFrequenciesToTrips(): Unit = {
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
@@ -199,15 +195,14 @@ trait NetworkCoordinator extends LazyLogging {
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
-          case (line: java.util.Map[String, String], z) =>
-            val linkId = line.get("link_id").toInt
-            val capacity = Option(line.get("capacity")).map(_.toDouble)
-            val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
-            val length = Option(line.get("length")).map(_.toDouble)
-            val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
-            z += ((linkId, lp))
+        CsvFileUtils.readCsvFileByLineToMap[Int, LinkParam](path) { line =>
+          val linkId = line.get("link_id").toInt
+          val capacity = Option(line.get("capacity")).map(_.toDouble)
+          val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
+          val length = Option(line.get("length")).map(_.toDouble)
+          val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
+          val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
+          (linkId, lp)
         }
       } catch {
         case NonFatal(ex) =>
@@ -222,6 +217,14 @@ trait NetworkCoordinator extends LazyLogging {
 }
 
 object NetworkCoordinator {
+
+  def create(beamConfig: BeamConfig): NetworkCoordinator =
+    if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
+      FrequencyAdjustingNetworkCoordinator(beamConfig)
+    } else {
+      DefaultNetworkCoordinator(beamConfig)
+    }
+
   private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
     if (!highwayType.enabled) {
       HighwaySetting.empty()
