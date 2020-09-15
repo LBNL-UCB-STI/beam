@@ -365,9 +365,9 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
-        shapeFileReader.getFeatureSet,
-        sourceCrs
+        synthHouseholdsToFilter = new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
+        aoiFeatures = shapeFileReader.getFeatureSet,
+        sourceCRS = sourceCrs
       )
 
     planQt = Some(
@@ -418,7 +418,7 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-    synthHouseholds: Vector[SynthHousehold],
+    synthHouseholdsToFilter: Vector[SynthHousehold],
     aoiFeatures: util.Collection[SimpleFeature],
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
@@ -426,11 +426,11 @@ object PlansSampler {
     if (spatialSampler == null) {
       val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
         .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-      synthHouseholds
+      synthHouseholdsToFilter
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
         .take(sampleNumber)
     } else {
-      val tract2HH = synthHouseholds.groupBy(f => f.tract)
+      val tract2HH = synthHouseholdsToFilter.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       (0 to sampleNumber).foreach { _ =>
         {
