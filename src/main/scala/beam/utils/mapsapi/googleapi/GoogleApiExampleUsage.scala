@@ -70,12 +70,14 @@ object GoogleApiExampleUsage extends App {
   private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[GoogleRoutesResponse] = {
     FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
       val eventualRoutes = adapter
-        .findRoutes(Seq(
-          FindRouteRequest(
-            userObject = "dummy",
-            origin = originCoordinate,
-            destination = destinationCoordinate,
-            departureAt = LocalDateTime.of(2020, 9, 17, 17, 20)
+        .findRoutes(
+          Seq(
+            FindRouteRequest(
+              userObject = "dummy",
+              origin = originCoordinate,
+              destination = destinationCoordinate,
+              departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+            )
           )
         ))
         .map(_.map(_.eitherResp).flatMap {

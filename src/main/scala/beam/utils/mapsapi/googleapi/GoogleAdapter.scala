@@ -152,7 +152,8 @@ object GoogleAdapter {
     request: FindRouteRequest[T]
   ): String = {
     val FindRouteRequest(
-      _, _,
+      _,
+      _,
       origin,
       destination,
       departureAt,

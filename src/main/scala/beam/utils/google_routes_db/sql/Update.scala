@@ -136,17 +136,17 @@ object Update {
         ps.setString(5, item.durationText)
         item.durationInTraffic match {
           case Some(value) => ps.setInt(6, value)
-          case None => ps.setNull(6, Types.INTEGER)
+          case None        => ps.setNull(6, Types.INTEGER)
         }
         item.durationInTrafficText match {
           case Some(text) => ps.setString(7, text)
-          case None => ps.setNull(7, Types.VARCHAR)
+          case None       => ps.setNull(7, Types.VARCHAR)
         }
         ps.setString(8, item.endAddress)
         ps.setString(9, item.endLocation)
         item.startAddress match {
           case Some(value) => ps.setString(10, value)
-          case None => ps.setNull(10, Types.VARCHAR)
+          case None        => ps.setNull(10, Types.VARCHAR)
         }
         ps.setString(11, item.startLocation)
         ps.setString(12, item.steps)

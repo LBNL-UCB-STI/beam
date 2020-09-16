@@ -22,15 +22,15 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 /**
- * Issue #2872 "TravelTimeGoogleStatistic: Build database of the computed routes"
- * https://github.com/LBNL-UCB-STI/beam/issues/2872
- *
- * Run with Gradle:
- * ./gradlew :execute \
- *   -PmainClass=beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp \
- *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/build/google_routes_db.conf']" \
- *   -PlogbackCfg=logback.xml
- */
+  * Issue #2872 "TravelTimeGoogleStatistic: Build database of the computed routes"
+  * https://github.com/LBNL-UCB-STI/beam/issues/2872
+  *
+  * Run with Gradle:
+  * ./gradlew :execute \
+  *   -PmainClass=beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp \
+  *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/build/google_routes_db.conf']" \
+  *   -PlogbackCfg=logback.xml
+  */
 object BuildGoogleRoutesDBApp extends BeamHelper {
 
   private implicit val system: ActorSystem = ActorSystem("google-routes-db")
@@ -39,9 +39,10 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
   private implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
   //noinspection DuplicatedCode
-  def main(args: Array[String]): Unit = try {
-    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
-    val config = BuildGoogleRoutesDBConfig(cfg)
+  def main(args: Array[String]): Unit =
+    try {
+      val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
+      val config = BuildGoogleRoutesDBConfig(cfg)
 
     val dataSource = makeDataSource(
       config.postgresql.url,
@@ -87,22 +88,22 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
         .toMat(Sink.ignore)(Keep.right)
         .run()
 
-    doneFuture.onComplete {
-      case Success(_) =>
-      case Failure(e) =>
-        logger.error("An error occurred", e)
-    }
+      doneFuture.onComplete {
+        case Success(_) =>
+        case Failure(e) =>
+          logger.error("An error occurred", e)
+      }
 
-    Await.ready(doneFuture, 300.minutes)
-    Await.ready(system.terminate(), 1.minute)
-    System.exit(0)
-  } catch {
-    case e: Throwable =>
-      logger.error("GoogleRoutesDB failed", e)
-
+      Await.ready(doneFuture, 300.minutes)
       Await.ready(system.terminate(), 1.minute)
-      System.exit(1)
-  }
+      System.exit(0)
+    } catch {
+      case e: Throwable =>
+        logger.error("GoogleRoutesDB failed", e)
+
+        Await.ready(system.terminate(), 1.minute)
+        System.exit(1)
+    }
 
   private def makeDataSource(pgUrl: String, pgUser: String, pgPass: String): DataSource = {
     val ds = new BasicDataSource()

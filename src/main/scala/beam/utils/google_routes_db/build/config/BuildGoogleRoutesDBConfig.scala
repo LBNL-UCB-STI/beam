@@ -21,10 +21,15 @@ object BuildGoogleRoutesDBConfig {
     )
 
     object Http {
+
       def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Http = {
         BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Http(
-          googleTravelTimeEstimationCsvFile = if (c.hasPathOrNull("googleTravelTimeEstimationCsvFile")) Some(c.getString("googleTravelTimeEstimationCsvFile")) else None,
-          googleapiResponsesJsonFile = if (c.hasPathOrNull("googleapiResponsesJsonFile")) Some(c.getString("googleapiResponsesJsonFile")) else None
+          googleTravelTimeEstimationCsvFile =
+            if (c.hasPathOrNull("googleTravelTimeEstimationCsvFile"))
+              Some(c.getString("googleTravelTimeEstimationCsvFile"))
+            else None,
+          googleapiResponsesJsonFile =
+            if (c.hasPathOrNull("googleapiResponsesJsonFile")) Some(c.getString("googleapiResponsesJsonFile")) else None
         )
       }
     }
@@ -35,18 +40,29 @@ object BuildGoogleRoutesDBConfig {
     )
 
     object Local {
+
       def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Local = {
         BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Local(
-          googleTravelTimeEstimationCsvFile = if (c.hasPathOrNull("googleTravelTimeEstimationCsvFile")) Some(c.getString("googleTravelTimeEstimationCsvFile")) else None,
-          googleapiResponsesJsonFile = if (c.hasPathOrNull("googleapiResponsesJsonFile")) Some(c.getString("googleapiResponsesJsonFile")) else None
+          googleTravelTimeEstimationCsvFile =
+            if (c.hasPathOrNull("googleTravelTimeEstimationCsvFile"))
+              Some(c.getString("googleTravelTimeEstimationCsvFile"))
+            else None,
+          googleapiResponsesJsonFile =
+            if (c.hasPathOrNull("googleapiResponsesJsonFile")) Some(c.getString("googleapiResponsesJsonFile")) else None
         )
       }
     }
 
     def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm = {
       BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm(
-        http = if (c.hasPathOrNull("http")) scala.Some(BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Http(c.getConfig("http"))) else None,
-        local = if (c.hasPathOrNull("local")) scala.Some(BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Local(c.getConfig("local"))) else None
+        http =
+          if (c.hasPathOrNull("http"))
+            scala.Some(BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Http(c.getConfig("http")))
+          else None,
+        local =
+          if (c.hasPathOrNull("local"))
+            scala.Some(BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm.Local(c.getConfig("local")))
+          else None
       )
     }
   }
@@ -58,6 +74,7 @@ object BuildGoogleRoutesDBConfig {
   )
 
   object Postgresql {
+
     def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig.Postgresql = {
       BuildGoogleRoutesDBConfig.Postgresql(
         password = c.getString("password"),
@@ -72,6 +89,7 @@ object BuildGoogleRoutesDBConfig {
   )
 
   object Spatial {
+
     def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig.Spatial = {
       BuildGoogleRoutesDBConfig.Spatial(
         localCRS = c.getString("localCRS")
@@ -82,14 +100,25 @@ object BuildGoogleRoutesDBConfig {
   def apply(c: com.typesafe.config.Config): BuildGoogleRoutesDBConfig = {
     BuildGoogleRoutesDBConfig(
       googleapiFiles = $_LBuildGoogleRoutesDBConfig_GoogleapiFiles$Elm(c.getList("googleapiFiles")),
-      postgresql = BuildGoogleRoutesDBConfig.Postgresql(if (c.hasPathOrNull("postgresql")) c.getConfig("postgresql") else com.typesafe.config.ConfigFactory.parseString("postgresql{}")),
-      spatial = BuildGoogleRoutesDBConfig.Spatial(if (c.hasPathOrNull("spatial")) c.getConfig("spatial") else com.typesafe.config.ConfigFactory.parseString("spatial{}"))
+      postgresql = BuildGoogleRoutesDBConfig.Postgresql(
+        if (c.hasPathOrNull("postgresql")) c.getConfig("postgresql")
+        else com.typesafe.config.ConfigFactory.parseString("postgresql{}")
+      ),
+      spatial = BuildGoogleRoutesDBConfig.Spatial(
+        if (c.hasPathOrNull("spatial")) c.getConfig("spatial")
+        else com.typesafe.config.ConfigFactory.parseString("spatial{}")
+      )
     )
   }
 
-  private def $_LBuildGoogleRoutesDBConfig_GoogleapiFiles$Elm(cl: com.typesafe.config.ConfigList): scala.List[BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm] = {
+  private def $_LBuildGoogleRoutesDBConfig_GoogleapiFiles$Elm(
+    cl: com.typesafe.config.ConfigList
+  ): scala.List[BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm] = {
     import scala.collection.JavaConverters._
-    cl.asScala.map(cv => BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
+    cl.asScala
+      .map(
+        cv => BuildGoogleRoutesDBConfig.GoogleapiFiles$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+      )
+      .toList
   }
 }
-      

@@ -176,7 +176,8 @@ class TravelTimeGoogleStatistic(
   }
 
   private def queryGoogleAPI(events: Iterable[PathTraversalEvent], adapter: GoogleAdapter): Seq[EventContainer] = {
-    val containersFuture = adapter.findRoutes(events.map(toRouteRequest))
+    val containersFuture = adapter
+      .findRoutes(events.map(toRouteRequest))
       .map(_.flatMap { result =>
         val FindRouteResult(event, requestId, eitherResp) = result
 

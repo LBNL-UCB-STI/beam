@@ -116,7 +116,7 @@ object GoogleRoutesDB extends LazyLogging {
     insertMappableBatch(items, sql.Update.GoogleRouteLegItem.insertSql, con)
   }
 
-  private def insertMappableBatch[T : PSMapping](
+  private def insertMappableBatch[T: PSMapping](
     items: Seq[T],
     sql: String,
     con: Connection
