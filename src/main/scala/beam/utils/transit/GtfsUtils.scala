@@ -4,18 +4,20 @@ import java.nio.file.Path
 
 import org.onebusaway.csv_entities.schema.BeanWrapper
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl
-import org.onebusaway.gtfs.model.{AgencyAndId, Stop, StopTime, Trip}
+import org.onebusaway.gtfs.model.{AgencyAndId, Route, Stop, StopTime, Trip}
 import org.onebusaway.gtfs.serialization.GtfsReader
 import org.onebusaway.gtfs.services.{GtfsMutableRelationalDao, GtfsRelationalDao}
 import org.onebusaway.gtfs_transformer.GtfsTransformer
 import org.onebusaway.gtfs_transformer.`match`.{EntityMatch, TypedEntityMatch}
 import org.onebusaway.gtfs_transformer.deferred.ValueSetter
 import org.onebusaway.gtfs_transformer.factory.{AddEntitiesTransformStrategy, EntitiesTransformStrategy}
+import org.onebusaway.gtfs_transformer.impl.RemoveEntityUpdateStrategy
 import org.onebusaway.gtfs_transformer.services.{EntityTransformStrategy, GtfsTransformStrategy, TransformContext}
 import org.onebusaway.gtfs_transformer.updates.UpdateLibrary
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.util.Random
 
 /**
   * Loading of GTFS feeds should be done one-by-one, each for a separate instance of [[org.onebusaway.gtfs.services.GtfsRelationalDao]],
@@ -118,19 +120,11 @@ object GtfsUtils {
     factor: Int = 2,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
-    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes)
 
     val strategy = new AddEntitiesTransformStrategy
     val lastArrivalTime = timeFrame.endTime
 
-    repeatingTrips.values.view
-      .map {
-        _.view
-          .map(_._1)
-          .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
-          .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
-      }
-      .filter(_.nonEmpty)
+    findTrips(tripsWithStopTimes, timeFrame)
       .foreach { trips =>
         // doubling trips between first stop and the last but one
         trips.tail
@@ -186,16 +180,9 @@ object GtfsUtils {
     scale: Double,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
-    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes)
     val strategy = new EntitiesTransformStrategy
 
-    repeatingTrips.values.view
-      .map {
-        _.map(_._1)
-          .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
-          .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
-      }
-      .filter(_.nonEmpty)
+    findTrips(tripsWithStopTimes, timeFrame)
       .foreach { trips =>
         trips.foreach { trip =>
           // calculate new stop times (without first stop time - it remains as original)
@@ -224,6 +211,55 @@ object GtfsUtils {
         }
       }
     strategy
+  }
+
+  def removeTripsStrategy(
+    tripsWithStopTimes: Seq[TripAndStopTimes],
+    factor: Float = 0.5f,
+    timeFrame: TimeFrame = TimeFrame.WholeDay
+  ): GtfsTransformStrategy = {
+    val allTrips = tripsWithStopTimes
+      .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
+      .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
+      .map(_.trip)
+
+    val allRoutes = allTrips.map(_.getRoute).toSet
+    val numToDelete = Math.round(allTrips.size * (1 - factor))
+    val (toDelete, survived) = Random.shuffle(allTrips).splitAt(numToDelete)
+    val deletedRoutes = allRoutes -- survived.map(_.getRoute).toSet
+
+    val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
+    val resultStrategy = new EntitiesTransformStrategy()
+    deletedRoutes.foreach { route =>
+      resultStrategy.addModification(new TypedEntityMatch(classOf[Route], {
+        case rt: Route => rt.getId == route.getId
+        case _         => false
+      }), removeEntityUpdateStrategy)
+    }
+    toDelete.foreach { trip =>
+      resultStrategy.addModification(new TypedEntityMatch(classOf[Trip], {
+        case trp: Trip => trp.getId == trip.getId
+        case _         => false
+      }), removeEntityUpdateStrategy)
+    }
+    resultStrategy
+  }
+
+  private def findTrips(
+    tripsWithStopTimes: Seq[TripAndStopTimes],
+    timeFrame: TimeFrame
+  ): Seq[Seq[TripAndStopTimes]] = {
+    val repeatingTrips = findRepeatingTrips(tripsWithStopTimes)
+    repeatingTrips.values.view
+      .map {
+        _.view
+          .map(_._1)
+          .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
+          .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
+          .toSeq
+      }
+      .filter(_.nonEmpty)
+      .toSeq
   }
 
   private def createStopTime(
