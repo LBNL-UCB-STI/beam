@@ -302,6 +302,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 dest.activity.getCoord,
                 origin.time,
                 withTransit = false,
+                personId = orig.person.map(_.personId),
                 IndexedSeq(
                   StreetVehicle(
                     cav.id,

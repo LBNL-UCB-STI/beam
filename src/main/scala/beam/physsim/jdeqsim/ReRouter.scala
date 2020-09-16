@@ -179,6 +179,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
           destinationUTM = endCoord,
           departureTime = departTime,
           withTransit = false,
+          personId = Some(person.getId),
           streetVehicles = streetVehicles,
           attributesOfIndividual = maybeAttributes,
           streetVehiclesUseIntermodalUse = Access

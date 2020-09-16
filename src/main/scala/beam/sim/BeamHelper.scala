@@ -423,7 +423,7 @@ trait BeamHelper extends LazyLogging {
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
-      .parseString(s"""
+      .parseString("""
            |akka.cluster.roles = [compute]
            |akka.actor.deployment {
            |      /statsService/singleton/workerRouter {
@@ -871,7 +871,7 @@ trait BeamHelper extends LazyLogging {
       .map(str => InputType(str.toLowerCase))
       .getOrElse(
         throw new IllegalStateException(
-          s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+          "`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
         )
       )
     val scenarioReader = fileFormat match {

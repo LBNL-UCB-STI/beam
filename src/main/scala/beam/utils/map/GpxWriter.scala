@@ -100,7 +100,7 @@ object GpxWriter {
   }
 
   def drawSourceToDest(outWriter: BufferedWriter, geoUtils: GeoUtils, source: GpxPoint, dest: GpxPoint): Unit = {
-    outWriter.write(s"""<rte>""")
+    outWriter.write("<rte>")
     outWriter.newLine()
     outWriter.write(
       s"""<rtept lon="${longitude(source.wgsCoord)}" lat="${latitude(source.wgsCoord)}"><name>Src</name></rtept>"""

@@ -146,6 +146,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.pickUpLocationUTM,
         startTime,
         withTransit = false,
+        Some(req.customer.personId),
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
@@ -167,6 +168,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.destinationUTM,
         startTime,
         withTransit = false,
+        Some(req.customer.personId),
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff

@@ -1960,7 +1960,8 @@ object BeamConfig {
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
       vmInformation: BeamConfig.Beam.Debug.VmInformation,
-      writeModeChoiceAlternatives: scala.Boolean
+      writeModeChoiceAlternatives: scala.Boolean,
+      writeRealizedModeChoiceFile: scala.Boolean
     )
 
     object Debug {
@@ -2135,6 +2136,9 @@ object BeamConfig {
           ),
           writeModeChoiceAlternatives = c.hasPathOrNull("writeModeChoiceAlternatives") && c.getBoolean(
             "writeModeChoiceAlternatives"
+          ),
+          writeRealizedModeChoiceFile = c.hasPathOrNull("writeRealizedModeChoiceFile") && c.getBoolean(
+            "writeRealizedModeChoiceFile"
           )
         )
       }
