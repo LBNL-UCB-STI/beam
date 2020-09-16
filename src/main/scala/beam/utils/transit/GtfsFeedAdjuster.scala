@@ -62,6 +62,9 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   val zipList = findZips(adjusterConfig.in)
   if (zipList.nonEmpty) {
     logger.info("Found {} zip files", zipList.size)
+    logger.info("Transform to {}", adjusterConfig.out)
+    if (Files.notExists(adjusterConfig.out))
+      Files.createDirectories(adjusterConfig.out)
     zipList.foreach { zip =>
       val cfg = adjusterConfig.copy(in = zip, out = adjusterConfig.out.resolve(zip.getFileName))
       transformSingleEntry(cfg)
@@ -91,7 +94,7 @@ object GtfsFeedAdjuster extends App with StrictLogging {
     val trips = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
-        GtfsUtils.doubleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+        GtfsUtils.doubleTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "scale" => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
