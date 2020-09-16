@@ -235,10 +235,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       case 1 =>
         val fleetSize = rideHailManager.fleetSize
-        val numVehiclesToReposition = (repoShare * fleetSize).toInt
+        val newNumVehiclesToReposition = (repoShare * fleetSize).toInt
 
         // Get idle vehicles
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
+        val idleVehiclesWithoutExcluded = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
         // Shuffle only once and split it by `numVehiclesToReposition`
 
         // max reposition diameter: 5000m
@@ -246,13 +246,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         //corxXIdleVehicle + diameter * (rand.nextDouble() - 0.5)
         // check if dest within boudning box of map ->
 
-        val numRepos = if (numVehiclesToReposition * 2 >= idleVehicles.size) {
-          idleVehicles.size / 2
+        val numRepos = if (newNumVehiclesToReposition * 2 >= idleVehiclesWithoutExcluded.size) {
+          idleVehiclesWithoutExcluded.size / 2
         } else {
-          numVehiclesToReposition
+          newNumVehiclesToReposition
         }
 
-        val (src, dst) = rand.shuffle(idleVehicles).splitAt(numRepos)
+        val (src, dst) = rand.shuffle(idleVehiclesWithoutExcluded).splitAt(numRepos)
 
         // e.g. do: RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM
 
@@ -261,7 +261,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
         // Get the destination
         // Make sure we exclude `srcLocations`
-        val dstLocations = dst.take(numVehiclesToReposition)
+        val dstLocations = dst.take(newNumVehiclesToReposition)
 
         val result = srcLocations.zip(dstLocations).map {
           case (s, d) =>
@@ -398,7 +398,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
         val fleetSize = rideHailManager.fleetSize
-        val numVehiclesToReposition = (repoShare * fleetSize).toInt
+        val newNumVehiclesToReposition = (repoShare * fleetSize).toInt
         val vehicleSet = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
         if (vehicleSet.size >= 2) {
           val nonRepositioningIdleVehicles = vehicleSet.values.filter { ral =>
@@ -422,10 +422,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                 .toVector
                 .sortBy { case (vehLocation, distance) => -distance }
                 .map(_._1)
-                .splitAt(2 * numVehiclesToReposition)
+                .splitAt(2 * newNumVehiclesToReposition)
                 ._1
             )
-            .splitAt(numVehiclesToReposition)
+            .splitAt(newNumVehiclesToReposition)
             ._1
 
           // We're trying to move idle furthest vehicle to the activities which have no vehicles close to

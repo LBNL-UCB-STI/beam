@@ -70,7 +70,7 @@ object FlowStatsForParking {
     val rows = flowStatsForParking.allRows
     println(s"flowStatsForParking rows size: ${rows.size}")
 
-    println(s"Sample first 10 rows:")
+    println("Sample first 10 rows:")
     println(s"${rows.take(10).mkString("\n")}")
   }
 }

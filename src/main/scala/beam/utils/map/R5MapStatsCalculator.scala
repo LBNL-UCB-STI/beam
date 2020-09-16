@@ -53,7 +53,7 @@ object R5MapStatsCalculator {
       }
       .sortBy { case (flag, _) => flag.toString }
 
-    println(s"Edge flag to number of edges:")
+    println("Edge flag to number of edges:")
     flagToCnt.foreach {
       case (flag, cnt) =>
         println(s"$flag => $cnt")

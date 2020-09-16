@@ -55,7 +55,7 @@ object MatsimConversionTool extends App {
          osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=$outputFile
       """.stripMargin
 
-    println(s"Run following format to clip open street data file to network boundaries if required")
+    println("Run following format to clip open street data file to network boundaries if required")
     println(commandOut)
   }
 

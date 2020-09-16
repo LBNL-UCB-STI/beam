@@ -17,7 +17,7 @@ object MethodWatcher {
     val duration = Duration(stopTime - startTime, NANOSECONDS)
 
     logger.info(
-      s"Invocation of '{}' took {} {}",
+      "Invocation of '{}' took {} {}",
       name: AnyRef,
       duration.toUnit(timeUnit).toString: AnyRef,
       timeUnit: AnyRef
