@@ -54,7 +54,7 @@ object Reader {
       progress.step()
       vehicleTrip match {
         case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
-        case _ =>
+        case _                          =>
       }
     }
 
@@ -62,7 +62,7 @@ object Reader {
       progress.step()
       vehicleTrip match {
         case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
-        case _ =>
+        case _                          =>
       }
     }
 

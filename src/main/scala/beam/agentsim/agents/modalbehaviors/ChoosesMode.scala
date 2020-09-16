@@ -38,7 +38,6 @@ import beam.router.RoutingWorker
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-//  private implicit val executionContext: ExecutionContext = context.dispatcher
 
   val dummyRHVehicle: StreetVehicle =
     StreetVehicle(

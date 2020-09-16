@@ -51,7 +51,7 @@ object GpxCompareSimulationVsReference {
               dstid.foreach {
                 destination =>
                   {
-                    outWriter.write("""<rte>""")
+                    outWriter.write("<rte>")
                     outWriter.newLine()
                     outWriter.write(s"""<rtept lon="${geo.utm2Wgs(source.coord).getX}" lat="${geo
                       .utm2Wgs(source.coord)
