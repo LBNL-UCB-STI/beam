@@ -90,7 +90,7 @@ object EventsByVehicleMode extends App {
   }
 
   def buildViaFile(eventsFile: String, outputFile: String, filter: MutableSamplingFilter): Unit = {
-    Console.println(s"reading events with vehicles sampling ...")
+    Console.println("reading events with vehicles sampling ...")
 
     def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
     def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId

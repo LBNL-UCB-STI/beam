@@ -82,8 +82,6 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
 
-  sealed trait RideHailServiceStatus
-
   case object NotifyIterationEnds
   case class RecoverFromStuckness(tick: Int)
 

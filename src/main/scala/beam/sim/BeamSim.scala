@@ -469,7 +469,7 @@ class BeamSim @Inject()(
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
     ProfilingUtils.timed(
-      s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
+      "dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
       x => logger.info(x)
     ) {
       // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
@@ -683,7 +683,7 @@ class BeamSim @Inject()(
     val filesToBeRenamed: Array[File] = event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        val outputIterationFileNameRegex = List(s"legHistogram(.*)", "experienced(.*)")
+        val outputIterationFileNameRegex = List("legHistogram(.*)", "experienced(.*)")
         // filter files that match output file name regex and are to be renamed
         FileUtils
           .getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))
