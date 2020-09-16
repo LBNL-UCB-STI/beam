@@ -28,8 +28,8 @@ import scala.collection.JavaConverters._
 object GtfsFeedAdjuster extends App with StrictLogging {
 
   final case class GtfsFeedAdjusterConfig(
-    strategy: (Seq[TripAndStopTimes], Double, TimeFrame) => GtfsTransformStrategy = (_, _, _) => NoOpTransformStrategy,
-    multiplier: Double = 1.0,
+    strategy: String = "multiplication",
+    factor: Double = 1.0,
     timeFrame: TimeFrame = TimeFrame.WholeDay,
     in: Path = Paths.get("."),
     out: Path = Paths.get(".")
@@ -44,16 +44,16 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       .sliding(2, 2)
       .toList
       .foldLeft(GtfsFeedAdjusterConfig()) {
-        case (config, Array("--op", "double")) =>
-          config.copy(strategy = (ts, m, tf) => GtfsUtils.doubleTripsStrategy(ts, m.toInt, tf))
+        case (config, Array("--op", "multiplication")) =>
+          config.copy(strategy = "multiplication")
         case (config, Array("--op", "scale")) =>
-          config.copy(strategy = (ts, m, tf) => GtfsUtils.scaleTripsStrategy(ts, m, tf))
-        case (config, Array("--multiplier", value)) => config.copy(multiplier = value.toDouble)
-        case (config, Array("--in", path))          => config.copy(in = Paths.get(path))
-        case (config, Array("--out", path))         => config.copy(out = Paths.get(path))
-        case (config, Array("--startTime", s))      => config.copy(timeFrame = config.timeFrame.copy(startTime = s.toInt))
-        case (config, Array("--endTime", s))        => config.copy(timeFrame = config.timeFrame.copy(endTime = s.toInt))
-        case (_, arg)                               => throw new IllegalArgumentException(arg.mkString(" "))
+          config.copy(strategy = "scale")
+        case (config, Array("--factor", value)) => config.copy(factor = value.toDouble)
+        case (config, Array("--in", path))      => config.copy(in = Paths.get(path))
+        case (config, Array("--out", path))     => config.copy(out = Paths.get(path))
+        case (config, Array("--startTime", s))  => config.copy(timeFrame = config.timeFrame.copy(startTime = s.toInt))
+        case (config, Array("--endTime", s))    => config.copy(timeFrame = config.timeFrame.copy(endTime = s.toInt))
+        case (_, arg)                           => throw new IllegalArgumentException(arg.mkString(" "))
       }
   }
 
@@ -87,14 +87,19 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   }
 
   private def transformSingleEntry(cfg: GtfsFeedAdjusterConfig) = {
-    logger.info("Processing file {}", cfg.in)
+    logger.info("Processing file {}, strategy: {}", cfg.in, cfg.strategy)
     val trips = GtfsUtils.loadTripsFromGtfs(cfg.in)
+    val strategy = cfg.strategy match {
+      case "multiplication" if cfg.factor >= 1.0 =>
+        GtfsUtils.doubleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "multiplication" if cfg.factor < 1.0 =>
+        GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
+      case "scale" => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+    }
     GtfsUtils.transformGtfs(
       cfg.in,
       cfg.out,
-      List(
-        cfg.strategy(trips, cfg.multiplier, cfg.timeFrame)
-      )
+      List(strategy)
     )
   }
 
