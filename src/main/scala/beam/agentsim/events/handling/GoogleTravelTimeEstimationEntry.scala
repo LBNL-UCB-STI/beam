@@ -2,9 +2,11 @@ package beam.agentsim.events.handling
 
 import java.io.StringReader
 
+import beam.agentsim.events.PathTraversalEvent
+import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter
 import beam.utils.FileUtils.using
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -71,6 +73,35 @@ object GoogleTravelTimeEstimationEntry {
       euclideanDistanceInMeters = map.get("euclideanDistanceInMeters").toDouble,
       legLength = map.get("legLength").toDouble,
       googleDistance = map.get("googleDistance").toInt
+    )
+  }
+
+  def fromPTE(
+    pte: PathTraversalEvent,
+    requestId: String,
+    googleTravelTime: Int,
+    googleTravelTimeWithTraffic: Option[Int],
+    googleDistance: Int,
+    geoUtils: GeoUtils
+  ): GoogleTravelTimeEstimationEntry = {
+    GoogleTravelTimeEstimationEntry(
+      requestId = requestId,
+      vehicleId = pte.vehicleId,
+      vehicleType = pte.vehicleType,
+      departureTime = pte.departureTime,
+      originLat = pte.startY,
+      originLng = pte.startX,
+      destLat = pte.endY,
+      destLng = pte.endX,
+      simTravelTime = pte.arrivalTime - pte.departureTime,
+      googleTravelTime = googleTravelTime,
+      googleTravelTimeWithTraffic = googleTravelTimeWithTraffic,
+      euclideanDistanceInMeters = geoUtils.distLatLon2Meters(
+        new Coord(pte.startX, pte.startY),
+        new Coord(pte.endX, pte.endY)
+      ),
+      legLength = pte.legLength,
+      googleDistance = googleDistance
     )
   }
 

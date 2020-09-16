@@ -7,6 +7,7 @@ object DDL {
       |CREATE TABLE IF NOT EXISTS gr_route (
       |  id BIGSERIAL PRIMARY KEY,
       |  request_id TEXT,
+      |  departure_date_time TIMESTAMP,
       |  departure_time INTEGER,
       |  bound_northeast geometry(POINT),
       |  bound_southwest geometry(POINT),
@@ -34,5 +35,17 @@ object DDL {
       |  start_location geometry(POINT),
       |  steps geometry(LINESTRING)
       |)
+      |""".stripMargin
+
+  val googleRouteLegStartLocationIdx: String =
+    """
+      |CREATE INDEX IF NOT EXISTS gr_route_leg_start_location_idx
+      |ON gr_route_leg USING GIST (start_location)
+      |""".stripMargin
+
+  val googleRouteLegEndLocationIdx: String =
+    """
+      |CREATE INDEX IF NOT EXISTS gr_route_leg_end_location_idx
+      |ON gr_route_leg USING GIST (end_location)
       |""".stripMargin
 }

@@ -1,5 +1,7 @@
 package beam.utils.google_routes_db
 
+import beam.utils.mapsapi.googleapi.route.GoogleRoute
+
 package object sql {
 
   type GeometryPoint = String

@@ -10,10 +10,9 @@ import akka.stream.scaladsl._
 import beam.agentsim.events.handling.GoogleTravelTimeEstimationEntry
 import beam.sim.BeamHelper
 import beam.utils.FileUtils.using
-import beam.utils.google_routes_db.GoogleRoutesDB.InsertedGoogleRouteId
+import beam.utils.google_routes_db.GoogleRoutesDB
 import beam.utils.google_routes_db.build.config.BuildGoogleRoutesDBConfig
-import beam.utils.google_routes_db.sql.Update
-import beam.utils.google_routes_db.{GoogleRoute, GoogleRoutesDB, GoogleRoutesResponse, sql}
+import beam.utils.mapsapi.googleapi.route.GoogleRoutesResponse
 import javax.sql.DataSource
 import org.apache.commons.dbcp2.BasicDataSource
 
@@ -70,16 +69,20 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
               googleapiFiles.googleTravelTimeEstimationCsvText
             )
 
-          val requestIdToDepartureTime: Map[String, Option[Int]] =
-            gttees.groupBy(_.requestId).mapValues(_.headOption.map(_.departureTime))
+          val requestIdToDepartureTime: Map[String, Int] =
+            gttees.groupBy(_.requestId).mapValues(_.head.departureTime)
 
-          insertGoogleRoutesAndLegs(
-            grrSeq,
-            requestIdToDepartureTime,
-            googleapiFiles.googleapiResponsesJsonFileUri,
-            googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
-            dataSource
-          )
+          Future({
+            using(dataSource.getConnection) { con =>
+              GoogleRoutesDB.insertGoogleRoutesAndLegs(
+                grrSeq,
+                requestIdToDepartureTime,
+                googleapiFiles.googleapiResponsesJsonFileUri,
+                googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
+                con
+              )
+            }
+          })
         }
         .toMat(Sink.ignore)(Keep.right)
         .run()
@@ -110,112 +113,4 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
 
     ds
   }
-
-    private def insertGoogleRoutesAndLegs(
-      grrSeq: Seq[GoogleRoutesResponse],
-      requestIdToDepartureTime: Map[String, Option[Int]],
-      googleapiResponsesJsonFileUri: String,
-      timestamp: Instant,
-      dataSource: DataSource
-    )(implicit executor: ExecutionContext): Future[Done] = Future({
-      using(dataSource.getConnection) { con =>
-        grrSeq.foreach { grr: GoogleRoutesResponse =>
-
-        val grItemToGr: Map[Update.GoogleRouteItem, GoogleRoute] =
-          createGoogleRouteItems(
-            grr.response.routes,
-            grr.requestId,
-            requestIdToDepartureTime.get(grr.requestId).flatten,
-            googleapiResponsesJsonFileUri,
-            timestamp
-          )
-
-          val grItemToId: Map[Update.GoogleRouteItem, InsertedGoogleRouteId] =
-            GoogleRoutesDB.insertGoogleRoutes(grItemToGr.keys.toSeq, con)
-
-          GoogleRoutesDB.insertGoogleRouteLegs(
-            createGoogleRouteLegItems(
-              grItemToId.flatMap { case (grItem, routeId) =>
-                grItemToGr(grItem).legs.map(leg => (routeId, leg))
-              }.toSeq
-            ),
-            con
-          )
-        }
-      }
-
-      Done
-    })(executor)
-
-  private def createGoogleRouteItems(
-    grs: Seq[GoogleRoute],
-    requestId: String,
-    departureTime: Option[Int],
-    googleapiResponsesJsonFileUri: String,
-    timestamp: Instant,
-  ): Map[sql.Update.GoogleRouteItem, GoogleRoute] = {
-    grs.map { gr =>
-      val item = sql.Update.GoogleRouteItem.create(
-        googleRoute = gr,
-        requestId = requestId,
-        departureTime = departureTime,
-        googleapiResponsesJsonFileUri = Some(googleapiResponsesJsonFileUri),
-        timestamp = timestamp
-      )
-      (item, gr)
-    }.toMap
-  }
-
-  private def createGoogleRouteLegItems(
-    routeIdLegs: Seq[(InsertedGoogleRouteId, GoogleRoute.Leg)]
-  ): Seq[sql.Update.GoogleRouteLegItem] = {
-    routeIdLegs.map { case (routeId, leg) =>
-      sql.Update.GoogleRouteLegItem.create(routeId, leg)
-    }
-  }
-
-//  private def insertGoogleRoutes(
-//    grs: immutable.Seq[GoogleRoute],
-//    requestId: String,
-//    departureTime: Option[Int],
-//    googleapiResponsesJsonFileUri: String,
-//    timestamp: Instant,
-//    dataSource: DataSource
-//  )(implicit executor: ExecutionContext): Future[immutable.Seq[(GoogleRoute, Int)]] = Future({
-//    using(dataSource.getConnection) { con =>
-//      using(
-//        con.prepareStatement(
-//          sql.Update.GoogleRouteItem.insertSql,
-//          Statement.RETURN_GENERATED_KEYS
-//        )
-//      ) { ps =>
-//        grs.foreach { gr =>
-//          sql.Update.GoogleRouteItem.psMapping.mapPrepared(
-//            sql.Update.GoogleRouteItem.create(
-//              googleRoute = gr,
-//              requestId = requestId,
-//              departureTime = departureTime,
-//              googleapiResponsesJsonFileUri = Some(googleapiResponsesJsonFileUri),
-//              timestamp = timestamp
-//            ),
-//            ps
-//          )
-//          ps.addBatch()
-//        }
-//        ps.executeBatch()
-//
-//        logger.debug(
-//          "Inserted routes: {}",
-//          grs.map(_.summary).mkString("[", ", ", "]")
-//        )
-//
-//        val keysRS = ps.getGeneratedKeys
-//
-//        grs.map { gr =>
-//          keysRS.next()
-//          (gr, keysRS.getInt(1))
-//        }
-//      }
-//    }
-//  })(executor)
 }

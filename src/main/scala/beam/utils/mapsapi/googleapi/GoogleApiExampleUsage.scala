@@ -9,7 +9,9 @@ import scala.concurrent.duration.Duration
 import beam.utils.mapsapi.RichSegments._
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
+import beam.utils.mapsapi.Segment
 import beam.utils.mapsapi.googleapi.GoogleAdapter.FindRouteRequest
+import beam.utils.mapsapi.googleapi.route.GoogleRoutesResponse
 
 object GoogleApiExampleUsage extends App {
   if (args.length != 3) {
@@ -36,12 +38,25 @@ object GoogleApiExampleUsage extends App {
   )
 
   val outputJson: Path = Paths.get("outputJson.json")
-  val routes = findRoutesAndWriteJson(Some(outputJson))
+  val resps = findRoutesAndWriteJson(Some(outputJson))
   println(s"Generated json file: $outputJson")
 
   val outputShapeFile: Path = Paths.get("outputShapeFile.shx")
   val outputCsvFile: Path = Paths.get("outputSegments.csv")
-  routes.head.segments
+  resps
+    .flatMap { resp =>
+      resp.response.routes.flatMap { route =>
+        route.legs.flatMap { leg =>
+          leg.steps.map { step =>
+            Segment(
+              coordinates = GooglePolylineDecoder.decode(step.polyline.points),
+              lengthInMeters = leg.distance.value,
+              durationInSeconds = Some(leg.duration.value)
+            )
+          }
+        }
+      }
+    }
     .saveToCsv(outputCsvFile)
     .saveToShapeFile(outputShapeFile)
   println(s"Generated shape file: $outputShapeFile")
@@ -52,7 +67,7 @@ object GoogleApiExampleUsage extends App {
     WgsCoordinate(tmp(0).toDouble, tmp(1).toDouble)
   }
 
-  private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[Route] = {
+  private def findRoutesAndWriteJson(outputJson: Option[Path]): Seq[GoogleRoutesResponse] = {
     FileUtils.using(new GoogleAdapter(apiKey, outputJson)) { adapter =>
       val eventualRoutes = adapter
         .findRoutes(Seq(
@@ -60,11 +75,11 @@ object GoogleApiExampleUsage extends App {
             userObject = "dummy",
             origin = originCoordinate,
             destination = destinationCoordinate,
-            departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
+            departureAt = LocalDateTime.of(2020, 9, 17, 17, 20)
           )
         ))
-        .map(_.map(_.eitherRoutes).flatMap {
-          case Right(routes) => routes
+        .map(_.map(_.eitherResp).flatMap {
+          case Right(resp) => Seq(resp)
           case Left(_) => Seq.empty
         })
 

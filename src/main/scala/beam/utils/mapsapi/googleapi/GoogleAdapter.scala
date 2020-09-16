@@ -3,6 +3,7 @@ package beam.utils.mapsapi.googleapi
 import java.io.{BufferedOutputStream, File}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -14,11 +15,10 @@ import akka.pattern.ask
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
-import beam.utils.mapsapi.Segment
 import beam.utils.mapsapi.googleapi.GoogleAdapter._
+import beam.utils.mapsapi.googleapi.route.{GoogleRoutes, GoogleRoutesResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.{FileUtils, IOUtils}
-import play.api.libs.json._
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.{Await, Future}
@@ -44,24 +44,32 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       .mapAsync(10) {
 
         case (Success(httpResponse), request) =>
-          val routesResponseFuture: Future[JsObject] = parseResponse(httpResponse)
+          val routesFuture: Future[Option[GoogleRoutes]] = parseResponse(httpResponse)
+
+          val routesResponseFuture: Future[Option[GoogleRoutesResponse]] =
+            routesFuture.map { mbGR => mbGR.map { googleRoutes =>
+              GoogleRoutesResponse(
+                requestId = request.requestId,
+                departureLocalDateTime =
+                  request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                response = googleRoutes
+              )
+            }}
+
+          routesResponseFuture.foreach { mbResp => mbResp.foreach { resp =>
+            fileWriter.foreach(_ ! resp)
+          }}
 
           routesResponseFuture
-            .map { resp =>
-              JsObject(Map(
-                "requestId" -> JsString(request.requestId),
-                "response" -> resp
-              ))
+            .map {
+              case Some(resp) => Right(resp)
+              case None => Left(new RuntimeException("Failed to acquire Google routes"))
             }
-            .foreach(writeToFileIfSetup)
-
-          routesResponseFuture
-            .map(toRoutes)
-            .map { routes =>
+            .map { either: Either[Throwable, GoogleRoutesResponse] =>
               FindRouteResult(
                 request.userObject,
                 request.requestId,
-                Right(routes)
+                either
               )
             }
 
@@ -79,77 +87,31 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     results
   }
 
-  private def parseResponse(response: HttpResponse): Future[JsObject] = {
+  private def parseResponse(response: HttpResponse): Future[Option[GoogleRoutes]] = {
+    import GoogleRoutes.Json._
+    import io.circe._
+
     val reduced = response.entity.dataBytes.runReduce(_ ++ _)
     reduced.map { bs =>
-      val jsObject = Json.parse(bs.iterator.asInputStream).as[JsObject]
-      val status = (jsObject \ "status").asOpt[String].getOrElse("no status field found")
-      if (status != "OK") {
-        val errorMessage = (jsObject \ "error_message").asOpt[String].getOrElse("no error message provided")
-        logger.error("Response status is not OK: {}, error message: {}", status, errorMessage)
+
+      val text = bs.utf8String
+
+      val maybeGR: Option[GoogleRoutes] = parser.decode[GoogleRoutes](text) match {
+        case Right(json) => Some(json)
+        case Left(e) =>
+          val head = text.take(200).replaceAll("\\s+", "")
+          logger.warn(s"Failed to parse GoogleRoute from <$head...>: {}", e.getMessage)
+          None
       }
-      jsObject
-    }
-  }
 
-  private def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
-    jsRoutes.map { route =>
-      val firstAndUniqueLeg = (route \ "legs").as[JsArray].value.head
-      parseRoute(firstAndUniqueLeg.as[JsObject])
-    }
-  }
-
-  private def writeToFileIfSetup(jsObject: JsObject): JsObject = {
-    fileWriter.foreach(_ ! jsObject)
-    jsObject
-  }
-
-  private def toRoutes(jsObject: JsObject): Seq[Route] = {
-    jsObject \ "status" match {
-      case JsDefined(value) =>
-        if (value != JsString("OK")) {
-          val error = jsObject \ "error_message"
-          logger.error(s"Google route request failed. Status: $value, error: $error")
+      maybeGR.foreach { gr =>
+        if (gr.status != "OK") {
+          logger.warn("Response status is not OK: {}", gr.status)
         }
-      case _: JsUndefined =>
+      }
+
+      maybeGR
     }
-    parseRoutes((jsObject \ "routes").as[JsArray].value)
-  }
-
-  private def parseRoute(jsObject: JsObject): Route = {
-    val segments = parseSegments((jsObject \ "steps").as[JsArray].value)
-    val distanceInMeter = (jsObject \ "distance" \ "value").as[Int]
-    val durationInSeconds = (jsObject \ "duration" \ "value").as[Int]
-    // https://developers.google.com/maps/documentation/directions/overview?_gac=1.187038170.1596465170.Cj0KCQjw6575BRCQARIsAMp-ksPk0sK6Ztey7UXWPBRyjP0slBRVw3msLAYU6PPEZRHdAQUQGbsDrI0aAgxvEALw_wcB&_ga=2.204378384.1892646518.1596465112-448741100.1596465112#optional-parameters
-    // For requests where the travel mode is driving: You can specify the departure_time to receive a route
-    // and trip duration (response field: duration_in_traffic) that take traffic conditions into account.
-    // This option is only available if the request contains a valid API key, or a valid Google Maps Platform Premium Plan client ID and signature.
-    // The departure_time must be set to the current time or some time in the future. It cannot be in the past.
-    val durationInTrafficSeconds = (jsObject \ "duration_in_traffic" \ "value").as[Int]
-    val startLocation = parseWgsCoordinate(jsObject \ "start_location")
-    val endLocation = parseWgsCoordinate(jsObject \ "end_location")
-    Route(startLocation, endLocation, distanceInMeter, durationInSeconds, durationInTrafficSeconds, segments)
-  }
-
-  private def parseStep(jsObject: JsObject): Segment = {
-    Segment(
-      coordinates = GooglePolylineDecoder.decode((jsObject \ "polyline" \ "points").as[String]),
-      lengthInMeters = (jsObject \ "distance" \ "value").as[Int],
-      durationInSeconds = Some((jsObject \ "duration" \ "value").as[Int])
-    )
-  }
-
-  private def parseSegments(steps: Seq[JsValue]): Seq[Segment] = {
-    steps.map { step =>
-      parseStep(step.as[JsObject])
-    }
-  }
-
-  private def parseWgsCoordinate(position: JsLookupResult) = {
-    WgsCoordinate(
-      latitude = (position \ "lat").as[Double],
-      longitude = (position \ "lng").as[Double]
-    )
   }
 
   override def close(): Unit = {
@@ -165,7 +127,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
           if (actorSystem.isEmpty) system.terminate()
       }
   }
-
 }
 
 object GoogleAdapter {
@@ -183,7 +144,7 @@ object GoogleAdapter {
   case class FindRouteResult[T](
     userObject: T,
     requestId: String,
-    eitherRoutes: Either[Throwable, Seq[Route]]
+    eitherResp: Either[Throwable, GoogleRoutesResponse]
   )
 
   private[googleapi] def buildUrl[T](
@@ -232,27 +193,29 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
+  import io.circe.syntax._
+  import GoogleRoutesResponse.Json._
+
   override def receive: Receive = {
-    case jsObject: JsObject =>
+    case resp: GoogleRoutesResponse =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)
       IOUtils.write("[\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(Json.prettyPrint(jsObject), buffer, StandardCharsets.UTF_8)
+      IOUtils.write(resp.asJson.spaces2, buffer, StandardCharsets.UTF_8)
       context.become(saveIncoming(buffer))
     case ResponseSaverActor.CloseMsg =>
       sender() ! ResponseSaverActor.ClosedRsp
   }
 
   def saveIncoming(buffer: BufferedOutputStream): Actor.Receive = {
-    case jsObject: JsObject =>
+    case resp: GoogleRoutesResponse =>
       IOUtils.write(",\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(Json.prettyPrint(jsObject), buffer, StandardCharsets.UTF_8)
+      IOUtils.write(resp.asJson.spaces2, buffer, StandardCharsets.UTF_8)
     case ResponseSaverActor.CloseMsg =>
       IOUtils.write("\n]", buffer, StandardCharsets.UTF_8)
       buffer.close()
       sender() ! ResponseSaverActor.ClosedRsp
   }
-
 }
 
 object ResponseSaverActor {
