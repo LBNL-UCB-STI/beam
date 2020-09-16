@@ -117,20 +117,30 @@ object GtfsUtils {
 
   def doubleTripsStrategy(
     tripsWithStopTimes: Seq[TripAndStopTimes],
-    factor: Int = 2,
+    factor: Float = 2.0f,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
+    assert(factor >= 1.0)
 
     val strategy = new AddEntitiesTransformStrategy
     val lastArrivalTime = timeFrame.endTime
 
-    findTrips(tripsWithStopTimes, timeFrame)
+    val foundTrips = findTrips(tripsWithStopTimes, timeFrame)
+    val allTrips = foundTrips.flatten
+    val totalNum = allTrips.size
+    val numExtraTrips = Math.round(totalNum * (factor - 1)) % totalNum
+    val (specialTrips, regularTrips) = Random.shuffle(allTrips).splitAt(numExtraTrips)
+    val factors = (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> (factor.toInt + 1))
+    ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip             -> (factor.toInt))).toMap
+
+    foundTrips
       .foreach { trips =>
         // doubling trips between first stop and the last but one
         trips.tail
           .zip(trips.init)
           .foreach {
             case (current, previous) =>
+              val factor = factors(previous.trip)
               for (idx <- 1 until factor) {
                 val newTrip = createNewTrip(previous.trip, idx)
                 strategy.addEntity(newTrip)
@@ -153,8 +163,9 @@ object GtfsUtils {
           }
         // doubling trips between last stop and the midnight
         val lastTrip = trips.last
-        for { idx <- 1 until factor } {
-          val newTrip = createNewTrip(trips.last.trip, idx)
+        val factor = factors(lastTrip.trip)
+        for {idx <- 1 until factor} {
+          val newTrip = createNewTrip(lastTrip.trip, idx)
           strategy.addEntity(newTrip)
 
           val lastStopTimes = lastTrip.stopTimes
@@ -218,6 +229,7 @@ object GtfsUtils {
     factor: Float = 0.5f,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
+    assert(factor < 1.0)
     val allTrips = tripsWithStopTimes
       .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
       .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
