@@ -10,9 +10,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-object RideHailSurgePricingManager {}
-
 class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
+  import RideHailSurgePricingManager._
 
   val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
@@ -108,19 +107,6 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
     updatePreviousIterationRevenuesAndResetCurrent()
   }
 
-  //Method to avoid code duplication
-  private def updateForAllElements(
-    surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]]
-  )(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
-    surgePriceBins.values.foreach { binArray =>
-      for (j <- binArray.indices) {
-        val surgePriceBin = binArray.apply(j)
-        val updatedBin = updateFn(surgePriceBin)
-        binArray.update(j, updatedBin)
-      }
-    }
-  }
-
   def updatePreviousIterationRevenuesAndResetCurrent(): Unit = {
     updateForAllElements(surgePriceBins) { surgePriceBin =>
       val updatedPrevIterRevenue = surgePriceBin.currentIterationRevenue
@@ -196,6 +182,22 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
 
   def getIterationNumber: Int = {
     iteration
+  }
+
+}
+
+object RideHailSurgePricingManager {
+
+  private def updateForAllElements(
+    surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]]
+  )(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
+    surgePriceBins.values.foreach { binArray =>
+      for (j <- binArray.indices) {
+        val surgePriceBin = binArray.apply(j)
+        val updatedBin = updateFn(surgePriceBin)
+        binArray.update(j, updatedBin)
+      }
+    }
   }
 
 }
