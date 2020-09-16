@@ -44,49 +44,49 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
       val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
       val config = BuildGoogleRoutesDBConfig(cfg)
 
-    val dataSource = makeDataSource(
-      config.postgresql.url,
-      config.postgresql.username,
-      config.postgresql.password
-    )
+      val dataSource = makeDataSource(
+        config.postgresql.url,
+        config.postgresql.username,
+        config.postgresql.password
+      )
 
-    val doneFuture: Future[Done] =
-      Source
-        .future(Future {
-          using(dataSource.getConnection) { con =>
-            GoogleRoutesDB.createGoogleRoutesTables(con)
-          }
-        })
-        .flatMapConcat { _ => sourceGoogleapiFiles(config) }
-        .mapAsync(1) { googleapiFiles =>
-
-          val grrSeq: immutable.Seq[GoogleRoutesResponse] =
-            GoogleRoutesResponse.Json.parseGoogleapiResponsesJson(
-              googleapiFiles.googleapiResponsesJsonText
-            )
-
-          val gttees =
-            GoogleTravelTimeEstimationEntry.Csv.parseEntries(
-              googleapiFiles.googleTravelTimeEstimationCsvText
-            )
-
-          val requestIdToDepartureTime: Map[String, Int] =
-            gttees.groupBy(_.requestId).mapValues(_.head.departureTime)
-
-          Future({
+      val doneFuture: Future[Done] =
+        Source
+          .future(Future {
             using(dataSource.getConnection) { con =>
-              GoogleRoutesDB.insertGoogleRoutesAndLegs(
-                grrSeq,
-                requestIdToDepartureTime,
-                googleapiFiles.googleapiResponsesJsonFileUri,
-                googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
-                con
-              )
+              GoogleRoutesDB.createGoogleRoutesTables(con)
             }
           })
-        }
-        .toMat(Sink.ignore)(Keep.right)
-        .run()
+          .flatMapConcat { _ => sourceGoogleapiFiles(config) }
+          .mapAsync(1) { googleapiFiles =>
+
+            val grrSeq: immutable.Seq[GoogleRoutesResponse] =
+              GoogleRoutesResponse.Json.parseGoogleapiResponsesJson(
+                googleapiFiles.googleapiResponsesJsonText
+              )
+
+            val gttees =
+              GoogleTravelTimeEstimationEntry.Csv.parseEntries(
+                googleapiFiles.googleTravelTimeEstimationCsvText
+              )
+
+            val requestIdToDepartureTime: Map[String, Int] =
+              gttees.groupBy(_.requestId).mapValues(_.head.departureTime)
+
+            Future({
+              using(dataSource.getConnection) { con =>
+                GoogleRoutesDB.insertGoogleRoutesAndLegs(
+                  grrSeq,
+                  requestIdToDepartureTime,
+                  googleapiFiles.googleapiResponsesJsonFileUri,
+                  googleapiFiles.maybeTimestamp.getOrElse(Instant.now),
+                  con
+                )
+              }
+            })
+          }
+          .toMat(Sink.ignore)(Keep.right)
+          .run()
 
       doneFuture.onComplete {
         case Success(_) =>

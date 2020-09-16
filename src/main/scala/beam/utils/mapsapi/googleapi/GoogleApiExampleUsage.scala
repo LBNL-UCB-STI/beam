@@ -79,7 +79,7 @@ object GoogleApiExampleUsage extends App {
               departureAt = LocalDateTime.of(2020, 6, 5, 17, 20)
             )
           )
-        ))
+        )
         .map(_.map(_.eitherResp).flatMap {
           case Right(resp) => Seq(resp)
           case Left(_) => Seq.empty
