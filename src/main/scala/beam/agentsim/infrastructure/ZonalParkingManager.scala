@@ -253,10 +253,7 @@ class ZonalParkingManager(
             result
           case None =>
             inquiry.activityType match {
-              case "init" =>
-                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
-                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
-              case "home" =>
+              case "init" | "home" =>
                 val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
                 ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
               case _ =>
