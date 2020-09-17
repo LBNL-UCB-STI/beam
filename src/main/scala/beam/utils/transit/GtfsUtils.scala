@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import org.onebusaway.csv_entities.schema.BeanWrapper
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl
-import org.onebusaway.gtfs.model.{AgencyAndId, Route, Stop, StopTime, Trip}
+import org.onebusaway.gtfs.model.{AgencyAndId, Frequency, Route, Stop, StopTime, Trip}
 import org.onebusaway.gtfs.serialization.GtfsReader
 import org.onebusaway.gtfs.services.{GtfsMutableRelationalDao, GtfsRelationalDao}
 import org.onebusaway.gtfs_transformer.GtfsTransformer
@@ -29,7 +29,7 @@ object GtfsUtils {
     * Loads GTFS feed into sequence of trips with their stop times
     * @param gtfsFeed could be either zip file or directory with GTFS data
     */
-  def loadTripsFromGtfs(gtfsFeed: Path): Seq[TripAndStopTimes] = {
+  def loadTripsFromGtfs(gtfsFeed: Path): (Seq[TripAndStopTimes], GtfsMutableRelationalDao) = {
     val dao = new GtfsRelationalDaoImpl
 
     val reader = new GtfsReader
@@ -37,7 +37,7 @@ object GtfsUtils {
     reader.setInputLocation(gtfsFeed.toFile)
     reader.run()
 
-    getSortedTripsWithStopTimes(dao)
+    (getSortedTripsWithStopTimes(dao), dao)
   }
 
   /**
@@ -116,6 +116,7 @@ object GtfsUtils {
   }
 
   def doubleTripsStrategy(
+    dao: GtfsMutableRelationalDao,
     tripsWithStopTimes: Seq[TripAndStopTimes],
     factor: Float = 2.0f,
     timeFrame: TimeFrame = TimeFrame.WholeDay
@@ -131,7 +132,7 @@ object GtfsUtils {
     val numExtraTrips = Math.round(totalNum * (factor - 1)) % totalNum
     val (specialTrips, regularTrips) = Random.shuffle(allTrips).splitAt(numExtraTrips)
     val factors = (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> (factor.toInt + 1))
-    ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip             -> (factor.toInt))).toMap
+    ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip             -> factor.toInt)).toMap
 
     foundTrips
       .foreach { trips =>
@@ -142,8 +143,9 @@ object GtfsUtils {
             case (current, previous) =>
               val factor = factors(previous.trip)
               for (idx <- 1 until factor) {
-                val newTrip = createNewTrip(previous.trip, idx)
+                val (newTrip, newFrequencies) = createNewTrip(previous.trip, idx, dao)
                 strategy.addEntity(newTrip)
+                newFrequencies.foreach(strategy.addEntity)
 
                 previous.stopTimes
                   .zip(current.stopTimes)
@@ -164,8 +166,9 @@ object GtfsUtils {
         // doubling trips between last stop and the midnight
         val lastTrip = trips.last
         val factor = factors(lastTrip.trip)
-        for {idx <- 1 until factor} {
-          val newTrip = createNewTrip(lastTrip.trip, idx)
+        for { idx <- 1 until factor } {
+          val (newTrip, newFrequencies) = createNewTrip(lastTrip.trip, idx, dao)
+          newFrequencies.foreach(strategy.addEntity)
           strategy.addEntity(newTrip)
 
           val lastStopTimes = lastTrip.stopTimes
@@ -290,10 +293,19 @@ object GtfsUtils {
     stopTime
   }
 
-  private def createNewTrip(trip: Trip, idx: Int): Trip = {
+  private def createNewTrip(trip: Trip, idx: Int, dao: GtfsMutableRelationalDao): (Trip, List[Frequency]) = {
     val newTrip = new Trip(trip)
     newTrip.setId(new AgencyAndId(trip.getId.getAgencyId, s"${trip.getId.getId}-clone-$idx"))
-    newTrip
+
+    val frequencies = dao.getFrequenciesForTrip(trip)
+    val newFrequencies = frequencies.asScala.map { frequency =>
+      val newFrequency = new Frequency(frequency)
+      newFrequency.setTrip(newTrip)
+      newFrequency.setId(0)
+      newFrequency
+    }.toList
+
+    (newTrip, newFrequencies)
   }
 
   final case class TripAndStopTimes(trip: Trip, stopTimes: Seq[StopTime])
