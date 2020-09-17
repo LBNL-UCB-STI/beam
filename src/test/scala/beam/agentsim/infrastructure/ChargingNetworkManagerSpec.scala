@@ -41,6 +41,7 @@ class ChargingNetworkManagerSpec
     with BeforeAndAfterEach {
 
   private val filesPath = getClass.getResource("/files").getPath
+  println(s"FILEPATH IS: $filesPath")
   private val beamConfig: BeamConfig = BeamConfig(
     system.settings.config
       .withFallback(ConfigFactory.parseString(s"""
