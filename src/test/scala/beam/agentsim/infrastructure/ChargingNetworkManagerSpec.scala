@@ -40,8 +40,7 @@ class ChargingNetworkManagerSpec
     with MockitoSugar
     with BeforeAndAfterEach {
 
-  private val filesPath = getClass.getResource("/files").getPath
-  println(s"FILEPATH IS: $filesPath")
+  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
   private val beamConfig: BeamConfig = BeamConfig(
     system.settings.config
       .withFallback(ConfigFactory.parseString(s"""

@@ -25,7 +25,9 @@ import org.scalatest.{FlatSpec, Matchers}
 class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
-  private val filesPath = getClass.getResource("/files").getPath
+  private val vehicleId = Id.create(2, classOf[Vehicle])
+  private val personId = Id.createPersonId(1)
+  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
   val config = ConfigFactory
     .parseString(
@@ -67,13 +69,12 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
-                case e: ChargingPlugInEvent  => chargingPlugInEvents = chargingPlugInEvents + 1
-                case e: ChargingPlugOutEvent => chargingPlugOutEvents = chargingPlugOutEvents + 1
+                case _: ChargingPlugInEvent  => chargingPlugInEvents = chargingPlugInEvents + 1
+                case _: ChargingPlugOutEvent => chargingPlugOutEvents = chargingPlugOutEvents + 1
                 case e: RefuelSessionEvent =>
                   totalEnergyInJoules += e.energyInJoules
                   totalSessionDuration += e.sessionDuration
                 case _ =>
-                // TODO LinkEnterEvent, LinkLeaveEvent   to calculate the distance being travelled and divide by fuel
               }
             }
           })
@@ -99,8 +100,8 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
 
     households.getHouseholds.forEach {
       case (_, household) =>
-        household.getMemberIds.removeIf(_ != Id.createPersonId(1))
-        household.getVehicleIds.removeIf(_ != Id.create(2, classOf[Vehicle]))
+        household.getMemberIds.removeIf(_ != personId)
+        household.getVehicleIds.removeIf(_ != vehicleId)
     }
 
     // Only driving allowed
