@@ -2,6 +2,7 @@ package beam.agentsim.events.handling
 
 import java.nio.file.Paths
 import java.time._
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -14,10 +15,10 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.GoogleRoutesDB
-import beam.utils.mapsapi.googleapi.GoogleAdapter
+import beam.utils.mapsapi.googleapi.{GoogleAdapter, GoogleRoutesResponse}
 import beam.utils.mapsapi.googleapi.GoogleAdapter.{FindRouteRequest, FindRouteResult}
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
-import beam.utils.mapsapi.googleapi.route.GoogleRoutesResponse
+import com.google.maps.model.DirectionsResult
 import com.typesafe.scalalogging.LazyLogging
 import javax.sql.DataSource
 import org.apache.commons.dbcp2.BasicDataSource
@@ -76,7 +77,7 @@ class TravelTimeGoogleStatistic(
         && cfg.iterationInterval > 0
         && event.getIteration % cfg.iterationInterval == 0) {
       logger.info(
-        "Executing google API call for iteration #{}, query date = {}",
+        "Querying Google DirectionAPI routes for iteration #{}, query date = {}",
         event.getIteration,
         queryDate.toLocalDate
       )
@@ -103,33 +104,59 @@ class TravelTimeGoogleStatistic(
         event.getIteration,
         "maps.googleapi.responses.json"
       )
-      val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
-      val eventContainers = using(adapter) { adapter =>
-        queryGoogleAPI(missingEvents, adapter)
-      }
+      val filePath = controller
+        .getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
 
       val entriesFromGoogle: Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] =
-        makeGTTEEs(eventContainers)
+        if (missingEvents.isEmpty) {
+          logger.info(
+            "Got {} Google routes from cache",
+            entriesFromCache.keySet.size,
+          )
+          Map.empty
+        } else {
 
-      val gttees = (entriesFromCache.values.flatten ++ entriesFromGoogle.values.flatten).toSeq
+          logger.info(
+            "Got {} Google routes from cache, calling Google DirectionsApi for {} routes",
+            entriesFromCache.keySet.size,
+            missingEvents.size
+          )
+
+          val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
+          val eventContainers = using(adapter) { adapter =>
+            queryGoogleAPI(missingEvents, adapter)
+          }
+
+          val googleEntries = makeGTTEEntries(eventContainers)
+
+          val requestIdToDepartureTime: Map[String, Int] =
+            googleEntries.values.flatten.groupBy(_.requestId).mapValues(_.head.departureTime)
+
+          insertGoogleRoutesAndLegsInDb(
+            eventContainers.map { ec =>
+              GoogleRoutesResponse(
+                requestId = ec.requestId,
+                departureLocalDateTime =
+                  makeDepartureLocatDateTime(ec.event.departureTime)
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                ec.directionsResult
+              )
+            },
+            requestIdToDepartureTime,
+            filePath,
+            Instant.now()
+          )
+
+          googleEntries
+        }
+
+      val allEntries = (entriesFromCache.values.flatten ++ entriesFromGoogle.values.flatten).toSeq
         .sortBy { gttee =>
           (gttee.departureTime, gttee.vehicleId, gttee.googleTravelTimeWithTraffic)
         }
 
-      val filePath = controller
-        .getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
-      GoogleTravelTimeEstimationEntry.Csv.writeEntries(gttees, filePath)
-      logger.info(s"Saved ${gttees.size} routes to $filePath")
-
-      val requestIdToDepartureTime: Map[String, Int] =
-        gttees.groupBy(_.requestId).mapValues(_.head.departureTime)
-
-      insertGoogleRoutesAndLegsInDb(
-        eventContainers.map(_.googleResp),
-        requestIdToDepartureTime,
-        filePath,
-        Instant.now()
-      )
+      GoogleTravelTimeEstimationEntry.Csv.writeEntries(allEntries, filePath)
+      logger.info(s"Saved ${allEntries.size} routes to $filePath")
     }
   }
 
@@ -179,15 +206,15 @@ class TravelTimeGoogleStatistic(
     val containersFuture = adapter
       .findRoutes(events.map(toRouteRequest))
       .map(_.flatMap { result =>
-        val FindRouteResult(event, requestId, eitherResp) = result
+        val FindRouteResult(event, requestId, eitherRes) = result
 
-        eitherResp match {
+        eitherRes match {
           case Left(e) =>
             logger.error(s"Error when calling google API for $event", e)
             Seq.empty[EventContainer]
 
-          case Right(resp) =>
-            Seq(EventContainer(event, requestId, resp))
+          case Right(res) =>
+            Seq(EventContainer(event, requestId, res))
         }
       })
 
@@ -234,24 +261,16 @@ class TravelTimeGoogleStatistic(
     val destination = WgsCoordinate(event.endY, event.endX)
     FindRouteRequest(
       userObject = event,
-      requestId = makeFindRouteRequestId(origin, destination, event.departureTime, constraints),
+      requestId = UUID.randomUUID().toString,
       origin = origin,
       destination = destination,
-      departureAt = queryDate.plusSeconds(event.departureTime),
+      departureAt = makeDepartureLocatDateTime(event.departureTime),
       constraints = constraints
     )
   }
 
-  private def makeFindRouteRequestId(
-    origin: WgsCoordinate,
-    destination: WgsCoordinate,
-    departureTime: Int,
-    constraints: Set[TravelConstraint]
-  ): String = {
-    val bytes: Array[Byte] =
-      s"$origin$destination$departureTime${constraints.mkString("")}"
-        .getBytes("UTF-8")
-    UUID.nameUUIDFromBytes(bytes).toString
+  private def makeDepartureLocatDateTime(departureTime: Int): LocalDateTime = {
+    queryDate.plusSeconds(departureTime)
   }
 
   def loadedEventNumber: Int = acc.size
@@ -260,20 +279,20 @@ class TravelTimeGoogleStatistic(
     acc.clear()
   }
 
-  private def makeGTTEEs(
+  private def makeGTTEEntries(
     ecs: TraversableOnce[EventContainer]
   ): Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] = {
     val result = mutable.Map.empty[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]]
 
     ecs.foreach { ec =>
-      val gttees = ec.googleResp.response.routes.flatMap { gr =>
-        gr.legs.map { leg =>
+      val gttees = ec.directionsResult.routes.flatMap { route =>
+        route.legs.map { leg =>
           GoogleTravelTimeEstimationEntry.fromPTE(
             ec.event,
             ec.requestId,
-            leg.duration.value,
-            leg.durationInTraffic.map(_.value),
-            leg.distance.value,
+            leg.duration.inSeconds,
+            Option(leg.durationInTraffic).map(_.inSeconds),
+            leg.distance.inMeters,
             geoUtils
           )
         }
@@ -294,9 +313,8 @@ object TravelTimeGoogleStatistic {
   case class EventContainer(
     event: PathTraversalEvent,
     requestId: String,
-    googleResp: GoogleRoutesResponse
+    directionsResult: DirectionsResult
   )
-
 
   def makeDataSource(
     cfg: BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb.Postgresql

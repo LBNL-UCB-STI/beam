@@ -12,11 +12,10 @@ import beam.sim.BeamHelper
 import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.GoogleRoutesDB
 import beam.utils.google_routes_db.build.config.BuildGoogleRoutesDBConfig
-import beam.utils.mapsapi.googleapi.route.GoogleRoutesResponse
+import beam.utils.mapsapi.googleapi.GoogleRoutesResponse
 import javax.sql.DataSource
 import org.apache.commons.dbcp2.BasicDataSource
 
-import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -28,7 +27,7 @@ import scala.util.{Failure, Success}
   * Run with Gradle:
   * ./gradlew :execute \
   *   -PmainClass=beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp \
-  *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/config/build/google_routes_db.conf']" \
+  *   -PappArgs="['--config','src/main/scala/beam/utils/google_routes_db/build/config/build_google_routes_db.conf']" \
   *   -PlogbackCfg=logback.xml
   */
 object BuildGoogleRoutesDBApp extends BeamHelper {
@@ -60,8 +59,8 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
           .flatMapConcat { _ => sourceGoogleapiFiles(config) }
           .mapAsync(1) { googleapiFiles =>
 
-            val grrSeq: immutable.Seq[GoogleRoutesResponse] =
-              GoogleRoutesResponse.Json.parseGoogleapiResponsesJson(
+            val grrSeq: Seq[GoogleRoutesResponse] =
+              GoogleRoutesResponse.Json.decodeGoogleRoutesResponses(
                 googleapiFiles.googleapiResponsesJsonText
               )
 

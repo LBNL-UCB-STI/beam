@@ -1,14 +1,15 @@
 package beam.utils.google_routes_db
 
-import beam.utils.FileUtils.using
 import java.sql.{Connection, Statement}
 import java.time.{Instant, LocalDateTime}
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.handling.GoogleTravelTimeEstimationEntry
 import beam.sim.common.GeoUtils
+import beam.utils.FileUtils.using
 import beam.utils.google_routes_db.sql.{PSMapping, Update}
-import beam.utils.mapsapi.googleapi.route.{GoogleRoute, GoogleRoutesResponse}
+import beam.utils.mapsapi.googleapi.GoogleRoutesResponse
+import com.google.maps.model.DirectionsRoute
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
@@ -76,27 +77,30 @@ object GoogleRoutesDB extends LazyLogging {
   ): Unit = {
     grrSeq.foreach { grr: GoogleRoutesResponse =>
 
-      val grItemToGr: Map[Update.GoogleRouteItem, GoogleRoute] =
-        createGoogleRouteItems(
-          grr.response.routes,
-          grr.requestId,
-          LocalDateTime.parse(grr.departureLocalDateTime),
-          requestIdToDepartureTime(grr.requestId),
-          googleapiResponsesJsonFileUri,
-          timestamp
-        )
+      val routeItemToRoute: Map[Update.GoogleRouteItem, DirectionsRoute] =
+        grr.directionsResult.routes.map { route =>
+          val item = sql.Update.GoogleRouteItem.create(
+            route = route,
+            requestId = grr.requestId,
+            departureDateTime = LocalDateTime.parse(grr.departureLocalDateTime),
+            departureTime = requestIdToDepartureTime(grr.requestId),
+            googleapiResponsesJsonFileUri = Some(googleapiResponsesJsonFileUri),
+            timestamp = timestamp
+          )
+          (item, route)
+        }.toMap
 
-      val grItemToId: Map[Update.GoogleRouteItem, InsertedGoogleRouteId] =
-        GoogleRoutesDB.insertGoogleRoutes(grItemToGr.keys.toSeq, con)
+      val routeItemToId: Map[Update.GoogleRouteItem, InsertedGoogleRouteId] =
+        insertGoogleRoutes(routeItemToRoute.keys.toSeq, con)
 
-      GoogleRoutesDB.insertGoogleRouteLegs(
-        createGoogleRouteLegItems(
-          grItemToId.flatMap { case (grItem, routeId) =>
-            grItemToGr(grItem).legs.map(leg => (routeId, leg))
-          }.toSeq
-        ),
-        con
-      )
+      val legItems: Seq[Update.GoogleRouteLegItem] =
+        routeItemToId.flatMap { case (routeItem, routeId) =>
+          routeItemToRoute(routeItem).legs.map { leg =>
+            sql.Update.GoogleRouteLegItem.create(routeId, leg)
+          }
+        }.toSeq
+
+      insertGoogleRouteLegs(legItems, con)
     }
   }
 
@@ -104,67 +108,13 @@ object GoogleRoutesDB extends LazyLogging {
     items: Seq[sql.Update.GoogleRouteItem],
     con: Connection
   ): Map[sql.Update.GoogleRouteItem, InsertedGoogleRouteId] = {
-    import sql.Update.GoogleRouteItem.psMapping
-    insertMappableBatch(items, sql.Update.GoogleRouteItem.insertSql, con)
+    Update.GoogleRouteItem.insert(items, con)
   }
 
   def insertGoogleRouteLegs(
     items: Seq[sql.Update.GoogleRouteLegItem],
     con: Connection
   ): Map[sql.Update.GoogleRouteLegItem, InsertedGoogleRouteLegId] = {
-    import sql.Update.GoogleRouteLegItem.psMapping
-    insertMappableBatch(items, sql.Update.GoogleRouteLegItem.insertSql, con)
-  }
-
-  private def insertMappableBatch[T: PSMapping](
-    items: Seq[T],
-    sql: String,
-    con: Connection
-  ): Map[T, Int] = {
-    using(
-      con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-    ) { ps =>
-      items.foreach { item =>
-        implicitly[PSMapping[T]].mapPrepared(item, ps)
-        ps.addBatch()
-      }
-      ps.executeBatch()
-
-      val keysRS = ps.getGeneratedKeys
-
-      items.map { item =>
-        keysRS.next()
-        (item, keysRS.getInt(1))
-      }.toMap
-    }
-  }
-
-  private def createGoogleRouteItems(
-    grs: Seq[GoogleRoute],
-    requestId: String,
-    departureDateTime: LocalDateTime,
-    departureTime: Int,
-    googleapiResponsesJsonFileUri: String,
-    timestamp: Instant,
-  ): Map[sql.Update.GoogleRouteItem, GoogleRoute] = {
-    grs.map { gr =>
-      val item = sql.Update.GoogleRouteItem.create(
-        googleRoute = gr,
-        requestId = requestId,
-        departureDateTime = departureDateTime,
-        departureTime = departureTime,
-        googleapiResponsesJsonFileUri = Some(googleapiResponsesJsonFileUri),
-        timestamp = timestamp
-      )
-      (item, gr)
-    }.toMap
-  }
-
-  private def createGoogleRouteLegItems(
-    routeIdLegs: Seq[(InsertedGoogleRouteId, GoogleRoute.Leg)]
-  ): Seq[sql.Update.GoogleRouteLegItem] = {
-    routeIdLegs.map { case (routeId, leg) =>
-      sql.Update.GoogleRouteLegItem.create(routeId, leg)
-    }
+    Update.GoogleRouteLegItem.insert(items, con)
   }
 }

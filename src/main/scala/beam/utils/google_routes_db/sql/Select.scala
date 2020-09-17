@@ -4,7 +4,7 @@ import java.sql.{PreparedStatement, ResultSet}
 import java.time.LocalDateTime
 
 import beam.agentsim.events.PathTraversalEvent
-import beam.utils.mapsapi.googleapi.route.GoogleRoute
+import com.google.maps.model.LatLng
 
 import scala.collection.mutable
 
@@ -42,9 +42,9 @@ object Select {
       requestId: String,
       departureDateTime: LocalDateTime,
       departureTime: Int,
-      distance: Int,
-      duration: Int,
-      durationInTraffic: Option[Int]
+      distance: Long,
+      duration: Long,
+      durationInTraffic: Option[Long]
     )
 
     val sql: String =
@@ -59,10 +59,10 @@ object Select {
         |  leg.duration_in_traffic
         |FROM
         |  (SELECT
-        |     ST_GeometryFromText(?, $projection) :: geometry as origin,
-        |     ST_GeometryFromText(?, $projection) :: geometry as dest,
-        |     ? as departure_time,
-        |     ? as departure_date_time
+        |     ST_GeometryFromText(?, $projection) :: GEOMETRY as origin,
+        |     ST_GeometryFromText(?, $projection) :: GEOMETRY as dest,
+        |     ? :: INTEGER as departure_time,
+        |     ? :: TIMESTAMP as departure_date_time
         |  ) args,
         |  gr_route route,
         |  gr_route_leg leg
@@ -77,16 +77,16 @@ object Select {
 
     val argPsMapping: PSMapping[Arg] =
       (arg: Arg, ps: PreparedStatement) => {
-        ps.setString(1, makeGeometryPoint(GoogleRoute.Coord(arg.originLat, arg.originLon)))
-        ps.setString(2, makeGeometryPoint(GoogleRoute.Coord(arg.destLat, arg.destLon)))
-        ps.setTimestamp(3, java.sql.Timestamp.valueOf(arg.departureDateTime))
-        ps.setInt(4, arg.departureTime)
+        ps.setString(1, makeGeometryPoint(new LatLng(arg.originLat, arg.originLon)))
+        ps.setString(2, makeGeometryPoint(new LatLng(arg.destLat, arg.destLon)))
+        ps.setInt(3, arg.departureTime)
+        ps.setTimestamp(4, java.sql.Timestamp.valueOf(arg.departureDateTime))
       }
 
     def readItems(rs: ResultSet): Seq[Item] = {
       val result = mutable.ArrayBuffer.empty[Item]
       while(rs.next()) {
-        var durationInTraffic: Option[Int] = Some(rs.getInt("duration_in_traffic"))
+        var durationInTraffic: Option[Long] = Some(rs.getLong("duration_in_traffic"))
         if (rs.wasNull()) { durationInTraffic = None }
         result.append(
           Item(
@@ -94,8 +94,8 @@ object Select {
             requestId = rs.getString("request_id"),
             departureDateTime = rs.getTimestamp("departure_date_time").toLocalDateTime,
             departureTime = rs.getInt("departure_time"),
-            distance = rs.getInt("distance"),
-            duration = rs.getInt("duration"),
+            distance = rs.getLong("distance"),
+            duration = rs.getLong("duration"),
             durationInTraffic = durationInTraffic
           )
         )

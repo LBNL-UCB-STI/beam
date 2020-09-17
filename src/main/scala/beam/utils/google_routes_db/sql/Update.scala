@@ -4,7 +4,7 @@ import beam.utils.FileUtils.using
 import java.sql.{Connection, PreparedStatement, Statement, Timestamp, Types}
 import java.time.{Instant, LocalDateTime}
 
-import beam.utils.mapsapi.googleapi.route.GoogleRoute
+import com.google.maps.model.{DirectionsLeg, DirectionsRoute}
 
 object Update {
 
@@ -29,7 +29,7 @@ object Update {
     type InsertedGoogleRouteId = Int
 
     def create(
-      googleRoute: GoogleRoute,
+      route: DirectionsRoute,
       requestId: String,
       departureDateTime: LocalDateTime,
       departureTime: Int,
@@ -39,10 +39,10 @@ object Update {
       requestId = requestId,
       departureTime = departureTime,
       departureDateTime = departureDateTime,
-      boundNortheast = makeGeometryPoint(googleRoute.bounds.northeast),
-      boundSouthwest = makeGeometryPoint(googleRoute.bounds.southwest),
-      summary = googleRoute.summary,
-      copyrights = googleRoute.copyrights,
+      boundNortheast = makeGeometryPoint(route.bounds.northeast),
+      boundSouthwest = makeGeometryPoint(route.bounds.southwest),
+      summary = route.summary,
+      copyrights = route.copyrights,
       googleapiResponsesJsonFileUri = googleapiResponsesJsonFileUri,
       timestamp = timestamp
     )
@@ -90,14 +90,14 @@ object Update {
   //
 
   case class GoogleRouteLegItem(
-    routeId: Int,
-    distance: Int,
+    routeId: Long,
+    distance: Long,
     distanceText: String,
-    duration: Int,
+    duration: Long,
     durationText: String,
-    durationInTraffic: Option[Int],
+    durationInTraffic: Option[Long],
     durationInTrafficText: Option[String],
-    endAddress: String,
+    endAddress: Option[String],
     endLocation: GeometryPoint,
     startAddress: Option[String],
     startLocation: GeometryPoint,
@@ -108,17 +108,17 @@ object Update {
 
     type InsertedGoogleRouteLegId = Int
 
-    def create(routeId: Int, leg: GoogleRoute.Leg): GoogleRouteLegItem = GoogleRouteLegItem(
+    def create(routeId: Int, leg: DirectionsLeg): GoogleRouteLegItem = GoogleRouteLegItem(
       routeId = routeId,
-      distance = leg.distance.value,
-      distanceText = leg.distance.text,
-      duration = leg.duration.value,
-      durationText = leg.duration.text,
-      durationInTraffic = leg.durationInTraffic.map(_.value),
-      durationInTrafficText = leg.durationInTraffic.map(_.text),
-      endAddress = leg.endAddress,
+      distance = leg.distance.inMeters,
+      distanceText = leg.distance.humanReadable,
+      duration = leg.duration.inSeconds,
+      durationText = leg.duration.humanReadable,
+      durationInTraffic = Option(leg.durationInTraffic).map(_.inSeconds),
+      durationInTrafficText = Option(leg.durationInTraffic).map(_.humanReadable),
+      endAddress = Option(leg.endAddress),
       endLocation = makeGeometryPoint(leg.endLocation),
-      startAddress = leg.startAddress,
+      startAddress = Option(leg.startAddress),
       startLocation = makeGeometryPoint(leg.startLocation),
       steps = makeGeometryLinestring(
         // Take head.startLocation as first point,
@@ -129,27 +129,31 @@ object Update {
 
     implicit val psMapping: PSMapping[Update.GoogleRouteLegItem] =
       (item: Update.GoogleRouteLegItem, ps: PreparedStatement) => {
-        ps.setInt(1, item.routeId)
-        ps.setInt(2, item.distance)
-        ps.setString(3, item.distanceText)
-        ps.setInt(4, item.duration)
-        ps.setString(5, item.durationText)
+        var i = 1
+        ps.setLong(i, item.routeId)       ; i += 1
+        ps.setLong(i, item.distance)      ; i += 1
+        ps.setString(i, item.distanceText); i += 1
+        ps.setLong(i, item.duration)      ; i += 1
+        ps.setString(i, item.durationText); i += 1
         item.durationInTraffic match {
-          case Some(value) => ps.setInt(6, value)
-          case None        => ps.setNull(6, Types.INTEGER)
-        }
+          case Some(value) => ps.setLong(i, value)
+          case None        => ps.setNull(i, Types.BIGINT)
+        }; i += 1
         item.durationInTrafficText match {
-          case Some(text) => ps.setString(7, text)
-          case None       => ps.setNull(7, Types.VARCHAR)
-        }
-        ps.setString(8, item.endAddress)
-        ps.setString(9, item.endLocation)
+          case Some(value) => ps.setString(i, value)
+          case None        => ps.setNull(i, Types.VARCHAR)
+        }; i += 1
+        item.endAddress match {
+          case Some(value) => ps.setString(i, value)
+          case None        => ps.setNull(i, Types.VARCHAR)
+        }; i += 1
+        ps.setString(i, item.endLocation)  ; i += 1
         item.startAddress match {
-          case Some(value) => ps.setString(10, value)
-          case None        => ps.setNull(10, Types.VARCHAR)
-        }
-        ps.setString(11, item.startLocation)
-        ps.setString(12, item.steps)
+          case Some(value) => ps.setString(i, value)
+          case None        => ps.setNull(i, Types.VARCHAR)
+        }; i += 1
+        ps.setString(i, item.startLocation); i += 1
+        ps.setString(i, item.steps)        ; i += 1
       }
 
     val insertSql: String =

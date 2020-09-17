@@ -23,11 +23,11 @@ case class GoogleTravelTimeEstimationEntry(
   destLat: Double,
   destLng: Double,
   simTravelTime: Int,
-  googleTravelTime: Int,
-  googleTravelTimeWithTraffic: Option[Int],
+  googleTravelTime: Long,
+  googleTravelTimeWithTraffic: Option[Long],
   euclideanDistanceInMeters: Double,
   legLength: Double,
-  googleDistance: Int
+  googleDistance: Long
 )
 
 object GoogleTravelTimeEstimationEntry {
@@ -37,6 +37,8 @@ object GoogleTravelTimeEstimationEntry {
   implicit def doubleToString(x: Double): String = decimalFormat.format(x)
   implicit def intToString(x: Int): String = x.toString
   implicit def optionIntToString(x: Option[Int]): String = x.map(intToString).getOrElse("")
+  implicit def longToString(x: Long): String = x.toString
+  implicit def optioLlongToString(x: Option[Long]): String = x.map(longToString).getOrElse("")
 
   def toRow(entry: GoogleTravelTimeEstimationEntry): Vector[String] = {
     Vector[String](
@@ -79,9 +81,9 @@ object GoogleTravelTimeEstimationEntry {
   def fromPTE(
     pte: PathTraversalEvent,
     requestId: String,
-    googleTravelTime: Int,
-    googleTravelTimeWithTraffic: Option[Int],
-    googleDistance: Int,
+    googleTravelTime: Long,
+    googleTravelTimeWithTraffic: Option[Long],
+    googleDistance: Long,
     geoUtils: GeoUtils
   ): GoogleTravelTimeEstimationEntry = {
     GoogleTravelTimeEstimationEntry(

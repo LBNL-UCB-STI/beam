@@ -10,13 +10,14 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.model.HttpRequest
 import akka.pattern.ask
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.mapsapi.googleapi.GoogleAdapter._
-import beam.utils.mapsapi.googleapi.route.{GoogleRoutes, GoogleRoutesResponse}
+import com.google.maps.DirectionsApi
+import com.google.maps.model.DirectionsResult
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.{FileUtils, IOUtils}
 
@@ -44,28 +45,46 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       .mapAsync(10) {
 
         case (Success(httpResponse), request) =>
-          val routesFuture: Future[Option[GoogleRoutes]] = parseResponse(httpResponse)
 
-          val routesResponseFuture: Future[Option[GoogleRoutesResponse]] =
-            routesFuture.map { mbGR => mbGR.map { googleRoutes =>
-              GoogleRoutesResponse(
-                requestId = request.requestId,
-                departureLocalDateTime =
-                  request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                response = googleRoutes
-              )
-            }}
+          val maybeDirectionsApiResponseFuture: Future[Option[DirectionsApi.Response]] =
+            httpResponse.entity.dataBytes.runReduce(_ ++ _).map { bs =>
+              GoogleRoutesResponse.Json.decodeDirectionsApiResponse(bs.utf8String)
+            }
 
-          routesResponseFuture.foreach { mbResp => mbResp.foreach { resp =>
-            fileWriter.foreach(_ ! resp)
-          }}
+          val maybeGRRFuture: Future[Option[GoogleRoutesResponse]] =
+            maybeDirectionsApiResponseFuture.map { mbResp =>
+              mbResp.flatMap { directionsApiResponse =>
+                if (directionsApiResponse.successful()) {
+                  Some(
+                    GoogleRoutesResponse(
+                      requestId = request.requestId,
+                      departureLocalDateTime =
+                        request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                      directionsResult = directionsApiResponse.getResult
+                    )
+                  )
+                } else {
+                  logger.error(
+                    "Google DirectionsApi replied with error: {}",
+                    directionsApiResponse.getError
+                  )
+                  None
+                }
+              }
+            }
 
-          routesResponseFuture
+          maybeDirectionsApiResponseFuture.foreach { mbResp =>
+            mbResp.foreach { directionsApiResponse =>
+              fileWriter.foreach(_ ! directionsApiResponse)
+            }
+          }
+
+          maybeGRRFuture
             .map {
-              case Some(resp) => Right(resp)
+              case Some(resp) => Right(resp.directionsResult)
               case None => Left(new RuntimeException("Failed to acquire Google routes"))
             }
-            .map { either: Either[Throwable, GoogleRoutesResponse] =>
+            .map { either: Either[Throwable, DirectionsResult] =>
               FindRouteResult(
                 request.userObject,
                 request.requestId,
@@ -85,33 +104,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       .toMat(Sink.collection)(Keep.right)
       .run
     results
-  }
-
-  private def parseResponse(response: HttpResponse): Future[Option[GoogleRoutes]] = {
-    import GoogleRoutes.Json._
-    import io.circe._
-
-    val reduced = response.entity.dataBytes.runReduce(_ ++ _)
-    reduced.map { bs =>
-
-      val text = bs.utf8String
-
-      val maybeGR: Option[GoogleRoutes] = parser.decode[GoogleRoutes](text) match {
-        case Right(json) => Some(json)
-        case Left(e) =>
-          val head = text.take(200).replaceAll("\\s+", "")
-          logger.warn(s"Failed to parse GoogleRoute from <$head...>: {}", e.getMessage)
-          None
-      }
-
-      maybeGR.foreach { gr =>
-        if (gr.status != "OK") {
-          logger.warn("Response status is not OK: {}", gr.status)
-        }
-      }
-
-      maybeGR
-    }
   }
 
   override def close(): Unit = {
@@ -144,7 +136,7 @@ object GoogleAdapter {
   case class FindRouteResult[T](
     userObject: T,
     requestId: String,
-    eitherResp: Either[Throwable, GoogleRoutesResponse]
+    eitherResp: Either[Throwable, DirectionsResult]
   )
 
   private[googleapi] def buildUrl[T](
@@ -194,15 +186,13 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
-  import io.circe.syntax._
-  import GoogleRoutesResponse.Json._
-
   override def receive: Receive = {
     case resp: GoogleRoutesResponse =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)
+      val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(resp)
       IOUtils.write("[\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(resp.asJson.spaces2, buffer, StandardCharsets.UTF_8)
+      IOUtils.write(jsString, buffer, StandardCharsets.UTF_8)
       context.become(saveIncoming(buffer))
     case ResponseSaverActor.CloseMsg =>
       sender() ! ResponseSaverActor.ClosedRsp
@@ -210,8 +200,9 @@ class ResponseSaverActor(file: File) extends Actor {
 
   def saveIncoming(buffer: BufferedOutputStream): Actor.Receive = {
     case resp: GoogleRoutesResponse =>
+      val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(resp)
       IOUtils.write(",\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(resp.asJson.spaces2, buffer, StandardCharsets.UTF_8)
+      IOUtils.write(jsString, buffer, StandardCharsets.UTF_8)
     case ResponseSaverActor.CloseMsg =>
       IOUtils.write("\n]", buffer, StandardCharsets.UTF_8)
       buffer.close()
