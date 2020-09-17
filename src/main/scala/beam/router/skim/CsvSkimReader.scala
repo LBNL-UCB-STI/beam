@@ -39,17 +39,19 @@ class CsvSkimReader(
             logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
             Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
         }
-        .get
+        .getOrElse(Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal])
     }
 
   }
 
   def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
-    tryReadSkims(reader).recover {
-      case ex: Throwable =>
-        logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath'", ex)
-        Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-    }.get
+    tryReadSkims(reader)
+      .recover {
+        case ex: Throwable =>
+          logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath'", ex)
+          Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+      }
+      .getOrElse(Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal])
   }
 
   private def tryReadSkims(reader: BufferedReader): Try[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = {

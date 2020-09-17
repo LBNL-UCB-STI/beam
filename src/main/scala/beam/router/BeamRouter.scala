@@ -396,11 +396,13 @@ class BeamRouter(
   }
 
   private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
-    Try(Await.result(resolveAddress(addr, d), d)).recover {
-      case t: Throwable =>
-        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
-        None
-    }.get
+    Try(Await.result(resolveAddress(addr, d), d))
+      .recover {
+        case t: Throwable =>
+          log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
+          None
+      }
+      .getOrElse(None)
   }
 
   private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {

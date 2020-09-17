@@ -101,7 +101,6 @@ trait NetworkCoordinator extends LazyLogging {
         // Needed because R5 closes DB on write
         transportNetwork = KryoNetworkSerializer.read(path.toFile)
       }
-      .get
   }
 
   def overwriteLinkParams(
