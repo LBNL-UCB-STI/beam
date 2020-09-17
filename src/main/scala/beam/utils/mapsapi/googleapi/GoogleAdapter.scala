@@ -73,9 +73,9 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
               }
             }
 
-          maybeDirectionsApiResponseFuture.foreach { mbResp =>
-            mbResp.foreach { directionsApiResponse =>
-              fileWriter.foreach(_ ! directionsApiResponse)
+          maybeGRRFuture.foreach { mbResp =>
+            mbResp.foreach { googleRoutesResponse =>
+              fileWriter.foreach(_ ! googleRoutesResponse)
             }
           }
 
