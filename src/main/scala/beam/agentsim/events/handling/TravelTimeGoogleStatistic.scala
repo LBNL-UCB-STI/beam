@@ -95,15 +95,13 @@ class TravelTimeGoogleStatistic(
       logger.info("Number of events: {}", events.size)
 
       val entriesFromCache: Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] =
-        queryGoogleRoutesFromDb(events, queryDate, geoUtils)
+        queryGoogleRoutesFromDb(events, queryDate, geoUtils).filter {
+          case (_, seq) => seq.nonEmpty
+        }
 
-      val missingEvents = events.filter(entriesFromCache.keySet.contains)
+      val missingEvents = events.filterNot(entriesFromCache.keySet.contains)
 
       val controller = event.getServices.getControlerIO
-      val responsePath = controller.getIterationFilename(
-        event.getIteration,
-        "maps.googleapi.responses.json"
-      )
       val filePath = controller
         .getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
 
@@ -122,7 +120,18 @@ class TravelTimeGoogleStatistic(
             missingEvents.size
           )
 
-          val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
+          val adapter = new GoogleAdapter(
+            apiKey,
+            Some(
+              Paths.get(
+                controller.getIterationFilename(
+                  event.getIteration,
+                  "maps.googleapi.responses.json"
+                )
+              )
+            ),
+            Some(actorSystem)
+          )
           val eventContainers = using(adapter) { adapter =>
             queryGoogleAPI(missingEvents, adapter)
           }
