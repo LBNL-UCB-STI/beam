@@ -89,12 +89,12 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       List()
   }
 
-  private def transformSingleEntry(cfg: GtfsFeedAdjusterConfig) = {
+  private[transit] def transformSingleEntry(cfg: GtfsFeedAdjusterConfig) = {
     logger.info("Processing file {}, strategy: {}", cfg.in, cfg.strategy)
-    val trips = GtfsUtils.loadTripsFromGtfs(cfg.in)
+    val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
-        GtfsUtils.doubleTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
+        GtfsUtils.doubleTripsStrategy(dao, trips, cfg.factor.toFloat, cfg.timeFrame)
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "scale" => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
