@@ -41,6 +41,7 @@ object GoogleRoutesResponse {
         .registerTypeAdapter(classOf[LocalTime], GsonAdapters.localTimeAdapter)
         .registerTypeAdapter(classOf[GeolocationApi.Response], GsonAdapters.geolocationResponseAdapter)
         .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+        .setPrettyPrinting()
         .create()
 
     private val googleRoutesResponseCollectionType: Type =
