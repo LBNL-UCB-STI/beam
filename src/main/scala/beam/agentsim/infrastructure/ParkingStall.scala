@@ -64,4 +64,25 @@ object ParkingStall {
       parkingType = ParkingType.Public
     )
   }
+
+  /**
+    * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
+    * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
+    * exhausted
+    *
+    * @param locationUTM request location (home)
+    *
+    * @return a stall that is free and located at the person's home.
+    */
+  def defaultResidentialStall(
+    locationUTM: Location
+  ): ParkingStall = ParkingStall(
+    tazId = TAZ.DefaultTAZId,
+    parkingZoneId = ParkingZone.DefaultParkingZoneId,
+    locationUTM = locationUTM,
+    costInDollars = 0.0,
+    chargingPointType = None,
+    pricingModel = Some { PricingModel.FlatFee(0) },
+    parkingType = ParkingType.Residential
+  )
 }
