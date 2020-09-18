@@ -502,7 +502,7 @@ class BeamSim @Inject()(
     }
   }
 
-  private def isFirstIteration(currentIteration: Integer): Boolean = {
+  private def isFirstIteration(currentIteration: Int): Boolean = {
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     currentIteration == firstIteration
   }
