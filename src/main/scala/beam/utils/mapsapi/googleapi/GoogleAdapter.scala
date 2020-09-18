@@ -48,7 +48,8 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
 
           val maybeDirectionsApiResponseFuture: Future[Option[DirectionsApi.Response]] =
             httpResponse.entity.dataBytes.runReduce(_ ++ _).map { bs =>
-              GoogleRoutesResponse.Json.decodeDirectionsApiResponse(bs.utf8String)
+              val jsString = bs.utf8String
+              GoogleRoutesResponse.Json.decodeDirectionsApiResponse(jsString)
             }
 
           val maybeGRRFuture: Future[Option[GoogleRoutesResponse]] =
@@ -65,7 +66,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
                   )
                 } else {
                   logger.error(
-                    "Google DirectionsApi replied with error: {}",
+                    "Google DirectionsApi replied with error",
                     directionsApiResponse.getError
                   )
                   None
@@ -75,7 +76,8 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
 
           maybeGRRFuture.foreach { mbResp =>
             mbResp.foreach { googleRoutesResponse =>
-              fileWriter.foreach(_ ! googleRoutesResponse)
+              val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(googleRoutesResponse)
+              fileWriter.foreach(_ ! jsString)
             }
           }
 
@@ -187,22 +189,20 @@ object GoogleAdapter {
 
 class ResponseSaverActor(file: File) extends Actor {
   override def receive: Receive = {
-    case resp: GoogleRoutesResponse =>
+    case resp: String =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)
-      val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(resp)
       IOUtils.write("[\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(jsString, buffer, StandardCharsets.UTF_8)
+      IOUtils.write(resp, buffer, StandardCharsets.UTF_8)
       context.become(saveIncoming(buffer))
     case ResponseSaverActor.CloseMsg =>
       sender() ! ResponseSaverActor.ClosedRsp
   }
 
   def saveIncoming(buffer: BufferedOutputStream): Actor.Receive = {
-    case resp: GoogleRoutesResponse =>
-      val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(resp)
+    case resp: String =>
       IOUtils.write(",\n", buffer, StandardCharsets.UTF_8)
-      IOUtils.write(jsString, buffer, StandardCharsets.UTF_8)
+      IOUtils.write(resp, buffer, StandardCharsets.UTF_8)
     case ResponseSaverActor.CloseMsg =>
       IOUtils.write("\n]", buffer, StandardCharsets.UTF_8)
       buffer.close()
