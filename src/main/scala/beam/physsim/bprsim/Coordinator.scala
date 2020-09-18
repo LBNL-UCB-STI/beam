@@ -53,7 +53,7 @@ class Coordinator(
     val events = executeSubPeriod(tillTime, Vector.empty[Event])
     asyncFlushEvents(events)
     val minTime = workers.map(_.minTime).min
-    if (minTime != Double.MaxValue) {
+    if (!minTime.equals(Double.MaxValue)) {
       executePeriod(minTime + config.syncInterval)
     }
   }
