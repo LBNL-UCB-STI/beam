@@ -15,7 +15,7 @@ case class RefuelSessionEvent(
   stall: ParkingStall,
   energyInJoules: Double,
   sessionStartingFuelLevelInJoules: Double,
-  sessionDuration: Double,
+  sessionDuration: Long,
   vehId: Id[Vehicle],
   vehicleType: BeamVehicleType
 ) extends Event(tick)

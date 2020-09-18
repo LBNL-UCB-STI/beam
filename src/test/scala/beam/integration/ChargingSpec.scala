@@ -14,19 +14,20 @@ import beam.utils.data.synthpop.models.Models.Household
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.events.{Event, LinkLeaveEvent}
 import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.mobsim.jdeqsim.Vehicle
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.vehicles.Vehicle
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.collection.mutable.ArrayBuffer
 
 class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
   private val vehicleId = Id.create(2, classOf[Vehicle])
-  private val personId = Id.createPersonId(1)
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
   val config = ConfigFactory
@@ -56,10 +57,10 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(beamScenario.network)
 
-    var chargingPlugInEvents = 0
-    var chargingPlugOutEvents = 0
-    var totalEnergyInJoules = 0.0
-    var totalSessionDuration = 0.0
+    val chargingPlugInEvents: ArrayBuffer[Double] = new ArrayBuffer[Double]()
+    val chargingPlugOutEvents: ArrayBuffer[Double] = new ArrayBuffer[Double]()
+    val refuelSessionEvents: ArrayBuffer[(Double, Long)] = new ArrayBuffer[(Double, Long)]()
+    val linkDistances: ArrayBuffer[Double] = new ArrayBuffer[Double]()
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
@@ -69,11 +70,12 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
-                case _: ChargingPlugInEvent  => chargingPlugInEvents = chargingPlugInEvents + 1
-                case _: ChargingPlugOutEvent => chargingPlugOutEvents = chargingPlugOutEvents + 1
-                case e: RefuelSessionEvent =>
-                  totalEnergyInJoules += e.energyInJoules
-                  totalSessionDuration += e.sessionDuration
+                case ChargingPlugInEvent(_, _, _, `vehicleId`, fuelLevel, _) => chargingPlugInEvents += fuelLevel
+                case ChargingPlugOutEvent(_, _, `vehicleId`, fuelLevel, _)   => chargingPlugOutEvents += fuelLevel
+                case RefuelSessionEvent(_, _, energyInJoules, _, sessionDuration, `vehicleId`, _) =>
+                  refuelSessionEvents += ((energyInJoules, sessionDuration))
+                case e: LinkLeaveEvent if e.getVehicleId == vehicleId =>
+                  linkDistances += scenario.getNetwork.getLinks.get(e.getLinkId).getLength
                 case _ =>
               }
             }
@@ -88,21 +90,15 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val services = injector.getInstance(classOf[BeamServices])
     val transportNetwork = injector.getInstance(classOf[TransportNetwork])
 
-    // single person in a single household in town
+    // 3 person in a single household in the town
     val population = scenario.getPopulation
-    (2 to 50).map(Id.create(_, classOf[Person])).foreach(population.removePerson)
+    (4 to 50).map(Id.create(_, classOf[Person])).foreach(population.removePerson)
 
     val households = scenario.getHouseholds
     (2 to 21).map(Id.create(_, classOf[Household])).foreach(households.getHouseholds.remove)
 
-    assume(population.getPersons.size == 1, "A single person in the town")
+    assume(population.getPersons.size == 3, "Three persons in the household")
     assume(households.getHouseholds.size == 1, "A single household in the town")
-
-    households.getHouseholds.forEach {
-      case (_, household) =>
-        household.getMemberIds.removeIf(_ != personId)
-        household.getVehicleIds.removeIf(_ != vehicleId)
-    }
 
     // Only driving allowed
     val noCarModes = BeamMode.allModes.filter(_ != BeamMode.CAR).map(_.value.toLowerCase) mkString ","
@@ -123,17 +119,25 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val controler = services.controler
     controler.run()
 
-    // TODO remove after debugging
-    println(totalSessionDuration)
-    println(totalEnergyInJoules)
-    println(chargingPlugInEvents)
-    println(chargingPlugOutEvents)
+    val chargingPlugInEventsAmount = chargingPlugInEvents.size
+    val chargingPlugOutEventsAmount = chargingPlugOutEvents.size
+    val totalEnergyInJoules = refuelSessionEvents.map(_._1).sum
+    val totalSessionDuration = refuelSessionEvents.map(_._2).sum
+    val totalDistance = linkDistances.sum
+    val fuelConsumption = totalEnergyInJoules / totalDistance
 
-    assume(chargingPlugInEvents >= 1, "Something's wildly broken, I am not seeing any chargingPlugInEvents.")
-    assume(chargingPlugOutEvents >= 1, "Something's wildly broken, I am not seeing any chargingPlugOutEvents.")
+    assume(chargingPlugInEventsAmount >= 1, "Something's wildly broken, I am not seeing enough chargingPlugInEvents.")
+    assume(chargingPlugOutEventsAmount >= 1, "Something's wildly broken, I am not seeing enough chargingPlugOutEvents.")
+    chargingPlugOutEventsAmount should equal(chargingPlugOutEventsAmount)
 
-    chargingPlugInEvents should equal(chargingPlugOutEvents)
-    totalSessionDuration shouldBe >=(chargingPlugInEvents * 100.0)
-    totalEnergyInJoules shouldBe >=(chargingPlugInEvents * 1.5e6)
+    totalEnergyInJoules should be >= (chargingPlugOutEventsAmount * 1.5e6)
+    totalSessionDuration should be >= (chargingPlugOutEventsAmount * 100L)
+    fuelConsumption shouldBe (670.0 +- 400.0)
+
+    // ensure each refuel event is difference of amounts of fuel before and after charging
+    refuelSessionEvents.zipWithIndex foreach {
+      case ((fuelAdded, _), id) =>
+        chargingPlugInEvents(id) + fuelAdded shouldBe chargingPlugOutEvents(id)
+    }
   }
 }
