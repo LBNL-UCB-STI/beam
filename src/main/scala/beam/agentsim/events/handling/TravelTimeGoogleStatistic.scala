@@ -109,7 +109,7 @@ class TravelTimeGoogleStatistic(
         if (missingEvents.isEmpty) {
           logger.info(
             "Got {} Google routes from cache",
-            entriesFromCache.keySet.size,
+            entriesFromCache.values.map(_.size).sum,
           )
           Map.empty
         } else {
