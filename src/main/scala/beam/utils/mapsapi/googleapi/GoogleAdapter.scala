@@ -56,14 +56,17 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
             maybeDirectionsApiResponseFuture.map { mbResp =>
               mbResp.flatMap { directionsApiResponse =>
                 if (directionsApiResponse.successful()) {
-                  Some(
+                  val grr =
                     GoogleRoutesResponse(
                       requestId = request.requestId,
                       departureLocalDateTime =
                         request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                       directionsResult = directionsApiResponse.getResult
                     )
-                  )
+
+                  val grrJsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(grr)
+                  fileWriter.foreach(_ ! grrJsString)
+                  Some(grr)
                 } else {
                   logger.error(
                     "Google DirectionsApi replied with error",
@@ -73,13 +76,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
                 }
               }
             }
-
-          maybeGRRFuture.foreach { mbResp =>
-            mbResp.foreach { googleRoutesResponse =>
-              val jsString = GoogleRoutesResponse.Json.encodeGoogleRoutesResponses(googleRoutesResponse)
-              fileWriter.foreach(_ ! jsString)
-            }
-          }
 
           maybeGRRFuture
             .map {
