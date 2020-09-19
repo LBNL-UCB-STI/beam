@@ -449,7 +449,7 @@ case class TNCIterationStats(
       updatedRadius = updatedRadius * 2
     }
 
-    if (circleRadiusInMeters.equals(updatedRadius)) {
+    if (!circleRadiusInMeters.equals(updatedRadius)) {
       logger.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
