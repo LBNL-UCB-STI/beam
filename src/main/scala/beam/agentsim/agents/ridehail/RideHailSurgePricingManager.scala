@@ -88,7 +88,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
         updateForAllElements(surgePriceBins) { surgePriceBin =>
           val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel
           val updatedSurgeLevel =
-            if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
+            if (surgePriceBin.currentIterationRevenue.equals(surgePriceBin.previousIterationRevenue)) {
               surgePriceBin.currentIterationSurgePriceLevel
             } else {
               if (surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue) {

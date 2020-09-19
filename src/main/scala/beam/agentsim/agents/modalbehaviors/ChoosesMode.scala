@@ -679,7 +679,7 @@ trait ChoosesMode {
       ),
       cost = 0
     )
-    assert(firstLeg.cost + secondLeg.cost == leg.cost)
+    assert((firstLeg.cost + secondLeg.cost).equals(leg.cost))
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
     assert(
       Math.abs(

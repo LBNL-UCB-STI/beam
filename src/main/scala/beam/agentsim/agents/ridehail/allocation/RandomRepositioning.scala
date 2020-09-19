@@ -466,7 +466,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
 
             }
-            .filterNot(_._2.getX == Double.MaxValue)
+            .filterNot(_._2.getX.equals(Double.MaxValue))
             .seq
 
           // writeRepositioningToCSV(result, tick)

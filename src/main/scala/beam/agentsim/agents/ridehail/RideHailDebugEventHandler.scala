@@ -142,7 +142,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
       .getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}")
       .toDouble
 
-    if (t1 == t2)
+    if (t1.equals(t2))
       e1.getTime.compareTo(e2.getTime)
     else
       t1.compareTo(t2)
