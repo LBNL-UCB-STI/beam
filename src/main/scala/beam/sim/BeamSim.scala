@@ -175,8 +175,8 @@ class BeamSim @Inject()(
     eventsManager.addHandler(transitOccupancyByStop)
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
-    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     eventsManager.addHandler(travelTimeGoogleStatistic)
+    carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
     maybeRealizedModeChoiceWriter.foreach(eventsManager.addHandler(_))
 
@@ -265,6 +265,21 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+
+    def printDebugBlockMessage(message: String): Unit = {
+      logger.info(s"DEBUGBLOCK it${event.getIteration} $message")
+    }
+
+    printDebugBlockMessage(s"size of persons ${scenario.getPopulation.getPersons.size()}")
+    printDebugBlockMessage(s"size of households ${scenario.getHouseholds.getHouseholds.size()}")
+    printDebugBlockMessage(s"number of vehicles ${scenario.getHouseholds.getHouseholds.asScala.foldLeft(0.0) {
+      case (accum, (_, household)) => accum + household.getVehicleIds.size()
+    }}")
+
+    printDebugBlockMessage(s"total income ${scenario.getHouseholds.getHouseholds.asScala.foldLeft(0.0) {
+      case (accum, (_, household)) => accum + household.getIncome.getIncome
+    }}")
+
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()

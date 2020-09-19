@@ -10,7 +10,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToDat
 class TravelTimeTableReader(
   dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(dbInfo, Table.TravelTime, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.Flow.TravelTime, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302106,3,2,Less than 5 minutes)
     TableShell(B302106,4,2,5 to 14 minutes)

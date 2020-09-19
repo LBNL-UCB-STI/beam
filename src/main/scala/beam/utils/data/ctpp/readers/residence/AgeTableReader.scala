@@ -5,7 +5,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class AgeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.Age, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.Age, Some(residenceGeography.level)) {
 
   private val lineNumberToAge: Map[Int, AgeRange] = Map(
     2  -> AgeRange(Range(0, 16)),

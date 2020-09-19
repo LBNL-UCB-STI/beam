@@ -53,7 +53,9 @@ object BenchmarkGenerator {
       new MeansOfTransportationTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
     val tazGeoIdToGeom: Map[TazGeoId, Geometry] = pathToTazShapeFiles.flatMap { pathToTazShapeFile =>
-      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper)
+      GeoService
+        .getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper)
+        .map { case (tazId, geom, _) => (tazId, geom) }
     }.toMap
     val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
     new BenchmarkGenerator(od, tazGeoIdToGeom, mapBoundingBox)

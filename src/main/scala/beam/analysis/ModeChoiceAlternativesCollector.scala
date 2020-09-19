@@ -50,15 +50,16 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
                   trip.legs.foreach(
                     leg =>
                       writeAlternative(
-                        mco.personId,
-                        idx,
-                        idx == mco.chosenAlternativeIdx,
-                        tripCostTimeTransfer,
-                        tripUtility,
-                        duration,
-                        tripType,
-                        leg,
-                        tripCategory
+                        personId = mco.personId,
+                        numberOfAlternatives = mco.alternatives.size,
+                        tripNumber = idx,
+                        wasChosen = idx == mco.chosenAlternativeIdx,
+                        altCostTimeTransfer = tripCostTimeTransfer,
+                        altUtility = tripUtility,
+                        tripDuration = duration,
+                        tripType = tripType,
+                        leg = leg,
+                        tripCategory = tripCategory
                     )
                   )
                 case _ =>
@@ -73,6 +74,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
   def writeAlternative(
     personId: String,
+    numberOfAlternatives: Int,
     tripNumber: Int,
     wasChosen: Boolean,
     altCostTimeTransfer: ModeChoiceOccurredEvent.AltCostTimeTransfer,
@@ -103,6 +105,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
     csvWriter.writeRow(
       IndexedSeq(
         personId,
+        numberOfAlternatives,
         tripNumber,
         if (wasChosen) 1 else 0,
         tripType,
@@ -134,13 +137,14 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
     csvFilePath = beamServices.matsimServices.getControlerIO.getIterationFilename(
       iteration,
-      "modeChoiceAlternativesWhenRHPooled.csv.gz"
+      "modeChoiceDetailed.csv.gz"
     )
 
     csvWriter = new CsvWriter(
       csvFilePath,
       Vector(
         "personId",
+        "numberOfAlternatives",
         "altNumber",
         "wasChosen",
         "altType",

@@ -47,6 +47,7 @@ class TravelTimeGoogleStatistic(
   if (cfg.enable && apiKey == null)
     logger.warn("google api key is empty")
   private val queryDate = getQueryDate(cfg.queryDate)
+  logger.info(s"queryDate :$queryDate")
 
   private val enabled = cfg.enable && apiKey != null
   private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
@@ -64,6 +65,8 @@ class TravelTimeGoogleStatistic(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (enabled
         && cfg.iterationInterval > 0
+        // HACK: to avoid requests at iteration 0
+        && event.getIteration > 0
         && event.getIteration % cfg.iterationInterval == 0) {
       logger.info(
         "Executing google API call for iteration #{}, query date = {}",
@@ -143,7 +146,7 @@ class TravelTimeGoogleStatistic(
               ec.event.endX,
               ec.event.arrivalTime - ec.event.departureTime,
               ec.route.durationIntervalInSeconds,
-              ec.route.durationInTrafficSeconds,
+              ec.route.durationInTrafficSeconds.getOrElse(-1).toString,
               geoUtils.distLatLon2Meters(
                 new Coord(ec.event.startX, ec.event.startY),
                 new Coord(ec.event.endX, ec.event.endY)

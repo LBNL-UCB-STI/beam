@@ -182,6 +182,7 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
     compile group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0'
+    compile group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
     compile "com.sigopt:sigopt-java:4.9.0"
 
     compile("com.uber:h3:3.4.1")
@@ -506,7 +507,7 @@ def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx + jfr
 println(applicationDefaultJvmArgs)
 
 run {

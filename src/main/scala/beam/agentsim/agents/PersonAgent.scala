@@ -962,6 +962,8 @@ class PersonAgent(
             modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
+//          val occupancyLevel = modeChoiceCalculator.getCrowdingForTrip(correctedTrip)
+          // TODO: Collect crowding here also
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           eventsManager.processEvent(
             ODSkimmerEvent(

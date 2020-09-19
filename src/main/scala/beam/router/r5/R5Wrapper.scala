@@ -67,6 +67,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     vehicleTypeId: Id[BeamVehicleType],
     embodyRequestId: Int
   ): RoutingResponse = {
+    val s = System.currentTimeMillis()
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -93,6 +94,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
     val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
+
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -110,7 +112,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true
+      isEmbodyWithCurrentTravelTime = true,
+      System.currentTimeMillis() - s
     )
     response
   }
@@ -183,7 +186,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     result
   }
 
-  private def createProfileRequest = {
+  def createProfileRequest = {
     val profileRequest = new ProfileRequest()
     // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
@@ -211,6 +214,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   def calcRoute(request: RoutingRequest): RoutingResponse = {
+    val routeCalcStarted = System.currentTimeMillis()
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -811,18 +815,26 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(
+        embodiedTrips,
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        System.currentTimeMillis() - routeCalcStarted
+      )
     }
   }
 
