@@ -971,8 +971,6 @@ class RideHailManager(
   }
 
   def throwRideHailFleetStateEvent(tick: Int): Unit = {
-    val tick = modifyPassengerScheduleManager.getCurrentTick.get
-
     val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values
     val inServiceRideHailStateEvents = calculateCavEvs(inServiceRideHailVehicles, "InService", tick)
     eventsManager.processEvent(inServiceRideHailStateEvents)

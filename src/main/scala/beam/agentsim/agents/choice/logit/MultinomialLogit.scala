@@ -52,8 +52,8 @@ class MultinomialLogit[A, T](
         case (accumulator, (alt, attributes)) =>
           getUtilityOfAlternative(alt, attributes) match {
             case None => accumulator
-            case Some(thisUtility) =>
-              if (thisUtility == Double.PositiveInfinity) {
+            case Some(thisUtility: Double) =>
+              if (thisUtility.isPosInfinity) {
                 // place on tail of list, allowing us to short-circuit the sampling in next step
                 accumulator :+ AlternativeWithUtility(
                   alt,
@@ -75,7 +75,7 @@ class MultinomialLogit[A, T](
   ): Option[MultinomialLogit.MNLSample[A]] = {
     altsWithUtility.lastOption.flatMap {
       case AlternativeWithUtility(possiblyInfiniteAlt, possiblyInfiniteUtility, possiblyInfiniteExpUtility) =>
-        if (possiblyInfiniteExpUtility == Double.PositiveInfinity) {
+        if (possiblyInfiniteExpUtility.isPosInfinity) {
           // take any infinitely-valued alternative
           Some { MultinomialLogit.MNLSample(possiblyInfiniteAlt, possiblyInfiniteUtility, 1.0, 1.0) }
         } else {

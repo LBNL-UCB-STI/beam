@@ -29,7 +29,7 @@ class BeamEventsWriterParquet(
   final object PBoolean extends ParquetType
 
   val fieldNameToType: Map[String, ParquetType] = getFieldNameToTypeMap
-  val columnNames: Seq[String] = getColumnNames(eventTypeToLog)
+  val columnNames: Seq[String] = getColumnNames
   val schema: Schema = getSchema(columnNames)
   val parquetWriter: ParquetWriter[GenericData.Record] = getWriter(schema, outFileName)
 
@@ -47,7 +47,7 @@ class BeamEventsWriterParquet(
     case _              => Schema.create(Schema.Type.STRING)
   }
 
-  def getColumnNames(eventTypeToLog: Class[_]): Seq[String] = {
+  private def getColumnNames: Seq[String] = {
     if (eventTypeToLog != null)
       getClassAttributes(eventTypeToLog)
     else

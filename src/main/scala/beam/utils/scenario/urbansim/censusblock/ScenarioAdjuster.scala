@@ -67,7 +67,7 @@ object ScenarioAdjuster extends StrictLogging {
     fractionToClear: Double,
     seed: Int
   ): Unit = {
-    if (fractionToClear != 0.0) {
+    if (!fractionToClear.equals(0D)) {
       val allLegsWithMode = persons.flatMap { person: Person =>
         val legs = person.getSelectedPlan.getPlanElements.asScala.collect {
           case leg: Leg if predicate(leg) => leg
