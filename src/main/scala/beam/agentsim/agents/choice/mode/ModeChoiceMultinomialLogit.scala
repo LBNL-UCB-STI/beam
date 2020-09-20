@@ -4,7 +4,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{ModeCostTimeTransfer, _}
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -210,7 +210,7 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Double = {
     val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip, bikeLanesAdjustment)
+      ModeChoiceMultinomialLogit.calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip, bikeLanesAdjustment)
     } else {
       embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }

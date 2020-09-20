@@ -80,7 +80,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         age = Try(personAge.toInt).getOrElse(0),
         isFemale = isFemale,
         valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
-        excludedModes = excludedModes
+        excludedModes = excludedModes,
+        industry = None
       )
       toLine(info)
     }
