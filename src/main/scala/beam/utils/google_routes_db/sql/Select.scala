@@ -85,7 +85,7 @@ object Select {
 
     def readItems(rs: ResultSet): Seq[Item] = {
       val result = mutable.ArrayBuffer.empty[Item]
-      while(rs.next()) {
+      while (rs.next()) {
         var durationInTraffic: Option[Long] = Some(rs.getLong("duration_in_traffic"))
         if (rs.wasNull()) { durationInTraffic = None }
         result.append(

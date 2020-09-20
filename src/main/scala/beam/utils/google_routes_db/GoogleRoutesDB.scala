@@ -34,7 +34,9 @@ object GoogleRoutesDB extends LazyLogging {
 
         val arg = makeArg(pte, departureDateTime)
         argPsMapping.mapPrepared(arg, ps)
-        val items = using(ps.executeQuery()) { rs => readItems(rs) }
+        val items = using(ps.executeQuery()) { rs =>
+          readItems(rs)
+        }
 
         // taking first result
         val gttees: Seq[GoogleTravelTimeEstimationEntry] = items.map { item =>
@@ -62,10 +64,18 @@ object GoogleRoutesDB extends LazyLogging {
   type InsertedGoogleRouteLegId = Int
 
   def createGoogleRoutesTables(con: Connection): Unit = {
-    using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps => ps.execute() }
-    using(con.prepareStatement(sql.DDL.googleRouteLegTable)) { ps => ps.execute() }
-    using(con.prepareStatement(sql.DDL.googleRouteLegStartLocationIdx)) { ps => ps.execute() }
-    using(con.prepareStatement(sql.DDL.googleRouteLegEndLocationIdx)) { ps => ps.execute() }
+    using(con.prepareStatement(sql.DDL.googleRouteTable)) { ps =>
+      ps.execute()
+    }
+    using(con.prepareStatement(sql.DDL.googleRouteLegTable)) { ps =>
+      ps.execute()
+    }
+    using(con.prepareStatement(sql.DDL.googleRouteLegStartLocationIdx)) { ps =>
+      ps.execute()
+    }
+    using(con.prepareStatement(sql.DDL.googleRouteLegEndLocationIdx)) { ps =>
+      ps.execute()
+    }
   }
 
   def insertGoogleRoutesAndLegs(
@@ -76,7 +86,6 @@ object GoogleRoutesDB extends LazyLogging {
     con: Connection
   ): Unit = {
     grrSeq.foreach { grr: GoogleRoutesResponse =>
-
       val routeItemToRoute: Map[Update.GoogleRouteItem, DirectionsRoute] =
         grr.directionsResult.routes.map { route =>
           val item = sql.Update.GoogleRouteItem.create(
@@ -94,10 +103,11 @@ object GoogleRoutesDB extends LazyLogging {
         insertGoogleRoutes(routeItemToRoute.keys.toSeq, con)
 
       val legItems: Seq[Update.GoogleRouteLegItem] =
-        routeItemToId.flatMap { case (routeItem, routeId) =>
-          routeItemToRoute(routeItem).legs.map { leg =>
-            sql.Update.GoogleRouteLegItem.create(routeId, leg)
-          }
+        routeItemToId.flatMap {
+          case (routeItem, routeId) =>
+            routeItemToRoute(routeItem).legs.map { leg =>
+              sql.Update.GoogleRouteLegItem.create(routeId, leg)
+            }
         }.toSeq
 
       insertGoogleRouteLegs(legItems, con)

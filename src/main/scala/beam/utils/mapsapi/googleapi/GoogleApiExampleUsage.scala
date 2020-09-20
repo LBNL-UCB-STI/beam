@@ -51,7 +51,9 @@ object GoogleApiExampleUsage extends App {
         route.legs.flatMap { leg =>
           leg.steps.map { step =>
             Segment(
-              coordinates = step.polyline.decodePath().toSeq.map { ll => WgsCoordinate(ll.lat, ll.lng)},
+              coordinates = step.polyline.decodePath().toSeq.map { ll =>
+                WgsCoordinate(ll.lat, ll.lng)
+              },
               lengthInMeters = leg.distance.inMeters.toInt,
               durationInSeconds = Option(leg.duration).map(_.inSeconds.toInt)
             )

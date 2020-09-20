@@ -45,7 +45,6 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       .mapAsync(10) {
 
         case (Success(httpResponse), request) =>
-
           val maybeDirectionsApiResponseFuture: Future[Option[DirectionsApi.Response]] =
             httpResponse.entity.dataBytes.runReduce(_ ++ _).map { bs =>
               val jsString = bs.utf8String
@@ -59,8 +58,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
                   val grr =
                     GoogleRoutesResponse(
                       requestId = request.requestId,
-                      departureLocalDateTime =
-                        request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                      departureLocalDateTime = request.departureAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                       directionsResult = directionsApiResponse.getResult
                     )
 
@@ -80,7 +78,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
           maybeGRRFuture
             .map {
               case Some(resp) => Right(resp.directionsResult)
-              case None => Left(new RuntimeException("Failed to acquire Google routes"))
+              case None       => Left(new RuntimeException("Failed to acquire Google routes"))
             }
             .map { either: Either[Throwable, DirectionsResult] =>
               FindRouteResult(

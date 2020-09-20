@@ -50,7 +50,7 @@ object GoogleRoutesResponse {
     def decodeDirectionsApiResponse(jsString: String): Option[DirectionsApi.Response] = {
       try {
         Some(gson.fromJson(jsString, classOf[DirectionsApi.Response]))
-      } catch  {
+      } catch {
         case e: Throwable =>
           val head = jsString.take(200).replaceAll("\\s+", "")
           logger.error(s"Failed to parse Google DirectionsApi.Response from <$head...>: {}", e)
@@ -81,6 +81,7 @@ object GoogleRoutesResponse {
   }
 
   private[this] object GsonAdapters extends LazyLogging {
+
     val zonedDateTimeAdapter: ZonedDateTimeAdapter =
       new ZonedDateTimeAdapter() {
         override def write(writer: JsonWriter, value: ZonedDateTime): Unit = {
@@ -94,9 +95,12 @@ object GoogleRoutesResponse {
     val distanceAdapter: DistanceAdapter =
       new DistanceAdapter() {
         override def write(writer: JsonWriter, value: Distance): Unit = {
-          writer.beginObject()
-            .name("text").value(value.humanReadable)
-            .name("value").value(value.inMeters)
+          writer
+            .beginObject()
+            .name("text")
+            .value(value.humanReadable)
+            .name("value")
+            .value(value.inMeters)
             .endObject()
         }
       }
@@ -104,9 +108,12 @@ object GoogleRoutesResponse {
     val durationAdapter: DurationAdapter =
       new DurationAdapter() {
         override def write(writer: JsonWriter, value: Duration): Unit = {
-          writer.beginObject()
-            .name("text").value(value.humanReadable)
-            .name("value").value(value.inSeconds)
+          writer
+            .beginObject()
+            .name("text")
+            .value(value.humanReadable)
+            .name("value")
+            .value(value.inSeconds)
             .endObject()
         }
       }
@@ -121,12 +128,15 @@ object GoogleRoutesResponse {
         }
       }
 
-    val latLngAdapter: LatLngAdapter=
+    val latLngAdapter: LatLngAdapter =
       new LatLngAdapter() {
         override def write(out: JsonWriter, value: LatLng): Unit = {
-          out.beginObject()
-            .name("lat").value(value.lat)
-            .name("lng").value(value.lng)
+          out
+            .beginObject()
+            .name("lat")
+            .value(value.lat)
+            .name("lng")
+            .value(value.lng)
             .endObject()
         }
       }
