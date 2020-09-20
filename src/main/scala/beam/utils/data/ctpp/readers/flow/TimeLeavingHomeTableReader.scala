@@ -36,7 +36,7 @@ class TimeLeavingHomeTableReader(
     readRaw()
       .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).getOrElse(("", ""))
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         OD(fromGeoId, toGeoId, toRange(entry.lineNumber), entry.estimate)
       }
   }
