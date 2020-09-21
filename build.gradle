@@ -629,5 +629,97 @@ jmh {
     zip64 = true
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Docker integration + GoogleRoutesDB
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+def googleRoutesDbEnabled =
+        project.hasProperty('withGoogleRoutesDb') &&
+                project.getProperty('withGoogleRoutesDb').toBoolean()
 
+import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
+import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerStopContainer
+
+task dockerPullPostgresImage(type: DockerPullImage) {
+    group = 'Docker'
+    description = 'Pulls PostgreSQL (postgis/postgis:12-3.0-alpine) image'
+
+    registryCredentials = null
+    repository = 'postgis/postgis'
+    tag = '12-3.0-alpine'
+}
+
+task dockerCreatePostgresContainer(type: DockerCreateContainer) {
+    group = 'Docker'
+    description = 'Creates PostgreSQL (postgis/postgis:12-3.0-alpine) container with volume'
+    dependsOn dockerPullPostgresImage
+
+    targetImageId { dockerPullPostgresImage.repository + ":" + dockerPullPostgresImage.tag }
+    withEnvVar('POSTGRES_USER', 'postgres')
+    withEnvVar('POSTGRES_PASSWORD', 'postgres')
+    withEnvVar('PGDATA', '/data/pgdata')
+    def dataDir = file('docker/postgres/data').absolutePath
+    volumes = [dataDir]
+    binds = [(dataDir): '/data']
+    portBindings = ["5432:5432"]
+}
+
+task dockerStartPostgresContainer(type: DockerStartContainer) {
+    group = 'Docker'
+    description = 'Starts a created PostgreSQL (postgis/postgis:12-3.0-alpine) container'
+    dependsOn dockerCreatePostgresContainer
+
+    targetContainerId dockerCreatePostgresContainer.getContainerId
+}
+
+task dockerStopPostgresContainer(type: DockerStopContainer) {
+    group = 'Docker'
+    description = 'Stops a started PostgreSQL (postgis/postgis:12-3.0-alpine) container'
+    dependsOn dockerCreatePostgresContainer
+    mustRunAfter(dockerStartPostgresContainer)
+
+    targetContainerId dockerCreatePostgresContainer.getContainerId
+}
+
+task googleRoutesDbTryRestore(type: DockerExecContainer) {
+    group = 'Docker'
+    description = 'Tries to restore GoogleRoutesDB dump'
+    dependsOn dockerStartPostgresContainer
+
+    targetContainerId dockerCreatePostgresContainer.getContainerId
+    withCommand(['/data/scripts/try_restore_google_routes_db.sh'])
+}
+dockerStopPostgresContainer.mustRunAfter(googleRoutesDbTryRestore)
+
+task googleRoutesDbTryDump(type: DockerExecContainer) {
+    group = 'Docker'
+    description = 'Tries to dump GoogleRoutesDB'
+    dependsOn dockerStartPostgresContainer
+
+    targetContainerId dockerCreatePostgresContainer.getContainerId
+    withCommand(['/data/scripts/try_dump_google_routes_db.sh'])
+}
+dockerStopPostgresContainer.mustRunAfter(googleRoutesDbTryDump)
+
+task googleRoutesDbStart {
+    group = 'Docker'
+    description = 'Starts a GoogleRoutesDB (see dockerStartPostgresContainer)'
+    dependsOn dockerStartPostgresContainer
+    finalizedBy googleRoutesDbTryRestore
+}
+
+task googleRoutesDbStop {
+    group = 'Docker'
+    description = 'Tries to restore GoogleRoutesDB dump'
+    dependsOn(googleRoutesDbTryDump, dockerStopPostgresContainer)
+}
+
+if (googleRoutesDbEnabled) {
+    run.dependsOn(googleRoutesDbStart)
+    run.finalizedBy(googleRoutesDbStop)
+    execute.dependsOn(googleRoutesDbStart)
+    execute.finalizedBy(googleRoutesDbStop)
+}
