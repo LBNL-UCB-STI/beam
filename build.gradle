@@ -655,6 +655,7 @@ task dockerStartPostgresContainer(type: DockerStartContainer) {
     description = 'Starts Postgres container'
 
     dependsOn dockerCreatePostgresContainer
+    targetContainerId dockerCreatePostgresContainer.containerId
 }
 
 jmh {
